@@ -1,0 +1,209 @@
+﻿@page "/export"
+@using ITMartinFileSorter.Application.Services
+@using ITMartinFileSorter.Domain.Enums
+
+@inject DuplicateService DuplicateService
+@inject NavigationManager Navigation
+@inject FastVideoBatchExportService FastVideoBatchExportService
+@inject ImageBatchExportService ImageBatchExportService
+@inject IConfiguration Configuration
+@inject TripGroupingService TripGroupingService
+
+<div class="export-page">
+
+    <ActionButtonBar>
+        <SectionTitle Title="Export Organized Files" />
+
+        <button class="btn btn-outline-secondary"
+                @onclick="GoBack"
+                disabled="@IsExporting">
+            Back
+        </button>
+    </ActionButtonBar>
+
+    <ContentCard Title="Export Structure Preview">
+        <ExportPreviewCard />
+    </ContentCard>
+
+    @if (IsExporting)
+    {
+        <ProgressPanel
+            Title="@CurrentStage"
+            Current="@ExportedCount"
+            Total="@TotalToExport"
+            Percent="@ProgressPercent"
+            CurrentItem="@CurrentExportFile" />
+    }
+
+    @if (!IsExporting)
+    {
+        <ActionButtonBar>
+            <button class="btn btn-success btn-lg"
+                    @onclick="StartExport">
+                Start Export
+            </button>
+        </ActionButtonBar>
+    }
+
+</div>
+
+@code {
+    bool IsExporting = false;
+    int ExportedCount = 0;
+    int TotalToExport = 0;
+
+    string CurrentExportFile = "";
+    string CurrentStage = "";
+
+    int ProgressPercent =>
+        TotalToExport <= 0
+            ? 0
+            : Math.Min(100,
+                (int)((double)ExportedCount / TotalToExport * 100));
+
+    void GoBack() => Navigation.NavigateTo("/");
+
+    async Task StartExport()
+    {
+        var files = DuplicateService.FilesToExport.ToList();
+
+        if (!files.Any())
+            return;
+
+        var trips = TripGroupingService.CreateTrips(files);
+
+        var exportRoot = Path.Combine(
+            Configuration["MediaSettings:LibraryRoot"]!,
+            "Library");
+
+        Directory.CreateDirectory(exportRoot);
+
+        IsExporting = true;
+
+        try
+        {
+            // COPY FILES
+            CurrentStage = "Copying files...";
+            ExportedCount = 0;
+            TotalToExport = files.Count;
+            CurrentExportFile = "";
+
+            await InvokeAsync(StateHasChanged);
+
+            int refreshCounter = 0;
+
+            foreach (var file in files)
+            {
+                var categoryFolder = file.MainCategory switch
+                {
+                    MediaMainCategory.Image => "Photos",
+                    MediaMainCategory.Video => "Videos",
+                    _ => "Other"
+                };
+
+                var monthName = new DateTime(file.Year, file.Month, 1)
+                    .ToString("MMMM");
+
+                var targetFolder = Path.Combine(
+                    exportRoot,
+                    categoryFolder,
+                    file.Year.ToString(),
+                    monthName);
+
+                var trip = trips.FirstOrDefault(t => t.Files.Contains(file));
+
+                if (trip != null)
+                    targetFolder = Path.Combine(targetFolder, trip.Name);
+
+                Directory.CreateDirectory(targetFolder);
+
+                var extension = Path.GetExtension(file.FileName);
+
+                var typeLabel = file.MainCategory == MediaMainCategory.Video
+                    ? "Video"
+                    : "Photo";
+
+                var locationPart = trip?.Name.Split(' ').LastOrDefault() ?? "";
+
+                var newFileName =
+                    $"{file.CreatedAt:yyyy-MM-dd} {locationPart} {typeLabel} {(ExportedCount + 1):D3}{extension}";
+
+                var destination = Path.Combine(targetFolder, newFileName);
+
+                File.Copy(file.FullPath, destination, true);
+
+                ExportedCount++;
+                CurrentExportFile = newFileName;
+
+                refreshCounter++;
+
+                if (refreshCounter % 10 == 0)
+                {
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Yield();
+                }
+            }
+
+            await InvokeAsync(StateHasChanged);
+
+            // VIDEO CONVERSION
+            var videoFiles = Directory
+                .EnumerateFiles(exportRoot, "*.*", SearchOption.AllDirectories)
+                .Where(f =>
+                {
+                    var ext = Path.GetExtension(f).ToLowerInvariant();
+                    return ext is ".mov" or ".avi" or ".mkv" or ".wmv";
+                })
+                .ToList();
+
+            CurrentStage = "Converting videos...";
+            ExportedCount = 0;
+            TotalToExport = videoFiles.Count;
+            CurrentExportFile = "";
+
+            await InvokeAsync(StateHasChanged);
+
+            await FastVideoBatchExportService.ConvertAllVideosAsync(
+                exportRoot,
+                async (done, total, fileName) =>
+                {
+                    ExportedCount = done;
+                    TotalToExport = total;
+                    CurrentExportFile = fileName;
+
+                    await InvokeAsync(StateHasChanged);
+                });
+
+            // IMAGE CONVERSION
+            CurrentStage = "Converting images...";
+            ExportedCount = 0;
+            CurrentExportFile = "";
+
+            await InvokeAsync(StateHasChanged);
+
+            await ImageBatchExportService.ConvertAllImagesAsync(
+                exportRoot,
+                async (done, total, fileName) =>
+                {
+                    ExportedCount = done;
+                    TotalToExport = total;
+                    CurrentExportFile = fileName;
+
+                    await InvokeAsync(StateHasChanged);
+                });
+
+            CurrentStage = "Done ✔";
+            CurrentExportFile = "";
+
+            await InvokeAsync(StateHasChanged);
+
+            await Task.Delay(1000);
+
+            Navigation.NavigateTo("/library", forceLoad: true);
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
+}

@@ -1,0 +1,85 @@
+﻿@using ITMartinFileSorter.Application.Services
+@using ITMartinFileSorter.Domain.Entities
+@using ITMartinFileSorter.Domain.Enums
+@inject ThumbnailService ThumbnailService
+
+<div class="media-small-card">
+    <div>
+        @switch (File.MainCategory)
+        {
+            case MediaMainCategory.Image:
+
+                @if (ShowThumbnail &&
+                     !string.IsNullOrEmpty(File.ThumbnailPath))
+                {
+                        <img src="@File.ThumbnailPath"
+                    class="media-thumb">
+
+                }
+                else
+                {
+                    <div>🖼️</div>
+                }
+                break;
+
+            case MediaMainCategory.Video:
+                <div>🎬</div>
+                break;
+
+            case MediaMainCategory.Audio:
+                <div>🎵</div>
+                break;
+
+            case MediaMainCategory.Document:
+                <div>📄</div>
+                break;
+        }
+    </div>
+    <div>
+        @File.FileName
+    </div>
+
+    <div>
+        @FormatSize(File.SizeBytes)
+    </div>
+
+    <div class="mt-auto">
+        <button class="btn btn-sm btn-success w-100"
+                @onclick="() => OnKeep.InvokeAsync(File)">
+            Keep
+        </button>
+    </div>
+</div>
+
+@code {
+
+    [Parameter] public MediaFile File { get; set; } = default!;
+    [Parameter] public EventCallback<MediaFile> OnKeep { get; set; }
+    [Parameter] public bool ShowThumbnail { get; set; } = false;
+    protected override void OnParametersSet()
+    {
+        if (!ShowThumbnail)
+            return;
+
+        if (string.IsNullOrEmpty(File.ThumbnailPath) &&
+            File.Type == MediaType.Image)
+        {
+            File.ThumbnailPath = ThumbnailService.GenerateThumbnail(File);
+        }
+    }
+
+    string FormatSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        int order = 0;
+
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+
+        return $"{len:0.#} {sizes[order]}";
+    }
+}

@@ -1,0 +1,52 @@
+﻿@page "/library/quick-scan"
+
+@using ITMartinLibrary.Application.Services
+@using Microsoft.AspNetCore.Components.Web
+@using ITMartin.Shared.UI.Components
+
+@inject InventoryService InventoryService
+
+<div class="library-page">
+
+    <SectionTitle Title="📷 Quick Barcode Scan" />
+
+    <ContentCard>
+        <input @bind="barcode"
+               @onkeydown="HandleKeyDown"
+               class="form-control mb-3"
+               placeholder="Scan barcode here"
+               autofocus />
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert alert-success mt-3">
+                @message
+            </div>
+        }
+    </ContentCard>
+
+</div>
+
+@code {
+    private string barcode = "";
+    private string message = "";
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ProcessScan();
+        }
+    }
+
+    private async Task ProcessScan()
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+            return;
+
+        await InventoryService.ScanOrIncrementAsync(barcode);
+
+        message = $"Saved {barcode}";
+        barcode = "";
+    }
+}

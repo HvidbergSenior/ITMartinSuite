@@ -1,0 +1,7 @@
+﻿<div class="d-flex gap-2 align-items-center mb-3">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

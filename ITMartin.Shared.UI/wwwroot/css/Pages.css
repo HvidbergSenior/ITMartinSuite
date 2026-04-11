@@ -1,0 +1,143 @@
+.index-page,
+.library-page,
+.viewer-page,
+.category-page {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.export-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+/* GRIDS */
+.main-category-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.media-grid,
+.folder-grid,
+.file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 18px;
+}
+
+/* VIEWER */
+.viewer-video,
+.viewer-image {
+    width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+}
+
+/* MEDIA */
+.media-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.media-small-card {
+    width: 150px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    border-radius: 16px;
+    background: var(--bg-card);
+    box-shadow: var(--shadow);
+    text-align: center;
+}
+
+/* EXPORT */
+.export-info-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.export-preview-header {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* HERO */
+.scan-hero-card {
+    padding: 32px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+    background: linear-gradient(145deg, #161616, #1f1f1f);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.hero-text {
+    font-size: 1.05rem;
+    margin-bottom: 20px;
+    opacity: 0.92;
+    line-height: 1.6;
+}
+
+/* LIBRARY */
+.library-secondary-card {
+    margin-top: 40px;
+    opacity: 0.92;
+}
+
+.library-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+/* EXPORT */
+.export-ready-card {
+    margin-top: 32px;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.12);
+    border-radius: 18px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .library-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .scan-hero-card {
+        padding: 24px;
+    }
+}
+
+.duplicate-page {
+    padding: 40px 24px;
+}
+
+.duplicate-toolbar {
+    margin-bottom: 28px;
+}
+
+.duplicate-actions {
+    display: flex;
+    gap: 14px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.duplicate-content {
+    margin-top: 24px;
+}

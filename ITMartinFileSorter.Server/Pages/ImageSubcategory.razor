@@ -1,0 +1,39 @@
+﻿@page "/images/{SubCategory}"
+@using ITMartinFileSorter.Application.Services
+@using ITMartinFileSorter.Domain.Entities
+@using ITMartinFileSorter.Domain.Enums
+
+@inject DuplicateService DuplicateService
+
+<h3>@SubCategory</h3>
+
+<div class="category-page">
+
+    <SectionTitle Title="@SubCategory" />
+
+    <ContentCard Title="Images">
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var file in Files)
+            {
+                <MediaCard File="file"
+                           ShowThumbnail="true" />
+            }
+        </div>
+    </ContentCard>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public string? SubCategory { get; set; }
+
+    List<MediaFile> Files =>
+        DuplicateService.AllFiles
+            .Where(f =>
+                f.MainCategory == MediaMainCategory.Image &&
+                f.SubCategory.ToString() == SubCategory)
+            .OrderByDescending(f => f.CreatedAt)
+            .ToList();
+
+}

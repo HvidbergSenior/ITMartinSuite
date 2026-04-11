@@ -1,0 +1,39 @@
+﻿<div class="alert alert-info">
+    <strong>@Title</strong>
+
+    @if (Total == 0)
+    {
+        <div class="d-flex align-items-center gap-2 mt-2">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <span>Scanning...</span>
+        </div>
+    }
+    else
+    {
+        <div class="progress mt-2">
+            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                 style="width:@Percent%">
+                @Percent%
+            </div>
+        </div>
+
+        <div class="mt-2">
+            @Current / @Total
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(CurrentItem))
+    {
+        <div class="mt-2">
+            Current: @CurrentItem
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public int Current { get; set; }
+    [Parameter] public int Total { get; set; }
+    [Parameter] public int Percent { get; set; }
+    [Parameter] public string? CurrentItem { get; set; }
+}

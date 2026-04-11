@@ -1,0 +1,152 @@
+﻿@page "/category-step/{CategoryString}"
+@using ITMartinFileSorter.Application.Services
+@using ITMartinFileSorter.Domain.Entities
+@using ITMartinFileSorter.Domain.Enums
+@inject DuplicateService DuplicateService
+@inject NavigationManager Navigation
+
+<div class="page-container">
+
+    <ActionButtonBar>
+        <button class="btn btn-primary"
+                @onclick="Continue"
+                disabled="@(!CanContinue)">
+            Continue
+        </button>
+
+        <button class="btn btn-success"
+                @onclick="AcceptAll"
+                disabled="@(!FilesInCategory.Any())">
+            Accept All
+        </button>
+    </ActionButtonBar>
+
+    <SectionTitle Title="@($"Step: {CurrentCategory}")" />
+
+    @if (!FilesInCategory.Any())
+    {
+        <EmptyState
+            Message="All files in this category handled."
+            Type="success" />
+    }
+    else if (CurrentCategory == MediaMainCategory.Audio)
+    {
+        @foreach (var group in AudioGroups)
+        {
+            <ContentCard Title="@group.Key">
+                <div class="file-grid">
+                    @foreach (var file in group.Value)
+                    {
+                        <MediaCard File="file"
+                                   OnKeep="Keep"
+                                   ShowThumbnail="false" />
+                    }
+                </div>
+            </ContentCard>
+        }
+    }
+    else
+    {
+        @foreach (var yearGroup in YearGroups)
+        {
+            <ContentCard Title="@yearGroup.Key.ToString()">
+                <div class="file-grid">
+                    @foreach (var file in yearGroup.Value)
+                    {
+                        <MediaCard File="file"
+                                   OnKeep="Keep"
+                                   ShowThumbnail="false" />
+                    }
+                </div>
+            </ContentCard>
+        }
+    }
+
+</div>
+
+@code {
+
+    [Parameter] public string CategoryString { get; set; } = "audio";
+
+    private MediaMainCategory CurrentCategory;
+    private List<MediaFile> FilesInCategory = new();
+    private Dictionary<string, List<MediaFile>> AudioGroups = new();
+    private Dictionary<int, List<MediaFile>> YearGroups = new();
+
+    bool CanContinue =>
+        !DuplicateService.AllFiles.Any(f =>
+            f.MainCategory == CurrentCategory &&
+            f.Status == MediaFileStatus.Initial);
+
+    protected override void OnInitialized()
+    {
+        CurrentCategory = CategoryString.ToLower() switch
+        {
+            "audio" => MediaMainCategory.Audio,
+            "document" => MediaMainCategory.Document,
+            "image" => MediaMainCategory.Image,
+            "video" => MediaMainCategory.Video,
+            _ => MediaMainCategory.Audio
+        };
+
+        LoadFiles();
+    }
+
+    void LoadFiles()
+    {
+        FilesInCategory = DuplicateService.AllFiles
+            .Where(f =>
+                f.MainCategory == CurrentCategory &&
+                f.Status == MediaFileStatus.Initial &&
+                !DuplicateService.DuplicateGroups.Any(g => g.Contains(f)))
+            .ToList();
+        
+        if (CurrentCategory == MediaMainCategory.Audio)
+        {
+            AudioGroups = FilesInCategory
+                .GroupBy(f => f.Extension.ToLowerInvariant())
+                .OrderBy(g => g.Key)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            YearGroups.Clear();
+        }
+        else
+        {
+            YearGroups = FilesInCategory
+                .GroupBy(f => f.Year)
+                .OrderByDescending(g => g.Key)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            AudioGroups.Clear();
+        }
+    }
+
+    void Keep(MediaFile file)
+    {
+        var group = DuplicateService.DuplicateGroups
+            .FirstOrDefault(g => g.Contains(file));
+
+        if (group is null)
+            return;
+
+        foreach (var f in group)
+        {
+            f.Status = f == file
+                ? MediaFileStatus.ToKeep
+                : MediaFileStatus.ToDelete;
+        }
+    }
+
+    void AcceptAll()
+    {
+        foreach (var file in FilesInCategory)
+            file.Status = MediaFileStatus.ToKeep;
+
+        LoadFiles();
+    }
+
+    void Continue()
+    {
+        Navigation.NavigateTo("/filesorter");
+    }
+}

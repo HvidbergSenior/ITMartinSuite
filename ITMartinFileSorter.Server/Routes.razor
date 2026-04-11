@@ -1,0 +1,14 @@
+﻿@using ITMartinFileSorter.Server.Layout
+
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData"
+                   DefaultLayout="typeof(FileSorterLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(FileSorterLayout)">
+            <p>Sorry, page not found.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

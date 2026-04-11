@@ -1,0 +1,15 @@
+﻿@using ITMartinLibrary.Server.Layout
+@using Microsoft.AspNetCore.Components.Routing
+
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="context">
+        <RouteView RouteData="context"
+                   DefaultLayout="@typeof(LibraryLayout)" />
+    </Found>
+
+    <NotFound>
+        <LayoutView Layout="@typeof(LibraryLayout)">
+            <p>Sorry, nothing found here.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

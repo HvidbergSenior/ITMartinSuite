@@ -1,0 +1,33 @@
+﻿<div class="main-category-box @CssClass @(IsLocked ? "category-locked" : "category-active")"
+     @onclick="HandleClick">
+
+    <strong>@Title</strong>
+
+    <div>Remaining: @Remaining</div>
+    <div>Kept: @Kept</div>
+    <div>Total: @Total</div>
+    <div>@SizeText</div>
+
+    <div class="category-status">
+        @(Total == 0 ? "🔒 Empty" :
+        Remaining == 0 ? "🔒 Done" :
+        "▶ Handle")
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public int Remaining { get; set; }
+    [Parameter] public int Kept { get; set; }
+    [Parameter] public int Total { get; set; }
+    [Parameter] public string SizeText { get; set; } = "";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public bool IsLocked { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (!IsLocked)
+            await OnClick.InvokeAsync();
+    }
+}

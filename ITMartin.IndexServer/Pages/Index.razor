@@ -1,0 +1,51 @@
+﻿@page "/"
+
+@using ITMartin.Shared.UI.Components
+
+<div class="index-page">
+
+    <SectionTitle Title="🚀 ITMartin Suite" />
+
+    <ContentCard CssClass="mb-4">
+        <p class="mb-0">
+            Launch your tools from one place.
+            File management, inventory control and future music utilities.
+        </p>
+    </ContentCard>
+
+    <div class="main-category-row mt-4">
+
+        <ContentCard>
+            <h4>🎬 FileSorter</h4>
+            <p>Organize, scan and export media files</p>
+
+            <a href="https://localhost:7264"
+               class="btn btn-primary mt-3"
+               target="_blank">
+                Open App
+            </a>
+        </ContentCard>
+
+        <ContentCard>
+            <h4>📚 Inventory</h4>
+            <p>Manage books, films and barcode stock</p>
+
+            <a href="https://localhost:7232"
+               class="btn btn-primary mt-3"
+               target="_blank">
+                Open App
+            </a>
+        </ContentCard>
+
+        <ContentCard>
+            <h4>🎵 Chord Finder</h4>
+            <p>Detect chords from MP3 files</p>
+
+            <button class="btn btn-secondary mt-3" disabled>
+                Coming Soon
+            </button>
+        </ContentCard>
+
+    </div>
+
+</div>

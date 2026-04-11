@@ -1,0 +1,11 @@
+bin/
+obj/
+.idea/
+.vs/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
+*.log
+ITMartinFileSorter.Server/ffmpeg/*.exe

@@ -1,0 +1,159 @@
+﻿@page "/viewer"
+@using Microsoft.AspNetCore.WebUtilities
+@using ITMartinFileSorter.Infrastructure.FileSystem
+@using ITMartinFileSorter.Application.Services
+
+@inject NavigationManager Navigation
+@inject SubtitleService SubtitleService
+@inject IConfiguration Configuration
+<div class="viewer-page">
+
+    <ActionButtonBar>
+        <button class="btn btn-outline-light" @onclick="GoHome">🏠 Home</button>
+        <button class="btn btn-outline-secondary" @onclick="GoToFolder">📁 Folder</button>
+        <button class="btn btn-secondary" @onclick="PlayPrevious" disabled="@(Playlist.Count <= 1)">⬅ Previous</button>
+        <button class="btn btn-danger" @onclick="PlayNext" disabled="@(Playlist.Count <= 1)">Next ➜</button>
+    </ActionButtonBar>
+
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <EmptyState Message="@StatusMessage" Type="info" />
+    }
+
+    @if (!string.IsNullOrEmpty(FilePath))
+    {
+        <ContentCard Title="@Path.GetFileName(FilePath)">
+            @if (IsVideo)
+            {
+                <video class="viewer-video" width="100%" controls autoplay>
+                    <source src="@WebPath" type="video/mp4" />
+                </video>
+            }
+            else
+            {
+                <img class="viewer-image" src="@WebPath" />
+            }
+        </ContentCard>
+    }
+
+</div>
+
+@code {
+    private string FilePath = "";
+    private string WebPath = "";
+    private bool IsVideo;
+    private string StatusMessage = "";
+
+    private List<string> Playlist = new();
+    private int CurrentIndex = 0;
+
+    protected override void OnParametersSet()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (!query.TryGetValue("path", out var path))
+            return;
+
+        var requestedPath = Uri.UnescapeDataString(path!);
+
+        FilePath = ResolveConvertedPath(requestedPath);
+
+        var folder = Path.GetDirectoryName(FilePath);
+
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+            return;
+
+        Playlist = Directory
+            .EnumerateFiles(folder)
+            .Select(ResolveConvertedPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(File.Exists)
+            .Where(FileScanner.IsSupportedMedia)
+            .OrderBy(x => x)
+            .ToList();
+
+        CurrentIndex = Playlist.FindIndex(f =>
+            string.Equals(f, FilePath, StringComparison.OrdinalIgnoreCase));
+
+        if (CurrentIndex < 0)
+            CurrentIndex = 0;
+
+        LoadCurrentMedia();
+    }
+
+    private void LoadCurrentMedia()
+    {
+        FilePath = Playlist[CurrentIndex];
+
+        var libraryRoot = Path.Combine(
+            Configuration["MediaSettings:LibraryRoot"]!,
+            "Library");
+
+        var relativePath = Path.GetRelativePath(
+                libraryRoot,
+                FilePath)
+            .Replace("\\", "/");
+
+        WebPath = $"/libraryfiles/{relativePath}";
+
+        IsVideo = FileScanner.IsVideo(FilePath);
+    }
+
+    private void PlayNext()
+    {
+        if (Playlist.Count <= 1)
+            return;
+
+        CurrentIndex = (CurrentIndex + 1) % Playlist.Count;
+        LoadCurrentMedia();
+    }
+
+    private void PlayPrevious()
+    {
+        if (Playlist.Count <= 1)
+            return;
+
+        CurrentIndex--;
+
+        if (CurrentIndex < 0)
+            CurrentIndex = Playlist.Count - 1;
+
+        LoadCurrentMedia();
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/library", forceLoad: true);
+    }
+
+    private void GoToFolder()
+    {
+        var folder = Path.GetDirectoryName(FilePath);
+
+        Navigation.NavigateTo(
+            $"/library?path={Uri.EscapeDataString(folder!)}",
+            forceLoad: true);
+    }
+
+    private string ResolveConvertedPath(string originalPath)
+    {
+        var folder = Path.GetDirectoryName(originalPath);
+
+        if (string.IsNullOrWhiteSpace(folder))
+            return originalPath;
+
+        var name = Path.GetFileNameWithoutExtension(originalPath);
+
+        var mp4 = Path.Combine(folder, $"{name}.mp4");
+        var jpg = Path.Combine(folder, $"{name}.jpg");
+
+        if (File.Exists(mp4))
+            return mp4;
+
+        if (File.Exists(jpg))
+            return jpg;
+
+        return originalPath;
+    }
+}

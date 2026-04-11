@@ -1,0 +1,8 @@
+﻿<div class="alert alert-@Type">
+    @Message
+</div>
+
+@code {
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public string Type { get; set; } = "info";
+}

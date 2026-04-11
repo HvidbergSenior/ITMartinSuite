@@ -1,0 +1,12 @@
+﻿<div class="@CssClass">
+    <strong>@Title</strong><br />
+    @Value<br />
+    @SubText
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string SubText { get; set; } = "";
+    [Parameter] public string CssClass { get; set; } = "all-files-card";
+}

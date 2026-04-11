@@ -1,0 +1,14 @@
+﻿<header class="app-header">
+    <div class="header-title">
+        @Title
+    </div>
+
+    <nav class="header-nav">
+        @ChildContent
+    </nav>
+</header>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

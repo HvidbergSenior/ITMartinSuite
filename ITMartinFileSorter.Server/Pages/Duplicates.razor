@@ -1,0 +1,95 @@
+﻿@page "/duplicates"
+@using ITMartinFileSorter.Application.Services
+@using ITMartinFileSorter.Domain.Entities
+@using ITMartinFileSorter.Domain.Enums
+@inject DuplicateService DuplicateService
+@inject NavigationManager Navigation
+
+<div class="category-page duplicate-page">
+
+    <ActionButtonBar class="duplicate-toolbar">
+        <SectionTitle Title="Handle Duplicates" />
+
+        <div class="duplicate-actions">
+            <button class="btn btn-success"
+                    @onclick="Continue"
+                    disabled="@(!AllGroupsHandled)">
+                Continue
+            </button>
+
+            <button class="btn btn-danger"
+                    @onclick="DeleteAllDuplicatesGlobally">
+                Delete All (Keep Newest)
+            </button>
+        </div>
+    </ActionButtonBar>
+
+    <div class="duplicate-content">
+        @if (!DuplicateService.DuplicateGroups.Any())
+        {
+            <EmptyState
+                Message="No duplicates found"
+                Type="success" />
+        }
+        else
+        {
+            @foreach (var group in DuplicateService.CurrentPageGroups)
+            {
+                <ContentCard Title="Duplicate Group">
+                    <div class="d-flex gap-3 flex-wrap">
+                        @foreach (var file in group)
+                        {
+                            <MediaCard File="file"
+                                       OnKeep="Keep"
+                                       ShowThumbnail="true" />
+                        }
+                    </div>
+                </ContentCard>
+            }
+        }
+    </div>
+
+</div>
+
+@code {
+
+    bool AllGroupsHandled =>
+        DuplicateService.DuplicateGroups
+            .All(g => g.Count(f => f.Status == MediaFileStatus.ToDelete) == g.Count - 1);
+
+    void Keep(MediaFile file)
+    {
+        file.Status = MediaFileStatus.ToKeep;
+    }
+
+    void Delete(MediaFile file)
+    {
+        file.Status = MediaFileStatus.ToDelete;
+    }
+
+    void DeleteAllButOne(List<MediaFile> group)
+    {
+        var newest = group.OrderByDescending(f => f.CreatedAt).First();
+
+        foreach (var f in group)
+        {
+            f.Status = f == newest
+                ? MediaFileStatus.ToKeep
+                : MediaFileStatus.ToDelete;
+        }
+    }
+
+    void DeleteAllDuplicatesGlobally()
+    {
+        foreach (var group in DuplicateService.DuplicateGroups)
+        {
+            DeleteAllButOne(group);
+        }
+    }
+
+    void Continue()
+    {
+        DuplicateService.DuplicatesHandled = true;
+        Navigation.NavigateTo("/filesorter");
+    }
+}

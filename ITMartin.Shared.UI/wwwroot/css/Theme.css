@@ -1,0 +1,52 @@
+﻿:root {
+    --bg-main: #0b0b0b;
+    --bg-surface: #121212;
+    --bg-card: #1a1a1a;
+    --bg-card-hover: #232323;
+
+    --text-main: #ffffff;
+    --text-muted: #b0b0b0;
+
+    --accent: #e50914;
+    --accent-hover: #c40812;
+
+    --success: #2f9e44;
+    --warning: #f59f00;
+    --info: #1971c2;
+    --audio: #6f42c1;
+
+    --border: #2d2d2d;
+
+    --radius-sm: 12px;
+    --radius-md: 18px;
+    --radius-lg: 24px;
+
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    --shadow-strong: 0 16px 34px rgba(0,0,0,0.5);
+
+    --space-xs: 8px;
+    --space-sm: 16px;
+    --space-md: 24px;
+    --space-lg: 32px;
+    --space-xl: 48px;
+
+    --transition: all 0.2s ease;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--bg-main);
+    color: var(--text-main);
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+body {
+    line-height: 1.6;
+}
