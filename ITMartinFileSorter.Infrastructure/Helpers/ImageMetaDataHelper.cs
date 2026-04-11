@@ -1,9 +1,9 @@
 ﻿using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 
-namespace ITMartinFileSorter.Application.Helpers;
+namespace ITMartinFileSorter.Infrastructure.Helpers;
 
-public static class ImageMetadataHelper
+public class ImageMetadataHelper
 {
     public static DateTime? GetCreationTime(string path)
     {

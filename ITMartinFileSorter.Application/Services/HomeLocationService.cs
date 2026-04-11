@@ -1,14 +1,22 @@
 ﻿using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
 public class HomeLocationService
 {
+    private readonly IGpsService _gpsService;
+
+    public HomeLocationService(IMediaDateService mediaDateService, IGpsService gpsService)
+    {
+        _gpsService = gpsService;
+    }
+
     public (double lat, double lng)? DetectHome(IEnumerable<MediaFile> files)
     {
         var coords = files
-            .Select(f => GpsHelper.GetCoordinates(f.FullPath))
+            .Select(f => _gpsService.GetCoordinates(f.FullPath))
             .Where(c => c != null)
             .Select(c => c!.Value)
             .ToList();

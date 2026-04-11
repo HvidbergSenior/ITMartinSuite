@@ -1,4 +1,5 @@
 ﻿@page "/export"
+@using ITMartinFileSorter.Application.Helpers
 @using ITMartinFileSorter.Application.Services
 @using ITMartinFileSorter.Domain.Enums
 
@@ -8,6 +9,8 @@
 @inject ImageBatchExportService ImageBatchExportService
 @inject IConfiguration Configuration
 @inject TripGroupingService TripGroupingService
+@inject ArchivePathBuilder ArchivePathBuilder
+@inject FileRenameService FileRenameService
 
 <div class="export-page">
 
@@ -90,62 +93,61 @@
 
             await InvokeAsync(StateHasChanged);
 
+            var structure = ArchivePathBuilder.BuildStructure(
+                files,
+                new ArchiveOptions
+                {
+                    UseTripFolders = true,
+                    UseYearFolders = true,
+                    UseMonthFolders = true,
+                    UseTypeFolders = false
+                });
+
+            TotalToExport = structure.Sum(x => x.Value.Count);
+            ExportedCount = 0;
+            CurrentStage = "Copying files...";
+            CurrentExportFile = "";
+
+            await InvokeAsync(StateHasChanged);
+            await Task.Yield();
+
             int refreshCounter = 0;
 
-            foreach (var file in files)
+            foreach (var folder in structure)
             {
-                var categoryFolder = file.MainCategory switch
-                {
-                    MediaMainCategory.Image => "Photos",
-                    MediaMainCategory.Video => "Videos",
-                    _ => "Other"
-                };
-
-                var monthName = new DateTime(file.Year, file.Month, 1)
-                    .ToString("MMMM");
-
-                var targetFolder = Path.Combine(
-                    exportRoot,
-                    categoryFolder,
-                    file.Year.ToString(),
-                    monthName);
-
-                var trip = trips.FirstOrDefault(t => t.Files.Contains(file));
-
-                if (trip != null)
-                    targetFolder = Path.Combine(targetFolder, trip.Name);
+                var targetFolder = Path.Combine(exportRoot, folder.Key);
 
                 Directory.CreateDirectory(targetFolder);
 
-                var extension = Path.GetExtension(file.FileName);
+                int index = 1;
 
-                var typeLabel = file.MainCategory == MediaMainCategory.Video
-                    ? "Video"
-                    : "Photo";
-
-                var locationPart = trip?.Name.Split(' ').LastOrDefault() ?? "";
-
-                var newFileName =
-                    $"{file.CreatedAt:yyyy-MM-dd} {locationPart} {typeLabel} {(ExportedCount + 1):D3}{extension}";
-
-                var destination = Path.Combine(targetFolder, newFileName);
-
-                File.Copy(file.FullPath, destination, true);
-
-                ExportedCount++;
-                CurrentExportFile = newFileName;
-
-                refreshCounter++;
-
-                if (refreshCounter % 10 == 0)
+                foreach (var file in folder.Value)
                 {
-                    await InvokeAsync(StateHasChanged);
-                    await Task.Yield();
+                    var newFileName = FileRenameService.BuildName(
+                        file,
+                        index,
+                        RenameStrategy.DateAndType);
+
+                    var destination = Path.Combine(targetFolder, newFileName);
+
+                    File.Copy(file.FullPath, destination, true);
+
+                    index++;
+                    ExportedCount++;
+                    CurrentExportFile = newFileName;
+
+                    refreshCounter++;
+
+                    if (refreshCounter % 5 == 0)
+                    {
+                        await InvokeAsync(StateHasChanged);
+                        await Task.Yield();
+                    }
                 }
             }
 
             await InvokeAsync(StateHasChanged);
-
+            
             // VIDEO CONVERSION
             var videoFiles = Directory
                 .EnumerateFiles(exportRoot, "*.*", SearchOption.AllDirectories)

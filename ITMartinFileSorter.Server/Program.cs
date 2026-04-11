@@ -36,6 +36,10 @@ builder.Services.AddScoped<JunkDetectionService>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<ThumbnailService>();
 builder.Services.AddScoped<ArchivePathBuilder>();
+builder.Services.AddScoped<IMediaDateService, MediaDateService>();
+builder.Services.AddScoped<AlbumStyleNameBuilder>();
+builder.Services.AddScoped<IGpsService, GpsService>();
+builder.Services.AddScoped<FileRenameService>();
 
 builder.Services.AddControllers();
 

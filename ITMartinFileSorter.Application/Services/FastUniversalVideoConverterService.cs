@@ -29,7 +29,9 @@ public class FastUniversalVideoConverterService
         Directory.CreateDirectory(outputFolder);
 
         var name = Path.GetFileNameWithoutExtension(inputPath);
-        var outputPath = Path.Combine(outputFolder, $"{name}.mp4");
+
+        var finalOutputPath = Path.Combine(outputFolder, $"{name}.mp4");
+        var tempOutputPath = Path.Combine(outputFolder, $"{name}.temp.mp4");
 
         var info = await GetCodecInfoAsync(inputPath);
 
@@ -41,12 +43,12 @@ public class FastUniversalVideoConverterService
             if (CanCopy(inputPath, info))
             {
                 Console.WriteLine("[VIDEO] Fast copy / rewrap");
-                await CopyAsync(inputPath, outputPath);
+                await CopyAsync(inputPath, tempOutputPath);
             }
             else
             {
                 Console.WriteLine("[VIDEO] Full re-encode");
-                await ReencodeAsync(inputPath, outputPath);
+                await ReencodeAsync(inputPath, tempOutputPath);
             }
         }
         catch (Exception ex)
@@ -54,13 +56,26 @@ public class FastUniversalVideoConverterService
             Console.WriteLine($"[VIDEO] Copy failed: {ex.Message}");
             Console.WriteLine("[VIDEO] Falling back to full re-encode");
 
-            await ReencodeAsync(inputPath, outputPath);
+            await ReencodeAsync(inputPath, tempOutputPath);
         }
 
-        await WaitForOutputReady(outputPath);
-        CopyDates(inputPath, outputPath);
-        TryDeleteOriginal(inputPath, outputPath);
-        return outputPath;
+        await WaitForOutputReady(tempOutputPath);
+
+        CopyDates(inputPath, tempOutputPath);
+
+        // delete original first
+        if (File.Exists(inputPath))
+            File.Delete(inputPath);
+
+        // if final name exists remove it
+        if (File.Exists(finalOutputPath))
+            File.Delete(finalOutputPath);
+
+        File.Move(tempOutputPath, finalOutputPath);
+
+        Console.WriteLine($"[VIDEO REPLACED] {finalOutputPath}");
+
+        return finalOutputPath;
     }
 
     private bool CanCopy(string inputPath, CodecInfo info)

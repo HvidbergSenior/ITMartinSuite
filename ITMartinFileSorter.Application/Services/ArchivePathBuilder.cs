@@ -1,16 +1,19 @@
 ﻿using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
 public class ArchivePathBuilder
 {
     private readonly TripGroupingService _tripService;
+    private readonly IMediaDateService _mediaDateService;
 
-    public ArchivePathBuilder(TripGroupingService tripService)
+    public ArchivePathBuilder(TripGroupingService tripService, IMediaDateService mediaDateService)
     {
         _tripService = tripService;
+        _mediaDateService = mediaDateService;
     }
 
     public Dictionary<string, List<MediaFile>> BuildStructure(
@@ -141,7 +144,11 @@ public class ArchivePathBuilder
         ArchiveOptions options,
         List<string> parts)
     {
-        var bestDate = ImageMetadataHelper.GetBestDate(file.FullPath);
+        var bestDate = _mediaDateService.GetBestDate(file.FullPath);
+
+        Console.WriteLine($"FILE: {file.FullPath}");
+        Console.WriteLine($"BEST DATE: {bestDate:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"YEAR: {bestDate.Year}");
 
         var year = bestDate.Year;
         var month = bestDate.Month;

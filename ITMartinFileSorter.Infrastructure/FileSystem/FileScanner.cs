@@ -1,16 +1,20 @@
 ﻿using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
 using ITMartinFileSorter.Domain.Interfaces;
+using ITMartinFileSorter.Infrastructure.Helpers;
 
 namespace ITMartinFileSorter.Infrastructure.FileSystem;
 
 public sealed class FileScanner : IFileScanner
 {
     private readonly IHashService _hashService;
-
-    public FileScanner(IHashService hashService)
+    private readonly IMediaDateService _mediaDateService;
+    public FileScanner(
+        IHashService hashService,
+        IMediaDateService mediaDateService)
     {
         _hashService = hashService;
+        _mediaDateService = mediaDateService;
     }
     public static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -93,16 +97,29 @@ public sealed class FileScanner : IFileScanner
                     ? MediaType.Audio
                     : MediaType.Document;
 
+            
+            DateTime bestDate;
+
+            try
+            {
+                bestDate = _mediaDateService.GetBestDate(file);
+            }
+            catch
+            {
+                bestDate = info.LastWriteTimeUtc;
+            }
+
             var mediaFile = new MediaFile(
                 fullPath: file,
-                createdAt: info.LastWriteTimeUtc,
+                createdAt: bestDate,
                 type: type,
                 sizeBytes: info.Length
             );
-
+            
             mediaFile.SetHash( _hashService.ComputeHash(file));
 
             yield return mediaFile;
         }
+        
     }
 }

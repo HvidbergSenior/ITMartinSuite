@@ -1,4 +1,6 @@
-﻿public class ProgressInfo
+﻿namespace ITMartinFileSorter.Application.Helpers;
+
+public class ProgressInfo
 {
     public string Stage { get; set; } = "";
     public int WorkDone { get; set; }

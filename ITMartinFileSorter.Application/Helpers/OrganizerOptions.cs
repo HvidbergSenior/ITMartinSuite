@@ -1,4 +1,4 @@
-﻿namespace ITMartinFileSorter.Application.Services;
+﻿namespace ITMartinFileSorter.Application.Helpers;
 
 public class OrganizerOptions
 {

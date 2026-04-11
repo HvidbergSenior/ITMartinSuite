@@ -3,11 +3,19 @@ using System.Text.RegularExpressions;
 using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
 public class TripGroupingService
 {
+    private readonly IGpsService _gpsService;
+
+    public TripGroupingService(IGpsService gpsService)
+    {
+        _gpsService = gpsService;
+    }
+
     public List<TripGroup> CreateTrips(IEnumerable<MediaFile> files)
     {
         var mediaFiles = files
@@ -148,7 +156,7 @@ public class TripGroupingService
 
     private string GetGpsLocation(MediaFile file)
     {
-        var coords = GpsHelper.GetCoordinates(file.FullPath);
+        var coords = _gpsService.GetCoordinates(file.FullPath);
 
         Console.WriteLine("===== GPS DEBUG =====");
         Console.WriteLine($"[FILE] {file.FileName}");

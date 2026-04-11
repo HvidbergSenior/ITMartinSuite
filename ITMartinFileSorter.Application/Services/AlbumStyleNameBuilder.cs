@@ -1,23 +1,28 @@
 ﻿using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public static class AlbumStyleNameBuilder
+public class AlbumStyleNameBuilder
 {
-    public static string Build(MediaFile file, int index)
+    private readonly IMediaDateService _mediaDateService;
+    private readonly IGpsService _gpsService;
+    public AlbumStyleNameBuilder(IMediaDateService mediaDateService, IGpsService gpsService)
+    {
+        _mediaDateService = mediaDateService;
+        _gpsService = gpsService;
+    }
+    public string Build(MediaFile file, int index)
     {
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-        var date =
-            ImageMetadataHelper.GetCreationTime(file.FullPath) ??
-            VideoMetadataHelper.GetCreationTime(file.FullPath) ??
-            file.CreatedAt;
+        var bestDate = _mediaDateService.GetBestDate(file.FullPath);
 
         // Better sortable date
-        string datePart = date.ToString("yyyy-MM");
-
+        string datePart = bestDate.ToString("yyyy-MM");
+        
         string location = GetLocation(file);
 
         string type = GetTypeLabel(file.SubCategory, file.MainCategory);
@@ -38,9 +43,9 @@ public static class AlbumStyleNameBuilder
         return string.Join(" ", parts) + ext;
     }
 
-    private static string GetLocation(MediaFile file)
+    private string GetLocation(MediaFile file)
     {
-        var coords = GpsHelper.GetCoordinates(file.FullPath);
+        var coords = _gpsService.GetCoordinates(file.FullPath);
 
         if (coords == null)
             return "";

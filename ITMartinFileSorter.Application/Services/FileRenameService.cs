@@ -1,11 +1,23 @@
 ﻿using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public static class FileRenameService
+public class FileRenameService
 {
-    public static string BuildName(
+    private readonly IMediaDateService _mediaDateService;
+    private readonly AlbumStyleNameBuilder _albumStyleNameBuilder;
+
+    public FileRenameService(
+        IMediaDateService mediaDateService,
+        AlbumStyleNameBuilder albumStyleNameBuilder)
+    {
+        _mediaDateService = mediaDateService;
+        _albumStyleNameBuilder = albumStyleNameBuilder;
+    }
+
+    public string BuildName(
         MediaFile file,
         int index,
         RenameStrategy strategy)
@@ -16,7 +28,7 @@ public static class FileRenameService
                 file.FileName,
 
             RenameStrategy.AlbumStyle =>
-                AlbumStyleNameBuilder.Build(file, index),
+                _albumStyleNameBuilder.Build(file, index),
 
             RenameStrategy.DateAndType =>
                 BuildDateTypeName(file, index),
@@ -28,21 +40,21 @@ public static class FileRenameService
         };
     }
 
-    private static string BuildDateTypeName(MediaFile file, int index)
+    private string BuildDateTypeName(MediaFile file, int index)
     {
-        var bestDate = ImageMetadataHelper.GetBestDate(file.FullPath);
+        var bestDate = _mediaDateService.GetBestDate(file.FullPath);
         var ext = Path.GetExtension(file.FileName);
 
         return
             $"{bestDate:yyyy-MM-dd} {file.MainCategory} {index:D3}{ext}";
     }
 
-    private static string BuildDateOnlyName(MediaFile file, int index)
+    private string BuildDateOnlyName(MediaFile file, int index)
     {
-        var bestDate = ImageMetadataHelper.GetBestDate(file.FullPath);
+        var bestDate = _mediaDateService.GetBestDate(file.FullPath);
         var ext = Path.GetExtension(file.FileName);
+
         return
             $"{bestDate:yyyy-MM-dd HH-mm-ss} {index:D3}{ext}";
-        
     }
 }
