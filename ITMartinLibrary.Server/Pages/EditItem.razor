@@ -1,0 +1,56 @@
+﻿@page "/library/edit/{Id:int}"
+
+@using ITMartinLibrary.Application.Services
+@using ITMartinLibrary.Domain.Entities
+
+@inject InventoryService InventoryService
+@inject NavigationManager Navigation
+
+<div class="library-page">
+    <div class="page-container">
+
+        <div class="scan-hero-card">
+            <h1>✏️ Edit Inventory Item</h1>
+            <p class="hero-text">
+                Update details and save changes.
+            </p>
+        </div>
+
+        <div class="content-card form-card edit-card">
+            <div class="inventory-form-grid">
+                <input @bind="item.Title" class="form-control" placeholder="Title" />
+                <input @bind="item.Type" class="form-control" placeholder="Type" />
+                <input @bind="item.AuthorOrDirector" class="form-control" placeholder="Author / Director" />
+                <input @bind="item.Price" type="number" class="form-control" placeholder="Price" />
+                <input @bind="item.ShelfLocation" class="form-control" placeholder="Shelf Location" />
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-success" @onclick="Save">
+                    💾 Save Changes
+                </button>
+
+                <a href="/library" class="btn btn-secondary">
+                    📚 Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private InventoryItem item = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        item = await InventoryService.GetByIdAsync(Id) ?? new();
+    }
+
+    private async Task Save()
+    {
+        await InventoryService.UpdateAsync(item);
+        Navigation.NavigateTo("/library");
+    }
+}

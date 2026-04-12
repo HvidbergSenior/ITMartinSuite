@@ -150,3 +150,11 @@
     border-radius: 18px;
     box-shadow: var(--shadow);
 }
+
+.btn,
+.btn:link,
+.btn:visited,
+.btn:hover,
+.btn:active {
+    text-decoration: none !important;
+}

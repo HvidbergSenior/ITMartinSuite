@@ -1,5 +1,4 @@
 ﻿using ITMartinLibrary.Application.Interfaces;
-using ITMartinLibrary.Domain;
 using ITMartinLibrary.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,16 +32,22 @@ namespace ITMartinLibrary.Infrastructure.Repositories
                     x.Barcode.Contains(text))
                 .ToListAsync();
         }
-        
-        public async Task UpdateAsync(InventoryItem item)
-        {
-            _db.Items.Update(item);
-            await _db.SaveChangesAsync();
-        }
+
         public async Task<InventoryItem?> GetByBarcodeAsync(string barcode)
         {
             return await _db.Items
                 .FirstOrDefaultAsync(x => x.Barcode == barcode);
+        }
+
+        public async Task<InventoryItem?> GetByIdAsync(int id)
+        {
+            return await _db.Items.FindAsync(id);
+        }
+
+        public async Task UpdateAsync(InventoryItem item)
+        {
+            _db.Items.Update(item);
+            await _db.SaveChangesAsync();
         }
     }
 }

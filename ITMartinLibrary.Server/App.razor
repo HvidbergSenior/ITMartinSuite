@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -10,10 +12,10 @@
     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Components.css" />
     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Pages.css" />
 
-    <HeadOutlet />
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
-<Routes />
+<Routes @rendermode="InteractiveServer" />
 
 <script src="_framework/blazor.web.js"></script>
 </body>

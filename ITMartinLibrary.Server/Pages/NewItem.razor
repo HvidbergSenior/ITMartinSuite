@@ -1,0 +1,133 @@
+﻿@page "/library/new"
+
+@inject InventoryService InventoryService
+@inject NavigationManager Navigation
+
+<div class="library-page">
+    <div class="page-container">
+
+        <div class="scan-hero-card">
+            <h1>➕ Add New Inventory Item</h1>
+            <p class="hero-text">
+                Start by scanning or entering the barcode, then complete the details below.
+            </p>
+        </div>
+
+        <div class="content-card form-card">
+
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="form-message-success">
+                    ✅ @successMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="form-message-error">
+                    ❌ @errorMessage
+                </div>
+            }
+
+            <div class="form-section-title">
+                Basic Information
+            </div>
+
+            <div class="form-help-text">
+                Barcode and title are the most important fields.
+            </div>
+
+            <div class="inventory-form-grid">
+                <div>
+                    <label>Barcode</label>
+                    <input @bind="item.Barcode"
+                           placeholder="Scan barcode"
+                           class="form-control" />
+                </div>
+
+                <div>
+                    <label>Title</label>
+                    <input @bind="item.Title"
+                           placeholder="Title"
+                           class="form-control" />
+                </div>
+
+                <div>
+                    <label>Type</label>
+                    <input @bind="item.Type"
+                           placeholder="Book, DVD, etc."
+                           class="form-control" />
+                </div>
+
+                <div>
+                    <label>Author / Director</label>
+                    <input @bind="item.AuthorOrDirector"
+                           placeholder="Name"
+                           class="form-control" />
+                </div>
+
+                <div>
+                    <label>Price</label>
+                    <input @bind="item.Price"
+                           type="number"
+                           placeholder="Price"
+                           class="form-control" />
+                </div>
+
+                <div>
+                    <label>Quantity</label>
+                    <input @bind="item.Quantity"
+                           type="number"
+                           placeholder="Quantity"
+                           class="form-control" />
+                </div>
+
+                <div>
+                    <label>Shelf Location</label>
+                    <input @bind="item.ShelfLocation"
+                           placeholder="Shelf A1"
+                           class="form-control" />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-success" @onclick="Save">
+                    💾 Save Item
+                </button>
+
+                <a href="/library" class="btn btn-secondary">
+                    📚 View Inventory
+                </a>
+
+                <a href="/library/quick-scan" class="btn btn-primary">
+                    📷 Quick Scan
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private InventoryItem item = new();
+    private string successMessage = "";
+    private string errorMessage = "";
+
+    private async Task Save()
+    {
+        try
+        {
+            successMessage = "";
+            errorMessage = "";
+
+            await InventoryService.AddAsync(item);
+
+            successMessage = "Item saved successfully.";
+
+            item = new InventoryItem();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+}

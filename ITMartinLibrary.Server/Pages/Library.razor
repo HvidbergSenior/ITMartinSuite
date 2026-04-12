@@ -1,0 +1,115 @@
+﻿@page "/"
+@page "/library"
+
+@using ITMartinLibrary.Domain.Entities
+@inject InventoryService InventoryService
+
+<div class="library-page">
+    <div class="page-container">
+
+        <!-- HERO -->
+        <div class="scan-hero-card dashboard-hero">
+            <div class="library-row">
+                <div>
+                    <h1>📚 Library Dashboard</h1>
+                    <p class="hero-text">
+                        Manage inventory, stock and recently added items.
+                    </p>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/library/new" class="btn btn-success">
+                        ➕ Add New Item
+                    </a>
+
+                    <a href="/library/quick-scan" class="btn btn-primary">
+                        📷 Quick Scan
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="dashboard-stats-grid">
+            <div class="content-card stat-card">
+                <h3>@items.Count</h3>
+                <p>Total Items</p>
+            </div>
+
+            <div class="content-card stat-card">
+                <h3>@items.Sum(x => x.Quantity)</h3>
+                <p>Total Stock</p>
+            </div>
+
+            <div class="content-card stat-card">
+                <h3>@items.Count(x => string.IsNullOrWhiteSpace(x.Title))</h3>
+                <p>Incomplete</p>
+            </div>
+        </div>
+
+        <!-- RECENT -->
+        <div class="content-card recent-section-card">
+            <div class="library-row">
+                <div>
+                    <h3>🕒 Recently Added</h3>
+                    <p class="text-muted">Latest 5 inventory items</p>
+                </div>
+            </div>
+
+            @if (!recentItems.Any())
+            {
+                <p>No recent items.</p>
+            }
+            else
+            {
+                <div class="recent-items-grid">
+                    @foreach (var item in recentItems)
+                    {
+                        <div class="recent-item-card highlight-card">
+                            <div class="recent-item-header">
+                                <span class="recent-item-icon">📘</span>
+
+                                <div>
+                                    <h4 class="item-title">
+                                        @(string.IsNullOrWhiteSpace(item.Title) ? "Untitled" : item.Title)
+                                    </h4>
+
+                                    <div class="item-subtitle">
+                                        Recently added
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="item-meta mt-3">
+                                <div><span class="item-label">Barcode:</span> @item.Barcode</div>
+                                <div><span class="item-label">Quantity:</span> @item.Quantity</div>
+                                <div><span class="item-label">Type:</span> @item.Type</div>
+                            </div>
+
+                            <div class="mt-3">
+                                <a href="/library/edit/@item.Id" class="btn btn-secondary card-action-btn">
+                                    ✏️ Edit
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<InventoryItem> items = new();
+    private List<InventoryItem> recentItems = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await InventoryService.GetAllAsync() ?? new();
+
+        recentItems = items
+            .OrderByDescending(x => x.LastScannedAt)
+            .Take(5)
+            .ToList();
+    }
+}

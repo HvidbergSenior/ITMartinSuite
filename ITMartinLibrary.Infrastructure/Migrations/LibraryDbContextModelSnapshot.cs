@@ -31,10 +31,17 @@ namespace ITMartinLibrary.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DetailsUpdatedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("FirstScannedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("LastScannedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LookupStatus")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Price")

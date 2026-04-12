@@ -2,34 +2,67 @@
 
 @using ITMartinLibrary.Application.Services
 @using Microsoft.AspNetCore.Components.Web
-@using ITMartin.Shared.UI.Components
 
 @inject InventoryService InventoryService
 
 <div class="library-page">
+    <div class="page-container">
 
-    <SectionTitle Title="📷 Quick Barcode Scan" />
+        <!-- HERO -->
+        <div class="scan-hero-card">
+            <h1>📷 Quick Barcode Scan</h1>
+            <p class="hero-text">
+                Scan items continuously. Barcodes save automatically.
+            </p>
+        </div>
 
-    <ContentCard>
-        <input @bind="barcode"
-               @onkeydown="HandleKeyDown"
-               class="form-control mb-3"
-               placeholder="Scan barcode here"
-               autofocus />
+        <!-- SCAN CARD -->
+        <div class="content-card form-card scan-card">
 
-        @if (!string.IsNullOrEmpty(message))
-        {
-            <div class="alert alert-success mt-3">
-                @message
+            @if (!string.IsNullOrWhiteSpace(message))
+            {
+                <div class="form-message-success">
+                    ✅ @message
+                </div>
+            }
+
+            <div class="scan-form-group">
+                <label class="form-section-title">Scan Barcode</label>
+
+                <input @bind="Barcode"
+                       @bind:event="oninput"
+                       @onkeydown="HandleKeyDown"
+                       class="form-control scan-input"
+                       placeholder="Ready for scan..."
+                       autofocus />
+
+                <div class="scan-actions">
+                    <a href="/library" class="btn btn-secondary">
+                        📚 Back to Dashboard
+                    </a>
+                </div>
             </div>
-        }
-    </ContentCard>
-
+        </div>
+    </div>
 </div>
 
 @code {
     private string barcode = "";
     private string message = "";
+
+    private string Barcode
+    {
+        get => barcode;
+        set
+        {
+            barcode = value;
+
+            if (barcode.Length == 13 || barcode.Length == 8)
+            {
+                _ = ProcessScan();
+            }
+        }
+    }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
@@ -44,9 +77,11 @@
         if (string.IsNullOrWhiteSpace(barcode))
             return;
 
-        await InventoryService.ScanOrIncrementAsync(barcode);
+        var scannedCode = barcode;
 
-        message = $"Saved {barcode}";
+        await InventoryService.ScanOrIncrementAsync(scannedCode);
+
+        message = $"Saved: {scannedCode}";
         barcode = "";
     }
 }
