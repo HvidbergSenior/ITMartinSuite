@@ -98,7 +98,7 @@ public sealed class FileScanner : IFileScanner
                     : MediaType.Document;
 
             
-            DateTime bestDate;
+            DateTime? bestDate;
 
             try
             {

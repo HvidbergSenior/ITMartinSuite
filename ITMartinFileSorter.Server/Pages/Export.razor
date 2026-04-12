@@ -36,6 +36,18 @@
             Total="@TotalToExport"
             Percent="@ProgressPercent"
             CurrentItem="@CurrentExportFile" />
+
+        @if (ExportLogs.Any())
+        {
+            <ContentCard Title="Live Export Log">
+                <div class="export-log">
+                    @foreach (var log in ExportLogs.TakeLast(12))
+                    {
+                        <div>@log</div>
+                    }
+                </div>
+            </ContentCard>
+        }
     }
 
     @if (!IsExporting)
@@ -58,6 +70,8 @@
     string CurrentExportFile = "";
     string CurrentStage = "";
 
+    List<string> ExportLogs = new();
+
     int ProgressPercent =>
         TotalToExport <= 0
             ? 0
@@ -66,14 +80,38 @@
 
     void GoBack() => Navigation.NavigateTo("/");
 
+    void AddLog(string message)
+    {
+        ExportLogs.Add($"{DateTime.Now:HH:mm:ss} - {message}");
+
+        if (ExportLogs.Count > 100)
+            ExportLogs.RemoveAt(0);
+    }
+
     async Task StartExport()
     {
+        IsExporting = true;
+        ExportLogs.Clear();
+
+        CurrentStage = "Preparing export...";
+        CurrentExportFile = "Reading files and metadata...";
+        ExportedCount = 0;
+        TotalToExport = 0;
+
+        AddLog("Export started");
+        AddLog("Reading files and building structure...");
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+
         var files = DuplicateService.FilesToExport.ToList();
 
         if (!files.Any())
+        {
+            AddLog("No files to export");
+            IsExporting = false;
             return;
-
-        var trips = TripGroupingService.CreateTrips(files);
+        }
 
         var exportRoot = Path.Combine(
             Configuration["MediaSettings:LibraryRoot"]!,
@@ -81,17 +119,9 @@
 
         Directory.CreateDirectory(exportRoot);
 
-        IsExporting = true;
-
         try
         {
-            // COPY FILES
-            CurrentStage = "Copying files...";
-            ExportedCount = 0;
-            TotalToExport = files.Count;
-            CurrentExportFile = "";
-
-            await InvokeAsync(StateHasChanged);
+            AddLog($"Found {files.Count} files");
 
             var structure = ArchivePathBuilder.BuildStructure(
                 files,
@@ -108,6 +138,9 @@
             CurrentStage = "Copying files...";
             CurrentExportFile = "";
 
+            AddLog("Folder structure created");
+            AddLog("Starting file copy");
+
             await InvokeAsync(StateHasChanged);
             await Task.Yield();
 
@@ -118,6 +151,8 @@
                 var targetFolder = Path.Combine(exportRoot, folder.Key);
 
                 Directory.CreateDirectory(targetFolder);
+
+                AddLog($"Created folder: {folder.Key}");
 
                 int index = 1;
 
@@ -140,15 +175,16 @@
 
                     if (refreshCounter % 5 == 0)
                     {
+                        AddLog($"Copied: {newFileName}");
+
                         await InvokeAsync(StateHasChanged);
                         await Task.Yield();
                     }
                 }
             }
 
-            await InvokeAsync(StateHasChanged);
-            
-            // VIDEO CONVERSION
+            AddLog("Copy completed");
+
             var videoFiles = Directory
                 .EnumerateFiles(exportRoot, "*.*", SearchOption.AllDirectories)
                 .Where(f =>
@@ -163,6 +199,9 @@
             TotalToExport = videoFiles.Count;
             CurrentExportFile = "";
 
+            AddLog($"Found {videoFiles.Count} videos");
+            AddLog("Starting video conversion");
+
             await InvokeAsync(StateHasChanged);
 
             await FastVideoBatchExportService.ConvertAllVideosAsync(
@@ -173,13 +212,16 @@
                     TotalToExport = total;
                     CurrentExportFile = fileName;
 
+                    AddLog($"Video converted: {fileName}");
+
                     await InvokeAsync(StateHasChanged);
                 });
 
-            // IMAGE CONVERSION
             CurrentStage = "Converting images...";
             ExportedCount = 0;
             CurrentExportFile = "";
+
+            AddLog("Starting image conversion");
 
             await InvokeAsync(StateHasChanged);
 
@@ -191,11 +233,15 @@
                     TotalToExport = total;
                     CurrentExportFile = fileName;
 
+                    AddLog($"Image converted: {fileName}");
+
                     await InvokeAsync(StateHasChanged);
                 });
 
             CurrentStage = "Done ✔";
             CurrentExportFile = "";
+
+            AddLog("Export completed successfully");
 
             await InvokeAsync(StateHasChanged);
 

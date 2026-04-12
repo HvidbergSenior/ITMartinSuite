@@ -81,7 +81,6 @@ public class ArchivePathBuilder
         if (file.SubCategory == MediaSubCategory.Screenshot)
         {
             parts.Clear();
-            parts.Add("Organized");
             parts.Add("Screenshots");
             return;
         }
@@ -89,7 +88,6 @@ public class ArchivePathBuilder
         if (file.SubCategory == MediaSubCategory.Meme)
         {
             parts.Clear();
-            parts.Add("Organized");
             parts.Add("Memes");
             return;
         }
@@ -117,7 +115,15 @@ public class ArchivePathBuilder
 
         if (trip != null)
         {
-            parts.Add(trip.Name);
+            if (IsHomeLocation(trip.Name))
+            {
+                parts.Add("Home");
+            }
+            else
+            {
+                parts.Add(trip.Name);
+            }
+
             return;
         }
 
@@ -135,8 +141,7 @@ public class ArchivePathBuilder
             parts.Add(location);
             return;
         }
-
-        parts.Add("Mixed");
+        parts.Add(GetUnknownThemeFolder(file));
     }
 
     private void AddStandardSubfolders(
@@ -146,12 +151,18 @@ public class ArchivePathBuilder
     {
         var bestDate = _mediaDateService.GetBestDate(file.FullPath);
 
-        Console.WriteLine($"FILE: {file.FullPath}");
-        Console.WriteLine($"BEST DATE: {bestDate:yyyy-MM-dd HH:mm:ss}");
-        Console.WriteLine($"YEAR: {bestDate.Year}");
+        if (bestDate == null)
+        {
+            parts.Add("Unknown");
 
-        var year = bestDate.Year;
-        var month = bestDate.Month;
+            if (options.UseTypeFolders)
+                parts.Add(file.MainCategory.ToString());
+
+            return;
+        }
+
+        var year = bestDate.Value.Year;
+        var month = bestDate.Value.Month;
 
         if (options.UseYearFolders)
             parts.Add(year.ToString());
@@ -165,7 +176,6 @@ public class ArchivePathBuilder
 
             monthName = char.ToUpper(monthName[0]) + monthName[1..];
 
-            // ONLY month name
             parts.Add(monthName);
         }
 
@@ -175,6 +185,31 @@ public class ArchivePathBuilder
     
     private bool IsHomeLocation(string tripName)
     {
-        return tripName.Contains("Aarhus", StringComparison.OrdinalIgnoreCase);
+        return tripName.Contains("Aarhus", StringComparison.OrdinalIgnoreCase)
+               || tripName.Contains("Home", StringComparison.OrdinalIgnoreCase);
+    }
+    private string GetUnknownThemeFolder(MediaFile file)
+    {
+        var name = Path.GetFileNameWithoutExtension(file.FileName)
+            .ToLowerInvariant();
+
+        if (name.Contains("fresia") ||
+            name.Contains("solsikke") ||
+            name.Contains("blomst"))
+            return "Flowers";
+
+        if (name.Contains("sten") ||
+            name.Contains("strand") ||
+            name.Contains("hav"))
+            return "Beach";
+
+        if (name.Contains("hund"))
+            return "Dogs";
+
+        if (name.Contains("tegning") ||
+            name.Contains("carina"))
+            return "Artwork";
+
+        return "Mixed";
     }
 }

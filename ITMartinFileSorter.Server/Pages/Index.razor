@@ -72,30 +72,45 @@
         <div class="main-category-row mt-3">
             @foreach (var cat in CategoryOrder)
             {
-                var filesInCat = DuplicateService.AllFiles
-                    .Where(f => f.MainCategory == cat)
-                    .ToList();
+                var filesInCat = cat switch
+                {
+                    "Screenshots" => DuplicateService.AllFiles
+                        .Where(f => f.SubCategory == MediaSubCategory.Screenshot)
+                        .ToList(),
+
+                    "Memes" => DuplicateService.AllFiles
+                        .Where(f => f.SubCategory == MediaSubCategory.Meme)
+                        .ToList(),
+
+                    _ => DuplicateService.AllFiles
+                        .Where(f => f.MainCategory.ToString() == cat)
+                        .ToList()
+                };
 
                 var total = filesInCat.Count;
 
-                var remaining = filesInCat.Count(f =>
-                    f.Status == MediaFileStatus.Initial &&
-                    !DuplicateService.DuplicateGroups.Any(g => g.Contains(f)));
+                var remaining = cat is "Screenshots" or "Memes"
+                    ? 0
+                    : filesInCat.Count(f =>
+                        f.Status == MediaFileStatus.Initial &&
+                        !DuplicateService.DuplicateGroups.Any(g => g.Contains(f)));
 
-                var kept = filesInCat.Count(f =>
-                    f.Status == MediaFileStatus.ToKeep);
+                var kept = cat is "Screenshots" or "Memes"
+                    ? total
+                    : filesInCat.Count(f =>
+                        f.Status == MediaFileStatus.ToKeep);
 
-                var isLocked = remaining == 0;
+                var isAutoHandled = cat is "Screenshots" or "Memes";
 
                 <CategorySummaryCard
-                    Title="@cat.ToString()"
+                    Title="@(isAutoHandled ? $"{cat} (Auto)" : cat)"
                     Remaining="@remaining"
                     Kept="@kept"
                     Total="@total"
                     SizeText="@FormatSize(filesInCat.Sum(f => f.SizeBytes))"
-                    CssClass="@GetCategoryCssClass(cat)"
-                    IsLocked="@isLocked"
-                    OnClick="@(() => OnCategoryClicked(cat, isLocked))" />
+                    CssClass="@(isAutoHandled ? "category-auto" : "")"
+                    IsLocked="true"
+                    OnClick="@(() => { })" />
             }
         </div>
     }
@@ -149,12 +164,14 @@
             ? 0
             : (int)((double)Progress.Info.WorkDone / Progress.Info.TotalWork * 100);
 
-    readonly MediaMainCategory[] CategoryOrder =
+    readonly string[] CategoryOrder =
     {
-        MediaMainCategory.Audio,
-        MediaMainCategory.Document,
-        MediaMainCategory.Image,
-        MediaMainCategory.Video
+        "Audio",
+        "Document",
+        "Image",
+        "Video",
+        "Screenshots",
+        "Memes"
     };
 
     bool ShowScanning => IsScanning;
@@ -187,12 +204,14 @@
             Navigation.NavigateTo($"/category-step/{cat.ToString().ToLower()}");
     }
 
-    string GetCategoryCssClass(MediaMainCategory cat) => cat switch
+    string GetCategoryCssClass(string cat) => cat switch
     {
-        MediaMainCategory.Audio => "category-audio",
-        MediaMainCategory.Document => "category-document",
-        MediaMainCategory.Image => "category-image",
-        MediaMainCategory.Video => "category-video",
+        "Audio" => "category-audio",
+        "Document" => "category-document",
+        "Image" => "category-image",
+        "Video" => "category-video",
+        "Screenshots" => "category-auto",
+        "Memes" => "category-auto",
         _ => ""
     };
 

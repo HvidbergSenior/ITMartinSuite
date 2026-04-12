@@ -9,20 +9,24 @@ public class AlbumStyleNameBuilder
 {
     private readonly IMediaDateService _mediaDateService;
     private readonly IGpsService _gpsService;
-    public AlbumStyleNameBuilder(IMediaDateService mediaDateService, IGpsService gpsService)
+
+    public AlbumStyleNameBuilder(
+        IMediaDateService mediaDateService,
+        IGpsService gpsService)
     {
         _mediaDateService = mediaDateService;
         _gpsService = gpsService;
     }
+
     public string Build(MediaFile file, int index)
     {
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
 
         var bestDate = _mediaDateService.GetBestDate(file.FullPath);
 
-        // Better sortable date
-        string datePart = bestDate.ToString("yyyy-MM");
-        
+        // Use real date if found, otherwise Unknown-Date
+        string datePart = bestDate?.ToString("yyyy-MM") ?? "Unknown-Date";
+
         string location = GetLocation(file);
 
         string type = GetTypeLabel(file.SubCategory, file.MainCategory);

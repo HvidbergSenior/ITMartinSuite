@@ -141,3 +141,16 @@
 .duplicate-content {
     margin-top: 24px;
 }
+
+.export-log {
+    max-height: 220px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #1e1e1e;
+    color: #f1f1f1;
+    line-height: 1.6;
+    border: 1px solid #444;
+}

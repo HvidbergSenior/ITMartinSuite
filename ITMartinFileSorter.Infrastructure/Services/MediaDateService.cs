@@ -1,4 +1,5 @@
-﻿using ITMartinFileSorter.Domain.Interfaces;
+﻿using System.Text.RegularExpressions;
+using ITMartinFileSorter.Domain.Interfaces;
 using ITMartinFileSorter.Infrastructure.FileSystem;
 using ITMartinFileSorter.Infrastructure.Helpers;
 
@@ -6,7 +7,7 @@ namespace ITMartinFileSorter.Infrastructure.Services;
 
 public class MediaDateService : IMediaDateService
 {
-    public DateTime GetBestDate(string path)
+    public DateTime? GetBestDate(string path)
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();
 
@@ -14,23 +15,19 @@ public class MediaDateService : IMediaDateService
         {
             if (FileScanner.ImageExtensions.Contains(ext))
             {
-                var imgDate = ImageMetadataHelper.GetCreationTime(path);
-                if (imgDate != null)
-                    return imgDate.Value;
+                return ImageMetadataHelper.GetCreationTime(path);
             }
 
             if (FileScanner.VideoExtensions.Contains(ext))
             {
-                var videoDate = VideoMetadataHelper.GetCreationTime(path);
-                if (videoDate != null)
-                    return videoDate.Value;
+                return VideoMetadataHelper.GetCreationTime(path);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // ignore
+            Console.WriteLine($"[MEDIA DATE ERROR] {ex.Message}");
         }
 
-        return File.GetLastWriteTime(path);
+        return null;
     }
 }

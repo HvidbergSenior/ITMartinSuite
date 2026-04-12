@@ -10,17 +10,27 @@ namespace ITMartinFileSorter.Application.Services;
 public class TripGroupingService
 {
     private readonly IGpsService _gpsService;
+    private readonly IMediaDateService _mediaDateService;
 
-    public TripGroupingService(IGpsService gpsService)
+    public TripGroupingService(
+        IGpsService gpsService,
+        IMediaDateService mediaDateService)
     {
         _gpsService = gpsService;
+        _mediaDateService = mediaDateService;
     }
 
     public List<TripGroup> CreateTrips(IEnumerable<MediaFile> files)
     {
         var mediaFiles = files
             .Where(IsTripCandidate)
-            .OrderBy(f => f.CreatedAt)
+            .Select(f => new
+            {
+                File = f,
+                Date = _mediaDateService.GetBestDate(f.FullPath)
+            })
+            .Where(x => x.Date != null)
+            .OrderBy(x => x.Date)
             .ToList();
 
         var trips = new List<TripGroup>();
@@ -30,7 +40,7 @@ public class TripGroupingService
 
         var currentTrip = new List<MediaFile>
         {
-            mediaFiles.First()
+            mediaFiles.First().File
         };
 
         for (int i = 1; i < mediaFiles.Count; i++)
@@ -38,16 +48,16 @@ public class TripGroupingService
             var previous = mediaFiles[i - 1];
             var current = mediaFiles[i];
 
-            var gap = current.CreatedAt - previous.CreatedAt;
+            var gap = current.Date!.Value - previous.Date!.Value;
 
             if (gap.TotalDays <= 7)
             {
-                currentTrip.Add(current);
+                currentTrip.Add(current.File);
             }
             else
             {
                 trips.Add(BuildTrip(currentTrip));
-                currentTrip = new List<MediaFile> { current };
+                currentTrip = new List<MediaFile> { current.File };
             }
         }
 
@@ -59,15 +69,20 @@ public class TripGroupingService
 
     private bool IsTripCandidate(MediaFile file)
     {
-        // Include ALL images and videos
         return file.MainCategory == MediaMainCategory.Image ||
                file.MainCategory == MediaMainCategory.Video;
     }
 
     private TripGroup BuildTrip(List<MediaFile> files)
     {
-        var start = files.Min(f => f.CreatedAt);
-        var end = files.Max(f => f.CreatedAt);
+        var datedFiles = files
+            .Select(f => _mediaDateService.GetBestDate(f.FullPath))
+            .Where(d => d != null)
+            .Select(d => d!.Value)
+            .ToList();
+
+        var start = datedFiles.Min();
+        var end = datedFiles.Max();
 
         var location = GetTripLocation(files);
 

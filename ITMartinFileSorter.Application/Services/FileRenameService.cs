@@ -43,10 +43,10 @@ public class FileRenameService
     private string BuildDateTypeName(MediaFile file, int index)
     {
         var bestDate = _mediaDateService.GetBestDate(file.FullPath);
-        var ext = Path.GetExtension(file.FileName);
 
-        return
-            $"{bestDate:yyyy-MM-dd} {file.MainCategory} {index:D3}{ext}";
+        var datePrefix = bestDate?.ToString("yyyy-MM-dd") ?? "Unknown-Date";
+        var ext = Path.GetExtension(file.FileName);
+        return $"{datePrefix} {file.MainCategory} {index:D3}{ext}";
     }
 
     private string BuildDateOnlyName(MediaFile file, int index)

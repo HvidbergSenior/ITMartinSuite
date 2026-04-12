@@ -9,7 +9,7 @@ public class MediaFile
     public string FileName { get; }
     public string Extension { get; }
     public long SizeBytes { get; set; }
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
     public int Year { get; set; }
     public int Month { get; set; }
     public MediaType Type { get; }
@@ -38,7 +38,7 @@ public class MediaFile
     
     // Tracks whether user wants to keep the file in the workflow
     public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;
-    public MediaFile(string fullPath, DateTime createdAt, MediaType type, long sizeBytes)
+    public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)
     {
         FullPath = fullPath;
         OriginalPath = fullPath;
@@ -49,8 +49,11 @@ public class MediaFile
         SizeBytes = sizeBytes;
         CreatedAt = createdAt;
 
-        Year = createdAt.Year;
-        Month = createdAt.Month;
+        if (createdAt != null)
+        {
+            Year = createdAt.Value.Year;
+            Month = createdAt.Value.Month;
+        }
 
         Type = type;
 
