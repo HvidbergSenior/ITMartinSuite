@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject SubtitleService SubtitleService
 @inject IConfiguration Configuration
+
 <div class="viewer-page">
 
     <ActionButtonBar>
@@ -25,13 +26,20 @@
         <ContentCard Title="@Path.GetFileName(FilePath)">
             @if (IsVideo)
             {
-                <video class="viewer-video" width="100%" controls autoplay>
+                <video @key="WebPath"
+                       class="viewer-video"
+                       width="100%"
+                       controls
+                       autoplay>
                     <source src="@WebPath" type="video/mp4" />
+                    Your browser does not support video playback.
                 </video>
             }
             else
             {
-                <img class="viewer-image" src="@WebPath" />
+                <img class="viewer-image"
+                     src="@WebPath"
+                     @key="WebPath" />
             }
         </ContentCard>
     }
@@ -96,6 +104,10 @@
             .Replace("\\", "/");
 
         WebPath = $"/libraryfiles/{relativePath}";
+
+        Console.WriteLine($"[VIEWER FILE] {FilePath}");
+        Console.WriteLine($"[VIEWER WEB] {WebPath}");
+        Console.WriteLine($"[EXISTS] {File.Exists(FilePath)}");
 
         IsVideo = FileScanner.IsVideo(FilePath);
     }

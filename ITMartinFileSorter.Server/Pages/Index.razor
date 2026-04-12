@@ -101,6 +101,7 @@
                         f.Status == MediaFileStatus.ToKeep);
 
                 var isAutoHandled = cat is "Screenshots" or "Memes";
+                var isLocked = isAutoHandled || total == 0;
 
                 <CategorySummaryCard
                     Title="@(isAutoHandled ? $"{cat} (Auto)" : cat)"
@@ -108,9 +109,9 @@
                     Kept="@kept"
                     Total="@total"
                     SizeText="@FormatSize(filesInCat.Sum(f => f.SizeBytes))"
-                    CssClass="@(isAutoHandled ? "category-auto" : "")"
-                    IsLocked="true"
-                    OnClick="@(() => { })" />
+                    CssClass="@GetCategoryCssClass(cat)"
+                    IsLocked="@isLocked"
+                    OnClick="@(() => OnCategoryCardClicked(cat, isLocked))" />
             }
         </div>
     }
@@ -198,10 +199,12 @@
     void GoToExport() => Navigation.NavigateTo("/export");
     void GoToLibrary() => Navigation.NavigateTo("/library");
 
-    void OnCategoryClicked(MediaMainCategory cat, bool isLocked)
+    void OnCategoryCardClicked(string cat, bool isLocked)
     {
-        if (!isLocked)
-            Navigation.NavigateTo($"/category-step/{cat.ToString().ToLower()}");
+        if (isLocked)
+            return;
+
+        Navigation.NavigateTo($"/category-step/{cat.ToLower()}");
     }
 
     string GetCategoryCssClass(string cat) => cat switch

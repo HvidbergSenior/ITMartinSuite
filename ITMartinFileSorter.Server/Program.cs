@@ -51,6 +51,31 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+
+// Serve exported library files (videos/images) outside wwwroot
+var libraryRoot = Path.Combine(
+    builder.Configuration["MediaSettings:LibraryRoot"]!,
+    "Library");
+
+if (Directory.Exists(libraryRoot))
+{
+    var provider = new FileExtensionContentTypeProvider();
+
+    provider.Mappings[".mp4"] = "video/mp4";
+    provider.Mappings[".mov"] = "video/mp4";
+    provider.Mappings[".jpg"] = "image/jpeg";
+    provider.Mappings[".jpeg"] = "image/jpeg";
+    provider.Mappings[".png"] = "image/png";
+    provider.Mappings[".webp"] = "image/webp";
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(libraryRoot),
+        RequestPath = "/libraryfiles",
+        ContentTypeProvider = provider
+    });
+}
+
 app.UseAntiforgery();
 
 app.MapControllers();

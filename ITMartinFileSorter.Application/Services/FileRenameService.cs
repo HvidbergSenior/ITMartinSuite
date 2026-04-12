@@ -1,4 +1,5 @@
-﻿using ITMartinFileSorter.Application.Helpers;
+﻿using System.Text.RegularExpressions;
+using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Interfaces;
 
@@ -25,10 +26,10 @@ public class FileRenameService
         return strategy switch
         {
             RenameStrategy.KeepOriginal =>
-                file.FileName,
+                SanitizeFileName(file.FileName),
 
             RenameStrategy.AlbumStyle =>
-                _albumStyleNameBuilder.Build(file, index),
+                SanitizeFileName(_albumStyleNameBuilder.Build(file, index)),
 
             RenameStrategy.DateAndType =>
                 BuildDateTypeName(file, index),
@@ -36,25 +37,48 @@ public class FileRenameService
             RenameStrategy.DateOnly =>
                 BuildDateOnlyName(file, index),
 
-            _ => file.FileName
+            _ => SanitizeFileName(file.FileName)
         };
     }
 
     private string BuildDateTypeName(MediaFile file, int index)
     {
         var bestDate = _mediaDateService.GetBestDate(file.FullPath);
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-        var datePrefix = bestDate?.ToString("yyyy-MM-dd") ?? "Unknown-Date";
-        var ext = Path.GetExtension(file.FileName);
-        return $"{datePrefix} {file.MainCategory} {index:D3}{ext}";
+        var fileName =
+            $"{bestDate:yyyy-MM-dd}_{file.MainCategory.ToString().ToLower()}_{index:D3}{ext}";
+
+        return SanitizeFileName(fileName);
     }
 
     private string BuildDateOnlyName(MediaFile file, int index)
     {
         var bestDate = _mediaDateService.GetBestDate(file.FullPath);
-        var ext = Path.GetExtension(file.FileName);
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-        return
-            $"{bestDate:yyyy-MM-dd HH-mm-ss} {index:D3}{ext}";
+        var fileName =
+            $"{bestDate:yyyy-MM-dd_HH-mm-ss}_{index:D3}{ext}";
+
+        return SanitizeFileName(fileName);
+    }
+
+    private string SanitizeFileName(string fileName)
+    {
+        var name = Path.GetFileNameWithoutExtension(fileName);
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+
+        name = name
+            .Replace(" ", "_")
+            .Replace("æ", "ae")
+            .Replace("ø", "oe")
+            .Replace("å", "aa")
+            .Replace("Æ", "Ae")
+            .Replace("Ø", "Oe")
+            .Replace("Å", "Aa");
+
+        name = Regex.Replace(name, @"[^a-zA-Z0-9_\-]", "");
+
+        return name + ext;
     }
 }

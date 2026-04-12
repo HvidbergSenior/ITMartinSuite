@@ -142,11 +142,12 @@ public class FastUniversalVideoConverterService
 
         return new CodecInfo(videoCodec, audioCodec);
     }
-
+    
     private async Task CopyAsync(string inputPath, string outputPath)
     {
         await RunFfmpegAsync(
             $"-y -i \"{inputPath}\" " +
+            "-map_metadata 0 " +
             "-c copy " +
             "-movflags +faststart " +
             $"\"{outputPath}\"");
@@ -156,6 +157,7 @@ public class FastUniversalVideoConverterService
     {
         await RunFfmpegAsync(
             $"-y -i \"{inputPath}\" " +
+            "-map_metadata 0 " +
             "-c:v libx264 " +
             "-preset veryfast " +
             "-crf 18 " +
