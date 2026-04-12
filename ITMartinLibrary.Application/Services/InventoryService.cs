@@ -24,14 +24,11 @@ namespace ITMartinLibrary.Application.Services
             {
                 existing.Quantity++;
                 existing.LastScannedAt = DateTime.UtcNow;
+                existing.LookupStatus = "Pending";
 
                 await _repository.UpdateAsync(existing);
 
-                // Optional: enrich if details missing
-                if (string.IsNullOrWhiteSpace(existing.Title))
-                {
-                    _queue.Enqueue(existing.Barcode);
-                }
+                _queue.Enqueue(barcode);
 
                 return;
             }
@@ -41,12 +38,13 @@ namespace ITMartinLibrary.Application.Services
                 Barcode = barcode,
                 Quantity = 1,
                 FirstScannedAt = DateTime.UtcNow,
-                LastScannedAt = DateTime.UtcNow
+                LastScannedAt = DateTime.UtcNow,
+                LookupStatus = "Pending"
             };
 
             await _repository.AddAsync(item);
 
-            _queue.Enqueue(item.Barcode);
+            _queue.Enqueue(barcode);
         }
 
         public async Task AddAsync(InventoryItem item)

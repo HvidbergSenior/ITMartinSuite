@@ -57,7 +57,7 @@
         {
             barcode = value;
 
-            if (barcode.Length == 13 || barcode.Length == 8)
+            if (barcode.Length >= 8)
             {
                 _ = ProcessScan();
             }

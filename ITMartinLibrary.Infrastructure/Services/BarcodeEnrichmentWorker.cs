@@ -21,9 +21,13 @@ public class BarcodeEnrichmentWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        Console.WriteLine("BACKGROUND WORKER STARTED");
+
         while (!stoppingToken.IsCancellationRequested)
         {
             var barcode = await _queue.DequeueAsync(stoppingToken);
+
+            Console.WriteLine($"PROCESSING {barcode}");
 
             using var scope = _serviceProvider.CreateScope();
             var repository = scope.ServiceProvider.GetRequiredService<IInventoryRepository>();
@@ -33,12 +37,19 @@ public class BarcodeEnrichmentWorker : BackgroundService
             if (item is null)
                 continue;
 
+            if (item.LookupStatus == "Completed" &&
+                !string.IsNullOrWhiteSpace(item.Title))
+                continue;
+            await Task.Delay(3000, stoppingToken); // simulate API lookup
+
             item.Title = $"Auto-filled {barcode}";
             item.Type = "Book";
             item.LookupStatus = "Completed";
             item.DetailsUpdatedAt = DateTime.UtcNow;
 
             await repository.UpdateAsync(item);
+
+            Console.WriteLine($"UPDATED {barcode}");
         }
     }
 }
