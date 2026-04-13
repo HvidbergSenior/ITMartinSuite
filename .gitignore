@@ -9,3 +9,4 @@ obj/
 *.db-wal
 *.log
 ITMartinFileSorter.Server/ffmpeg/*.exe
+appsettings.Development.json

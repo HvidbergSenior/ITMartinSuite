@@ -37,9 +37,9 @@ namespace ITMartinLibrary.Application.Services
             {
                 Barcode = barcode,
                 Quantity = 1,
+                LookupStatus = "Pending",
                 FirstScannedAt = DateTime.UtcNow,
-                LastScannedAt = DateTime.UtcNow,
-                LookupStatus = "Pending"
+                LastScannedAt = DateTime.UtcNow
             };
 
             await _repository.AddAsync(item);
@@ -50,7 +50,8 @@ namespace ITMartinLibrary.Application.Services
         public async Task AddAsync(InventoryItem item)
         {
             item.LastScannedAt = DateTime.UtcNow;
-
+            item.LookupStatus = "Pending";
+            
             if (item.Quantity <= 0)
                 item.Quantity = 1;
 

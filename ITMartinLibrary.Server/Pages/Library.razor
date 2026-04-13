@@ -66,6 +66,11 @@
                     @foreach (var item in recentItems)
                     {
                         <div class="recent-item-card highlight-card">
+
+                            <div class="item-status-badge @GetStatusClass(item.LookupStatus)">
+                                @item.LookupStatus
+                            </div>
+
                             <div class="recent-item-header">
                                 <span class="recent-item-icon">📘</span>
 
@@ -111,5 +116,17 @@
             .OrderByDescending(x => x.LastScannedAt)
             .Take(5)
             .ToList();
+    }
+
+    private string GetStatusClass(string? status)
+    {
+        return status switch
+        {
+            "Completed" => "status-completed",
+            "Processing" => "status-processing",
+            "Pending" => "status-pending",
+            "Pending Manual Review" => "status-review",
+            _ => "status-pending"
+        };
     }
 }

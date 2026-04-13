@@ -14,10 +14,11 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddSingleton<IBarcodeEnrichmentQueue, BarcodeEnrichmentQueue>();
+builder.Services.AddHttpClient<IBarcodeLookupService, BarcodeLookupService>();
 builder.Services.AddHostedService<BarcodeEnrichmentWorker>();
 builder.Services.AddDbContext<LibraryDbContext>(options =>
-    options.UseSqlite("Data Source=library.db"));
-
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("DefaultConnection")));
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
