@@ -1,16 +1,8 @@
 ﻿@page "/export"
-@using ITMartinFileSorter.Application.Helpers
-@using ITMartinFileSorter.Application.Services
-@using ITMartinFileSorter.Domain.Enums
-
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
-@inject FastVideoBatchExportService FastVideoBatchExportService
-@inject ImageBatchExportService ImageBatchExportService
 @inject IConfiguration Configuration
-@inject TripGroupingService TripGroupingService
-@inject ArchivePathBuilder ArchivePathBuilder
-@inject FileRenameService FileRenameService
+@inject LibraryExportService LibraryExportService
 
 <div class="export-page">
 
@@ -94,15 +86,13 @@
         ExportLogs.Clear();
 
         CurrentStage = "Preparing export...";
-        CurrentExportFile = "Reading files and metadata...";
+        CurrentExportFile = "";
         ExportedCount = 0;
         TotalToExport = 0;
 
         AddLog("Export started");
-        AddLog("Reading files and building structure...");
 
         await InvokeAsync(StateHasChanged);
-        await Task.Yield();
 
         var files = DuplicateService.FilesToExport.ToList();
 
@@ -121,119 +111,17 @@
 
         try
         {
-            AddLog($"Found {files.Count} files");
-
-            var structure = ArchivePathBuilder.BuildStructure(
+            await LibraryExportService.ExportAsync(
                 files,
-                new ArchiveOptions
-                {
-                    UseTripFolders = true,
-                    UseYearFolders = true,
-                    UseMonthFolders = true,
-                    UseTypeFolders = false
-                });
-
-            TotalToExport = structure.Sum(x => x.Value.Count);
-            ExportedCount = 0;
-            CurrentStage = "Copying files...";
-            CurrentExportFile = "";
-
-            AddLog("Folder structure created");
-            AddLog("Starting file copy");
-
-            await InvokeAsync(StateHasChanged);
-            await Task.Yield();
-
-            int refreshCounter = 0;
-
-            foreach (var folder in structure)
-            {
-                var targetFolder = Path.Combine(exportRoot, folder.Key);
-
-                Directory.CreateDirectory(targetFolder);
-
-                AddLog($"Created folder: {folder.Key}");
-
-                int index = 1;
-
-                foreach (var file in folder.Value)
-                {
-                    var newFileName = FileRenameService.BuildName(
-                        file,
-                        index,
-                        RenameStrategy.DateAndType);
-
-                    var destination = Path.Combine(targetFolder, newFileName);
-
-                    File.Copy(file.FullPath, destination, true);
-
-                    index++;
-                    ExportedCount++;
-                    CurrentExportFile = newFileName;
-
-                    refreshCounter++;
-
-                    if (refreshCounter % 5 == 0)
-                    {
-                        AddLog($"Copied: {newFileName}");
-
-                        await InvokeAsync(StateHasChanged);
-                        await Task.Yield();
-                    }
-                }
-            }
-
-            AddLog("Copy completed");
-
-            var videoFiles = Directory
-                .EnumerateFiles(exportRoot, "*.*", SearchOption.AllDirectories)
-                .Where(f =>
-                {
-                    var ext = Path.GetExtension(f).ToLowerInvariant();
-                    return ext is ".mov" or ".avi" or ".mkv" or ".wmv";
-                })
-                .ToList();
-
-            CurrentStage = "Converting videos...";
-            ExportedCount = 0;
-            TotalToExport = videoFiles.Count;
-            CurrentExportFile = "";
-
-            AddLog($"Found {videoFiles.Count} videos");
-            AddLog("Starting video conversion");
-
-            await InvokeAsync(StateHasChanged);
-
-            await FastVideoBatchExportService.ConvertAllVideosAsync(
                 exportRoot,
-                async (done, total, fileName) =>
+                async (done, total, fileName, stage) =>
                 {
                     ExportedCount = done;
                     TotalToExport = total;
                     CurrentExportFile = fileName;
+                    CurrentStage = stage;
 
-                    AddLog($"Video converted: {fileName}");
-
-                    await InvokeAsync(StateHasChanged);
-                });
-
-            CurrentStage = "Converting images...";
-            ExportedCount = 0;
-            CurrentExportFile = "";
-
-            AddLog("Starting image conversion");
-
-            await InvokeAsync(StateHasChanged);
-
-            await ImageBatchExportService.ConvertAllImagesAsync(
-                exportRoot,
-                async (done, total, fileName) =>
-                {
-                    ExportedCount = done;
-                    TotalToExport = total;
-                    CurrentExportFile = fileName;
-
-                    AddLog($"Image converted: {fileName}");
+                    AddLog($"{stage} {fileName}");
 
                     await InvokeAsync(StateHasChanged);
                 });

@@ -35,12 +35,10 @@ builder.Services.AddScoped<HomeLocationService>();
 builder.Services.AddScoped<JunkDetectionService>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<ThumbnailService>();
-builder.Services.AddScoped<ArchivePathBuilder>();
 builder.Services.AddScoped<IMediaDateService, MediaDateService>();
-builder.Services.AddScoped<AlbumStyleNameBuilder>();
 builder.Services.AddScoped<IGpsService, GpsService>();
-builder.Services.AddScoped<FileRenameService>();
-
+builder.Services.AddScoped<LibraryPathService>();
+builder.Services.AddScoped<LibraryExportService>();
 builder.Services.AddControllers();
 
 var app = builder.Build();

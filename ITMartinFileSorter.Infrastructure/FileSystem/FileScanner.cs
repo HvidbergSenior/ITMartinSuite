@@ -109,9 +109,11 @@ public sealed class FileScanner : IFileScanner
                 bestDate = info.LastWriteTimeUtc;
             }
 
+            var fallbackDate = bestDate ?? info.LastWriteTime;
+
             var mediaFile = new MediaFile(
                 fullPath: file,
-                createdAt: bestDate,
+                createdAt: fallbackDate,
                 type: type,
                 sizeBytes: info.Length
             );

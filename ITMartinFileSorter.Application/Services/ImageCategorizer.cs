@@ -46,19 +46,14 @@ public class ImageCategorizer
 
     private bool IsScreenshot(MediaFile file, string name, string ext)
     {
-        if (ext == ".png")
-            return true;
-
         return name.Contains("screenshot") ||
                name.Contains("screen") ||
-               name.Contains("capture");
+               name.Contains("capture") ||
+               name.StartsWith("snip");
     }
 
     private bool IsMeme(MediaFile file, string name, string ext)
     {
-        if (ext == ".gif" || ext == ".webp")
-            return true;
-
         return name.Contains("meme") ||
                name.Contains("funny") ||
                name.Contains("reaction") ||
@@ -79,7 +74,10 @@ public class ImageCategorizer
     {
         if (ext == ".heic" ||
             ext == ".jpg" ||
-            ext == ".jpeg")
+            ext == ".jpeg" ||
+            ext == ".tif" ||
+            ext == ".tiff" ||
+            ext == ".bmp")
             return true;
 
         return name.StartsWith("img_") ||

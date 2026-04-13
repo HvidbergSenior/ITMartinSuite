@@ -31,9 +31,11 @@ public class MediaFile
 
     // Video metadata
     public long? DurationMs { get; private set; }
-    public int? Width { get; private set; }
-    public int? Height { get; private set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
 
+    public bool HasExif { get; set; }
+    public string? Format { get; set; }
     public string ExportPath => WorkingPath ?? FullPath;
     
     // Tracks whether user wants to keep the file in the workflow

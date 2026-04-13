@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using ITMartinFileSorter.Domain.Interfaces;
+﻿using ITMartinFileSorter.Domain.Interfaces;
 using ITMartinFileSorter.Infrastructure.FileSystem;
 using ITMartinFileSorter.Infrastructure.Helpers;
 
@@ -13,14 +12,31 @@ public class MediaDateService : IMediaDateService
 
         try
         {
+            // Images
             if (FileScanner.ImageExtensions.Contains(ext))
             {
-                return ImageMetadataHelper.GetCreationTime(path);
+                return ImageMetadataHelper.GetCreationTime(path)
+                       ?? GetFileFallbackDate(path);
             }
 
+            // Videos
             if (FileScanner.VideoExtensions.Contains(ext))
             {
-                return VideoMetadataHelper.GetCreationTime(path);
+                return VideoMetadataHelper.GetCreationTime(path)
+                       ?? GetFileFallbackDate(path);
+            }
+
+            // Documents
+            if (FileScanner.DocumentExtensions.Contains(ext))
+            {
+                return DocumentMetadataHelper.GetCreationTime(path)
+                       ?? GetFileFallbackDate(path);
+            }
+
+            // Audio
+            if (FileScanner.AudioExtensions.Contains(ext))
+            {
+                return GetFileFallbackDate(path);
             }
         }
         catch (Exception ex)
@@ -28,6 +44,23 @@ public class MediaDateService : IMediaDateService
             Console.WriteLine($"[MEDIA DATE ERROR] {ex.Message}");
         }
 
-        return null;
+        return GetFileFallbackDate(path);
+    }
+
+    private DateTime? GetFileFallbackDate(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+
+            // Prefer the oldest meaningful date
+            return info.CreationTime < info.LastWriteTime
+                ? info.CreationTime
+                : info.LastWriteTime;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
