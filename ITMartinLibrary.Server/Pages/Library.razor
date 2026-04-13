@@ -1,5 +1,6 @@
 ﻿@page "/"
 @page "/library"
+@implements IDisposable
 
 @using ITMartinLibrary.Domain.Entities
 @inject InventoryService InventoryService
@@ -108,12 +109,39 @@
     private List<InventoryItem> items = new();
     private List<InventoryItem> recentItems = new();
 
+    private PeriodicTimer? refreshTimer;
+    private CancellationTokenSource cts = new();
+
     protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboard();
+
+        refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+        _ = RefreshLoop();
+    }
+
+    private async Task RefreshLoop()
+    {
+        try
+        {
+            while (await refreshTimer!.WaitForNextTickAsync(cts.Token))
+            {
+                await LoadDashboard();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // normal on dispose
+        }
+    }
+
+    private async Task LoadDashboard()
     {
         items = await InventoryService.GetAllAsync() ?? new();
 
         recentItems = items
-            .OrderByDescending(x => x.LastScannedAt)
+            .OrderByDescending(x => x.DetailsUpdatedAt ?? x.LastScannedAt)
             .Take(5)
             .ToList();
     }
@@ -128,5 +156,12 @@
             "Pending Manual Review" => "status-review",
             _ => "status-pending"
         };
+    }
+
+    public void Dispose()
+    {
+        cts.Cancel();
+        refreshTimer?.Dispose();
+        cts.Dispose();
     }
 }

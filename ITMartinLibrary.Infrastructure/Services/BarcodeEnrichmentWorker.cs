@@ -8,16 +8,13 @@ public class BarcodeEnrichmentWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IBarcodeEnrichmentQueue _queue;
-    private readonly IBarcodeLookupService _lookupService;
-    
+
     public BarcodeEnrichmentWorker(
         IServiceProvider serviceProvider,
-        IBarcodeEnrichmentQueue queue,
-        IBarcodeLookupService lookupService)
+        IBarcodeEnrichmentQueue queue)
     {
         _serviceProvider = serviceProvider;
         _queue = queue;
-        _lookupService = lookupService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -26,55 +23,68 @@ public class BarcodeEnrichmentWorker : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var barcode = await _queue.DequeueAsync(stoppingToken);
-
-            Console.WriteLine($"PROCESSING {barcode}");
-
-            using var scope = _serviceProvider.CreateScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IInventoryRepository>();
-
-            var item = await repository.GetByBarcodeAsync(barcode);
-
-            if (item is null)
-                continue;
-
-            if (item.LookupStatus == "Completed" &&
-                !string.IsNullOrWhiteSpace(item.Title))
-                continue;
-
-            item.LookupStatus = "Processing";
-            item.DetailsUpdatedAt = DateTime.UtcNow;
-
-            await repository.UpdateAsync(item);
-
-            var enriched = await _lookupService.LookupAsync(barcode);
-
-            if (enriched is null)
+            try
             {
-                item.LookupStatus = "Pending Manual Review";
+                Console.WriteLine("WAITING FOR BARCODE...");
+                var barcode = await _queue.DequeueAsync(stoppingToken);
+
+                Console.WriteLine($"PROCESSING {barcode}");
+
+                using var scope = _serviceProvider.CreateScope();
+
+                var repository = scope.ServiceProvider
+                    .GetRequiredService<IInventoryRepository>();
+
+                var lookupService = scope.ServiceProvider
+                    .GetRequiredService<IBarcodeLookupService>();
+
+                var item = await repository.GetByBarcodeAsync(barcode);
+
+                if (item is null)
+                    continue;
+
+                if (item.LookupStatus == "Completed" &&
+                    !string.IsNullOrWhiteSpace(item.Title))
+                    continue;
+
+                item.LookupStatus = "Processing";
                 item.DetailsUpdatedAt = DateTime.UtcNow;
 
                 await repository.UpdateAsync(item);
 
-                Console.WriteLine($"NOT FOUND {barcode}");
-                continue;
+                var enriched = await lookupService.LookupAsync(barcode);
+
+                if (enriched is null)
+                {
+                    item.LookupStatus = "Pending Manual Review";
+                    item.DetailsUpdatedAt = DateTime.UtcNow;
+
+                    await repository.UpdateAsync(item);
+
+                    Console.WriteLine($"NOT FOUND {barcode}");
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(enriched.Title))
+                    item.Title = enriched.Title;
+
+                if (!string.IsNullOrWhiteSpace(enriched.AuthorOrDirector))
+                    item.AuthorOrDirector = enriched.AuthorOrDirector;
+
+                if (!string.IsNullOrWhiteSpace(enriched.Type))
+                    item.Type = enriched.Type;
+
+                item.LookupStatus = "Completed";
+                item.DetailsUpdatedAt = DateTime.UtcNow;
+
+                await repository.UpdateAsync(item);
+
+                Console.WriteLine($"UPDATED {barcode}");
             }
-
-            if (!string.IsNullOrWhiteSpace(enriched.Title))
-                item.Title = enriched.Title;
-
-            if (!string.IsNullOrWhiteSpace(enriched.AuthorOrDirector))
-                item.AuthorOrDirector = enriched.AuthorOrDirector;
-
-            if (!string.IsNullOrWhiteSpace(enriched.Type))
-                item.Type = enriched.Type;
-
-            item.LookupStatus = "Completed";
-            item.DetailsUpdatedAt = DateTime.UtcNow;
-
-            await repository.UpdateAsync(item);
-
-            Console.WriteLine($"UPDATED {barcode}");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"WORKER ERROR: {ex}");
+            }
         }
     }
 }

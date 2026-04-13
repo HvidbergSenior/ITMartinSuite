@@ -1,33 +1,33 @@
 ﻿using System.Text.Json;
 using ITMartinLibrary.Application.Interfaces;
 using ITMartinLibrary.Domain.Entities;
-using Microsoft.Extensions.Configuration;
-namespace ITMartinLibrary.Application.Services;
+
+namespace ITMartinLibrary.Infrastructure.Services;
 
 public class BarcodeLookupService : IBarcodeLookupService
 {
     private readonly HttpClient _httpClient;
-    private readonly string _omdbKey;
 
-    public BarcodeLookupService(
-        HttpClient httpClient,
-        IConfiguration configuration)
+    public BarcodeLookupService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _omdbKey = configuration["ApiKeys:Omdb"] ?? "";
     }
 
     public async Task<InventoryItem?> LookupAsync(string barcode)
     {
-        // Books + ISBN magazines
-        if (barcode.StartsWith("978") || barcode.StartsWith("979"))
-            return await LookupBookAsync(barcode);
+        // Try OpenLibrary first
+        var result = await LookupOpenLibraryAsync(barcode);
 
-        // For non-book items we do lightweight detection
-        return await LookupMediaFallbackAsync(barcode);
+        if (result is not null)
+            return result;
+
+        // Fallback to Google Books
+        result = await LookupGoogleBooksAsync(barcode);
+
+        return result;
     }
 
-    private async Task<InventoryItem?> LookupBookAsync(string barcode)
+    private async Task<InventoryItem?> LookupOpenLibraryAsync(string barcode)
     {
         var url =
             $"https://openlibrary.org/api/books?bibkeys=ISBN:{barcode}&format=json&jscmd=data";
@@ -39,18 +39,21 @@ public class BarcodeLookupService : IBarcodeLookupService
 
         var json = await response.Content.ReadAsStringAsync();
 
-        using var doc = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(json);
 
         var key = $"ISBN:{barcode}";
 
-        if (!doc.RootElement.TryGetProperty(key, out var book))
+        if (!document.RootElement.TryGetProperty(key, out var book))
             return null;
 
-        string? title = book.GetProperty("title").GetString();
+        var title = book.TryGetProperty("title", out var titleProp)
+            ? titleProp.GetString()
+            : null;
 
         string? author = null;
 
         if (book.TryGetProperty("authors", out var authors) &&
+            authors.ValueKind == JsonValueKind.Array &&
             authors.GetArrayLength() > 0)
         {
             author = authors[0].GetProperty("name").GetString();
@@ -58,45 +61,16 @@ public class BarcodeLookupService : IBarcodeLookupService
 
         return new InventoryItem
         {
-            Barcode = barcode,
-            Title = title,
+            Title = title ?? "Unknown Book",
             AuthorOrDirector = author,
             Type = "Book"
         };
     }
 
-    private async Task<InventoryItem?> LookupMediaFallbackAsync(string barcode)
+    private async Task<InventoryItem?> LookupGoogleBooksAsync(string barcode)
     {
-        // free fallback:
-        // save barcode and let user edit later
-        return new InventoryItem
-        {
-            Barcode = barcode,
-            Title = $"Scanned item {barcode}",
-            Type = GuessTypeFromBarcode(barcode),
-            LookupStatus = "Pending Manual Review",
-            DetailsUpdatedAt = DateTime.UtcNow
-        };
-    }
-
-    private string GuessTypeFromBarcode(string barcode)
-    {
-        if (barcode.Length == 13)
-            return "DVD / Blu-ray / Magazine";
-
-        if (barcode.Length == 12)
-            return "DVD / Merchandise";
-
-        return "Unknown";
-    }
-
-    public async Task<string?> LookupMovieDirectorAsync(string title)
-    {
-        if (string.IsNullOrWhiteSpace(_omdbKey))
-            return null;
-
         var url =
-            $"https://www.omdbapi.com/?apikey={_omdbKey}&t={Uri.EscapeDataString(title)}";
+            $"https://www.googleapis.com/books/v1/volumes?q=isbn:{barcode}";
 
         var response = await _httpClient.GetAsync(url);
 
@@ -105,11 +79,35 @@ public class BarcodeLookupService : IBarcodeLookupService
 
         var json = await response.Content.ReadAsStringAsync();
 
-        using var doc = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(json);
 
-        if (!doc.RootElement.TryGetProperty("Director", out var director))
+        if (!document.RootElement.TryGetProperty("items", out var items))
             return null;
 
-        return director.GetString();
+        if (items.ValueKind != JsonValueKind.Array ||
+            items.GetArrayLength() == 0)
+            return null;
+
+        var volumeInfo = items[0].GetProperty("volumeInfo");
+
+        var title = volumeInfo.TryGetProperty("title", out var titleProp)
+            ? titleProp.GetString()
+            : null;
+
+        string? author = null;
+
+        if (volumeInfo.TryGetProperty("authors", out var authors) &&
+            authors.ValueKind == JsonValueKind.Array &&
+            authors.GetArrayLength() > 0)
+        {
+            author = authors[0].GetString();
+        }
+
+        return new InventoryItem
+        {
+            Title = title ?? "Unknown Book",
+            AuthorOrDirector = author,
+            Type = "Book"
+        };
     }
 }
