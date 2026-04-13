@@ -2,13 +2,11 @@
 
 @using ITMartinLibrary.Application.Services
 @using Microsoft.AspNetCore.Components.Web
-
 @inject InventoryService InventoryService
 
 <div class="library-page">
     <div class="page-container">
 
-        <!-- HERO -->
         <div class="scan-hero-card">
             <h1>📷 Quick Barcode Scan</h1>
             <p class="hero-text">
@@ -16,7 +14,6 @@
             </p>
         </div>
 
-        <!-- SCAN CARD -->
         <div class="content-card form-card scan-card">
 
             @if (!string.IsNullOrWhiteSpace(message))
@@ -29,12 +26,12 @@
             <div class="scan-form-group">
                 <label class="form-section-title">Scan Barcode</label>
 
-                <input @bind="Barcode"
+                <input @ref="barcodeInput"
+                       @bind="Barcode"
                        @bind:event="oninput"
                        @onkeydown="HandleKeyDown"
                        class="form-control scan-input"
-                       placeholder="Ready for scan..."
-                       autofocus />
+                       placeholder="Ready for scan..." />
 
                 <div class="scan-actions">
                     <a href="/library" class="btn btn-secondary">
@@ -49,6 +46,9 @@
 @code {
     private string barcode = "";
     private string message = "";
+    private bool isProcessing;
+
+    private ElementReference barcodeInput;
 
     private string Barcode
     {
@@ -57,11 +57,17 @@
         {
             barcode = value;
 
-            if (barcode.Length == 13)
+            if (!isProcessing &&
+                barcode.Length == 13)
             {
                 _ = ProcessScan();
             }
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await barcodeInput.FocusAsync();
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
@@ -74,14 +80,26 @@
 
     private async Task ProcessScan()
     {
-        if (string.IsNullOrWhiteSpace(barcode))
+        if (isProcessing || string.IsNullOrWhiteSpace(barcode))
             return;
 
-        var scannedCode = barcode;
+        isProcessing = true;
 
-        await InventoryService.ScanOrIncrementAsync(scannedCode);
+        try
+        {
+            var scannedCode = barcode;
 
-        message = $"Saved: {scannedCode}";
-        barcode = "";
+            await InventoryService.ScanOrIncrementAsync(scannedCode);
+
+            message = $"Saved: {scannedCode}";
+            barcode = "";
+
+            await InvokeAsync(StateHasChanged);
+            await barcodeInput.FocusAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+        }
     }
 }
