@@ -1,21 +1,49 @@
-﻿using ITMartinFileSorter.Domain.Entities;
+﻿using ITMartinFileSorter.Application.Helpers;
+using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
 public class LibraryPathService
 {
-    private readonly TripGroupingService _tripGroupingService;
+    private readonly TripGroupingService _tripService;
+    private readonly HomeLocationService _homeService;
+    private readonly IGpsService _gpsService;
 
     public LibraryPathService(
-        TripGroupingService tripGroupingService)
+        TripGroupingService tripService,
+        HomeLocationService homeService,
+        IGpsService gpsService)
     {
-        _tripGroupingService = tripGroupingService;
+        _tripService = tripService;
+        _homeService = homeService;
+        _gpsService = gpsService;
     }
 
     public string BuildFolderPath(MediaFile file)
     {
-        // Special top-level folders
+        // User-defined folder always wins
+        if (!string.IsNullOrWhiteSpace(file.UserFolderName))
+        {
+            var mainFolder = file.MainCategory switch
+            {
+                MediaMainCategory.Image => "Images",
+                MediaMainCategory.Video => "Videos",
+                MediaMainCategory.Audio => "Audio",
+                MediaMainCategory.Document => "Documents",
+                _ => "Other"
+            };
+
+            var year = GetYearFolder(file);
+
+            return Path.Combine(
+                mainFolder,
+                year,
+                CleanPart(file.UserFolderName));
+        }
+
+        // Existing automatic logic
         switch (file.SubCategory)
         {
             case MediaSubCategory.Screenshot:
@@ -36,7 +64,7 @@ public class LibraryPathService
                     GetYearFolder(file));
         }
 
-        var mainFolder = file.MainCategory switch
+        var main = file.MainCategory switch
         {
             MediaMainCategory.Image => "Images",
             MediaMainCategory.Video => "Videos",
@@ -45,18 +73,18 @@ public class LibraryPathService
             _ => "Other"
         };
 
-        var year = GetYearFolder(file);
+        var yearFolder = GetYearFolder(file);
 
-        // Only images + videos should use trip folders
         if (file.MainCategory is MediaMainCategory.Image
             or MediaMainCategory.Video)
         {
+            var location = GetLocationFolder(file);
             var trip = GetTripName(file);
-            return Path.Combine(mainFolder, year, trip);
+
+            return Path.Combine(main, yearFolder, location, trip);
         }
 
-        // Documents + audio should be flat
-        return Path.Combine(mainFolder, year);
+        return Path.Combine(main, yearFolder);
     }
 
     public string BuildFileName(MediaFile file, int index)
@@ -77,6 +105,11 @@ public class LibraryPathService
             date
         };
 
+        if (!string.IsNullOrWhiteSpace(file.UserTitle))
+        {
+            parts.Add(CleanPart(file.UserTitle));
+        }
+
         if (!string.IsNullOrWhiteSpace(location))
             parts.Add(location);
 
@@ -91,15 +124,13 @@ public class LibraryPathService
 
     private string GetTripName(MediaFile file)
     {
-        // First use explicit file location if already resolved
         if (!string.IsNullOrWhiteSpace(file.Location) &&
             file.Location != "Unknown")
         {
             return CleanPart(file.Location);
         }
 
-        // Fallback to trip grouping / GPS location service
-        var tripLocation = _tripGroupingService.GetSingleFileLocation(file);
+        var tripLocation = _tripService.GetSingleFileLocation(file);
 
         if (!string.IsNullOrWhiteSpace(tripLocation) &&
             tripLocation != "Unknown")
@@ -107,7 +138,6 @@ public class LibraryPathService
             return CleanPart(tripLocation);
         }
 
-        // Fallback by date period
         if (file.CreatedAt != null)
         {
             return $"Trip_{file.CreatedAt:yyyy_MM}";
@@ -145,5 +175,26 @@ public class LibraryPathService
     private string GetYearFolder(MediaFile file)
     {
         return file.CreatedAt?.Year.ToString() ?? "Unknown";
+    }
+    private string GetLocationFolder(MediaFile file)
+    {
+        if (file.MainCategory is not MediaMainCategory.Image
+            and not MediaMainCategory.Video)
+        {
+            return "Unknown";
+        }
+
+        var coords = _gpsService.GetCoordinates(file.FullPath);
+
+        if (coords == null)
+            return "Unknown";
+
+        var location = LocationFilter.GetLocationName(
+            coords.Value.lat,
+            coords.Value.lng);
+
+        return string.IsNullOrWhiteSpace(location)
+            ? "Unknown"
+            : CleanPart(location);
     }
 }

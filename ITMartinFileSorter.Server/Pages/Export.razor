@@ -7,7 +7,13 @@
 <div class="export-page">
 
     <ActionButtonBar>
-        <SectionTitle Title="Export Organized Files" />
+        <SectionTitle Title="📦 Export Organized Files" />
+
+        <button class="btn btn-outline-secondary"
+                @onclick="GoToOrganize"
+                disabled="@IsExporting">
+            Organize
+        </button>
 
         <button class="btn btn-outline-secondary"
                 @onclick="GoBack"
@@ -41,7 +47,26 @@
             </ContentCard>
         }
     }
+    <ContentCard Title="Export Summary">
+        <div class="item-meta">
+            <div>
+                <span class="item-label">Files:</span>
+                @DuplicateService.FilesToExport.Count()
+            </div>
 
+            <div>
+                <span class="item-label">Custom folders:</span>
+                @DuplicateService.FilesToExport.Count(f =>
+                    !string.IsNullOrWhiteSpace(f.UserFolderName))
+            </div>
+
+            <div>
+                <span class="item-label">Custom titles:</span>
+                @DuplicateService.FilesToExport.Count(f =>
+                    !string.IsNullOrWhiteSpace(f.UserTitle))
+            </div>
+        </div>
+    </ContentCard>
     @if (!IsExporting)
     {
         <ActionButtonBar>
@@ -63,7 +88,7 @@
     string CurrentStage = "";
 
     List<string> ExportLogs = new();
-
+    void GoToOrganize() => Navigation.NavigateTo("/organize");
     int ProgressPercent =>
         TotalToExport <= 0
             ? 0

@@ -401,3 +401,55 @@
     color: #ffa94d;
     border-color: rgba(255, 146, 43, 0.25);
 }
+
+.organize-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+.organize-toolbar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.organize-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.organize-file-card {
+    padding: 18px;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #1a1d24, #20242c);
+    border: 1px solid rgba(255,255,255,0.04);
+    box-shadow: var(--shadow);
+}
+
+.organize-meta {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    line-height: 1.6;
+}
+
+.organize-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.organize-batch-card {
+    margin-bottom: 24px;
+    padding: 24px;
+}
+
+.organize-filter-card {
+    margin-bottom: 20px;
+    padding: 20px;
+}

@@ -26,6 +26,9 @@ public class MediaFile
     public string? DeviceModel { get; set; }
     public string? Location { get; set; }
     public string? Hash { get; private set; }
+    public string? UserFolderName { get; set; }
+    public string? UserTitle { get; set; }
+    public List<string> Tags { get; set; } = new();
 
     public string? DynamicFolder { get; set; }
 
