@@ -31,10 +31,18 @@ namespace ITMartinLibrary.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CoverUrl")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("DetailsUpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("FirstScannedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Genre")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("LastScannedAt")
@@ -44,11 +52,23 @@ namespace ITMartinLibrary.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Plot")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReleaseYear")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Runtime")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ShelfLocation")
                         .IsRequired()

@@ -1,39 +1,80 @@
 ﻿@page "/library/edit/{Id:int}"
 
-@using ITMartinLibrary.Application.Services
+@using ITMartinLibrary.Application.Interfaces
 @using ITMartinLibrary.Domain.Entities
-
 @inject InventoryService InventoryService
+@inject IBarcodeLookupService BarcodeLookupService
 @inject NavigationManager Navigation
 
 <div class="library-page">
     <div class="page-container">
 
         <div class="scan-hero-card">
-            <h1>✏️ Edit Inventory Item</h1>
+            <h1>✏️ Edit Item</h1>
             <p class="hero-text">
-                Update details and save changes.
+                Update inventory details and enrich movie metadata.
             </p>
         </div>
 
-        <div class="content-card form-card edit-card">
-            <div class="inventory-form-grid">
-                <input @bind="item.Title" class="form-control" placeholder="Title" />
-                <input @bind="item.Type" class="form-control" placeholder="Type" />
-                <input @bind="item.AuthorOrDirector" class="form-control" placeholder="Author / Director" />
-                <input @bind="item.Price" type="number" class="form-control" placeholder="Price" />
-                <input @bind="item.ShelfLocation" class="form-control" placeholder="Shelf Location" />
-            </div>
+        <div class="content-card form-card">
 
-            <div class="form-actions">
-                <button class="btn btn-success" @onclick="Save">
-                    💾 Save Changes
-                </button>
+            @if (item is null)
+            {
+                <p>Loading...</p>
+            }
+            else
+            {
+                <div class="inventory-form-grid">
+                    <div>
+                        <label>Title</label>
+                        <input @bind="item.Title" class="form-control" />
+                    </div>
 
-                <a href="/library" class="btn btn-secondary">
-                    📚 Back
-                </a>
-            </div>
+                    <div>
+                        <label>Type</label>
+                        <input @bind="item.Type" class="form-control" />
+                    </div>
+
+                    <div>
+                        <label>Author / Director</label>
+                        <input @bind="item.AuthorOrDirector" class="form-control" />
+                    </div>
+
+                    <div>
+                        <label>Genre</label>
+                        <input @bind="item.Genre" class="form-control" />
+                    </div>
+
+                    <div>
+                        <label>Runtime</label>
+                        <input @bind="item.Runtime" class="form-control" />
+                    </div>
+
+                    <div>
+                        <label>Release Year</label>
+                        <input @bind="item.ReleaseYear" class="form-control" />
+                    </div>
+
+                    <div>
+                        <label>Plot</label>
+                        <textarea @bind="item.Plot" class="form-control"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions mt-3">
+                    <button class="btn btn-primary" @onclick="SearchMovie">
+                        🎬 Search Movie Details
+                    </button>
+
+                    <button class="btn btn-success" @onclick="Save">
+                        💾 Save
+                    </button>
+
+                    <a href="/library" class="btn btn-secondary">
+                        📚 Back
+                    </a>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -41,16 +82,44 @@
 @code {
     [Parameter] public int Id { get; set; }
 
-    private InventoryItem item = new();
+    private InventoryItem? item;
 
     protected override async Task OnInitializedAsync()
     {
-        item = await InventoryService.GetByIdAsync(Id) ?? new();
+        item = await InventoryService.GetByIdAsync(Id);
+    }
+
+    private async Task SearchMovie()
+    {
+        if (item is null || string.IsNullOrWhiteSpace(item.Title))
+            return;
+
+        var enriched =
+            await BarcodeLookupService.LookupMovieByTitleAsync(item.Title);
+
+        if (enriched is null)
+            return;
+
+        item.Title = enriched.Title;
+        item.AuthorOrDirector = enriched.AuthorOrDirector;
+        item.Genre = enriched.Genre;
+        item.Runtime = enriched.Runtime;
+        item.ReleaseYear = enriched.ReleaseYear;
+        item.Plot = enriched.Plot;
+        item.CoverUrl = enriched.CoverUrl;
+        item.Type = enriched.Type;
+        item.LookupStatus = "Completed";
+
+        await InventoryService.UpdateAsync(item);
     }
 
     private async Task Save()
     {
+        if (item is null)
+            return;
+
         await InventoryService.UpdateAsync(item);
+
         Navigation.NavigateTo("/library");
     }
 }

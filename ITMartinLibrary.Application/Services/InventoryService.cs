@@ -18,7 +18,11 @@ public class InventoryService
 
     public async Task AddAsync(InventoryItem item)
     {
-        item.DetailsUpdatedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+
+        item.FirstScannedAt = now;
+        item.LastScannedAt = now;
+        item.DetailsUpdatedAt = now;
 
         if (string.IsNullOrWhiteSpace(item.LookupStatus))
             item.LookupStatus = "Queued";
@@ -31,6 +35,8 @@ public class InventoryService
 
     public async Task ScanOrIncrementAsync(string barcode)
     {
+        var now = DateTime.UtcNow;
+
         var item = await _repository.GetByBarcodeAsync(barcode);
 
         if (item is null)
@@ -41,7 +47,9 @@ public class InventoryService
                 Title = "Untitled",
                 Quantity = 1,
                 LookupStatus = "Queued",
-                DetailsUpdatedAt = DateTime.UtcNow
+                FirstScannedAt = now,
+                LastScannedAt = now,
+                DetailsUpdatedAt = now
             };
 
             await _repository.AddAsync(item);
@@ -49,7 +57,8 @@ public class InventoryService
         else
         {
             item.Quantity += 1;
-            item.DetailsUpdatedAt = DateTime.UtcNow;
+            item.LastScannedAt = now;
+            item.DetailsUpdatedAt = now;
 
             await _repository.UpdateAsync(item);
         }

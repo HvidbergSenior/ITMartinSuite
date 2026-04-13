@@ -1,6 +1,7 @@
 ﻿using ITMartinLibrary.Application.Interfaces;
 using ITMartinLibrary.Application.Services;
 using ITMartinLibrary.Infrastructure;
+using ITMartinLibrary.Infrastructure.Options;
 using ITMartinLibrary.Infrastructure.Repositories;
 using ITMartinLibrary.Infrastructure.Services;
 using ITMartinLibrary.Server;
@@ -19,6 +20,9 @@ builder.Services.AddHostedService<BarcodeEnrichmentWorker>();
 builder.Services.AddDbContext<LibraryDbContext>(options =>
     options.UseSqlite(
         builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.Configure<OmdbOptions>(
+    builder.Configuration.GetSection("Omdb"));
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
