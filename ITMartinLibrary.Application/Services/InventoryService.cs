@@ -41,10 +41,15 @@ public class InventoryService
 
         if (item is null)
         {
+            var type = (barcode.StartsWith("978") || barcode.StartsWith("979"))
+                ? "Book"
+                : "DVD";
+
             item = new InventoryItem
             {
                 Barcode = barcode,
                 Title = "Untitled",
+                Type = type,
                 Quantity = 1,
                 LookupStatus = "Queued",
                 FirstScannedAt = now,
@@ -65,7 +70,6 @@ public class InventoryService
 
         _queue.Enqueue(barcode);
     }
-
     public async Task UpdateAsync(InventoryItem item)
     {
         item.DetailsUpdatedAt = DateTime.UtcNow;

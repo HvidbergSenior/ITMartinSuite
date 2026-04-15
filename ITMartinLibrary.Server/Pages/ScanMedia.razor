@@ -1,0 +1,68 @@
+﻿@page "/library/scan-media"
+
+@using ITMartinLibrary.Application.Services
+@inject InventoryService InventoryService
+
+<div class="library-page">
+    <div class="page-container">
+        <div class="scan-hero-card">
+            <h1>🎬 Scan DVD / Blu-ray</h1>
+        </div>
+
+        <input @ref="barcodeInput"
+               @bind="Barcode"
+               @bind:event="oninput"
+               class="form-control scan-input"
+               placeholder="Ready for media scan..." />
+    </div>
+</div>
+
+@code {
+    private string barcode = "";
+    private bool isProcessing;
+    private ElementReference barcodeInput;
+
+    private string Barcode
+    {
+        get => barcode;
+        set
+        {
+            barcode = value;
+
+            if (!isProcessing &&
+                barcode.Length is 12 or 13)
+            {
+                _ = ProcessScan();
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await barcodeInput.FocusAsync();
+    }
+
+    private async Task ProcessScan()
+    {
+        if (isProcessing)
+            return;
+
+        isProcessing = true;
+
+        try
+        {
+            var scannedCode = barcode;
+
+            await InventoryService.ScanOrIncrementAsync(scannedCode);
+
+            barcode = "";
+
+            await InvokeAsync(StateHasChanged);
+            await barcodeInput.FocusAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

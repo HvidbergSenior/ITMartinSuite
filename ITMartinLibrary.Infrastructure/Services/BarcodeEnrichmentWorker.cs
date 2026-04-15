@@ -1,4 +1,5 @@
 ﻿using ITMartinLibrary.Application.Interfaces;
+using ITMartinLibrary.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -44,15 +45,31 @@ public class BarcodeEnrichmentWorker : BackgroundService
                     continue;
 
                 if (item.LookupStatus == "Completed" &&
-                    !string.IsNullOrWhiteSpace(item.Title))
+                    !string.IsNullOrWhiteSpace(item.Title) &&
+                    item.Title != "Untitled")
                     continue;
 
                 item.LookupStatus = "Processing";
                 item.DetailsUpdatedAt = DateTime.UtcNow;
 
+                Console.WriteLine($"FINAL SAVE TYPE: {item.Type}");
+                Console.WriteLine($"FINAL SAVE TITLE: {item.Title}");
                 await repository.UpdateAsync(item);
 
-                var enriched = await lookupService.LookupAsync(barcode);
+                InventoryItem? enriched = null;
+
+                // Retry up to 3 times
+                for (var attempt = 1; attempt <= 3; attempt++)
+                {
+                    Console.WriteLine($"LOOKUP ATTEMPT {attempt} FOR {barcode}");
+
+                    enriched = await lookupService.LookupAsync(barcode);
+
+                    if (enriched is not null)
+                        break;
+
+                    await Task.Delay(1000, stoppingToken);
+                }
 
                 if (enriched is null)
                 {
@@ -61,7 +78,9 @@ public class BarcodeEnrichmentWorker : BackgroundService
 
                     await repository.UpdateAsync(item);
 
-                    Console.WriteLine($"NOT FOUND {barcode}");
+                    Console.WriteLine($"NOT FOUND AFTER RETRY {barcode}");
+
+                    await Task.Delay(300, stoppingToken);
                     continue;
                 }
 
@@ -74,12 +93,30 @@ public class BarcodeEnrichmentWorker : BackgroundService
                 if (!string.IsNullOrWhiteSpace(enriched.Type))
                     item.Type = enriched.Type;
 
+                if (!string.IsNullOrWhiteSpace(enriched.Genre))
+                    item.Genre = enriched.Genre;
+
+                if (!string.IsNullOrWhiteSpace(enriched.Runtime))
+                    item.Runtime = enriched.Runtime;
+
+                if (!string.IsNullOrWhiteSpace(enriched.ReleaseYear))
+                    item.ReleaseYear = enriched.ReleaseYear;
+
+                if (!string.IsNullOrWhiteSpace(enriched.Plot))
+                    item.Plot = enriched.Plot;
+
+                if (!string.IsNullOrWhiteSpace(enriched.CoverUrl))
+                    item.CoverUrl = enriched.CoverUrl;
+
                 item.LookupStatus = "Completed";
                 item.DetailsUpdatedAt = DateTime.UtcNow;
 
                 await repository.UpdateAsync(item);
 
                 Console.WriteLine($"UPDATED {barcode}");
+
+                // Small pause between items
+                await Task.Delay(300, stoppingToken);
             }
             catch (Exception ex)
             {

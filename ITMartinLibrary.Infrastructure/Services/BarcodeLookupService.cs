@@ -21,17 +21,32 @@ public class BarcodeLookupService : IBarcodeLookupService
 
     public async Task<InventoryItem?> LookupAsync(string barcode)
     {
-        // Books
+        Console.WriteLine($"LOOKUP START: {barcode}");
+        Console.WriteLine($"IS BOOK: {barcode.StartsWith("978") || barcode.StartsWith("979")}");
         if (barcode.StartsWith("978") || barcode.StartsWith("979"))
         {
+            Console.WriteLine("TRYING GOOGLE BOOKS");
             var book = await LookupGoogleBooksAsync(barcode);
 
             if (book is not null)
+            {
+                Console.WriteLine($"BOOK FOUND: {book.Title} / {book.Type}");
                 return book;
+            }
         }
 
-        // DVD / Blu-ray manual fallback not barcode-direct
-        return null;
+        var movie = await LookupUpcItemDbAsync(barcode);
+
+        if (movie is not null)
+            return movie;
+
+        return new InventoryItem
+        {
+            Title = "Pending manual review",
+            Type = barcode.StartsWith("978") || barcode.StartsWith("979")
+                ? "Book"
+                : "DVD"
+        };
     }
 
     public async Task<InventoryItem?> LookupMovieByTitleAsync(string title)
@@ -121,6 +136,46 @@ public class BarcodeLookupService : IBarcodeLookupService
         {
             Title = title ?? "",
             Type = "Book"
+        };
+    }
+    
+    private async Task<InventoryItem?> LookupUpcItemDbAsync(string barcode)
+    {
+        var url =
+            $"https://api.upcitemdb.com/prod/trial/lookup?upc={barcode}";
+
+        var response = await _httpClient.GetAsync(url);
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        using var document = JsonDocument.Parse(json);
+
+        if (!document.RootElement.TryGetProperty("items", out var items) ||
+            items.GetArrayLength() == 0)
+            return null;
+
+        var item = items[0];
+
+        var title = item.TryGetProperty("title", out var titleProp)
+            ? titleProp.GetString()
+            : "";
+
+        if (string.IsNullOrWhiteSpace(title))
+            return null;
+
+        // enrich with OMDb
+        var movie = await LookupMovieByTitleAsync(title);
+
+        if (movie is not null)
+            return movie;
+
+        return new InventoryItem
+        {
+            Title = title,
+            Type = "DVD"
         };
     }
 }

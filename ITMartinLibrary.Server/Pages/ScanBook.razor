@@ -1,0 +1,70 @@
+﻿@page "/library/scan-book"
+
+@using ITMartinLibrary.Application.Services
+@inject InventoryService InventoryService
+
+<div class="library-page">
+    <div class="page-container">
+        <div class="scan-hero-card">
+            <h1>📚 Scan Books</h1>
+        </div>
+
+        <input @ref="barcodeInput"
+               @bind="Barcode"
+               @bind:event="oninput"
+               class="form-control scan-input"
+               placeholder="Ready for book scan..." />
+    </div>
+</div>
+
+@code {
+    private string barcode = "";
+    private string message = "";
+    private bool isProcessing;
+    private ElementReference barcodeInput;
+
+    private string Barcode
+    {
+        get => barcode;
+        set
+        {
+            barcode = value;
+
+            if (!isProcessing &&
+                barcode.Length == 13 &&
+                (barcode.StartsWith("978") || barcode.StartsWith("979")))
+            {
+                _ = ProcessScan();
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await barcodeInput.FocusAsync();
+    }
+
+    private async Task ProcessScan()
+    {
+        if (isProcessing)
+            return;
+
+        isProcessing = true;
+
+        try
+        {
+            var scannedCode = barcode;
+
+            await InventoryService.ScanOrIncrementAsync(scannedCode);
+
+            barcode = "";
+
+            await InvokeAsync(StateHasChanged);
+            await barcodeInput.FocusAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}
