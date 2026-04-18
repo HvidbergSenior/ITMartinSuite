@@ -1,4 +1,6 @@
-﻿namespace ITMartinBudget.Domain.Entities;
+﻿using ITMartinBudget.Domain.Enums;
+
+namespace ITMartinBudget.Domain.Entities;
 
 public class BankTransaction
 {
@@ -8,4 +10,5 @@ public class BankTransaction
 
     public string Category { get; set; } = default!;
     public string MainCategory { get; set; } = default!;
+    public ExpenseType ExpenseType { get; set; } = ExpenseType.Unknown;
 }

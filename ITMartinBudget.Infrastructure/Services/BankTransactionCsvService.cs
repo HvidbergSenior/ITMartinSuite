@@ -24,6 +24,10 @@ public class BankTransactionCsvService
 
         await foreach (var record in csv.GetRecordsAsync<BankTransaction>())
         {
+            // 🔥 CLEAN DATA HERE
+            record.Category = record.Category?.Trim().ToLowerInvariant();
+            record.Description = record.Description?.Trim();
+
             records.Add(record);
         }
 

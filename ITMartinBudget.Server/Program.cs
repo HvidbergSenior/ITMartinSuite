@@ -1,6 +1,6 @@
 using ITMartinBudget.Application.Services;
 using ITMartinBudget.Infrastructure.Services;
-using ITMartinBudget.Server.Components;
+using ITMartinBudget.Server;
 using ITMartinBudgetInfrastructure;
 
 var builder = WebApplication.CreateBuilder(args);

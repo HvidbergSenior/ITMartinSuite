@@ -461,3 +461,145 @@
 .text-danger {
     color: #ff6b6b;
 }
+/* TABLE */
+.budget-table th {
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.budget-table td {
+    vertical-align: middle;
+}
+
+/* FREQUENCY BADGES */
+.frequency-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.freq-monthly {
+    background: rgba(25, 113, 194, 0.12);
+    color: #74c0fc;
+}
+
+.freq-quarterly {
+    background: rgba(255, 146, 43, 0.12);
+    color: #ffa94d;
+}
+
+.freq-yearly {
+    background: rgba(47, 158, 68, 0.12);
+    color: #7ee787;
+}
+
+.freq-weekly {
+    background: rgba(94, 92, 230, 0.12);
+    color: #b197fc;
+}
+
+.freq-irregular {
+    background: rgba(245, 159, 0, 0.12);
+    color: #ffd43b;
+}
+
+.need {
+    border-left: 4px solid #7ee787;
+}
+
+.nice {
+    border-left: 4px solid #ffd43b;
+}
+
+/* clickable row */
+.category-row {
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.category-row:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+/* transaction expand */
+.transaction-row td {
+    padding: 0;
+}
+
+.transaction-container {
+    padding: 16px;
+    background: rgba(255,255,255,0.02);
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* transaction table */
+.transaction-table {
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+/* dropdown */
+.type-select {
+    min-width: 100px;
+}
+
+/* optional: highlight */
+.category-row.selected {
+    background: rgba(255,255,255,0.06);
+}
+
+.category-row.selected {
+    background: rgba(255,255,255,0.06);
+}
+
+.budget-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 900px) {
+    .budget-split {
+        grid-template-columns: 1fr;
+    }
+}
+.category-row td:first-child {
+    cursor: pointer;
+}
+
+.category-row.selected {
+    background: rgba(255,255,255,0.06);
+}
+
+.category-row {
+    outline: 2px solid red;
+}
+
+.content-card {
+    position: relative;
+    z-index: 1;
+}
+
+.category-row {
+    position: relative;
+    z-index: 5;
+}
+
+/* ensure table is clickable layer */
+.table {
+    position: relative;
+    z-index: 1;
+}
+
+/* ensure rows are ABOVE any overlays */
+.category-row {
+    position: relative;
+    z-index: 5;
+}
+
+/* prevent expanded content from blocking clicks */
+.transaction-container {
+    position: relative;
+    z-index: 0;
+}
