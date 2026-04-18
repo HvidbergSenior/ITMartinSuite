@@ -1,5 +1,94 @@
-﻿@page "/budget"
+﻿@page "/"
+@page "/budget"
+@using ITMartinBudget.Application.Services
+@using ITMartinBudget.Domain.Entities
 
-<h3>Budget Overview</h3>
+@inject BudgetService BudgetService
 
-<p>Coming soon...</p>
+<div class="library-page">
+    <div class="page-container">
+
+        <!-- HERO -->
+        <div class="scan-hero-card dashboard-hero">
+            <div class="library-row">
+                <div>
+                    <h1>💰 Budget Dashboard</h1>
+                    <p class="hero-text">
+                        Upload CSV and analyze your yearly expenses and income.
+                    </p>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/budget/upload" class="btn btn-primary">
+                        📂 Upload CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="dashboard-stats-grid">
+            <div class="content-card stat-card">
+                <h3>@_totals?.Income</h3>
+                <p>Total Income</p>
+            </div>
+
+            <div class="content-card stat-card">
+                <h3>@_totals?.Expenses</h3>
+                <p>Total Expenses</p>
+            </div>
+
+            <div class="content-card stat-card">
+                <h3>@_totals?.Net</h3>
+                <p>Net</p>
+            </div>
+        </div>
+
+        <!-- CATEGORY SUMMARY -->
+        <div class="content-card recent-section-card">
+            <div class="library-row">
+                <div>
+                    <h3>📊 Category Overview</h3>
+                    <p class="text-muted">Top categories</p>
+                </div>
+            </div>
+
+            @if (!_summary.Any())
+            {
+                <p>No data loaded yet.</p>
+            }
+            else
+            {
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _summary.Take(10))
+                        {
+                            <tr>
+                                <td>@item.Category</td>
+                                <td>@item.Total</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<BankTransaction> _transactions = new();
+    private List<CategorySummary> _summary = new();
+    private YearSummary? _totals;
+
+    protected override void OnInitialized()
+    {
+        // For now: empty state
+        // Later: load from DB instead of memory
+    }
+}

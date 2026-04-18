@@ -1,4 +1,5 @@
 using ITMartinBudget.Application.Services;
+using ITMartinBudget.Infrastructure.Services;
 using ITMartinBudget.Server.Components;
 using ITMartinBudgetInfrastructure;
 
@@ -8,6 +9,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddDbContext<BudgetDbContext>();
+builder.Services.AddScoped<BudgetService>();
+builder.Services.AddScoped<BankTransactionCsvService>();
 builder.Services.AddScoped<BudgetService>();
 var app = builder.Build();
 

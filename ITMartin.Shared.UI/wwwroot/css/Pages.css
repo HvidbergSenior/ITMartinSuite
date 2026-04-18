@@ -453,3 +453,11 @@
     margin-bottom: 20px;
     padding: 20px;
 }
+
+.text-success {
+    color: #7ee787;
+}
+
+.text-danger {
+    color: #ff6b6b;
+}

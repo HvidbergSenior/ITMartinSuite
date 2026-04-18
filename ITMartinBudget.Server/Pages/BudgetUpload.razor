@@ -1,0 +1,206 @@
+﻿@page "/budget/upload"
+
+@using Microsoft.AspNetCore.Components.Forms
+@using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Application.Services
+@using ITMartinBudget.Infrastructure.Services
+
+@inject BankTransactionCsvService CsvService
+@inject BudgetService BudgetService
+
+<div class="library-page">
+    <div class="page-container">
+
+        <!-- HERO -->
+        <div class="scan-hero-card">
+            <div class="library-row">
+                <div>
+                    <h1>💰 Budget Upload</h1>
+                    <p class="hero-text">
+                        Upload your bank CSV and analyze your finances.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FORM -->
+        <div class="content-card form-card">
+
+            <div class="form-section-title">
+                Upload CSV
+            </div>
+
+            <div class="form-help-text">
+                Select your bank CSV file to import transactions.
+            </div>
+
+            <div class="inventory-form-grid">
+                <div>
+                    <label>Select file</label>
+                    <InputFile OnChange="HandleBankCsvUpload" @key="_inputKey" class="form-control" />
+                </div>
+
+                <div>
+                    <label>Year</label>
+                    <select @bind="_selectedYear" class="form-control" @onchange="OnYearChanged">
+                        @foreach (var year in _years)
+                        {
+                            <option value="@year">@year</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ERROR -->
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="content-card">
+                <p style="color:#ff6b6b;"><b>Error:</b> @_error</p>
+            </div>
+        }
+
+        <!-- SUCCESS -->
+        @if (!string.IsNullOrEmpty(_status))
+        {
+            <div class="content-card">
+                <p style="color:#7ee787;"><b>Success:</b> @_status</p>
+            </div>
+        }
+
+        <!-- DATA -->
+        @if (_transactions != null)
+        {
+            <!-- DEBUG PREVIEW -->
+            <div class="content-card">
+                <p><b>Rows loaded:</b> @_transactions.Count</p>
+
+                @if (_transactions.Any())
+                {
+                    <ul>
+                        @foreach (var t in _transactions.Take(5))
+                        {
+                            <li>@t.Date | @t.Amount | @t.Description | @t.Category</li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <!-- STATS -->
+            <div class="dashboard-stats-grid">
+                <div class="content-card stat-card">
+                    <h3 class="text-success">@(_totals?.Income.ToString("N2") ?? "-")</h3>
+                    <p>Income</p>
+                </div>
+
+                <div class="content-card stat-card">
+                    <h3 class="text-danger">@(_totals?.Expenses.ToString("N2") ?? "-")</h3>
+                    <p>Expenses</p>
+                </div>
+
+                <div class="content-card stat-card">
+                    <h3>@(_totals?.Net.ToString("N2") ?? "-")</h3>
+                    <p>Net</p>
+                </div>
+            </div>
+
+            <!-- TABLE -->
+            <div class="content-card recent-section-card">
+                <div class="library-row">
+                    <div>
+                        <h3>📊 Category Summary</h3>
+                        <p class="text-muted">Grouped by category</p>
+                    </div>
+                </div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _summary)
+                        {
+                            <tr>
+                                <td>@item.Category</td>
+                                <td class="@GetAmountClass(item.Total)">
+                                    @item.Total.ToString("N2")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    private List<BankTransaction>? _transactions;
+    private List<CategorySummary> _summary = new();
+    private YearSummary? _totals;
+
+    private string? _error;
+    private string? _status;
+
+    private string _inputKey = Guid.NewGuid().ToString();
+
+    private int _selectedYear = DateTime.Now.Year;
+    private List<int> _years = Enumerable.Range(2020, 10).ToList();
+
+    private async Task HandleBankCsvUpload(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        _status = null;
+
+        var file = e.File;
+
+        try
+        {
+            using var stream = file.OpenReadStream(10_000_000);
+
+            _transactions = await CsvService.ImportAsync(stream);
+
+            _status = $"Loaded {_transactions.Count} rows from {file.Name}";
+
+            Calculate();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _transactions = null;
+        }
+
+        _inputKey = Guid.NewGuid().ToString(); // reset input
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnYearChanged(ChangeEventArgs e)
+    {
+        Calculate();
+    }
+
+    private void Calculate()
+    {
+        if (_transactions == null) return;
+
+        _summary = BudgetService
+            .GetSummary(_transactions, _selectedYear)
+            .ToList();
+
+        _totals = BudgetService
+            .GetYearTotals(_transactions, _selectedYear);
+    }
+
+    private string GetAmountClass(decimal amount)
+    {
+        if (amount > 0) return "text-success";
+        if (amount < 0) return "text-danger";
+        return "";
+    }
+}

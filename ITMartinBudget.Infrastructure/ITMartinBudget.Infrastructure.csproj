@@ -4,7 +4,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>ITMartinBudgetInfrastructure</RootNamespace>
+        <RootNamespace>ITMartinBudget.Infrastructure</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

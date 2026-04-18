@@ -5,7 +5,7 @@ namespace ITMartinBudgetInfrastructure;
 
 public class BudgetDbContext : DbContext
 {
-    public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<BankTransaction> Transactions => Set<BankTransaction>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
         => options.UseSqlite("Data Source=budget.db");
