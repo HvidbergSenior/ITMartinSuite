@@ -4,11 +4,15 @@ namespace ITMartinBudget.Domain.Entities;
 
 public class BankTransaction
 {
+    public int Id { get; set; } // ✅ REQUIRED
+
     public DateTime Date { get; set; }
-    public string Description { get; set; } = default!;
+    public string Description { get; set; } = string.Empty;
+
     public decimal Amount { get; set; }
 
-    public string Category { get; set; } = default!;
-    public string MainCategory { get; set; } = default!;
+    public MainCategory MainCategory { get; set; }
+    public SubCategory SubCategory { get; set; }
+
     public ExpenseType ExpenseType { get; set; } = ExpenseType.Unknown;
 }

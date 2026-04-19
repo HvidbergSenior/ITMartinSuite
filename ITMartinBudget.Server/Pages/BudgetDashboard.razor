@@ -2,9 +2,10 @@
 @page "/budget"
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Infrastructure
 
 @inject BudgetService BudgetService
-
+@inject BudgetDbContext Db
 <div class="library-page">
     <div class="page-container">
 
@@ -67,13 +68,21 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in _summary.Take(10))
+                    @foreach (var group in _summary.GroupBy(x => x.MainCategory))
+                    {
+                        <tr class="table-secondary">
+                            <td><strong>@group.Key</strong></td>
+                            <td>@group.Sum(x => x.Total).ToString("N2")</td>
+                        </tr>
+
+                        @foreach (var item in group)
                         {
                             <tr>
-                                <td>@item.Category</td>
-                                <td>@item.Total</td>
+                                <td class="ps-4">↳ @item.SubCategory</td>
+                                <td>@item.Total.ToString("N2")</td>
                             </tr>
                         }
+                    }
                     </tbody>
                 </table>
             }
@@ -88,7 +97,13 @@
 
     protected override void OnInitialized()
     {
-        // For now: empty state
-        // Later: load from DB instead of memory
+        var year = DateTime.Now.Year;
+
+        var data = Db.Transactions
+            .Where(x => x.Date.Year == year)
+            .ToList();
+
+        _summary = BudgetService.GetSummary(data, year).ToList();
+        _totals = BudgetService.GetYearTotals(data, year);
     }
 }

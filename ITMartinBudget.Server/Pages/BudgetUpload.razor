@@ -5,300 +5,346 @@
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Enums
+@using ITMartinBudget.Infrastructure
 @using ITMartinBudget.Infrastructure.Services
+@using Microsoft.EntityFrameworkCore
 
 @inject BankTransactionCsvService CsvService
 @inject BudgetService BudgetService
+@inject BudgetDbContext Db
 
 <div class="library-page">
     <div class="page-container">
 
-    <!-- HERO -->
-    <div class="scan-hero-card">
-        <h1>💰 Budget Upload</h1>
-        <p class="hero-text">
-            Upload your bank CSV and analyze your finances.
-        </p>
-    </div>
+        <!-- HERO -->
+        <div class="scan-hero-card">
+            <h1>💰 Budget Upload</h1>
+            <p class="hero-text">
+                Upload your bank CSV and analyze your finances.
+            </p>
+        </div>
 
-    <!-- FORM -->
-    <div class="content-card form-card">
-        <div class="inventory-form-grid">
+        <!-- FORM -->
+        <div class="content-card form-card">
+            <div class="inventory-form-grid">
 
-            <div>
-                <label>Select file</label>
-                <InputFile OnChange="HandleBankCsvUpload" class="form-control" />
+                <div>
+                    <label>Select file</label>
+                    <InputFile OnChange="HandleBankCsvUpload" class="form-control" />
+                </div>
+
+                <div>
+                    <label>Year</label>
+                    <select @bind="_selectedYear" 
+                            @bind:after="Calculate" 
+                            class="form-control">
+                        @foreach (var year in _years)
+                        {
+                            <option value="@year">@year</option>
+                        }
+                    </select>
+                </div>
+
             </div>
 
-            <div>
-                <label>Year</label>
-                <select @bind="_selectedYear" class="form-control">
-                    @foreach (var year in _years)
+            @if (!string.IsNullOrWhiteSpace(_message))
+            {
+                <div class="form-message-success">@_message</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="form-message-error">@_error</div>
+            }
+        </div>
+
+        @if (_transactions != null && _transactions.Any())
+        {
+            <!-- STATS -->
+            <div class="dashboard-stats-grid">
+                <div class="content-card stat-card">
+                    <h3 class="text-success">@_totals?.Income.ToString("N2")</h3>
+                    <p>Income</p>
+                </div>
+
+                <div class="content-card stat-card">
+                    <h3 class="text-danger">@_totals?.Expenses.ToString("N2")</h3>
+                    <p>Expenses</p>
+                </div>
+
+                <div class="content-card stat-card">
+                    <h3>@_totals?.Net.ToString("N2")</h3>
+                    <p>Net</p>
+                </div>
+            </div>
+
+            <!-- CATEGORY GRID -->
+            <div class="budget-split">
+
+                <!-- INCOME -->
+                <div class="content-card">
+                    <h3 class="text-success">💰 Income</h3>
+
+                    @foreach (var group in IncomeCategories().GroupBy(x => x.MainCategory))
                     {
-                        <option value="@year">@year</option>
-                    }
-                </select>
-            </div>
-
-        </div>
-
-        @if (!string.IsNullOrWhiteSpace(_message))
-        {
-            <div class="form-message-success">@_message</div>
-        }
-
-        @if (!string.IsNullOrWhiteSpace(_error))
-        {
-            <div class="form-message-error">@_error</div>
-        }
-    </div>
-
-    @if (_transactions != null && _transactions.Any())
-    {
-        <!-- STATS -->
-        <div class="dashboard-stats-grid">
-            <div class="content-card stat-card">
-                <h3 class="text-success">@_totals?.Income.ToString("N2")</h3>
-                <p>Income</p>
-            </div>
-
-            <div class="content-card stat-card">
-                <h3 class="text-danger">@_totals?.Expenses.ToString("N2")</h3>
-                <p>Expenses</p>
-            </div>
-
-            <div class="content-card stat-card">
-                <h3>@_totals?.Net.ToString("N2")</h3>
-                <p>Net</p>
-            </div>
-        </div>
-
-        <!-- CATEGORY GRID -->
-        <div class="budget-split">
-
-            <!-- INCOME -->
-            <div class="content-card">
-                <h3 class="text-success">💰 Income</h3>
-
-                @foreach (var item in IncomeCategories())
-                {
-                    var key = item.Category?.Trim().ToLowerInvariant();
-
-                    <div class="category-row @( _selectedCategory == key ? "selected" : "" )"
-                         @onclick="@(() => ToggleCategory(key))">
-
-                        <div class="d-flex justify-content-between align-items-center">
-
-                            <!-- LEFT -->
-                            <div>
-                                <strong>@item.Category</strong>
-
-                                <div class="text-muted small d-flex gap-2 align-items-center">
-                                    <span>@item.TransactionCount</span>
-
-                                    <span class="frequency-badge @GetFrequencyClass(item.Frequency)">
-                                        @item.Frequency
-                                    </span>
+                        <!-- MAIN CATEGORY -->
+                        <div class="category-row">
+                            <div class="d-flex justify-content-between">
+                                <strong>@group.Key</strong>
+                                <div class="text-success">
+                                    @group.Sum(x => x.Total).ToString("N2")
                                 </div>
                             </div>
-
-                            <!-- RIGHT -->
-                            <div class="d-flex align-items-center gap-2">
-
-                                <select class="type-select"
-                                        @bind="item.ExpenseType"
-                                        @onclick:stopPropagation="true"
-                                        @onchange:stopPropagation="true">
-
-                                    <option value="@ExpenseType.Need">Need</option>
-                                    <option value="@ExpenseType.Nice">Nice</option>
-                                </select>
-
-                                <div class="@GetAmountClass(item.Total)">
-                                    @item.Total.ToString("N2")
-                                </div>
-
-                            </div>
-
                         </div>
-                    </div>
 
-                    @if (_selectedCategory == key)
-                    {
-                        <div class="transaction-container">
+                        <!-- SUBCATEGORIES -->
+                        @foreach (var item in group)
+                        {
+                            var key = item.SubCategory;
 
-                            @foreach (var t in _transactions!
-                                .Where(x => x.Category == key)
-                                .OrderByDescending(x => x.Date)
-                                .Take(50))
-                            {
-                                <div class="d-flex justify-content-between py-1">
+                            <div class="subcategory-row @( _selectedCategory == key ? "selected" : "" )"
+                                 @onclick="@(() => ToggleCategory(key))">
+
+                                <div class="d-flex justify-content-between">
+
                                     <div>
-                                        <div>@t.Date.ToString("dd-MM-yyyy")</div>
-                                        <div class="text-muted small">@t.Description</div>
+                                        <div>➡ @item.SubCategory</div>
+                                        <div class="text-muted small d-flex gap-2">
+                                            <span>@item.TransactionCount</span>
+                                            <span class="frequency-badge @GetFrequencyClass(item.Frequency)">
+                                                @item.Frequency
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    <div class="@GetAmountClass(t.Amount)">
-                                        @t.Amount.ToString("N2")
+                                    <div class="d-flex align-items-center gap-2">
+                                        <select class="type-select"
+                                                @bind="item.ExpenseType"
+                                                @onclick:stopPropagation="true"
+                                                @onchange:stopPropagation="true">
+                                            <option value="@ExpenseType.Need">Need</option>
+                                            <option value="@ExpenseType.Nice">Nice</option>
+                                        </select>
+
+                                        <div class="@GetAmountClass(item.Total)">
+                                            @item.Total.ToString("N2")
+                                        </div>
                                     </div>
+
+                                </div>
+                            </div>
+
+                            <!-- TRANSACTIONS -->
+                            @if (_selectedCategory == key)
+                            {
+                                <div class="transaction-container">
+
+                                    @foreach (var t in _transactions!
+                                        .Where(x => x.SubCategory == key)
+                                        .OrderByDescending(x => x.Date)
+                                        .Take(50))
+                                    {
+                                        <div class="d-flex justify-content-between py-1">
+                                            <div>
+                                                <div>@t.Date.ToString("dd-MM-yyyy")</div>
+                                                <div class="text-muted small">@t.Description</div>
+                                            </div>
+
+                                            <div class="@GetAmountClass(t.Amount)">
+                                                @t.Amount.ToString("N2")
+                                            </div>
+                                        </div>
+                                    }
+
                                 </div>
                             }
-
-                        </div>
+                        }
                     }
-                }
-            </div>
+                </div>
 
-            <!-- EXPENSES -->
-            <div class="content-card">
-                <h3 class="text-danger">💸 Expenses</h3>
+                <!-- EXPENSES -->
+                <div class="content-card">
+                    <h3 class="text-danger">💸 Expenses</h3>
 
-                @foreach (var item in ExpenseCategories())
-                {
-                    var key = item.Category?.Trim().ToLowerInvariant();
-
-                    <div class="category-row @( _selectedCategory == key ? "selected" : "" )"
-                         @onclick="@(() => ToggleCategory(key))">
-
-                        <div class="d-flex justify-content-between align-items-center">
-
-                            <!-- LEFT -->
-                            <div>
-                                <strong>@item.Category</strong>
-
-                                <div class="text-muted small d-flex gap-2 align-items-center">
-                                    <span>@item.TransactionCount</span>
-
-                                    <span class="frequency-badge @GetFrequencyClass(item.Frequency)">
-                                        @item.Frequency
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- RIGHT -->
-                            <div class="d-flex align-items-center gap-2">
-
-                                <select class="type-select"
-                                        @bind="item.ExpenseType"
-                                        @onclick:stopPropagation="true"
-                                        @onchange:stopPropagation="true">
-
-                                    <option value="@ExpenseType.Need">Need</option>
-                                    <option value="@ExpenseType.Nice">Nice</option>
-                                </select>
-
+                    @foreach (var group in ExpenseCategories().GroupBy(x => x.MainCategory))
+                    {
+                        <!-- MAIN CATEGORY -->
+                        <div class="category-row">
+                            <div class="d-flex justify-content-between">
+                                <strong>@group.Key</strong>
                                 <div class="text-danger">
-                                    @Math.Abs(item.Total).ToString("N2")
+                                    @Math.Abs(group.Sum(x => x.Total)).ToString("N2")
                                 </div>
+                            </div>
+                        </div>
 
+                        <!-- SUBCATEGORIES -->
+                        @foreach (var item in group)
+                        {
+                            var key = item.SubCategory;
+
+                            <div class="subcategory-row @( _selectedCategory == key ? "selected" : "" )"
+                                 @onclick="@(() => ToggleCategory(key))">
+
+                                <div class="d-flex justify-content-between">
+
+                                    <div>
+                                        <div>➡ @item.SubCategory</div>
+                                        <div class="text-muted small d-flex gap-2">
+                                            <span>@item.TransactionCount</span>
+                                            <span class="frequency-badge @GetFrequencyClass(item.Frequency)">
+                                                @item.Frequency
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center gap-2">
+                                        <select class="type-select"
+                                                @bind="item.ExpenseType"
+                                                @onclick:stopPropagation="true"
+                                                @onchange:stopPropagation="true">
+                                            <option value="@ExpenseType.Need">Need</option>
+                                            <option value="@ExpenseType.Nice">Nice</option>
+                                        </select>
+
+                                        <div class="text-danger">
+                                            @Math.Abs(item.Total).ToString("N2")
+                                        </div>
+                                    </div>
+
+                                </div>
                             </div>
 
-                        </div>
-                    </div>
-
-                    @if (_selectedCategory == key)
-                    {
-                        <div class="transaction-container">
-
-                            @foreach (var t in _transactions!
-                                .Where(x => x.Category == key)
-                                .OrderByDescending(x => x.Date)
-                                .Take(50))
+                            <!-- TRANSACTIONS -->
+                            @if (_selectedCategory == key)
                             {
-                                <div class="d-flex justify-content-between py-1">
-                                    <div>
-                                        <div>@t.Date.ToString("dd-MM-yyyy")</div>
-                                        <div class="text-muted small">@t.Description</div>
-                                    </div>
+                                <div class="transaction-container">
 
-                                    <div class="@GetAmountClass(t.Amount)">
-                                        @t.Amount.ToString("N2")
-                                    </div>
+                                    @foreach (var t in _transactions!
+                                        .Where(x => x.SubCategory == key)
+                                        .OrderByDescending(x => x.Date)
+                                        .Take(50))
+                                    {
+                                        <div class="d-flex justify-content-between py-1">
+                                            <div>
+                                                <div>@t.Date.ToString("dd-MM-yyyy")</div>
+                                                <div class="text-muted small">@t.Description</div>
+                                            </div>
+
+                                            <div class="@GetAmountClass(t.Amount)">
+                                                @t.Amount.ToString("N2")
+                                            </div>
+                                        </div>
+                                    }
+
                                 </div>
                             }
-
-                        </div>
+                        }
                     }
-                }
+                </div>
+
             </div>
-
-        </div>
-    }
-</div>
-
+        }
+    </div>
 </div>
 
 @code {
-private List<BankTransaction>? _transactions;
-private List<CategorySummary> _summary = new();
-private YearSummary? _totals;
+    private List<BankTransaction>? _transactions;
+    private List<CategorySummary> _summary = new();
+    private YearSummary? _totals;
 
-private string? _message;
-private string? _error;
+    private string? _message;
+    private string? _error;
 
-private int _selectedYear;
-private List<int> _years = new();
+    private int _selectedYear;
+    private List<int> _years = new();
 
-private string? _selectedCategory;
+    private SubCategory? _selectedCategory;
 
-private async Task HandleBankCsvUpload(InputFileChangeEventArgs e)
-{
-    try
+    private async Task HandleBankCsvUpload(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        using var stream = file.OpenReadStream(10_000_000);
+        try
+        {
+            var file = e.File;
+            using var stream = file.OpenReadStream(10_000_000);
 
-        _transactions = await CsvService.ImportAsync(stream);
+            _transactions = await CsvService.ImportAsync(stream);
 
-        _years = _transactions
-            .Select(x => x.Date.Year)
-            .Distinct()
-            .OrderByDescending(x => x)
+            // ✅ SAVE TO DB
+            var existing = await Db.Transactions
+                .Select(x => new { x.Date, x.Amount, x.Description })
+                .ToListAsync();
+            
+            var existingSet = existing
+                .Select(x => $"{x.Date:yyyyMMdd}-{x.Amount}-{x.Description}")
+                .ToHashSet();
+
+            var newTransactions = _transactions
+                .Where(t =>
+                    !existingSet.Contains($"{t.Date:yyyyMMdd}-{t.Amount}-{t.Description}"))
+                .ToList();
+            Db.Transactions.AddRange(newTransactions);
+            
+            try
+            {
+                await Db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // fallback if duplicate slipped through
+            }
+            _message = $"Saved {newTransactions.Count} new rows (skipped {_transactions.Count - newTransactions.Count} duplicates)";
+            _years = _transactions
+                .Select(x => x.Date.Year)
+                .Distinct()
+                .OrderByDescending(x => x)
+                .ToList();
+
+            _selectedYear = _years.First();
+
+            _message = $"Saved {_transactions.Count} rows to database";
+            _error = null;
+
+            Calculate();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Calculate()
+    {
+        var data = Db.Transactions
+            .Where(x => x.Date.Year == _selectedYear)
             .ToList();
 
-        _selectedYear = _years.First();
+        _summary = BudgetService
+            .GetSummary(data, _selectedYear)
+            .ToList();
 
-        _message = $"Loaded {_transactions.Count} rows";
-        _error = null;
-
-        Calculate();
+        _totals = BudgetService.GetYearTotals(data, _selectedYear);
     }
-    catch (Exception ex)
+
+    private void ToggleCategory(SubCategory? key)
     {
-        _error = ex.Message;
+        if (key == null) return;
+
+        _selectedCategory =
+            _selectedCategory == key ? null : key;
     }
 
-    await InvokeAsync(StateHasChanged);
-}
+    private IEnumerable<CategorySummary> IncomeCategories()
+        => _summary.Where(x => x.Total > 0).OrderByDescending(x => x.Total);
 
-private void Calculate()
-{
-    if (_transactions == null) return;
+    private IEnumerable<CategorySummary> ExpenseCategories()
+        => _summary.Where(x => x.Total < 0).OrderBy(x => x.Total);
 
-    _summary = BudgetService
-        .GetSummary(_transactions, _selectedYear)
-        .ToList();
+    private string GetAmountClass(decimal amount)
+        => amount > 0 ? "text-success" : amount < 0 ? "text-danger" : "";
 
-    _totals = BudgetService.GetYearTotals(_transactions, _selectedYear);
-}
-
-private void ToggleCategory(string? key)
-{
-    if (key == null) return;
-
-    _selectedCategory =
-        _selectedCategory == key ? null : key;
-}
-
-private IEnumerable<CategorySummary> IncomeCategories()
-    => _summary.Where(x => x.Total > 0).OrderByDescending(x => x.Total);
-
-private IEnumerable<CategorySummary> ExpenseCategories()
-    => _summary.Where(x => x.Total < 0).OrderBy(x => x.Total);
-
-private string GetAmountClass(decimal amount)
-    => amount > 0 ? "text-success" : amount < 0 ? "text-danger" : "";
-
-private string GetFrequencyClass(TransactionFrequency f)
-    => $"freq-{f.ToString().ToLower()}";
+    private string GetFrequencyClass(TransactionFrequency f)
+        => $"freq-{f.ToString().ToLower()}";
 }

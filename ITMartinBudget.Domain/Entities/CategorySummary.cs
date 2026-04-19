@@ -4,8 +4,9 @@ namespace ITMartinBudget.Domain.Entities;
 
 public class CategorySummary
 {
-    public string Category { get; set; } = default!;
-    public string CategoryKey => Category?.Trim().ToLowerInvariant() ?? "";
+    public MainCategory MainCategory { get; set; }
+    public SubCategory SubCategory { get; set; }
+
     public decimal Total { get; set; }
     public decimal Income { get; set; }
     public decimal Expenses { get; set; }

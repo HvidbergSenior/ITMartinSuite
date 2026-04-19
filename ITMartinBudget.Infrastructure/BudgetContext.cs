@@ -1,12 +1,20 @@
 ﻿using ITMartinBudget.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace ITMartinBudgetInfrastructure;
+namespace ITMartinBudget.Infrastructure;
 
 public class BudgetDbContext : DbContext
 {
-    public DbSet<BankTransaction> Transactions => Set<BankTransaction>();
+    public BudgetDbContext(DbContextOptions<BudgetDbContext> options)
+        : base(options)
+    {
+    }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder options)
-        => options.UseSqlite("Data Source=budget.db");
+    public DbSet<BankTransaction> Transactions { get; set; }
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<BankTransaction>()
+            .HasIndex(x => new { x.Date, x.Amount, x.Description })
+            .IsUnique();
+    }
 }

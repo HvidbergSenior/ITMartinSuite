@@ -1,6 +1,9 @@
-﻿using CsvHelper.Configuration;
+﻿using System.Globalization;
+using CsvHelper.Configuration;
+using ITMartinBudget.Application.Converters;
 using ITMartinBudget.Domain.Entities;
-using System.Globalization;
+
+namespace ITMartinBudget.Infrastructure.Csv;
 
 public sealed class BankTransactionMap : ClassMap<BankTransaction>
 {
@@ -17,8 +20,14 @@ public sealed class BankTransactionMap : ClassMap<BankTransaction>
             .Name("Beløb")
             .TypeConverterOption.CultureInfo(new CultureInfo("da-DK"));
 
-        Map(m => m.Category)
-            .Name("Kategori"); // 🔥 USE REAL CATEGORY FROM CSV
-        Map(m => m.MainCategory).Name("Hovedkategori");
+        // ✅ SubCategory (Kategori)
+        Map(m => m.SubCategory)
+            .Name("Kategori")
+            .TypeConverter<SubCategoryConverter>();
+
+        // ✅ Main Category (Hovedkategori)
+        Map(m => m.MainCategory)
+            .Name("Hovedkategori")
+            .TypeConverter<MainCategoryConverter>();
     }
 }

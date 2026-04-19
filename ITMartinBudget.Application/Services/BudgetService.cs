@@ -11,46 +11,41 @@ public class BudgetService
             .Where(x => x.Date.Year == year)
             .ToList();
 
-        var grouped = filtered.GroupBy(x => x.Category?.Trim());
-        
+        var grouped = filtered
+            .GroupBy(x => new
+            {
+                x.MainCategory,
+                x.SubCategory
+            });
+
         var result = new List<CategorySummary>();
 
         foreach (var group in grouped)
         {
-            var category = group.Key;
-
-            var income = group
-                .Where(x => x.Amount > 0)
-                .Sum(x => x.Amount);
-
-            var expenses = group
-                .Where(x => x.Amount < 0)
-                .Sum(x => x.Amount);
+            var income = group.Where(x => x.Amount > 0).Sum(x => x.Amount);
+            var expenses = group.Where(x => x.Amount < 0).Sum(x => x.Amount);
 
             result.Add(new CategorySummary
-                {
-                    Category = category,
+            {
+                MainCategory = group.Key.MainCategory,
+                SubCategory = group.Key.SubCategory,
 
-                    Total = group.Sum(x => x.Amount),
+                Total = income + expenses,
+                Income = income,
+                Expenses = expenses,
 
-                    Income = income,
-                    Expenses = expenses,
+                TransactionCount = group.Count(),
 
-                    TransactionCount = group.Count(),
+                Frequency = DetectFrequency(group.Select(x => x.Date).ToList()),
 
-                    Frequency = DetectFrequency(group.Select(x => x.Date).ToList()),
-
-                    // ✅ NEW
-                    ExpenseType = GetDefaultExpenseType(category)
-                });
-
+                ExpenseType = GetDefaultExpenseType(group.Key.MainCategory, group.Key.SubCategory)
+            });
         }
-
 
         return result
             .OrderByDescending(x => Math.Abs(x.Total));
     }
-
+    
     public YearSummary GetYearTotals(List<BankTransaction> transactions, int year)
     {
         var filtered = transactions.Where(x => x.Date.Year == year);
@@ -64,7 +59,7 @@ public class BudgetService
             Expenses = expenses
         };
     }
-    
+
     private TransactionFrequency DetectFrequency(List<DateTime> dates)
     {
         if (dates.Count < 2)
@@ -88,38 +83,31 @@ public class BudgetService
 
         return TransactionFrequency.Irregular;
     }
-    private ExpenseType GetDefaultExpenseType(string? category)
+
+    private ExpenseType GetDefaultExpenseType(MainCategory main, SubCategory sub)
     {
-        if (string.IsNullOrWhiteSpace(category))
-            return ExpenseType.Unknown;
-
-        var c = category.ToLower();
-
-// NEED (fixed / essential)
-        if (c.Contains("husleje") ||
-            c.Contains("realkredit") ||
-            c.Contains("rent") ||
-            c.Contains("loan"))
+        // NEED (fixed costs)
+        if (main == MainCategory.Bolig)
             return ExpenseType.Need;
 
-        if (c.Contains("dagligvarer") ||
-            c.Contains("supermarket") ||
-            c.Contains("food"))
+        if (sub == SubCategory.Dagligvarer)
             return ExpenseType.Need;
 
-        if (c.Contains("forsikring") ||
-            c.Contains("insurance"))
+        if (sub == SubCategory.Benzin || sub == SubCategory.Parkering)
             return ExpenseType.Need;
 
-// NICE (flexible)
-        if (c.Contains("restaurant") ||
-            c.Contains("takeaway") ||
-            c.Contains("shopping") ||
-            c.Contains("streaming"))
+        if (sub == SubCategory.Husleje)
+            return ExpenseType.Need;
+
+        if (sub == SubCategory.Sundhed)
+            return ExpenseType.Need;
+
+        // NICE (flexible)
+        if (sub == SubCategory.Restaurant ||
+            sub == SubCategory.Underholdning ||
+            sub == SubCategory.Tøj)
             return ExpenseType.Nice;
 
-        return ExpenseType.Nice;
-
+        return ExpenseType.Need;
     }
-
 }

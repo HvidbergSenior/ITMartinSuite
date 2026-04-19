@@ -2,6 +2,8 @@
 using CsvHelper;
 using CsvHelper.Configuration;
 using ITMartinBudget.Domain.Entities;
+using ITMartinBudget.Domain.Enums;
+using ITMartinBudget.Infrastructure.Csv;
 
 namespace ITMartinBudget.Infrastructure.Services;
 
@@ -24,9 +26,15 @@ public class BankTransactionCsvService
 
         await foreach (var record in csv.GetRecordsAsync<BankTransaction>())
         {
-            // 🔥 CLEAN DATA HERE
-            record.Category = record.Category?.Trim().ToLowerInvariant();
-            record.Description = record.Description?.Trim();
+            // ✅ Normalize description
+            record.Description = record.Description?.Trim().ToLowerInvariant() ?? string.Empty;
+
+            // ✅ Ensure valid enums
+            if (!Enum.IsDefined(typeof(MainCategory), record.MainCategory))
+                record.MainCategory = MainCategory.Andet;
+
+            if (!Enum.IsDefined(typeof(SubCategory), record.SubCategory))
+                record.SubCategory = SubCategory.Ukendt;
 
             records.Add(record);
         }
