@@ -155,8 +155,10 @@
 
     private void OpenFile(MediaFile file)
     {
+        var index = Files.FindIndex(f => f.FullPath == file.FullPath);
+
         Navigation.NavigateTo(
-            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}",
+            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}&index={index}&folder={Uri.EscapeDataString(CurrentPath)}",
             forceLoad: true);
     }
 

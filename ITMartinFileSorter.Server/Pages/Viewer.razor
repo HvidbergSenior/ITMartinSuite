@@ -23,7 +23,8 @@
                 <video class="viewer-video"
                        width="100%"
                        controls
-                       autoplay>
+                       autoplay
+                       @key="WebPath">
                     <source src="@WebPath" type="video/mp4" />
                 </video>
             }
@@ -59,12 +60,14 @@
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
             return;
 
+        // Build playlist
         Playlist = Directory
             .EnumerateFiles(folder)
             .Where(FileScanner.IsSupportedMedia)
             .OrderBy(x => x)
             .ToList();
 
+        // Find current index
         CurrentIndex = Playlist.FindIndex(f =>
             string.Equals(f, FilePath, StringComparison.OrdinalIgnoreCase));
 
@@ -78,27 +81,36 @@
     {
         FilePath = Playlist[CurrentIndex];
 
-        var baseRoot = Configuration["MediaSettings:LibraryRoot"]!;
         var libraryRoot = LibraryPathHelper.GetLibraryPath(Configuration);
+
         var relativePath = Path.GetRelativePath(libraryRoot, FilePath)
             .Replace("\\", "/");
 
         WebPath = $"/libraryfiles/{relativePath}";
 
-        Console.WriteLine($"[WEB] {WebPath}");
+        Console.WriteLine($"[VIEWER] {WebPath}");
 
         IsVideo = FileScanner.IsVideo(FilePath);
     }
 
     private void PlayNext()
     {
-        CurrentIndex = (CurrentIndex + 1) % Playlist.Count;
+        if (Playlist.Count == 0) return;
+
+        CurrentIndex++;
+
+        if (CurrentIndex >= Playlist.Count)
+            CurrentIndex = 0;
+
         LoadCurrentMedia();
     }
 
     private void PlayPrevious()
     {
+        if (Playlist.Count == 0) return;
+
         CurrentIndex--;
+
         if (CurrentIndex < 0)
             CurrentIndex = Playlist.Count - 1;
 
@@ -114,8 +126,11 @@
     {
         var folder = Path.GetDirectoryName(FilePath);
 
-        Navigation.NavigateTo(
-            $"/library?path={Uri.EscapeDataString(folder!)}",
-            true);
+        if (!string.IsNullOrEmpty(folder))
+        {
+            Navigation.NavigateTo(
+                $"/library?path={Uri.EscapeDataString(folder)}",
+                true);
+        }
     }
 }
