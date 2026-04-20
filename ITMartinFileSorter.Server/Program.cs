@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using ITMartinFileSorter.Application.Services;
+using ITMartinFileSorter.Application.Helpers; // ✅ IMPORTANT
 using ITMartinFileSorter.Domain.Interfaces;
 using ITMartinFileSorter.Infrastructure.FileSystem;
 using ITMartinFileSorter.Infrastructure.Services;
@@ -32,13 +33,13 @@ builder.Services.AddScoped<SubtitleService>();
 builder.Services.AddScoped<FolderPathInfoService>();
 
 builder.Services.AddScoped<HomeLocationService>();
-builder.Services.AddScoped<ImageCategorizer>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<ThumbnailService>();
 builder.Services.AddScoped<IMediaDateService, MediaDateService>();
 builder.Services.AddScoped<IGpsService, GpsService>();
 builder.Services.AddScoped<LibraryPathService>();
 builder.Services.AddScoped<LibraryExportService>();
+
 builder.Services.AddControllers();
 
 var app = builder.Build();
@@ -48,30 +49,36 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 }
 
-app.UseStaticFiles();
+app.UseStaticFiles(); // wwwroot
 
-// Serve exported library files (videos/images) outside wwwroot
-var libraryRoot = Path.Combine(
-    builder.Configuration["MediaSettings:LibraryRoot"]!,
-    "Library");
+// ✅ USE YOUR HELPER (single source of truth)
+var libraryPath = LibraryPathHelper.GetLibraryPath(builder.Configuration);
 
-if (Directory.Exists(libraryRoot))
+Console.WriteLine($"[STATIC] Serving from: {libraryPath}");
+
+// ✅ Configure content types ONCE
+var provider = new FileExtensionContentTypeProvider();
+
+provider.Mappings[".mp4"] = "video/mp4";
+provider.Mappings[".mov"] = "video/mp4";
+provider.Mappings[".jpg"] = "image/jpeg";
+provider.Mappings[".jpeg"] = "image/jpeg";
+provider.Mappings[".png"] = "image/png";
+provider.Mappings[".webp"] = "image/webp";
+
+// ✅ Register static files ONLY if folder exists
+if (Directory.Exists(libraryPath))
 {
-    var provider = new FileExtensionContentTypeProvider();
-
-    provider.Mappings[".mp4"] = "video/mp4";
-    provider.Mappings[".mov"] = "video/mp4";
-    provider.Mappings[".jpg"] = "image/jpeg";
-    provider.Mappings[".jpeg"] = "image/jpeg";
-    provider.Mappings[".png"] = "image/png";
-    provider.Mappings[".webp"] = "image/webp";
-
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new PhysicalFileProvider(libraryRoot),
+        FileProvider = new PhysicalFileProvider(libraryPath),
         RequestPath = "/libraryfiles",
         ContentTypeProvider = provider
     });
+}
+else
+{
+    Console.WriteLine("[ERROR] Library path does NOT exist!");
 }
 
 app.UseAntiforgery();

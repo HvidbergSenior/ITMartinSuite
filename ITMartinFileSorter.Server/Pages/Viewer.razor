@@ -1,10 +1,9 @@
 ﻿@page "/viewer"
+@using ITMartinFileSorter.Application.Helpers
 @using Microsoft.AspNetCore.WebUtilities
 @using ITMartinFileSorter.Infrastructure.FileSystem
-@using ITMartinFileSorter.Application.Services
 
 @inject NavigationManager Navigation
-@inject SubtitleService SubtitleService
 @inject IConfiguration Configuration
 
 <div class="viewer-page">
@@ -16,30 +15,21 @@
         <button class="btn btn-danger" @onclick="PlayNext" disabled="@(Playlist.Count <= 1)">Next ➜</button>
     </ActionButtonBar>
 
-    @if (!string.IsNullOrEmpty(StatusMessage))
-    {
-        <EmptyState Message="@StatusMessage" Type="info" />
-    }
-
     @if (!string.IsNullOrEmpty(FilePath))
     {
         <ContentCard Title="@Path.GetFileName(FilePath)">
             @if (IsVideo)
             {
-                <video @key="WebPath"
-                       class="viewer-video"
+                <video class="viewer-video"
                        width="100%"
                        controls
                        autoplay>
                     <source src="@WebPath" type="video/mp4" />
-                    Your browser does not support video playback.
                 </video>
             }
             else
             {
-                <img class="viewer-image"
-                     src="@WebPath"
-                     @key="WebPath" />
+                <img class="viewer-image" src="@WebPath" />
             }
         </ContentCard>
     }
@@ -50,7 +40,6 @@
     private string FilePath = "";
     private string WebPath = "";
     private bool IsVideo;
-    private string StatusMessage = "";
 
     private List<string> Playlist = new();
     private int CurrentIndex = 0;
@@ -63,9 +52,7 @@
         if (!query.TryGetValue("path", out var path))
             return;
 
-        var requestedPath = Uri.UnescapeDataString(path!);
-
-        FilePath = ResolveConvertedPath(requestedPath);
+        FilePath = Uri.UnescapeDataString(path!);
 
         var folder = Path.GetDirectoryName(FilePath);
 
@@ -74,9 +61,6 @@
 
         Playlist = Directory
             .EnumerateFiles(folder)
-            .Select(ResolveConvertedPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(File.Exists)
             .Where(FileScanner.IsSupportedMedia)
             .OrderBy(x => x)
             .ToList();
@@ -94,40 +78,27 @@
     {
         FilePath = Playlist[CurrentIndex];
 
-        var libraryRoot = Path.Combine(
-            Configuration["MediaSettings:LibraryRoot"]!,
-            "Library");
-
-        var relativePath = Path.GetRelativePath(
-                libraryRoot,
-                FilePath)
+        var baseRoot = Configuration["MediaSettings:LibraryRoot"]!;
+        var libraryRoot = LibraryPathHelper.GetLibraryPath(Configuration);
+        var relativePath = Path.GetRelativePath(libraryRoot, FilePath)
             .Replace("\\", "/");
 
         WebPath = $"/libraryfiles/{relativePath}";
 
-        Console.WriteLine($"[VIEWER FILE] {FilePath}");
-        Console.WriteLine($"[VIEWER WEB] {WebPath}");
-        Console.WriteLine($"[EXISTS] {File.Exists(FilePath)}");
+        Console.WriteLine($"[WEB] {WebPath}");
 
         IsVideo = FileScanner.IsVideo(FilePath);
     }
 
     private void PlayNext()
     {
-        if (Playlist.Count <= 1)
-            return;
-
         CurrentIndex = (CurrentIndex + 1) % Playlist.Count;
         LoadCurrentMedia();
     }
 
     private void PlayPrevious()
     {
-        if (Playlist.Count <= 1)
-            return;
-
         CurrentIndex--;
-
         if (CurrentIndex < 0)
             CurrentIndex = Playlist.Count - 1;
 
@@ -136,7 +107,7 @@
 
     private void GoHome()
     {
-        Navigation.NavigateTo("/library", forceLoad: true);
+        Navigation.NavigateTo("/library", true);
     }
 
     private void GoToFolder()
@@ -145,27 +116,6 @@
 
         Navigation.NavigateTo(
             $"/library?path={Uri.EscapeDataString(folder!)}",
-            forceLoad: true);
-    }
-
-    private string ResolveConvertedPath(string originalPath)
-    {
-        var folder = Path.GetDirectoryName(originalPath);
-
-        if (string.IsNullOrWhiteSpace(folder))
-            return originalPath;
-
-        var name = Path.GetFileNameWithoutExtension(originalPath);
-
-        var mp4 = Path.Combine(folder, $"{name}.mp4");
-        var jpg = Path.Combine(folder, $"{name}.jpg");
-
-        if (File.Exists(mp4))
-            return mp4;
-
-        if (File.Exists(jpg))
-            return jpg;
-
-        return originalPath;
+            true);
     }
 }

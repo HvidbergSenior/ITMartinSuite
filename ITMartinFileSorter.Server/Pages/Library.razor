@@ -1,14 +1,10 @@
 ﻿@page "/library"
 @using Microsoft.AspNetCore.WebUtilities
-@using ITMartinFileSorter.Application.Services
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
-@using ITMartinFileSorter.Domain.Interfaces
 @using ITMartinFileSorter.Infrastructure.FileSystem
+@using System.Diagnostics
+@using ITMartinFileSorter.Application.Helpers
 
 @inject NavigationManager Navigation
-@inject IFileScanner Scanner
-@inject ThumbnailService ThumbnailService
 @inject IConfiguration Configuration
 
 <div class="library-page">
@@ -16,8 +12,8 @@
 
     <ActionButtonBar>
         <button class="btn btn-outline-light"
-                @onclick="GoHome">
-            🏠 Home
+                @onclick="DebugClick">
+            🏠 Home (Debug)
         </button>
 
         <button class="btn btn-secondary"
@@ -29,11 +25,11 @@
 
     <ContentCard Title="Folders">
         <div class="folder-grid">
-            @foreach (var folder in FilteredFolders)
+            @foreach (var folder in Folders)
             {
                 <div class="folder-card"
                      @onclick="@(() => OpenFolder(folder.FullPath))">
-                    📁 @folder.Name
+                    📁 @folder.Name (@folder.FileCount)
                 </div>
             }
         </div>
@@ -41,23 +37,12 @@
 
     <ContentCard Title="Media">
         <div class="media-grid">
-            @foreach (var file in FilteredFiles)
+            @foreach (var file in Files)
             {
                 <div class="media-card"
                      @onclick="@(() => OpenFile(file))">
 
-                    @if (!string.IsNullOrEmpty(file.ThumbnailPath))
-                    {
-                        <img src="@file.ThumbnailPath"
-                             class="media-thumb" />
-                    }
-                    else
-                    {
-                        <div class="media-placeholder">
-                            🎬
-                        </div>
-                    }
-
+                    <div class="media-placeholder">🎬</div>
                     <div>@Path.GetFileName(file.FullPath)</div>
                 </div>
             }
@@ -69,28 +54,14 @@
 @code {
     private string RootPath = "";
     private string CurrentPath = "";
-    private string SearchText = "";
-    private string SelectedFilter = "all";
 
     private List<FolderItem> Folders = new();
     private List<MediaFile> Files = new();
-    private List<FolderItem> SearchFolders = new();
-    private List<MediaFile> SearchFiles = new();
 
     private string? _lastUri;
 
-    private bool IsSearchActive => !string.IsNullOrWhiteSpace(SearchText);
-
     private bool CanGoBack =>
         !string.Equals(CurrentPath, RootPath, StringComparison.OrdinalIgnoreCase);
-
-    private List<FolderItem> FilteredFolders =>
-        IsSearchActive ? SearchFolders : Folders;
-
-    private List<MediaFile> FilteredFiles =>
-        (IsSearchActive ? SearchFiles : Files)
-            .Where(MatchesSelectedFilter)
-            .ToList();
 
     protected override void OnAfterRender(bool firstRender)
     {
@@ -101,19 +72,14 @@
         LoadFromUrl();
         StateHasChanged();
     }
-    private void OnSearchChangedText(string value)
-    {
-        SearchText = value;
-    }
+
     private void LoadFromUrl()
     {
-        var libraryRoot = Configuration["MediaSettings:LibraryRoot"];
+        Console.WriteLine("[NAV] LoadFromUrl");
 
-        if (string.IsNullOrWhiteSpace(libraryRoot))
-            return;
+        RootPath = LibraryPathHelper.GetLibraryPath(Configuration);
 
-        // IMPORTANT: open actual exported library
-        RootPath = Path.Combine(libraryRoot, "Library");
+        Console.WriteLine($"[PATH] Root: {RootPath}");
 
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         var query = QueryHelpers.ParseQuery(uri.Query);
@@ -134,19 +100,11 @@
 
     private void LoadFolder(string path)
     {
+        Console.WriteLine($"[LOAD] {path}");
+
         try
         {
             CurrentPath = path;
-            SearchText = "";
-            SearchFolders.Clear();
-            SearchFiles.Clear();
-
-            if (!Directory.Exists(path))
-            {
-                Folders.Clear();
-                Files.Clear();
-                return;
-            }
 
             Folders = Directory
                 .EnumerateDirectories(path)
@@ -159,10 +117,11 @@
                 .Where(FileScanner.IsSupportedMedia)
                 .Select(CreateMediaFile)
                 .ToList();
+
+            Console.WriteLine($"[FILES] {Files.Count}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine("===== LOAD FOLDER ERROR =====");
             Console.WriteLine(ex);
         }
     }
@@ -186,83 +145,7 @@
                 ? MediaType.Image
                 : MediaType.Document;
 
-        var mediaFile = new MediaFile(
-            file,
-            info.LastWriteTimeUtc,
-            type,
-            info.Length);
-
-        if (type == MediaType.Image)
-        {
-            try
-            {
-                mediaFile.ThumbnailPath =
-                    ThumbnailService.GenerateThumbnail(mediaFile);
-            }
-            catch
-            {
-                mediaFile.ThumbnailPath = null;
-            }
-        }
-
-        return mediaFile;
-    }
-
-    private void OnSearchChanged(ChangeEventArgs e)
-    {
-        SearchText = e.Value?.ToString() ?? "";
-
-        if (!IsSearchActive)
-        {
-            SearchFolders.Clear();
-            SearchFiles.Clear();
-            return;
-        }
-
-        RunRecursiveSearch();
-    }
-
-    private void RunRecursiveSearch()
-    {
-        SearchFolders = Directory
-            .EnumerateDirectories(CurrentPath, "*", SearchOption.AllDirectories)
-            .Where(folder =>
-                Path.GetFileName(folder)
-                    .Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-            .Select(CreateFolderItem)
-            .ToList();
-
-        SearchFiles = Directory
-            .EnumerateFiles(CurrentPath, "*.*", SearchOption.AllDirectories)
-            .Where(FileScanner.IsSupportedMedia)
-            .Where(file =>
-                Path.GetFileName(file)
-                    .Contains(SearchText, StringComparison.OrdinalIgnoreCase)
-                ||
-                Path.GetExtension(file)
-                    .Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-            .Select(CreateMediaFile)
-            .ToList();
-    }
-
-    private bool MatchesSelectedFilter(MediaFile file) => SelectedFilter switch
-    {
-        "video" => file.Type == MediaType.Video,
-        "image" => file.Type == MediaType.Image,
-        "document" => file.Type == MediaType.Document,
-        _ => true
-    };
-
-    private void SetFilter(string filter)
-    {
-        SelectedFilter = filter;
-    }
-
-    private void ClearSearch()
-    {
-        SearchText = "";
-        SearchFolders.Clear();
-        SearchFiles.Clear();
+        return new MediaFile(file, info.LastWriteTimeUtc, type, info.Length);
     }
 
     private void OpenFolder(string path)
@@ -270,9 +153,11 @@
         Navigation.NavigateTo($"/library?path={Uri.EscapeDataString(path)}");
     }
 
-    private void GoHome()
+    private void OpenFile(MediaFile file)
     {
-        Navigation.NavigateTo("/library");
+        Navigation.NavigateTo(
+            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}",
+            forceLoad: true);
     }
 
     private void GoBack()
@@ -289,10 +174,9 @@
             $"/library?path={Uri.EscapeDataString(parent.FullName)}");
     }
 
-    private void OpenFile(MediaFile file)
+    private void DebugClick()
     {
-        Navigation.NavigateTo(
-            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}",
-            forceLoad: true);
+        Console.WriteLine("CLICK WORKS");
+        Navigation.NavigateTo("/library");
     }
 }

@@ -1,4 +1,5 @@
 ﻿@page "/export"
+@using ITMartinFileSorter.Application.Helpers
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
@@ -127,10 +128,8 @@
             IsExporting = false;
             return;
         }
-
-        var exportRoot = Path.Combine(
-            Configuration["MediaSettings:LibraryRoot"]!,
-            "Library");
+        
+        var exportRoot = LibraryPathHelper.GetLibraryPath(Configuration);
 
         Directory.CreateDirectory(exportRoot);
 

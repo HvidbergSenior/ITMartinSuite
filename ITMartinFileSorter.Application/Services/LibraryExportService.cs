@@ -1,119 +1,151 @@
-﻿    using ITMartinFileSorter.Domain.Entities;
+﻿using ITMartinFileSorter.Domain.Entities;
 
-    namespace ITMartinFileSorter.Application.Services;
+namespace ITMartinFileSorter.Application.Services;
 
-    public class LibraryExportService
+public class LibraryExportService
+{
+    private readonly LibraryPathService _pathService;
+    private readonly FastVideoBatchExportService _videoService;
+    private readonly ImageBatchExportService _imageService;
+
+    public LibraryExportService(
+        LibraryPathService pathService,
+        FastVideoBatchExportService videoService,
+        ImageBatchExportService imageService)
     {
-        private readonly LibraryPathService _pathService;
-        private readonly FastVideoBatchExportService _videoService;
-        private readonly ImageBatchExportService _imageService;
+        _pathService = pathService;
+        _videoService = videoService;
+        _imageService = imageService;
+    }
 
-        public LibraryExportService(
-            LibraryPathService pathService,
-            FastVideoBatchExportService videoService,
-            ImageBatchExportService imageService)
+    public async Task ExportAsync(
+        IEnumerable<MediaFile> files,
+        string exportRoot,
+        Func<int, int, string, string, Task>? onProgress = null)
+    {
+        var fileList = files.ToList();
+
+        if (!fileList.Any())
+            return;
+
+        EnsureBaseFolders(exportRoot);
+
+        var grouped = fileList
+            .GroupBy(f => _pathService.BuildFolderPath(f))
+            .ToList();
+
+        int total = fileList.Count;
+        int done = 0;
+
+        // 🔥 INITIAL PROGRESS (forces UI to show)
+        if (onProgress != null)
+            await onProgress(0, total, "", "Starting export...");
+
+        foreach (var group in grouped)
         {
-            _pathService = pathService;
-            _videoService = videoService;
-            _imageService = imageService;
-        }
+            var targetFolder = Path.Combine(exportRoot, group.Key);
+            Directory.CreateDirectory(targetFolder);
 
-        public async Task ExportAsync(
-            IEnumerable<MediaFile> files,
-            string exportRoot,
-            Func<int, int, string, string, Task>? onProgress = null)
-        {
-            var fileList = files.ToList();
+            int index = 1;
 
-            if (!fileList.Any())
-                return;
-            EnsureBaseFolders(exportRoot);
-            var grouped = fileList
-                .GroupBy(f => _pathService.BuildFolderPath(f))
-                .ToList();
-
-            int total = fileList.Count;
-            int done = 0;
-
-            foreach (var group in grouped)
+            foreach (var file in group)
             {
-                var targetFolder = Path.Combine(exportRoot, group.Key);
+                var newName = _pathService.BuildFileName(file, index);
+                var destination = Path.Combine(targetFolder, newName);
 
-                Directory.CreateDirectory(targetFolder);
-
-                int index = 1;
-
-                foreach (var file in group)
+                // 🔥 BEFORE COPY
+                if (onProgress != null)
                 {
-                    var newName = _pathService.BuildFileName(file, index);
-
-                    var destination = Path.Combine(targetFolder, newName);
-                    var folderPath = _pathService.BuildFolderPath(file);
-
-                    Console.WriteLine("===== EXPORT DEBUG =====");
-                    Console.WriteLine($"File: {file.FileName}");
-                    Console.WriteLine($"ComputedPath: {folderPath}");
-                    Console.WriteLine("========================");
-                    File.Copy(file.FullPath, destination, true);
-                    Console.WriteLine($"EXTENSION: {file.Extension}");
-                    index++;
-                    done++;
-
-                    if (onProgress != null)
-                    {
-                        await onProgress(
-                            done,
-                            total,
-                            newName,
-                            "Copying files...");
-                    }
+                    await onProgress(done, total, newName, "Copying files...");
                 }
+
+                // ✅ ASYNC COPY
+                await CopyFileAsync(file.FullPath, destination);
+
+                index++;
+                done++;
+
+                // 🔥 AFTER COPY
+                if (onProgress != null)
+                {
+                    await onProgress(done, total, newName, "Copying files...");
+                }
+
+                // 🔥 ALLOW UI TO UPDATE
+                await Task.Yield();
             }
-
-            await _videoService.ConvertAllVideosAsync(
-                exportRoot,
-                async (doneCount, totalCount, fileName) =>
-                {
-                    if (onProgress != null)
-                    {
-                        await onProgress(
-                            doneCount,
-                            totalCount,
-                            fileName,
-                            "Converting videos...");
-                    }
-                });
-
-            await _imageService.ConvertAllImagesAsync(
-                exportRoot,
-                async (doneCount, totalCount, fileName) =>
-                {
-                    if (onProgress != null)
-                    {
-                        await onProgress(
-                            doneCount,
-                            totalCount,
-                            fileName,
-                            "Converting images...");
-                    }
-                });
         }
-        void EnsureBaseFolders(string exportRoot)
-        {
-            var baseFolders = new[]
-            {
-                "Images",
-                "Videos",
-                "Documents",
-                "Audio",
-                "Memes",
-                "Screenshots"
-            };
 
-            foreach (var folder in baseFolders)
+        // ===== VIDEO CONVERSION =====
+        await _videoService.ConvertAllVideosAsync(
+            exportRoot,
+            async (doneCount, totalCount, fileName) =>
             {
-                var path = Path.Combine(exportRoot, folder);
-                Directory.CreateDirectory(path);
-            }
+                if (onProgress != null)
+                {
+                    await onProgress(
+                        doneCount,
+                        totalCount,
+                        fileName,
+                        "Converting videos...");
+                }
+            });
+
+        // ===== IMAGE CONVERSION =====
+        await _imageService.ConvertAllImagesAsync(
+            exportRoot,
+            async (doneCount, totalCount, fileName) =>
+            {
+                if (onProgress != null)
+                {
+                    await onProgress(
+                        doneCount,
+                        totalCount,
+                        fileName,
+                        "Converting images...");
+                }
+            });
+    }
+
+    void EnsureBaseFolders(string exportRoot)
+    {
+        var baseFolders = new[]
+        {
+            "Images",
+            "Videos",
+            "Documents",
+            "Audio",
+            "Memes",
+            "Screenshots"
+        };
+
+        foreach (var folder in baseFolders)
+        {
+            var path = Path.Combine(exportRoot, folder);
+            Directory.CreateDirectory(path);
         }
     }
+
+    async Task CopyFileAsync(string sourcePath, string destinationPath)
+    {
+        const int bufferSize = 81920;
+
+        using var source = new FileStream(
+            sourcePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize,
+            useAsync: true);
+
+        using var destination = new FileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize,
+            useAsync: true);
+
+        await source.CopyToAsync(destination);
+    }
+}
