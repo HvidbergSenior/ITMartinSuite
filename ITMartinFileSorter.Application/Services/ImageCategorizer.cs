@@ -7,41 +7,7 @@ public class ImageCategorizer
 {
     public void Categorize(MediaFile file)
     {
-        var name = file.FileName.ToLowerInvariant();
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-        string yearMonth = file.Year > 1990
-            ? $"{file.Year}-{file.Month:00}"
-            : "Unknown";
-
-        // 🔥 ORDER MATTERS (most specific first)
-
-        if (IsScreenshot(name))
-        {
-            file.SubCategory = MediaSubCategory.Screenshot;
-        }
-        else if (IsMeme(name))
-        {
-            file.SubCategory = MediaSubCategory.Meme;
-        }
-        else if (IsSocial(name))
-        {
-            file.SubCategory = MediaSubCategory.Social;
-        }
-        else if (IsScan(file, ext))
-        {
-            file.SubCategory = MediaSubCategory.OtherImage; // or create Scan enum later
-        }
-        else if (IsCameraPhoto(name, ext))
-        {
-            file.SubCategory = MediaSubCategory.Camera;
-        }
-        else
-        {
-            file.SubCategory = MediaSubCategory.OtherImage;
-        }
-
-        
+        DetectRealPhoto(file);
     }
 
     private bool IsScreenshot(string name)
@@ -86,5 +52,35 @@ public class ImageCategorizer
         return name.StartsWith("img_") ||
                name.StartsWith("pxl_") ||
                name.StartsWith("dsc_");
+    }
+    private void DetectRealPhoto(MediaFile file)
+    {
+        if (file.Width == null || file.Height == null)
+            return;
+
+        // ✅ Real camera photo (even converted HEIC)
+        if (file.Width >= 2000 && file.Height >= 1500)
+        {
+            file.IsProbablyRealPhoto = true;
+            return;
+        }
+
+        // ✅ Screenshot detection
+        var isScreenshot =
+            (file.Width == 1920 && file.Height == 1080) ||
+            (file.Width == 1080 && file.Height == 1920);
+
+        if (isScreenshot)
+        {
+            file.SubCategory = MediaSubCategory.Screenshot;
+            return;
+        }
+
+        // ✅ Meme / low quality
+        if (file.Width < 800 || file.Height < 800)
+        {
+            file.SubCategory = MediaSubCategory.Meme;
+            return;
+        }
     }
 }

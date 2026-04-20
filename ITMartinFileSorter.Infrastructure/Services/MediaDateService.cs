@@ -49,9 +49,15 @@ public class MediaDateService : IMediaDateService
             Console.WriteLine($"[MEDIA DATE ERROR] {ex.Message}");
         }
 
-        // ⚠️ LOW TRUST FALLBACK
+        // ⚠️ LOW TRUST // ⚠️ LOW TRUST FALLBACK
         var fallback = GetSafeFileDate(path);
-        return (fallback, false);
+
+        if (fallback != null && fallback > DateTime.Now.AddDays(-30))
+        {
+            return (fallback, false);
+        }
+
+        return (null, false);
     }
 
     private static DateTime? TryParseDateFromFileName(string path)

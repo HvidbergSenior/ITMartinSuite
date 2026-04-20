@@ -11,8 +11,6 @@ public class MediaFile
     public long SizeBytes { get; set; }
 
     public DateTime? CreatedAt { get; set; }
-    public bool IsDateReliable { get; set; }  // ✅ NEW
-
     public int Year { get; set; }
     public int Month { get; set; }
     public MediaType Type { get; }
@@ -39,7 +37,8 @@ public class MediaFile
 
     public bool HasExif { get; set; }
     public string? Format { get; set; }
-
+    public bool IsDateReliable { get; private set; }
+    public bool IsProbablyRealPhoto { get; set; }
     public string ExportPath => WorkingPath ?? FullPath;
 
     public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;

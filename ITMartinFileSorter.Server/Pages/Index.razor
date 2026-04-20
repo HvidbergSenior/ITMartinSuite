@@ -302,18 +302,19 @@
 
                     case MediaMainCategory.Audio:
                         AudioCategorizer.Categorize(file);
-                        break;Console.WriteLine("===== FILE DEBUG =====");
-                        Console.WriteLine($"Name: {file.FileName}");
-                        Console.WriteLine($"Path: {file.FullPath}");
-                        Console.WriteLine($"MainCategory: {file.MainCategory}");
-                        Console.WriteLine($"SubCategory: {file.SubCategory}");
-                        Console.WriteLine($"CreatedAt: {file.CreatedAt}");
-                        Console.WriteLine($"Year: {file.Year}");
-                        Console.WriteLine($"Month: {file.Month}");
-                        Console.WriteLine($"DynamicFolder: {file.DynamicFolder}");
-                        Console.WriteLine("=======================");
+                        break;
+                        
                 }
-                
+                Console.WriteLine("===== FILE DEBUG =====");
+                Console.WriteLine($"Name: {file.FileName}");
+                Console.WriteLine($"Path: {file.FullPath}");
+                Console.WriteLine($"MainCategory: {file.MainCategory}");
+                Console.WriteLine($"SubCategory: {file.SubCategory}");
+                Console.WriteLine($"CreatedAt: {file.CreatedAt}");
+                Console.WriteLine($"Year: {file.Year}");
+                Console.WriteLine($"Month: {file.Month}");
+                Console.WriteLine($"DynamicFolder: {file.DynamicFolder}");
+                Console.WriteLine("=======================");
                 files.Add(file);
                 FilesDiscovered++;
 

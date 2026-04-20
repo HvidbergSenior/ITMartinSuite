@@ -17,8 +17,17 @@ public class LibraryPathService
 
     public string BuildFolderPath(MediaFile file)
     {
+        
         var root = GetRootFolder(file);
-
+// 🚨 Always isolate screenshots & memes
+        if (file.SubCategory == MediaSubCategory.Screenshot ||
+            file.SubCategory == MediaSubCategory.Meme)
+        {
+            return Path.Combine(
+                "Other",
+                root,
+                GetOtherSubFolder(file));
+        }
         // 🚨 If NOT trustworthy → send to Other
         if (!IsTrustedMedia(file))
         {
@@ -69,11 +78,19 @@ public class LibraryPathService
         if (file.CreatedAt == null)
             return false;
 
-        if (file.CreatedAt.Value.Year < 1990)
-            return false;
+        // ✅ Strong metadata
+        if (file.IsDateReliable)
+            return true;
 
-        // ✅ single source of truth
-        return file.IsDateReliable;
+        // ✅ Converted real photos (your HEIC → PNG case)
+        if (file.IsProbablyRealPhoto)
+            return true;
+
+        // ✅ Recently created files (last 30 days)
+        if (file.CreatedAt > DateTime.Now.AddDays(-30))
+            return true;
+
+        return false;
     }
 
     // =========================

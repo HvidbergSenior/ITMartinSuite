@@ -94,38 +94,41 @@ public sealed class FileScanner : IFileScanner
 
             MediaType type =
                 IsImage(file) ? MediaType.Image :
-                IsVideo(file) ? MediaType.Video :
-                AudioExtensions.Contains(Path.GetExtension(file))
-                    ? MediaType.Audio
-                    : MediaType.Document;
+                    IsVideo(file) ? MediaType.Video :
+                        AudioExtensions.Contains(Path.GetExtension(file))
+                            ? MediaType.Audio
+                            : MediaType.Document;
 
+            // ✅ ALWAYS create WITHOUT date
             var mediaFile = new MediaFile(
                 fullPath: file,
-                createdAt: null, // ✅ DO NOT SET HERE
+                createdAt: null,
                 type: type,
                 sizeBytes: info.Length
             );
 
-            // ✅ SET DATE WITH RELIABILITY
+            // ✅ GET DATE + RELIABILITY
+            DateTime? bestDate = null;
+            bool isReliable = false;
+
             try
             {
-                var bestDate = _mediaDateService.GetBestDate(file);
-
-                if (bestDate.date != null)
-                {
-                    mediaFile.SetDate(bestDate.date, isReliable: true);
-                }
-                else
-                {
-                    mediaFile.SetDate(info.LastWriteTime, isReliable: false);
-                }
+                var result = _mediaDateService.GetBestDate(file);
+                bestDate = result.date;
+                isReliable = result.isReliable;
             }
             catch
             {
-                mediaFile.SetDate(info.LastWriteTime, isReliable: false);
+                // ignore
             }
 
-            // ✅ HASH
+            // ✅ APPLY DATE (single source of truth)
+            mediaFile.SetDate(
+                bestDate ?? info.LastWriteTime,
+                isReliable
+            );
+
+            // ✅ hash
             mediaFile.SetHash(_hashService.ComputeHash(file));
 
             yield return mediaFile;
