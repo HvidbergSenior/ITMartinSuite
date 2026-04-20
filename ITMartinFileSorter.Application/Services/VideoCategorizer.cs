@@ -25,11 +25,6 @@ public class VideoCategorizer
         {
             file.SubCategory = MediaSubCategory.OtherVideo;
         }
-
-        file.DynamicFolder = Path.Combine(
-            "Videos",
-            file.SubCategory.ToString(),
-            yearMonth);
     }
 
     private bool IsScreenRecording(MediaFile file, string name)

@@ -20,7 +20,6 @@ public class DocumentCategorizer
             _ => MediaSubCategory.UnknownDocument
         };
 
-        // DynamicFolder is always relative and clean
-        file.DynamicFolder = Path.Combine("Documents", file.SubCategory.ToString());
+        
     }
 }

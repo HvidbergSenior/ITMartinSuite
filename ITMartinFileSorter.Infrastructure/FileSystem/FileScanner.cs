@@ -9,6 +9,7 @@ public sealed class FileScanner : IFileScanner
 {
     private readonly IHashService _hashService;
     private readonly IMediaDateService _mediaDateService;
+
     public FileScanner(
         IHashService hashService,
         IMediaDateService mediaDateService)
@@ -16,6 +17,7 @@ public sealed class FileScanner : IFileScanner
         _hashService = hashService;
         _mediaDateService = mediaDateService;
     }
+
     public static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".png", ".gif", ".bmp",
@@ -97,31 +99,36 @@ public sealed class FileScanner : IFileScanner
                     ? MediaType.Audio
                     : MediaType.Document;
 
-            
-            DateTime? bestDate;
-
-            try
-            {
-                bestDate = _mediaDateService.GetBestDate(file);
-            }
-            catch
-            {
-                bestDate = info.LastWriteTimeUtc;
-            }
-
-            var fallbackDate = bestDate ?? info.LastWriteTime;
-
             var mediaFile = new MediaFile(
                 fullPath: file,
-                createdAt: fallbackDate,
+                createdAt: null, // ✅ DO NOT SET HERE
                 type: type,
                 sizeBytes: info.Length
             );
-            
-            mediaFile.SetHash( _hashService.ComputeHash(file));
+
+            // ✅ SET DATE WITH RELIABILITY
+            try
+            {
+                var bestDate = _mediaDateService.GetBestDate(file);
+
+                if (bestDate.date != null)
+                {
+                    mediaFile.SetDate(bestDate.date, isReliable: true);
+                }
+                else
+                {
+                    mediaFile.SetDate(info.LastWriteTime, isReliable: false);
+                }
+            }
+            catch
+            {
+                mediaFile.SetDate(info.LastWriteTime, isReliable: false);
+            }
+
+            // ✅ HASH
+            mediaFile.SetHash(_hashService.ComputeHash(file));
 
             yield return mediaFile;
         }
-        
     }
 }

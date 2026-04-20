@@ -2,5 +2,5 @@
 
 public interface IMediaDateService
 {
-    DateTime? GetBestDate(string path);
+    (DateTime? date, bool isReliable) GetBestDate(string path);
 }

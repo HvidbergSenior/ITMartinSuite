@@ -32,7 +32,7 @@ builder.Services.AddScoped<SubtitleService>();
 builder.Services.AddScoped<FolderPathInfoService>();
 
 builder.Services.AddScoped<HomeLocationService>();
-builder.Services.AddScoped<JunkDetectionService>();
+builder.Services.AddScoped<ImageCategorizer>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<ThumbnailService>();
 builder.Services.AddScoped<IMediaDateService, MediaDateService>();

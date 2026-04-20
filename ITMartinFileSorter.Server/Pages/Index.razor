@@ -7,7 +7,10 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject FolderPathInfoService FolderPathInfoService
-
+@inject ImageCategorizer ImageCategorizer
+@inject VideoCategorizer VideoCategorizer
+@inject DocumentCategorizer DocumentCategorizer
+@inject AudioCategorizer AudioCategorizer
 <div class="index-page">
 
     <SectionTitle Title="🎬 Scan & Organize Files" />
@@ -280,8 +283,37 @@
 
             foreach (var file in FileScanner.ScanFolder(path))
             {
+                Console.WriteLine(
+                    $"{file.FileName} | {file.MainCategory} | {file.SubCategory} | {file.CreatedAt}");
                 token.ThrowIfCancellationRequested();
+                switch (file.MainCategory)
+                {
+                    case MediaMainCategory.Image:
+                        ImageCategorizer.Categorize(file);
+                        break;
 
+                    case MediaMainCategory.Video:
+                        VideoCategorizer.Categorize(file);
+                        break;
+
+                    case MediaMainCategory.Document:
+                        DocumentCategorizer.Categorize(file);
+                        break;
+
+                    case MediaMainCategory.Audio:
+                        AudioCategorizer.Categorize(file);
+                        break;Console.WriteLine("===== FILE DEBUG =====");
+                        Console.WriteLine($"Name: {file.FileName}");
+                        Console.WriteLine($"Path: {file.FullPath}");
+                        Console.WriteLine($"MainCategory: {file.MainCategory}");
+                        Console.WriteLine($"SubCategory: {file.SubCategory}");
+                        Console.WriteLine($"CreatedAt: {file.CreatedAt}");
+                        Console.WriteLine($"Year: {file.Year}");
+                        Console.WriteLine($"Month: {file.Month}");
+                        Console.WriteLine($"DynamicFolder: {file.DynamicFolder}");
+                        Console.WriteLine("=======================");
+                }
+                
                 files.Add(file);
                 FilesDiscovered++;
 

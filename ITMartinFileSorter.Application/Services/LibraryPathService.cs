@@ -1,4 +1,5 @@
-﻿using ITMartinFileSorter.Application.Helpers;
+﻿using System.Globalization;
+using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
 using ITMartinFileSorter.Domain.Interfaces;
@@ -7,64 +8,50 @@ namespace ITMartinFileSorter.Application.Services;
 
 public class LibraryPathService
 {
-    private readonly TripGroupingService _tripService;
-    private readonly HomeLocationService _homeService;
     private readonly IGpsService _gpsService;
 
-    public LibraryPathService(
-        TripGroupingService tripService,
-        HomeLocationService homeService,
-        IGpsService gpsService)
+    public LibraryPathService(IGpsService gpsService)
     {
-        _tripService = tripService;
-        _homeService = homeService;
         _gpsService = gpsService;
     }
 
     public string BuildFolderPath(MediaFile file)
     {
-        // User-defined folder always wins
-        if (!string.IsNullOrWhiteSpace(file.UserFolderName))
+        var root = GetRootFolder(file);
+
+        // 🚨 If NOT trustworthy → send to Other
+        if (!IsTrustedMedia(file))
         {
-            var mainFolder = file.MainCategory switch
-            {
-                MediaMainCategory.Image => "Images",
-                MediaMainCategory.Video => "Videos",
-                MediaMainCategory.Audio => "Audio",
-                MediaMainCategory.Document => "Documents",
-                _ => "Other"
-            };
-
-            var year = GetYearFolder(file);
-
             return Path.Combine(
-                mainFolder,
-                year,
-                CleanPart(file.UserFolderName));
+                "Other",
+                root,
+                GetOtherSubFolder(file));
         }
 
-        // Existing automatic logic
-        switch (file.SubCategory)
-        {
-            case MediaSubCategory.Screenshot:
-                return Path.Combine(
-                    "Screenshots",
-                    GetYearFolder(file));
+        // ✅ Timeline structure ONLY for trusted media
+        var year = GetYear(file);
+        var month = GetMonthName(file);
 
-            case MediaSubCategory.Meme:
-                return Path.Combine(
-                    "Memes",
-                    GetYearFolder(file));
+        return Path.Combine(root, year, month);
+    }
 
-            case MediaSubCategory.Social:
-            case MediaSubCategory.WhatsApp:
-            case MediaSubCategory.Telegram:
-                return Path.Combine(
-                    "Social",
-                    GetYearFolder(file));
-        }
+    public string BuildFileName(MediaFile file, int index)
+    {
+        var date = file.CreatedAt?.ToString("yyyy-MM-dd_HH-mm-ss")
+                   ?? "Unknown_Date";
 
-        var main = file.MainCategory switch
+        var category = GetCategoryLabel(file);
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+        return $"{date}_{category}_{index:D3}{ext}";
+    }
+
+    // =========================
+    // ROOT
+    // =========================
+    private string GetRootFolder(MediaFile file)
+    {
+        return file.MainCategory switch
         {
             MediaMainCategory.Image => "Images",
             MediaMainCategory.Video => "Videos",
@@ -72,80 +59,90 @@ public class LibraryPathService
             MediaMainCategory.Document => "Documents",
             _ => "Other"
         };
-
-        var yearFolder = GetYearFolder(file);
-
-        if (file.MainCategory is MediaMainCategory.Image
-            or MediaMainCategory.Video)
-        {
-            var location = GetLocationFolder(file);
-            var trip = GetTripName(file);
-
-            return Path.Combine(main, yearFolder, location, trip);
-        }
-
-        return Path.Combine(main, yearFolder);
     }
 
-    public string BuildFileName(MediaFile file, int index)
+    // =========================
+    // TRUST LOGIC (VERY IMPORTANT)
+    // =========================
+    private bool IsTrustedMedia(MediaFile file)
     {
-        var date = file.CreatedAt?.ToString("yyyy-MM-dd_HH-mm-ss")
-                   ?? "Unknown-Date";
+        if (file.CreatedAt == null)
+            return false;
 
-        var location = CleanPart(file.Location);
+        if (file.CreatedAt.Value.Year < 1990)
+            return false;
 
-        var trip = CleanPart(GetTripName(file));
+        // ✅ single source of truth
+        return file.IsDateReliable;
+    }
 
-        var category = GetCategoryLabel(file);
-
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-        var parts = new List<string>
+    // =========================
+    // OTHER STRUCTURE
+    // =========================
+    private string GetOtherSubFolder(MediaFile file)
+    {
+        return file.SubCategory switch
         {
-            date
+            // Images
+            MediaSubCategory.Screenshot => "Screenshots",
+            MediaSubCategory.Meme => "Memes",
+            MediaSubCategory.Social => "Social",
+            MediaSubCategory.OtherImage => "Other",
+
+            // Videos
+            MediaSubCategory.ScreenRecording => "ScreenRecordings",
+            MediaSubCategory.OtherVideo => "Other",
+
+            // Documents
+            MediaSubCategory.Pdf => "Pdf",
+            MediaSubCategory.Word => "Word",
+            MediaSubCategory.Excel => "Excel",
+            MediaSubCategory.Presentation => "Presentation",
+            MediaSubCategory.Csv => "Csv",
+            MediaSubCategory.UnknownDocument => "Other",
+
+            // Audio
+            MediaSubCategory.Music => "Music",
+            MediaSubCategory.VoiceMemo => "Voice",
+            MediaSubCategory.UnknownAudio => "Other",
+
+            _ => "Unsorted"
         };
-
-        if (!string.IsNullOrWhiteSpace(file.UserTitle))
-        {
-            parts.Add(CleanPart(file.UserTitle));
-        }
-
-        if (!string.IsNullOrWhiteSpace(location))
-            parts.Add(location);
-
-        if (!string.IsNullOrWhiteSpace(trip))
-            parts.Add(trip);
-
-        parts.Add(category);
-        parts.Add(index.ToString("D3"));
-
-        return string.Join("_", parts) + ext;
     }
 
-    private string GetTripName(MediaFile file)
+    // =========================
+    // DATE HELPERS
+    // =========================
+    private string GetYear(MediaFile file)
     {
-        if (!string.IsNullOrWhiteSpace(file.Location) &&
-            file.Location != "Unknown")
-        {
-            return CleanPart(file.Location);
-        }
-
-        var tripLocation = _tripService.GetSingleFileLocation(file);
-
-        if (!string.IsNullOrWhiteSpace(tripLocation) &&
-            tripLocation != "Unknown")
-        {
-            return CleanPart(tripLocation);
-        }
-
-        if (file.CreatedAt != null)
-        {
-            return $"Trip_{file.CreatedAt:yyyy_MM}";
-        }
-
-        return "General";
+        return file.CreatedAt?.Year.ToString() ?? "Unknown";
     }
 
+    private string GetMonthName(MediaFile file)
+    {
+        if (file.CreatedAt == null)
+            return "Unknown";
+
+        var culture = new CultureInfo("da-DK");
+
+        var month = file.CreatedAt.Value
+            .ToString("MMMM", culture);
+
+        // Capitalize + remove spaces
+        return Capitalize(month);
+    }
+
+    private string Capitalize(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+
+        return char.ToUpper(value[0]) + value[1..];
+    }
+
+    // =========================
+    // FILE LABEL
+    // =========================
     private string GetCategoryLabel(MediaFile file)
     {
         return file.MainCategory switch
@@ -153,48 +150,8 @@ public class LibraryPathService
             MediaMainCategory.Image => "Photo",
             MediaMainCategory.Video => "Video",
             MediaMainCategory.Audio => "Audio",
-            MediaMainCategory.Document => "Document",
+            MediaMainCategory.Document => "Doc",
             _ => "File"
         };
-    }
-
-    private string CleanPart(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return "";
-
-        var cleaned = value
-            .Replace(" ", "_")
-            .Replace(",", "")
-            .Replace(":", "")
-            .Replace("/", "_")
-            .Replace("\\", "_");
-
-        return cleaned.Trim('_');
-    }
-    private string GetYearFolder(MediaFile file)
-    {
-        return file.CreatedAt?.Year.ToString() ?? "Unknown";
-    }
-    private string GetLocationFolder(MediaFile file)
-    {
-        if (file.MainCategory is not MediaMainCategory.Image
-            and not MediaMainCategory.Video)
-        {
-            return "Unknown";
-        }
-
-        var coords = _gpsService.GetCoordinates(file.FullPath);
-
-        if (coords == null)
-            return "Unknown";
-
-        var location = LocationFilter.GetLocationName(
-            coords.Value.lat,
-            coords.Value.lng);
-
-        return string.IsNullOrWhiteSpace(location)
-            ? "Unknown"
-            : CleanPart(location);
     }
 }

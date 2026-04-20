@@ -14,17 +14,23 @@ public class ImageCategorizer
             ? $"{file.Year}-{file.Month:00}"
             : "Unknown";
 
-        if (IsScreenshot(file, name, ext))
+        // 🔥 ORDER MATTERS (most specific first)
+
+        if (IsScreenshot(name))
         {
             file.SubCategory = MediaSubCategory.Screenshot;
         }
-        else if (IsMeme(file, name, ext))
+        else if (IsMeme(name))
         {
             file.SubCategory = MediaSubCategory.Meme;
         }
-        else if (IsSocial(file, name))
+        else if (IsSocial(name))
         {
             file.SubCategory = MediaSubCategory.Social;
+        }
+        else if (IsScan(file, ext))
+        {
+            file.SubCategory = MediaSubCategory.OtherImage; // or create Scan enum later
         }
         else if (IsCameraPhoto(name, ext))
         {
@@ -35,24 +41,19 @@ public class ImageCategorizer
             file.SubCategory = MediaSubCategory.OtherImage;
         }
 
-        // NEW EXPORT STRUCTURE
-        file.DynamicFolder = file.SubCategory switch
-        {
-            MediaSubCategory.Screenshot => "Screenshots",
-            MediaSubCategory.Meme => "Memes",
-            _ => Path.Combine("Images", yearMonth)
-        };
+        
     }
 
-    private bool IsScreenshot(MediaFile file, string name, string ext)
+    private bool IsScreenshot(string name)
     {
         return name.Contains("screenshot") ||
+               name.Contains("skærmbillede") ||
                name.Contains("screen") ||
                name.Contains("capture") ||
                name.StartsWith("snip");
     }
 
-    private bool IsMeme(MediaFile file, string name, string ext)
+    private bool IsMeme(string name)
     {
         return name.Contains("meme") ||
                name.Contains("funny") ||
@@ -61,7 +62,7 @@ public class ImageCategorizer
                name.Contains("joker");
     }
 
-    private bool IsSocial(MediaFile file, string name)
+    private bool IsSocial(string name)
     {
         return name.Contains("facebook") ||
                name.Contains("messenger") ||
@@ -70,14 +71,16 @@ public class ImageCategorizer
                name.Contains("snapchat");
     }
 
+    private bool IsScan(MediaFile file, string ext)
+    {
+        return ext is ".tif" or ".tiff"
+               || file.SizeBytes > 10_000_000;
+    }
+
     private bool IsCameraPhoto(string name, string ext)
     {
-        if (ext == ".heic" ||
-            ext == ".jpg" ||
-            ext == ".jpeg" ||
-            ext == ".tif" ||
-            ext == ".tiff" ||
-            ext == ".bmp")
+        // common camera formats
+        if (ext is ".jpg" or ".jpeg" or ".heic" or ".png")
             return true;
 
         return name.StartsWith("img_") ||

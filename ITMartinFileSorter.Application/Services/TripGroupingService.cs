@@ -10,27 +10,18 @@ namespace ITMartinFileSorter.Application.Services;
 public class TripGroupingService
 {
     private readonly IGpsService _gpsService;
-    private readonly IMediaDateService _mediaDateService;
 
-    public TripGroupingService(
-        IGpsService gpsService,
-        IMediaDateService mediaDateService)
+    public TripGroupingService(IGpsService gpsService)
     {
         _gpsService = gpsService;
-        _mediaDateService = mediaDateService;
     }
 
     public List<TripGroup> CreateTrips(IEnumerable<MediaFile> files)
     {
         var mediaFiles = files
             .Where(IsTripCandidate)
-            .Select(f => new
-            {
-                File = f,
-                Date = _mediaDateService.GetBestDate(f.FullPath)
-            })
-            .Where(x => x.Date != null)
-            .OrderBy(x => x.Date)
+            .Where(f => f.CreatedAt != null)
+            .OrderBy(f => f.CreatedAt)
             .ToList();
 
         var trips = new List<TripGroup>();
@@ -40,7 +31,7 @@ public class TripGroupingService
 
         var currentTrip = new List<MediaFile>
         {
-            mediaFiles.First().File
+            mediaFiles.First()
         };
 
         for (int i = 1; i < mediaFiles.Count; i++)
@@ -48,16 +39,23 @@ public class TripGroupingService
             var previous = mediaFiles[i - 1];
             var current = mediaFiles[i];
 
-            var gap = current.Date!.Value - previous.Date!.Value;
+            var gap = current.CreatedAt!.Value - previous.CreatedAt!.Value;
+
+            // ⚠️ OPTIONAL: Ignore unreliable dates for splitting
+            if (!current.IsDateReliable || !previous.IsDateReliable)
+            {
+                currentTrip.Add(current);
+                continue;
+            }
 
             if (gap.TotalDays <= 7)
             {
-                currentTrip.Add(current.File);
+                currentTrip.Add(current);
             }
             else
             {
                 trips.Add(BuildTrip(currentTrip));
-                currentTrip = new List<MediaFile> { current.File };
+                currentTrip = new List<MediaFile> { current };
             }
         }
 
@@ -76,9 +74,8 @@ public class TripGroupingService
     private TripGroup BuildTrip(List<MediaFile> files)
     {
         var datedFiles = files
-            .Select(f => _mediaDateService.GetBestDate(f.FullPath))
-            .Where(d => d != null)
-            .Select(d => d!.Value)
+            .Where(f => f.CreatedAt != null)
+            .Select(f => f.CreatedAt!.Value)
             .ToList();
 
         var start = datedFiles.Min();
@@ -100,29 +97,59 @@ public class TripGroupingService
         DateTime end,
         string location)
     {
-        var culture = new CultureInfo("da-DK");
+        var startMonth = GetMonth(start);
+        var endMonth = GetMonth(end);
 
-        var startMonth = start.ToString("MMMM", culture);
-        var endMonth = end.ToString("MMMM", culture);
-
-        startMonth =
-            char.ToUpper(startMonth[0]) +
-            startMonth[1..];
-
-        endMonth =
-            char.ToUpper(endMonth[0]) +
-            endMonth[1..];
-
-        var datePart =
-            $"{start.Day}{startMonth}-{end.Day}{endMonth}";
-
-        if (!string.IsNullOrWhiteSpace(location) &&
-            location != "Unknown")
+        if (start.Date == end.Date)
         {
-            return $"{datePart} {location}";
+            return start.ToString("yyyy-MM-dd");
+        }
+
+        string datePart;
+
+        if (start.Month == end.Month)
+        {
+            datePart = $"{start.Day}-{end.Day}_{startMonth}";
+        }
+        else
+        {
+            datePart = $"{start.Day}_{startMonth}-{end.Day}_{endMonth}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(location))
+        {
+            return $"{datePart}_{Clean(location)}";
         }
 
         return datePart;
+    }
+
+    private string GetMonth(DateTime date)
+    {
+        var culture = new CultureInfo("da-DK");
+        var month = date.ToString("MMMM", culture);
+
+        return Clean(char.ToUpper(month[0]) + month[1..]);
+    }
+
+    private string Clean(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "";
+
+        return value
+            .Replace("MediaLibrary", "")
+            .Replace("Library", "")
+            .Replace("Images", "")
+            .Replace("Videos", "")
+            .Replace(" ", "_")
+            .Replace(".", "")
+            .Replace(",", "")
+            .Replace(":", "")
+            .Replace("/", "_")
+            .Replace("\\", "_")
+            .Replace("__", "_")
+            .Trim('_');
     }
 
     private string GetTripLocation(List<MediaFile> files)
@@ -136,9 +163,7 @@ public class TripGroupingService
             if (!string.IsNullOrWhiteSpace(gpsLocation) &&
                 gpsLocation != "Unknown")
             {
-                Console.WriteLine(
-                    $"[TRIP LOCATION FROM GPS] {gpsLocation}");
-
+                Console.WriteLine($"[TRIP LOCATION FROM GPS] {gpsLocation}");
                 return gpsLocation;
             }
         }
@@ -150,8 +175,22 @@ public class TripGroupingService
             var folder = Path.GetFileName(
                 Path.GetDirectoryName(first.FullPath));
 
-            Console.WriteLine(
-                $"[FOLDER FALLBACK RAW] {folder}");
+            var invalid = new[]
+            {
+                "MediaLibrary",
+                "Library",
+                "Images",
+                "Videos",
+                "DCIM"
+            };
+
+            if (invalid.Any(x =>
+                    folder.Equals(x, StringComparison.OrdinalIgnoreCase)))
+            {
+                folder = "";
+            }
+
+            Console.WriteLine($"[FOLDER FALLBACK RAW] {folder}");
 
             var cleaned = Regex.Replace(
                 folder ?? "",
@@ -159,8 +198,7 @@ public class TripGroupingService
                 "")
                 .Trim();
 
-            Console.WriteLine(
-                $"[FOLDER FALLBACK CLEAN] {cleaned}");
+            Console.WriteLine($"[FOLDER FALLBACK CLEAN] {cleaned}");
 
             if (!string.IsNullOrWhiteSpace(cleaned))
                 return cleaned;
@@ -175,7 +213,6 @@ public class TripGroupingService
 
         Console.WriteLine("===== GPS DEBUG =====");
         Console.WriteLine($"[FILE] {file.FileName}");
-        Console.WriteLine($"[PATH] {file.FullPath}");
 
         if (coords == null)
         {
@@ -184,9 +221,6 @@ public class TripGroupingService
         }
 
         var (lat, lng) = coords.Value;
-
-        Console.WriteLine($"[LAT] {lat}");
-        Console.WriteLine($"[LNG] {lng}");
 
         var location = LocationFilter.GetLocationName(lat, lng);
 

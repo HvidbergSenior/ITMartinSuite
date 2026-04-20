@@ -22,9 +22,6 @@ public class AudioCategorizer
         else
             file.SubCategory = MediaSubCategory.UnknownAudio;
 
-        file.DynamicFolder = Path.Combine(
-            "Music",
-            yearOnly
-        );
+        
     }
 }

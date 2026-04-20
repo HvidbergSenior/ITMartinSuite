@@ -27,7 +27,6 @@ public class LibraryExportService
 
         if (!fileList.Any())
             return;
-
         var grouped = fileList
             .GroupBy(f => _pathService.BuildFolderPath(f))
             .ToList();
@@ -48,9 +47,14 @@ public class LibraryExportService
                 var newName = _pathService.BuildFileName(file, index);
 
                 var destination = Path.Combine(targetFolder, newName);
+                var folderPath = _pathService.BuildFolderPath(file);
 
+                Console.WriteLine("===== EXPORT DEBUG =====");
+                Console.WriteLine($"File: {file.FileName}");
+                Console.WriteLine($"ComputedPath: {folderPath}");
+                Console.WriteLine("========================");
                 File.Copy(file.FullPath, destination, true);
-
+                Console.WriteLine($"EXTENSION: {file.Extension}");
                 index++;
                 done++;
 

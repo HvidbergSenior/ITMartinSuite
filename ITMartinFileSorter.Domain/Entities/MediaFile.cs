@@ -9,20 +9,21 @@ public class MediaFile
     public string FileName { get; }
     public string Extension { get; }
     public long SizeBytes { get; set; }
+
     public DateTime? CreatedAt { get; set; }
+    public bool IsDateReliable { get; set; }  // ✅ NEW
+
     public int Year { get; set; }
     public int Month { get; set; }
     public MediaType Type { get; }
 
-    public string? WorkingPath { get; set; }  // points to the temporary copy
+    public string? WorkingPath { get; set; }
     public string? ThumbnailPath { get; set; }
 
-    // Categorization
     public MediaMainCategory MainCategory { get; set; }
     public MediaSubCategory SubCategory { get; set; }
     public MediaTertiaryCategory TertiaryCategory { get; set; }
 
-    // Metadata
     public string? DeviceModel { get; set; }
     public string? Location { get; set; }
     public string? Hash { get; private set; }
@@ -32,17 +33,17 @@ public class MediaFile
 
     public string? DynamicFolder { get; set; }
 
-    // Video metadata
     public long? DurationMs { get; private set; }
     public int? Width { get; set; }
     public int? Height { get; set; }
 
     public bool HasExif { get; set; }
     public string? Format { get; set; }
+
     public string ExportPath => WorkingPath ?? FullPath;
-    
-    // Tracks whether user wants to keep the file in the workflow
+
     public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;
+
     public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)
     {
         FullPath = fullPath;
@@ -52,15 +53,12 @@ public class MediaFile
         Extension = Path.GetExtension(fullPath);
 
         SizeBytes = sizeBytes;
-        CreatedAt = createdAt;
+        Type = type;
 
         if (createdAt != null)
         {
-            Year = createdAt.Value.Year;
-            Month = createdAt.Value.Month;
+            SetDate(createdAt.Value, true); // ✅ ALWAYS go through method
         }
-
-        Type = type;
 
         MainCategory = type switch
         {
@@ -83,6 +81,19 @@ public class MediaFile
         TertiaryCategory = MediaTertiaryCategory.Unknown;
     }
 
+    // ✅ CENTRALIZED DATE SETTER
+    public void SetDate(DateTime? date, bool isReliable)
+    {
+        CreatedAt = date;
+        IsDateReliable = isReliable;
+
+        if (date is { } d)
+        {
+            Year = d.Year;
+            Month = d.Month;
+        }
+    }
+
     public void SetHash(string hash) => Hash = hash;
 
     public void SetVideoMetadata(long? durationMs, int? width, int? height)
@@ -91,6 +102,7 @@ public class MediaFile
         Width = width;
         Height = height;
     }
+
     public override string ToString()
-        => $"FileName={FileName}, FullPath={FullPath}, DynamicFolder={DynamicFolder}, Status={Status}";
+        => $"FileName={FileName}, Date={CreatedAt}, Reliable={IsDateReliable}, Status={Status}";
 }
