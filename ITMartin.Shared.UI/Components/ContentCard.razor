@@ -1,18 +1,37 @@
-﻿<div class="content-card @CssClass">
-    @if (!string.IsNullOrWhiteSpace(Title))
-    {
-        <div class="card-header">
-            <strong>@Title</strong>
+﻿    <div class="content-card @GetVariantClass() @CssClass">
+
+        @if (!string.IsNullOrWhiteSpace(Title))
+        {
+            <div class="card-header">
+                @Title
+            </div>
+        }
+
+        <div class="card-body">
+            @ChildContent
         </div>
-    }
 
-    <div class="card-body">
-        @ChildContent
     </div>
-</div>
 
-@code {
-    [Parameter] public string? Title { get; set; }
-    [Parameter] public string CssClass { get; set; } = "";
-    [Parameter] public RenderFragment? ChildContent { get; set; }
-}
+    @code {
+        [Parameter] public string? Title { get; set; }
+        [Parameter] public string CssClass { get; set; } = "";
+        [Parameter] public RenderFragment? ChildContent { get; set; }
+
+        [Parameter] public CardVariant Variant { get; set; } = CardVariant.Primary;
+
+        string GetVariantClass() => Variant switch
+        {
+            CardVariant.Primary => "card-primary",
+            CardVariant.Secondary => "card-secondary",
+            CardVariant.Mini => "card-mini",
+            _ => "card-primary"
+        };
+
+        public enum CardVariant
+        {
+            Primary,
+            Secondary,
+            Mini
+        }
+    }

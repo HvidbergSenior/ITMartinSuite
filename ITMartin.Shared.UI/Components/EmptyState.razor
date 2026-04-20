@@ -1,8 +1,8 @@
-﻿<div class="alert alert-@Type">
+﻿<div class="empty-state empty-@Type">
     @Message
 </div>
 
-@code {
-    [Parameter] public string Message { get; set; } = "";
-    [Parameter] public string Type { get; set; } = "info";
-}
+    @code {
+        [Parameter] public string Message { get; set; } = "";
+        [Parameter] public string Type { get; set; } = "info";
+    }

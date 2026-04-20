@@ -1,13 +1,7 @@
-﻿<header class="app-header">
-    <div class="header-title">
-        @Title
-    </div>
-
-    <nav class="header-nav">
-        @ChildContent
-    </nav>
-</header>
-
+﻿<footer class="app-footer">
+    <div>© ITMartin</div>
+</footer>
+    
 @code {
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public RenderFragment? ChildContent { get; set; }

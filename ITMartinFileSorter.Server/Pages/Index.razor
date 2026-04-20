@@ -51,64 +51,45 @@
                 var filesInCat = cat switch
                 {
                     "Screenshots" => DuplicateService.AllFiles
-                        .Where(f => f.SubCategory == MediaSubCategory.Screenshot)
-                        .ToList(),
+                        .Where(f => f.SubCategory == MediaSubCategory.Screenshot),
 
                     "Memes" => DuplicateService.AllFiles
-                        .Where(f => f.SubCategory == MediaSubCategory.Meme)
-                        .ToList(),
+                        .Where(f => f.SubCategory == MediaSubCategory.Meme),
 
                     _ => DuplicateService.AllFiles
                         .Where(f => f.MainCategory.ToString() == cat)
-                        .ToList()
                 };
 
-                // 👉 ACTIONABLE ONLY (for review logic)
-                var actionable = filesInCat
-                    .Where(f =>
-                        f.SubCategory != MediaSubCategory.Meme &&
-                        f.SubCategory != MediaSubCategory.Screenshot)
-                    .ToList();
+                var allFiles = filesInCat.ToList();
 
-                // ✅ TOTAL (ALL FILES)
-                var total = filesInCat.Count;
-                var totalSize = filesInCat.Sum(f => f.SizeBytes);
+// 🔥 ONLY files requiring user input
+                var needsReview = allFiles.Count(f =>
+                    f.RequiresReview &&
+                    f.Status == MediaFileStatus.Initial);
 
-                // ✅ REMAINING (ONLY ACTIONABLE)
-                var remaining = actionable.Count(f =>
-                    f.RequiresReview && f.Status == MediaFileStatus.Initial);
+// 🔥 ALL handled files (keep + delete)
+                var processedCount = allFiles.Count(f =>
+                    f.Status == MediaFileStatus.ToKeep ||
+                    f.Status == MediaFileStatus.ToDelete);
 
-                var fileSet = actionable.ToHashSet();
+                var total = allFiles.Count;
 
-                // 🔁 DUPLICATES (ONLY ACTIONABLE)
-                var duplicatesBefore = DuplicateService.DuplicateGroups
-                    .Select(g => g.Where(f => fileSet.Contains(f)).ToList())
-                    .Where(g => g.Count > 1)
-                    .Sum(g => g.Count - 1);
-
-                var duplicatesAfter = actionable
-                    .Count(f => f.Status == MediaFileStatus.ToDelete);
-
-                var savedBytes = actionable
-                    .Where(f => f.Status == MediaFileStatus.ToDelete)
+                var totalSize = allFiles
+                    .Where(f => f.Status != MediaFileStatus.ToDelete) // 👈 only visible size
                     .Sum(f => f.SizeBytes);
 
                 var isAuto = cat is "Screenshots" or "Memes";
-
                 <CategorySummaryCard
                     Title="@(isAuto ? $"{cat} (Auto)" : cat)"
-                    Remaining="@remaining"
+                    ReviewCount="@needsReview"
+                    ProcessedCount="@processedCount"
                     Total="@total"
                     SizeText="@FormatSize(totalSize)"
-                    DuplicatesBefore="@duplicatesBefore"
-                    DuplicatesAfter="@duplicatesAfter"
-                    SavedSize="@FormatSize(savedBytes)"
                     CssClass="@GetCategoryCssClass(cat)"
                     OnClick="@(() => OpenCategory(cat))" />
             }
         </div>
 
-        <!-- ✅ EXPORT -->
         <ContentCard CssClass="mt-4 text-center">
 
             @if (!IsCompleted)
@@ -147,17 +128,12 @@
     string CurrentFileName = "";
     int FilesDiscovered = 0;
 
-    // ✅ ONLY ACTIONABLE FILES BLOCK EXPORT
     bool IsCompleted =>
         DuplicateService.AllFiles
-            .Where(f =>
-                f.SubCategory != MediaSubCategory.Meme &&
-                f.SubCategory != MediaSubCategory.Screenshot &&
-                f.RequiresReview)
-            .All(f => f.Status != MediaFileStatus.Initial);
+            .Any(f => f.RequiresReview && f.Status == MediaFileStatus.Initial) == false;
     int ProgressPercent =>
         Progress.Info.TotalWork == 0
-            ? 0
+            ? 1 // 🔥 ensures progress bar renders
             : (int)((double)Progress.Info.WorkDone / Progress.Info.TotalWork * 100);
 
     readonly string[] CategoryOrder =
@@ -194,7 +170,6 @@
         if (IsScanning) return;
 
         var path = FolderPath;
-
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
             return;
 
@@ -207,11 +182,14 @@
 
         var allPaths = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
 
+        // ✅ SET PROGRESS FIRST
         Progress.Info.TotalWork = allPaths.Length;
         Progress.Info.WorkDone = 0;
         Progress.SetStage("Scanning files...");
 
+        // 🔥 FORCE UI RENDER BEFORE LOOP
         await InvokeAsync(StateHasChanged);
+        await Task.Delay(50);
 
         var files = new List<MediaFile>();
         int refreshCounter = 0;
@@ -240,10 +218,17 @@
             Progress.Info.WorkDone = FilesDiscovered;
             CurrentFileName = file.FileName;
 
-            if (refreshCounter++ % 5 == 0)
+            // 🔥 MORE FREQUENT UI UPDATES
+            if (++refreshCounter % 5 == 0)
             {
-                await InvokeAsync(StateHasChanged);
-                await Task.Delay(1);
+                try
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (Microsoft.JSInterop.JSDisconnectedException)
+                {
+                    return;
+                }
             }
         }
 
@@ -254,10 +239,16 @@
 
         await Task.Run(() => DuplicateService.BuildDuplicateGroups());
 
+        DuplicateService.NotifyStateChanged();
+
+        // 🔥 GIVE USER TIME TO SEE RESULT BEFORE NAVIGATION
         if (DuplicateService.DuplicateGroups.Any())
         {
-            IsScanning = false;
+            Progress.SetStage("Duplicates found...");
             await InvokeAsync(StateHasChanged);
+            await Task.Delay(400);
+
+            IsScanning = false;
             Navigation.NavigateTo("/duplicates");
             return;
         }

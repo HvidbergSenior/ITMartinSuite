@@ -38,48 +38,28 @@
 
                 <ContentCard Title="Duplicate Group">
 
-                    <!-- ✅ BUTTON FIXED -->
-                    <div class="mb-3">
-                        <button class="btn btn-success"
-                                @onclick="async () => await DeleteAllButOne(group)">
-                            Keep Newest (Delete Rest)
-                        </button>
-                    </div>
+                    <button class="btn btn-success mb-3"
+                            @onclick="() => DeleteAllButOne(group)">
+                        Keep Newest
+                    </button>
 
-                    <!-- FILE LIST -->
-                    <div class="d-flex flex-column gap-2">
+                    @foreach (var file in group.OrderByDescending(f => f.CreatedAt))
+                    {
+                        var isNewest = file == newest;
 
-                        @foreach (var file in group.OrderByDescending(f => f.CreatedAt))
-                        {
-                            var isNewest = file == newest;
+                        <div class="duplicate-row @(isNewest ? "newest-file" : "")">
+                            <strong>@file.FileName</strong>
 
-                            <div class="duplicate-row @(isNewest ? "newest-file" : "")">
-
-                                <div>
-                                    <strong>@file.FileName</strong><br />
-
-                                    <span class="text-muted">
-                                        @file.CreatedAt?.ToString("yyyy-MM-dd HH:mm:ss")
-                                    </span>
-
-                                    @if (isNewest)
-                                    {
-                                        <div class="badge bg-success mt-1">
-                                            Newest (kept)
-                                        </div>
-                                    }
-                                    else if (file.Status == MediaFileStatus.ToDelete)
-                                    {
-                                        <div class="badge bg-danger mt-1">
-                                            Will be deleted
-                                        </div>
-                                    }
-                                </div>
-
-                            </div>
-                        }
-
-                    </div>
+                            @if (isNewest)
+                            {
+                                <span class="badge bg-success">Kept</span>
+                            }
+                            else if (file.Status == MediaFileStatus.ToDelete)
+                            {
+                                <span class="badge bg-danger">Deleted</span>
+                            }
+                        </div>
+                    }
 
                 </ContentCard>
             }
@@ -91,23 +71,18 @@
 
 @code {
 
-    // ✅ ONLY SHOW UNHANDLED GROUPS
     IEnumerable<List<MediaFile>> VisibleGroups =>
         DuplicateService.DuplicateGroups
-            .Where(g => g.Any(f => f.Status == MediaFileStatus.Initial));
+            .Where(g => !DuplicateService.IsGroupHandled(g));
 
     bool AllGroupsHandled =>
         DuplicateService.DuplicateGroups
-            .All(g => g.Count(f => f.Status == MediaFileStatus.ToDelete) == g.Count - 1);
+            .All(g => DuplicateService.IsGroupHandled(g));
 
     MediaFile GetNewest(List<MediaFile> group)
-    {
-        return group
-            .OrderByDescending(f => f.CreatedAt ?? DateTime.MinValue)
-            .First();
-    }
+        => group.OrderByDescending(f => f.CreatedAt).First();
 
-    async Task DeleteAllButOne(List<MediaFile> group)
+    void DeleteAllButOne(List<MediaFile> group)
     {
         var newest = GetNewest(group);
 
@@ -118,14 +93,14 @@
                 : MediaFileStatus.ToDelete;
         }
 
-        await InvokeAsync(StateHasChanged);
+        DuplicateService.NotifyStateChanged(); // 🔥 CRITICAL
     }
 
-    async Task DeleteAllDuplicatesGlobally()
+    void DeleteAllDuplicatesGlobally()
     {
         foreach (var group in DuplicateService.DuplicateGroups)
         {
-            await DeleteAllButOne(group);
+            DeleteAllButOne(group);
         }
     }
 

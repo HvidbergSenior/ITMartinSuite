@@ -1,4 +1,4 @@
-﻿using ITMartinFileSorter.Application.Helpers;
+﻿using ITMartinFileSorter.Application.Helpers; // 🔥 REQUIRED
 using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
 
@@ -20,31 +20,20 @@ public class DuplicateService
 
     public HashSet<MediaMainCategory> CompletedCategories { get; set; } = new();
 
+    // ✅ ADD THIS BACK
     public GroupingOptions? GroupingOptions { get; set; }
 
     public event Action? OnChange;
     public void NotifyStateChanged() => OnChange?.Invoke();
 
+    // ===== EXPORT =====
     public IEnumerable<MediaFile> FilesToExport =>
         AllFiles.Where(f =>
-            f.Status == MediaFileStatus.ToKeep
-            || f.SubCategory == MediaSubCategory.Meme
-            || f.SubCategory == MediaSubCategory.Screenshot);
-    // ===== PAGING =====
-
-    public int CurrentPage { get; set; } = 0;
-    public int PageSize { get; set; } = 20;
-
-    public int TotalPages =>
-        (int)Math.Ceiling((double)DuplicateGroups.Count / PageSize);
-
-    public IEnumerable<List<MediaFile>> CurrentPageGroups =>
-        DuplicateGroups
-            .Skip(CurrentPage * PageSize)
-            .Take(PageSize);
+            f.Status == MediaFileStatus.ToKeep ||
+            f.SubCategory == MediaSubCategory.Meme ||
+            f.SubCategory == MediaSubCategory.Screenshot);
 
     // ===== BUILD DUPLICATES =====
-
     public void BuildDuplicateGroups()
     {
         DuplicateGroups.Clear();
@@ -57,48 +46,53 @@ public class DuplicateService
         {
             var list = group.ToList();
 
-            // 🚀 AUTO HANDLE MEMES + SCREENSHOTS
+            // ✅ AUTO HANDLE LOW VALUE FILES
             if (list.All(f =>
                     f.SubCategory == MediaSubCategory.Meme ||
                     f.SubCategory == MediaSubCategory.Screenshot))
             {
                 AutoHandleLowValueGroup(list);
-                continue; // ❌ DO NOT ADD TO DUPLICATES UI
+                continue;
             }
 
             DuplicateGroups.Add(list);
         }
-    }
-    // ===== RESET =====
 
+        NotifyStateChanged();
+    }
+
+    // ===== RESET =====
     public void Reset()
     {
         AllFiles.Clear();
         DuplicateGroups.Clear();
         CompletedCategories.Clear();
-        GroupingOptions = null;
         DuplicatesHandled = false;
-        CurrentPage = 0;
+
+        // ✅ ALSO RESET GROUPING
+        GroupingOptions = null;
     }
 
-    // ===== CANCELLATION =====
-
-    public CancellationTokenSource? Cancellation { get; set; }
-
-    public void Cancel()
-    {
-        Cancellation?.Cancel();
-    }
-    
+    // ===== AUTO HANDLE =====
     private void AutoHandleLowValueGroup(List<MediaFile> group)
     {
         var newest = group
-            .OrderByDescending(f => f.CreatedAt)
+            .OrderByDescending(f => f.CreatedAt ?? DateTime.MinValue)
             .First();
 
         foreach (var file in group)
         {
+            file.Status = file == newest
+                ? MediaFileStatus.ToKeep
+                : MediaFileStatus.ToDelete;
+
             file.RequiresReview = false;
         }
+    }
+
+    // ===== HELPERS =====
+    public bool IsGroupHandled(List<MediaFile> group)
+    {
+        return group.Count(f => f.Status == MediaFileStatus.ToDelete) == group.Count - 1;
     }
 }
