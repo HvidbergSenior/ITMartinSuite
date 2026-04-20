@@ -40,7 +40,7 @@ public class MediaFile
     public bool IsDateReliable { get; private set; }
     public bool IsProbablyRealPhoto { get; set; }
     public string ExportPath => WorkingPath ?? FullPath;
-
+    public bool RequiresReview { get; set; } = true;
     public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;
 
     public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)

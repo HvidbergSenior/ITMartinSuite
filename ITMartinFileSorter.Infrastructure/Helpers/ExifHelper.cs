@@ -1,5 +1,6 @@
 ﻿using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
+using MetadataExtractor.Formats.Jpeg;
 
 namespace ITMartinFileSorter.Infrastructure.Helpers;
 
@@ -46,5 +47,50 @@ public static class ExifHelper
 
         return meta.Value.Make != null &&
                !meta.Value.Make.Contains("Apple", StringComparison.OrdinalIgnoreCase);
+    }
+    public static (int? Width, int? Height) GetDimensions(string path)
+    {
+        try
+        {
+            var directories = ImageMetadataReader.ReadMetadata(path);
+
+            // ✅ 1. EXIF (most reliable for camera images)
+            var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+
+            if (subIfd != null &&
+                subIfd.TryGetInt32(ExifDirectoryBase.TagExifImageWidth, out var exifWidth) &&
+                subIfd.TryGetInt32(ExifDirectoryBase.TagExifImageHeight, out var exifHeight))
+            {
+                return (exifWidth, exifHeight);
+            }
+
+            // ✅ 2. JPEG fallback
+            var jpeg = directories.OfType<JpegDirectory>().FirstOrDefault();
+
+            if (jpeg != null &&
+                jpeg.TryGetInt32(JpegDirectory.TagImageWidth, out var jpegWidth) &&
+                jpeg.TryGetInt32(JpegDirectory.TagImageHeight, out var jpegHeight))
+            {
+                return (jpegWidth, jpegHeight);
+            }
+
+            // ✅ 3. Generic fallback (PNG, WebP, etc.)
+            var dirWithDims = directories.FirstOrDefault(d =>
+                d.ContainsTag(ExifDirectoryBase.TagImageWidth) &&
+                d.ContainsTag(ExifDirectoryBase.TagImageHeight));
+
+            if (dirWithDims != null &&
+                dirWithDims.TryGetInt32(ExifDirectoryBase.TagImageWidth, out var w) &&
+                dirWithDims.TryGetInt32(ExifDirectoryBase.TagImageHeight, out var h))
+            {
+                return (w, h);
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+
+        return (null, null);
     }
 }

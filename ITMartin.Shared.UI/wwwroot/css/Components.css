@@ -158,3 +158,70 @@
 .btn:active {
     text-decoration: none !important;
 }
+
+.media-card {
+    cursor: pointer;
+}
+
+.media-card:active {
+    transform: scale(0.97);
+}
+
+.badge {
+    display: inline-block;
+    margin-top: 6px;
+}
+
+.category-locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.category-active {
+    cursor: pointer;
+}
+
+.category-active:hover {
+    transform: scale(1.03);
+}
+
+.category-status {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.category-meta {
+    font-size: 13px;
+    opacity: 0.75;
+}
+
+.category-meta-small {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.category-action {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.category-meta-small {
+    font-size: 12px;
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+.category-status {
+    font-weight: 600;
+}
+
+.category-meta {
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.category-meta-small {
+    font-size: 12px;
+    opacity: 0.7;
+    white-space: nowrap;
+}

@@ -1,9 +1,16 @@
 ﻿@page "/category-step/{CategoryString}"
+
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 
 <div class="page-container">
-
+    @if (DuplicateService.DuplicateGroups.Any(g =>
+             g.Any(f => f.MainCategory == CurrentCategory)))
+    {
+        <div class="alert alert-warning">
+            ⚠ This category contains duplicates — selecting one will delete the others.
+        </div>
+    }
     <ActionButtonBar>
         <button class="btn btn-primary"
                 @onclick="Continue"
@@ -18,13 +25,20 @@
         </button>
     </ActionButtonBar>
 
+    @if (!HasPending)
+    {
+        <div class="alert alert-success">
+            ✔ Everything already handled — review or continue
+        </div>
+    }
+
     <SectionTitle Title="@($"Step: {CurrentCategory}")" />
 
     @if (!FilesInCategory.Any())
     {
         <EmptyState
-            Message="All files in this category handled."
-            Type="success" />
+            Message="No files in this category."
+            Type="info" />
     }
     else if (CurrentCategory == MediaMainCategory.Audio)
     {
@@ -34,9 +48,15 @@
                 <div class="file-grid">
                     @foreach (var file in group.Value)
                     {
-                        <MediaCard File="file"
-                                   OnKeep="Keep"
-                                   ShowThumbnail="false" />
+                        <div>
+                            <MediaCard File="file"
+                                       OnKeep="Keep"
+                                       OnDelete="Delete"
+                                       ShowThumbnail="false" />
+
+                            @RenderStatus(file)
+                            @RenderDuplicateTag(file)
+                        </div>
                     }
                 </div>
             </ContentCard>
@@ -50,9 +70,15 @@
                 <div class="file-grid">
                     @foreach (var file in yearGroup.Value)
                     {
-                        <MediaCard File="file"
-                                   OnKeep="Keep"
-                                   ShowThumbnail="false" />
+                        <div>
+                            <MediaCard File="file"
+                                       OnKeep="Keep"
+                                       OnDelete="Delete"
+                                       ShowThumbnail="false" />
+
+                            @RenderStatus(file)
+                            @RenderDuplicateTag(file)
+                        </div>
                     }
                 </div>
             </ContentCard>
@@ -70,14 +96,22 @@
     private Dictionary<string, List<MediaFile>> AudioGroups = new();
     private Dictionary<int, List<MediaFile>> YearGroups = new();
 
+    bool HasPending =>
+        FilesInCategory.Any(f =>
+            f.Status == MediaFileStatus.Initial &&
+            f.SubCategory != MediaSubCategory.Meme &&
+            f.SubCategory != MediaSubCategory.Screenshot);
+    
     bool CanContinue =>
         !DuplicateService.AllFiles.Any(f =>
             f.MainCategory == CurrentCategory &&
-            f.Status == MediaFileStatus.Initial);
+            f.Status == MediaFileStatus.Initial &&
+            f.SubCategory != MediaSubCategory.Meme &&
+            f.SubCategory != MediaSubCategory.Screenshot);
 
     protected override void OnInitialized()
     {
-        CurrentCategory = CategoryString.ToLower() switch
+        CurrentCategory = CategoryString switch
         {
             "audio" => MediaMainCategory.Audio,
             "document" => MediaMainCategory.Document,
@@ -94,8 +128,8 @@
         FilesInCategory = DuplicateService.AllFiles
             .Where(f =>
                 f.MainCategory == CurrentCategory &&
-                f.Status == MediaFileStatus.Initial &&
-                !DuplicateService.DuplicateGroups.Any(g => g.Contains(f)))
+                f.SubCategory != MediaSubCategory.Meme &&
+                f.SubCategory != MediaSubCategory.Screenshot)
             .ToList();
         
         if (CurrentCategory == MediaMainCategory.Audio)
@@ -123,27 +157,69 @@
         var group = DuplicateService.DuplicateGroups
             .FirstOrDefault(g => g.Contains(file));
 
-        if (group is null)
-            return;
-
-        foreach (var f in group)
+        if (group is not null)
         {
-            f.Status = f == file
-                ? MediaFileStatus.ToKeep
-                : MediaFileStatus.ToDelete;
+            foreach (var f in group)
+            {
+                f.Status = f == file
+                    ? MediaFileStatus.ToKeep
+                    : MediaFileStatus.ToDelete;
+            }
         }
+        else
+        {
+            file.Status = MediaFileStatus.ToKeep;
+        }
+
+        LoadFiles();                     // 🔥 refresh grouping
+        InvokeAsync(StateHasChanged);   // 🔥 force UI update
     }
 
+    void Delete(MediaFile file)
+    {
+        file.Status = MediaFileStatus.ToDelete;
+
+        LoadFiles();                     // 🔥 refresh
+        InvokeAsync(StateHasChanged);   // 🔥 update UI
+    }
     void AcceptAll()
     {
-        foreach (var file in FilesInCategory)
+        foreach (var file in FilesInCategory
+                     .Where(f => f.Status == MediaFileStatus.Initial))
+        {
             file.Status = MediaFileStatus.ToKeep;
+        }
 
         LoadFiles();
+        InvokeAsync(StateHasChanged);
     }
 
     void Continue()
     {
         Navigation.NavigateTo("/filesorter");
     }
+
+    RenderFragment RenderStatus(MediaFile file) => builder =>
+    {
+        if (file.Status == MediaFileStatus.ToKeep)
+        {
+            builder.AddMarkupContent(0, "<span class='badge bg-success'>Kept</span>");
+        }
+        else if (file.Status == MediaFileStatus.ToDelete)
+        {
+            builder.AddMarkupContent(1, "<span class='badge bg-danger'>Deleted</span>");
+        }
+        else
+        {
+            builder.AddMarkupContent(2, "<span class='badge bg-warning'>Pending</span>");
+        }
+    };
+
+    RenderFragment RenderDuplicateTag(MediaFile file) => builder =>
+    {
+        if (DuplicateService.DuplicateGroups.Any(g => g.Contains(file)))
+        {
+            builder.AddMarkupContent(0, "<span class='badge bg-warning ms-1'>Duplicate</span>");
+        }
+    };
 }

@@ -1,16 +1,19 @@
 ﻿@page "/"
 @page "/filesorter"
 
+@using ITMartinFileSorter.Application.Services
+@using ITMartinFileSorter.Domain.Entities
+@using ITMartinFileSorter.Domain.Enums
+
 @inject DuplicateService DuplicateService
 @inject IFileScanner FileScanner
 @inject ProgressService Progress
 @inject NavigationManager Navigation
-@inject IConfiguration Configuration
-@inject FolderPathInfoService FolderPathInfoService
 @inject ImageCategorizer ImageCategorizer
 @inject VideoCategorizer VideoCategorizer
 @inject DocumentCategorizer DocumentCategorizer
 @inject AudioCategorizer AudioCategorizer
+
 <div class="index-page">
 
     <SectionTitle Title="🎬 Scan & Organize Files" />
@@ -18,7 +21,6 @@
     <ContentCard CssClass="scan-hero-card">
         <p class="hero-text">
             Scan photos, videos, audio and documents.
-            Start by selecting a folder to organize and detect duplicates.
         </p>
 
         <FolderInputPanel
@@ -29,16 +31,6 @@
             OnAction="ScanFolder" />
     </ContentCard>
 
-    @if (!string.IsNullOrWhiteSpace(PathInfo))
-    {
-        <ContentCard Title="Folder Info">
-            @foreach (var line in PathInfo.Split('\n'))
-            {
-                <div>@line</div>
-            }
-        </ContentCard>
-    }
-
     @if (ShowScanning)
     {
         <ProgressPanel
@@ -47,22 +39,6 @@
             Total="@Progress.Info.TotalWork"
             Percent="@ProgressPercent"
             CurrentItem="@CurrentFileName" />
-    }
-
-    @if (ShowDuplicateWarning)
-    {
-        <ContentCard Title="Attention">
-            <EmptyState
-                Message="⚠ You must handle duplicates before continuing"
-                Type="warning" />
-
-            <div class="mt-3">
-                <button class="btn btn-warning"
-                        @onclick="GoToDuplicates">
-                    Go to Duplicates
-                </button>
-            </div>
-        </ContentCard>
     }
 
     @if (ShowSummary)
@@ -87,68 +63,80 @@
                         .ToList()
                 };
 
+                // 👉 ACTIONABLE ONLY (for review logic)
+                var actionable = filesInCat
+                    .Where(f =>
+                        f.SubCategory != MediaSubCategory.Meme &&
+                        f.SubCategory != MediaSubCategory.Screenshot)
+                    .ToList();
+
+                // ✅ TOTAL (ALL FILES)
                 var total = filesInCat.Count;
+                var totalSize = filesInCat.Sum(f => f.SizeBytes);
 
-                var remaining = cat is "Screenshots" or "Memes"
-                    ? 0
-                    : filesInCat.Count(f =>
-                        f.Status == MediaFileStatus.Initial &&
-                        !DuplicateService.DuplicateGroups.Any(g => g.Contains(f)));
+                // ✅ REMAINING (ONLY ACTIONABLE)
+                var remaining = actionable.Count(f =>
+                    f.RequiresReview && f.Status == MediaFileStatus.Initial);
 
-                var kept = cat is "Screenshots" or "Memes"
-                    ? total
-                    : filesInCat.Count(f =>
-                        f.Status == MediaFileStatus.ToKeep);
+                var fileSet = actionable.ToHashSet();
 
-                var isAutoHandled = cat is "Screenshots" or "Memes";
-                var isLocked = isAutoHandled || total == 0;
+                // 🔁 DUPLICATES (ONLY ACTIONABLE)
+                var duplicatesBefore = DuplicateService.DuplicateGroups
+                    .Select(g => g.Where(f => fileSet.Contains(f)).ToList())
+                    .Where(g => g.Count > 1)
+                    .Sum(g => g.Count - 1);
+
+                var duplicatesAfter = actionable
+                    .Count(f => f.Status == MediaFileStatus.ToDelete);
+
+                var savedBytes = actionable
+                    .Where(f => f.Status == MediaFileStatus.ToDelete)
+                    .Sum(f => f.SizeBytes);
+
+                var isAuto = cat is "Screenshots" or "Memes";
 
                 <CategorySummaryCard
-                    Title="@(isAutoHandled ? $"{cat} (Auto)" : cat)"
+                    Title="@(isAuto ? $"{cat} (Auto)" : cat)"
                     Remaining="@remaining"
-                    Kept="@kept"
                     Total="@total"
-                    SizeText="@FormatSize(filesInCat.Sum(f => f.SizeBytes))"
+                    SizeText="@FormatSize(totalSize)"
+                    DuplicatesBefore="@duplicatesBefore"
+                    DuplicatesAfter="@duplicatesAfter"
+                    SavedSize="@FormatSize(savedBytes)"
                     CssClass="@GetCategoryCssClass(cat)"
-                    IsLocked="@isLocked"
-                    OnClick="@(() => OnCategoryCardClicked(cat, isLocked))" />
+                    OnClick="@(() => OpenCategory(cat))" />
             }
         </div>
-    }
 
-    @if (CanExport)
-    {
-        <ContentCard Title="Export Ready" CssClass="export-ready-card">
-            <div class="alert alert-success mb-3">
-                ✔ Ready for export
-            </div>
+        <!-- ✅ EXPORT -->
+        <ContentCard CssClass="mt-4 text-center">
 
-            <button class="btn btn-success"
+            @if (!IsCompleted)
+            {
+                <div class="mb-2 text-muted">
+                    Complete all categories to enable export
+                </div>
+            }
+            else
+            {
+                <div class="mb-2 text-success">
+                    ✔ All files processed — ready to export
+                </div>
+            }
+
+            <button class="btn btn-success btn-lg"
+                    disabled="@(!IsCompleted)"
                     @onclick="GoToExport">
-                Export Organized Files
+                📦 Export Files
             </button>
+
         </ContentCard>
     }
-
-    <ContentCard CssClass="library-secondary-card">
-        <div class="library-row">
-            <div>
-                <strong>Already scanned files?</strong>
-                <div class="text-muted">
-                    Browse previously organized files
-                </div>
-            </div>
-
-            <button class="btn btn-outline-light"
-                    @onclick="GoToLibrary">
-                Open Library
-            </button>
-        </div>
-    </ContentCard>
 
 </div>
 
 @code {
+
     string FolderPath
     {
         get => DuplicateService.FolderPath;
@@ -158,8 +146,15 @@
     bool IsScanning = false;
     string CurrentFileName = "";
     int FilesDiscovered = 0;
-    string? PathInfo;
 
+    // ✅ ONLY ACTIONABLE FILES BLOCK EXPORT
+    bool IsCompleted =>
+        DuplicateService.AllFiles
+            .Where(f =>
+                f.SubCategory != MediaSubCategory.Meme &&
+                f.SubCategory != MediaSubCategory.Screenshot &&
+                f.RequiresReview)
+            .All(f => f.Status != MediaFileStatus.Initial);
     int ProgressPercent =>
         Progress.Info.TotalWork == 0
             ? 0
@@ -176,35 +171,11 @@
     };
 
     bool ShowScanning => IsScanning;
+    bool ShowSummary => !IsScanning && DuplicateService.AllFiles.Any();
 
-    bool ShowDuplicateWarning =>
-        !IsScanning &&
-        DuplicateService.AllFiles.Any() &&
-        !DuplicateService.DuplicatesHandled;
-
-    bool ShowSummary =>
-        !IsScanning &&
-        DuplicateService.AllFiles.Any() &&
-        DuplicateService.DuplicatesHandled;
-
-    bool CanExport =>
-        !IsScanning &&
-        DuplicateService.AllFiles.Any() &&
-        DuplicateService.DuplicatesHandled &&
-        !DuplicateService.AllFiles.Any(f =>
-            f.Status == MediaFileStatus.Initial &&
-            !DuplicateService.DuplicateGroups.Any(g => g.Contains(f)));
-
-    void GoToDuplicates() => Navigation.NavigateTo("/duplicates");
-    void GoToExport() => Navigation.NavigateTo("/export");
-    void GoToLibrary() => Navigation.NavigateTo("/library");
-
-    void OnCategoryCardClicked(string cat, bool isLocked)
+    void OnFolderPathChanged(string value)
     {
-        if (isLocked)
-            return;
-
-        Navigation.NavigateTo($"/category-step/{cat.ToLower()}");
+        FolderPath = value;
     }
 
     string GetCategoryCssClass(string cat) => cat switch
@@ -218,35 +189,6 @@
         _ => ""
     };
 
-    void OnFolderPathChanged(string value)
-    {
-        FolderPath = value;
-    }
-
-    void CheckSelectedFolder(string selectedFolder)
-    {
-        var defaultPath = Configuration["MediaSettings:LibraryRoot"];
-
-        PathInfo = FolderPathInfoService.GetPathInfo(
-            defaultPath,
-            selectedFolder);
-    }
-
-    string FormatSize(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
-
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len /= 1024;
-        }
-
-        return $"{len:0.#} {sizes[order]}";
-    }
-
     async Task ScanFolder()
     {
         if (IsScanning) return;
@@ -255,8 +197,6 @@
 
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
             return;
-
-        CheckSelectedFolder(path);
 
         IsScanning = true;
         FilesDiscovered = 0;
@@ -273,82 +213,86 @@
 
         await InvokeAsync(StateHasChanged);
 
-        DuplicateService.Cancellation = new CancellationTokenSource();
-        var token = DuplicateService.Cancellation.Token;
+        var files = new List<MediaFile>();
+        int refreshCounter = 0;
 
-        try
+        foreach (var file in FileScanner.ScanFolder(path))
         {
-            var files = new List<MediaFile>();
-            int refreshCounter = 0;
-
-            foreach (var file in FileScanner.ScanFolder(path))
+            switch (file.MainCategory)
             {
-                Console.WriteLine(
-                    $"{file.FileName} | {file.MainCategory} | {file.SubCategory} | {file.CreatedAt}");
-                token.ThrowIfCancellationRequested();
-                switch (file.MainCategory)
-                {
-                    case MediaMainCategory.Image:
-                        ImageCategorizer.Categorize(file);
-                        break;
-
-                    case MediaMainCategory.Video:
-                        VideoCategorizer.Categorize(file);
-                        break;
-
-                    case MediaMainCategory.Document:
-                        DocumentCategorizer.Categorize(file);
-                        break;
-
-                    case MediaMainCategory.Audio:
-                        AudioCategorizer.Categorize(file);
-                        break;
-                        
-                }
-                Console.WriteLine("===== FILE DEBUG =====");
-                Console.WriteLine($"Name: {file.FileName}");
-                Console.WriteLine($"Path: {file.FullPath}");
-                Console.WriteLine($"MainCategory: {file.MainCategory}");
-                Console.WriteLine($"SubCategory: {file.SubCategory}");
-                Console.WriteLine($"CreatedAt: {file.CreatedAt}");
-                Console.WriteLine($"Year: {file.Year}");
-                Console.WriteLine($"Month: {file.Month}");
-                Console.WriteLine($"DynamicFolder: {file.DynamicFolder}");
-                Console.WriteLine("=======================");
-                files.Add(file);
-                FilesDiscovered++;
-
-                Progress.Info.WorkDone = FilesDiscovered;
-                CurrentFileName = file.FileName;
-
-                refreshCounter++;
-
-                if (refreshCounter % 10 == 0)
-                {
-                    await InvokeAsync(StateHasChanged);
-                    await Task.Yield();
-                }
+                case MediaMainCategory.Image:
+                    ImageCategorizer.Categorize(file);
+                    break;
+                case MediaMainCategory.Video:
+                    VideoCategorizer.Categorize(file);
+                    break;
+                case MediaMainCategory.Document:
+                    DocumentCategorizer.Categorize(file);
+                    break;
+                case MediaMainCategory.Audio:
+                    AudioCategorizer.Categorize(file);
+                    break;
             }
 
-            await InvokeAsync(StateHasChanged);
+            files.Add(file);
+            FilesDiscovered++;
 
-            DuplicateService.AllFiles = files;
+            Progress.Info.WorkDone = FilesDiscovered;
+            CurrentFileName = file.FileName;
 
-            Progress.SetStage("Building duplicate groups...");
-            await InvokeAsync(StateHasChanged);
-
-            await Task.Run(() => DuplicateService.BuildDuplicateGroups());
-
-            Progress.Complete();
+            if (refreshCounter++ % 5 == 0)
+            {
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(1);
+            }
         }
-        catch (OperationCanceledException)
-        {
-            Progress.SetStage("Cancelled");
-        }
-        finally
+
+        DuplicateService.AllFiles = files;
+
+        Progress.SetStage("Building duplicate groups...");
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Run(() => DuplicateService.BuildDuplicateGroups());
+
+        if (DuplicateService.DuplicateGroups.Any())
         {
             IsScanning = false;
             await InvokeAsync(StateHasChanged);
+            Navigation.NavigateTo("/duplicates");
+            return;
         }
+
+        Progress.SetStage("Done");
+        IsScanning = false;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void OpenCategory(string cat)
+    {
+        if (cat == "Screenshots" || cat == "Memes")
+            return;
+
+        Navigation.NavigateTo($"/category-step/{cat.ToLower()}");
+    }
+
+    void GoToExport()
+    {
+        Navigation.NavigateTo("/export");
+    }
+
+    string FormatSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        int order = 0;
+
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+
+        return $"{len:0.#} {sizes[order]}";
     }
 }

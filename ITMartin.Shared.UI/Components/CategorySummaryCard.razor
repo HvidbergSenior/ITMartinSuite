@@ -3,27 +3,64 @@
 
     <strong>@Title</strong>
 
-    <div>Remaining: @Remaining</div>
-    <div>Kept: @Kept</div>
-    <div>Total: @Total</div>
-    <div>@SizeText</div>
-
-    <div class="category-status">
-        @(Total == 0 ? "🔒 Empty" :
-        Remaining == 0 ? "🔒 Done" :
-        "▶ Handle")
+    <!-- 🔥 STATUS -->
+    <div class="category-status mt-1">
+        @StatusText
     </div>
+
+    <!-- 📊 TOTAL -->
+    <div class="category-meta mt-1">
+        @Total files • @SizeText
+    </div>
+
+    <!-- 🔁 DUPLICATE PROGRESS -->
+    @if (DuplicatesBefore > 0)
+    {
+        @if (Remaining > 0)
+        {
+            var resolved = DuplicatesAfter;
+            var totalDup = DuplicatesBefore;
+
+            <div class="category-meta-small text-warning">
+                🧹 @resolved / @totalDup duplicates resolved
+            </div>
+        }
+        else
+        {
+            <div class="category-meta-small text-success">
+                🧹 @DuplicatesAfter duplicates removed • saved @SavedSize
+            </div>
+        }
+    }
+
+    <!-- 👉 ACTION -->
+    @if (!IsLocked && Remaining > 0)
+    {
+        <div class="category-action mt-2">
+            ▶ Review
+        </div>
+    }
+
 </div>
 
 @code {
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public int Remaining { get; set; }
-    [Parameter] public int Kept { get; set; }
     [Parameter] public int Total { get; set; }
     [Parameter] public string SizeText { get; set; } = "";
     [Parameter] public string CssClass { get; set; } = "";
     [Parameter] public bool IsLocked { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
+
+    [Parameter] public int DuplicatesBefore { get; set; }
+    [Parameter] public int DuplicatesAfter { get; set; }
+    [Parameter] public string SavedSize { get; set; } = "";
+
+    string StatusText => Total == 0
+        ? "🔒 Empty"
+        : Remaining == 0
+            ? "✔ Done"
+            : $"⚠ {Remaining} files need review";
 
     private async Task HandleClick()
     {

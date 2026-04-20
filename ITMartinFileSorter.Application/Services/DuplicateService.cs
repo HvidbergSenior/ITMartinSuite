@@ -45,18 +45,28 @@ public class DuplicateService
 
     public void BuildDuplicateGroups()
     {
-        DuplicateGroups = AllFiles
+        DuplicateGroups.Clear();
+
+        var grouped = AllFiles
             .GroupBy(f => f.Hash)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.ToList())
-            .OrderByDescending(g => g.Count)
-            .ToList();
+            .Where(g => g.Count() > 1);
 
-        CurrentPage = 0;
+        foreach (var group in grouped)
+        {
+            var list = group.ToList();
 
-        NotifyStateChanged();
+            // 🚀 AUTO HANDLE MEMES + SCREENSHOTS
+            if (list.All(f =>
+                    f.SubCategory == MediaSubCategory.Meme ||
+                    f.SubCategory == MediaSubCategory.Screenshot))
+            {
+                AutoHandleLowValueGroup(list);
+                continue; // ❌ DO NOT ADD TO DUPLICATES UI
+            }
+
+            DuplicateGroups.Add(list);
+        }
     }
-
     // ===== RESET =====
 
     public void Reset()
@@ -76,5 +86,17 @@ public class DuplicateService
     public void Cancel()
     {
         Cancellation?.Cancel();
+    }
+    
+    private void AutoHandleLowValueGroup(List<MediaFile> group)
+    {
+        var newest = group
+            .OrderByDescending(f => f.CreatedAt)
+            .First();
+
+        foreach (var file in group)
+        {
+            file.RequiresReview = false;
+        }
     }
 }

@@ -43,7 +43,6 @@ public sealed class FileScanner : IFileScanner
     public static bool IsSupportedMedia(string path)
     {
         var extension = Path.GetExtension(path);
-
         return ImageExtensions.Contains(extension) ||
                VideoExtensions.Contains(extension) ||
                AudioExtensions.Contains(extension) ||
@@ -92,22 +91,16 @@ public sealed class FileScanner : IFileScanner
                 continue;
             }
 
+            var ext = Path.GetExtension(file);
+
             MediaType type =
                 IsImage(file) ? MediaType.Image :
-                    IsVideo(file) ? MediaType.Video :
-                        AudioExtensions.Contains(Path.GetExtension(file))
-                            ? MediaType.Audio
-                            : MediaType.Document;
+                IsVideo(file) ? MediaType.Video :
+                AudioExtensions.Contains(ext)
+                    ? MediaType.Audio
+                    : MediaType.Document;
 
-            // ✅ ALWAYS create WITHOUT date
-            var mediaFile = new MediaFile(
-                fullPath: file,
-                createdAt: null,
-                type: type,
-                sizeBytes: info.Length
-            );
-
-            // ✅ GET DATE + RELIABILITY
+            // ✅ STEP 1: GET DATE + RELIABILITY FIRST
             DateTime? bestDate = null;
             bool isReliable = false;
 
@@ -122,13 +115,29 @@ public sealed class FileScanner : IFileScanner
                 // ignore
             }
 
-            // ✅ APPLY DATE (single source of truth)
+            // ✅ STEP 2: CREATE FILE (no logic duplication)
+            var mediaFile = new MediaFile(
+                fullPath: file,
+                createdAt: bestDate ?? info.LastWriteTime,
+                type: type,
+                sizeBytes: info.Length
+            );
+
+            // ✅ STEP 3: APPLY DATE (single source of truth)
             mediaFile.SetDate(
                 bestDate ?? info.LastWriteTime,
                 isReliable
             );
 
-            // ✅ hash
+            // ✅ STEP 4: ADD DIMENSIONS (critical for categorization)
+            if (type == MediaType.Image)
+            {
+                var (w, h) = ExifHelper.GetDimensions(file);
+                mediaFile.Width = w;
+                mediaFile.Height = h;
+            }
+
+            // ✅ STEP 5: HASH
             mediaFile.SetHash(_hashService.ComputeHash(file));
 
             yield return mediaFile;

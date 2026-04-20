@@ -1,7 +1,4 @@
-﻿@using ITMartinFileSorter.Application.Services
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
-@inject ThumbnailService ThumbnailService
+﻿@inject ThumbnailService ThumbnailService
 
 <div class="media-small-card">
     <div>
@@ -56,6 +53,7 @@
     [Parameter] public MediaFile File { get; set; } = default!;
     [Parameter] public EventCallback<MediaFile> OnKeep { get; set; }
     [Parameter] public bool ShowThumbnail { get; set; } = false;
+    [Parameter] public EventCallback<MediaFile> OnDelete { get; set; }
     protected override void OnParametersSet()
     {
         if (!ShowThumbnail)
