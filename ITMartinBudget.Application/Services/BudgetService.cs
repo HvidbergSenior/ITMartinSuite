@@ -22,9 +22,14 @@ public class BudgetService
 
         foreach (var group in grouped)
         {
-            var income = group.Where(x => x.Amount > 0).Sum(x => x.Amount);
-            var expenses = group.Where(x => x.Amount < 0).Sum(x => x.Amount);
+            var income = group
+                .Where(x => x.Amount > 0)
+                .Sum(x => Math.Abs(x.Amount));
 
+            var expenses = group
+                .Where(x => x.Amount < 0)
+                .Sum(x => -Math.Abs(x.Amount));
+            
             result.Add(new CategorySummary
             {
                 MainCategory = group.Key.MainCategory,

@@ -114,15 +114,14 @@
 }
 
 /* =========================
-   CATEGORY UI (NEW + FIXED)
+   CATEGORY UI (CLEAN + PREMIUM)
 ========================= */
 
 /* MAIN CATEGORY */
-/* MAIN CATEGORY (strong visual block) */
 .category-row {
     cursor: pointer;
-    padding: 16px 18px;
-    border-radius: 14px;
+    padding: 18px 20px;
+    border-radius: 16px;
     margin-bottom: 14px;
 
     background: linear-gradient(145deg, #1a1d24, #20242c);
@@ -132,7 +131,7 @@
 }
 
 .category-row:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
     background: linear-gradient(145deg, #1d2128, #242832);
 }
 
@@ -145,13 +144,21 @@
     border-left: 4px solid #ff6b6b;
 }
 
+/* HEADLINE */
+.category-row strong {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
 /* SUBCATEGORY */
 .subcategory-row {
-    margin-left: 20px;
-    padding: 10px 14px;
+    margin-left: 18px;
+    padding: 12px 16px;
     border-left: 2px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    margin-bottom: 8px;
+    border-radius: 10px;
+    margin-top: 8px;
+
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -163,44 +170,59 @@
 
 .subcategory-row.selected {
     background: rgba(126,231,135,0.12);
-}
-.category-row * {
-    pointer-events: none;
+    border-left-color: #7ee787;
 }
 
-.category-row .type-select {
+/* REMOVE BROKEN POINTER EVENTS */
+.category-row * {
     pointer-events: auto;
 }
 
 .subcategory-row * {
-    pointer-events: none;
-}
-
-.subcategory-row .type-select {
     pointer-events: auto;
 }
-.subcategory-row + .subcategory-row {
-    margin-top: 6px;
-}
-.category-row strong {
-    font-size: 1.05rem;
-}
 
-.subcategory-row div:first-child {
-    font-size: 0.95rem;
-}
-/* =========================
-   TRANSACTIONS
-========================= */
-
+/* TRANSACTIONS */
 .transaction-container {
-    margin-top: 10px;
-    margin-left: 24px;
+    margin-top: 12px;
+    margin-left: 12px;
     padding: 14px;
 
     background: rgba(255,255,255,0.02);
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.05);
+
+    animation: fadeIn 0.2s ease;
+}
+
+.transaction-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 100px;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 0.9rem;
+}
+
+.transaction-row:hover {
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+}
+
+/* SMALL TEXT */
+.subcategory-row div:first-child {
+    font-size: 0.95rem;
+}
+
+/* ANIMATION */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* =========================
