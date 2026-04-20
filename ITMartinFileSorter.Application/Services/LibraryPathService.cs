@@ -19,14 +19,15 @@ public class LibraryPathService
     {
         
         var root = GetRootFolder(file);
-// 🚨 Always isolate screenshots & memes
-        if (file.SubCategory == MediaSubCategory.Screenshot ||
-            file.SubCategory == MediaSubCategory.Meme)
+        // 🚀 Separate top-level folders
+        if (file.SubCategory == MediaSubCategory.Screenshot)
         {
-            return Path.Combine(
-                "Other",
-                root,
-                GetOtherSubFolder(file));
+            return "Screenshots";
+        }
+
+        if (file.SubCategory == MediaSubCategory.Meme)
+        {
+            return "Memes";
         }
         // 🚨 If NOT trustworthy → send to Other
         if (!IsTrustedMedia(file))

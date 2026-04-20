@@ -26,8 +26,10 @@ public class DuplicateService
     public void NotifyStateChanged() => OnChange?.Invoke();
 
     public IEnumerable<MediaFile> FilesToExport =>
-        AllFiles.Where(f => f.Status == MediaFileStatus.ToKeep);
-
+        AllFiles.Where(f =>
+            f.Status == MediaFileStatus.ToKeep
+            || f.SubCategory == MediaSubCategory.Meme
+            || f.SubCategory == MediaSubCategory.Screenshot);
     // ===== PAGING =====
 
     public int CurrentPage { get; set; } = 0;
