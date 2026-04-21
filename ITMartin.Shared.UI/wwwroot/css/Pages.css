@@ -97,8 +97,9 @@ html, body {
 }
 
 .page-container {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0 auto;
+    padding: 0 24px; /* 🔥 THIS FIXES ALIGNMENT */
 }
 
 /* =========================
@@ -393,8 +394,7 @@ html, body {
 }
 
 .inventory-table td {
-    padding: 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
 }
 
 /* =========================
@@ -498,7 +498,8 @@ html, body {
 }
 
 .search-box input {
-    width: 300px;
+    width: 100%;
+    max-width: 400px;
     padding: 10px 14px;
     border-radius: 12px;
     border: 1px solid var(--border);
@@ -509,24 +510,6 @@ html, body {
 .inventory-table {
     width: 100%;
     border-collapse: collapse;
-}
-
-.inventory-table thead {
-    background: rgba(255,255,255,0.03);
-}
-
-.inventory-table th {
-    text-align: left;
-    padding: 14px;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-}
-
-.inventory-table td {
-    padding: 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .inventory-table tr:hover {
@@ -541,13 +524,6 @@ html, body {
     letter-spacing: 0.2px;
 }
 
-.row-duplicate {
-    background: linear-gradient(
-            90deg,
-            rgba(245,159,0,0.12),
-            rgba(245,159,0,0.02)
-    );
-}
 
 .qty-duplicate {
     color: var(--warning);
@@ -558,4 +534,13 @@ html, body {
 .table-wrapper {
     max-height: 600px;
     overflow-y: auto;
+}
+
+.card-primary,
+.card-secondary {
+    width: 100%;
+}
+
+.app-main {
+    padding: var(--space-lg) var(--space-lg);
 }
