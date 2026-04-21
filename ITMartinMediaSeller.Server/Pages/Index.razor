@@ -1,0 +1,178 @@
+﻿@page "/"
+@using ITMartinMediaSeller.Infrastructure.Services
+@inject ExcelImportService ImportService
+
+<div class="page-container">
+
+<div class="card-primary mb-4">
+    <h3>📀 Inventory</h3>
+
+    <div class="search-box mb-3">
+        <input @bind="Search" placeholder="🔍 Search movies..." />
+    </div>
+
+    <div class="filter-row mb-3">
+        <button class="btn btn-secondary @(Filter=="All"?"active":"")" @onclick='() => SetFilter("All")'>All</button>
+        <button class="btn btn-secondary @(Filter=="DVD"?"active":"")" @onclick='() => SetFilter("DVD")'>DVD</button>
+        <button class="btn btn-secondary @(Filter=="BluRay"?"active":"")" @onclick='() => SetFilter("BluRay")'>BluRay</button>
+        <button class="btn btn-warning @(Filter=="Duplicates"?"active":"")" @onclick='() => SetFilter("Duplicates")'>🔥 Duplicates</button>
+    </div>
+
+    <div class="upload-grid mb-4">
+        <div class="upload-item">
+            <label>DVD</label>
+            <InputFile OnChange="HandleDvdUpload" />
+        </div>
+
+        <div class="upload-item">
+            <label>BluRay</label>
+            <InputFile OnChange="HandleBluUpload" />
+        </div>
+    </div>
+
+    <div class="stats-cards">
+        <div class="stat-box">
+            <div class="stat-value">@FilteredCount</div>
+            <div class="stat-label">Total items</div>
+        </div>
+
+        <div class="stat-box warning">
+            <div class="stat-value">@DuplicateCount</div>
+            <div class="stat-label">Duplicates</div>
+        </div>
+    </div>
+</div>
+
+<div class="card-secondary">
+    <div class="table-wrapper">
+        <table class="inventory-table">
+            <thead>
+            <tr>
+                <th>🎬 Title</th>
+                <th>Format</th>
+                <th class="text-right">Qty</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in FilteredItems)
+            {
+                <tr class="@(item.Quantity > 1 ? "row-duplicate" : "")">
+                    <td class="title-cell">
+                        @if (item.Quantity > 1)
+                        {
+                            <span>🔥 </span>
+                        }
+                        @item.Title
+                    </td>
+
+                    <td>
+                        <span class="badge @(item.Format == "DVD" ? "badge-dvd" : "badge-blu")">
+                            @item.Format
+                        </span>
+                    </td>
+
+                    <td class="text-right">
+                        <span class="qty @(item.Quantity > 1 ? "qty-duplicate" : "")">
+                            @item.Quantity
+                        </span>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+
+@code {
+private List<MediaItem> Items = new();
+private string Search = "";
+private string Filter = "All";
+
+private IBrowserFile? DvdFile;
+private IBrowserFile? BluFile;
+
+private IEnumerable<MediaItem> FilteredItems =>
+    Items
+        .Where(x => string.IsNullOrWhiteSpace(Search) ||
+                    x.Title.Contains(Search, StringComparison.OrdinalIgnoreCase))
+        .Where(x =>
+            Filter == "All" ||
+            (Filter == "DVD" && x.Format == "DVD") ||
+            (Filter == "BluRay" && x.Format == "BluRay") ||
+            (Filter == "Duplicates" && x.Quantity > 1)
+        );
+
+private int FilteredCount => FilteredItems.Count();
+private int DuplicateCount => Items.Count(x => x.Quantity > 1);
+
+private void SetFilter(string value)
+{
+    Filter = value;
+}
+
+private async Task HandleDvdUpload(InputFileChangeEventArgs e)
+{
+    DvdFile = e.File;
+    await LoadFiles();
+}
+
+private async Task HandleBluUpload(InputFileChangeEventArgs e)
+{
+    BluFile = e.File;
+    await LoadFiles();
+}
+
+private async Task LoadFiles()
+{
+    if (DvdFile == null || BluFile == null)
+        return;
+
+    var dvdItems = await ReadFile(DvdFile, "DVD");
+    var bluItems = await ReadFile(BluFile, "BluRay");
+
+    Items = dvdItems.Concat(bluItems)
+        .GroupBy(x => new { x.Title, x.Format })
+        .Select(g => new MediaItem
+        {
+            Title = g.Key.Title,
+            Format = g.Key.Format,
+            Quantity = g.Count()
+        })
+        .OrderByDescending(x => x.Quantity)
+        .ToList();
+}
+
+private async Task<List<MediaItem>> ReadFile(IBrowserFile file, string format)
+{
+    var items = new List<MediaItem>();
+
+    using var stream = file.OpenReadStream(maxAllowedSize: 10_000_000);
+    using var memory = new MemoryStream();
+    await stream.CopyToAsync(memory);
+
+    memory.Position = 0;
+
+    using var workbook = new ClosedXML.Excel.XLWorkbook(memory);
+    var sheet = workbook.Worksheets.First();
+
+    foreach (var row in sheet.RowsUsed().Skip(1))
+    {
+        var title = row.Cell(1).GetString();
+
+        if (string.IsNullOrWhiteSpace(title))
+            continue;
+
+        items.Add(new MediaItem
+        {
+            Title = title.Trim(),
+            Format = format,
+            Quantity = 1
+        });
+    }
+
+    return items;
+}
+
+}

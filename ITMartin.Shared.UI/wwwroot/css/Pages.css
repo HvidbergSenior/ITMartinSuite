@@ -348,3 +348,214 @@ html, body {
     transform: translateY(-6px) scale(1.03);
     box-shadow: var(--shadow-strong);
 }
+
+/* =========================
+   INVENTORY PAGE
+========================= */
+
+.filter-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn.active {
+    outline: 2px solid var(--accent);
+}
+
+.upload-box {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.stats-row {
+    display: flex;
+    gap: 30px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inventory-table th {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+}
+
+.inventory-table td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* =========================
+   ROW STATES
+========================= */
+
+.inventory-table tr:hover {
+    background: rgba(255,255,255,0.03);
+}
+
+.row-duplicate {
+    background: rgba(245, 159, 0, 0.08);
+}
+
+.row-duplicate:hover {
+    background: rgba(245, 159, 0, 0.15);
+}
+
+/* =========================
+   BADGES
+========================= */
+
+.badge {
+    padding: 4px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-dvd {
+    background: #444;
+}
+
+.badge-blu {
+    background: #1971c2;
+}
+
+/* =========================
+   QUANTITY
+========================= */
+
+.qty {
+    font-weight: 700;
+}
+
+.qty-duplicate {
+    color: var(--warning);
+    font-size: 16px;
+}
+
+.upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.upload-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(255,255,255,0.02);
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.stats-cards {
+    display: flex;
+    gap: 20px;
+    margin-top: 10px;
+}
+
+.stat-box {
+    background: var(--bg-card);
+    padding: 12px 18px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    min-width: 120px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.stat-box.warning {
+    border-color: var(--warning);
+}
+
+.row-duplicate {
+    background: linear-gradient(
+            90deg,
+            rgba(245,159,0,0.12),
+            rgba(245,159,0,0.03)
+    );
+}
+
+.search-box input {
+    width: 300px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: white;
+}
+
+.inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inventory-table thead {
+    background: rgba(255,255,255,0.03);
+}
+
+.inventory-table th {
+    text-align: left;
+    padding: 14px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.inventory-table td {
+    padding: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.inventory-table tr:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.text-right {
+    text-align: right;
+}
+.title-cell {
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+.row-duplicate {
+    background: linear-gradient(
+            90deg,
+            rgba(245,159,0,0.12),
+            rgba(245,159,0,0.02)
+    );
+}
+
+.qty-duplicate {
+    color: var(--warning);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.table-wrapper {
+    max-height: 600px;
+    overflow-y: auto;
+}

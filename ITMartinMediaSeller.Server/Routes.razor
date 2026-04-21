@@ -1,0 +1,14 @@
+﻿@using ITMartinMediaSeller.Layout
+
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData"
+                   DefaultLayout="typeof(MediaSellerLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MediaSellerLayout)">
+            <p>Sorry, page not found.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
