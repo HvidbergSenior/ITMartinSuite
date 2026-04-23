@@ -43,6 +43,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMediaSeller.Domain"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMediaSeller.Infrastructure", "ITMartinMediaSeller.Infrastructure\ITMartinMediaSeller.Infrastructure.csproj", "{8D0B09D6-935F-4077-9EED-60338C6D418A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinImageProcessor.Domain", "ITMartinImageProcessor.Domain\ITMartinImageProcessor.Domain.csproj", "{43E6BB31-19BE-467C-A844-AE2B1071C7CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinImageProcessor.Application", "ITMartinImageProcessor.Application\ITMartinImageProcessor.Application.csproj", "{10885FEC-196D-4889-B968-975AD7DE8756}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinImageProcessor.Infrastructure", "ITMartinImageProcessor.Infrastructure\ITMartinImageProcessor.Infrastructure.csproj", "{891FC615-CC53-4B49-A980-69CD6B7D3739}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinImageProcessor.Worker", "ITMartinImageProcessor.Worker\ITMartinImageProcessor.Worker.csproj", "{65643A57-5437-4099-8258-793460566044}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -132,5 +140,21 @@ Global
 		{8D0B09D6-935F-4077-9EED-60338C6D418A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8D0B09D6-935F-4077-9EED-60338C6D418A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8D0B09D6-935F-4077-9EED-60338C6D418A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{43E6BB31-19BE-467C-A844-AE2B1071C7CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{43E6BB31-19BE-467C-A844-AE2B1071C7CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{43E6BB31-19BE-467C-A844-AE2B1071C7CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{43E6BB31-19BE-467C-A844-AE2B1071C7CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10885FEC-196D-4889-B968-975AD7DE8756}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10885FEC-196D-4889-B968-975AD7DE8756}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10885FEC-196D-4889-B968-975AD7DE8756}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10885FEC-196D-4889-B968-975AD7DE8756}.Release|Any CPU.Build.0 = Release|Any CPU
+		{891FC615-CC53-4B49-A980-69CD6B7D3739}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{891FC615-CC53-4B49-A980-69CD6B7D3739}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{891FC615-CC53-4B49-A980-69CD6B7D3739}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{891FC615-CC53-4B49-A980-69CD6B7D3739}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65643A57-5437-4099-8258-793460566044}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65643A57-5437-4099-8258-793460566044}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65643A57-5437-4099-8258-793460566044}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65643A57-5437-4099-8258-793460566044}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
