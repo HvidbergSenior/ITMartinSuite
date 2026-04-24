@@ -9,7 +9,7 @@ services:
     restart: always
 
     volumes:
-      - /volume1/homes/MartinHvidberg/Photos/MobileBackup:/data/input
+      - /volume1/homes/MartinHvidberg/Photos/PhotoLibrary:/data/input
       - /volume1/docker/image-processor/out:/data/ready
       - /volume1/docker/image-processor/archive:/data/archive
 
