@@ -1,4 +1,4 @@
-﻿using ITMartinImageProcessor.Application.Interfaces;
+﻿using ITMartinImageProcessor.Domain.Interfaces;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 

@@ -1,4 +1,4 @@
-﻿namespace ITMartinImageProcessor.Application.Interfaces;
+﻿namespace ITMartinImageProcessor.Domain.Interfaces;
 
 public interface IImageProcessor
 {
