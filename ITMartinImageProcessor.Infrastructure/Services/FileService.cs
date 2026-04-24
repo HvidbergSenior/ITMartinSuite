@@ -6,16 +6,19 @@ public class FileService : IFileService
 {
     public IEnumerable<string> GetImages(string folder)
         => Directory
-            .EnumerateFiles(folder, "*.*", SearchOption.TopDirectoryOnly)
+            .EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
             .Where(f =>
                 f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-                f.EndsWith(".heic", StringComparison.OrdinalIgnoreCase) ||
-                f.EndsWith(".heif", StringComparison.OrdinalIgnoreCase));
-
+                f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase));
     public DateTime GetCreated(string path)
-        => File.GetCreationTime(path);
+        => File.GetCreationTimeUtc(path); // 🔥 IMPORTANT: use UTC
 
     public void Move(string source, string destination)
-        => File.Move(source, destination, true);
+    {
+        var dir = Path.GetDirectoryName(destination);
+        if (!Directory.Exists(dir))
+            Directory.CreateDirectory(dir!);
+
+        File.Move(source, destination, true);
+    }
 }

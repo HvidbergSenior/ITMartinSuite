@@ -1,5 +1,4 @@
 ﻿using ITMartinImageProcessor.Application.Services;
-using ITMartinImageProcessor.Domain.Entities;
 using ITMartinImageProcessor.Domain.Interfaces;
 
 namespace ITMartinImageProcessor.Application.Handlers;
@@ -8,16 +7,16 @@ public class ProcessNewImagesHandler
 {
     private readonly IImageProcessor _processor;
     private readonly IFileService _fileService;
-    private readonly HeicToJpgConverterService _converter;
+    private readonly HttpUploadService _http;
 
     public ProcessNewImagesHandler(
         IImageProcessor processor,
         IFileService fileService,
-        HeicToJpgConverterService converter)
+        HttpUploadService http)
     {
         _processor = processor;
         _fileService = fileService;
-        _converter = converter;
+        _http = http;
     }
 
     public async Task ExecuteAsync(
@@ -25,50 +24,109 @@ public class ProcessNewImagesHandler
         string readyFolder,
         string archiveFolder)
     {
-        var files = _fileService.GetImages(inputFolder).ToList();
+        var files = Directory
+            .EnumerateFiles(inputFolder, "*.*", SearchOption.AllDirectories)
+            .ToList();
+
+        Console.WriteLine("======================================");
+        Console.WriteLine($"[SCAN] {inputFolder}");
+        Console.WriteLine($"[FOUND COUNT] {files.Count}");
 
         foreach (var file in files)
         {
             try
             {
-                var image = new ImageFile
+                Console.WriteLine("--------------------------------------");
+                Console.WriteLine($"[FOUND FILE] {file}");
+
+                var fileName = Path.GetFileName(file);
+                var ext = Path.GetExtension(file).ToLowerInvariant();
+
+                Console.WriteLine($"[FILENAME] {fileName}");
+                Console.WriteLine($"[EXT] {ext}");
+
+                // 🔥 ignore Synology metadata folders
+                if (file.Contains("/@eaDir/") || file.Contains("\\@eaDir\\"))
                 {
-                    Path = file,
-                    CreatedAt = _fileService.GetCreated(file)
-                };
-
-                if (!image.IsRecent())
+                    Console.WriteLine("[SKIP] @eaDir");
                     continue;
+                }
 
-                // 🔥 CONVERT FIRST
-                var converted = await _converter.ConvertAsync(file);
-
-                if (converted == null)
-                    continue;
-
-                var fileName = Path.GetFileNameWithoutExtension(converted);
-
-                var output = Path.Combine(readyFolder, fileName + ".jpg");
-                var archive = Path.Combine(archiveFolder, Path.GetFileName(file));
-
-                Console.WriteLine($"[PROCESS] {file}");
-
-                await _processor.ProcessAsync(converted, output);
-
-                // 🔥 MOVE ORIGINAL FILE
-                _fileService.Move(file, archive);
-
-                // 🔥 OPTIONAL: delete temp JPG if different
-                if (converted != file && File.Exists(converted))
+                // 🔥 ignore Synology generated files
+                if (fileName.StartsWith("SYNOPHOTO_"))
                 {
-                    File.Delete(converted);
+                    Console.WriteLine("[SKIP] Synology generated");
+                    continue;
+                }
+
+                // 🔥 extension filter
+                if (ext != ".jpg" && ext != ".jpeg" && ext != ".png")
+                {
+                    Console.WriteLine("[SKIP] Not image");
+                    continue;
+                }
+
+                var outputFileName = Path.GetFileNameWithoutExtension(file) + ".jpg";
+                var outputPath = Path.Combine(readyFolder, outputFileName);
+
+                Console.WriteLine($"[OUTPUT PATH] {outputPath}");
+
+                if (File.Exists(outputPath))
+                {
+                    Console.WriteLine("[EXISTS] Output already exists → retry upload");
+
+                    await _http.UploadAsync(outputPath);
+
+                    continue;
+                }
+
+                // 🔥 PROCESS
+                try
+                {
+                    Console.WriteLine($"[PROCESS START] {file}");
+                    await _processor.ProcessAsync(file, outputPath);
+                    Console.WriteLine($"[PROCESS DONE] {outputPath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[PROCESS ERROR]");
+                    Console.WriteLine(ex);
+                    continue;
+                }
+
+                // 🔥 UPLOAD
+                try
+                {
+                    Console.WriteLine($"[UPLOAD START] {outputPath}");
+                    await _http.UploadAsync(outputPath);
+                    Console.WriteLine($"[UPLOAD DONE]");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[UPLOAD ERROR]");
+                    Console.WriteLine(ex);
+                    continue;
+                }
+
+                // 🔥 ARCHIVE
+                var archivePath = Path.Combine(archiveFolder, fileName);
+
+                try
+                {
+                    _fileService.Move(file, archivePath);
+                    Console.WriteLine($"[ARCHIVE] {archivePath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[ARCHIVE ERROR]");
+                    Console.WriteLine(ex);
                 }
 
                 Console.WriteLine($"[DONE] {file}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] {file}");
+                Console.WriteLine($"[FATAL ERROR] {file}");
                 Console.WriteLine(ex);
             }
         }

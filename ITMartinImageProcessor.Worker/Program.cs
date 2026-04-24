@@ -10,7 +10,7 @@ var services = new ServiceCollection();
 services.AddScoped<IImageProcessor, ImageSharpProcessor>();
 services.AddScoped<IFileService, FileService>();
 services.AddScoped<ProcessNewImagesHandler>();
-services.AddScoped<HeicToJpgConverterService>();
+services.AddScoped<HttpUploadService>();
 var provider = services.BuildServiceProvider();
 
 while (true)
@@ -24,5 +24,6 @@ while (true)
         "/data/archive"
     );
 
-    await Task.Delay(5000); // every 5 seconds
+    // ✅ less aggressive on NAS
+    await Task.Delay(15000);
 }
