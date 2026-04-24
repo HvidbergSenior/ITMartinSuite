@@ -1,0 +1,11 @@
+﻿version: "3.8"
+
+services:
+  imageprocessor:
+    image: imageprocessor
+    container_name: imageprocessor
+    restart: always
+    volumes:
+      - /volume1/All_Files_Original/products/input:/data/input
+      - /volume1/All_Files_Original/products/ready:/data/ready
+      - /volume1/All_Files_Original/products/archive:/data/archive
