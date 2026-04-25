@@ -544,3 +544,140 @@ html, body {
 .app-main {
     padding: var(--space-lg) var(--space-lg);
 }
+/* =========================
+   SONG FLOW (REFINED)
+========================= */
+
+.song-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* ===== SUMMARY (UPGRADED) ===== */
+.song-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+
+    padding: 20px;
+    background: linear-gradient(145deg, #1a1c22, #23262d);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.05);
+    box-shadow: var(--shadow);
+}
+
+.summary-label {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-bottom: 4px;
+}
+
+.summary-value {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+/* ===== STEP ===== */
+.step {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.step h2 {
+    margin-bottom: 8px;
+}
+
+/* ===== LIST (APP STYLE) ===== */
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 16px 18px;
+
+    background: rgba(255,255,255,0.02);
+    border-radius: 14px;
+
+    cursor: pointer;
+
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+/* subtle hover (not flashy) */
+.list-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+/* ACTIVE = strong visual */
+.list-item.active {
+    background: rgba(229,9,20,0.12);
+    outline: 1px solid rgba(229,9,20,0.4);
+}
+
+/* ===== TEXT ===== */
+.item-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.item-sub {
+    font-size: 12px;
+    opacity: 0.65;
+}
+
+.item-preview {
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* ===== OPTIONAL: LEFT DOT (like your mockup) ===== */
+.list-item::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: transparent;
+    border: 2px solid var(--border);
+    margin-right: 12px;
+}
+
+/* selected dot */
+.list-item.active::before {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+/* 🔥 FORCE grid to behave */
+.song-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+@media (max-width: 900px) {
+    .song-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 500px) {
+    .song-summary {
+        grid-template-columns: 1fr;
+    }
+}
+.app-main {
+    padding: var(--space-lg);
+    width: 100%;
+}
+
+.summary-value {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.song-summary div {
+    display: flex;
+    flex-direction: column;
+}
