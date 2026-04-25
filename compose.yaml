@@ -9,8 +9,13 @@ services:
     restart: always
 
     volumes:
-      - /volume1/homes/MartinHvidberg/Photos/PhotoLibrary:/data/input
+      # 🔥 SHARED SPACE (THIS is the key fix)
+      - /volume1/photo:/data/input
+
+      # output
       - /volume1/docker/image-processor/out:/data/ready
+
+      # archive
       - /volume1/docker/image-processor/archive:/data/archive
 
     working_dir: /app
