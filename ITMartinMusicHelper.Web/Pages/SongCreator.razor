@@ -1,0 +1,194 @@
+﻿@page "/"
+
+@using ITMartinMusicHelper.Application.Helpers
+@using ITMartinMusicHelper.Application.Interfaces
+@using ITMartinMusicHelper.Domain.Entities
+
+@inject IMelodyService MelodyService
+@inject IChordService ChordService
+@inject IPickingService PickingService
+@inject IStructureService StructureService
+@inject IPracticeService PracticeService
+
+<div class="page-container">
+
+    <div class="song-flow">
+
+        <!-- SUMMARY -->
+        <div class="song-summary">
+            <div>
+                <div class="summary-label">Chord</div>
+                <div class="summary-value">
+                    @(selectedProgression != null
+                        ? string.Join(" - ", selectedProgression.Chords)
+                        : "—")
+                </div>
+            </div>
+
+            <div>
+                <div class="summary-label">Picking</div>
+                <div class="summary-value">
+                    @(selectedPattern?.Name ?? "—")
+                </div>
+            </div>
+
+            <div>
+                <div class="summary-label">Melody</div>
+                <div class="summary-value">
+                    @(selectedIdeaIds.Count > 0 ? $"{selectedIdeaIds.Count} ideas" : "—")
+                </div>
+            </div>
+
+            <div>
+                <div class="summary-label">Structure</div>
+                <div class="summary-value">
+                    @(selectedStructure?.Name ?? "—")
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="step">
+            <h2>1. Chord Progression</h2>
+
+            @foreach (var prog in progressions ?? [])
+            {
+                var active = selectedProgression == prog;
+
+                <div class="list-item @(active ? "active" : "")"
+                     @onclick="() => SelectProgression(prog)">
+
+                    <div>
+                        <div class="item-title">@prog.Name</div>
+                        <div class="item-sub">@prog.Mood</div>
+                    </div>
+
+                    <div class="item-preview">
+                        @string.Join(" - ", prog.Chords)
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- STEP 2 -->
+        @if (selectedProgression != null)
+        {
+            <div class="step">
+                <h2>2. Picking Pattern</h2>
+
+                @foreach (var pattern in patterns ?? [])
+                {
+                    var active = selectedPattern == pattern;
+
+                    <div class="list-item @(active ? "active" : "")"
+                         @onclick="() => SelectPattern(pattern)">
+
+                        <div>
+                            <div class="item-title">@pattern.Name</div>
+                            <div class="item-sub">@pattern.Pattern</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- STEP 3 -->
+        @if (selectedPattern != null && melodyIdeas != null)
+        {
+            <div class="step">
+                <h2>3. Melody Ideas</h2>
+
+                @foreach (var idea in melodyIdeas)
+                {
+                    var active = selectedIdeaIds.Contains(idea.Id);
+
+                    <div class="list-item @(active ? "active" : "")"
+                         @onclick="() => ToggleIdea(idea)">
+
+                        <div>
+                            <div class="item-title">@idea.Title</div>
+                            <div class="item-sub">@idea.Description</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- STEP 4 -->
+        @if (selectedIdeaIds.Any() && structures != null)
+        {
+            <div class="step">
+                <h2>4. Song Structure</h2>
+
+                @foreach (var structure in structures)
+                {
+                    var active = selectedStructure == structure;
+
+                    <div class="list-item @(active ? "active" : "")"
+                         @onclick="() => SelectStructure(structure)">
+
+                        <div>
+                            <div class="item-title">@structure.Name</div>
+                            <div class="item-sub">
+                                @string.Join(" → ", structure.Sections)
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+
+</div>
+
+@code {
+    private List<ChordProgression>? progressions;
+    private List<PickingPattern>? patterns;
+    private List<MelodyIdea>? melodyIdeas;
+    private HashSet<string> selectedIdeaIds = new();
+    private List<SongStructure>? structures;
+    private SongStructure? selectedStructure;
+    private ChordProgression? selectedProgression;
+    private PickingPattern? selectedPattern;
+
+    protected override void OnInitialized()
+    {
+        progressions = ChordService.GetProgressions();
+        patterns = PickingService.GetPatterns();
+        structures = StructureService.GetStructures();
+    }
+
+    private void SelectProgression(ChordProgression prog)
+    {
+        selectedProgression = prog;
+        selectedPattern = null;
+        melodyIdeas = null;
+        selectedIdeaIds.Clear();
+        selectedStructure = null;
+    }
+
+    private void SelectPattern(PickingPattern pattern)
+    {
+        selectedPattern = pattern;
+
+        if (selectedProgression != null)
+            melodyIdeas = MelodyService.GetIdeas(selectedProgression.Chords);
+
+        selectedIdeaIds.Clear();
+        selectedStructure = null;
+    }
+
+    private void SelectStructure(SongStructure structure)
+    {
+        selectedStructure = structure;
+    }
+
+    private void ToggleIdea(MelodyIdea idea)
+    {
+        if (selectedIdeaIds.Contains(idea.Id))
+            selectedIdeaIds.Remove(idea.Id);
+        else
+            selectedIdeaIds.Add(idea.Id);
+    }
+}

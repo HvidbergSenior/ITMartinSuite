@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinSongCreator.Server</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartinSongCreator.Application\ITMartinSongCreator.Application.csproj" />
+      <ProjectReference Include="..\ITMartinSongCreator.Domain\ITMartinSongCreator.Domain.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,261 @@
+﻿@page "/songcreator"
+@using ITMartinSongCreator.Application.Services
+@using ITMartinSongCreator.Domain.Entities
+@inject IMelodyService MelodyService
+@inject IChordService ChordService
+@inject IPickingService PickingService
+@inject IStructureService StructureService
+@inject IPracticeService PracticeService
+@rendermode InteractiveServer
+
+<h3>1. Choose a Chord Progression</h3>
+
+@if (progressions == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    @foreach (var prog in progressions)
+    {
+        <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+            <b>@prog.Name</b> (@prog.Mood)
+            <br />
+            <button @onclick="() => SelectProgression(prog)">Select</button>
+        </div>
+    }
+}
+
+@if (selectedProgression != null)
+{
+    <h4>Selected Progression:</h4>
+    <p>@string.Join(" - ", selectedProgression.Chords)</p>
+
+    <h4>Transpose:</h4>
+    <button @onclick="() => ChangeTranspose(-1)">-1</button>
+    <span style="margin:0 10px;">@transposeSemitones</span>
+    <button @onclick="() => ChangeTranspose(1)">+1</button>
+
+    <p>Transposed: @string.Join(" - ", GetTransposedChords())</p>
+
+    <hr />
+
+    <h3>2. Choose a Picking Pattern</h3>
+
+    @if (patterns == null)
+    {
+        <p>Loading patterns...</p>
+    }
+    else
+    {
+        @foreach (var pattern in patterns)
+        {
+            <div style="border:1px solid #aaa; padding:10px; margin-bottom:10px;">
+                <b>@pattern.Name</b>
+                <br />
+                Pattern: @pattern.Pattern
+                <br />
+                <i>@pattern.Description</i>
+                <br />
+                <button @onclick="() => SelectPattern(pattern)">Select Pattern</button>
+            </div>
+        }
+    }
+}
+
+@if (selectedPattern != null)
+{
+    <h4>Selected Pattern:</h4>
+    <p>@selectedPattern.Pattern</p>
+}
+
+@if (selectedPattern != null && melodyIdeas != null)
+{
+    <hr />
+    <h3>3. Melody Ideas</h3>
+
+    @foreach (var idea in melodyIdeas)
+    {
+        <div style="border:1px solid #999; padding:10px; margin-bottom:10px;
+                    border-color:@(selectedIdeas.Contains(idea) ? "green" : "#999")">
+            <b>@idea.Title</b>
+            <br />
+            @idea.Description
+            <br />
+            <button @onclick="() => ToggleIdea(idea)">
+                @(selectedIdeas.Contains(idea) ? "Remove" : "Add")
+            </button>
+        </div>
+    }
+}
+
+@if (selectedIdeas.Any())
+{
+    <h4>Selected Melody Ideas:</h4>
+    <ul>
+        @foreach (var idea in selectedIdeas)
+        {
+            <li>@idea.Title</li>
+        }
+    </ul>
+}
+
+@if (selectedPattern != null && selectedIdeas.Any())
+{
+    <hr />
+    <h3>4. Choose Song Structure</h3>
+
+    @if (structures != null)
+    {
+        @foreach (var structure in structures)
+        {
+            <div style="border:1px solid #666; padding:10px; margin-bottom:10px;
+                        border-color:@(selectedStructure == structure ? "green" : "#666")">
+                <b>@structure.Name</b>
+                <br />
+                @string.Join(" → ", structure.Sections)
+                <br />
+                <button @onclick="() => SelectStructure(structure)">Select Structure</button>
+            </div>
+        }
+    }
+}
+
+@if (selectedStructure != null && selectedProgression != null && selectedPattern != null)
+{
+    <hr />
+    <h3>Section Preview (Chords + Bass)</h3>
+
+    @foreach (var sec in selectedStructure.Sections)
+    {
+        var sectionChords = selectedStructure.SectionVariations != null &&
+                            selectedStructure.SectionVariations.TryGetValue(sec, out var variationFunc)
+                            ? variationFunc(GetTransposedChords())
+                            : GetTransposedChords();
+
+        <div style="border:1px solid #888; padding:10px; margin-bottom:10px;">
+            <b>@sec</b>
+            <br />
+            @for (int i = 0; i < sectionChords.Count; i++)
+            {
+                var chord = sectionChords[i];
+                var bass = selectedProgression.BassMapping != null &&
+                           selectedProgression.BassMapping.TryGetValue(chord, out var b) ? b : "E";
+                <span>@($"{chord}({bass})")@((i < sectionChords.Count - 1 ? " - " : ""))</span>
+                
+            }
+            <br />
+            Picking Pattern: @selectedPattern.Pattern
+            <br />
+            @if (selectedStructure.Suggestions.ContainsKey(sec))
+            {
+                <i>Tip: @selectedStructure.Suggestions[sec]</i>
+            }
+        </div>
+    }
+
+    <hr />
+    <h2>🎸 Practice Guide</h2>
+
+    @if (practiceSteps != null)
+    {
+        @foreach (var step in practiceSteps)
+        {
+            <div style="border:1px solid #444; padding:10px; margin-bottom:10px;">
+                <b>@step.Section</b>
+                <br />
+                @for (int i = 0; i < step.Chords.Count; i++)
+                {
+                    <span>@($"{step.Chords[i]}({step.BassStrings[i]})")@((i < step.Chords.Count - 1) ? " - " : "")</span>
+                }
+                <br />
+                Picking Pattern: @step.PickingPattern
+                <br />
+                Melody Tips: @string.Join(", ", step.MelodyTips)
+                @if (!string.IsNullOrEmpty(step.Note))
+                {
+                    <div><br />Tip: @step.Note</div>
+                }
+            </div>
+        }
+    }
+}
+
+@code {
+    private List<ChordProgression>? progressions;
+    private List<PickingPattern>? patterns;
+    private List<MelodyIdea>? melodyIdeas;
+    private List<MelodyIdea> selectedIdeas = new();
+    private List<SongStructure>? structures;
+    private SongStructure? selectedStructure;
+    private List<PracticeStep>? practiceSteps;
+    private ChordProgression? selectedProgression;
+    private PickingPattern? selectedPattern;
+    private int transposeSemitones = 0;
+
+    protected override void OnInitialized()
+    {
+        progressions = ChordService.GetProgressions();
+        patterns = PickingService.GetPatterns();
+        structures = StructureService.GetStructures();
+    }
+
+    private void SelectProgression(ChordProgression prog)
+    {
+        selectedProgression = prog;
+
+        selectedPattern = null;
+        melodyIdeas = null;
+        selectedIdeas.Clear();
+        selectedStructure = null;
+        practiceSteps = null;
+        transposeSemitones = 0;
+    }
+
+    private void SelectPattern(PickingPattern pattern)
+    {
+        selectedPattern = pattern;
+
+        if (selectedProgression != null)
+            melodyIdeas = MelodyService.GetIdeas(selectedProgression.Chords);
+
+        selectedIdeas.Clear();
+        selectedStructure = null;
+        practiceSteps = null;
+    }
+
+    private void SelectStructure(SongStructure structure)
+    {
+        selectedStructure = structure;
+
+        if (selectedProgression != null && selectedPattern != null)
+        {
+            practiceSteps = PracticeService.GeneratePracticeSteps(
+                selectedProgression,          // pass progression
+                GetTransposedChords(),
+                selectedPattern,
+                selectedIdeas,
+                selectedStructure
+            );
+        }
+    }
+
+    private void ToggleIdea(MelodyIdea idea)
+    {
+        if (selectedIdeas.Contains(idea))
+            selectedIdeas.Remove(idea);
+        else
+            selectedIdeas.Add(idea);
+    }
+
+    private void ChangeTranspose(int delta)
+    {
+        transposeSemitones += delta;
+    }
+
+    private List<string> GetTransposedChords()
+    {
+        if (selectedProgression == null) return new List<string>();
+        return Application.Helpers.ChordTransposer.Transpose(selectedProgression.Chords, transposeSemitones);
+    }
+}
