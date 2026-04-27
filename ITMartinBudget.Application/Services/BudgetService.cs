@@ -15,9 +15,8 @@ public class BudgetService
             .GroupBy(x => new
             {
                 x.MainCategory,
-                x.SubCategory
+                Sub = x.MobilePayName ?? x.SubCategory.ToString()
             });
-
         var result = new List<CategorySummary>();
 
         foreach (var group in grouped)
@@ -33,7 +32,9 @@ public class BudgetService
             result.Add(new CategorySummary
             {
                 MainCategory = group.Key.MainCategory,
-                SubCategory = group.Key.SubCategory,
+                SubCategory = SubCategory.Ukendt, // not used anymore for display
+
+                DisplayName = group.Key.Sub,
 
                 Total = income + expenses,
                 Income = income,
@@ -43,7 +44,7 @@ public class BudgetService
 
                 Frequency = DetectFrequency(group.Select(x => x.Date).ToList()),
 
-                ExpenseType = GetDefaultExpenseType(group.Key.MainCategory, group.Key.SubCategory)
+                ExpenseType = GetDefaultExpenseType(group.Key.MainCategory, SubCategory.Ukendt)
             });
         }
 

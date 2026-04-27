@@ -681,3 +681,270 @@ html, body {
     display: flex;
     flex-direction: column;
 }
+
+/* =========================
+   BUDGET DASHBOARD
+========================= */
+
+.dashboard-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dashboard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+}
+
+.stat-card {
+    text-align: center;
+    padding: 20px;
+}
+
+.stat-card h3 {
+    font-size: 26px;
+    font-weight: 700;
+}
+
+.stat-card p {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+/* =========================
+   BUDGET SPLIT (2 columns)
+========================= */
+
+.budget-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+}
+
+@media (max-width: 900px) {
+    .budget-split {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================
+   CATEGORY ROWS
+========================= */
+
+.category-row {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    margin-top: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+}
+
+.category-row.income {
+    border-left: 4px solid var(--success);
+}
+
+.category-row.expense {
+    border-left: 4px solid var(--accent);
+}
+
+/* =========================
+   SUBCATEGORY ROW
+========================= */
+
+.subcategory-row {
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid transparent;
+}
+
+.subcategory-row:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.subcategory-row.selected {
+    background: rgba(229,9,20,0.12);
+    border: 1px solid rgba(229,9,20,0.4);
+}
+
+/* =========================
+   TRANSACTIONS (EXPAND)
+========================= */
+
+.transaction-container {
+    margin-top: 6px;
+    padding: 10px;
+    border-left: 2px solid var(--border);
+}
+
+.transaction-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 120px;
+    padding: 6px 0;
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+.transaction-row:hover {
+    opacity: 1;
+}
+
+/* =========================
+   SELECT (Need/Nice)
+========================= */
+
+.type-select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: white;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* =========================
+   FREQUENCY BADGES
+========================= */
+
+.frequency-badge {
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.freq-weekly {
+    background: rgba(25,113,194,0.2);
+    color: #4dabf7;
+}
+
+.freq-monthly {
+    background: rgba(245,159,0,0.2);
+    color: #fcc419;
+}
+
+.freq-yearly {
+    background: rgba(47,158,68,0.2);
+    color: #69db7c;
+}
+
+/* =========================
+   TABLE FIX (overview)
+========================= */
+
+.table {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.table th {
+    background: rgba(255,255,255,0.03);
+    color: var(--text-muted);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background: rgba(255,255,255,0.02);
+}
+
+.table-secondary {
+    background: rgba(255,255,255,0.05) !important;
+}
+
+/* ===== LAYOUT ===== */
+.budget-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .budget-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.budget-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ===== CATEGORY ===== */
+.category-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 16px;
+}
+
+.category-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+/* ===== SUBCATEGORY ===== */
+.subcategory-card {
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.subcategory-card:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.subcategory-card.open {
+    background: rgba(229,9,20,0.08);
+}
+
+.subcategory-header {
+    display: flex;
+    justify-content: space-between;
+}
+
+.subcategory-header .meta {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ===== TRANSACTIONS ===== */
+.subcategory-transactions {
+    margin-top: 10px;
+    padding-left: 10px;
+}
+
+.transaction-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 120px;
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+.transaction-table {
+    margin-top: 10px;
+}
+
+.search-box {
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px;
+    border-radius: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: white;
+}

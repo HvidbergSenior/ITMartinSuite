@@ -12,6 +12,24 @@ public class SubCategoryConverter : DefaultTypeConverter
         var kategori = text?.Trim().ToLowerInvariant() ?? "";
         var tekst = row.GetField("Tekst")?.ToLowerInvariant() ?? "";
 
+        // 🔥 MOBILEPAY FIRST (important!)
+        if (tekst.Contains("mobilepay"))
+        {
+            if (tekst.Contains("netto") || tekst.Contains("rema") || tekst.Contains("føtex"))
+                return SubCategory.Dagligvarer;
+
+            if (tekst.Contains("mcd") || tekst.Contains("burger") || tekst.Contains("pizza"))
+                return SubCategory.Restaurant;
+
+            if (tekst.Contains("ikea"))
+                return SubCategory.Bolig;
+
+            if (tekst.Contains("shell") || tekst.Contains("circle k"))
+                return SubCategory.Benzin;
+
+            return SubCategory.Ukendt;
+        }
+
         // 🛒 Food
         if (kategori.Contains("dagligvarer"))
             return SubCategory.Dagligvarer;
@@ -62,15 +80,12 @@ public class SubCategoryConverter : DefaultTypeConverter
         if (kategori.Contains("sport"))
             return SubCategory.Fritid;
 
-        // 🔁 Fallback using description (important!)
+        // 🔁 fallback using description
         if (tekst.Contains("netto") || tekst.Contains("rema") || tekst.Contains("føtex"))
             return SubCategory.Dagligvarer;
 
         if (tekst.Contains("mcd") || tekst.Contains("burger"))
             return SubCategory.Restaurant;
-
-        if (tekst.Contains("realkredit"))
-            return SubCategory.Husleje;
 
         return SubCategory.Ukendt;
     }

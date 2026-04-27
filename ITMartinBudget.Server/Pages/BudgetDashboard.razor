@@ -6,92 +6,89 @@
 
 @inject BudgetService BudgetService
 @inject BudgetDbContext Db
-<div class="library-page">
-    <div class="page-container">
 
-        <!-- HERO -->
-        <div class="scan-hero-card dashboard-hero">
-            <div class="library-row">
-                <div>
-                    <h1>💰 Budget Dashboard</h1>
-                    <p class="hero-text">
-                        Upload CSV and analyze your yearly expenses and income.
-                    </p>
-                </div>
+<div class="page-container">
 
-                <div class="form-actions">
-                    <a href="/budget/upload" class="btn btn-primary">
-                        📂 Upload CSV
-                    </a>
-                </div>
-            </div>
+    <!-- HERO -->
+    <div class="card-primary dashboard-hero">
+        <div>
+            <h1>💰 Budget Dashboard</h1>
+            <p class="hero-text">
+                Upload CSV and analyze your yearly expenses and income.
+            </p>
         </div>
 
-        <!-- STATS -->
-        <div class="dashboard-stats-grid">
-            <div class="content-card stat-card">
-                <h3>@_totals?.Income</h3>
-                <p>Total Income</p>
-            </div>
-
-            <div class="content-card stat-card">
-                <h3>@_totals?.Expenses</h3>
-                <p>Total Expenses</p>
-            </div>
-
-            <div class="content-card stat-card">
-                <h3>@_totals?.Net</h3>
-                <p>Net</p>
-            </div>
-        </div>
-
-        <!-- CATEGORY SUMMARY -->
-        <div class="content-card recent-section-card">
-            <div class="library-row">
-                <div>
-                    <h3>📊 Category Overview</h3>
-                    <p class="text-muted">Top categories</p>
-                </div>
-            </div>
-
-            @if (!_summary.Any())
-            {
-                <p>No data loaded yet.</p>
-            }
-            else
-            {
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var group in _summary.GroupBy(x => x.MainCategory))
-                    {
-                        <tr class="table-secondary">
-                            <td><strong>@group.Key</strong></td>
-                            <td>@group.Sum(x => x.Total).ToString("N2")</td>
-                        </tr>
-
-                        @foreach (var item in group)
-                        {
-                            <tr>
-                                <td class="ps-4">↳ @item.SubCategory</td>
-                                <td>@item.Total.ToString("N2")</td>
-                            </tr>
-                        }
-                    }
-                    </tbody>
-                </table>
-            }
+        <div>
+            <a href="/budget/upload" class="btn btn-primary">
+                📂 Upload CSV
+            </a>
         </div>
     </div>
+
+    <!-- STATS -->
+    <div class="dashboard-stats-grid">
+        <div class="card-secondary stat-card">
+            <h3 class="text-success">@_totals?.Income.ToString("N2")</h3>
+            <p>Total Income</p>
+        </div>
+
+        <div class="card-secondary stat-card">
+            <h3 class="text-danger">@_totals?.Expenses.ToString("N2")</h3>
+            <p>Total Expenses</p>
+        </div>
+
+        <div class="card-secondary stat-card">
+            <h3>@_totals?.Net.ToString("N2")</h3>
+            <p>Net</p>
+        </div>
+    </div>
+
+    <!-- CATEGORY SUMMARY -->
+    <div class="card-primary">
+        <h3>📊 Category Overview</h3>
+        <p class="text-muted">Top categories</p>
+
+        @if (!_summary.Any())
+        {
+            <p>No data loaded yet.</p>
+        }
+        else
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var group in _summary.GroupBy(x => x.MainCategory))
+                {
+                    <tr class="table-secondary">
+                        <td><strong>@group.Key</strong></td>
+                        <td class="text-right">
+                            @group.Sum(x => x.Total).ToString("N2")
+                        </td>
+                    </tr>
+
+                    @foreach (var item in group)
+                    {
+                        <tr>
+                            <td class="ps-4">↳ @item.SubCategory</td>
+                            <td class="text-right">
+                                @item.Total.ToString("N2")
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+
 </div>
 
 @code {
-    private List<BankTransaction> _transactions = new();
     private List<CategorySummary> _summary = new();
     private YearSummary? _totals;
 

@@ -31,7 +31,7 @@ public enum SubCategory
     // Leisure
     Underholdning,
     Fritid,
-
+    MobilePay,
     // Fallback
     Ukendt
 }

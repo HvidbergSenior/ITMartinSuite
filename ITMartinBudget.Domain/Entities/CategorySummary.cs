@@ -15,4 +15,5 @@ public class CategorySummary
 
     public TransactionFrequency Frequency { get; set; } = TransactionFrequency.Unknown;
     public ExpenseType ExpenseType { get; set; } = ExpenseType.Unknown;
+    public string DisplayName { get; set; } = "";
 }

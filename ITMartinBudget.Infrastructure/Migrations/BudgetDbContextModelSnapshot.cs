@@ -39,10 +39,16 @@ namespace ITMartinBudget.Infrastructure.Migrations
                     b.Property<int>("MainCategory")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("MobilePayName")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("SubCategory")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Date", "Amount", "Description")
+                        .IsUnique();
 
                     b.ToTable("Transactions");
                 });
