@@ -1,0 +1,25 @@
+﻿<div class="app-page page-container">
+
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <SectionTitle Title="@Title" />
+    }
+
+    @if (Actions is not null)
+    {
+        <div class="page-actions">
+            @Actions
+        </div>
+    }
+
+    <div class="page-content">
+        @ChildContent
+    </div>
+
+</div>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

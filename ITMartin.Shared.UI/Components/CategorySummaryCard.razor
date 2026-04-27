@@ -1,10 +1,13 @@
-﻿<div class="main-category-box card-secondary @CssClass @(IsLocked ? "category-locked" : "category-active")"
+﻿<div class="category-card @CssClass @(IsLocked ? "locked" : "active")"
      @onclick="HandleClick">
 
-    <strong>@Title</strong>
+    <!-- TITLE -->
+    <div class="category-title">
+        @Title
+    </div>
 
-    <!-- 🔥 STATUS -->
-    <div class="category-status mt-1">
+    <!-- STATUS -->
+    <div class="category-status">
 
         @if (Total == 0)
         {
@@ -16,29 +19,39 @@
         }
         else
         {
-            <div class="text-warning fw-semibold">
+            <div class="text-warning">
                 ⚠ @ReviewCount need review
             </div>
 
             @if (ProcessedCount > 0)
             {
                 <div class="text-muted small">
-                    @ProcessedCount already processed
+                    @ProcessedCount processed
                 </div>
             }
         }
 
     </div>
 
-    <!-- 📊 TOTAL -->
-    <div class="category-meta mt-1">
+    <!-- META -->
+    <div class="category-meta">
         @Total files • @SizeText
     </div>
 
-    <!-- 👉 ACTION -->
+    <!-- PROGRESS BAR -->
+    @if (Total > 0)
+    {
+        <div class="category-progress">
+            <div class="category-progress-fill"
+                 style="width:@(ProcessedCount * 100 / Total)%">
+            </div>
+        </div>
+    }
+
+    <!-- ACTION -->
     @if (!IsLocked && ReviewCount > 0)
     {
-        <div class="category-action mt-2">
+        <div class="category-action">
             ▶ Start Review
         </div>
     }

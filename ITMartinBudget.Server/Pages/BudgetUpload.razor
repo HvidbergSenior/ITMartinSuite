@@ -84,7 +84,10 @@
                                     <div>
                                         <div class="title">@item.DisplayName</div>
                                         <div class="meta">
-                                            @item.TransactionCount • @item.Frequency
+                                            @item.TransactionCount
+                                            <span class="frequency-badge @GetFrequencyClass(item.Frequency.ToString())">
+                                                @item.Frequency
+                                            </span>
                                         </div>
                                     </div>
 
@@ -198,10 +201,11 @@
 
     private bool IsOpen(string key)
         => _selectedCategoryKey == key;
-
-    private string GetGroupKey(BankTransaction t)
-        => t.MobilePayName ?? t.SubCategory.ToString();
-
+    
+    private string GetSubCategory(BankTransaction t)
+        => !string.IsNullOrWhiteSpace(t.MobilePayName)
+            ? t.MobilePayName
+            : t.SubCategory.ToString();
     private IEnumerable<BankTransaction> GetFilteredTransactions(CategorySummary item)
     {
         return Db.Transactions
@@ -211,7 +215,13 @@
                 (x.MobilePayName ?? x.SubCategory.ToString()) == item.DisplayName)
             .OrderByDescending(x => x.Date);
     }
-
+    private string GetFrequencyClass(string freq) => freq switch
+    {
+        "Weekly" => "freq-weekly",
+        "Monthly" => "freq-monthly",
+        "Yearly" => "freq-yearly",
+        _ => ""
+    };
     private int GetVisibleCount(string key)
     {
         if (!_visibleCount.ContainsKey(key))

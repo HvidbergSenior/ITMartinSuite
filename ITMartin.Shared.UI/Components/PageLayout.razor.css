@@ -1,0 +1,18 @@
+﻿.app-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.page-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.page-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}

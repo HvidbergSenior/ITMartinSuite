@@ -1,0 +1,47 @@
+﻿.app-header {
+    padding: 18px 28px;
+    background: #111;
+    border-bottom: 1px solid var(--border);
+
+    font-size: 16px;
+    font-weight: 700;
+
+    display: flex;
+    align-items: center;
+}
+
+.header-title {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.header-nav {
+    display: flex;
+    gap: 16px;
+}
+
+.nav-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.nav-link:hover {
+    color: var(--accent);
+}
+.app-header {
+    background: #0f0f0f;
+    border-bottom: 1px solid var(--border);
+}
+
+.app-header .page-container {
+    display: flex;
+    align-items: center;
+    padding: 16px 24px;
+}
+
+.header-title {
+    font-size: 16px;
+    font-weight: 700;
+}

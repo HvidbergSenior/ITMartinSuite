@@ -1,14 +1,19 @@
 ﻿<div class="app-shell">
-    <AppHeader Title="@Title" />
+
+    <header class="app-header">
+        <div class="header-title">ITMartins FileSorter</div>
+    </header>
 
     <main class="app-main">
         @ChildContent
     </main>
 
-    <AppFooter />
+    <footer class="app-footer">
+        © 2026 FileSorter
+    </footer>
+
 </div>
 
 @code {
-    [Parameter] public string Title { get; set; } = "ITMartin";
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

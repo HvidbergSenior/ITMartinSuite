@@ -1,0 +1,17 @@
+﻿.section-title {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 18px;
+}
+
+.scan-hero-card .input-area {
+    background: rgba(255,255,255,0.04); /* instead of near-black */
+    border-radius: 16px;
+    padding: 16px;
+}
+
+.scan-hero-card .input-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}

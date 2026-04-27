@@ -1,0 +1,44 @@
+﻿<div class="media-card">
+
+    <!-- THUMB -->
+    <div class="media-thumb-wrapper">
+
+        @if (!string.IsNullOrEmpty(ImageUrl))
+        {
+            <img src="@ImageUrl" class="media-thumb" />
+        }
+        else
+        {
+            <div class="media-icon">@Icon</div>
+        }
+
+        <!-- 🔥 HOVER ACTIONS -->
+        @if (OnPrimary.HasDelegate)
+        {
+            <div class="media-overlay">
+                <button class="media-btn primary"
+                        @onclick="OnPrimary">
+                    @PrimaryText
+                </button>
+            </div>
+        }
+
+    </div>
+
+    <!-- INFO -->
+    <div class="media-info">
+        <div class="media-name">@Title</div>
+        <div class="media-size">@SizeText</div>
+    </div>
+
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string SizeText { get; set; } = "";
+    [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public string Icon { get; set; } = "📄";
+
+    [Parameter] public string PrimaryText { get; set; } = "Select";
+    [Parameter] public EventCallback OnPrimary { get; set; }
+}

@@ -1,12 +1,10 @@
-﻿<header class="app-header">
-    <div class="header-title">
-        @Title
+﻿<div class="app-header">
+    <div class="page-container">
+        <div class="header-title">
+            📁 ITMartins FileSorter
+        </div>
     </div>
-
-    <nav class="header-nav">
-        @ChildContent
-    </nav>
-</header>
+</div>
 
 @code {
     [Parameter] public string Title { get; set; } = "";

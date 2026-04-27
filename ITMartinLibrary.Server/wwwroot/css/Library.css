@@ -1,0 +1,31 @@
+﻿.library-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.library-item {
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+}
+
+.library-item:hover {
+    background: rgba(255,255,255,0.06);
+}
+
+.library-item.active {
+    background: rgba(229,9,20,0.15);
+    border: 1px solid rgba(229,9,20,0.4);
+}
+
+.library-title {
+    font-weight: 600;
+}
+
+.library-meta {
+    font-size: 12px;
+    opacity: 0.6;

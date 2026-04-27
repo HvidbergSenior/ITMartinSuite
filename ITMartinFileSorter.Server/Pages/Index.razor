@@ -1,10 +1,6 @@
 ﻿@page "/"
 @page "/filesorter"
 
-@using ITMartinFileSorter.Application.Services
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
-
 @inject DuplicateService DuplicateService
 @inject IFileScanner FileScanner
 @inject ProgressService Progress
@@ -14,10 +10,8 @@
 @inject DocumentCategorizer DocumentCategorizer
 @inject AudioCategorizer AudioCategorizer
 
-<div class="index-page">
-
-    <SectionTitle Title="🎬 Scan & Organize Files" />
-
+<PageLayout Title="📂 Scan & Organize Files">
+    <div class="filesorter-app">
     <ContentCard CssClass="scan-hero-card">
         <p class="hero-text">
             Scan photos, videos, audio and documents.
@@ -113,9 +107,9 @@
 
         </ContentCard>
     }
+    </div>
 
-</div>
-
+</PageLayout>
 @code {
 
     string FolderPath

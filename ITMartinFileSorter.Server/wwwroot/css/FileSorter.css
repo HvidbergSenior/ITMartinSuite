@@ -1,0 +1,153 @@
+.filesorter-app {
+    padding-top: 10px;
+}
+
+/* HERO */
+.filesorter-app .hero-wide {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.filesorter-app .hero-text {
+    opacity: 0.8;
+    margin-bottom: 16px;
+}
+
+/* GRID */
+.filesorter-app .main-category-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
+    gap: 18px;
+    justify-content: center;
+}
+
+/* EXPORT */
+.filesorter-app .export-card {
+    text-align: center;
+}
+
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+}
+
+.media-item {
+    display: flex;
+    flex-direction: column;
+}
+/* =========================
+   CATEGORY CARDS (ADD THIS)
+========================= */
+
+.filesorter-app .main-category-row {
+    margin-top: 20px;
+}
+
+/* CARD */
+.category-card {
+    background: linear-gradient(145deg, #16181e, #1f2229);
+    border-radius: 16px;
+    padding: 18px;
+
+    border: 1px solid rgba(255,255,255,0.05);
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* HOVER */
+.category-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255,255,255,0.15);
+}
+
+/* CONTENT */
+.category-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.category-status {
+    margin-bottom: 6px;
+}
+
+.category-meta {
+    opacity: 0.8;
+}
+
+.category-action {
+    margin-top: 10px;
+    color: var(--accent);
+    font-weight: 500;
+}
+/* CATEGORY CARD */
+.category-card {
+    background: linear-gradient(145deg, #1a1c22, #23262d);
+    border-radius: 18px;
+    padding: 18px;
+
+    border: 1px solid rgba(255,255,255,0.06);
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    min-height: 150px;
+}
+
+/* hover */
+.category-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,0.15);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+/* locked */
+.category-card.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* TITLE */
+.category-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* STATUS */
+.category-status {
+    font-size: 14px;
+}
+
+/* META */
+.category-meta {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+/* PROGRESS BAR */
+.category-progress {
+    height: 6px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.category-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+/* ACTION */
+.category-action {
+    margin-top: auto;
+    color: var(--accent);
+    font-weight: 500;
+    font-size: 14px;
+}

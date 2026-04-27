@@ -24,14 +24,20 @@
     @foreach (var group in Groups)
     {
         <ContentCard Title="@group.Key.ToString()">
-            @foreach (var file in group.Value)
-            {
-                <MediaCard File="file"
-                           OnKeep="Keep"
-                           OnDelete="Delete" />
 
-                @RenderStatus(file)
-            }
+            <div class="media-grid">
+                @foreach (var file in group.Value)
+                {
+                    <div class="media-item">
+                        <FileSorterMediaCard File="file"
+                                             OnKeep="Keep"
+                                             OnDelete="Delete" />
+
+                        @RenderStatus(file)
+                    </div>
+                }
+            </div>
+
         </ContentCard>
     }
 
