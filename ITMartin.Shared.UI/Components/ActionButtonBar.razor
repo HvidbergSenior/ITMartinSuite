@@ -1,0 +1,10 @@
+﻿<div class="action-bar @CssClass">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    // 👇 ADD THIS
+    [Parameter] public string CssClass { get; set; } = "";
+}

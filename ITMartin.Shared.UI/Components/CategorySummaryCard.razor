@@ -38,7 +38,7 @@
         @Total files • @SizeText
     </div>
 
-    <!-- PROGRESS BAR -->
+    <!-- PROGRESS -->
     @if (Total > 0)
     {
         <div class="category-progress">
@@ -57,22 +57,36 @@
     }
 
 </div>
+
 @code {
     [Parameter] public string Title { get; set; } = "";
-
-    // 🔥 ONLY ONE NUMBER THAT MATTERS
     [Parameter] public int ReviewCount { get; set; }
-
+    [Parameter] public int ProcessedCount { get; set; }
     [Parameter] public int Total { get; set; }
     [Parameter] public string SizeText { get; set; } = "";
-
     [Parameter] public string CssClass { get; set; } = "";
     [Parameter] public bool IsLocked { get; set; }
-    [Parameter] public EventCallback OnClick { get; set; }
-    [Parameter] public int ProcessedCount { get; set; }
-    private async Task HandleClick()
+
+    // ✅ FIXED (typed event)
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    private async Task HandleClick(MouseEventArgs e)
     {
-        if (!IsLocked)
-            await OnClick.InvokeAsync();
+        Console.WriteLine($"CLICKED CARD: {Title}");
+
+        if (IsLocked)
+        {
+            Console.WriteLine("❌ Card is locked");
+            return;
+        }
+
+        if (!OnClick.HasDelegate)
+        {
+            Console.WriteLine("❌ No OnClick delegate attached");
+            return;
+        }
+
+        Console.WriteLine("✅ Invoking OnClick...");
+        await OnClick.InvokeAsync(e);
     }
 }

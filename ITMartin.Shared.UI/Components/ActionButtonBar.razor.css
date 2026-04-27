@@ -1,0 +1,40 @@
+﻿.action-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+
+    padding: 10px 12px;
+
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+
+    justify-content: flex-start;
+}
+
+/* Push elements to the right */
+.spacer {
+    margin-left: auto;
+}
+
+/* Make buttons behave nicely */
+.action-bar ::deep button {
+    flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .action-bar {
+        flex-wrap: wrap;
+    }
+}
+.action-bar.bottom {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-main);
+    padding-top: 12px;
+    z-index: 10;
+}
+.page-container {
+    padding-bottom: 80px; /* space for sticky CTA */
+}

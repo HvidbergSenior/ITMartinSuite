@@ -2,6 +2,7 @@
     background: var(--bg-card);
     border-radius: 18px;
     padding: 18px;
+    border: 1px solid rgba(255,255,255,0.05);
     cursor: pointer;
 
     display: flex;
@@ -14,36 +15,28 @@
 .category-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow);
+    border-color: rgba(255,255,255,0.15);
 }
 
-/* STATES */
 .category-card.locked {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-.category-card.active {
-    border: 1px solid rgba(255,255,255,0.05);
-}
-
-/* TITLE */
 .category-title {
     font-weight: 700;
     font-size: 15px;
 }
 
-/* STATUS */
 .category-status {
     font-size: 13px;
 }
 
-/* META */
 .category-meta {
     font-size: 12px;
     opacity: 0.7;
 }
 
-/* PROGRESS */
 .category-progress {
     height: 6px;
     background: rgba(255,255,255,0.08);
@@ -54,21 +47,11 @@
 .category-progress-fill {
     height: 100%;
     background: var(--accent);
-    transition: width 0.3s ease;
 }
 
-/* ACTION */
 .category-action {
-    margin-top: 6px;
+    margin-top: auto;
     font-size: 13px;
     font-weight: 600;
     color: var(--accent);
-}
-
-.category-audio { background: var(--audio); }
-.category-video { background: var(--accent); }
-.category-image { background: var(--warning); color: black; }
-.category-document { background: var(--info); }
-.category-auto {
-    background: rgba(255,255,255,0.05);
 }

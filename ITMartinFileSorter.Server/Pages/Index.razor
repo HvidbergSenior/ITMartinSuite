@@ -80,7 +80,7 @@
                     Total="@total"
                     SizeText="@FormatSize(totalSize)"
                     CssClass="@GetCategoryCssClass(cat)"
-                    OnClick="@(() => OpenCategory(cat))" />
+                    OnClick="@(e => OpenCategory(cat))" />
             }
         </div>
 
@@ -253,14 +253,28 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    
     void OpenCategory(string cat)
     {
+        Console.WriteLine($"NAVIGATE REQUEST: {cat}");
+
         if (cat == "Screenshots" || cat == "Memes")
+        {
+            Console.WriteLine("🚫 Auto category blocked");
             return;
+        }
 
-        Navigation.NavigateTo($"/category-step/{cat.ToLower()}");
+        if (!Enum.TryParse<MediaMainCategory>(cat, true, out _))
+        {
+            Console.WriteLine("❌ Invalid category");
+            return;
+        }
+
+        var url = $"/category-step/{cat}";
+        Console.WriteLine($"➡️ Navigating to: {url}");
+
+        Navigation.NavigateTo(url);
     }
-
     void GoToExport()
     {
         Navigation.NavigateTo("/export");

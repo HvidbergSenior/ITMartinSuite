@@ -13,13 +13,26 @@
         }
 
         <!-- 🔥 HOVER ACTIONS -->
-        @if (OnPrimary.HasDelegate)
+        @if (OnPrimary.HasDelegate || OnSecondary.HasDelegate)
         {
             <div class="media-overlay">
-                <button class="media-btn primary"
-                        @onclick="OnPrimary">
-                    @PrimaryText
-                </button>
+
+                @if (OnPrimary.HasDelegate)
+                {
+                    <button class="media-btn primary"
+                            @onclick="OnPrimary">
+                        @PrimaryText
+                    </button>
+                }
+
+                @if (OnSecondary.HasDelegate)
+                {
+                    <button class="media-btn danger"
+                            @onclick="OnSecondary">
+                        Delete
+                    </button>
+                }
+
             </div>
         }
 
@@ -41,4 +54,5 @@
 
     [Parameter] public string PrimaryText { get; set; } = "Select";
     [Parameter] public EventCallback OnPrimary { get; set; }
+    [Parameter] public EventCallback OnSecondary { get; set; }
 }

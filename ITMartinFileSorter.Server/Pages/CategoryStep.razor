@@ -3,24 +3,31 @@
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 
-<div class="page-container">
+<div class="page-container stack">
 
+    <!-- TITLE -->
+    <SectionTitle Title="@($"Step: {CurrentCategory}")" />
+
+    <!-- SECONDARY ACTIONS -->
     <ActionButtonBar>
-        <button class="btn btn-primary"
-                @onclick="Continue"
-                disabled="@(!CanContinue)">
-            Continue
-        </button>
-
-        <button class="btn btn-success"
+        <button class="btn btn-secondary"
                 @onclick="AcceptAll"
                 disabled="@(!HasPending)">
             Accept All
         </button>
     </ActionButtonBar>
 
-    <SectionTitle Title="@($"Step: {CurrentCategory}")" />
+    <!-- EMPTY STATE -->
+    @if (!Groups.Any())
+    {
+        <ContentCard Title="No files found">
+            <div class="text-muted">
+                No files available in this category.
+            </div>
+        </ContentCard>
+    }
 
+    <!-- FILE GROUPS -->
     @foreach (var group in Groups)
     {
         <ContentCard Title="@group.Key.ToString()">
@@ -41,8 +48,17 @@
         </ContentCard>
     }
 
-</div>
+    <!-- PRIMARY CTA (BOTTOM!) -->
+    
+    <ActionButtonBar CssClass="bottom">
+        <button class="btn btn-primary btn-lg"
+                @onclick="Continue"
+                disabled="@(!CanContinue)">
+            Continue
+        </button>
+    </ActionButtonBar>
 
+</div>
 @code {
 
     [Parameter] public string CategoryString { get; set; } = "";
@@ -66,7 +82,7 @@
         var files = DuplicateService.AllFiles
             .Where(f =>
                 f.MainCategory == CurrentCategory &&
-                !activeDuplicateFiles.Contains(f)) // 🔥 ONLY exclude active duplicates
+                !activeDuplicateFiles.Contains(f))
             .ToList();
 
         Groups = files
@@ -111,7 +127,7 @@
         foreach (var file in DuplicateService.AllFiles
                      .Where(f =>
                          f.MainCategory == CurrentCategory &&
-                         f.RequiresReview &&                         // 🔥 IMPORTANT
+                         f.RequiresReview &&
                          f.Status == MediaFileStatus.Initial))
         {
             file.Status = MediaFileStatus.ToKeep;
@@ -138,10 +154,10 @@
     RenderFragment RenderStatus(MediaFile file) => builder =>
     {
         if (file.Status == MediaFileStatus.ToKeep)
-            builder.AddMarkupContent(0, "<span class='badge bg-success'>Kept</span>");
+            builder.AddMarkupContent(0, "<span class='status kept'>✔ Kept</span>");
         else if (file.Status == MediaFileStatus.ToDelete)
-            builder.AddMarkupContent(1, "<span class='badge bg-danger'>Deleted</span>");
+            builder.AddMarkupContent(1, "<span class='status deleted'>✖ Deleted</span>");
         else
-            builder.AddMarkupContent(2, "<span class='badge bg-warning'>Pending</span>");
+            builder.AddMarkupContent(2, "<span class='status pending'>● Pending</span>");
     };
 }

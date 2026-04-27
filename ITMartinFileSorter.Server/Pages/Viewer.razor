@@ -8,7 +8,7 @@
 
 <div class="viewer-page">
 
-    <ActionButtonBar>
+    <ActionButtonBar CssClass="bottom">
         <button class="btn btn-outline-light" @onclick="GoHome">🏠 Home</button>
         <button class="btn btn-outline-secondary" @onclick="GoToFolder">📁 Folder</button>
         <button class="btn btn-secondary" @onclick="PlayPrevious" disabled="@(Playlist.Count <= 1)">⬅ Previous</button>

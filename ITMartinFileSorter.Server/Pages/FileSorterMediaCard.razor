@@ -1,14 +1,14 @@
-﻿@using ITMartin.Shared.UI.Components
-@inject ThumbnailService ThumbnailService
-<div style="color:red">FILE CARD WORKS</div>
-<MediaCard
-    Title="@File.FileName"
-    SizeText="@FormatSize(File.SizeBytes)"
-    ImageUrl="@GetThumbnail()"
-    Icon="@GetIcon()"
-    PrimaryText="Keep"
-    OnPrimary="() => OnKeep.InvokeAsync(File)" />
-
+﻿@inject ThumbnailService ThumbnailService
+<div class="media-clickable"
+     @onclick="() => OnKeep.InvokeAsync(File)">
+    <MediaCard
+        Title="@File.FileName"
+        SizeText="@FormatSize(File.SizeBytes)"
+        ImageUrl="@GetThumbnail()"
+        Icon="@GetIcon()"
+        PrimaryText="Keep"
+        OnPrimary="() => OnKeep.InvokeAsync(File)" />
+</div>
 @code {
 
     [Parameter] public MediaFile File { get; set; } = default!;

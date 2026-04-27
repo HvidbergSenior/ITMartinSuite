@@ -1,32 +1,38 @@
 ﻿@page "/export"
+
 @using ITMartinFileSorter.Application.Helpers
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject LibraryExportService LibraryExportService
 
-<div class="export-page">
+<div class="page-container stack">
 
-    <ActionButtonBar>
-        <SectionTitle Title="📦 Export Organized Files" />
+    <!-- TITLE -->
+    <SectionTitle Title="📦 Export Organized Files" />
 
-        <button class="btn btn-outline-secondary"
+    <!-- TOP ACTIONS -->
+
+    <ActionButtonBar CssClass="bottom">
+        <button class="btn btn-secondary"
                 @onclick="GoToOrganize"
                 disabled="@IsExporting">
             Organize
         </button>
 
-        <button class="btn btn-outline-secondary"
+        <button class="btn btn-secondary"
                 @onclick="GoBack"
                 disabled="@IsExporting">
             Back
         </button>
     </ActionButtonBar>
 
+    <!-- PREVIEW -->
     <ContentCard Title="Export Structure Preview">
         <ExportPreviewCard />
     </ContentCard>
 
+    <!-- PROGRESS -->
     @if (IsExporting)
     {
         <ProgressPanel
@@ -48,30 +54,34 @@
             </ContentCard>
         }
     }
+
+    <!-- SUMMARY -->
     <ContentCard Title="Export Summary">
-        <div class="item-meta">
-            <div>
-                <span class="item-label">Files:</span>
-                @DuplicateService.FilesToExport.Count()
+        <div class="summary-grid">
+
+            <div class="summary-item">
+                <strong>@DuplicateService.FilesToExport.Count()</strong>
+                <span>Files</span>
             </div>
 
-            <div>
-                <span class="item-label">Custom folders:</span>
-                @DuplicateService.FilesToExport.Count(f =>
-                    !string.IsNullOrWhiteSpace(f.UserFolderName))
+            <div class="summary-item">
+                <strong>@DuplicateService.FilesToExport.Count(f => !string.IsNullOrWhiteSpace(f.UserFolderName))</strong>
+                <span>Folders</span>
             </div>
 
-            <div>
-                <span class="item-label">Custom titles:</span>
-                @DuplicateService.FilesToExport.Count(f =>
-                    !string.IsNullOrWhiteSpace(f.UserTitle))
+            <div class="summary-item">
+                <strong>@DuplicateService.FilesToExport.Count(f => !string.IsNullOrWhiteSpace(f.UserTitle))</strong>
+                <span>Titles</span>
             </div>
+
         </div>
     </ContentCard>
+
+    <!-- CTA -->
     @if (!IsExporting)
     {
-        <ActionButtonBar>
-            <button class="btn btn-success btn-lg"
+            <ActionButtonBar CssClass="bottom">
+            <button class="btn btn-primary btn-lg"
                     @onclick="StartExport">
                 Start Export
             </button>
@@ -89,14 +99,16 @@
     string CurrentStage = "";
 
     List<string> ExportLogs = new();
+
     void GoToOrganize() => Navigation.NavigateTo("/organize");
+
+    void GoBack() => Navigation.NavigateTo("/");
+
     int ProgressPercent =>
         TotalToExport <= 0
             ? 0
             : Math.Min(100,
                 (int)((double)ExportedCount / TotalToExport * 100));
-
-    void GoBack() => Navigation.NavigateTo("/");
 
     void AddLog(string message)
     {
@@ -128,9 +140,8 @@
             IsExporting = false;
             return;
         }
-        
-        var exportRoot = LibraryPathHelper.GetLibraryPath(Configuration);
 
+        var exportRoot = LibraryPathHelper.GetLibraryPath(Configuration);
         Directory.CreateDirectory(exportRoot);
 
         try
