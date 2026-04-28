@@ -27,19 +27,3 @@
     text-align: center;
 }
 
-/* MEDIA GRID */
-.media-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-}
-
-/* OPTIONAL: clickable media hover */
-.media-clickable {
-    cursor: pointer;
-    transition: transform 0.15s ease;
-}
-
-.media-clickable:hover {
-    transform: translateY(-3px);
-}

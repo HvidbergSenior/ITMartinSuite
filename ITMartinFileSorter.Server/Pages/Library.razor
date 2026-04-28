@@ -1,54 +1,89 @@
 ﻿@page "/library"
-@using Microsoft.AspNetCore.WebUtilities
+
 @using ITMartinFileSorter.Infrastructure.FileSystem
-@using System.Diagnostics
 @using ITMartinFileSorter.Application.Helpers
 
-@inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject NavigationManager Navigation
 
 <div class="library-page">
-    <SectionTitle Title="🎬 My Media Library" />
+    <div class="library-panel">
 
-    <ActionButtonBar CssClass="bottom">
-        <button class="btn btn-outline-light"
-                @onclick="DebugClick">
-            🏠 Home (Debug)
-        </button>
+        <!-- TITLE -->
+        <SectionTitle Title="🎬 My Media Library" />
 
-        <button class="btn btn-secondary"
-                @onclick="GoBack"
-                disabled="@(!CanGoBack)">
-            ⬅ Back
-        </button>
-    </ActionButtonBar>
+        <!-- NAVIGATION ACTIONS -->
+        <div class="library-actions">
 
-    <ContentCard Title="Folders">
-        <div class="folder-grid">
-            @foreach (var folder in Folders)
+            <button class="btn btn-secondary"
+                    @onclick="GoBack"
+                    disabled="@(!CanGoBack)">
+                ← Back
+            </button>
+
+            <button class="btn btn-secondary"
+                    @onclick="GoToRoot"
+                    disabled="@(CurrentPath == RootPath)">
+                📁 Library
+            </button>
+
+        </div>
+
+        <!-- DEBUG (optional, remove later) -->
+        <div style="font-size:12px;color:#888;margin-bottom:10px;">
+            CurrentPath: @CurrentPath
+        </div>
+
+        <!-- FOLDERS -->
+        <ContentCard Title="📁 Folders">
+            @if (!Folders.Any())
             {
-                <div class="folder-card"
-                     @onclick="@(() => OpenFolder(folder.FullPath))">
-                    📁 @folder.Name (@folder.FileCount)
+                <div class="empty-state">No folders found</div>
+            }
+            else
+            {
+                <div class="library-grid">
+                    @foreach (var folder in Folders)
+                    {
+                        <div class="library-card clickable"
+                             @onclick="() => OpenFolder(folder.FullPath)">
+
+                            <div class="library-icon">📁</div>
+                            <div class="library-name">@folder.Name</div>
+                            <div class="library-count">@folder.FileCount files</div>
+
+                        </div>
+                    }
                 </div>
             }
-        </div>
-    </ContentCard>
+        </ContentCard>
 
-    <ContentCard Title="Media">
-        <div class="media-grid">
-            @foreach (var file in Files)
+        <!-- MEDIA -->
+        <ContentCard Title="🎬 Media">
+            @if (!Files.Any())
             {
-                <div class="media-card"
-                     @onclick="@(() => OpenFile(file))">
+                <div class="empty-state">No media files</div>
+            }
+            else
+            {
+                <div class="media-grid">
+                    @foreach (var file in Files)
+                    {
+                        <div class="media-clickable"
+                             @onclick="() => OpenFile(file)">
 
-                    <div class="media-placeholder">🎬</div>
-                    <div>@Path.GetFileName(file.FullPath)</div>
+                            <MediaCard
+                                Title="@Path.GetFileName(file.FullPath)"
+                                SizeText="@FormatSize(file.SizeBytes)"
+                                Icon="@GetIcon(file)" />
+
+                        </div>
+                    }
                 </div>
             }
-        </div>
-    </ContentCard>
+        </ContentCard>
 
+    </div>
 </div>
 
 @code {
@@ -58,52 +93,64 @@
     private List<FolderItem> Folders = new();
     private List<MediaFile> Files = new();
 
-    private string? _lastUri;
+    protected override void OnInitialized()
+    {
+        RootPath = LibraryPathHelper.GetLibraryPath(Configuration);
+        LoadFolder(RootPath);
+    }
+
+    // =========================
+    // NAVIGATION
+    // =========================
 
     private bool CanGoBack =>
         !string.Equals(CurrentPath, RootPath, StringComparison.OrdinalIgnoreCase);
 
-    protected override void OnAfterRender(bool firstRender)
+    private void GoBack()
     {
-        if (_lastUri == Navigation.Uri)
+        var parent = Directory.GetParent(CurrentPath);
+
+        if (parent == null)
             return;
 
-        _lastUri = Navigation.Uri;
-        LoadFromUrl();
-        StateHasChanged();
+        Console.WriteLine($"[NAV] Back → {parent.FullName}");
+
+        LoadFolder(parent.FullName);
     }
 
-    private void LoadFromUrl()
+    private void GoToRoot()
     {
-        Console.WriteLine("[NAV] LoadFromUrl");
-
-        RootPath = LibraryPathHelper.GetLibraryPath(Configuration);
-
-        Console.WriteLine($"[PATH] Root: {RootPath}");
-
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        var query = QueryHelpers.ParseQuery(uri.Query);
-
-        if (query.TryGetValue("path", out var path))
-        {
-            var requestedPath = Uri.UnescapeDataString(path!);
-
-            if (Directory.Exists(requestedPath))
-            {
-                LoadFolder(requestedPath);
-                return;
-            }
-        }
+        Console.WriteLine("[NAV] Root");
 
         LoadFolder(RootPath);
     }
 
+    private void OpenFolder(string path)
+    {
+        Console.WriteLine($"[NAV] Folder → {path}");
+
+        LoadFolder(path);
+    }
+
+    private void OpenFile(MediaFile file)
+    {
+        var index = Files.FindIndex(f => f.FullPath == file.FullPath);
+
+        Navigation.NavigateTo(
+            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}&index={index}&folder={Uri.EscapeDataString(CurrentPath)}",
+            forceLoad: true);
+    }
+
+    // =========================
+    // LOAD DATA
+    // =========================
+
     private void LoadFolder(string path)
     {
-        Console.WriteLine($"[LOAD] {path}");
-
         try
         {
+            Console.WriteLine($"[LOAD] {path}");
+
             CurrentPath = path;
 
             Folders = Directory
@@ -118,13 +165,17 @@
                 .Select(CreateMediaFile)
                 .ToList();
 
-            Console.WriteLine($"[FILES] {Files.Count}");
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
+            Console.WriteLine($"❌ Load error: {ex}");
         }
     }
+
+    // =========================
+    // HELPERS
+    // =========================
 
     private FolderItem CreateFolderItem(string folder) => new()
     {
@@ -148,37 +199,26 @@
         return new MediaFile(file, info.LastWriteTimeUtc, type, info.Length);
     }
 
-    private void OpenFolder(string path)
+    string GetIcon(MediaFile file) => file.Type switch
     {
-        Navigation.NavigateTo($"/library?path={Uri.EscapeDataString(path)}");
-    }
+        MediaType.Image => "🖼️",
+        MediaType.Video => "🎬",
+        MediaType.Audio => "🎵",
+        _ => "📄"
+    };
 
-    private void OpenFile(MediaFile file)
+    string FormatSize(long bytes)
     {
-        var index = Files.FindIndex(f => f.FullPath == file.FullPath);
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
 
-        Navigation.NavigateTo(
-            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}&index={index}&folder={Uri.EscapeDataString(CurrentPath)}",
-            forceLoad: true);
-    }
-
-    private void GoBack()
-    {
-        var parent = Directory.GetParent(CurrentPath);
-
-        if (parent == null)
+        while (len >= 1024 && order < sizes.Length - 1)
         {
-            Navigation.NavigateTo("/library");
-            return;
+            order++;
+            len /= 1024;
         }
 
-        Navigation.NavigateTo(
-            $"/library?path={Uri.EscapeDataString(parent.FullName)}");
-    }
-
-    private void DebugClick()
-    {
-        Console.WriteLine("CLICK WORKS");
-        Navigation.NavigateTo("/library");
+        return $"{len:0.#} {sizes[order]}";
     }
 }
