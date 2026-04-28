@@ -1,8 +1,14 @@
 ﻿<div class="empty-state empty-@Type">
-    @Message
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <div class="empty-title">@Title</div>
+    }
+
+    <div class="empty-text">@Text</div>
 </div>
 
-    @code {
-        [Parameter] public string Message { get; set; } = "";
-        [Parameter] public string Type { get; set; } = "info";
-    }
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string Text { get; set; } = "";
+    [Parameter] public string Type { get; set; } = "info";
+}

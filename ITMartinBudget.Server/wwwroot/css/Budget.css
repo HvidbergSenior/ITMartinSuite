@@ -1,13 +1,13 @@
 /* =========================
    LAYOUT
 ========================= */
-.budget-app .budget-layout {
+.budget-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 24px;
 }
 
-.budget-app .budget-column {
+.budget-column {
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -16,24 +16,30 @@
 /* =========================
    CATEGORY
 ========================= */
-.budget-app .category-card {
+.category-card {
     border-radius: 16px;
     padding: 16px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-.budget-app .category-card.income {
+.category-card.income {
     border-left: 4px solid var(--success);
     background: linear-gradient(145deg, #132018, #1a2b20);
 }
 
-.budget-app .category-card.expense {
+.category-card.expense {
     border-left: 4px solid var(--accent);
     background: linear-gradient(145deg, #201313, #2b1a1a);
 }
 
-.budget-app .category-header {
+.category-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+
     font-weight: 700;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     padding-bottom: 6px;
@@ -42,22 +48,24 @@
 /* =========================
    SUBCATEGORY
 ========================= */
-.budget-app .subcategory-card {
+.subcategory-card {
     margin-top: 8px;
     padding: 12px;
     border-radius: 12px;
+
     cursor: pointer;
     background: rgba(255,255,255,0.02);
+
     position: relative;
     transition: var(--transition);
 }
 
-.budget-app .subcategory-card:hover {
+.subcategory-card:hover {
     background: rgba(255,255,255,0.06);
 }
 
 /* LEFT COLOR BAR */
-.budget-app .subcategory-card::before {
+.subcategory-card::before {
     content: "";
     position: absolute;
     left: 0;
@@ -67,29 +75,44 @@
     border-radius: 2px;
 }
 
-.budget-app .category-card.income .subcategory-card::before {
+.category-card.income .subcategory-card::before {
     background: var(--success);
 }
 
-.budget-app .category-card.expense .subcategory-card::before {
+.category-card.expense .subcategory-card::before {
     background: var(--accent);
 }
 
-.budget-app .subcategory-header {
+/* HEADER */
+.subcategory-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+}
+
+.title {
+    font-weight: 600;
+}
+
+.meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.amount {
+    font-weight: 600;
 }
 
 /* =========================
    TRANSACTIONS
 ========================= */
-.budget-app .subcategory-transactions {
+.subcategory-transactions {
     margin-top: 10px;
     padding-left: 14px;
     border-left: 2px dashed rgba(255,255,255,0.1);
 }
 
-.budget-app .transaction-row {
+.transaction-row {
     display: grid;
     grid-template-columns: 80px 1fr 100px;
     font-size: 13px;

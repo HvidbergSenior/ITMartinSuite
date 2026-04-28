@@ -1,0 +1,13 @@
+﻿.empty-state {
+    text-align: center;
+    padding: 30px 10px;
+}
+
+.empty-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.empty-text {
+    color: var(--text-muted);
+}

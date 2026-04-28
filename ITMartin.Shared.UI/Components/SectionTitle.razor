@@ -1,4 +1,13 @@
-﻿<div class="section-title">@Title</div>
+﻿<div class="section-title">
+    <div class="title">@Title</div>
+
+    @if (!string.IsNullOrWhiteSpace(Subtitle))
+    {
+        <div class="subtitle">@Subtitle</div>
+    }
+</div>
+
 @code {
     [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Subtitle { get; set; }  // 👈 ADD THIS
 }

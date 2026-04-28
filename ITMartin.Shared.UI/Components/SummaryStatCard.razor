@@ -1,12 +1,19 @@
-﻿<div class="card-mini @CssClass">
-    <strong>@Title</strong><br/>
-    @Value<br/>
-    @SubText
+﻿<div class="stat-card @Type">
+    <div class="stat-title">@Title</div>
+
+    <div class="stat-value">
+        @(Value?.ToString("N2") ?? "-")
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(SubText))
+    {
+        <div class="stat-sub">@SubText</div>
+    }
 </div>
 
 @code {
     [Parameter] public string Title { get; set; } = "";
-    [Parameter] public string Value { get; set; } = "";
-    [Parameter] public string SubText { get; set; } = "";
-    [Parameter] public string CssClass { get; set; } = "all-files-card";
+    [Parameter] public decimal? Value { get; set; }
+    [Parameter] public string? SubText { get; set; }
+    [Parameter] public string Type { get; set; } = ""; // success / danger
 }

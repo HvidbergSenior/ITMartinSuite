@@ -1,0 +1,48 @@
+﻿/* =========================
+   STAT CARDS
+========================= */
+.stat-card {
+    background: linear-gradient(145deg, #1a1c22, #23262d);
+    border: 1px solid rgba(255,255,255,0.06);
+
+    border-radius: 16px;
+    padding: 18px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255,255,255,0.15);
+}
+
+/* TITLE */
+.stat-title {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* VALUE */
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* SUBTEXT */
+.stat-sub {
+    font-size: 12px;
+    color: #888;
+}
+
+/* COLORS */
+.stat-card.success .stat-value {
+    color: var(--success);
+}
+
+.stat-card.danger .stat-value {
+    color: var(--danger);
+}

@@ -1,17 +1,17 @@
 ﻿.section-title {
     font-size: 22px;
     font-weight: 800;
-    margin-bottom: 18px;
+    margin-bottom: 10px;
+    margin-top: 10px;
 }
 
-.scan-hero-card .input-area {
-    background: rgba(255,255,255,0.04); /* instead of near-black */
-    border-radius: 16px;
-    padding: 16px;
+.section-title .title {
+    font-size: 18px;
+    font-weight: 700;
 }
 
-.scan-hero-card .input-row {
-    display: flex;
-    gap: 12px;
-    align-items: center;
+.section-title .subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
 }
