@@ -1,221 +1,19 @@
-﻿.preview-description {
-    color: #aaa;
-    margin-bottom: 12px;
+﻿/* =========================
+   PREVIEW DESCRIPTION
+========================= */
+.preview-description {
+    color: #9ca3af;
+    margin-bottom: 14px;
     font-size: 14px;
 }
 
-/* Container */
-.preview-category {
-    margin-bottom: 16px;
-    padding: 12px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border);
-}
-
-/* Rows */
-.preview-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 0;
-}
-
-/* Levels (indent + hierarchy) */
-.level-0 {
-    font-weight: 600;
-    font-size: 15px;
-}
-
-.level-1 {
-    margin-left: 16px;
-    color: #ddd;
-}
-
-.level-2 {
-    margin-left: 32px;
-    color: #bbb;
-}
-
-/* File count */
-.preview-count {
-    margin-left: auto;
-    font-size: 12px;
-    color: #888;
-}
-
-/* Empty state */
-.preview-empty {
-    color: #777;
-    font-style: italic;
-}
-.preview-row:hover {
-    background: rgba(255,255,255,0.03);
-    border-radius: 6px;
-}
-
-/* Container blocks per category */
-.preview-block {
-    margin-top: 12px;
-    padding: 12px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border);
-}
-
-/* Rows */
-.preview-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 6px;
-    border-radius: 6px;
-}
-
-/* Hover effect (subtle but nice) */
-.preview-row:hover {
-    background: rgba(255, 255, 255, 0.04);
-}
-
-/* Levels */
-.level-0 {
-    font-weight: 600;
-    font-size: 15px;
-}
-
-.level-1 {
-    margin-left: 16px;
-    color: #ddd;
-}
-
-.level-2 {
-    margin-left: 32px;
-    color: #bbb;
-}
-
-/* Right-aligned count */
-.preview-count {
-    margin-left: auto;
-    font-size: 12px;
-    color: #888;
-}
-
-/* Empty */
-.preview-empty {
-    color: #777;
-    font-style: italic;
-}
-/* Block per category */
-.preview-block {
-    margin-top: 14px;
-    padding: 14px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border);
-}
-
-/* Category title */
-.preview-header {
-    font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 8px;
-}
-
-/* Year */
-.preview-year {
-    margin-left: 12px;
-    margin-top: 6px;
-    font-weight: 500;
-    color: #ddd;
-}
-
-/* Month container */
-.preview-months {
-    margin-left: 24px;
-    margin-top: 4px;
-}
-
-/* Month row */
-.preview-month {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 8px;
-    border-radius: 6px;
-}
-
-/* Hover polish */
-.preview-month:hover {
-    background: rgba(255,255,255,0.05);
-}
-
-/* Labels */
-.month-name {
-    color: #bbb;
-}
-
-.month-count {
-    font-size: 12px;
-    color: #888;
-}
-
-/* Container */
-.tree-block {
-    margin-top: 14px;
-}
-
-/* Rows */
-.tree-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    position: relative;
-    padding: 4px 0;
-}
-
-/* Root */
-.tree-root {
-    font-weight: 600;
-    font-size: 15px;
-}
-
-/* Year */
-.tree-year {
-    margin-left: 12px;
-    color: #ddd;
-}
-
-/* Month */
-.tree-month {
-    margin-left: 28px;
-    color: #bbb;
-}
-
-/* Tree lines */
-.tree-line {
-    width: 12px;
-    height: 12px;
-    border-left: 1px solid #444;
-    position: absolute;
-    left: 0;
-}
-
-.tree-line.second {
-    left: 16px;
-}
-
-/* Name + count */
-.tree-name {
-    flex: 1;
-}
-
-.tree-count {
-    font-size: 12px;
-    color: #888;
-}
+/* =========================
+   PREVIEW CONTAINER
+========================= */
 .preview-block {
     margin-top: 16px;
-    padding: 16px;
-    border-radius: 14px;
+    padding: 18px;
+    border-radius: 16px;
 
     background: linear-gradient(
             180deg,
@@ -226,21 +24,84 @@
     border: 1px solid rgba(255,255,255,0.06);
 }
 
-/* Stronger hierarchy */
+/* =========================
+   TREE STRUCTURE
+========================= */
+.tree {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Rows */
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+}
+
+/* =========================
+   LEVELS
+========================= */
+
+/* Category (root) */
 .tree-root {
-    font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 17px;
+    margin-top: 14px;
 }
 
+/* Year */
 .tree-year {
-    margin-left: 12px;
+    margin-left: 18px;
     margin-top: 6px;
+    color: #e5e7eb;
     font-weight: 500;
-    color: #d0d0d0;
 }
 
+/* Month */
 .tree-month {
-    margin-left: 28px;
-    color: #a8a8a8;
+    margin-left: 38px;
+    color: #9ca3af;
+}
+
+/* =========================
+   TREE CONNECTORS (clean)
+========================= */
+.tree-branch {
+    color: rgba(255,255,255,0.18);
+    font-size: 12px;
+}
+
+/* =========================
+   NAME + COUNT
+========================= */
+.tree-name {
+    flex: 1;
+}
+
+.tree-count {
+    font-size: 12px;
+    color: #6b7280;
+    opacity: 0.8;
+}
+
+/* =========================
+   HOVER (subtle polish)
+========================= */
+.tree-row:hover {
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+}
+
+/* =========================
+   EMPTY STATE
+========================= */
+.preview-empty {
+    color: #6b7280;
+    font-style: italic;
+}
+.tree-row span:first-child {
+    width: 18px; /* fixed column for tree lines */
+    display: inline-block;
+    text-align: center;
 }

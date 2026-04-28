@@ -324,6 +324,11 @@ html, body {
 .export-status {
     font-size: 14px;
 }
+.export-info {
+    font-size: 14px;
+    color: #9ca3af;
+    margin-bottom: 6px;
+}
 
 .centered-page {
     display: flex;

@@ -3,35 +3,33 @@
 
 @if (!Items.Any())
 {
-    <div class="preview-empty">
-        No files selected for export
-    </div>
+    <div class="preview-empty">No files selected for export</div>
 }
 else
 {
-    @foreach (var categoryGroup in Items.GroupBy(i => i.Category).OrderBy(c => c.Key))
+    @foreach (var category in Items.GroupBy(i => i.Category).OrderBy(c => c.Key))
     {
-        <div class="tree-block">
+        <div class="tree">
 
-            <div class="tree-row tree-root">
-                📁 @categoryGroup.Key
+            <!-- CATEGORY -->
+            <div class="tree-node root">
+                📁 @category.Key
             </div>
 
-            @foreach (var yearGroup in categoryGroup.GroupBy(i => i.Year).OrderByDescending(y => y.Key))
+            @foreach (var year in category.GroupBy(i => i.Year).OrderByDescending(y => y.Key))
             {
-                <div class="tree-row tree-year">
-                    <span class="tree-line"></span>
-                    📂 @yearGroup.Key
+                <div class="tree-node year">
+                    <span class="tree-branch">├──</span>
+                    📂 @year.Key
                 </div>
 
-                @foreach (var month in yearGroup.OrderBy(i => i.Month))
+                @foreach (var month in year.OrderBy(i => i.Month))
                 {
-                    var monthName = new DateTime(yearGroup.Key, month.Month, 1)
+                    var monthName = new DateTime(year.Key, month.Month, 1)
                         .ToString("MMMM", new CultureInfo("da-DK"));
 
-                    <div class="tree-row tree-month">
-                        <span class="tree-line"></span>
-                        <span class="tree-line second"></span>
+                    <div class="tree-node month">
+                        <span class="tree-branch">│   ├──</span>
 
                         <span class="tree-name">📄 @monthName</span>
                         <span class="tree-count">@month.Count files</span>

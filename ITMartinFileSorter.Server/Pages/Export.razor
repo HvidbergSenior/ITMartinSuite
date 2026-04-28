@@ -12,21 +12,9 @@
     <!-- TITLE -->
     <SectionTitle Title="📦 Export Organized Files" />
 
-    <!-- TOP ACTIONS -->
-
-    <ActionButtonBar>
-        <button class="btn btn-secondary"
-                @onclick="GoToOrganize"
-                disabled="@IsExporting">
-            Organize
-        </button>
-
-        <button class="btn btn-secondary"
-                @onclick="GoBack"
-                disabled="@IsExporting">
-            Back
-        </button>
-    </ActionButtonBar>
+    <div class="export-info">
+        Review your file structure below. When ready, start export.
+    </div>
 
     <!-- PREVIEW -->
     <ContentCard Title="📁 Preview of your organized library">
@@ -45,8 +33,9 @@
             Current="@ExportedCount"
             Total="@TotalToExport"
             Percent="@ProgressPercent"
-            CurrentItem="@CurrentExportFile" />
-
+            CurrentItem="@CurrentExportFile"
+            LoadingText="Preparing export..."
+            Icon="📦" />
         @if (ExportLogs.Any())
         {
             <ContentCard Title="Live Export Log">

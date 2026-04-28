@@ -1,33 +1,49 @@
-﻿<div class="content-card card-secondary">
-    <strong>@Title</strong>
+﻿<div class="content-card progress-panel">
+
+    <!-- HEADER -->
+    <div class="progress-header">
+        <div class="progress-title">
+            @if (!string.IsNullOrWhiteSpace(Icon))
+            {
+                <span class="me-1">@Icon</span>
+            }
+            @Title
+        </div>
+
+        @if (Total > 0)
+        {
+            <div class="progress-percent">@Percent%</div>
+        }
+    </div>
 
     @if (Total == 0)
     {
-        <div class="d-flex align-items-center gap-2 mt-2">
-            <div class="spinner-border spinner-border-sm text-primary"></div>
-            <span>Scanning...</span>
+        <!-- LOADING STATE -->
+        <div class="progress-loading">
+            <div class="spinner"></div>
+            <span>@LoadingText</span>
         </div>
     }
     else
     {
-        <div class="progress mt-2">
-            <div class="progress-bar progress-bar-striped progress-bar-animated"
+        <!-- PROGRESS BAR -->
+        <div class="progress-bar">
+            <div class="progress-fill"
                  style="width:@Percent%">
-                @Percent%
             </div>
         </div>
 
-        <div class="mt-2">
-            @Current / @Total
+        <!-- META -->
+        <div class="progress-meta">
+            <span>@Current / @Total</span>
+
+            @if (!string.IsNullOrWhiteSpace(CurrentItem))
+            {
+                <span class="progress-file">@CurrentItem</span>
+            }
         </div>
     }
 
-    @if (!string.IsNullOrWhiteSpace(CurrentItem))
-    {
-        <div class="mt-2">
-            Current: @CurrentItem
-        </div>
-    }
 </div>
 
 @code {
@@ -36,4 +52,8 @@
     [Parameter] public int Total { get; set; }
     [Parameter] public int Percent { get; set; }
     [Parameter] public string? CurrentItem { get; set; }
+
+    // 🔥 makes it reusable everywhere
+    [Parameter] public string LoadingText { get; set; } = "Working...";
+    [Parameter] public string? Icon { get; set; }
 }
