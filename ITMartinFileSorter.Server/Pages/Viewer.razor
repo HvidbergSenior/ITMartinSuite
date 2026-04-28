@@ -7,14 +7,20 @@
 @inject IConfiguration Configuration
 
 <div class="viewer-page">
-
+<div class="viewer-container">
     <ActionButtonBar CssClass="bottom">
-        <button class="btn btn-outline-light" @onclick="GoHome">🏠 Home</button>
-        <button class="btn btn-outline-secondary" @onclick="GoToFolder">📁 Folder</button>
-        <button class="btn btn-secondary" @onclick="PlayPrevious" disabled="@(Playlist.Count <= 1)">⬅ Previous</button>
-        <button class="btn btn-danger" @onclick="PlayNext" disabled="@(Playlist.Count <= 1)">Next ➜</button>
-    </ActionButtonBar>
 
+        <div class="btn-group">
+            <button class="btn btn-outline-light" @onclick="GoHome">🏠 Home</button>
+            <button class="btn btn-outline-light" @onclick="GoToFolder">📁 Folder</button>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-secondary" @onclick="PlayPrevious">⬅ Previous</button>
+            <button class="btn btn-danger" @onclick="PlayNext">Next ➜</button>
+        </div>
+
+    </ActionButtonBar>
     @if (!string.IsNullOrEmpty(FilePath))
     {
         <ContentCard Title="@Path.GetFileName(FilePath)">
@@ -134,3 +140,5 @@
         }
     }
 }
+
+</div>
