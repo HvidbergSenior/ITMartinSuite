@@ -29,12 +29,25 @@
     }
 }
 .action-bar.bottom {
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 0;
+    right: 0;
+
     background: var(--bg-main);
-    padding-top: 12px;
-    z-index: 10;
+    padding: 16px;
+    justify-content: center;
+    border-top: 1px solid var(--border);
+
+    z-index: 100;
 }
-.page-container {
-    padding-bottom: 80px; /* space for sticky CTA */
+/* =========================
+   CTA FIX (BOTTOM BUTTON)
+========================= */
+.action-bar.bottom .btn-lg {
+    width: auto;
+    min-width: 320px;
+    max-width: 500px;
 }
+
+

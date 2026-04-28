@@ -1,4 +1,4 @@
-﻿using ITMartinFileSorter.Application.Helpers; // 🔥 REQUIRED
+﻿using ITMartinFileSorter.Application.Helpers;
 using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
 
@@ -10,7 +10,8 @@ public class DuplicateService
 
     public List<MediaFile> AllFiles { get; set; } = new();
 
-    public List<List<MediaFile>> DuplicateGroups { get; set; } = new();
+    // ❌ No longer used — kept empty to avoid breaking anything
+    public List<List<MediaFile>> DuplicateGroups => new();
 
     public bool DuplicatesHandled { get; set; } = false;
 
@@ -20,7 +21,6 @@ public class DuplicateService
 
     public HashSet<MediaMainCategory> CompletedCategories { get; set; } = new();
 
-    // ✅ ADD THIS BACK
     public GroupingOptions? GroupingOptions { get; set; }
 
     public event Action? OnChange;
@@ -33,11 +33,9 @@ public class DuplicateService
             f.SubCategory == MediaSubCategory.Meme ||
             f.SubCategory == MediaSubCategory.Screenshot);
 
-    // ===== BUILD DUPLICATES =====
+    // ===== BUILD DUPLICATES (AUTO HANDLE ONLY) =====
     public void BuildDuplicateGroups()
     {
-        DuplicateGroups.Clear();
-
         var grouped = AllFiles
             .GroupBy(f => f.Hash)
             .Where(g => g.Count() > 1);
@@ -46,17 +44,11 @@ public class DuplicateService
         {
             var list = group.ToList();
 
-            // ✅ AUTO HANDLE LOW VALUE FILES
-            if (list.All(f =>
-                    f.SubCategory == MediaSubCategory.Meme ||
-                    f.SubCategory == MediaSubCategory.Screenshot))
-            {
-                AutoHandleLowValueGroup(list);
-                continue;
-            }
-
-            DuplicateGroups.Add(list);
+            // 🔥 Always auto-handle duplicates
+            AutoHandleGroup(list);
         }
+
+        DuplicatesHandled = true;
 
         NotifyStateChanged();
     }
@@ -65,24 +57,22 @@ public class DuplicateService
     public void Reset()
     {
         AllFiles.Clear();
-        DuplicateGroups.Clear();
         CompletedCategories.Clear();
         DuplicatesHandled = false;
-
-        // ✅ ALSO RESET GROUPING
         GroupingOptions = null;
     }
 
-    // ===== AUTO HANDLE =====
-    private void AutoHandleLowValueGroup(List<MediaFile> group)
+    // ===== AUTO HANDLE (CORE LOGIC) =====
+    private void AutoHandleGroup(List<MediaFile> group)
     {
-        var newest = group
+        // keep newest file
+        var keep = group
             .OrderByDescending(f => f.CreatedAt ?? DateTime.MinValue)
             .First();
 
         foreach (var file in group)
         {
-            file.Status = file == newest
+            file.Status = file == keep
                 ? MediaFileStatus.ToKeep
                 : MediaFileStatus.ToDelete;
 
@@ -90,7 +80,7 @@ public class DuplicateService
         }
     }
 
-    // ===== HELPERS =====
+    // ===== OPTIONAL (still usable if referenced elsewhere) =====
     public bool IsGroupHandled(List<MediaFile> group)
     {
         return group.Count(f => f.Status == MediaFileStatus.ToDelete) == group.Count - 1;

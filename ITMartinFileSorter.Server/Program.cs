@@ -41,7 +41,8 @@ builder.Services.AddScoped<LibraryPathService>();
 builder.Services.AddScoped<LibraryExportService>();
 
 builder.Services.AddControllers();
-
+builder.Services.AddServerSideBlazor()
+    .AddCircuitOptions(options => { options.DetailedErrors = true; });
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

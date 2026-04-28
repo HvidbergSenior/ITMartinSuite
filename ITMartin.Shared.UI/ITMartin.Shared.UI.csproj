@@ -15,4 +15,9 @@
         <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.24"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartin.Shared.Application\ITMartin.Shared.Application.csproj" />
+      <ProjectReference Include="..\ITMartin.Shared.Domain\ITMartin.Shared.Domain.csproj" />
+    </ItemGroup>
+
 </Project>

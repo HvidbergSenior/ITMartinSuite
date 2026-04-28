@@ -1,0 +1,48 @@
+﻿@using System.Globalization
+@using ITMartin.Shared.Domain.Dtos
+
+@if (!Items.Any())
+{
+    <div class="preview-empty">
+        No files selected for export
+    </div>
+}
+else
+{
+    @foreach (var categoryGroup in Items.GroupBy(i => i.Category).OrderBy(c => c.Key))
+    {
+        <div class="tree-block">
+
+            <div class="tree-row tree-root">
+                📁 @categoryGroup.Key
+            </div>
+
+            @foreach (var yearGroup in categoryGroup.GroupBy(i => i.Year).OrderByDescending(y => y.Key))
+            {
+                <div class="tree-row tree-year">
+                    <span class="tree-line"></span>
+                    📂 @yearGroup.Key
+                </div>
+
+                @foreach (var month in yearGroup.OrderBy(i => i.Month))
+                {
+                    var monthName = new DateTime(yearGroup.Key, month.Month, 1)
+                        .ToString("MMMM", new CultureInfo("da-DK"));
+
+                    <div class="tree-row tree-month">
+                        <span class="tree-line"></span>
+                        <span class="tree-line second"></span>
+
+                        <span class="tree-name">📄 @monthName</span>
+                        <span class="tree-count">@month.Count files</span>
+                    </div>
+                }
+            }
+
+        </div>
+    }
+}
+
+    @code {
+        [Parameter] public IEnumerable<ExportPreviewItem> Items { get; set; } = [];
+    }

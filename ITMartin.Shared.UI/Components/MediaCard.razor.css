@@ -1,39 +1,103 @@
-﻿.media-thumb-wrapper {
+﻿/* =========================
+   MEDIA THUMB
+========================= */
+.media-thumb-wrapper {
     position: relative;
+    height: 140px;
+    background: #111;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
+/* Image fills nicely */
+.media-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* =========================
+   OVERLAY (hover actions)
+========================= */
 .media-overlay {
     position: absolute;
     inset: 0;
 
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
     gap: 10px;
 
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
 
     opacity: 0;
     transition: opacity 0.2s ease;
 }
 
+/* Show overlay on hover */
 .media-thumb-wrapper:hover .media-overlay {
     opacity: 1;
 }
 
+/* =========================
+   MEDIA BUTTONS
+========================= */
 .media-btn {
     padding: 6px 12px;
     border-radius: 8px;
-    border: none;
-    color: white;
+
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #ddd;
+
+    font-size: 12px;
     cursor: pointer;
+    transition: all 0.15s ease;
 }
 
+/* Hover */
+.media-btn:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+/* Primary (Keep) */
 .media-btn.primary {
     background: var(--accent);
+    color: white;
 }
 
+.media-btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+/* Danger (Delete) */
 .media-btn.danger {
     background: #ef4444;
+}
+
+/* =========================
+   FLOATING BUTTON (always visible)
+========================= */
+.media-btn.floating {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+
+    padding: 4px 10px;
+    font-size: 12px;
+
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+
+    border: 1px solid rgba(255,255,255,0.15);
+
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+/* Show floating button on hover */
+.media-thumb-wrapper:hover .media-btn.floating {
+    opacity: 1;
 }

@@ -1,19 +1,20 @@
 ﻿@page "/export"
 
+@using ITMartin.Shared.Domain.Dtos
 @using ITMartinFileSorter.Application.Helpers
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject LibraryExportService LibraryExportService
 
-<div class="page-container stack">
-
+<div class="page-container export-page">
+    <div class="export-panel stack">
     <!-- TITLE -->
     <SectionTitle Title="📦 Export Organized Files" />
 
     <!-- TOP ACTIONS -->
 
-    <ActionButtonBar CssClass="bottom">
+    <ActionButtonBar>
         <button class="btn btn-secondary"
                 @onclick="GoToOrganize"
                 disabled="@IsExporting">
@@ -28,10 +29,14 @@
     </ActionButtonBar>
 
     <!-- PREVIEW -->
-    <ContentCard Title="Export Structure Preview">
-        <ExportPreviewCard />
-    </ContentCard>
+    <ContentCard Title="📁 Preview of your organized library">
+        <div class="preview-description">
+            This is how your files will be structured after export.
+        </div>
 
+        <ExportPreviewCard Items="PreviewItems" />
+    </ContentCard>
+    
     <!-- PROGRESS -->
     @if (IsExporting)
     {
@@ -83,7 +88,7 @@
             <ActionButtonBar CssClass="bottom">
             <button class="btn btn-primary btn-lg"
                     @onclick="StartExport">
-                Start Export
+                Start Export → Export @DuplicateService.FilesToExport.Count() files
             </button>
         </ActionButtonBar>
     }
@@ -103,7 +108,22 @@
     void GoToOrganize() => Navigation.NavigateTo("/organize");
 
     void GoBack() => Navigation.NavigateTo("/");
-
+    IEnumerable<ExportPreviewItem> PreviewItems =>
+        DuplicateService.FilesToExport
+            .GroupBy(f => new
+            {
+                f.MainCategory,
+                f.Year,
+                f.Month
+            })
+            .Select(g => new ExportPreviewItem
+            {
+                Category = g.Key.MainCategory.ToString(),
+                Year = g.Key.Year,
+                Month = g.Key.Month,
+                Count = g.Count()
+            })
+            .ToList();
     int ProgressPercent =>
         TotalToExport <= 0
             ? 0
@@ -178,3 +198,5 @@
         }
     }
 }
+
+</div>

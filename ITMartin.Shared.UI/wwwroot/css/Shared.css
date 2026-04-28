@@ -64,6 +64,7 @@ html, body {
 .page-container {
     max-width: 1100px;
     margin: 0 auto;
+    padding-bottom: 80px;
 }
 
 /* =========================
@@ -160,9 +161,7 @@ html, body {
     gap: 10px;
 
     min-height: 150px;
-    outline: 2px solid red;
     position: relative;
-    z-index: 999;
     transition: all 0.2s ease;
 }
 
@@ -225,6 +224,36 @@ html, body {
 .media-item {
     display: flex;
     flex-direction: column;
+    text-align: left;
+}
+.media-item img {
+    border-radius: 8px;
+    opacity: 0.9;
+}
+
+.media-item .file-name {
+    font-size: 13px;
+    color: #ddd;
+    margin-top: 6px;
+}
+
+.media-item .file-size {
+    font-size: 11px;
+    color: #888;
+}
+
+.media-item button {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #ddd;
+
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.media-item button:hover {
+    background: rgba(255,255,255,0.15);
 }
 
 /* =========================
@@ -239,13 +268,13 @@ html, body {
     border-radius: 14px;
     padding: 10px;
 
-    border: 1px solid rgba(255,255,255,0.05);
-    transition: var(--transition);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform 0.15s ease, border 0.15s ease;
 }
 
 .media-card:hover {
-    transform: translateY(-3px);
-    border-color: rgba(255,255,255,0.15);
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.2);
 }
 
 .media-thumb-wrapper {
@@ -282,3 +311,49 @@ html, body {
 .status.kept { color: var(--success); }
 .status.deleted { color: var(--danger); }
 .status.pending { color: #facc15; }
+
+.export-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-main);
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    z-index: 20;
+}
+
+.export-status {
+    font-size: 14px;
+}
+
+.centered-page {
+    display: flex;
+    justify-content: center;
+}
+
+.centered-page .page-content {
+    width: 100%;
+    max-width: 900px;
+}
+
+.export-page {
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+}
+
+/* 🔥 THE IMPORTANT PART */
+.export-panel {
+    width: 100%;
+    max-width: 800px;
+
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+
+    border-radius: 16px;
+    padding: 24px;
+    text-align: left;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.export-panel .action-bar {
+    margin-bottom: 16px;
+}

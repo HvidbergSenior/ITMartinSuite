@@ -17,6 +17,15 @@
         </button>
     </ActionButtonBar>
 
+    <!-- 🔥 PRIMARY CTA (MOVED UP) -->
+    <ActionButtonBar CssClass="bottom">
+        <button class="btn btn-primary btn-lg"
+                @onclick="Continue"
+                disabled="@(!CanContinue)">
+            Continue
+        </button>
+    </ActionButtonBar>
+
     <!-- EMPTY STATE -->
     @if (!Groups.Any())
     {
@@ -48,17 +57,8 @@
         </ContentCard>
     }
 
-    <!-- PRIMARY CTA (BOTTOM!) -->
-    
-    <ActionButtonBar CssClass="bottom">
-        <button class="btn btn-primary btn-lg"
-                @onclick="Continue"
-                disabled="@(!CanContinue)">
-            Continue
-        </button>
-    </ActionButtonBar>
-
 </div>
+
 @code {
 
     [Parameter] public string CategoryString { get; set; } = "";
@@ -74,15 +74,9 @@
 
     void Load()
     {
-        var activeDuplicateFiles = DuplicateService.DuplicateGroups
-            .Where(g => !DuplicateService.IsGroupHandled(g))
-            .SelectMany(g => g)
-            .ToHashSet();
-
+        // ✅ NO duplicate groups anymore
         var files = DuplicateService.AllFiles
-            .Where(f =>
-                f.MainCategory == CurrentCategory &&
-                !activeDuplicateFiles.Contains(f))
+            .Where(f => f.MainCategory == CurrentCategory)
             .ToList();
 
         Groups = files
@@ -93,22 +87,7 @@
 
     void Keep(MediaFile file)
     {
-        var group = DuplicateService.DuplicateGroups
-            .FirstOrDefault(g => g.Contains(file));
-
-        if (group is not null)
-        {
-            foreach (var f in group)
-            {
-                f.Status = f == file
-                    ? MediaFileStatus.ToKeep
-                    : MediaFileStatus.ToDelete;
-            }
-        }
-        else
-        {
-            file.Status = MediaFileStatus.ToKeep;
-        }
+        file.Status = MediaFileStatus.ToKeep;
 
         DuplicateService.NotifyStateChanged();
         Load();
@@ -156,7 +135,7 @@
         if (file.Status == MediaFileStatus.ToKeep)
             builder.AddMarkupContent(0, "<span class='status kept'>✔ Kept</span>");
         else if (file.Status == MediaFileStatus.ToDelete)
-            builder.AddMarkupContent(1, "<span class='status deleted'>✖ Deleted</span>");
+            builder.AddMarkupContent(1, "<span class='status duplicate'>⚠ Duplicate</span>");
         else
             builder.AddMarkupContent(2, "<span class='status pending'>● Pending</span>");
     };

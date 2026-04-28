@@ -1,0 +1,246 @@
+﻿.preview-description {
+    color: #aaa;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+/* Container */
+.preview-category {
+    margin-bottom: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+}
+
+/* Rows */
+.preview-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+/* Levels (indent + hierarchy) */
+.level-0 {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.level-1 {
+    margin-left: 16px;
+    color: #ddd;
+}
+
+.level-2 {
+    margin-left: 32px;
+    color: #bbb;
+}
+
+/* File count */
+.preview-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: #888;
+}
+
+/* Empty state */
+.preview-empty {
+    color: #777;
+    font-style: italic;
+}
+.preview-row:hover {
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+}
+
+/* Container blocks per category */
+.preview-block {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+}
+
+/* Rows */
+.preview-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+
+/* Hover effect (subtle but nice) */
+.preview-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Levels */
+.level-0 {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.level-1 {
+    margin-left: 16px;
+    color: #ddd;
+}
+
+.level-2 {
+    margin-left: 32px;
+    color: #bbb;
+}
+
+/* Right-aligned count */
+.preview-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: #888;
+}
+
+/* Empty */
+.preview-empty {
+    color: #777;
+    font-style: italic;
+}
+/* Block per category */
+.preview-block {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+}
+
+/* Category title */
+.preview-header {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+/* Year */
+.preview-year {
+    margin-left: 12px;
+    margin-top: 6px;
+    font-weight: 500;
+    color: #ddd;
+}
+
+/* Month container */
+.preview-months {
+    margin-left: 24px;
+    margin-top: 4px;
+}
+
+/* Month row */
+.preview-month {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+/* Hover polish */
+.preview-month:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+/* Labels */
+.month-name {
+    color: #bbb;
+}
+
+.month-count {
+    font-size: 12px;
+    color: #888;
+}
+
+/* Container */
+.tree-block {
+    margin-top: 14px;
+}
+
+/* Rows */
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    padding: 4px 0;
+}
+
+/* Root */
+.tree-root {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+/* Year */
+.tree-year {
+    margin-left: 12px;
+    color: #ddd;
+}
+
+/* Month */
+.tree-month {
+    margin-left: 28px;
+    color: #bbb;
+}
+
+/* Tree lines */
+.tree-line {
+    width: 12px;
+    height: 12px;
+    border-left: 1px solid #444;
+    position: absolute;
+    left: 0;
+}
+
+.tree-line.second {
+    left: 16px;
+}
+
+/* Name + count */
+.tree-name {
+    flex: 1;
+}
+
+.tree-count {
+    font-size: 12px;
+    color: #888;
+}
+.preview-block {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 14px;
+
+    background: linear-gradient(
+            180deg,
+            rgba(255,255,255,0.04),
+            rgba(255,255,255,0.01)
+    );
+
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Stronger hierarchy */
+.tree-root {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+
+.tree-year {
+    margin-left: 12px;
+    margin-top: 6px;
+    font-weight: 500;
+    color: #d0d0d0;
+}
+
+.tree-month {
+    margin-left: 28px;
+    color: #a8a8a8;
+}

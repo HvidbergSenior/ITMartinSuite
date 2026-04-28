@@ -34,11 +34,6 @@
     gap: 16px;
 }
 
-.media-item {
-    display: flex;
-    flex-direction: column;
-}
-
 /* OPTIONAL: clickable media hover */
 .media-clickable {
     cursor: pointer;

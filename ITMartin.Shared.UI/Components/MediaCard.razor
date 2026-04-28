@@ -12,28 +12,12 @@
             <div class="media-icon">@Icon</div>
         }
 
-        <!-- 🔥 HOVER ACTIONS -->
-        @if (OnPrimary.HasDelegate || OnSecondary.HasDelegate)
+        @if (OnPrimary.HasDelegate)
         {
-            <div class="media-overlay">
-
-                @if (OnPrimary.HasDelegate)
-                {
-                    <button class="media-btn primary"
-                            @onclick="OnPrimary">
-                        @PrimaryText
-                    </button>
-                }
-
-                @if (OnSecondary.HasDelegate)
-                {
-                    <button class="media-btn danger"
-                            @onclick="OnSecondary">
-                        Delete
-                    </button>
-                }
-
-            </div>
+            <button class="media-btn primary floating"
+                    @onclick="OnPrimary">
+                @PrimaryText
+            </button>
         }
 
     </div>

@@ -12,104 +12,108 @@
 
 <PageLayout Title="📂 Scan & Organize Files">
     <div class="filesorter-app">
-    <ContentCard CssClass="scan-hero-card">
-        <p class="hero-text">
-            Scan photos, videos, audio and documents.
-        </p>
 
-        <FolderInputPanel
-            Value="@FolderPath"
-            ValueChanged="OnFolderPathChanged"
-            ButtonText="@(IsScanning ? "Scanning..." : "Scan Folder")"
-            Disabled="@IsScanning"
-            OnAction="ScanFolder" />
-    </ContentCard>
+        <ContentCard CssClass="scan-hero-card">
+            <p class="hero-text">
+                Scan photos, videos, audio and documents.
+            </p>
 
-    @if (ShowScanning)
-    {
-        <ProgressPanel
-            Title="@Progress.Info.Stage"
-            Current="@Progress.Info.WorkDone"
-            Total="@Progress.Info.TotalWork"
-            Percent="@ProgressPercent"
-            CurrentItem="@CurrentFileName" />
-    }
-
-    @if (ShowSummary)
-    {
-        <SectionTitle Title="File Summary" />
-
-        <div class="main-category-row mt-3">
-            @foreach (var cat in CategoryOrder)
-            {
-                var filesInCat = cat switch
-                {
-                    "Screenshots" => DuplicateService.AllFiles
-                        .Where(f => f.SubCategory == MediaSubCategory.Screenshot),
-
-                    "Memes" => DuplicateService.AllFiles
-                        .Where(f => f.SubCategory == MediaSubCategory.Meme),
-
-                    _ => DuplicateService.AllFiles
-                        .Where(f => f.MainCategory.ToString() == cat)
-                };
-
-                var allFiles = filesInCat.ToList();
-
-// 🔥 ONLY files requiring user input
-                var needsReview = allFiles.Count(f =>
-                    f.RequiresReview &&
-                    f.Status == MediaFileStatus.Initial);
-
-// 🔥 ALL handled files (keep + delete)
-                var processedCount = allFiles.Count(f =>
-                    f.Status == MediaFileStatus.ToKeep ||
-                    f.Status == MediaFileStatus.ToDelete);
-
-                var total = allFiles.Count;
-
-                var totalSize = allFiles
-                    .Where(f => f.Status != MediaFileStatus.ToDelete) // 👈 only visible size
-                    .Sum(f => f.SizeBytes);
-
-                var isAuto = cat is "Screenshots" or "Memes";
-                <CategorySummaryCard
-                    Title="@(isAuto ? $"{cat} (Auto)" : cat)"
-                    ReviewCount="@needsReview"
-                    ProcessedCount="@processedCount"
-                    Total="@total"
-                    SizeText="@FormatSize(totalSize)"
-                    CssClass="@GetCategoryCssClass(cat)"
-                    OnClick="@(e => OpenCategory(cat))" />
-            }
-        </div>
-
-        <ContentCard CssClass="mt-4 text-center">
-
-            @if (!IsCompleted)
-            {
-                <div class="mb-2 text-muted">
-                    Complete all categories to enable export
-                </div>
-            }
-            else
-            {
-                <div class="mb-2 text-success">
-                    ✔ All files processed — ready to export
-                </div>
-            }
-
-            <button class="btn btn-success btn-lg"
-                    disabled="@(!IsCompleted)"
-                    @onclick="GoToExport">
-                📦 Export Files
-            </button>
-
+            <FolderInputPanel
+                Value="@FolderPath"
+                ValueChanged="OnFolderPathChanged"
+                ButtonText="@(IsScanning ? "Scanning..." : "Scan Folder")"
+                Disabled="@IsScanning"
+                OnAction="ScanFolder" />
         </ContentCard>
-    }
-    </div>
 
+        @if (ShowScanning)
+        {
+            <ProgressPanel
+                Title="@Progress.Info.Stage"
+                Current="@Progress.Info.WorkDone"
+                Total="@Progress.Info.TotalWork"
+                Percent="@ProgressPercent"
+                CurrentItem="@CurrentFileName" />
+        }
+
+        @if (ShowSummary)
+        {
+            <SectionTitle Title="File Summary" />
+
+            <div class="main-category-row mt-3">
+                @foreach (var cat in CategoryOrder)
+                {
+                    var filesInCat = cat switch
+                    {
+                        "Screenshots" => DuplicateService.AllFiles
+                            .Where(f => f.SubCategory == MediaSubCategory.Screenshot),
+
+                        "Memes" => DuplicateService.AllFiles
+                            .Where(f => f.SubCategory == MediaSubCategory.Meme),
+
+                        _ => DuplicateService.AllFiles
+                            .Where(f => f.MainCategory.ToString() == cat)
+                    };
+
+                    var allFiles = filesInCat.ToList();
+
+                    var needsReview = allFiles.Count(f =>
+                        f.RequiresReview &&
+                        f.Status == MediaFileStatus.Initial);
+
+                    var processedCount = allFiles.Count(f =>
+                        f.Status == MediaFileStatus.ToKeep ||
+                        f.Status == MediaFileStatus.ToDelete);
+
+                    var total = allFiles.Count;
+
+                    var totalSize = allFiles
+                        .Where(f => f.Status != MediaFileStatus.ToDelete)
+                        .Sum(f => f.SizeBytes);
+
+                    var isAuto = cat is "Screenshots" or "Memes";
+
+                    <CategorySummaryCard
+                        Title="@(isAuto ? $"{cat} (Auto)" : cat)"
+                        ReviewCount="@needsReview"
+                        ProcessedCount="@processedCount"
+                        Total="@total"
+                        SizeText="@FormatSize(totalSize)"
+                        CssClass="@GetCategoryCssClass(cat)"
+                        OnClick="@(e => OpenCategory(cat))" />
+                }
+            </div>
+
+            <ActionButtonBar CssClass="bottom export-bar">
+
+                <div class="export-status">
+                    @if (!IsCompleted)
+                    {
+                        <span class="text-muted">
+                            Complete all categories to enable export
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="text-success">
+                            ✔ All files processed — ready to export
+                        </span>
+                    }
+                </div>
+
+                <span class="spacer"></span>
+
+                <button class="btn btn-success btn-lg"
+                        disabled="@(!IsCompleted)"
+                        @onclick="GoToExport">
+                    📦 Export Files
+                </button>
+
+            </ActionButtonBar>
+        }
+    </div>
 </PageLayout>
+
 @code {
 
     string FolderPath
@@ -125,9 +129,10 @@
     bool IsCompleted =>
         DuplicateService.AllFiles
             .Any(f => f.RequiresReview && f.Status == MediaFileStatus.Initial) == false;
+
     int ProgressPercent =>
         Progress.Info.TotalWork == 0
-            ? 1 // 🔥 ensures progress bar renders
+            ? 1
             : (int)((double)Progress.Info.WorkDone / Progress.Info.TotalWork * 100);
 
     readonly string[] CategoryOrder =
@@ -147,7 +152,13 @@
     {
         FolderPath = value;
     }
-
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrWhiteSpace(DuplicateService.FolderPath))
+        {
+            DuplicateService.FolderPath = @"C:\MediaLibrary";
+        }
+    }
     string GetCategoryCssClass(string cat) => cat switch
     {
         "Audio" => "category-audio",
@@ -176,12 +187,10 @@
 
         var allPaths = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
 
-        // ✅ SET PROGRESS FIRST
         Progress.Info.TotalWork = allPaths.Length;
         Progress.Info.WorkDone = 0;
         Progress.SetStage("Scanning files...");
 
-        // 🔥 FORCE UI RENDER BEFORE LOOP
         await InvokeAsync(StateHasChanged);
         await Task.Delay(50);
 
@@ -206,13 +215,19 @@
                     break;
             }
 
+            // ✅ FIX: MEMES should NEVER require review
+            if (file.SubCategory == MediaSubCategory.Meme)
+            {
+                file.RequiresReview = false;
+                file.Status = MediaFileStatus.ToKeep;
+            }
+
             files.Add(file);
             FilesDiscovered++;
 
             Progress.Info.WorkDone = FilesDiscovered;
             CurrentFileName = file.FileName;
 
-            // 🔥 MORE FREQUENT UI UPDATES
             if (++refreshCounter % 5 == 0)
             {
                 try
@@ -228,24 +243,11 @@
 
         DuplicateService.AllFiles = files;
 
-        Progress.SetStage("Building duplicate groups...");
+        Progress.SetStage("Removing duplicates...");
         await InvokeAsync(StateHasChanged);
 
+        // 🔥 Now just auto-handle (no navigation possible)
         await Task.Run(() => DuplicateService.BuildDuplicateGroups());
-
-        DuplicateService.NotifyStateChanged();
-
-        // 🔥 GIVE USER TIME TO SEE RESULT BEFORE NAVIGATION
-        if (DuplicateService.DuplicateGroups.Any())
-        {
-            Progress.SetStage("Duplicates found...");
-            await InvokeAsync(StateHasChanged);
-            await Task.Delay(400);
-
-            IsScanning = false;
-            Navigation.NavigateTo("/duplicates");
-            return;
-        }
 
         Progress.SetStage("Done");
         IsScanning = false;
@@ -253,28 +255,17 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    
     void OpenCategory(string cat)
     {
-        Console.WriteLine($"NAVIGATE REQUEST: {cat}");
-
         if (cat == "Screenshots" || cat == "Memes")
-        {
-            Console.WriteLine("🚫 Auto category blocked");
             return;
-        }
 
         if (!Enum.TryParse<MediaMainCategory>(cat, true, out _))
-        {
-            Console.WriteLine("❌ Invalid category");
             return;
-        }
 
-        var url = $"/category-step/{cat}";
-        Console.WriteLine($"➡️ Navigating to: {url}");
-
-        Navigation.NavigateTo(url);
+        Navigation.NavigateTo($"/category-step/{cat}");
     }
+
     void GoToExport()
     {
         Navigation.NavigateTo("/export");
