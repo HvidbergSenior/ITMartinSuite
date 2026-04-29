@@ -206,13 +206,116 @@
 
 .rule-row {
     display: grid;
-    grid-template-columns: 1fr 150px 120px 80px;
+    grid-template-columns: 1fr auto auto;
     gap: 10px;
-    padding: 10px;
-    border-bottom: 1px solid #2a2a2a;
     align-items: center;
 }
 
 .rule-description {
-    font-size: 14px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.type-badge {
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.type-badge.income {
+    background: rgba(34,197,94,0.15);
+    color: #22c55e;
+}
+
+.type-badge.expense {
+    background: rgba(239,68,68,0.15);
+    color: #ef4444;
+}
+
+/* =========================
+   RULES LAYOUT
+========================= */
+
+.rules-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+/* LEFT */
+.rules-column.large {
+    min-width: 0; /* 🔥 allows shrink */
+}
+
+/* RIGHT */
+.rules-column.small {
+    min-width: 320px;
+    align-self: start; /* 🔥 required for sticky in grid */
+}
+
+/* STICKY PANEL */
+.rules-column.small .content-card {
+    position: sticky;
+    top: 20px;
+}
+
+/* RULE ROW */
+.rule-row {
+    display: grid;
+    grid-template-columns: 1fr 50px 110px;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* TEXT FIX */
+.rule-description {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* BUTTON FIX */
+button.btn-danger {
+    white-space: nowrap;
+}
+
+select {
+    width: 180px;
+    padding: 6px 10px;
+
+    border-radius: 8px;
+    border: 1px solid #333;
+
+    background: #1f2229;
+    color: var(--text-main);
+
+    font-size: 13px;
+    outline: none;
+
+    transition: var(--transition);
+}
+
+/* hover */
+select:hover {
+    border-color: var(--accent);
+}
+
+/* focus */
+select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+}
+
+.rule-row select {
+    min-width: 160px;
+}
+
+.rule-row select {
+    min-width: 160px;
 }

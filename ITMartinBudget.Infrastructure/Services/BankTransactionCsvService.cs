@@ -37,25 +37,21 @@ public class BankTransactionCsvService
         {
             record.Description = Normalize(record.Description);
 
-            // prevent DB overflow
             if (record.Description.Length > 200)
                 record.Description = record.Description[..200];
 
             records.Add(record);
         }
 
-        // 🔥 RULE ENGINE
         var rules = await _db.CategoryRules.ToListAsync();
         var engine = new CategoryEngine(rules);
 
-        // 🔥 EXISTING DB KEYS
         var existingKeys = (await _db.Transactions
             .Select(x => new { x.Date, x.Amount, x.Description })
             .ToListAsync())
             .Select(x => CreateKey(x.Date, x.Amount, x.Description))
             .ToHashSet();
 
-        // 🔥 UNKNOWN CACHE
         var existingUnknowns = (await _db.UnknownTransactions
             .Select(x => x.Description)
             .ToListAsync())
@@ -63,28 +59,32 @@ public class BankTransactionCsvService
 
         var newUnknowns = new List<UnknownTransaction>();
 
-        // 🔥 APPLY ENGINE
         foreach (var record in records)
         {
-            var sub = engine.Detect("", record.Description);
+            // 🔥 First: rule engine
+            var sub = engine.Detect(record.Description);
 
-            record.SubCategory = sub;
-            record.Category = CategoryMapper.Map(sub);
+            // 🔁 Transfer override (still important)
+            if (IsTransfer(record.Description))
+            {
+                sub = record.Amount >= 0
+                    ? SubCategory.OverførselFraAndre
+                    : SubCategory.OverførselTilAndre;
+            }
 
+            record.SubCategory = Enum.IsDefined(typeof(SubCategory), sub)
+                ? sub
+                : SubCategory.Ukendt;
+
+            record.Category = CategoryMapper.Map(record.SubCategory);
+
+            // 💰 Fix income sign
             if (record.Category == Category.Indkomst && record.Amount < 0)
                 record.Amount = Math.Abs(record.Amount);
 
-            if (record.SubCategory == SubCategory.Overførsel)
-                record.Category = Category.Andet;
-
             record.MobilePayName = ExtractMobilePayName(record.Description);
 
-            if (!Enum.IsDefined(typeof(SubCategory), record.SubCategory))
-                record.SubCategory = SubCategory.Ukendt;
-
-            if (!Enum.IsDefined(typeof(Category), record.Category))
-                record.Category = Category.Andet;
-
+            // 🚨 Track unknowns
             if (record.SubCategory == SubCategory.Ukendt &&
                 !string.IsNullOrWhiteSpace(record.Description) &&
                 !existingUnknowns.Contains(record.Description))
@@ -97,7 +97,6 @@ public class BankTransactionCsvService
                 });
             }
         }
-
         // 🔥 DEDUP INSIDE CSV
         var uniqueTransactions = records
             .GroupBy(t => CreateKey(t.Date, t.Amount, t.Description))
@@ -117,27 +116,32 @@ public class BankTransactionCsvService
         Console.WriteLine($"Unique CSV: {uniqueTransactions.Count}");
         Console.WriteLine($"New: {newTransactions.Count}");
 
-        // 🔥 SAFE INSERT
         try
         {
             if (newTransactions.Any())
-            {
                 await _db.Transactions.AddRangeAsync(newTransactions);
-            }
 
             if (newUnknowns.Any())
-            {
                 await _db.UnknownTransactions.AddRangeAsync(newUnknowns);
-            }
 
             await _db.SaveChangesAsync();
         }
-        catch (DbUpdateException ex)
+        catch
         {
             Console.WriteLine("⚠ Duplicate detected during insert, ignoring.");
         }
 
         return newTransactions;
+    }
+
+    private bool IsTransfer(string text)
+    {
+        text = text.ToLowerInvariant();
+
+        return text.Contains("overfør") ||
+               text.Contains("egen konto") ||
+               text.Contains("konto til konto") ||
+               text.Contains("opsparing");
     }
 
     private string CreateKey(DateTime date, decimal amount, string description)

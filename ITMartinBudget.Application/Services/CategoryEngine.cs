@@ -1,7 +1,5 @@
 ﻿using ITMartinBudget.Domain.Entities;
 
-namespace ITMartinBudget.Application.Services;
-
 public class CategoryEngine
 {
     private readonly List<CategoryRule> _rules;
@@ -14,9 +12,9 @@ public class CategoryEngine
             .ToList();
     }
 
-    public SubCategory Detect(string kategori, string tekst)
+    public SubCategory Detect(string tekst)
     {
-        var combined = $"{kategori} {tekst}".ToLowerInvariant();
+        var combined = tekst.ToLowerInvariant();
 
         foreach (var rule in _rules)
         {

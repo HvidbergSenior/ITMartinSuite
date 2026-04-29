@@ -9,8 +9,9 @@ public class BudgetService
     {
         var filtered = transactions
             .Where(x => x.Date.Year == year)
-            .Where(x => x.SubCategory != SubCategory.Overførsel)
-            //.Where(x => x.SubCategory != SubCategory.Ukendt) // optional
+            .Where(x =>
+                x.SubCategory != SubCategory.OverførselFraAndre &&
+                x.SubCategory != SubCategory.OverførselTilAndre)
             .ToList();
 
         var grouped = filtered
@@ -31,23 +32,20 @@ public class BudgetService
             {
                 Category = group.Key.Category,
                 SubCategory = group.Key.SubCategory,
-
                 DisplayName = GetDisplayName(group.Key.SubCategory),
 
                 Income = income,
                 Expenses = expenses,
 
-
                 TransactionCount = group.Count(),
-
                 Frequency = DetectFrequency(group.Select(x => x.Date).ToList()),
 
-                ExpenseType = GetDefaultExpenseType(group.Key.Category, group.Key.SubCategory)
+                // 🔥 NEW
+                ExpenseType = GetExpenseType(group.Key.SubCategory)
             });
         }
 
         return result
-            // 🔥 Better sorting (impact-based)
             .OrderByDescending(x => x.Income + x.Expenses);
     }
 
@@ -55,31 +53,116 @@ public class BudgetService
     {
         var filtered = transactions
             .Where(x => x.Date.Year == year)
-            .Where(x => x.SubCategory != SubCategory.Overførsel);
+            .Where(x =>
+                x.SubCategory != SubCategory.OverførselFraAndre &&
+                x.SubCategory != SubCategory.OverførselTilAndre);
 
         return new YearSummary
         {
             Income = filtered.Where(x => x.Amount > 0).Sum(x => x.Amount),
-            Expenses = filtered.Where(x => x.Amount < 0).Sum(x => x.Amount)
+
+            // 🔥 always positive
+            Expenses = filtered.Where(x => x.Amount < 0)
+                               .Sum(x => Math.Abs(x.Amount))
         };
     }
 
     private string GetDisplayName(SubCategory sub) => sub switch
     {
+        // 💰 INCOME
         SubCategory.Løn => "Løn",
+        SubCategory.SU => "SU",
+        SubCategory.OverskydendeSkat => "Overskydende skat",
+        SubCategory.Renter => "Renter",
+        SubCategory.Pengegaver => "Gaver (ind)",
+
+        // 🛒 FOOD
         SubCategory.Dagligvarer => "Dagligvarer",
         SubCategory.Restaurant => "Restaurant",
+        SubCategory.Snacks => "Snacks",
+
+        // 🚗 TRANSPORT
         SubCategory.Benzin => "Benzin",
         SubCategory.Parkering => "Parkering",
+        SubCategory.ReparationBil => "Bil reparation",
+        SubCategory.OffentligTransport => "Offentlig transport",
+
+        // 🏠 HOUSING
         SubCategory.Husleje => "Husleje",
-        SubCategory.Bolig => "Bolig",
-        SubCategory.Abonnement => "Abonnement",
-        SubCategory.Sundhed => "Sundhed",
+        SubCategory.RenterLån => "Renter lån",
+        SubCategory.VarmeVandAffald => "Varme/Vand/Affald",
+        SubCategory.ReparationHus => "Hus reparation",
+
+        // 📱 SUBSCRIPTIONS
+        SubCategory.Telefonabonnement => "Telefon",
+        SubCategory.Internet => "Internet",
+        SubCategory.StreamingTjenester => "Streaming",
+
+        // 🏥 HEALTH
+        SubCategory.Tandlæge => "Tandlæge",
+        SubCategory.Sygeforsikring => "Sygeforsikring",
+        SubCategory.Medicin => "Medicin",
+
+        // 👕 SHOPPING
         SubCategory.Tøj => "Tøj",
+
+        // 🎮 LEISURE
         SubCategory.Underholdning => "Underholdning",
-        SubCategory.Fritid => "Fritid",
+        SubCategory.FitnessSport => "Fitness/Sport",
+        SubCategory.Rejser => "Rejser",
+
+        // 📊 FINANCE
+        SubCategory.FagforeningAkasse => "Fagforening/A-kasse",
+        SubCategory.Forsikring => "Forsikring",
+        SubCategory.VirksomhedsUdgift => "Virksomhed",
+
+        // ✂️ PERSONAL
+        SubCategory.Frisør => "Frisør",
+        SubCategory.PersonligPleje => "Pleje",
+        SubCategory.GaverTilAndre => "Gaver (ud)",
+
+        // 💾 SAVINGS
+        SubCategory.Opsparing => "Opsparing",
+        SubCategory.Børneopsparing => "Børneopsparing",
+
         _ => sub.ToString()
     };
+
+    private ExpenseType GetExpenseType(SubCategory sub)
+    {
+        return sub switch
+        {
+            // 🏠 FIXED
+            SubCategory.Husleje or
+            SubCategory.RenterLån or
+            SubCategory.Forsikring or
+            SubCategory.FagforeningAkasse or
+            SubCategory.Telefonabonnement or
+            SubCategory.Internet or
+            SubCategory.StreamingTjenester
+                => ExpenseType.Fixed,
+
+            // 🛒 VARIABLE
+            SubCategory.Dagligvarer or
+            SubCategory.Benzin or
+            SubCategory.Parkering or
+            SubCategory.Medicin
+                => ExpenseType.Variable,
+
+            // 🎮 OPTIONAL
+            SubCategory.Restaurant or
+            SubCategory.Snacks or
+            SubCategory.Underholdning or
+            SubCategory.FitnessSport or
+            SubCategory.Rejser or
+            SubCategory.GaverTilAndre or
+            SubCategory.Frisør or
+            SubCategory.PersonligPleje
+                => ExpenseType.Optional,
+
+            _ => ExpenseType.Variable
+        };
+    }
 
     private TransactionFrequency DetectFrequency(List<DateTime> dates)
     {
@@ -96,12 +179,8 @@ public class BudgetService
         if (!diffs.Any())
             return TransactionFrequency.OneTime;
 
-        // 🔥 Improved (removes outliers)
         var sorted = diffs.OrderBy(x => x).ToList();
-        var middle = sorted
-            .Skip(sorted.Count / 4)
-            .Take(sorted.Count / 2)
-            .ToList();
+        var middle = sorted.Skip(sorted.Count / 4).Take(sorted.Count / 2).ToList();
 
         var avg = middle.Any() ? middle.Average() : sorted.Average();
 
@@ -111,25 +190,5 @@ public class BudgetService
         if (avg <= 370) return TransactionFrequency.Yearly;
 
         return TransactionFrequency.Irregular;
-    }
-
-    private ExpenseType GetDefaultExpenseType(Category category, SubCategory sub)
-    {
-        if (category == Category.Bolig)
-            return ExpenseType.Need;
-
-        if (sub == SubCategory.Dagligvarer ||
-            sub == SubCategory.Benzin ||
-            sub == SubCategory.Parkering ||
-            sub == SubCategory.Husleje ||
-            sub == SubCategory.Sundhed)
-            return ExpenseType.Need;
-
-        if (sub == SubCategory.Restaurant ||
-            sub == SubCategory.Underholdning ||
-            sub == SubCategory.Tøj)
-            return ExpenseType.Nice;
-
-        return ExpenseType.Need;
     }
 }

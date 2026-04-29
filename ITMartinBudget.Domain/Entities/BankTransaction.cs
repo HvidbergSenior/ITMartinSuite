@@ -14,11 +14,12 @@ public class BankTransaction
     public Category Category { get; set; }
     public SubCategory SubCategory { get; set; }
 
-    public ExpenseType ExpenseType { get; set; } = ExpenseType.Unknown;
+    public ExpenseType ExpenseType { get; set; } = ExpenseType.Optional;
     public TransactionType Type => Amount >= 0 
         ? TransactionType.Income 
         : TransactionType.Expense;
 
     // 🔥 NEW
     public string? MobilePayName { get; set; }
+    public Guid? ContactId { get; set; }
 }

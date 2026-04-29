@@ -10,6 +10,7 @@
 @inject BankTransactionCsvService CsvService
 @inject BudgetDbContext Db
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <div class="budget-upload-page">
     <div class="budget-upload-panel">
@@ -19,22 +20,22 @@
         @if (_hasExistingData)
         {
             <div class="alert warning">
-                ⚠ Existing data detected. Uploading will replace overlapping years.
+                ⚠ Existing data detected. Uploading will merge and skip duplicates.
             </div>
 
-            <button class="btn btn-danger" @onclick="FullReset">
+            <button class="btn btn-danger" @onclick="ConfirmReset" disabled="@_isUploading">
                 🧹 Delete ALL data
             </button>
         }
 
         <!-- UPLOAD -->
-        <div class="upload-box">
+        <div class="upload-box @( _isUploading ? "disabled" : "" )">
             <div class="upload-icon">📁</div>
             <div class="upload-text">
-                Upload CSV file
+                @(_isUploading ? "Uploading..." : "Upload CSV file")
             </div>
 
-            <InputFile OnChange="HandleBankCsvUpload" />
+            <InputFile OnChange="HandleBankCsvUpload" disabled="@_isUploading" />
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_message))
@@ -52,19 +53,25 @@
 
 @code {
     private bool _hasExistingData;
+    private bool _isUploading;
     private string? _message;
     private string? _error;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _hasExistingData = Db.Transactions.Any();
+        _hasExistingData = await Db.Transactions.AsNoTracking().AnyAsync();
     }
 
     private async Task HandleBankCsvUpload(InputFileChangeEventArgs e)
     {
+        if (_isUploading)
+            return;
+
         try
         {
-            Console.WriteLine("UPLOAD STARTED");
+            _isUploading = true;
+            _error = null;
+            _message = null;
 
             var file = e.File;
 
@@ -74,22 +81,56 @@
                 return;
             }
 
-            Console.WriteLine($"File: {file.Name}");
+            // 🔥 basic validation
+            if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                _error = "Only CSV files are allowed";
+                return;
+            }
 
-            using var stream = file.OpenReadStream(10_000_000);
+            if (file.Size == 0)
+            {
+                _error = "File is empty";
+                return;
+            }
 
-            var result = await CsvService.ImportAsync(stream);
+            using var stream = file.OpenReadStream(long.MaxValue);
 
-            Console.WriteLine($"Imported: {result.Count}");
+            var newTransactions = await CsvService.ImportAsync(stream);
 
-            _message = $"Imported {result.Count} transactions";
+            if (!newTransactions.Any())
+            {
+                _message = "No new transactions (duplicates skipped)";
+            }
+            else
+            {
+                _message = $"✔ Imported {newTransactions.Count} new transactions";
+            }
 
-            Nav.NavigateTo("/budget", true);
+            var hasUnknowns = await Db.UnknownTransactions.AnyAsync();
+
+            await Task.Delay(300);
+
+            if (hasUnknowns)
+                Nav.NavigateTo("/budget/rules", forceLoad: true);
+            else
+                Nav.NavigateTo("/budget", forceLoad: true);
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.ToString()); // 🔥 IMPORTANT
             _error = ex.Message;
+        }
+        finally
+        {
+            _isUploading = false;
+        }
+    }
+
+    private async Task ConfirmReset()
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Delete ALL data?"))
+        {
+            await FullReset();
         }
     }
 
