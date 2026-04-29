@@ -26,8 +26,8 @@ public sealed class BankTransactionMap : ClassMap<BankTransaction>
             .TypeConverter<SubCategoryConverter>();
 
         // ✅ Main Category (Hovedkategori)
-        Map(m => m.MainCategory)
+        Map(m => m.Category)
             .Name("Hovedkategori")
-            .TypeConverter<MainCategoryConverter>();
+            .TypeConverter<CategoryConverter>();
     }
 }

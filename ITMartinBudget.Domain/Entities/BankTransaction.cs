@@ -11,10 +11,13 @@ public class BankTransaction
 
     public decimal Amount { get; set; }
 
-    public MainCategory MainCategory { get; set; }
+    public Category Category { get; set; }
     public SubCategory SubCategory { get; set; }
 
     public ExpenseType ExpenseType { get; set; } = ExpenseType.Unknown;
+    public TransactionType Type => Amount >= 0 
+        ? TransactionType.Income 
+        : TransactionType.Expense;
 
     // 🔥 NEW
     public string? MobilePayName { get; set; }

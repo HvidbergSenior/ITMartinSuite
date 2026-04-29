@@ -1,14 +1,24 @@
 ﻿using System.Globalization;
+using System.Text.RegularExpressions;
 using CsvHelper;
 using CsvHelper.Configuration;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
 using ITMartinBudget.Infrastructure.Csv;
+using ITMartinBudget.Application.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace ITMartinBudget.Infrastructure.Services;
 
 public class BankTransactionCsvService
 {
+    private readonly BudgetDbContext _db;
+
+    public BankTransactionCsvService(BudgetDbContext db)
+    {
+        _db = db;
+    }
+
     public async Task<List<BankTransaction>> ImportAsync(Stream stream)
     {
         using var reader = new StreamReader(stream);
@@ -19,40 +29,138 @@ public class BankTransactionCsvService
         };
 
         using var csv = new CsvReader(reader, config);
-
         csv.Context.RegisterClassMap<BankTransactionMap>();
 
         var records = new List<BankTransaction>();
 
         await foreach (var record in csv.GetRecordsAsync<BankTransaction>())
         {
-            // Normalize description
-            record.Description = record.Description?.Trim().ToLowerInvariant() ?? string.Empty;
+            record.Description = Normalize(record.Description);
 
-            // Ensure enums
-            if (!Enum.IsDefined(typeof(MainCategory), record.MainCategory))
-                record.MainCategory = MainCategory.Andet;
-
-            if (!Enum.IsDefined(typeof(SubCategory), record.SubCategory))
-                record.SubCategory = SubCategory.Ukendt;
-
-            // ✅ FIX income
-            if (record.MainCategory == MainCategory.Indkomst && record.Amount < 0)
-                record.Amount = Math.Abs(record.Amount);
-
-            // 🔥 MOBILEPAY NAME EXTRACTION
-            record.MobilePayName = ExtractMobilePayName(record.Description);
-
-            if (!string.IsNullOrEmpty(record.MobilePayName))
-            {
-                record.SubCategory = SubCategory.MobilePay;
-                record.MainCategory = MainCategory.Andet;
-            }
+            // prevent DB overflow
+            if (record.Description.Length > 200)
+                record.Description = record.Description[..200];
 
             records.Add(record);
         }
 
-        return records;
+        // 🔥 RULE ENGINE
+        var rules = await _db.CategoryRules.ToListAsync();
+        var engine = new CategoryEngine(rules);
+
+        // 🔥 EXISTING DB KEYS
+        var existingKeys = (await _db.Transactions
+            .Select(x => new { x.Date, x.Amount, x.Description })
+            .ToListAsync())
+            .Select(x => CreateKey(x.Date, x.Amount, x.Description))
+            .ToHashSet();
+
+        // 🔥 UNKNOWN CACHE
+        var existingUnknowns = (await _db.UnknownTransactions
+            .Select(x => x.Description)
+            .ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var newUnknowns = new List<UnknownTransaction>();
+
+        // 🔥 APPLY ENGINE
+        foreach (var record in records)
+        {
+            var sub = engine.Detect("", record.Description);
+
+            record.SubCategory = sub;
+            record.Category = CategoryMapper.Map(sub);
+
+            if (record.Category == Category.Indkomst && record.Amount < 0)
+                record.Amount = Math.Abs(record.Amount);
+
+            if (record.SubCategory == SubCategory.Overførsel)
+                record.Category = Category.Andet;
+
+            record.MobilePayName = ExtractMobilePayName(record.Description);
+
+            if (!Enum.IsDefined(typeof(SubCategory), record.SubCategory))
+                record.SubCategory = SubCategory.Ukendt;
+
+            if (!Enum.IsDefined(typeof(Category), record.Category))
+                record.Category = Category.Andet;
+
+            if (record.SubCategory == SubCategory.Ukendt &&
+                !string.IsNullOrWhiteSpace(record.Description) &&
+                !existingUnknowns.Contains(record.Description))
+            {
+                existingUnknowns.Add(record.Description);
+
+                newUnknowns.Add(new UnknownTransaction
+                {
+                    Description = record.Description
+                });
+            }
+        }
+
+        // 🔥 DEDUP INSIDE CSV
+        var uniqueTransactions = records
+            .GroupBy(t => CreateKey(t.Date, t.Amount, t.Description))
+            .Select(g => g.First())
+            .ToList();
+
+        // 🔥 FILTER AGAINST DB
+        var newTransactions = uniqueTransactions
+            .Where(t =>
+            {
+                var key = CreateKey(t.Date, t.Amount, t.Description);
+                return !existingKeys.Contains(key);
+            })
+            .ToList();
+
+        Console.WriteLine($"CSV: {records.Count}");
+        Console.WriteLine($"Unique CSV: {uniqueTransactions.Count}");
+        Console.WriteLine($"New: {newTransactions.Count}");
+
+        // 🔥 SAFE INSERT
+        try
+        {
+            if (newTransactions.Any())
+            {
+                await _db.Transactions.AddRangeAsync(newTransactions);
+            }
+
+            if (newUnknowns.Any())
+            {
+                await _db.UnknownTransactions.AddRangeAsync(newUnknowns);
+            }
+
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            Console.WriteLine("⚠ Duplicate detected during insert, ignoring.");
+        }
+
+        return newTransactions;
+    }
+
+    private string CreateKey(DateTime date, decimal amount, string description)
+    {
+        var normalizedDescription = (description ?? "")
+            .Trim()
+            .ToLowerInvariant();
+
+        var normalizedAmount = Math.Round(amount, 2)
+            .ToString("F2", CultureInfo.InvariantCulture);
+
+        return $"{date:yyyyMMdd}-{normalizedAmount}-{normalizedDescription}";
+    }
+
+    private string Normalize(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+
+        input = input.ToLowerInvariant();
+        input = Regex.Replace(input, @"[^a-zæøå0-9 ]", "");
+
+        return input.Trim();
     }
 
     private string? ExtractMobilePayName(string description)

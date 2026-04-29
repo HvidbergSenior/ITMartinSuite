@@ -1,0 +1,135 @@
+﻿@page "/budget/rules"
+@using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Domain.Enums
+@using ITMartinBudget.Domain.ValueObjects
+@using ITMartinBudget.Infrastructure
+@using Microsoft.EntityFrameworkCore
+
+@inject BudgetDbContext Db
+
+<div class="budget-dashboard-page">
+    <div class="budget-dashboard-panel">
+
+        <h2>🧠 Rule Engine</h2>
+
+        <!-- UNKNOWN TRANSACTIONS -->
+        <div class="content-card">
+            <h3>🚨 Unknown Transactions</h3>
+
+                @if (!_unknownGrouped.Any())
+            {
+                <p>Nothing to classify 🎉</p>
+            }
+            else
+            {
+                @foreach (var item in _unknownGrouped)
+                {
+                    <div class="rule-row">
+                        <div class="rule-description">
+                            <strong>@item.Description</strong>
+                            <div class="meta">(@item.Count transactions)</div>
+                        </div>
+
+                        <select @onchange="(e) => AssignCategory(item, e)">
+                            <option value="">Select category</option>
+
+                            @foreach (var sub in Enum.GetValues<SubCategory>())
+                            {
+                                <option value="@sub">@sub</option>
+                            }
+                        </select>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- EXISTING RULES -->
+        <div class="content-card" style="margin-top:20px;">
+            <h3>📂 Existing Rules</h3>
+
+            @foreach (var rule in _rules.OrderByDescending(x => x.Priority))
+            {
+                <div class="rule-row">
+                    <div class="rule-description">
+                        <strong>@rule.Keyword</strong>
+                    </div>
+
+                    <div>@rule.SubCategory</div>
+                    <div>Priority: @rule.Priority</div>
+
+                    <button class="btn btn-sm btn-danger"
+                            @onclick="() => DeleteRule(rule)">
+                        Delete
+                    </button>
+                </div>
+            }
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private List<UnknownGroup> _unknownGrouped = new();
+    private List<CategoryRule> _rules = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _unknownGrouped = await Db.UnknownTransactions
+            .GroupBy(x => x.Description)
+            .Select(g => new UnknownGroup
+            {
+                Description = g.Key,
+                Count = g.Count()
+            })
+            .OrderByDescending(x => x.Count)
+            .Take(100)
+            .ToListAsync();
+
+        _rules = await Db.CategoryRules.ToListAsync();
+    }
+
+    private async Task AssignCategory(UnknownGroup item, ChangeEventArgs e)
+    {
+        if (Enum.TryParse<SubCategory>(e.Value?.ToString(), out var sub))
+        {
+            var keyword = ExtractKeyword(item.Description);
+
+            Db.CategoryRules.Add(new CategoryRule
+            {
+                Keyword = keyword,
+                SubCategory = sub,
+                Priority = 10
+            });
+
+            // 🔥 Remove ALL matching unknowns
+            var toRemove = Db.UnknownTransactions
+                .Where(x => x.Description == item.Description);
+
+            Db.UnknownTransactions.RemoveRange(toRemove);
+
+            await Db.SaveChangesAsync();
+
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteRule(CategoryRule rule)
+    {
+        Db.CategoryRules.Remove(rule);
+        await Db.SaveChangesAsync();
+        await LoadData();
+    }
+
+    private string ExtractKeyword(string text)
+    {
+        return text
+            .ToLower()
+            .Split(' ')
+            .FirstOrDefault(x => x.Length > 3) ?? text;
+    }
+}

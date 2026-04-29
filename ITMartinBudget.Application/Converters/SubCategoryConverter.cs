@@ -12,80 +12,93 @@ public class SubCategoryConverter : DefaultTypeConverter
         var kategori = text?.Trim().ToLowerInvariant() ?? "";
         var tekst = row.GetField("Tekst")?.ToLowerInvariant() ?? "";
 
-        // 🔥 MOBILEPAY FIRST (important!)
-        if (tekst.Contains("mobilepay"))
+        var combined = $"{kategori} {tekst}";
+
+        // =========================
+        // 🔥 TRANSFERS (TOP PRIORITY)
+        // =========================
+        if (combined.Contains("overfør") ||
+            combined.Contains("opsparing") ||
+            combined.Contains("opsparingskonto") ||
+            combined.Contains("egen konto"))
         {
-            if (tekst.Contains("netto") || tekst.Contains("rema") || tekst.Contains("føtex"))
-                return SubCategory.Dagligvarer;
-
-            if (tekst.Contains("mcd") || tekst.Contains("burger") || tekst.Contains("pizza"))
-                return SubCategory.Restaurant;
-
-            if (tekst.Contains("ikea"))
-                return SubCategory.Bolig;
-
-            if (tekst.Contains("shell") || tekst.Contains("circle k"))
-                return SubCategory.Benzin;
-
-            return SubCategory.Ukendt;
+            return SubCategory.Overførsel;
         }
 
-        // 🛒 Food
-        if (kategori.Contains("dagligvarer"))
-            return SubCategory.Dagligvarer;
-
-        if (kategori.Contains("restaurant") || kategori.Contains("café"))
-            return SubCategory.Restaurant;
-
-        // ⛽ Transport
-        if (kategori.Contains("brændstof"))
-            return SubCategory.Benzin;
-
-        if (kategori.Contains("parkering"))
-            return SubCategory.Parkering;
-
-        // 🏠 Housing
-        if (kategori.Contains("realkredit"))
-            return SubCategory.Husleje;
-
-        if (kategori.Contains("bolig"))
-            return SubCategory.Bolig;
-
-        // 💰 Income
-        if (kategori.Contains("løn"))
+        // =========================
+        // 💰 INCOME
+        // =========================
+        if (combined.Contains("løn") || combined.Contains("lønoverførsel"))
             return SubCategory.Løn;
 
-        if (kategori.Contains("offentlige ydelser"))
-            return SubCategory.SU;
+        if (combined.Contains("su"))
+            return SubCategory.Løn; // 👈 your rule: SU grouped with salary
 
-        if (kategori.Contains("anden indtægt"))
-            return SubCategory.AndenIndkomst;
+        if (combined.Contains("skat") || combined.Contains("rente"))
+            return SubCategory.Løn;
 
-        // 📱 Subscriptions
-        if (kategori.Contains("telefon") || kategori.Contains("streaming"))
-            return SubCategory.Abonnement;
-
-        // 🏥 Health
-        if (kategori.Contains("læge") || kategori.Contains("medicin"))
-            return SubCategory.Sundhed;
-
-        // 👕 Shopping
-        if (kategori.Contains("tøj"))
-            return SubCategory.Tøj;
-
-        // 🎮 Leisure
-        if (kategori.Contains("film") || kategori.Contains("musik"))
-            return SubCategory.Underholdning;
-
-        if (kategori.Contains("sport"))
-            return SubCategory.Fritid;
-
-        // 🔁 fallback using description
-        if (tekst.Contains("netto") || tekst.Contains("rema") || tekst.Contains("føtex"))
+        // =========================
+        // 🛒 FOOD
+        // =========================
+        if (combined.Contains("dagligvarer") ||
+            combined.Contains("netto") ||
+            combined.Contains("rema") ||
+            combined.Contains("føtex"))
             return SubCategory.Dagligvarer;
 
-        if (tekst.Contains("mcd") || tekst.Contains("burger"))
+        if (combined.Contains("restaurant") ||
+            combined.Contains("café") ||
+            combined.Contains("pizza") ||
+            combined.Contains("burger") ||
+            combined.Contains("mcd"))
             return SubCategory.Restaurant;
+
+        // =========================
+        // ⛽ TRANSPORT
+        // =========================
+        if (combined.Contains("brændstof") ||
+            combined.Contains("shell") ||
+            combined.Contains("circle k"))
+            return SubCategory.Benzin;
+
+        if (combined.Contains("parkering"))
+            return SubCategory.Parkering;
+
+        // =========================
+        // 🏠 HOUSING
+        // =========================
+        if (combined.Contains("realkredit"))
+            return SubCategory.Husleje;
+
+        if (combined.Contains("bolig"))
+            return SubCategory.Bolig;
+
+        // =========================
+        // 📱 SUBSCRIPTIONS
+        // =========================
+        if (combined.Contains("telefon") || combined.Contains("streaming"))
+            return SubCategory.Abonnement;
+
+        // =========================
+        // 🏥 HEALTH
+        // =========================
+        if (combined.Contains("læge") || combined.Contains("medicin"))
+            return SubCategory.Sundhed;
+
+        // =========================
+        // 👕 SHOPPING
+        // =========================
+        if (combined.Contains("tøj"))
+            return SubCategory.Tøj;
+
+        // =========================
+        // 🎮 LEISURE
+        // =========================
+        if (combined.Contains("film") || combined.Contains("musik"))
+            return SubCategory.Underholdning;
+
+        if (combined.Contains("sport"))
+            return SubCategory.Fritid;
 
         return SubCategory.Ukendt;
     }

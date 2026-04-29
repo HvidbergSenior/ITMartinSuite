@@ -8,43 +8,38 @@
 @using Microsoft.EntityFrameworkCore
 
 @inject BankTransactionCsvService CsvService
-@inject BudgetService BudgetService
 @inject BudgetDbContext Db
+@inject NavigationManager Nav
 
 <div class="budget-upload-page">
     <div class="budget-upload-panel">
 
-        <!-- STEP 1 -->
-        <SectionTitle Title="💰 Budget Analysis" Subtitle="Step 1: Upload your data (will overwrite existing year data)" />
+        <SectionTitle Title="💰 Budget Upload" Subtitle="Upload your bank CSV" />
 
+        @if (_hasExistingData)
+        {
+            <div class="alert warning">
+                ⚠ Existing data detected. Uploading will replace overlapping years.
+            </div>
+
+            <button class="btn btn-danger" @onclick="FullReset">
+                🧹 Delete ALL data
+            </button>
+        }
+
+        <!-- UPLOAD -->
         <div class="upload-box">
-            <div class="upload-icon">📂</div>
-
+            <div class="upload-icon">📁</div>
             <div class="upload-text">
-                <strong>Upload your bank CSV</strong>
-                <div class="text-muted">Existing data for the same year will be replaced</div>
+                Upload CSV file
             </div>
 
             <InputFile OnChange="HandleBankCsvUpload" />
         </div>
 
-        <!-- YEAR SELECT -->
-        @if (_years.Any())
-        {
-            <div class="upload-grid">
-                <select @bind="_selectedYear" @bind:after="Calculate">
-                    @foreach (var year in _years)
-                    {
-                        <option value="@year">@year</option>
-                    }
-                </select>
-            </div>
-        }
-
-        <!-- FEEDBACK -->
         @if (!string.IsNullOrWhiteSpace(_message))
         {
-            <div class="alert success">✅ @_message</div>
+            <div class="alert success">@_message</div>
         }
 
         @if (!string.IsNullOrWhiteSpace(_error))
@@ -52,102 +47,60 @@
             <div class="alert error">@_error</div>
         }
 
-        <!-- STEP 2 -->
-        @if (_summary.Any())
-        {
-            <SectionTitle Title="📊 Results" Subtitle="Step 2: Review your data" />
-
-            <div class="dashboard-stats-grid">
-                <SummaryStatCard Title="Income" Value="@_totals?.Income" Type="success" />
-                <SummaryStatCard Title="Expenses" Value="@_totals?.Expenses" Type="danger" />
-                <SummaryStatCard Title="Net" Value="@_totals?.Net" />
-            </div>
-        }
-
     </div>
 </div>
 
 @code {
-    private List<BankTransaction>? _transactions;
-    private List<CategorySummary> _summary = new();
-    private YearSummary? _totals;
-
+    private bool _hasExistingData;
     private string? _message;
     private string? _error;
 
-    private int _selectedYear;
-    private List<int> _years = new();
+    protected override void OnInitialized()
+    {
+        _hasExistingData = Db.Transactions.Any();
+    }
 
     private async Task HandleBankCsvUpload(InputFileChangeEventArgs e)
     {
         try
         {
-            var file = e.File;
-            using var stream = file.OpenReadStream(10_000_000);
+            Console.WriteLine("UPLOAD STARTED");
 
-            _transactions = (await CsvService.ImportAsync(stream))
-                .GroupBy(t => new { t.Date, t.Amount, t.Description })
-                .Select(g => g.First())
-                .ToList();
-            if (!_transactions.Any())
+            var file = e.File;
+
+            if (file == null)
             {
-                _error = "No transactions found in file.";
+                _error = "No file selected";
                 return;
             }
 
-            // 🔥 Determine years in uploaded file
-            var yearsInCsv = _transactions
-                .Select(x => x.Date.Year)
-                .Distinct()
-                .ToList();
+            Console.WriteLine($"File: {file.Name}");
 
-            // 🔥 Remove existing data for those years
-            var toRemove = Db.Transactions
-                .Where(x => yearsInCsv.Contains(x.Date.Year));
+            using var stream = file.OpenReadStream(10_000_000);
 
-            Db.Transactions.RemoveRange(toRemove);
-            await Db.SaveChangesAsync();
+            var result = await CsvService.ImportAsync(stream);
 
-            // 🔥 Insert new data
-            Db.Transactions.AddRange(_transactions);
-            await Db.SaveChangesAsync();
+            Console.WriteLine($"Imported: {result.Count}");
 
-            // Reload available years
-            _years = Db.Transactions
-                .Select(x => x.Date.Year)
-                .Distinct()
-                .OrderByDescending(x => x)
-                .ToList();
+            _message = $"Imported {result.Count} transactions";
 
-            _selectedYear = _years.FirstOrDefault();
-
-            _message = $"Replaced data for year(s): {string.Join(", ", yearsInCsv)} ({_transactions.Count} rows)";
-            _error = null;
-
-            Calculate();
+            Nav.NavigateTo("/budget", true);
         }
         catch (Exception ex)
         {
+            Console.WriteLine(ex.ToString()); // 🔥 IMPORTANT
             _error = ex.Message;
         }
     }
 
-    private void Calculate()
+    private async Task FullReset()
     {
-        var data = Db.Transactions
-            .Where(x => x.Date.Year == _selectedYear)
-            .ToList();
+        Db.Transactions.RemoveRange(Db.Transactions);
+        Db.UnknownTransactions.RemoveRange(Db.UnknownTransactions);
 
-        _summary = BudgetService
-            .GetSummary(data, _selectedYear)
-            .ToList();
+        await Db.SaveChangesAsync();
 
-        _totals = BudgetService.GetYearTotals(data, _selectedYear);
+        _hasExistingData = false;
+        _message = "All data deleted";
     }
-
-    private IEnumerable<CategorySummary> IncomeCategories()
-        => _summary.Where(x => x.Total > 0).OrderByDescending(x => x.Total);
-
-    private IEnumerable<CategorySummary> ExpenseCategories()
-        => _summary.Where(x => x.Total < 0).OrderBy(x => x.Total);
 }

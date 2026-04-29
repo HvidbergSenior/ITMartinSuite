@@ -10,7 +10,9 @@ public class BudgetDbContext : DbContext
     {
     }
 
-    public DbSet<BankTransaction> Transactions { get; set; }
+    public DbSet<BankTransaction> Transactions => Set<BankTransaction>();
+    public DbSet<CategoryRule> CategoryRules => Set<CategoryRule>();
+    public DbSet<UnknownTransaction> UnknownTransactions => Set<UnknownTransaction>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<BankTransaction>()

@@ -1,37 +1,20 @@
-﻿namespace ITMartinBudget.Domain.Enums;
-
-public enum SubCategory
+﻿public enum SubCategory
 {
-    // Income
     Løn,
-    SU,
-    AndenIndkomst,
-
-    // Food
     Dagligvarer,
     Restaurant,
-
-    // Transport
     Benzin,
     Parkering,
-
-    // Housing
     Husleje,
     Bolig,
-
-    // Subscriptions
     Abonnement,
-
-    // Health
     Sundhed,
-
-    // Shopping
     Tøj,
-
-    // Leisure
     Underholdning,
     Fritid,
-    MobilePay,
-    // Fallback
+
+    // 🔥 NEW
+    Overførsel,
+
     Ukendt
 }

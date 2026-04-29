@@ -3,16 +3,24 @@
 
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
 
 @inject BudgetService BudgetService
 @inject BudgetDbContext Db
+@inject NavigationManager Nav
 
 <div class="budget-dashboard-page">
     <div class="budget-dashboard-panel">
 
-        <!-- HEADER -->
         <SectionTitle Title="💰 Budget Dashboard" Subtitle="Overview of your current year" />
+
+        <!-- RESET BUTTON -->
+        <div style="margin-bottom:20px;">
+            <button class="btn btn-danger" @onclick="ResetData">
+                🗑 Reset data & upload new CSV
+            </button>
+        </div>
 
         <!-- STATS -->
         <div class="dashboard-stats-grid">
@@ -27,7 +35,8 @@
 
             @if (!_summary.Any())
             {
-                <EmptyState Text="No data loaded yet." />
+                <EmptyState Text="No data loaded yet. Upload a CSV to get started." />
+                
             }
             else
             {
@@ -37,38 +46,40 @@
                     <div class="budget-column">
                         <h3 class="text-success">💰 Income</h3>
 
-                        @foreach (var group in IncomeCategories().GroupBy(x => x.MainCategory))
+                        @foreach (var group in IncomeCategories()
+                            .GroupBy(x => x.Category)
+                            .OrderBy(x => x.Key))
                         {
+                            var key = group.Key;
+
                             <div class="category-card income">
-                                <div class="category-header">
+                                <div class="category-header clickable"
+                                     @onclick="() => ToggleIncome(key)">
+
                                     <strong>@group.Key</strong>
-                                    <span>@group.Sum(x => x.Total).ToString("N2")</span>
+                                    <span>@group.Sum(x => x.Income).ToString("N2")</span>
                                 </div>
 
-                                @foreach (var item in group)
+                                @if (_openIncome == key)
                                 {
-                                    var key = $"{item.MainCategory}-{item.DisplayName}";
+                                    @foreach (var item in group)
+                                    {
+                                        <div class="subcategory-card">
+                                            <div class="subcategory-header">
+                                                <div>
+                                                    <div class="title">@item.DisplayName</div>
+                                                    <div class="meta">
+                                                        @item.TransactionCount • @item.Frequency
+                                                    </div>
+                                                </div>
 
-                                    <div class="subcategory-card @(IsOpen(key) ? "open" : "")"
-                                         @onclick="@(() => ToggleCategory(key))">
-
-                                        <div class="subcategory-header">
-                                            <div>
-                                                <div class="title">@item.DisplayName</div>
-                                                <div class="meta">
-                                                    @item.TransactionCount • @item.Frequency
+                                                <div class="amount text-success">
+                                                    @item.Income.ToString("N2")
                                                 </div>
                                             </div>
 
-                                            <div class="amount text-success">
-                                                @item.Total.ToString("N2")
-                                            </div>
-                                        </div>
-
-                                        @if (IsOpen(key))
-                                        {
                                             <div class="subcategory-transactions">
-                                                @foreach (var t in GetFilteredTransactions(item).Take(20))
+                                                @foreach (var t in GetTransactions(item, true).Take(20))
                                                 {
                                                     <div class="transaction-row">
                                                         <div>@t.Date.ToString("dd-MM")</div>
@@ -79,8 +90,8 @@
                                                     </div>
                                                 }
                                             </div>
-                                        }
-                                    </div>
+                                        </div>
+                                    }
                                 }
                             </div>
                         }
@@ -90,38 +101,40 @@
                     <div class="budget-column">
                         <h3 class="text-danger">💸 Expenses</h3>
 
-                        @foreach (var group in ExpenseCategories().GroupBy(x => x.MainCategory))
+                        @foreach (var group in ExpenseCategories()
+                            .GroupBy(x => x.Category)
+                            .OrderBy(x => x.Key))
                         {
+                            var key = group.Key;
+
                             <div class="category-card expense">
-                                <div class="category-header">
+                                <div class="category-header clickable"
+                                     @onclick="() => ToggleExpense(key)">
+
                                     <strong>@group.Key</strong>
-                                    <span>@Math.Abs(group.Sum(x => x.Total)).ToString("N2")</span>
+                                    <span>@group.Sum(x => x.Expenses).ToString("N2")</span>
                                 </div>
 
-                                @foreach (var item in group)
+                                @if (_openExpense == key)
                                 {
-                                    var key = $"{item.MainCategory}-{item.DisplayName}";
+                                    @foreach (var item in group)
+                                    {
+                                        <div class="subcategory-card">
+                                            <div class="subcategory-header">
+                                                <div>
+                                                    <div class="title">@item.DisplayName</div>
+                                                    <div class="meta">
+                                                        @item.TransactionCount • @item.Frequency
+                                                    </div>
+                                                </div>
 
-                                    <div class="subcategory-card @(IsOpen(key) ? "open" : "")"
-                                         @onclick="@(() => ToggleCategory(key))">
-
-                                        <div class="subcategory-header">
-                                            <div>
-                                                <div class="title">@item.DisplayName</div>
-                                                <div class="meta">
-                                                    @item.TransactionCount • @item.Frequency
+                                                <div class="amount text-danger">
+                                                    @item.Expenses.ToString("N2")
                                                 </div>
                                             </div>
 
-                                            <div class="amount text-danger">
-                                                @Math.Abs(item.Total).ToString("N2")
-                                            </div>
-                                        </div>
-
-                                        @if (IsOpen(key))
-                                        {
                                             <div class="subcategory-transactions">
-                                                @foreach (var t in GetFilteredTransactions(item).Take(20))
+                                                @foreach (var t in GetTransactions(item, false).Take(20))
                                                 {
                                                     <div class="transaction-row">
                                                         <div>@t.Date.ToString("dd-MM")</div>
@@ -132,8 +145,8 @@
                                                     </div>
                                                 }
                                             </div>
-                                        }
-                                    </div>
+                                        </div>
+                                    }
                                 }
                             </div>
                         }
@@ -149,49 +162,66 @@
 @code {
     private List<CategorySummary> _summary = new();
     private YearSummary? _totals;
+    private List<BankTransaction> _transactions = new();
 
-    private string? _selectedCategoryKey;
+    private Category? _openIncome;
+    private Category? _openExpense;
 
     protected override void OnInitialized()
     {
-        var year = Db.Transactions
+        var all = Db.Transactions.ToList();
+
+        if (!all.Any())
+        {
+            _summary = new();
+            _totals = new YearSummary();
+            return;
+        }
+
+        var year = all
             .Select(x => x.Date.Year)
-            .OrderByDescending(x => x)
-            .FirstOrDefault();
-        var data = Db.Transactions
+            .DefaultIfEmpty(DateTime.Now.Year)
+            .Max();
+
+        _transactions = all
             .Where(x => x.Date.Year == year)
             .ToList();
 
-        _summary = BudgetService.GetSummary(data, year).ToList();
-        _totals = BudgetService.GetYearTotals(data, year);
+        _summary = BudgetService.GetSummary(_transactions, year).ToList();
+        _totals = BudgetService.GetYearTotals(_transactions, year);
     }
 
-    private bool IsOpen(string key)
-        => _selectedCategoryKey == key;
-
-    private void ToggleCategory(string key)
+    private async Task ResetData()
     {
-        _selectedCategoryKey = _selectedCategoryKey == key ? null : key;
+        Db.Transactions.RemoveRange(Db.Transactions);
+        Db.UnknownTransactions.RemoveRange(Db.UnknownTransactions);
+
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo("/budget/upload", forceLoad: true);
     }
 
-    private IEnumerable<BankTransaction> GetFilteredTransactions(CategorySummary item)
-    {
-        var year = DateTime.Now.Year;
+    private void ToggleIncome(Category key)
+        => _openIncome = _openIncome == key ? null : key;
 
-        return Db.Transactions
+    private void ToggleExpense(Category key)
+        => _openExpense = _openExpense == key ? null : key;
+
+    private IEnumerable<BankTransaction> GetTransactions(CategorySummary item, bool isIncome)
+    {
+        return _transactions
             .Where(x =>
-                x.Date.Year == year &&
-                x.MainCategory == item.MainCategory &&
-                (x.MobilePayName ?? x.SubCategory.ToString()) == item.DisplayName)
+                x.Category == item.Category &&
+                x.SubCategory == item.SubCategory &&
+                (isIncome ? x.Amount > 0 : x.Amount < 0))
             .OrderByDescending(x => x.Date);
     }
 
     private IEnumerable<CategorySummary> IncomeCategories()
-        => _summary.Where(x => x.Total > 0).OrderByDescending(x => x.Total);
+        => _summary.Where(x => x.Income > 0);
 
     private IEnumerable<CategorySummary> ExpenseCategories()
-        => _summary.Where(x => x.Total < 0).OrderBy(x => x.Total);
-
+        => _summary.Where(x => x.Expenses > 0);
     private string GetAmountClass(decimal amount)
         => amount > 0 ? "text-success" : "text-danger";
 }

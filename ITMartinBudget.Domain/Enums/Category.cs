@@ -1,6 +1,6 @@
 ﻿namespace ITMartinBudget.Domain.Enums;
 
-public enum MainCategory
+public enum Category
 {
     Indkomst,
     Mad,
