@@ -1,79 +1,143 @@
 ﻿@page "/budget/rules"
+@layout BudgetMainLayout
+
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
 @using Microsoft.EntityFrameworkCore
-@layout BudgetMainLayout
+
 @inject BudgetDbContext Db
 @inject NavigationManager Nav
-<div class="budget-container">
 
+<div class="rules-page">
+
+    <!-- HEADER -->
     <ContentCard>
-
-        <div class="row space-between">
-
+        <div class="rules-header">
             <div>
                 <h2>🧠 Rule Engine</h2>
-                <div class="meta">Categorize transactions</div>
+                <div class="meta">Categorize unknown transactions</div>
             </div>
 
-            <div class="row">
-                <button class="btn btn-primary" @onclick="GoToDashboard">Dashboard</button>
-                <button class="btn btn-secondary" @onclick="RefreshImpact">Refresh</button>
+            <div class="rules-actions">
+                <button class="btn btn-primary" @onclick="GoToDashboard">📊 Dashboard</button>
+                <button class="btn btn-secondary" @onclick="LoadData">🔄 Refresh</button>
             </div>
-
         </div>
-
     </ContentCard>
 
-    <div class="rules-layout">
+    <!-- GRID -->
+    <div class="rules-grid">
 
+        <!-- LEFT -->
         <ContentCard Title="@($"🚨 Unknown ({_unknownGrouped.Count})")">
 
+            <input class="form-input"
+                   placeholder="Search..."
+                   @bind="_filter" />
+
             <div class="stack">
+
                 @foreach (var item in FilteredUnknowns())
                 {
                     <div class="rule-item">
 
-                        <div>
+                        <div class="rule-main">
                             <strong>@item.Description</strong>
+
                             <div class="meta">@item.Count transactions</div>
+
+                            <div class="meta">
+                                <span class="@GetAmountClass(item.TotalAmount)">
+                                    @(item.TotalAmount >= 0 ? "+" : "-")
+                                    @Math.Abs(item.TotalAmount):N2 kr.
+                                </span>
+
+                                <span class="type-badge @(item.TotalAmount >= 0 ? "income" : "expense")">
+                                    @(item.TotalAmount >= 0 ? "Income" : "Expense")
+                                </span>
+                            </div>
+
+                            @if (item.IsSaving)
+                            {
+                                <div class="meta">Saving...</div>
+                            }
                         </div>
 
-                        <select @onchange="(e => OnCategoryChanged(item, e))">
-                            <option>Select</option>
-                            @foreach (var sub in GetSubCategories(Category.Indkomst))
-                            {
-                                <option value="@sub">@sub</option>
-                            }
-                        </select>
+                        <div class="rule-action">
+                            <select value="@item.SelectedSubCategory"
+                                    @onchange="async (e) => await OnCategoryChanged(item, e)">
+
+                                <option value="">Select category</option>
+
+                                @foreach (var cat in Enum.GetValues<Category>())
+                                {
+                                    <optgroup label="@($"{GetCategoryIcon(cat)} {cat}")">
+                                        @foreach (var sub in GetSubCategories(cat))
+                                        {
+                                            <option value="@sub">@sub</option>
+                                        }
+                                    </optgroup>
+                                }
+
+                            </select>
+                        </div>
 
                     </div>
                 }
+
             </div>
 
         </ContentCard>
 
-        <ContentCard Title="@RulesTitle">
-            @foreach (var rule in _rules)
+        <!-- RIGHT -->
+        <ContentCard Title="@($"📂 Rules ({_rules.Count})")">
+
+            @foreach (var group in _rules
+                .GroupBy(x => CategoryMapper.Map(x.SubCategory))
+                .OrderBy(x => x.Key))
             {
-                <div class="rule-row">
-                    <span>@rule.Keyword</span>
-                    <button class="btn btn-danger" @onclick="() => DeleteRule(rule)">
-                        Delete
-                    </button>
+                <div class="rule-group">
+
+                    <div class="rule-group-header">
+                        <span>@GetCategoryIcon(group.Key)</span>
+                        <strong>@group.Key (@group.Count())</strong>
+                    </div>
+
+                    @foreach (var rule in group)
+                    {
+                        <div class="rule-row">
+
+                            <div>
+                                <strong>@rule.Keyword</strong>
+                                <div class="meta">→ @rule.SubCategory</div>
+                            </div>
+
+                            <div>@(rule.IsVerified ? "✔" : "⚠")</div>
+
+                            <button class="btn btn-danger"
+                                    @onclick="async () => await DeleteRule(rule)">
+                                Delete
+                            </button>
+
+                        </div>
+                    }
+
                 </div>
             }
+
         </ContentCard>
 
     </div>
 
 </div>
+
 @code {
     private List<UnknownGroup> _unknownGrouped = new();
     private List<CategoryRule> _rules = new();
     private string _filter = "";
-    private string RulesTitle => $"📂 Rules ({_rules.Count})";
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -81,8 +145,8 @@
 
     private async Task LoadData()
     {
+        // 🔥 IMPORTANT: NO TRACKING OFF HERE
         var transactions = await Db.Transactions
-            .AsNoTracking()
             .Where(x => x.SubCategory == SubCategory.Ukendt)
             .ToListAsync();
 
@@ -99,11 +163,8 @@
             .ToList();
 
         _rules = await Db.CategoryRules.ToListAsync();
-    }
 
-    private async Task RefreshImpact()
-    {
-        await LoadData();
+        StateHasChanged();
     }
 
     private IEnumerable<UnknownGroup> FilteredUnknowns()
@@ -120,18 +181,12 @@
         if (!Enum.TryParse<SubCategory>(e.Value?.ToString(), out var sub))
             return;
 
-        item.SelectedSubCategory = sub;
-
-        await AssignCategory(item);
-    }
-
-    private async Task AssignCategory(UnknownGroup item)
-    {
-        if (item.SelectedSubCategory is not SubCategory sub)
-            return;
+        item.IsSaving = true;
+        StateHasChanged();
 
         var keyword = ExtractKeyword(item.Description);
 
+        // 🔥 Add rule if not exists
         if (!Db.CategoryRules.Any(r => r.Keyword == keyword))
         {
             Db.CategoryRules.Add(new CategoryRule
@@ -143,28 +198,33 @@
             });
         }
 
-        var matches = Db.Transactions
-            .Where(x => x.Description.Contains(keyword));
+        // 🔥 Update matching transactions
+        var matches = await Db.Transactions
+            .Where(x => x.Description.Contains(keyword))
+            .ToListAsync();
 
-        foreach (var x in matches)
+        foreach (var t in matches)
         {
-            x.SubCategory = sub;
-            x.Category = CategoryMapper.Map(sub);
+            t.SubCategory = sub;
+            t.Category = CategoryMapper.Map(sub);
         }
 
         await Db.SaveChangesAsync();
 
-        _unknownGrouped.Remove(item);
+        // 🔥 FULL RELOAD (safe + correct)
+        await LoadData();
     }
 
     private async Task DeleteRule(CategoryRule rule)
     {
         Db.CategoryRules.Remove(rule);
         await Db.SaveChangesAsync();
+
         await LoadData();
     }
 
-    private void GoToDashboard() => Nav.NavigateTo("/budget");
+    private void GoToDashboard()
+        => Nav.NavigateTo("/budget");
 
     private IEnumerable<SubCategory> GetSubCategories(Category category)
         => Enum.GetValues<SubCategory>()

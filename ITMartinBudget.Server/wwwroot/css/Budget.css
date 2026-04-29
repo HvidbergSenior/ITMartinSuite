@@ -262,3 +262,109 @@
 
 .amount.income { color: #4ade80; }
 .amount.expense { color: #f87171; }
+
+/* PAGE */
+.rules-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* HEADER */
+.rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rules-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* GRID */
+.rules-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+/* UNKNOWN LIST */
+.rule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 14px;
+    border-radius: 12px;
+
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+
+    transition: 0.2s;
+}
+
+.rule-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.rule-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rule-main strong {
+    font-size: 15px;
+}
+
+/* SELECT */
+.rule-action select {
+    background: #1f2229;
+    border: 1px solid #333;
+    color: white;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+
+/* RULE LIST */
+.rule-group {
+    margin-bottom: 20px;
+}
+
+.rule-group-header {
+    font-weight: 600;
+    margin-bottom: 10px;
+    opacity: 0.8;
+}
+
+/* FIX DELETE BUTTON CHAOS */
+.rule-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+
+    padding: 10px;
+    border-radius: 10px;
+
+    background: rgba(255,255,255,0.02);
+    margin-bottom: 6px;
+}
+
+.rule-row button {
+    padding: 6px 10px;
+    height: auto;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    background: #1f2229;
+    border: 1px solid #333;
+    color: white;
+}

@@ -5,4 +5,5 @@
     public decimal TotalAmount { get; set; }
 
     public SubCategory? SelectedSubCategory { get; set; } // 👈 NEW
+    public bool IsSaving { get; set; }
 }
