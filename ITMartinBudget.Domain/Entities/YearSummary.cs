@@ -4,5 +4,8 @@ public class YearSummary
 {
     public decimal Income { get; set; }
     public decimal Expenses { get; set; }
-    public decimal Net => Income + Expenses;
+
+// 🔥 FIX
+    public decimal Net => Income - Expenses;
+
 }

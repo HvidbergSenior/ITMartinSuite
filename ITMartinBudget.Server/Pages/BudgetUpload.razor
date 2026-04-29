@@ -1,54 +1,53 @@
 ﻿@page "/budget/upload"
-@rendermode InteractiveServer
-
-@using ITMartinBudget.Domain.Entities
-@using ITMartinBudget.Application.Services
 @using ITMartinBudget.Infrastructure
 @using ITMartinBudget.Infrastructure.Services
 @using Microsoft.EntityFrameworkCore
-
-@inject BankTransactionCsvService CsvService
+@layout BudgetMainLayout
+@rendermode InteractiveServer
 @inject BudgetDbContext Db
+@inject BankTransactionCsvService CsvService
 @inject NavigationManager Nav
-@inject IJSRuntime JS
+@inject IJSRuntime Js
+<div class="budget-container">
 
-<div class="budget-upload-page">
-    <div class="budget-upload-panel">
+    <ContentCard>
 
-        <SectionTitle Title="💰 Budget Upload" Subtitle="Upload your bank CSV" />
+        <div class="stack">
 
-        @if (_hasExistingData)
-        {
-            <div class="alert warning">
-                ⚠ Existing data detected. Uploading will merge and skip duplicates.
+            <div>
+                <h2>📁 Upload</h2>
+                <div class="meta">Upload your bank CSV</div>
             </div>
 
-            <button class="btn btn-danger" @onclick="ConfirmReset" disabled="@_isUploading">
-                🧹 Delete ALL data
-            </button>
-        }
+            @if (_hasExistingData)
+            {
+                <div class="alert warning">
+                    ⚠ Existing data detected
 
-        <!-- UPLOAD -->
-        <div class="upload-box @( _isUploading ? "disabled" : "" )">
-            <div class="upload-icon">📁</div>
-            <div class="upload-text">
-                @(_isUploading ? "Uploading..." : "Upload CSV file")
+                    <button class="btn btn-danger" @onclick="ConfirmReset">
+                        Delete all
+                    </button>
+                </div>
+            }
+
+            <div class="upload-box">
+                <InputFile OnChange="HandleBankCsvUpload" />
             </div>
 
-            <InputFile OnChange="HandleBankCsvUpload" disabled="@_isUploading" />
+            @if (!string.IsNullOrWhiteSpace(_message))
+            {
+                <div class="alert success">@_message</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="alert error">@_error</div>
+            }
+
         </div>
 
-        @if (!string.IsNullOrWhiteSpace(_message))
-        {
-            <div class="alert success">@_message</div>
-        }
+    </ContentCard>
 
-        @if (!string.IsNullOrWhiteSpace(_error))
-        {
-            <div class="alert error">@_error</div>
-        }
-
-    </div>
 </div>
 
 @code {
@@ -111,10 +110,7 @@
 
             await Task.Delay(300);
 
-            if (hasUnknowns)
-                Nav.NavigateTo("/budget/rules", forceLoad: true);
-            else
-                Nav.NavigateTo("/budget", forceLoad: true);
+            Nav.NavigateTo("/budget", forceLoad: true);
         }
         catch (Exception ex)
         {
@@ -128,7 +124,7 @@
 
     private async Task ConfirmReset()
     {
-        if (await JS.InvokeAsync<bool>("confirm", "Delete ALL data?"))
+        if (await Js.InvokeAsync<bool>("confirm", "Delete ALL data?"))
         {
             await FullReset();
         }

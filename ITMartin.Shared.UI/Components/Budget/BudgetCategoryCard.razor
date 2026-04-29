@@ -1,0 +1,18 @@
+﻿<div class="category-summary-card" @onclick="OnClick">
+
+    <div>
+        <div class="title">@Title</div>
+        <div class="meta">@Subtitle</div>
+    </div>
+
+    <div class="amount">@Value</div>
+
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Subtitle { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+
+    [Parameter] public EventCallback OnClick { get; set; }
+}

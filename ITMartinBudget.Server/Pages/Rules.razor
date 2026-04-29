@@ -1,135 +1,79 @@
 ﻿@page "/budget/rules"
-
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Entities
-@using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
 @using Microsoft.EntityFrameworkCore
-
+@layout BudgetMainLayout
 @inject BudgetDbContext Db
+@inject NavigationManager Nav
+<div class="budget-container">
 
-<div class="budget-dashboard-page">
-    <div class="budget-dashboard-panel">
+    <ContentCard>
 
-        <h2>🧠 Rule Engine</h2>
+        <div class="row space-between">
 
-        <div class="rules-layout">
-
-            <!-- LEFT: UNKNOWN -->
-            <div class="rules-column large">
-                <div class="content-card">
-                    <h3>🚨 Unknown Transactions (@_unknownGrouped.Count)</h3>
-
-                    <input placeholder="Search..." @bind="_filter" class="form-input" />
-
-                    @if (!_unknownGrouped.Any())
-                    {
-                        <p>Nothing to classify 🎉</p>
-                    }
-                    else
-                    {
-                        @foreach (var item in FilteredUnknowns())
-                        {
-                            <div class="rule-row">
-                                <div class="rule-description">
-                                    <strong>@item.Description</strong>
-
-                                    <div class="meta">
-                                        (@item.Count transactions)
-                                    </div>
-
-                                    <div class="meta">
-                                        <span class="@GetAmountClass(item.TotalAmount)">
-                                            @item.TotalAmount.ToString("N2")
-                                        </span>
-
-                                        <span class="type-badge @(item.TotalAmount >= 0 ? "income" : "expense")">
-                                            @(item.TotalAmount >= 0 ? "Income" : "Expense")
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <!-- 🔥 GROUPED DROPDOWN -->
-                                <select value="@item.SelectedSubCategory"
-                                        @onchange="(e => OnCategoryChanged(item, e))">
-
-                                    <option value="">Select category</option>
-
-                                    @foreach (var cat in Enum.GetValues<Category>())
-                                    {
-                                        <optgroup label="@cat">
-                                            @foreach (var sub in GetSubCategories(cat))
-                                            {
-                                                <option value="@sub">@FormatSubCategory(sub)</option>
-                                            }
-                                        </optgroup>
-                                    }
-                                </select>
-                            </div>
-                        }
-                    }
-                </div>
+            <div>
+                <h2>🧠 Rule Engine</h2>
+                <div class="meta">Categorize transactions</div>
             </div>
 
-            <!-- RIGHT: RULES -->
-            <div class="rules-column small">
-                <div class="content-card sticky">
-
-                    <h3>📂 Rules (@_rules.Count)</h3>
-
-                    @if (!_rules.Any())
-                    {
-                        <p>No rules yet</p>
-                    }
-                    else
-                    {
-                        @foreach (var group in _rules
-                                      .GroupBy(x => CategoryMapper.Map(x.SubCategory))
-                                      .OrderBy(x => x.Key))
-                        {
-                            <div class="rule-group">
-
-                                <div class="rule-group-header">
-                                    <span>@GetCategoryIcon(group.Key)</span>
-                                    <strong>@group.Key</strong>
-                                    <span>(@group.Count())</span>
-                                </div>
-
-                                @foreach (var rule in group)
-                                {
-                                    <div class="rule-row">
-                                        <div>
-                                            <div><strong>@rule.Keyword</strong></div>
-                                            <div class="meta">→ @FormatSubCategory(rule.SubCategory)</div>
-                                        </div>
-
-                                        <div>
-                                            @(rule.IsVerified ? "✔" : "⚠")
-                                        </div>
-
-                                        <button class="btn btn-danger"
-                                                @onclick="() => DeleteRule(rule)">
-                                            Delete
-                                        </button>
-                                    </div>
-                                }
-                            </div>
-                        }
-                    }
-
-                </div>
+            <div class="row">
+                <button class="btn btn-primary" @onclick="GoToDashboard">Dashboard</button>
+                <button class="btn btn-secondary" @onclick="RefreshImpact">Refresh</button>
             </div>
 
         </div>
 
-    </div>
-</div>
+    </ContentCard>
 
+    <div class="rules-layout">
+
+        <ContentCard Title="@($"🚨 Unknown ({_unknownGrouped.Count})")">
+
+            <div class="stack">
+                @foreach (var item in FilteredUnknowns())
+                {
+                    <div class="rule-item">
+
+                        <div>
+                            <strong>@item.Description</strong>
+                            <div class="meta">@item.Count transactions</div>
+                        </div>
+
+                        <select @onchange="(e => OnCategoryChanged(item, e))">
+                            <option>Select</option>
+                            @foreach (var sub in GetSubCategories(Category.Indkomst))
+                            {
+                                <option value="@sub">@sub</option>
+                            }
+                        </select>
+
+                    </div>
+                }
+            </div>
+
+        </ContentCard>
+
+        <ContentCard Title="@RulesTitle">
+            @foreach (var rule in _rules)
+            {
+                <div class="rule-row">
+                    <span>@rule.Keyword</span>
+                    <button class="btn btn-danger" @onclick="() => DeleteRule(rule)">
+                        Delete
+                    </button>
+                </div>
+            }
+        </ContentCard>
+
+    </div>
+
+</div>
 @code {
     private List<UnknownGroup> _unknownGrouped = new();
     private List<CategoryRule> _rules = new();
     private string _filter = "";
-
+    private string RulesTitle => $"📂 Rules ({_rules.Count})";
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -142,27 +86,24 @@
             .Where(x => x.SubCategory == SubCategory.Ukendt)
             .ToListAsync();
 
-        var rules = await Db.CategoryRules.ToListAsync();
-
         _unknownGrouped = transactions
             .GroupBy(x => x.Description)
-            .Select(g =>
+            .Select(g => new UnknownGroup
             {
-                var rule = rules.FirstOrDefault(r => g.Key.Contains(r.Keyword));
-
-                return new UnknownGroup
-                {
-                    Description = g.Key,
-                    Count = g.Count(),
-                    TotalAmount = g.Sum(x => x.Amount),
-                    SelectedSubCategory = rule?.SubCategory
-                };
+                Description = g.Key,
+                Count = g.Count(),
+                TotalAmount = g.Sum(x => x.Amount)
             })
             .OrderByDescending(x => Math.Abs(x.TotalAmount))
             .Take(200)
             .ToList();
 
-        _rules = rules;
+        _rules = await Db.CategoryRules.ToListAsync();
+    }
+
+    private async Task RefreshImpact()
+    {
+        await LoadData();
     }
 
     private IEnumerable<UnknownGroup> FilteredUnknowns()
@@ -180,6 +121,7 @@
             return;
 
         item.SelectedSubCategory = sub;
+
         await AssignCategory(item);
     }
 
@@ -211,7 +153,8 @@
         }
 
         await Db.SaveChangesAsync();
-        await LoadData();
+
+        _unknownGrouped.Remove(item);
     }
 
     private async Task DeleteRule(CategoryRule rule)
@@ -220,6 +163,12 @@
         await Db.SaveChangesAsync();
         await LoadData();
     }
+
+    private void GoToDashboard() => Nav.NavigateTo("/budget");
+
+    private IEnumerable<SubCategory> GetSubCategories(Category category)
+        => Enum.GetValues<SubCategory>()
+            .Where(x => CategoryMapper.Map(x) == category);
 
     private string GetAmountClass(decimal amount)
         => amount >= 0 ? "text-success" : "text-danger";
@@ -245,104 +194,5 @@
         Category.Sundhed => "🏥",
         Category.Abonnement => "📱",
         _ => "📦"
-    };
-
-    // 🔥 GROUPING
-    private IEnumerable<SubCategory> GetSubCategories(Category category)
-    {
-        return category switch
-        {
-            Category.Indkomst => new[]
-            {
-                SubCategory.Løn,
-                SubCategory.SU,
-                SubCategory.OverskydendeSkat,
-                SubCategory.Renter,
-                SubCategory.Pengegaver,
-                SubCategory.VirksomhedsIndkomst,
-                SubCategory.OverførselFraAndre
-            },
-
-            Category.Mad => new[]
-            {
-                SubCategory.Dagligvarer,
-                SubCategory.Restaurant,
-                SubCategory.Snacks
-            },
-
-            Category.Transport => new[]
-            {
-                SubCategory.Benzin,
-                SubCategory.Parkering,
-                SubCategory.ReparationBil,
-                SubCategory.OffentligTransport
-            },
-
-            Category.Bolig => new[]
-            {
-                SubCategory.Husleje,
-                SubCategory.RenterLån,
-                SubCategory.VarmeVandAffald,
-                SubCategory.ReparationHus
-            },
-
-            Category.Abonnement => new[]
-            {
-                SubCategory.Telefonabonnement,
-                SubCategory.Internet,
-                SubCategory.StreamingTjenester
-            },
-
-            Category.Sundhed => new[]
-            {
-                SubCategory.Tandlæge,
-                SubCategory.Sygeforsikring,
-                SubCategory.Medicin
-            },
-
-            Category.Shopping => new[]
-            {
-                SubCategory.Tøj
-            },
-
-            Category.Fritid => new[]
-            {
-                SubCategory.Underholdning,
-                SubCategory.FitnessSport,
-                SubCategory.Rejser
-            },
-
-            Category.Andet => new[]
-            {
-                SubCategory.FagforeningAkasse,
-                SubCategory.Forsikring,
-                SubCategory.VirksomhedsUdgift,
-                SubCategory.Frisør,
-                SubCategory.PersonligPleje,
-                SubCategory.GaverTilAndre,
-                SubCategory.OverførselTilAndre,
-                SubCategory.Børneopsparing,
-                SubCategory.Opsparing,
-                SubCategory.Ukendt
-            },
-
-            _ => new[] { SubCategory.Ukendt }
-        };
-    }
-
-    private string FormatSubCategory(SubCategory sub) => sub switch
-    {
-        SubCategory.OverskydendeSkat => "Overskydende skat",
-        SubCategory.RenterLån => "Renter lån",
-        SubCategory.VarmeVandAffald => "Varme / vand / affald",
-        SubCategory.ReparationHus => "Reparation hus",
-        SubCategory.ReparationBil => "Reparation bil",
-        SubCategory.FitnessSport => "Fitness / sport",
-        SubCategory.FagforeningAkasse => "Fagforening / A-kasse",
-        SubCategory.Telefonabonnement => "Telefon abonnement",
-        SubCategory.StreamingTjenester => "Streaming",
-        SubCategory.VirksomhedsIndkomst => "Virksomhed indkomst",
-        SubCategory.VirksomhedsUdgift => "Virksomhed udgift",
-        _ => sub.ToString()
     };
 }

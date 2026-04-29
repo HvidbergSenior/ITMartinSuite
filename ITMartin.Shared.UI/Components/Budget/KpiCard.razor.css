@@ -1,0 +1,58 @@
+﻿.kpi-card {
+    padding: 16px;
+    border-radius: 14px;
+
+    background: linear-gradient(145deg, #1a1d24, #121317);
+    border: 1px solid rgba(255,255,255,0.05);
+
+    transition: var(--transition);
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+}
+
+/* COLOR TYPES */
+
+.kpi-income {
+    border-left: 4px solid var(--success);
+}
+
+.kpi-expense {
+    border-left: 4px solid var(--danger);
+}
+
+.kpi-net {
+    border-left: 4px solid var(--accent);
+}
+
+.kpi-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+.kpi-big-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin: 24px 0 30px;
+}
+.kpi-big {
+    padding: 28px;
+    border-radius: 18px;
+
+    border: 1px solid rgba(255,255,255,0.08);
+
+    box-shadow:
+            0 10px 30px rgba(0,0,0,0.5);
+
+    transition: var(--transition);
+}
+.kpi-big:hover {
+    transform: translateY(-3px);
+}
+
+.kpi-big-value {
+    font-size: 32px; /* 🔥 bigger */
+    font-weight: 800;
+    margin-top: 10px;
+}

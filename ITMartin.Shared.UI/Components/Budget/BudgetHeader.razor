@@ -1,0 +1,59 @@
+﻿<ContentCard>
+
+    <div class="stack">
+
+        <div class="row space-between">
+            <div>
+                <h2>💰 Budget Dashboard</h2>
+                <div class="meta">Overview of your current year</div>
+            </div>
+
+            <button class="btn btn-danger" @onclick="OnReset">
+                🗑 Reset
+            </button>
+        </div>
+
+        @if (UnknownCount > 0)
+        {
+            <div class="alert warning">
+                <span>⚠ @UnknownCount uncategorized</span>
+
+                <button class="btn btn-primary" @onclick="OnFix">
+                    Fix now
+                </button>
+            </div>
+        }
+
+        <div class="kpi-row">
+            <KpiCard Title="Income" Value="@Income" Type="success" />
+            <KpiCard Title="Expenses" Value="@Expenses" Type="danger" />
+            <KpiCard Title="Net" Value="@Net" />
+        </div>
+
+        <div class="category-summary-row">
+            <BudgetCategoryCard Title="Income"
+                                Subtitle="@IncomeCount"
+                                Value="@Income" />
+
+            <BudgetCategoryCard Title="Expenses"
+                                Subtitle="@ExpenseCount"
+                                Value="@Expenses" />
+        </div>
+
+    </div>
+
+</ContentCard>
+
+@code {
+    [Parameter] public string? Income { get; set; }
+    [Parameter] public string? Expenses { get; set; }
+    [Parameter] public string? Net { get; set; }
+
+    [Parameter] public string? IncomeCount { get; set; }
+    [Parameter] public string? ExpenseCount { get; set; }
+
+    [Parameter] public int UnknownCount { get; set; }
+
+    [Parameter] public EventCallback OnReset { get; set; }
+    [Parameter] public EventCallback OnFix { get; set; }
+}

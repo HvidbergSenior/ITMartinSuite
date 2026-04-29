@@ -39,8 +39,9 @@ html, body {
     color: var(--text-main);
     font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif;
 }
+
 /* =========================
-   LAYOUT
+   APP LAYOUT (GENERIC)
 ========================= */
 .app-shell {
     min-height: 100vh;
@@ -65,17 +66,25 @@ html, body {
     margin: 0 auto;
 }
 
-/* FLEX HELPERS */
+/* =========================
+   FLEX HELPERS
+========================= */
+.row {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.row.space-between {
+    justify-content: space-between;
+    align-items: center;
+}
+
 .stack {
     display: flex;
     flex-direction: column;
     gap: var(--space-md);
 }
 
-.row {
-    display: flex;
-    gap: var(--space-sm);
-}
 /* =========================
    BUTTONS
 ========================= */
@@ -84,9 +93,11 @@ html, body {
     padding: 0 18px;
     border-radius: var(--radius-sm);
     border: none;
+
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
@@ -100,22 +111,30 @@ html, body {
 
 .btn-success { background: var(--success); color: white; }
 .btn-danger { background: var(--danger); color: white; }
+
 /* =========================
-   CARDS
+   CARD SYSTEM (GENERIC)
 ========================= */
-.card {
-    background: linear-gradient(145deg, #16181e, var(--bg-soft));
+.card,
+.content-card {
+    background: linear-gradient(145deg, #1a1d24, #121317);
     border-radius: var(--radius-md);
     padding: var(--space-md);
+
     border: 1px solid rgba(255,255,255,0.05);
+
+    box-shadow:
+            0 10px 30px rgba(0,0,0,0.6),
+            inset 0 1px 0 rgba(255,255,255,0.03);
 }
+
 /* =========================
    ALERTS
 ========================= */
 .alert {
     margin-top: 12px;
     padding: 10px 12px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
 }
 
 .alert.success {
@@ -127,6 +146,7 @@ html, body {
     background: rgba(239,68,68,0.15);
     color: #f87171;
 }
+
 /* =========================
    TABLE
 ========================= */
@@ -153,39 +173,7 @@ html, body {
 }
 
 /* =========================
-   BUDGET DASHBOARD
-========================= */
-.budget-dashboard-page,
-.budget-upload-page {
-    display: flex;
-    justify-content: center;
-    padding: 32px 16px;
-}
-
-.budget-dashboard-panel {
-    max-width: 1100px;
-}
-
-.budget-upload-panel {
-    max-width: 900px;
-}
-
-.budget-dashboard-panel,
-.budget-upload-panel {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-
-    box-shadow: var(--shadow);
-}
-/* =========================
-   STATS
+   STATS (GENERIC)
 ========================= */
 .dashboard-stats-grid {
     display: grid;
@@ -195,10 +183,13 @@ html, body {
 }
 
 .stat-card {
-    background: linear-gradient(145deg, #1a1c22, #23262d);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px;
-    padding: 18px;
+    background: linear-gradient(145deg, #1a1d24, #121317);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+
+    border: 1px solid rgba(255,255,255,0.05);
+
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
 
 .stat-value {
@@ -207,11 +198,11 @@ html, body {
 }
 
 /* =========================
-   UPLOAD
+   UPLOAD (GENERIC)
 ========================= */
 .upload-box {
     border: 2px dashed rgba(255,255,255,0.1);
-    border-radius: 16px;
+    border-radius: var(--radius-md);
     padding: 28px;
     text-align: center;
     background: rgba(255,255,255,0.02);
@@ -236,5 +227,5 @@ html, body {
     border: 1px solid var(--border);
     color: white;
     padding: 10px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
 }

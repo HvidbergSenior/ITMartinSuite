@@ -1,321 +1,264 @@
-/* =========================
-   BUDGET LAYOUT FIXED
-========================= */
-.budget-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+/* PAGE */
+.budget-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
     gap: 24px;
 }
 
-.budget-column {
+/* HEADER */
+.budget-header-row {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-title {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.page-sub {
+    color: var(--text-muted);
+}
+
+/* KPI GRID */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+.kpi-big {
+    display: flex;
     gap: 16px;
+    padding: 22px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: linear-gradient(145deg, #1a1d24, #121317);
 }
 
-/* CLICKABLE HEADER */
-.category-header.clickable {
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.category-header.clickable:hover {
+.kpi-icon {
+    font-size: 26px;
     opacity: 0.8;
 }
 
-/* CATEGORY CARD */
-.category-card {
-    border-radius: 16px;
-    padding: 16px;
-}
-
-/* INCOME */
-.category-card.income {
-    border-left: 4px solid var(--success);
-    background: linear-gradient(145deg, #132018, #1a2b20);
-}
-
-/* EXPENSE */
-.category-card.expense {
-    border-left: 4px solid var(--accent);
-    background: linear-gradient(145deg, #201313, #2b1a1a);
-}
-
-/* HEADER */
-.category-header {
-    display: flex;
-    justify-content: space-between;
-    font-weight: 700;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-
-/* SUBCATEGORY */
-.subcategory-card {
-    margin-top: 10px;
-    padding: 14px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.03);
-    transition: var(--transition);
-}
-
-.subcategory-card:hover {
-    background: rgba(255,255,255,0.06);
-}
-
-.subcategory-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* TEXT */
-.title {
+.kpi-label {
     font-size: 14px;
-    font-weight: 600;
+    color: var(--text-muted);
 }
 
-.meta {
+.kpi-value {
+    font-size: 34px; /* bigger */
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.kpi-sub {
     font-size: 12px;
     color: var(--text-muted);
 }
 
-.amount {
-    font-weight: 600;
+.kpi-big {
+    animation: fadeInUp 0.5s ease;
 }
 
-/* TRANSACTIONS */
-.subcategory-transactions {
-    margin-top: 10px;
-    padding-left: 10px;
-    border-left: 2px dashed rgba(255,255,255,0.1);
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.transaction-row {
-    display: grid;
-    grid-template-columns: 70px 1fr 100px;
-    font-size: 13px;
-    padding: 4px 0;
+/* COLORS */
+.kpi-big.income {
+    border-left: 4px solid #22c55e;
+    background: linear-gradient(145deg, #0f2a1a, #121317);
 }
 
-/* =========================
-   CATEGORY
-========================= */
-.category-card {
-    border-radius: 16px;
-    padding: 16px;
-
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.kpi-big.expense {
+    border-left: 4px solid #ef4444;
+    background: linear-gradient(145deg, #2a1212, #121317);
 }
 
-.category-card.income {
-    border-left: 4px solid var(--success);
-    background: linear-gradient(145deg, #132018, #1a2b20);
+.kpi-big.net {
+    border-left: 4px solid #3b82f6;
+    background: linear-gradient(145deg, #121a2a, #121317);
 }
 
-.category-card.expense {
-    border-left: 4px solid var(--accent);
-    background: linear-gradient(145deg, #201313, #2b1a1a);
-}
-
-.category-header {
+/* UNKNOWN */
+.unknown-banner {
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    font-weight: 700;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding-bottom: 6px;
+    padding: 18px;
+    border-radius: 14px;
+    background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+    border: 1px solid rgba(245,158,11,0.4);
 }
 
-/* =========================
-   SUBCATEGORY
-========================= */
-.subcategory-card {
-    margin-top: 8px;
-    padding: 12px;
-    border-radius: 12px;
+.unknown-left {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
 
-    cursor: pointer;
-    background: rgba(255,255,255,0.02);
+.unknown-icon {
+    font-size: 22px;
+    color: #f59e0b;
+}
 
+.unknown-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.unknown-sub {
+    color: var(--text-muted);
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+/* CATEGORIES */
+.categories-card {
+    padding: 20px;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #1a1d24, #121317);
+    border: 1px solid var(--border);
+}
+
+.section-title {
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.categories-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+}
+
+.column-title {
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.column-title.income { color: #22c55e; }
+.column-title.expense { color: #ef4444; }
+
+/* CATEGORY ROWS */
+.category-row {
     position: relative;
-    transition: var(--transition);
+    overflow: hidden;
+    padding: 12px 16px;
 }
 
-.subcategory-card:hover {
-    background: rgba(255,255,255,0.06);
-}
-
-/* LEFT COLOR BAR */
-.subcategory-card::before {
-    content: "";
+.category-bar {
     position: absolute;
     left: 0;
-    top: 8px;
-    bottom: 8px;
-    width: 3px;
-    border-radius: 2px;
+    top: 0;
+    bottom: 0;
+    opacity: 0.15;
+    border-radius: 12px;
 }
 
-.category-card.income .subcategory-card::before {
-    background: var(--success);
+/* COLORS */
+.category-row.income .category-bar {
+    background: #22c55e;
 }
 
-.category-card.expense .subcategory-card::before {
-    background: var(--accent);
+.category-row.expense .category-bar {
+    background: #ef4444;
 }
 
-/* HEADER */
-.subcategory-header {
+.category-row.income {
+    background: linear-gradient(90deg, rgba(34,197,94,0.15), transparent);
+    border-left: 3px solid #22c55e;
+}
+
+.category-row.expense {
+    background: linear-gradient(90deg, rgba(239,68,68,0.15), transparent);
+    border-left: 3px solid #ef4444;
+}
+/* =========================
+   GLOBAL INTERACTION
+========================= */
+
+.kpi-big,
+.category-row,
+.unknown-banner {
+    transition: all 0.25s ease;
+}
+
+/* HOVER LIFT */
+.kpi-big:hover,
+.category-row:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+}
+
+/* COLOR GLOW */
+.kpi-big.income:hover {
+    box-shadow: 0 0 30px rgba(34,197,94,0.25);
+}
+
+.kpi-big.expense:hover {
+    box-shadow: 0 0 30px rgba(239,68,68,0.25);
+}
+
+.kpi-big.net:hover {
+    box-shadow: 0 0 30px rgba(59,130,246,0.25);
+}
+
+/* CATEGORY SHINE EFFECT */
+.category-row {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.category-row::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.08), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.category-row:hover::after {
+    opacity: 1;
+}
+
+/* =========================
+   EXPANDABLE DETAILS
+========================= */
+
+.category-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    margin-bottom: 6px;
+}
+
+.category-details.open {
+    max-height: 400px;
+}
+
+.category-detail-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-}
-
-.title {
-    font-weight: 600;
-}
-
-.meta {
-    font-size: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
     color: var(--text-muted);
+    border-left: 2px solid rgba(255,255,255,0.05);
+    margin-left: 8px;
 }
 
-.amount {
-    font-weight: 600;
-}
-
-/* =========================
-   TRANSACTIONS
-========================= */
-.subcategory-transactions {
-    margin-top: 10px;
-    padding-left: 14px;
-    border-left: 2px dashed rgba(255,255,255,0.1);
-}
-
-.transaction-row {
-    display: grid;
-    grid-template-columns: 80px 1fr 100px;
-    font-size: 13px;
-    padding: 4px 0;
-}
-
-.rule-row {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    gap: 10px;
-    align-items: center;
-}
-
-.rule-description {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.type-badge {
-    margin-left: 10px;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-}
-
-.type-badge.income {
-    background: rgba(34,197,94,0.15);
-    color: #22c55e;
-}
-
-.type-badge.expense {
-    background: rgba(239,68,68,0.15);
-    color: #ef4444;
-}
-
-/* =========================
-   RULES LAYOUT
-========================= */
-
-.rules-layout {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 20px;
-}
-
-/* LEFT */
-.rules-column.large {
-    min-width: 0; /* 🔥 allows shrink */
-}
-
-/* RIGHT */
-.rules-column.small {
-    min-width: 320px;
-    align-self: start; /* 🔥 required for sticky in grid */
-}
-
-/* STICKY PANEL */
-.rules-column.small .content-card {
-    position: sticky;
-    top: 20px;
-}
-
-/* RULE ROW */
-.rule-row {
-    display: grid;
-    grid-template-columns: 1fr 50px 110px;
-    gap: 12px;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-/* TEXT FIX */
-.rule-description {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* BUTTON FIX */
-button.btn-danger {
-    white-space: nowrap;
-}
-
-select {
-    width: 180px;
-    padding: 6px 10px;
-
-    border-radius: 8px;
-    border: 1px solid #333;
-
-    background: #1f2229;
-    color: var(--text-main);
-
-    font-size: 13px;
-    outline: none;
-
-    transition: var(--transition);
-}
-
-/* hover */
-select:hover {
-    border-color: var(--accent);
-}
-
-/* focus */
-select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
-}
-
-.rule-row select {
-    min-width: 160px;
-}
-
-.rule-row select {
-    min-width: 160px;
-}
+.amount.income { color: #4ade80; }
+.amount.expense { color: #f87171; }

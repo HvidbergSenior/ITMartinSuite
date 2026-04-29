@@ -1,0 +1,17 @@
+﻿<div class="kpi-card @TypeClass">
+    <div class="kpi-title">@Title</div>
+    <div class="kpi-value">@Value</div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public string Type { get; set; } = "";
+
+    private string TypeClass => Type switch
+    {
+        "success" => "kpi-income",
+        "danger" => "kpi-expense",
+        _ => "kpi-net"
+    };
+}
