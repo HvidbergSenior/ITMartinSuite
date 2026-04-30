@@ -31,11 +31,14 @@ using (var scope = app.Services.CreateScope())
     {
         db.CategoryRules.AddRange(new[]
         {
-            // 🛒 FOOD
-            new CategoryRule { Keyword = "pizza", SubCategory = SubCategory.Restaurant, Priority = 10, IsActive = true },
-
+            new CategoryRule 
+            { 
+                Keyword = KeywordNormalizer.Normalize("pizza"),
+                SubCategory = SubCategory.Restaurant,
+                Priority = 10,
+                IsActive = true 
+            },
         });
-
         db.SaveChanges();
     }
 }

@@ -23,7 +23,7 @@ public class BankTransactionCsvService
     {
         using var reader = new StreamReader(stream);
 
-        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        var config = new CsvConfiguration(new CultureInfo("da-DK"))
         {
             Delimiter = ";"
         };
@@ -52,51 +52,68 @@ public class BankTransactionCsvService
             .Select(x => CreateKey(x.Date, x.Amount, x.Description))
             .ToHashSet();
 
-        var existingUnknowns = (await _db.UnknownTransactions
-            .Select(x => x.Description)
-            .ToListAsync())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
         var newUnknowns = new List<UnknownTransaction>();
 
         foreach (var record in records)
         {
-            var text = record.Description.ToLowerInvariant();
-
-            // 🔧 RULES ONLY IF UNKNOWN
-            if (record.SubCategory == SubCategory.Ukendt)
-            {
-                var detected = engine.Detect(record.Description);
-
-                if (detected != SubCategory.Ukendt)
-                    record.SubCategory = detected;
-            }
-
-            // 🔥 MOBILEPAY METADATA ONLY
+            // 1. Extract MobilePay name
             if (record.IsMobilePay)
             {
                 record.MobilePayName = ExtractMobilePayName(record.Description);
+                record.MobilePayName = NameNormalizer.NormalizePersonName(record.MobilePayName);
             }
 
-            // 🔥 ALWAYS DERIVE CATEGORY
+            // 2. 🔥 SINGLE SOURCE OF TRUTH
+            var groupingKey = TransactionGroupingService.GetGroupingKey(record);
+
+            // 3. Detection
+            if (record.SubCategory == SubCategory.Ukendt)
+            {
+                var detected = engine.Detect(groupingKey);
+
+                if (detected == SubCategory.Ukendt)
+                {
+                    if (record.IsMobilePay && DescriptionClassifier.IsLikelyPerson(groupingKey))
+                    {
+                        detected = SubCategory.Kontooverførsel;
+                    }
+                }
+
+                record.SubCategory = detected;
+            }
+
+            // 4. 💰 INCOME LOGIC (CRITICAL FIX)
+            if (record.Amount > 0)
+            {
+                if (record.SubCategory == SubCategory.Ukendt ||
+                    record.SubCategory == SubCategory.Kontooverførsel)
+                {
+                    record.SubCategory = SubCategory.AndenIndtægt;
+                }
+            }
+
+            // 5. Map category
             record.Category = CategoryMapper.Map(record.SubCategory);
 
-            // 🔍 UNKNOWN TRACKING
+            // 6. Store normalized value ONLY
+            record.Description = groupingKey;
+
+            // 7. Unknown tracking
             if (record.SubCategory == SubCategory.Ukendt)
             {
                 newUnknowns.Add(new UnknownTransaction
                 {
-                    Description = record.Description
+                    Description = groupingKey
                 });
             }
         }
-        // 🔥 DEDUP INSIDE CSV
+
+        // 🔥 DEDUP USING NORMALIZED DESCRIPTION
         var uniqueTransactions = records
             .GroupBy(t => CreateKey(t.Date, t.Amount, t.Description))
             .Select(g => g.First())
             .ToList();
 
-        // 🔥 FILTER AGAINST DB
         var newTransactions = uniqueTransactions
             .Where(t =>
             {
@@ -127,23 +144,6 @@ public class BankTransactionCsvService
         return newTransactions;
     }
 
-    private bool IsMobilePay(string text)
-    {
-        return text.Contains("mobilepay");
-    }
-
-    private bool IsTransfer(string text)
-    {
-        if (text.StartsWith("til ")) return true;
-        if (text.StartsWith("fra ")) return true;
-        if (text.Contains("overfør")) return true;
-
-        if (text.Contains("egen konto") || text.Contains("konto til konto"))
-            return true;
-
-        return false;
-    }
-
     private string CreateKey(DateTime date, decimal amount, string description)
     {
         var normalizedDescription = (description ?? "")
@@ -169,17 +169,20 @@ public class BankTransactionCsvService
 
     private string? ExtractMobilePayName(string description)
     {
-        if (!description.Contains("mobilepay"))
+        if (!description.Contains("mobilepay", StringComparison.OrdinalIgnoreCase))
             return null;
 
         var cleaned = description
-            .Replace("mobilepay", "")
-            .Replace("-", "")
+            .Replace("mobilepay", "", StringComparison.OrdinalIgnoreCase)
             .Trim();
+
+        cleaned = Regex.Replace(cleaned, @"[^a-zA-ZæøåÆØÅ ]", "");
+        cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
 
         if (string.IsNullOrWhiteSpace(cleaned))
             return null;
 
-        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(cleaned);
+        return CultureInfo.CurrentCulture.TextInfo
+            .ToTitleCase(cleaned.ToLower());
     }
 }

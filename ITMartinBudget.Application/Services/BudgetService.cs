@@ -81,7 +81,7 @@ public class BudgetService
         SubCategory.OverskydendeSkat => "Overskydende skat",
         SubCategory.Renter => "Renter",
         SubCategory.Pengegaver => "Gaver (ind)",
-
+        SubCategory.AndenIndtægt => "Anden indtægt",
         // 🔁 TRANSFERS
         SubCategory.OverførselFraAndre => "Overførsel fra",
         SubCategory.OverførselTilAndre => "Overførsel til",

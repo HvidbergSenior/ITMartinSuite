@@ -4,6 +4,7 @@
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
+@using Microsoft.EntityFrameworkCore
 @layout BudgetMainLayout
 
 @inject BudgetService BudgetService
@@ -166,14 +167,23 @@
     private int _unknownCount;
     private string? _openCategory;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        LoadData();
-    }
+        Console.WriteLine("===== DASHBOARD RELOAD =====");
 
-    private void LoadData()
+        await LoadDataAsync();
+    }
+    private async Task LoadDataAsync()
     {
-        var all = Db.Transactions.ToList();
+        Console.WriteLine("===== LOADING DASHBOARD =====");
+
+        Db.ChangeTracker.Clear();
+
+        var all = await Db.Transactions
+            .AsNoTracking()
+            .ToListAsync();
+
+        Console.WriteLine($"[TOTAL TRANSACTIONS] {all.Count}");
 
         if (!all.Any())
         {
@@ -184,12 +194,54 @@
 
         var year = all.Max(x => x.Date.Year);
 
-        var transactions = all.Where(x => x.Date.Year == year).ToList();
+        var transactions = all
+            .Where(x => x.Date.Year == year)
+            .ToList();
 
-        _unknownCount = transactions.Count(x => x.SubCategory == SubCategory.Ukendt);
+        Console.WriteLine($"[YEAR] {year}");
+        Console.WriteLine($"[YEAR TRANSACTIONS] {transactions.Count}");
+
+        // 🔥 UNKNOWN DEBUG
+        var unknowns = transactions
+            .Where(x => x.SubCategory == SubCategory.Ukendt)
+            .ToList();
+
+        Console.WriteLine($"[UNKNOWN COUNT] {unknowns.Count}");
+
+        foreach (var u in unknowns)
+        {
+            var key = TransactionGroupingService.GetGroupingKey(u);
+
+            Console.WriteLine("[UNKNOWN]");
+            Console.WriteLine($"  DESC: {u.Description}");
+            Console.WriteLine($"  MOBILEPAY: {u.MobilePayName}");
+            Console.WriteLine($"  KEY: {key}");
+            Console.WriteLine($"  AMOUNT: {u.Amount}");
+        }
+
+        _unknownCount = unknowns.Count;
+
+        // 🔥 SUMMARY DEBUG INPUT
+        Console.WriteLine("[SUMMARY INPUT]");
+        foreach (var t in transactions)
+        {
+            Console.WriteLine($"  {t.Description} | {t.SubCategory} | {t.Amount}");
+        }
 
         _summary = BudgetService.GetSummary(transactions, year).ToList();
+
+        Console.WriteLine("[SUMMARY OUTPUT]");
+        foreach (var s in _summary)
+        {
+            Console.WriteLine($"  {s.SubCategory} | IN: {s.Income} | OUT: {s.Expenses}");
+        }
+
         _totals = BudgetService.GetYearTotals(transactions, year);
+
+        Console.WriteLine("[TOTALS]");
+        Console.WriteLine($"  INCOME: {_totals.Income}");
+        Console.WriteLine($"  EXPENSES: {_totals.Expenses}");
+        Console.WriteLine($"  NET: {_totals.Net}");
     }
 
     void Toggle(string key)

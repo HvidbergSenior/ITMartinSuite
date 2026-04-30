@@ -5,9 +5,9 @@
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
+@using ITMartinBudget.Domain.ValueObjects
 @using ITMartinBudget.Infrastructure
 @using Microsoft.EntityFrameworkCore
-
 @inject BudgetDbContext Db
 @inject NavigationManager Nav
 
@@ -30,7 +30,7 @@
     <div class="rules-grid">
 
         <!-- LEFT -->
-        <ContentCard Title="@($"🚨 Unknown ({_unknownGrouped.Count})")">
+        <ContentCard Title="@($"🚨 Unknown ({_unknownGrouped.Sum(x => x.Count)} transactions / {_unknownGrouped.Count} groups)")">
 
             <input class="form-input" placeholder="Search..." @bind="_filter" />
 
@@ -41,63 +41,22 @@
                     <div class="rule-item">
 
                         <div class="rule-main">
-
                             <strong>@GetDisplayName(item.Description)</strong>
-
                             <div class="meta">@item.Count transactions</div>
-
-                            <div class="meta">
-                                <span class="@GetAmountClass(item.TotalAmount)">
-                                    @(item.TotalAmount >= 0 ? "+" : "-")
-                                    @($"{Math.Abs(item.TotalAmount):N2} kr.")
-                                </span>
-
-                                <span class="type-badge @(item.TotalAmount >= 0 ? "income" : "expense")">
-                                    @GetTransactionLabel(item.TotalAmount)
-                                </span>
-
-                                @if (IsLikelyPerson(item.Description))
-                                {
-                                    <span class="type-badge mobilepay">Person</span>
-                                }
-                            </div>
-
                         </div>
 
                         <div class="rule-action">
+                            <select @onchange="async (e) => await OnSubCategorySelected(item, e)">
+                                <option value="">Select subcategory</option>
 
-                            @if (IsLikelyPerson(item.Description))
-                            {
-                                <div style="display:flex; gap:6px; margin-bottom:6px;">
-                                    <button class="btn btn-secondary"
-                                            @onclick="async () => await QuickAssign(item, SubCategory.OverførselTilAndre)">
-                                        Transfer
-                                    </button>
-
-                                    <button class="btn btn-secondary"
-                                            @onclick="async () => await QuickAssign(item, SubCategory.PersonligtForbrug)">
-                                        Personal
-                                    </button>
-                                </div>
-                            }
-
-                            <select value="@item.SelectedSubCategory"
-                                    @onchange="async (e) => await OnCategoryChanged(item, e)">
-
-                                <option value="">Select category</option>
-
-                                @foreach (var cat in Enum.GetValues<Category>())
+                                @foreach (var sub in Enum.GetValues<SubCategory>())
                                 {
-                                    <optgroup label="@cat">
-                                        @foreach (var sub in GetSubCategories(cat))
-                                        {
-                                            <option value="@sub">@sub</option>
-                                        }
-                                    </optgroup>
+                                    if (sub == SubCategory.Ukendt)
+                                        continue;
+
+                                    <option value="@sub">@sub</option>
                                 }
-
                             </select>
-
                         </div>
 
                     </div>
@@ -108,36 +67,62 @@
         </ContentCard>
 
         <!-- RIGHT -->
-        <ContentCard Title="@($"📂 Rules ({_rules.Count})")">
+        <div style="display:flex; flex-direction:column; gap:16px;">
 
-            @foreach (var group in _rules
-                .GroupBy(x => CategoryMapper.Map(x.SubCategory)))
-            {
-                <div class="rule-group">
+            <!-- RULES -->
+            <ContentCard Title="@($"📂 Rules ({_rules.Count})")">
 
-                    <div class="rule-group-header">
-                        <strong>@group.Key (@group.Count())</strong>
-                    </div>
+                @foreach (var group in _rules
+                    .GroupBy(x => CategoryMapper.Map(x.SubCategory))
+                    .OrderByDescending(g => g.Count()))
+                {
+                    <div class="rule-group">
 
-                    @foreach (var rule in group)
-                    {
-                        <div class="rule-row">
-                            <div>
-                                <strong>@rule.Keyword</strong>
-                                <div class="meta">→ @rule.SubCategory</div>
-                            </div>
-
-                            <button class="btn btn-danger"
-                                    @onclick="async () => await DeleteRule(rule)">
-                                Delete
-                            </button>
+                        <div class="rule-group-header">
+                            <strong>@group.Key (@group.Count())</strong>
                         </div>
-                    }
 
-                </div>
-            }
+                        @foreach (var rule in group)
+                        {
+                            <div class="rule-row">
+                                <div>
+                                    <strong>@rule.Keyword</strong>
+                                    <div class="meta">→ @rule.SubCategory</div>
+                                </div>
 
-        </ContentCard>
+                                <button class="btn btn-danger"
+                                        @onclick="async () => await DeleteRule(rule)">
+                                    Delete
+                                </button>
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </ContentCard>
+
+            <!-- SUGGESTIONS -->
+            <ContentCard Title="@($"💡 Suggestions ({_suggestions.Count})")">
+
+                @foreach (var s in _suggestions)
+                {
+                    <div class="rule-row">
+                        <div>
+                            <strong>@s.Keyword</strong>
+                            <div class="meta">→ @s.SubCategory (@s.Count matches)</div>
+                        </div>
+
+                        <button class="btn btn-primary"
+                                @onclick="async () => await AcceptSuggestion(s)">
+                            Accept
+                        </button>
+                    </div>
+                }
+
+            </ContentCard>
+
+        </div>
 
     </div>
 
@@ -146,6 +131,8 @@
 @code {
     private List<UnknownGroup> _unknownGrouped = new();
     private List<CategoryRule> _rules = new();
+    private List<RuleSuggestion> _suggestions = new();
+
     private string _filter = "";
 
     protected override async Task OnInitializedAsync()
@@ -155,55 +142,94 @@
 
     private async Task LoadData()
     {
-        var transactions = await Db.Transactions
-            .Where(x => x.SubCategory == SubCategory.Ukendt)
-            .ToListAsync();
+        var transactions = await Db.Transactions.ToListAsync();
 
+        Console.WriteLine("===== LOADING RULES PAGE =====");
+
+        // UNKNOWN GROUPS
         _unknownGrouped = transactions
-            .GroupBy(x => NormalizeMobilePay(x))
+            .Where(x => x.SubCategory == SubCategory.Ukendt)
+            .GroupBy(x => TransactionGroupingService.GetGroupingKey(x))
             .Select(g => new UnknownGroup
             {
                 Description = g.Key,
                 Count = g.Count(),
                 TotalAmount = g.Sum(x => x.Amount)
             })
-            .OrderByDescending(x => Math.Abs(x.TotalAmount))
-            .Take(200)
+            .OrderByDescending(x => x.Count)
             .ToList();
 
         _rules = await Db.CategoryRules.ToListAsync();
+
+        // SUGGESTIONS (safe ones only)
+        _suggestions = transactions
+            .Where(t => t.SubCategory != SubCategory.Ukendt)
+            .GroupBy(x => TransactionGroupingService.GetGroupingKey(x))
+            .Where(g => g.Count() >= 3)
+            .Select(g => new RuleSuggestion
+            {
+                Keyword = g.Key,
+                SubCategory = g.First().SubCategory,
+                Count = g.Count()
+            })
+            .Where(s => !_rules.Any(r => r.Keyword == s.Keyword))
+            .OrderByDescending(x => x.Count)
+            .Take(20)
+            .ToList();
     }
 
-    private async Task QuickAssign(UnknownGroup item, SubCategory sub)
-    {
-        await OnCategoryChanged(item, new ChangeEventArgs { Value = sub.ToString() });
-    }
-
-    private async Task OnCategoryChanged(UnknownGroup item, ChangeEventArgs e)
+    private async Task OnSubCategorySelected(UnknownGroup item, ChangeEventArgs e)
     {
         if (!Enum.TryParse<SubCategory>(e.Value?.ToString(), out var sub))
             return;
 
-        var keyword = item.Description;
-        var keywordNorm = NormalizeName(keyword);
+        Console.WriteLine($"[SET RULE] {item.Description} → {sub}");
 
-        if (!Db.CategoryRules.Any(r => r.Keyword == keyword))
+        if (!_rules.Any(r => r.Keyword == item.Description))
         {
             Db.CategoryRules.Add(new CategoryRule
             {
-                Keyword = keyword,
+                Keyword = item.Description,
                 SubCategory = sub,
                 IsVerified = true
             });
+
+            await Db.SaveChangesAsync();
         }
 
-        var matches = await Db.Transactions
-            .Where(x => x.SubCategory == SubCategory.Ukendt)
-            .ToListAsync();
+        await ApplyRuleToTransactions(item.Description, sub);
+        await LoadData();
+    }
 
-        matches = matches
-            .Where(x => NormalizeMobilePay(x).Contains(keywordNorm))
+    private async Task AcceptSuggestion(RuleSuggestion s)
+    {
+        Console.WriteLine($"[ACCEPT RULE] {s.Keyword} → {s.SubCategory}");
+
+        if (!_rules.Any(r => r.Keyword == s.Keyword))
+        {
+            Db.CategoryRules.Add(new CategoryRule
+            {
+                Keyword = s.Keyword,
+                SubCategory = s.SubCategory,
+                IsVerified = true
+            });
+
+            await Db.SaveChangesAsync();
+        }
+
+        await ApplyRuleToTransactions(s.Keyword, s.SubCategory);
+        await LoadData();
+    }
+
+    private async Task ApplyRuleToTransactions(string keyword, SubCategory sub)
+    {
+        var all = await Db.Transactions.ToListAsync();
+
+        var matches = all
+            .Where(x => TransactionGroupingService.GetGroupingKey(x) == keyword)
             .ToList();
+
+        Console.WriteLine($"[APPLY RULE] {keyword} → {sub} ({matches.Count} matches)");
 
         foreach (var t in matches)
         {
@@ -212,86 +238,16 @@
         }
 
         await Db.SaveChangesAsync();
-        await LoadData();
     }
 
     private string GetDisplayName(string description)
-    {
-        if (string.IsNullOrWhiteSpace(description))
-            return "";
-
-        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(description);
-    }
-
-    private string GetTransactionLabel(decimal amount)
-        => amount >= 0 ? "Income" : "Expense";
-
-    private bool IsLikelyPerson(string name)
-    {
-        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        if (parts.Length != 2)
-            return false;
-
-        return parts.All(p =>
-            char.IsUpper(p[0]) &&
-            p.All(char.IsLetter));
-    }
+        => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(description);
 
     private IEnumerable<UnknownGroup> FilteredUnknowns()
         => string.IsNullOrWhiteSpace(_filter)
             ? _unknownGrouped
-            : _unknownGrouped.Where(x => x.Description.Contains(_filter, StringComparison.OrdinalIgnoreCase));
-
-    private string NormalizeMobilePay(BankTransaction t)
-    {
-        var text = !string.IsNullOrWhiteSpace(t.MobilePayName)
-            ? t.MobilePayName
-            : t.Description;
-
-        return NormalizeName(text);
-    }
-
-    private string NormalizeName(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return "";
-
-        text = text.ToLowerInvariant();
-
-        // 🔥 remove noise
-        var noise = new[] { "mobilepay", "mobpay", "mob.pay", "vdk", "dk" };
-        foreach (var n in noise)
-            text = text.Replace(n, "");
-
-        // 🔥 remove numbers
-        text = new string(text.Where(c => !char.IsDigit(c)).ToArray());
-
-        var words = text
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 2)
-            .ToList();
-
-        // 🔥 remove company suffixes
-        var companySuffix = new[] { "aps", "as", "a/s", "iv", "ltd" };
-        words = words.Where(w => !companySuffix.Contains(w)).ToList();
-
-        // 🔥 remove trailing garbage (THIS FIXES YOUR ISSUE)
-        var garbageEndings = new[] { "john", "johns" };
-
-        while (words.Count > 0 && garbageEndings.Contains(words.Last()))
-        {
-            words.RemoveAt(words.Count - 1);
-        }
-
-        return string.Join(" ", words).Trim();
-    }
-
-    private IEnumerable<SubCategory> GetSubCategories(Category category)
-        => Enum.GetValues<SubCategory>().Where(x => CategoryMapper.Map(x) == category);
-
-    private string GetAmountClass(decimal amount)
-        => amount >= 0 ? "text-success" : "text-danger";
+            : _unknownGrouped.Where(x =>
+                x.Description.Contains(_filter, StringComparison.OrdinalIgnoreCase));
 
     private void GoToDashboard()
         => Nav.NavigateTo("/budget");

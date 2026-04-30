@@ -1,7 +1,5 @@
 ﻿using ITMartinBudget.Domain.Entities;
 
-namespace ITMartinBudget.Application.Services;
-
 public class CategoryEngine
 {
     private readonly List<CategoryRule> _rules;
@@ -10,17 +8,22 @@ public class CategoryEngine
     {
         _rules = rules
             .Where(r => r.IsActive)
+            .Select(r =>
+            {
+                r.Keyword = r.Keyword.ToLowerInvariant().Trim();
+                return r;
+            })
             .OrderByDescending(r => r.Priority)
             .ToList();
     }
 
-    public SubCategory Detect(string tekst)
+    public SubCategory Detect(string text)
     {
-        var combined = tekst.ToLowerInvariant();
+        var normalized = text.ToLowerInvariant();
 
         foreach (var rule in _rules)
         {
-            if (combined.Contains(rule.Keyword))
+            if (normalized.Contains(rule.Keyword))
                 return rule.SubCategory;
         }
 
