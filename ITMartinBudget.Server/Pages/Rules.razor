@@ -38,13 +38,17 @@
 
                 @foreach (var item in FilteredUnknowns())
                 {
+                    var key = item.Description;
+
                     <div class="rule-item">
 
-                        <div class="rule-main">
+                        <!-- CLICKABLE HEADER -->
+                        <div class="rule-main" @onclick="() => Toggle(key)">
                             <strong>@GetDisplayName(item.Description)</strong>
                             <div class="meta">@item.Count transactions</div>
                         </div>
 
+                        <!-- CATEGORY SELECT -->
                         <div class="rule-action">
                             <select @onchange="async (e) => await OnSubCategorySelected(item, e)">
                                 <option value="">Select subcategory</option>
@@ -60,6 +64,27 @@
                         </div>
 
                     </div>
+
+                    @if (IsOpen(key))
+                    {
+                        <div class="category-details open">
+
+                            @foreach (var tx in _transactions
+                                .Where(t => t.SubCategory == SubCategory.Ukendt &&
+                                            TransactionGroupingService.GetGroupingKey(t) == item.Description)
+                                .OrderByDescending(t => Math.Abs(t.Amount))
+                                .Take(20))
+                            {
+                                <div class="category-detail-row">
+                                    <span>@tx.Date.ToString("dd MMM") - @tx.Description</span>
+                                    <span class="amount @(tx.Amount > 0 ? "income" : "expense")">
+                                        @Format(Math.Abs(tx.Amount))
+                                    </span>
+                                </div>
+                            }
+
+                        </div>
+                    }
                 }
 
             </div>
@@ -132,8 +157,10 @@
     private List<UnknownGroup> _unknownGrouped = new();
     private List<CategoryRule> _rules = new();
     private List<RuleSuggestion> _suggestions = new();
+    private List<BankTransaction> _transactions = new(); // 🔥 NEW
 
     private string _filter = "";
+    private string? _openKey;
 
     protected override async Task OnInitializedAsync()
     {
@@ -143,8 +170,7 @@
     private async Task LoadData()
     {
         var transactions = await Db.Transactions.ToListAsync();
-
-        Console.WriteLine("===== LOADING RULES PAGE =====");
+        _transactions = transactions; // 🔥 store raw
 
         // UNKNOWN GROUPS
         _unknownGrouped = transactions
@@ -161,7 +187,7 @@
 
         _rules = await Db.CategoryRules.ToListAsync();
 
-        // SUGGESTIONS (safe ones only)
+        // SUGGESTIONS
         _suggestions = transactions
             .Where(t => t.SubCategory != SubCategory.Ukendt)
             .GroupBy(x => TransactionGroupingService.GetGroupingKey(x))
@@ -178,12 +204,16 @@
             .ToList();
     }
 
+    void Toggle(string key)
+        => _openKey = _openKey == key ? null : key;
+
+    bool IsOpen(string key)
+        => _openKey == key;
+
     private async Task OnSubCategorySelected(UnknownGroup item, ChangeEventArgs e)
     {
         if (!Enum.TryParse<SubCategory>(e.Value?.ToString(), out var sub))
             return;
-
-        Console.WriteLine($"[SET RULE] {item.Description} → {sub}");
 
         if (!_rules.Any(r => r.Keyword == item.Description))
         {
@@ -203,8 +233,6 @@
 
     private async Task AcceptSuggestion(RuleSuggestion s)
     {
-        Console.WriteLine($"[ACCEPT RULE] {s.Keyword} → {s.SubCategory}");
-
         if (!_rules.Any(r => r.Keyword == s.Keyword))
         {
             Db.CategoryRules.Add(new CategoryRule
@@ -223,13 +251,9 @@
 
     private async Task ApplyRuleToTransactions(string keyword, SubCategory sub)
     {
-        var all = await Db.Transactions.ToListAsync();
-
-        var matches = all
+        var matches = _transactions
             .Where(x => TransactionGroupingService.GetGroupingKey(x) == keyword)
             .ToList();
-
-        Console.WriteLine($"[APPLY RULE] {keyword} → {sub} ({matches.Count} matches)");
 
         foreach (var t in matches)
         {
@@ -248,6 +272,9 @@
             ? _unknownGrouped
             : _unknownGrouped.Where(x =>
                 x.Description.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    private string Format(decimal? value)
+        => value?.ToString("N2") + " kr." ?? "-";
 
     private void GoToDashboard()
         => Nav.NavigateTo("/budget");

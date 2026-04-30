@@ -7,7 +7,12 @@ public class BankTransaction
     public int Id { get; set; }
 
     public DateTime Date { get; set; }
+
+    // ✅ RAW (never overwritten)
     public string Description { get; set; } = string.Empty;
+
+    // 🔥 SINGLE SOURCE OF TRUTH
+    public string NormalizedDescription { get; set; } = string.Empty;
 
     public decimal Amount { get; set; }
 
@@ -19,11 +24,9 @@ public class BankTransaction
     public string? MobilePayName { get; set; }
     public Guid? ContactId { get; set; }
 
-    // 🔥 CLEAN financial type (computed only)
     public TransactionType TransactionType =>
         SubCategory switch
         {
-            // 🔁 TRANSFERS
             SubCategory.OverførselFraAndre or
                 SubCategory.OverførselTilAndre or
                 SubCategory.Kontooverførsel or
@@ -31,7 +34,6 @@ public class BankTransaction
                 SubCategory.Børneopsparing
                 => TransactionType.Overførsel,
 
-            // 💰 INCOME
             SubCategory.Løn or
                 SubCategory.SU or
                 SubCategory.Feriepenge or
@@ -40,13 +42,11 @@ public class BankTransaction
                 SubCategory.Pengegaver
                 => TransactionType.Indkomst,
 
-            // 🔥 DEFAULT
             _ => Amount >= 0
                 ? TransactionType.Indkomst
                 : TransactionType.Udgift
         };
 
-    // 🔥 MOBILEPAY = metadata only
     public bool IsMobilePay =>
         Description.Contains("mobilepay", StringComparison.OrdinalIgnoreCase);
 }

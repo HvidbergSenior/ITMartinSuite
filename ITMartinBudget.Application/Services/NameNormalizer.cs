@@ -16,10 +16,16 @@ public static class NameNormalizer
         if (parts.Count == 0)
             return string.Empty;
 
-        if (parts.Count == 1)
-            return parts[0];
+        // 🔥 ALWAYS prioritize known stable patterns
 
-        // 🔥 ALWAYS first + last
-        return $"{parts.First()} {parts.Last()}";
+        // 3+ names → use FIRST + SECOND (not last!)
+        if (parts.Count >= 3)
+            return $"{parts[0]} {parts[1]}";
+
+        // 2 names → use both
+        if (parts.Count == 2)
+            return $"{parts[0]} {parts[1]}";
+
+        return parts[0];
     }
 }

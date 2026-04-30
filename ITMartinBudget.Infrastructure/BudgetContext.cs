@@ -16,7 +16,7 @@ public class BudgetDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<BankTransaction>()
-            .HasIndex(x => new { x.Date, x.Amount, x.Description })
+            .HasIndex(x => new { x.Date, x.Amount, x.NormalizedDescription })
             .IsUnique();
     }
 }

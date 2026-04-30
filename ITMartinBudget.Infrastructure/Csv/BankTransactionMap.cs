@@ -13,6 +13,7 @@ public sealed class BankTransactionMap : ClassMap<BankTransaction>
             .Name("Dato")
             .TypeConverterOption.Format("dd.MM.yyyy");
 
+        // 🔥 RAW MUST GO HERE
         Map(m => m.Description)
             .Name("Tekst");
 

@@ -18,7 +18,7 @@ builder.Services.AddDbContext<BudgetDbContext>(options =>
 // ✅ Services
 builder.Services.AddScoped<BudgetService>();
 builder.Services.AddScoped<BankTransactionCsvService>();
-
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -29,16 +29,54 @@ using (var scope = app.Services.CreateScope())
 
     if (!db.CategoryRules.Any())
     {
-        db.CategoryRules.AddRange(new[]
+        var rules = new[]
         {
-            new CategoryRule 
-            { 
-                Keyword = KeywordNormalizer.Normalize("pizza"),
-                SubCategory = SubCategory.Restaurant,
+            // 🏠 SAVINGS / TRANSFERS
+            ("boligopsparing", SubCategory.Opsparing),
+            ("opsparing", SubCategory.Opsparing),
+
+            // ✈️ TRAVEL
+            ("hotel", SubCategory.Rejser),
+            ("booking", SubCategory.Rejser),
+            ("airbnb", SubCategory.Rejser),
+
+            // 👕 SHOPPING
+            ("arket", SubCategory.Tøj),
+            ("zara", SubCategory.Tøj),
+            ("hm", SubCategory.Tøj),
+
+            // ✂️ PERSONAL
+            ("frisør", SubCategory.Frisør),
+
+            // 🍔 FOOD
+            ("pizza", SubCategory.Restaurant),
+            ("justeat", SubCategory.Fastfood),
+            ("mcdonald", SubCategory.Fastfood),
+
+            // 📱 SUBSCRIPTIONS
+            ("netflix", SubCategory.StreamingTjenester),
+            ("spotify", SubCategory.StreamingTjenester),
+
+            // 🎮 PERSONAL / GAMBLING / RANDOM
+            ("sport ventures", SubCategory.PersonligtForbrug),
+            ("bet365", SubCategory.PersonligtForbrug),
+
+            // 🚗 TRANSPORT
+            ("ok benzin", SubCategory.Benzin),
+            ("circle k", SubCategory.Benzin),
+            ("dsb", SubCategory.OffentligTransport),
+        };
+
+        db.CategoryRules.AddRange(
+            rules.Select(r => new CategoryRule
+            {
+                Keyword = KeywordNormalizer.Normalize(r.Item1),
+                SubCategory = r.Item2,
                 Priority = 10,
-                IsActive = true 
-            },
-        });
+                IsActive = true
+            })
+        );
+
         db.SaveChanges();
     }
 }

@@ -21,12 +21,18 @@ public class CategoryEngine
     {
         var normalized = text.ToLowerInvariant();
 
+        Console.WriteLine($"[ENGINE INPUT] {normalized}");
+
         foreach (var rule in _rules)
         {
             if (normalized.Contains(rule.Keyword))
+            {
+                Console.WriteLine($"[MATCH] '{rule.Keyword}' => {rule.SubCategory}");
                 return rule.SubCategory;
+            }
         }
 
+        Console.WriteLine("[NO MATCH]");
         return SubCategory.Ukendt;
     }
 }

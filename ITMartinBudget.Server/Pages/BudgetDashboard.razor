@@ -49,29 +49,31 @@
             </div>
         </div>
     </div>
-
-    <!-- UNKNOWN BANNER -->
     @if (_unknownCount > 0)
     {
         <div class="unknown-banner">
+
             <div class="unknown-left">
-                <div class="unknown-icon">⚠</div>
+                <div class="unknown-icon">⚠️</div>
+
                 <div>
                     <div class="unknown-title">
-                        @_unknownCount transactions need classification
+                        @_unknownCount ukendte transaktioner
                     </div>
+
                     <div class="unknown-sub">
-                        Includes MobilePay and uncategorized items
+                        @Format(_unknownTotal) mangler kategorisering
                     </div>
                 </div>
             </div>
 
-            <button class="btn btn-primary" @onclick="GoToRules">
-                🔧 Fix now
+            <button class="btn btn-primary"
+                    @onclick="GoToRules">
+                🔧 Gå til regler
             </button>
+
         </div>
     }
-
     <!-- CATEGORIES -->
     <div class="categories-card">
 
@@ -84,36 +86,39 @@
                 <div class="column-title income">💰 Income</div>
 
                 @foreach (var group in IncomeCategories()
-                              .GroupBy(x => x.SubCategory)
-                              .OrderByDescending(x => x.Sum(i => i.Income)))
+                              .OrderByDescending(x => x.Income))
                 {
-                    var key = "income-" + group.Key;
+                    var key = $"income-{(int)group.SubCategory}";
 
                     <div>
-
                         <div class="category-row income"
                              @onclick="() => Toggle(key)">
 
-                            <span>@group.Key</span>
+                            <span>@group.DisplayName</span>
                             <span class="amount income">
-                                @Format(group.Sum(x => x.Income))
+                                @Format(group.Income)
                             </span>
                         </div>
 
-                        <div class="category-details @(IsOpen(key) ? "open" : "")">
+                        @if (IsOpen(key))
+                        {
+                            <div class="category-details open">
 
-                            @foreach (var item in group)
-                            {
-                                <div class="category-detail-row">
-                                    <span>@item.DisplayName</span>
-                                    <span class="amount income">
-                                        @Format(item.Income)
-                                    </span>
-                                </div>
-                            }
+                                @foreach (var tx in _transactions
+                                    .Where(t => t.SubCategory == group.SubCategory && t.Amount > 0)
+                                    .OrderByDescending(t => t.Amount)
+                                    .Take(20))
+                                {
+                                    <div class="category-detail-row">
+                                        <span>@tx.Date.ToString("dd MMM") - @tx.NormalizedDescription</span>
+                                        <span class="amount income">
+                                            @Format(tx.Amount)
+                                        </span>
+                                    </div>
+                                }
 
-                        </div>
-
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -123,34 +128,39 @@
                 <div class="column-title expense">💸 Expenses</div>
 
                 @foreach (var group in ExpenseCategories()
-                    .GroupBy(x => x.Category)
-                    .OrderByDescending(x => x.Sum(i => i.Expenses)))
+                    .OrderByDescending(x => x.Expenses))
                 {
-                    var key = "expense-" + group.Key;
+                    var key = $"expense-{group.SubCategory}";
 
                     <div>
                         <div class="category-row expense"
                              @onclick="() => Toggle(key)">
 
-                            <span>@group.Key</span>
+                            <span>@group.DisplayName</span>
                             <span class="amount expense">
-                                @Format(group.Sum(x => x.Expenses))
+                                @Format(group.Expenses)
                             </span>
                         </div>
 
-                        <div class="category-details @(IsOpen(key) ? "open" : "")">
+                        @if (IsOpen(key))
+                        {
+                            <div class="category-details open">
 
-                            @foreach (var item in group.OrderByDescending(x => x.Expenses))
-                            {
-                                <div class="category-detail-row">
-                                    <span>@item.DisplayName</span>
-                                    <span class="amount expense">
-                                        @Format(item.Expenses)
-                                    </span>
-                                </div>
-                            }
+                                @foreach (var tx in _transactions
+                                    .Where(t => t.SubCategory == group.SubCategory && t.Amount < 0)
+                                    .OrderBy(t => t.Amount)
+                                    .Take(20))
+                                {
+                                    <div class="category-detail-row">
+                                        <span>@tx.Date.ToString("dd MMM") - @tx.NormalizedDescription</span>
+                                        <span class="amount expense">
+                                            @Format(Math.Abs(tx.Amount))
+                                        </span>
+                                    </div>
+                                }
 
-                        </div>
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -163,31 +173,30 @@
 
 @code {
     private List<CategorySummary> _summary = new();
+    private List<BankTransaction> _transactions = new();
     private YearSummary? _totals;
-    private int _unknownCount;
     private string? _openCategory;
-
+    private int _unknownCount;
+    private decimal _unknownTotal;
     protected override async Task OnParametersSetAsync()
     {
-        Console.WriteLine("===== DASHBOARD RELOAD =====");
-
         await LoadDataAsync();
     }
+
     private async Task LoadDataAsync()
     {
-        Console.WriteLine("===== LOADING DASHBOARD =====");
-
         Db.ChangeTracker.Clear();
 
         var all = await Db.Transactions
             .AsNoTracking()
             .ToListAsync();
 
-        Console.WriteLine($"[TOTAL TRANSACTIONS] {all.Count}");
+        Console.WriteLine($"DB COUNT: {all.Count}");
 
         if (!all.Any())
         {
             _summary = new();
+            _transactions = new();
             _totals = new YearSummary();
             return;
         }
@@ -197,51 +206,19 @@
         var transactions = all
             .Where(x => x.Date.Year == year)
             .ToList();
-
-        Console.WriteLine($"[YEAR] {year}");
-        Console.WriteLine($"[YEAR TRANSACTIONS] {transactions.Count}");
-
-        // 🔥 UNKNOWN DEBUG
+        
         var unknowns = transactions
             .Where(x => x.SubCategory == SubCategory.Ukendt)
             .ToList();
 
-        Console.WriteLine($"[UNKNOWN COUNT] {unknowns.Count}");
-
-        foreach (var u in unknowns)
-        {
-            var key = TransactionGroupingService.GetGroupingKey(u);
-
-            Console.WriteLine("[UNKNOWN]");
-            Console.WriteLine($"  DESC: {u.Description}");
-            Console.WriteLine($"  MOBILEPAY: {u.MobilePayName}");
-            Console.WriteLine($"  KEY: {key}");
-            Console.WriteLine($"  AMOUNT: {u.Amount}");
-        }
-
         _unknownCount = unknowns.Count;
+        _unknownTotal = unknowns.Sum(x => Math.Abs(x.Amount));
+        
+        _transactions = transactions;
 
-        // 🔥 SUMMARY DEBUG INPUT
-        Console.WriteLine("[SUMMARY INPUT]");
-        foreach (var t in transactions)
-        {
-            Console.WriteLine($"  {t.Description} | {t.SubCategory} | {t.Amount}");
-        }
 
         _summary = BudgetService.GetSummary(transactions, year).ToList();
-
-        Console.WriteLine("[SUMMARY OUTPUT]");
-        foreach (var s in _summary)
-        {
-            Console.WriteLine($"  {s.SubCategory} | IN: {s.Income} | OUT: {s.Expenses}");
-        }
-
         _totals = BudgetService.GetYearTotals(transactions, year);
-
-        Console.WriteLine("[TOTALS]");
-        Console.WriteLine($"  INCOME: {_totals.Income}");
-        Console.WriteLine($"  EXPENSES: {_totals.Expenses}");
-        Console.WriteLine($"  NET: {_totals.Net}");
     }
 
     void Toggle(string key)
@@ -262,12 +239,14 @@
         Nav.NavigateTo("/budget/upload", true);
     }
 
-    private void GoToRules()
-        => Nav.NavigateTo("/budget/rules");
-
     private IEnumerable<CategorySummary> IncomeCategories()
         => _summary.Where(x => x.Income > 0);
 
     private IEnumerable<CategorySummary> ExpenseCategories()
         => _summary.Where(x => x.Expenses > 0);
+    
+    private void GoToRules()
+    {
+        Nav.NavigateTo("/budget/rules");
+    }
 }

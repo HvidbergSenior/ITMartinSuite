@@ -24,16 +24,28 @@ public static class DescriptionClassifier
 
         var lower = text.ToLowerInvariant();
 
-        // ❌ block known junk words
-        var invalid = new[] { "dk", "aps", "as", "ltd" };
-        if (words.Any(w => invalid.Contains(w)))
-            return false;
-
-        // ❌ block company keywords
+        // ❌ known business keywords
         if (CompanyKeywords.Any(k => lower.Contains(k)))
             return false;
 
-        // ✅ must look like real names (letters only, min length)
-        return words.All(w => w.Length > 2 && w.All(char.IsLetter));
+        // ❌ blacklist obvious non-names
+        var blacklist = new[]
+        {
+            "spa", "cafe", "kfc", "pizza", "bank", "invest",
+            "investering", "shop", "store", "market"
+        };
+
+        if (words.Any(w => blacklist.Contains(w)))
+            return false;
+
+        // ❌ words must look like real names (not too long)
+        if (words.Any(w => w.Length > 12))
+            return false;
+
+        // ✅ first + last name structure
+        return words.All(w =>
+            w.Length > 2 &&
+            char.IsLetter(w[0]) &&
+            w.All(char.IsLetter));
     }
 }

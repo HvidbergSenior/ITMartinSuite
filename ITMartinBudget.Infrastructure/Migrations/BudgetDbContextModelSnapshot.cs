@@ -17,7 +17,7 @@ namespace ITMartinBudget.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.26");
 
-            modelBuilder.Entity("BankTransaction", b =>
+            modelBuilder.Entity("ITMartinBudget.Domain.Entities.BankTransaction", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -45,10 +45,11 @@ namespace ITMartinBudget.Infrastructure.Migrations
                     b.Property<string>("MobilePayName")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("SubCategory")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("NormalizedDescription")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
-                    b.Property<int>("TransactionType")
+                    b.Property<int>("SubCategory")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");

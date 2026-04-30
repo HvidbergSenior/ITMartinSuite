@@ -37,8 +37,10 @@ public class BankTransactionCsvService
         {
             record.Description = Normalize(record.Description);
 
-            if (record.Description.Length > 200)
-                record.Description = record.Description[..200];
+            // 🔥 CRITICAL FIX: IGNORE CSV CATEGORY
+            record.SubCategory = SubCategory.Ukendt;
+
+            Console.WriteLine($"[IMPORT RAW] {record.Description}");
 
             records.Add(record);
         }
@@ -47,58 +49,59 @@ public class BankTransactionCsvService
         var engine = new CategoryEngine(rules);
 
         var existingKeys = (await _db.Transactions
-            .Select(x => new { x.Date, x.Amount, x.Description })
+            .Select(x => new { x.Date, x.Amount, x.NormalizedDescription })
             .ToListAsync())
-            .Select(x => CreateKey(x.Date, x.Amount, x.Description))
+            .Select(x => CreateKey(x.Date, x.Amount, x.NormalizedDescription))
             .ToHashSet();
 
         var newUnknowns = new List<UnknownTransaction>();
 
         foreach (var record in records)
         {
-            // 1. Extract MobilePay name
+            // 🔥 MOBILEPAY NAME
             if (record.IsMobilePay)
             {
                 record.MobilePayName = ExtractMobilePayName(record.Description);
                 record.MobilePayName = NameNormalizer.NormalizePersonName(record.MobilePayName);
+
+                Console.WriteLine($"[MOBILEPAY NAME] {record.MobilePayName}");
             }
 
-            // 2. 🔥 SINGLE SOURCE OF TRUTH
+            // 🔥 GROUPING
             var groupingKey = TransactionGroupingService.GetGroupingKey(record);
+            record.NormalizedDescription = groupingKey;
 
-            // 3. Detection
-            if (record.SubCategory == SubCategory.Ukendt)
+            Console.WriteLine($"[GROUP RESULT] {groupingKey}");
+
+            // 🔥 MOBILEPAY = ALWAYS TRANSFER
+            if (record.IsMobilePay)
+            {
+                record.SubCategory = record.Amount > 0
+                    ? SubCategory.MobilePayFraAndre
+                    : SubCategory.MobilePayTilAndre;
+
+                Console.WriteLine($"[MOBILEPAY CLASSIFIED] {record.SubCategory}");
+            }
+            else
             {
                 var detected = engine.Detect(groupingKey);
 
-                if (detected == SubCategory.Ukendt)
+                if (detected != SubCategory.Ukendt)
                 {
-                    if (record.IsMobilePay && DescriptionClassifier.IsLikelyPerson(groupingKey))
-                    {
-                        detected = SubCategory.Kontooverførsel;
-                    }
+                    record.SubCategory = detected;
+                    Console.WriteLine($"[ENGINE MATCH] {groupingKey} -> {detected}");
                 }
-
-                record.SubCategory = detected;
-            }
-
-            // 4. 💰 INCOME LOGIC (CRITICAL FIX)
-            if (record.Amount > 0)
-            {
-                if (record.SubCategory == SubCategory.Ukendt ||
-                    record.SubCategory == SubCategory.Kontooverførsel)
+                else
                 {
-                    record.SubCategory = SubCategory.AndenIndtægt;
+                    record.SubCategory = SubCategory.Ukendt;
+                    Console.WriteLine($"[UNKNOWN] {groupingKey}");
                 }
             }
 
-            // 5. Map category
+            // 🔥 FINAL CATEGORY MAP
             record.Category = CategoryMapper.Map(record.SubCategory);
 
-            // 6. Store normalized value ONLY
-            record.Description = groupingKey;
-
-            // 7. Unknown tracking
+            // 🔥 UNKNOWN TRACKING
             if (record.SubCategory == SubCategory.Ukendt)
             {
                 newUnknowns.Add(new UnknownTransaction
@@ -108,38 +111,31 @@ public class BankTransactionCsvService
             }
         }
 
-        // 🔥 DEDUP USING NORMALIZED DESCRIPTION
+        // 🔥 DEDUP
         var uniqueTransactions = records
-            .GroupBy(t => CreateKey(t.Date, t.Amount, t.Description))
+            .GroupBy(t => CreateKey(t.Date, t.Amount, t.NormalizedDescription))
             .Select(g => g.First())
             .ToList();
 
         var newTransactions = uniqueTransactions
             .Where(t =>
             {
-                var key = CreateKey(t.Date, t.Amount, t.Description);
+                var key = CreateKey(t.Date, t.Amount, t.NormalizedDescription);
                 return !existingKeys.Contains(key);
             })
             .ToList();
 
         Console.WriteLine($"CSV: {records.Count}");
-        Console.WriteLine($"Unique CSV: {uniqueTransactions.Count}");
+        Console.WriteLine($"Unique: {uniqueTransactions.Count}");
         Console.WriteLine($"New: {newTransactions.Count}");
 
-        try
-        {
-            if (newTransactions.Any())
-                await _db.Transactions.AddRangeAsync(newTransactions);
+        if (newTransactions.Any())
+            await _db.Transactions.AddRangeAsync(newTransactions);
 
-            if (newUnknowns.Any())
-                await _db.UnknownTransactions.AddRangeAsync(newUnknowns);
+        if (newUnknowns.Any())
+            await _db.UnknownTransactions.AddRangeAsync(newUnknowns);
 
-            await _db.SaveChangesAsync();
-        }
-        catch
-        {
-            Console.WriteLine("⚠ Duplicate detected during insert, ignoring.");
-        }
+        await _db.SaveChangesAsync();
 
         return newTransactions;
     }

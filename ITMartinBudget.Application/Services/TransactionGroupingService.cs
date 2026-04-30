@@ -6,19 +6,20 @@ public static class TransactionGroupingService
 {
     public static string GetGroupingKey(BankTransaction t)
     {
-        var source = t.MobilePayName;
+        Console.WriteLine($"[GROUP] RAW: {t.Description}");
 
+        var source = DescriptionClassifier.IsLikelyPerson(t.MobilePayName)
+            ? t.MobilePayName
+            : t.Description;
+        
         if (string.IsNullOrWhiteSpace(source))
             source = t.Description;
 
         if (string.IsNullOrWhiteSpace(source))
             return string.Empty;
 
-        var original = source;
-
         source = source.ToLowerInvariant();
 
-        // 🔥 noise removal (IMPORTANT)
         var noise = new[] { "mobilepay", "vd", "aps" };
         foreach (var n in noise)
             source = source.Replace(n, "");
@@ -37,7 +38,6 @@ public static class TransactionGroupingService
         if (words.Length >= 2 && DescriptionClassifier.IsLikelyPerson(source))
         {
             var normalized = NameNormalizer.NormalizePersonName(source);
-
             Console.WriteLine($"[GROUP-PERSON] {normalized}");
             return normalized;
         }
