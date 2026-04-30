@@ -2,6 +2,7 @@
 @page "/budget"
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
 @layout BudgetMainLayout
 
@@ -14,13 +15,11 @@
     <!-- HEADER -->
     <div class="budget-header-row">
         <div>
-            <h1 class="page-title">💰 Budget Dashboard</h1>
-            <div class="page-sub">Overview of your current year</div>
+            <h1 class="page-title">💰 Budget</h1>
+            <div class="page-sub">Current year overview</div>
         </div>
 
-        <button class="btn btn-danger" @onclick="ResetData">
-            🗑 Reset
-        </button>
+        <button class="btn btn-danger" @onclick="ResetData">Reset</button>
     </div>
 
     <!-- KPI -->
@@ -30,7 +29,6 @@
             <div>
                 <div class="kpi-label">Income</div>
                 <div class="kpi-value">@Format(_totals?.Income)</div>
-                <div class="kpi-sub">Total income</div>
             </div>
         </div>
 
@@ -39,7 +37,6 @@
             <div>
                 <div class="kpi-label">Expenses</div>
                 <div class="kpi-value">@Format(_totals?.Expenses)</div>
-                <div class="kpi-sub">Total expenses</div>
             </div>
         </div>
 
@@ -48,12 +45,11 @@
             <div>
                 <div class="kpi-label">Net</div>
                 <div class="kpi-value">@Format(_totals?.Net)</div>
-                <div class="kpi-sub">Net result</div>
             </div>
         </div>
     </div>
 
-    <!-- UNKNOWN -->
+    <!-- UNKNOWN BANNER -->
     @if (_unknownCount > 0)
     {
         <div class="unknown-banner">
@@ -61,10 +57,10 @@
                 <div class="unknown-icon">⚠</div>
                 <div>
                     <div class="unknown-title">
-                        @_unknownCount uncategorized transactions
+                        @_unknownCount transactions need classification
                     </div>
                     <div class="unknown-sub">
-                        These transactions were imported but not matched to any rule.
+                        Includes MobilePay and uncategorized items
                     </div>
                 </div>
             </div>
@@ -87,21 +83,20 @@
                 <div class="column-title income">💰 Income</div>
 
                 @foreach (var group in IncomeCategories()
-                              .GroupBy(x => x.Category)
-                    .OrderByDescending(x => x.Sum(i => i.Income)))
+                              .GroupBy(x => x.SubCategory)
+                              .OrderByDescending(x => x.Sum(i => i.Income)))
                 {
                     var key = "income-" + group.Key;
 
                     <div>
 
-                        <div class="category-row income">
-
-                            <div class="category-bar"
-                                 style="width:@GetPercent(group.Sum(x => x.Income), _totals?.Income)%">
-                            </div>
+                        <div class="category-row income"
+                             @onclick="() => Toggle(key)">
 
                             <span>@group.Key</span>
-                            <span class="amount income">@Format(group.Sum(x => x.Income))</span>
+                            <span class="amount income">
+                                @Format(group.Sum(x => x.Income))
+                            </span>
                         </div>
 
                         <div class="category-details @(IsOpen(key) ? "open" : "")">
@@ -110,7 +105,9 @@
                             {
                                 <div class="category-detail-row">
                                     <span>@item.DisplayName</span>
-                                    <span class="amount income">@Format(item.Income)</span>
+                                    <span class="amount income">
+                                        @Format(item.Income)
+                                    </span>
                                 </div>
                             }
 
@@ -125,35 +122,36 @@
                 <div class="column-title expense">💸 Expenses</div>
 
                 @foreach (var group in ExpenseCategories()
-                              .GroupBy(x => x.Category)
+                    .GroupBy(x => x.Category)
                     .OrderByDescending(x => x.Sum(i => i.Expenses)))
                 {
                     var key = "expense-" + group.Key;
 
                     <div>
-
-                        <div class="category-row income"
+                        <div class="category-row expense"
                              @onclick="() => Toggle(key)">
 
                             <span>@group.Key</span>
-                            <span class="amount expense">@Format(group.Sum(x => x.Expenses))</span>
+                            <span class="amount expense">
+                                @Format(group.Sum(x => x.Expenses))
+                            </span>
                         </div>
 
                         <div class="category-details @(IsOpen(key) ? "open" : "")">
 
-                            @foreach (var item in group)
+                            @foreach (var item in group.OrderByDescending(x => x.Expenses))
                             {
                                 <div class="category-detail-row">
                                     <span>@item.DisplayName</span>
-                                    <span class="amount expense">@Format(item.Expenses)</span>
+                                    <span class="amount expense">
+                                        @Format(item.Expenses)
+                                    </span>
                                 </div>
                             }
 
                         </div>
-
                     </div>
                 }
-}
             </div>
 
         </div>
@@ -165,32 +163,17 @@
 @code {
     private List<CategorySummary> _summary = new();
     private YearSummary? _totals;
-    private List<BankTransaction> _transactions = new();
     private int _unknownCount;
     private string? _openCategory;
+
     protected override void OnParametersSet()
     {
         LoadData();
     }
-    void Toggle(string key)
-    {
-        _openCategory = _openCategory == key ? null : key;
-    }
 
-    bool IsOpen(string key)
-    {
-        return _openCategory == key;
-    }
-    double GetPercent(decimal value, decimal? total)
-    {
-        if (total == null || total == 0) return 0;
-        return (double)(value / total.Value * 100);
-    }
     private void LoadData()
     {
         var all = Db.Transactions.ToList();
-
-        _unknownCount = all.Count(x => x.SubCategory == SubCategory.Ukendt);
 
         if (!all.Any())
         {
@@ -201,11 +184,19 @@
 
         var year = all.Max(x => x.Date.Year);
 
-        _transactions = all.Where(x => x.Date.Year == year).ToList();
+        var transactions = all.Where(x => x.Date.Year == year).ToList();
 
-        _summary = BudgetService.GetSummary(_transactions, year).ToList();
-        _totals = BudgetService.GetYearTotals(_transactions, year);
+        _unknownCount = transactions.Count(x => x.SubCategory == SubCategory.Ukendt);
+
+        _summary = BudgetService.GetSummary(transactions, year).ToList();
+        _totals = BudgetService.GetYearTotals(transactions, year);
     }
+
+    void Toggle(string key)
+        => _openCategory = _openCategory == key ? null : key;
+
+    bool IsOpen(string key)
+        => _openCategory == key;
 
     private string Format(decimal? value)
         => value?.ToString("N2") + " kr." ?? "-";
@@ -219,7 +210,8 @@
         Nav.NavigateTo("/budget/upload", true);
     }
 
-    private void GoToRules() => Nav.NavigateTo("/budget/rules");
+    private void GoToRules()
+        => Nav.NavigateTo("/budget/rules");
 
     private IEnumerable<CategorySummary> IncomeCategories()
         => _summary.Where(x => x.Income > 0);

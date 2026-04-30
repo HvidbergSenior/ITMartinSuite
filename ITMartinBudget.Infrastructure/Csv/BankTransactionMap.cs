@@ -20,14 +20,8 @@ public sealed class BankTransactionMap : ClassMap<BankTransaction>
             .Name("Beløb")
             .TypeConverterOption.CultureInfo(new CultureInfo("da-DK"));
 
-        // ✅ SubCategory (Kategori)
         Map(m => m.SubCategory)
             .Name("Kategori")
             .TypeConverter<SubCategoryConverter>();
-
-        // ✅ Main Category (Hovedkategori)
-        Map(m => m.Category)
-            .Name("Hovedkategori")
-            .TypeConverter<CategoryConverter>();
     }
 }

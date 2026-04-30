@@ -1,6 +1,7 @@
 ﻿@page "/budget/rules"
 @layout BudgetMainLayout
 
+@using System.Globalization
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
@@ -12,7 +13,6 @@
 
 <div class="rules-page">
 
-    <!-- HEADER -->
     <ContentCard>
         <div class="rules-header">
             <div>
@@ -27,15 +27,12 @@
         </div>
     </ContentCard>
 
-    <!-- GRID -->
     <div class="rules-grid">
 
         <!-- LEFT -->
         <ContentCard Title="@($"🚨 Unknown ({_unknownGrouped.Count})")">
 
-            <input class="form-input"
-                   placeholder="Search..."
-                   @bind="_filter" />
+            <input class="form-input" placeholder="Search..." @bind="_filter" />
 
             <div class="stack">
 
@@ -44,28 +41,46 @@
                     <div class="rule-item">
 
                         <div class="rule-main">
-                            <strong>@item.Description</strong>
+
+                            <strong>@GetDisplayName(item.Description)</strong>
 
                             <div class="meta">@item.Count transactions</div>
 
                             <div class="meta">
                                 <span class="@GetAmountClass(item.TotalAmount)">
                                     @(item.TotalAmount >= 0 ? "+" : "-")
-                                    @Math.Abs(item.TotalAmount):N2 kr.
+                                    @($"{Math.Abs(item.TotalAmount):N2} kr.")
                                 </span>
 
                                 <span class="type-badge @(item.TotalAmount >= 0 ? "income" : "expense")">
-                                    @(item.TotalAmount >= 0 ? "Income" : "Expense")
+                                    @GetTransactionLabel(item.TotalAmount)
                                 </span>
+
+                                @if (IsLikelyPerson(item.Description))
+                                {
+                                    <span class="type-badge mobilepay">Person</span>
+                                }
                             </div>
 
-                            @if (item.IsSaving)
-                            {
-                                <div class="meta">Saving...</div>
-                            }
                         </div>
 
                         <div class="rule-action">
+
+                            @if (IsLikelyPerson(item.Description))
+                            {
+                                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                                    <button class="btn btn-secondary"
+                                            @onclick="async () => await QuickAssign(item, SubCategory.OverførselTilAndre)">
+                                        Transfer
+                                    </button>
+
+                                    <button class="btn btn-secondary"
+                                            @onclick="async () => await QuickAssign(item, SubCategory.PersonligtForbrug)">
+                                        Personal
+                                    </button>
+                                </div>
+                            }
+
                             <select value="@item.SelectedSubCategory"
                                     @onchange="async (e) => await OnCategoryChanged(item, e)">
 
@@ -73,7 +88,7 @@
 
                                 @foreach (var cat in Enum.GetValues<Category>())
                                 {
-                                    <optgroup label="@($"{GetCategoryIcon(cat)} {cat}")">
+                                    <optgroup label="@cat">
                                         @foreach (var sub in GetSubCategories(cat))
                                         {
                                             <option value="@sub">@sub</option>
@@ -82,6 +97,7 @@
                                 }
 
                             </select>
+
                         </div>
 
                     </div>
@@ -95,32 +111,26 @@
         <ContentCard Title="@($"📂 Rules ({_rules.Count})")">
 
             @foreach (var group in _rules
-                .GroupBy(x => CategoryMapper.Map(x.SubCategory))
-                .OrderBy(x => x.Key))
+                .GroupBy(x => CategoryMapper.Map(x.SubCategory)))
             {
                 <div class="rule-group">
 
                     <div class="rule-group-header">
-                        <span>@GetCategoryIcon(group.Key)</span>
                         <strong>@group.Key (@group.Count())</strong>
                     </div>
 
                     @foreach (var rule in group)
                     {
                         <div class="rule-row">
-
                             <div>
                                 <strong>@rule.Keyword</strong>
                                 <div class="meta">→ @rule.SubCategory</div>
                             </div>
 
-                            <div>@(rule.IsVerified ? "✔" : "⚠")</div>
-
                             <button class="btn btn-danger"
                                     @onclick="async () => await DeleteRule(rule)">
                                 Delete
                             </button>
-
                         </div>
                     }
 
@@ -145,13 +155,12 @@
 
     private async Task LoadData()
     {
-        // 🔥 IMPORTANT: NO TRACKING OFF HERE
         var transactions = await Db.Transactions
             .Where(x => x.SubCategory == SubCategory.Ukendt)
             .ToListAsync();
 
         _unknownGrouped = transactions
-            .GroupBy(x => x.Description)
+            .GroupBy(x => NormalizeMobilePay(x))
             .Select(g => new UnknownGroup
             {
                 Description = g.Key,
@@ -163,17 +172,11 @@
             .ToList();
 
         _rules = await Db.CategoryRules.ToListAsync();
-
-        StateHasChanged();
     }
 
-    private IEnumerable<UnknownGroup> FilteredUnknowns()
+    private async Task QuickAssign(UnknownGroup item, SubCategory sub)
     {
-        if (string.IsNullOrWhiteSpace(_filter))
-            return _unknownGrouped;
-
-        return _unknownGrouped
-            .Where(x => x.Description.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+        await OnCategoryChanged(item, new ChangeEventArgs { Value = sub.ToString() });
     }
 
     private async Task OnCategoryChanged(UnknownGroup item, ChangeEventArgs e)
@@ -181,27 +184,26 @@
         if (!Enum.TryParse<SubCategory>(e.Value?.ToString(), out var sub))
             return;
 
-        item.IsSaving = true;
-        StateHasChanged();
+        var keyword = item.Description;
+        var keywordNorm = NormalizeName(keyword);
 
-        var keyword = ExtractKeyword(item.Description);
-
-        // 🔥 Add rule if not exists
         if (!Db.CategoryRules.Any(r => r.Keyword == keyword))
         {
             Db.CategoryRules.Add(new CategoryRule
             {
                 Keyword = keyword,
                 SubCategory = sub,
-                Priority = 10,
                 IsVerified = true
             });
         }
 
-        // 🔥 Update matching transactions
         var matches = await Db.Transactions
-            .Where(x => x.Description.Contains(keyword))
+            .Where(x => x.SubCategory == SubCategory.Ukendt)
             .ToListAsync();
+
+        matches = matches
+            .Where(x => NormalizeMobilePay(x).Contains(keywordNorm))
+            .ToList();
 
         foreach (var t in matches)
         {
@@ -210,49 +212,102 @@
         }
 
         await Db.SaveChangesAsync();
-
-        // 🔥 FULL RELOAD (safe + correct)
         await LoadData();
     }
 
+    private string GetDisplayName(string description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+            return "";
+
+        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(description);
+    }
+
+    private string GetTransactionLabel(decimal amount)
+        => amount >= 0 ? "Income" : "Expense";
+
+    private bool IsLikelyPerson(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length != 2)
+            return false;
+
+        return parts.All(p =>
+            char.IsUpper(p[0]) &&
+            p.All(char.IsLetter));
+    }
+
+    private IEnumerable<UnknownGroup> FilteredUnknowns()
+        => string.IsNullOrWhiteSpace(_filter)
+            ? _unknownGrouped
+            : _unknownGrouped.Where(x => x.Description.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    private string NormalizeMobilePay(BankTransaction t)
+    {
+        var text = !string.IsNullOrWhiteSpace(t.MobilePayName)
+            ? t.MobilePayName
+            : t.Description;
+
+        return NormalizeName(text);
+    }
+
+    private string NormalizeName(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "";
+
+        text = text.ToLowerInvariant();
+
+        // 🔥 remove noise
+        var noise = new[] { "mobilepay", "mobpay", "mob.pay", "vdk", "dk" };
+        foreach (var n in noise)
+            text = text.Replace(n, "");
+
+        // 🔥 remove numbers
+        text = new string(text.Where(c => !char.IsDigit(c)).ToArray());
+
+        var words = text
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 2)
+            .ToList();
+
+        // 🔥 remove company suffixes
+        var companySuffix = new[] { "aps", "as", "a/s", "iv", "ltd" };
+        words = words.Where(w => !companySuffix.Contains(w)).ToList();
+
+        // 🔥 remove trailing garbage (THIS FIXES YOUR ISSUE)
+        var garbageEndings = new[] { "john", "johns" };
+
+        while (words.Count > 0 && garbageEndings.Contains(words.Last()))
+        {
+            words.RemoveAt(words.Count - 1);
+        }
+
+        return string.Join(" ", words).Trim();
+    }
+
+    private IEnumerable<SubCategory> GetSubCategories(Category category)
+        => Enum.GetValues<SubCategory>().Where(x => CategoryMapper.Map(x) == category);
+
+    private string GetAmountClass(decimal amount)
+        => amount >= 0 ? "text-success" : "text-danger";
+
+    private void GoToDashboard()
+        => Nav.NavigateTo("/budget");
+
+    [Inject] IJSRuntime Js { get; set; } = default!;
+
     private async Task DeleteRule(CategoryRule rule)
     {
+        var confirm = await Js.InvokeAsync<bool>("confirm", $"Delete rule '{rule.Keyword}'?");
+
+        if (!confirm)
+            return;
+
         Db.CategoryRules.Remove(rule);
         await Db.SaveChangesAsync();
 
         await LoadData();
     }
-
-    private void GoToDashboard()
-        => Nav.NavigateTo("/budget");
-
-    private IEnumerable<SubCategory> GetSubCategories(Category category)
-        => Enum.GetValues<SubCategory>()
-            .Where(x => CategoryMapper.Map(x) == category);
-
-    private string GetAmountClass(decimal amount)
-        => amount >= 0 ? "text-success" : "text-danger";
-
-    private string ExtractKeyword(string text)
-    {
-        var words = text.ToLower()
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 2)
-            .ToList();
-
-        return words.OrderByDescending(w => w.Length).FirstOrDefault() ?? text;
-    }
-
-    private string GetCategoryIcon(Category cat) => cat switch
-    {
-        Category.Indkomst => "💰",
-        Category.Mad => "🍔",
-        Category.Transport => "🚗",
-        Category.Bolig => "🏠",
-        Category.Fritid => "🎮",
-        Category.Shopping => "🛍",
-        Category.Sundhed => "🏥",
-        Category.Abonnement => "📱",
-        _ => "📦"
-    };
 }

@@ -1,5 +1,8 @@
-/* PAGE */
-.budget-page {
+/* =========================================
+   PAGE LAYOUT (SHARED)
+========================================= */
+.budget-page,
+.rules-page {
     max-width: 1400px;
     margin: 0 auto;
     display: flex;
@@ -7,11 +10,19 @@
     gap: 24px;
 }
 
-/* HEADER */
-.budget-header-row {
+/* =========================================
+   HEADER
+========================================= */
+.budget-header-row,
+.rules-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.rules-actions {
+    display: flex;
+    gap: 10px;
 }
 
 .page-title {
@@ -23,7 +34,9 @@
     color: var(--text-muted);
 }
 
-/* KPI GRID */
+/* =========================================
+   KPI GRID
+========================================= */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -37,6 +50,14 @@
     border-radius: 18px;
     border: 1px solid var(--border);
     background: linear-gradient(145deg, #1a1d24, #121317);
+
+    transition: all 0.25s ease;
+    animation: fadeInUp 0.5s ease;
+}
+
+.kpi-big:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
 }
 
 .kpi-icon {
@@ -50,9 +71,8 @@
 }
 
 .kpi-value {
-    font-size: 34px; /* bigger */
+    font-size: 34px;
     font-weight: 800;
-    letter-spacing: 0.5px;
 }
 
 .kpi-sub {
@@ -60,46 +80,45 @@
     color: var(--text-muted);
 }
 
-.kpi-big {
-    animation: fadeInUp 0.5s ease;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* COLORS */
+/* KPI COLORS */
 .kpi-big.income {
     border-left: 4px solid #22c55e;
     background: linear-gradient(145deg, #0f2a1a, #121317);
+}
+.kpi-big.income:hover {
+    box-shadow: 0 0 30px rgba(34,197,94,0.25);
 }
 
 .kpi-big.expense {
     border-left: 4px solid #ef4444;
     background: linear-gradient(145deg, #2a1212, #121317);
 }
+.kpi-big.expense:hover {
+    box-shadow: 0 0 30px rgba(239,68,68,0.25);
+}
 
 .kpi-big.net {
     border-left: 4px solid #3b82f6;
     background: linear-gradient(145deg, #121a2a, #121317);
 }
+.kpi-big.net:hover {
+    box-shadow: 0 0 30px rgba(59,130,246,0.25);
+}
 
-/* UNKNOWN */
+/* =========================================
+   UNKNOWN BANNER
+========================================= */
 .unknown-banner {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 18px;
     border-radius: 14px;
+
     background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
     border: 1px solid rgba(245,158,11,0.4);
+
+    transition: 0.25s ease;
 }
 
 .unknown-left {
@@ -121,20 +140,16 @@
 .unknown-sub {
     color: var(--text-muted);
     font-size: 13px;
-    opacity: 0.8;
 }
 
-/* CATEGORIES */
+/* =========================================
+   CATEGORIES
+========================================= */
 .categories-card {
     padding: 20px;
     border-radius: 18px;
     background: linear-gradient(145deg, #1a1d24, #121317);
     border: 1px solid var(--border);
-}
-
-.section-title {
-    margin-bottom: 16px;
-    font-weight: 600;
 }
 
 .categories-grid {
@@ -151,31 +166,23 @@
 .column-title.income { color: #22c55e; }
 .column-title.expense { color: #ef4444; }
 
-/* CATEGORY ROWS */
+/* CATEGORY ROW */
 .category-row {
     position: relative;
     overflow: hidden;
     padding: 12px 16px;
-}
-
-.category-bar {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    opacity: 0.15;
     border-radius: 12px;
+
+    transition: all 0.25s ease;
+    cursor: pointer;
 }
 
-/* COLORS */
-.category-row.income .category-bar {
-    background: #22c55e;
+.category-row:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
 }
 
-.category-row.expense .category-bar {
-    background: #ef4444;
-}
-
+/* COLOR THEMES */
 .category-row.income {
     background: linear-gradient(90deg, rgba(34,197,94,0.15), transparent);
     border-left: 3px solid #22c55e;
@@ -185,43 +192,8 @@
     background: linear-gradient(90deg, rgba(239,68,68,0.15), transparent);
     border-left: 3px solid #ef4444;
 }
-/* =========================
-   GLOBAL INTERACTION
-========================= */
 
-.kpi-big,
-.category-row,
-.unknown-banner {
-    transition: all 0.25s ease;
-}
-
-/* HOVER LIFT */
-.kpi-big:hover,
-.category-row:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-}
-
-/* COLOR GLOW */
-.kpi-big.income:hover {
-    box-shadow: 0 0 30px rgba(34,197,94,0.25);
-}
-
-.kpi-big.expense:hover {
-    box-shadow: 0 0 30px rgba(239,68,68,0.25);
-}
-
-.kpi-big.net:hover {
-    box-shadow: 0 0 30px rgba(59,130,246,0.25);
-}
-
-/* CATEGORY SHINE EFFECT */
-.category-row {
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-}
-
+/* SHINE EFFECT */
 .category-row::after {
     content: "";
     position: absolute;
@@ -235,15 +207,13 @@
     opacity: 1;
 }
 
-/* =========================
+/* =========================================
    EXPANDABLE DETAILS
-========================= */
-
+========================================= */
 .category-details {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.35s ease;
-    margin-bottom: 6px;
 }
 
 .category-details.open {
@@ -263,43 +233,26 @@
 .amount.income { color: #4ade80; }
 .amount.expense { color: #f87171; }
 
-/* PAGE */
-.rules-page {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-/* HEADER */
-.rules-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.rules-actions {
-    display: flex;
-    gap: 10px;
-}
-
-/* GRID */
+/* =========================================
+   RULES GRID
+========================================= */
 .rules-grid {
     display: grid;
     grid-template-columns: 1.2fr 1fr;
-    gap: 20px;
+    gap: 24px;
     align-items: start;
 }
 
-/* UNKNOWN LIST */
+/* =========================================
+   RULE ITEMS (LEFT)
+========================================= */
 .rule-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
 
-    padding: 14px;
-    border-radius: 12px;
+    padding: 16px;
+    border-radius: 14px;
 
     background: rgba(255,255,255,0.02);
     border: 1px solid rgba(255,255,255,0.05);
@@ -314,23 +267,24 @@
 .rule-main {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-}
-
-.rule-main strong {
-    font-size: 15px;
+    gap: 6px;
 }
 
 /* SELECT */
 .rule-action select {
+    min-width: 180px;
+    height: 40px;
+    border-radius: 10px;
+    padding: 0 10px;
+
     background: #1f2229;
     border: 1px solid #333;
     color: white;
-    padding: 8px 10px;
-    border-radius: 8px;
 }
 
-/* RULE LIST */
+/* =========================================
+   RULE LIST (RIGHT)
+========================================= */
 .rule-group {
     margin-bottom: 20px;
 }
@@ -341,7 +295,6 @@
     opacity: 0.8;
 }
 
-/* FIX DELETE BUTTON CHAOS */
 .rule-row {
     display: grid;
     grid-template-columns: 1fr auto auto;
@@ -360,11 +313,43 @@
     height: auto;
 }
 
+/* =========================================
+   INPUTS
+========================================= */
 .form-input {
     width: 100%;
     padding: 10px;
     border-radius: 10px;
+
     background: #1f2229;
     border: 1px solid #333;
     color: white;
+}
+
+/* =========================================
+   UTIL
+========================================= */
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* =========================================
+   ANIMATION
+========================================= */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobilepay-card {
+    border: 1px solid rgba(59,130,246,0.4);
+    background: linear-gradient(145deg, #121a2a, #121317);
 }

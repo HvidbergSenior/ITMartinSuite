@@ -8,70 +8,45 @@ public static class CategoryMapper
     {
         // 💰 INCOME
         SubCategory.Løn or
-        SubCategory.SU or
-        SubCategory.OverskydendeSkat or
-        SubCategory.Renter or
-        SubCategory.Pengegaver or
-        SubCategory.VirksomhedsIndkomst
+            SubCategory.SU or
+            SubCategory.Feriepenge or
+            SubCategory.OverskydendeSkat or
+            SubCategory.Renter or
+            SubCategory.Pengegaver
             => Category.Indkomst,
-
-        // 🔁 TRANSFERS (ignored in budget)
-        SubCategory.OverførselFraAndre or
-        SubCategory.OverførselTilAndre
-            => Category.Andet,
 
         // 🛒 FOOD
         SubCategory.Dagligvarer or
-        SubCategory.Restaurant or
-        SubCategory.Snacks
+            SubCategory.Restaurant or
+            SubCategory.Fastfood
             => Category.Mad,
 
         // 🚗 TRANSPORT
         SubCategory.Benzin or
-        SubCategory.Parkering or
-        SubCategory.ReparationBil or
-        SubCategory.OffentligTransport
+            SubCategory.Parkering or
+            SubCategory.OffentligTransport
             => Category.Transport,
 
         // 🏠 HOUSING
         SubCategory.Husleje or
-        SubCategory.RenterLån or
-        SubCategory.VarmeVandAffald or
-        SubCategory.ReparationHus
+            SubCategory.RenterHusLån
             => Category.Bolig,
 
         // 📱 SUBSCRIPTIONS
-        SubCategory.Telefonabonnement or
         SubCategory.Internet or
-        SubCategory.StreamingTjenester
+            SubCategory.StreamingTjenester
             => Category.Abonnement,
 
         // 🏥 HEALTH
-        SubCategory.Tandlæge or
-        SubCategory.Sygeforsikring or
-        SubCategory.Medicin
+        SubCategory.Medicin or
+            SubCategory.Tandlæge
             => Category.Sundhed,
 
-        // 👕 SHOPPING
-        SubCategory.Tøj
-            => Category.Shopping,
-
         // 🎮 LEISURE
-        SubCategory.Underholdning or
-        SubCategory.FitnessSport or
-        SubCategory.Rejser
+        SubCategory.PersonligtForbrug or
+            SubCategory.FitnessSport or
+            SubCategory.Rejser
             => Category.Fritid,
-
-        // 💾 SAVINGS + FINANCE + PERSONAL → general expense bucket
-        SubCategory.Opsparing or
-        SubCategory.Børneopsparing or
-        SubCategory.FagforeningAkasse or
-        SubCategory.Forsikring or
-        SubCategory.VirksomhedsUdgift or
-        SubCategory.Frisør or
-        SubCategory.PersonligPleje or
-        SubCategory.GaverTilAndre
-            => Category.Andet,
 
         _ => Category.Andet
     };

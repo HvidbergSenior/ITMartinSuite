@@ -1,9 +1,10 @@
-﻿public enum Category
+﻿namespace ITMartinBudget.Domain.Enums;
+
+public enum Category
 {
-    Indkomst,   // income
-    Udgift,     // 🔥 ALL expenses (important)
+    Indkomst,   //(UI grouping only)
     
-    // breakdown (UI grouping)
+    
     Mad,
     Transport,
     Bolig,
@@ -11,6 +12,5 @@
     Shopping,
     Sundhed,
     Abonnement,
-
     Andet       // fallback / unknown
 }

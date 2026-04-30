@@ -3,33 +3,38 @@
     // 💰 INCOME
     Løn,
     SU,
+    Feriepenge,
     OverskydendeSkat,
     Renter,
     Pengegaver,
-    VirksomhedsIndkomst,
 
     // 🔁 TRANSFERS
     OverførselFraAndre,
     OverførselTilAndre,
+    MobilePayTilAndre,
+    MobilePayFraAndre,
     Børneopsparing,
     Opsparing,
+    Kontooverførsel,
     
     // 🏠 HOUSING
     Husleje,
-    RenterLån,
+    RenterHusLån,
     VarmeVandAffald,
     ReparationHus,
+    Grundejerforening,
 
     // 🚗 TRANSPORT
     Benzin,
     Parkering,
     ReparationBil,
     OffentligTransport,
+    Andet,
     
     // 🛒 FOOD
     Dagligvarer,
     Restaurant,
-    Snacks,
+    Fastfood,
 
     // 📱 SUBSCRIPTIONS
     Telefonabonnement,
@@ -38,21 +43,20 @@
     
     // 🏥 HEALTH
     Tandlæge,
-    Sygeforsikring,
     Medicin,
 
     // 👕 SHOPPING
     Tøj,
     
     // 🎮 LEISURE
-    Underholdning,
+    PersonligtForbrug,
     FitnessSport,
     Rejser,
+    Koncerter,
     
     // 📊 WORK / FINANCE
     FagforeningAkasse,
     Forsikring,
-    VirksomhedsUdgift,
 
     // ✂️ PERSONAL
     Frisør,

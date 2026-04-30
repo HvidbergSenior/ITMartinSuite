@@ -1,5 +1,7 @@
 ﻿using ITMartinBudget.Domain.Entities;
 
+namespace ITMartinBudget.Application.Services;
+
 public class CategoryEngine
 {
     private readonly List<CategoryRule> _rules;

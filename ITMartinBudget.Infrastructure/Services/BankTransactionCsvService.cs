@@ -61,36 +61,29 @@ public class BankTransactionCsvService
 
         foreach (var record in records)
         {
-            // 🔥 First: rule engine
-            var sub = engine.Detect(record.Description);
+            var text = record.Description.ToLowerInvariant();
 
-            // 🔁 Transfer override (still important)
-            if (IsTransfer(record.Description))
+            // 🔧 RULES ONLY IF UNKNOWN
+            if (record.SubCategory == SubCategory.Ukendt)
             {
-                sub = record.Amount >= 0
-                    ? SubCategory.OverførselFraAndre
-                    : SubCategory.OverførselTilAndre;
+                var detected = engine.Detect(record.Description);
+
+                if (detected != SubCategory.Ukendt)
+                    record.SubCategory = detected;
             }
 
-            record.SubCategory = Enum.IsDefined(typeof(SubCategory), sub)
-                ? sub
-                : SubCategory.Ukendt;
+            // 🔥 MOBILEPAY METADATA ONLY
+            if (record.IsMobilePay)
+            {
+                record.MobilePayName = ExtractMobilePayName(record.Description);
+            }
 
+            // 🔥 ALWAYS DERIVE CATEGORY
             record.Category = CategoryMapper.Map(record.SubCategory);
 
-            // 💰 Fix income sign
-            if (record.Category == Category.Indkomst && record.Amount < 0)
-                record.Amount = Math.Abs(record.Amount);
-
-            record.MobilePayName = ExtractMobilePayName(record.Description);
-
-            // 🚨 Track unknowns
-            if (record.SubCategory == SubCategory.Ukendt &&
-                !string.IsNullOrWhiteSpace(record.Description) &&
-                !existingUnknowns.Contains(record.Description))
+            // 🔍 UNKNOWN TRACKING
+            if (record.SubCategory == SubCategory.Ukendt)
             {
-                existingUnknowns.Add(record.Description);
-
                 newUnknowns.Add(new UnknownTransaction
                 {
                     Description = record.Description
@@ -134,14 +127,21 @@ public class BankTransactionCsvService
         return newTransactions;
     }
 
+    private bool IsMobilePay(string text)
+    {
+        return text.Contains("mobilepay");
+    }
+
     private bool IsTransfer(string text)
     {
-        text = text.ToLowerInvariant();
+        if (text.StartsWith("til ")) return true;
+        if (text.StartsWith("fra ")) return true;
+        if (text.Contains("overfør")) return true;
 
-        return text.Contains("overfør") ||
-               text.Contains("egen konto") ||
-               text.Contains("konto til konto") ||
-               text.Contains("opsparing");
+        if (text.Contains("egen konto") || text.Contains("konto til konto"))
+            return true;
+
+        return false;
     }
 
     private string CreateKey(DateTime date, decimal amount, string description)

@@ -10,9 +10,11 @@ public class BudgetService
         var filtered = transactions
             .Where(x => x.Date.Year == year)
             .Where(x =>
+                x.SubCategory != SubCategory.Kontooverførsel &&
                 x.SubCategory != SubCategory.OverførselFraAndre &&
-                x.SubCategory != SubCategory.OverførselTilAndre)
-            .ToList();
+                x.SubCategory != SubCategory.OverførselTilAndre &&
+                x.SubCategory != SubCategory.Opsparing &&
+                x.SubCategory != SubCategory.Børneopsparing);
 
         var grouped = filtered
             .GroupBy(x => new
@@ -25,8 +27,13 @@ public class BudgetService
 
         foreach (var group in grouped)
         {
-            var income = group.Where(x => x.Amount > 0).Sum(x => x.Amount);
-            var expenses = group.Where(x => x.Amount < 0).Sum(x => Math.Abs(x.Amount));
+            var income = group
+                .Where(x => x.Amount > 0)
+                .Sum(x => x.Amount);
+
+            var expenses = group
+                .Where(x => x.Amount < 0)
+                .Sum(x => Math.Abs(x.Amount));
 
             result.Add(new CategorySummary
             {
@@ -39,8 +46,6 @@ public class BudgetService
 
                 TransactionCount = group.Count(),
                 Frequency = DetectFrequency(group.Select(x => x.Date).ToList()),
-
-                // 🔥 NEW
                 ExpenseType = GetExpenseType(group.Key.SubCategory)
             });
         }
@@ -54,16 +59,16 @@ public class BudgetService
         var filtered = transactions
             .Where(x => x.Date.Year == year)
             .Where(x =>
+                x.SubCategory != SubCategory.Kontooverførsel &&
                 x.SubCategory != SubCategory.OverførselFraAndre &&
-                x.SubCategory != SubCategory.OverførselTilAndre);
+                x.SubCategory != SubCategory.OverførselTilAndre &&
+                x.SubCategory != SubCategory.MobilePayFraAndre &&
+                x.SubCategory != SubCategory.MobilePayTilAndre);
 
         return new YearSummary
         {
             Income = filtered.Where(x => x.Amount > 0).Sum(x => x.Amount),
-
-            // 🔥 always positive
-            Expenses = filtered.Where(x => x.Amount < 0)
-                               .Sum(x => Math.Abs(x.Amount))
+            Expenses = filtered.Where(x => x.Amount < 0).Sum(x => Math.Abs(x.Amount))
         };
     }
 
@@ -72,26 +77,38 @@ public class BudgetService
         // 💰 INCOME
         SubCategory.Løn => "Løn",
         SubCategory.SU => "SU",
+        SubCategory.Feriepenge => "Feriepenge",
         SubCategory.OverskydendeSkat => "Overskydende skat",
         SubCategory.Renter => "Renter",
         SubCategory.Pengegaver => "Gaver (ind)",
 
-        // 🛒 FOOD
-        SubCategory.Dagligvarer => "Dagligvarer",
-        SubCategory.Restaurant => "Restaurant",
-        SubCategory.Snacks => "Snacks",
+        // 🔁 TRANSFERS
+        SubCategory.OverførselFraAndre => "Overførsel fra",
+        SubCategory.OverførselTilAndre => "Overførsel til",
+        SubCategory.MobilePayFraAndre => "MobilePay fra",
+        SubCategory.MobilePayTilAndre => "MobilePay til",
+        SubCategory.Opsparing => "Opsparing",
+        SubCategory.Børneopsparing => "Børneopsparing",
+        SubCategory.Kontooverførsel => "Kontooverførsel",
+
+        // 🏠 HOUSING
+        SubCategory.Husleje => "Husleje",
+        SubCategory.RenterHusLån => "Renter lån",
+        SubCategory.VarmeVandAffald => "Varme/Vand/Affald",
+        SubCategory.ReparationHus => "Hus reparation",
+        SubCategory.Grundejerforening => "Grundejerforening",
 
         // 🚗 TRANSPORT
         SubCategory.Benzin => "Benzin",
         SubCategory.Parkering => "Parkering",
         SubCategory.ReparationBil => "Bil reparation",
         SubCategory.OffentligTransport => "Offentlig transport",
+        SubCategory.Andet => "Andet transport",
 
-        // 🏠 HOUSING
-        SubCategory.Husleje => "Husleje",
-        SubCategory.RenterLån => "Renter lån",
-        SubCategory.VarmeVandAffald => "Varme/Vand/Affald",
-        SubCategory.ReparationHus => "Hus reparation",
+        // 🛒 FOOD
+        SubCategory.Dagligvarer => "Dagligvarer",
+        SubCategory.Restaurant => "Restaurant",
+        SubCategory.Fastfood => "Fastfood",
 
         // 📱 SUBSCRIPTIONS
         SubCategory.Telefonabonnement => "Telefon",
@@ -100,30 +117,28 @@ public class BudgetService
 
         // 🏥 HEALTH
         SubCategory.Tandlæge => "Tandlæge",
-        SubCategory.Sygeforsikring => "Sygeforsikring",
         SubCategory.Medicin => "Medicin",
 
         // 👕 SHOPPING
         SubCategory.Tøj => "Tøj",
 
         // 🎮 LEISURE
-        SubCategory.Underholdning => "Underholdning",
+        SubCategory.PersonligtForbrug => "Personligt",
         SubCategory.FitnessSport => "Fitness/Sport",
         SubCategory.Rejser => "Rejser",
+        SubCategory.Koncerter => "Koncerter",
 
         // 📊 FINANCE
         SubCategory.FagforeningAkasse => "Fagforening/A-kasse",
         SubCategory.Forsikring => "Forsikring",
-        SubCategory.VirksomhedsUdgift => "Virksomhed",
 
         // ✂️ PERSONAL
         SubCategory.Frisør => "Frisør",
         SubCategory.PersonligPleje => "Pleje",
         SubCategory.GaverTilAndre => "Gaver (ud)",
 
-        // 💾 SAVINGS
-        SubCategory.Opsparing => "Opsparing",
-        SubCategory.Børneopsparing => "Børneopsparing",
+        // ❓ UNKNOWN
+        SubCategory.Ukendt => "Ukendt",
 
         _ => sub.ToString()
     };
@@ -134,7 +149,7 @@ public class BudgetService
         {
             // 🏠 FIXED
             SubCategory.Husleje or
-            SubCategory.RenterLån or
+            SubCategory.RenterHusLån or
             SubCategory.Forsikring or
             SubCategory.FagforeningAkasse or
             SubCategory.Telefonabonnement or
@@ -151,13 +166,15 @@ public class BudgetService
 
             // 🎮 OPTIONAL
             SubCategory.Restaurant or
-            SubCategory.Snacks or
-            SubCategory.Underholdning or
+            SubCategory.Fastfood or
+            SubCategory.PersonligtForbrug or
             SubCategory.FitnessSport or
             SubCategory.Rejser or
+            SubCategory.Koncerter or
             SubCategory.GaverTilAndre or
             SubCategory.Frisør or
-            SubCategory.PersonligPleje
+            SubCategory.PersonligPleje or
+            SubCategory.Tøj
                 => ExpenseType.Optional,
 
             _ => ExpenseType.Variable
