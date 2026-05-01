@@ -3,60 +3,73 @@
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 
-<div class="page-container stack">
+<div class="filesorter-app">
+    <div class="page-container stack category-step-page">
 
-    <!-- TITLE -->
-    <SectionTitle Title="@($"Step: {CurrentCategory}")" />
+        <!-- TITLE -->
+        <SectionTitle Title="@($"Step: {CurrentCategory}")" />
 
-    <!-- SECONDARY ACTIONS -->
-    <ActionButtonBar>
-        <button class="btn btn-secondary"
-                @onclick="AcceptAll"
-                disabled="@(!HasPending)">
-            Accept All
-        </button>
-    </ActionButtonBar>
+        <!-- ACTIONS -->
+        <ActionButtonBar>
+            <button class="btn btn-secondary"
+                    @onclick="AcceptAll"
+                    disabled="@(!HasPending)">
+                Accept All
+            </button>
+        </ActionButtonBar>
 
-    <!-- 🔥 PRIMARY CTA (MOVED UP) -->
-    <ActionButtonBar CssClass="bottom">
-        <button class="btn btn-primary btn-lg"
-                @onclick="Continue"
-                disabled="@(!CanContinue)">
-            Continue
-        </button>
-    </ActionButtonBar>
+        <!-- PRIMARY CTA -->
+        <ActionButtonBar CssClass="bottom">
+            <button class="btn btn-primary btn-lg"
+                    @onclick="Continue"
+                    disabled="@(!CanContinue)">
+                Continue
+            </button>
+        </ActionButtonBar>
 
-    <!-- EMPTY STATE -->
-    @if (!Groups.Any())
-    {
-        <ContentCard Title="No files found">
-            <div class="text-muted">
-                No files available in this category.
-            </div>
-        </ContentCard>
-    }
+        <!-- EMPTY -->
+        @if (!Groups.Any())
+        {
+            <ContentCard Title="No files found">
+                <div class="text-muted">
+                    No files available in this category.
+                </div>
+            </ContentCard>
+        }
 
-    <!-- FILE GROUPS -->
-    @foreach (var group in Groups)
-    {
-        <ContentCard Title="@group.Key.ToString()">
+        <!-- GROUPS -->
+        @foreach (var group in Groups)
+        {
+            <ContentCard Title="@group.Key.ToString()">
 
-            <div class="media-grid">
-                @foreach (var file in group.Value)
-                {
-                    <div class="media-item">
-                        <FileSorterMediaCard File="file"
-                                             OnKeep="Keep"
-                                             OnDelete="Delete" />
+                <div class="grid grid-3">
 
-                        @RenderStatus(file)
-                    </div>
-                }
-            </div>
+                    @foreach (var file in group.Value)
+                    {
+                        <div class="stack">
 
-        </ContentCard>
-    }
+                            <MediaCard
+                                Title="@file.FileName"
+                                SizeText="@FormatSize(file.SizeBytes)"
+                                ImageUrl="@file.ThumbnailPath"
+                                Icon="🖼️"
+                                PrimaryText="Keep"
+                                OnPrimary="() => Keep(file)"
+                                OnSecondary="() => Delete(file)" />
 
+                            <div class="media-status">
+                                @RenderStatus(file)
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </ContentCard>
+        }
+
+    </div>
 </div>
 
 @code {
@@ -139,4 +152,18 @@
         else
             builder.AddMarkupContent(2, "<span class='status pending'>● Pending</span>");
     };
+    string FormatSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        int order = 0;
+
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+
+        return $"{len:0.#} {sizes[order]}";
+    }
 }

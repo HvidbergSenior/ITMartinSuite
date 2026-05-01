@@ -1,29 +1,230 @@
+/* =========================
+ROOT
+========================= */
 .filesorter-app {
-    padding-top: 10px;
+    padding: var(--space-lg);
 }
 
-/* HERO */
-.filesorter-app .hero-wide {
-    max-width: 1400px;
-    margin: 0 auto;
+/* =========================
+HERO (SCAN BOX)
+========================= */
+.scan-hero-card {
+    max-width: 1100px;
+    margin: 0 auto var(--space-lg) auto;
 }
 
-.filesorter-app .hero-text {
-    opacity: 0.8;
-    margin-bottom: 16px;
+/* reuse card system */
+.scan-hero-card.card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
 }
 
-/* CATEGORY GRID */
-.filesorter-app .main-category-row {
+.hero-text {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* =========================
+SECTION TITLE
+========================= */
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+
+/* =========================
+CATEGORY GRID
+========================= */
+.main-category-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
-    gap: 18px;
-    justify-content: center;
-    margin-top: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-md);
 }
 
-/* EXPORT CARD */
-.filesorter-app .export-card {
-    text-align: center;
+/* =========================
+CATEGORY CARD
+========================= */
+.category-card {
+    position: relative;
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+
+    cursor: pointer;
+
 }
 
+/* extend shared card */
+.category-card.card-hover {
+    transition: var(--transition);
+}
+
+/* locked */
+.category-card.locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.category-card.locked:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* =========================
+LEFT ACCENT STRIPE
+========================= */
+.category-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 3px;
+    background: transparent;
+}
+
+/* category colors */
+.category-image::before { background: #60a5fa; }
+.category-video::before { background: #a78bfa; }
+.category-audio::before { background: #34d399; }
+.category-document::before { background: #fbbf24; }
+.category-auto::before { background: #f87171; }
+
+/* =========================
+CONTENT
+========================= */
+.category-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.category-status {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.text-success {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.text-warning {
+    color: #facc15;
+    font-weight: 500;
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
+
+.category-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* =========================
+PROGRESS BAR
+========================= */
+.category-progress {
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.category-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), #60a5fa);
+    transition: width 0.3s ease;
+}
+
+/* =========================
+CTA
+========================= */
+.category-action {
+    margin-top: auto;
+
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    opacity: 0.85;
+    transition: var(--transition);
+
+}
+
+.category-card:hover .category-action {
+    transform: translateX(4px);
+    opacity: 1;
+}
+
+/* =========================
+EXPORT BAR
+========================= */
+.export-bar {
+    margin-top: var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.export-status {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.spacer {
+    flex: 1;
+}
+
+/* =========================
+SMALL TEXT
+========================= */
+.small {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+/* =========================
+   MEDIA GRID
+========================= */
+.category-step-page .grid {
+    margin-top: var(--space-sm);
+}
+
+/* =========================
+   MEDIA STATUS
+========================= */
+.media-status {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* status variants */
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status.kept {
+    color: var(--success);
+}
+
+.status.duplicate {
+    color: var(--danger);
+}
+
+.status.pending {
+    color: var(--text-muted);
+}

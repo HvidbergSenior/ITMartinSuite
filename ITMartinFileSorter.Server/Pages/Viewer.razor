@@ -6,41 +6,57 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 
-<div class="viewer-page">
-<div class="viewer-container">
-    <ActionButtonBar CssClass="bottom">
+<div class="filesorter-app">
+    <div class="page-container stack viewer-page">
 
-        <div class="btn-group">
-            <button class="btn btn-outline-light" @onclick="GoHome">🏠 Home</button>
-            <button class="btn btn-outline-light" @onclick="GoToFolder">📁 Folder</button>
-        </div>
+        <!-- NAVIGATION -->
+        <ActionButtonBar CssClass="bottom">
 
-        <div class="btn-group">
-            <button class="btn btn-secondary" @onclick="PlayPrevious">⬅ Previous</button>
-            <button class="btn btn-danger" @onclick="PlayNext">Next ➜</button>
-        </div>
+            <div class="row">
+                <button class="btn btn-secondary" @onclick="GoHome">
+                    🏠 Home
+                </button>
 
-    </ActionButtonBar>
-    @if (!string.IsNullOrEmpty(FilePath))
-    {
-        <ContentCard Title="@Path.GetFileName(FilePath)">
-            @if (IsVideo)
-            {
-                <video class="viewer-video"
-                       width="100%"
-                       controls
-                       autoplay
-                       @key="WebPath">
-                    <source src="@WebPath" type="video/mp4" />
-                </video>
-            }
-            else
-            {
-                <img class="viewer-image" src="@WebPath" />
-            }
-        </ContentCard>
-    }
+                <button class="btn btn-secondary" @onclick="GoToFolder">
+                    📁 Folder
+                </button>
+            </div>
 
+            <div class="row">
+                <button class="btn btn-secondary" @onclick="PlayPrevious">
+                    ⬅ Previous
+                </button>
+
+                <button class="btn btn-primary" @onclick="PlayNext">
+                    Next ➜
+                </button>
+            </div>
+
+        </ActionButtonBar>
+
+        <!-- MEDIA -->
+        @if (!string.IsNullOrEmpty(FilePath))
+        {
+            <ContentCard Title="@Path.GetFileName(FilePath)">
+
+                @if (IsVideo)
+                {
+                    <video class="viewer-media"
+                           controls
+                           autoplay
+                           @key="WebPath">
+                        <source src="@WebPath" type="video/mp4" />
+                    </video>
+                }
+                else
+                {
+                    <img class="viewer-media" src="@WebPath" />
+                }
+
+            </ContentCard>
+        }
+
+    </div>
 </div>
 
 @code {
@@ -140,5 +156,3 @@
         }
     }
 }
-
-</div>

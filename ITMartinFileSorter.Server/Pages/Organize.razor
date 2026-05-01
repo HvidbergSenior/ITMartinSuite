@@ -6,103 +6,118 @@
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 
-<div class="organize-page">
+<div class="filesorter-app">
+    <div class="page-container stack organize-page">
 
-    <SectionTitle Title="🗂 Organize & Rename Files" />
+        <!-- TITLE -->
+        <SectionTitle Title="🗂 Organize & Rename Files" />
 
-    <ContentCard Title="Batch Apply" CssClass="organize-batch-card">
-        <div class="organize-toolbar">
-            <div class="flex-grow-1">
-                <label>Folder name</label>
-                <input class="form-control"
-                       @bind="BatchFolderName"
-                       placeholder="Example: Martin / Thailand / Work" />
+        <!-- BATCH -->
+        <ContentCard Title="Batch Apply">
+
+            <div class="organize-toolbar">
+
+                <div class="stack">
+                    <label>Folder name</label>
+                    <input @bind="BatchFolderName"
+                           placeholder="Example: Martin / Thailand / Work" />
+                </div>
+
+                <div class="stack">
+                    <label>Title</label>
+                    <input @bind="BatchTitle"
+                           placeholder="Example: Thailand Holiday" />
+                </div>
+
             </div>
 
-            <div class="flex-grow-1">
-                <label>Title</label>
-                <input class="form-control"
-                       @bind="BatchTitle"
-                       placeholder="Example: Thailand Holiday" />
+            <div class="organize-actions row">
+                <button class="btn btn-primary"
+                        @onclick="ApplyToSelected">
+                    Apply to selected
+                </button>
+
+                <button class="btn btn-secondary"
+                        @onclick="SelectAllVisible">
+                    Select visible
+                </button>
+
+                <button class="btn btn-secondary"
+                        @onclick="ClearSelection">
+                    Clear
+                </button>
             </div>
-        </div>
 
-        <div class="organize-actions">
-            <button class="btn btn-primary"
-                    @onclick="ApplyToSelected">
-                Apply to selected
-            </button>
+        </ContentCard>
 
-            <button class="btn btn-outline-secondary"
-                    @onclick="SelectAllVisible">
-                Select visible
-            </button>
+        <!-- FILTER -->
+        <ContentCard Title="Filter">
+            <select @bind="SelectedCategory">
+                <option value="">All categories</option>
+                <option value="Image">Images</option>
+                <option value="Video">Videos</option>
+                <option value="Audio">Audio</option>
+                <option value="Document">Documents</option>
+            </select>
+        </ContentCard>
 
-            <button class="btn btn-outline-secondary"
-                    @onclick="ClearSelection">
-                Clear
-            </button>
-        </div>
-    </ContentCard>
+        <!-- FILES -->
+        <div class="organize-grid">
+            @foreach (var file in FilteredFiles)
+            {
+                <div class="organize-file-card">
 
-    <ContentCard Title="Filter" CssClass="organize-filter-card">
-        <select class="form-control"
-                @bind="SelectedCategory">
-            <option value="">All categories</option>
-            <option value="Image">Images</option>
-            <option value="Video">Videos</option>
-            <option value="Audio">Audio</option>
-            <option value="Document">Documents</option>
-        </select>
-    </ContentCard>
+                    <div class="row space-between">
 
-    <div class="organize-grid">
-        @foreach (var file in FilteredFiles)
-        {
-            <div class="organize-file-card">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="item-title">@file.FileName</div>
+                        <div class="stack">
 
-                        <div class="organize-meta">
-                            <div>
-                                <span class="item-label">Type:</span>
-                                @file.MainCategory
+                            <div class="item-title">@file.FileName</div>
+
+                            <div class="organize-meta">
+
+                                <div>
+                                    <span class="item-label">Type:</span>
+                                    @file.MainCategory
+                                </div>
+
+                                <div>
+                                    <span class="item-label">Date:</span>
+                                    @(file.CreatedAt?.ToString("yyyy-MM-dd") ?? "Unknown")
+                                </div>
+
+                                <div>
+                                    <span class="item-label">Folder:</span>
+                                    @(file.UserFolderName ?? "-")
+                                </div>
+
+                                <div>
+                                    <span class="item-label">Title:</span>
+                                    @(file.UserTitle ?? "-")
+                                </div>
+
                             </div>
 
-                            <div>
-                                <span class="item-label">Date:</span>
-                                @(file.CreatedAt?.ToString("yyyy-MM-dd") ?? "Unknown")
-                            </div>
-
-                            <div>
-                                <span class="item-label">Current folder:</span>
-                                @(file.UserFolderName ?? "-")
-                            </div>
-
-                            <div>
-                                <span class="item-label">Current title:</span>
-                                @(file.UserTitle ?? "-")
-                            </div>
                         </div>
+
+                        <input type="checkbox"
+                               @bind="Selected[file]" />
+
                     </div>
 
-                    <input type="checkbox"
-                           @bind="Selected[file]" />
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
 
-    <div class="form-actions mt-4">
-        <button class="btn btn-success btn-lg"
-                @onclick="GoToExport">
-            Continue to Export
-        </button>
-    </div>
+        <!-- CTA -->
+        <ActionButtonBar CssClass="bottom">
+            <button class="btn btn-success btn-lg"
+                    @onclick="GoToExport">
+                Continue to Export
+            </button>
+        </ActionButtonBar>
 
+    </div>
 </div>
-
 @code {
     string BatchFolderName = "";
     string BatchTitle = "";

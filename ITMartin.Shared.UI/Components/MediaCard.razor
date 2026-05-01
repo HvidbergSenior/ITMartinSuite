@@ -1,4 +1,4 @@
-﻿<div class="media-card">
+﻿<div class="media-card card card-hover">
 
     <!-- THUMB -->
     <div class="media-thumb-wrapper">
@@ -12,20 +12,34 @@
             <div class="media-icon">@Icon</div>
         }
 
-        @if (OnPrimary.HasDelegate)
-        {
-            <button class="media-btn primary floating"
-                    @onclick="OnPrimary">
-                @PrimaryText
-            </button>
-        }
-
     </div>
 
     <!-- INFO -->
     <div class="media-info">
         <div class="media-name">@Title</div>
         <div class="media-size">@SizeText</div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="media-actions">
+
+        @if (OnSecondary.HasDelegate)
+        {
+            <button class="btn btn-danger btn-sm"
+                    @onclick:stopPropagation="true"
+                    @onclick="OnSecondary">
+                Delete
+            </button>
+        }
+
+        @if (OnPrimary.HasDelegate)
+        {
+            <button class="btn btn-primary btn-sm"
+                    @onclick="OnPrimary">
+                @PrimaryText
+            </button>
+        }
+
     </div>
 
 </div>

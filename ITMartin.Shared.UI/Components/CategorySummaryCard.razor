@@ -43,7 +43,7 @@
     {
         <div class="category-progress">
             <div class="category-progress-fill"
-                 style="width:@(ProcessedCount * 100 / Total)%">
+                style="width:@((double)ProcessedCount / Total * 100)%">
             </div>
         </div>
     }
@@ -68,25 +68,11 @@
     [Parameter] public bool IsLocked { get; set; }
 
     // ✅ FIXED (typed event)
-    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
-
-    private async Task HandleClick(MouseEventArgs e)
+    [Parameter] public EventCallback OnClick { get; set; }
+    private Task HandleClick()
     {
-        Console.WriteLine($"CLICKED CARD: {Title}");
+        if (IsLocked) return Task.CompletedTask;
 
-        if (IsLocked)
-        {
-            Console.WriteLine("❌ Card is locked");
-            return;
-        }
-
-        if (!OnClick.HasDelegate)
-        {
-            Console.WriteLine("❌ No OnClick delegate attached");
-            return;
-        }
-
-        Console.WriteLine("✅ Invoking OnClick...");
-        await OnClick.InvokeAsync(e);
+        return OnClick.InvokeAsync();
     }
 }

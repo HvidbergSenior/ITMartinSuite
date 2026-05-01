@@ -7,20 +7,18 @@
 
 <h3>@SubCategory</h3>
 
-<div class="category-page">
-
+<div class="filesorter-app"/>
+<div class="page-container stack">
     <SectionTitle Title="@SubCategory" />
-
     <ContentCard Title="Images">
         <div class="d-flex flex-wrap gap-2">
             @foreach (var file in Files)
             {
                 <FileSorterMediaCard File="file"
-                           ShowThumbnail="true" />
+                                     ShowThumbnail="true" />
             }
         </div>
     </ContentCard>
-
 </div>
 
 @code {

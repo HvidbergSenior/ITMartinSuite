@@ -6,46 +6,44 @@
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
-<div class="library-page">
-    <div class="library-panel">
+<div class="filesorter-app">
+    <div class="page-container stack library-page">
 
         <!-- TITLE -->
         <SectionTitle Title="🎬 My Media Library" />
 
-        <!-- NAVIGATION ACTIONS -->
-        <div class="library-actions">
+        <!-- NAVIGATION -->
+        <div class="library-actions row space-between">
 
-            <button class="btn btn-secondary"
-                    @onclick="GoBack"
-                    disabled="@(!CanGoBack)">
-                ← Back
-            </button>
+            <div class="row">
+                <button class="btn btn-secondary"
+                        @onclick="GoBack"
+                        disabled="@(!CanGoBack)">
+                    ← Back
+                </button>
 
-            <button class="btn btn-secondary"
-                    @onclick="GoToRoot"
-                    disabled="@(CurrentPath == RootPath)">
-                📁 Library
-            </button>
+                <button class="btn btn-secondary"
+                        @onclick="GoToRoot"
+                        disabled="@(CurrentPath == RootPath)">
+                    📁 Library
+                </button>
+            </div>
 
-        </div>
-
-        <!-- DEBUG (optional, remove later) -->
-        <div style="font-size:12px;color:#888;margin-bottom:10px;">
-            CurrentPath: @CurrentPath
         </div>
 
         <!-- FOLDERS -->
         <ContentCard Title="📁 Folders">
+
             @if (!Folders.Any())
             {
-                <div class="empty-state">No folders found</div>
+                <div class="text-muted">No folders found</div>
             }
             else
             {
                 <div class="library-grid">
                     @foreach (var folder in Folders)
                     {
-                        <div class="library-card clickable"
+                        <div class="library-card"
                              @onclick="() => OpenFolder(folder.FullPath)">
 
                             <div class="library-icon">📁</div>
@@ -56,13 +54,15 @@
                     }
                 </div>
             }
+
         </ContentCard>
 
         <!-- MEDIA -->
         <ContentCard Title="🎬 Media">
+
             @if (!Files.Any())
             {
-                <div class="empty-state">No media files</div>
+                <div class="text-muted">No media files</div>
             }
             else
             {
@@ -81,6 +81,7 @@
                     }
                 </div>
             }
+
         </ContentCard>
 
     </div>

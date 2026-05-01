@@ -1,20 +1,20 @@
 ﻿@inject ThumbnailService ThumbnailService
-<div class="media-clickable"
-     @onclick="() => OnKeep.InvokeAsync(File)">
-    <MediaCard
-        Title="@File.FileName"
-        SizeText="@FormatSize(File.SizeBytes)"
-        ImageUrl="@GetThumbnail()"
-        Icon="@GetIcon()"
-        PrimaryText="Keep"
-        OnPrimary="() => OnKeep.InvokeAsync(File)" />
-</div>
+
+<MediaCard
+    Title="@File.FileName"
+    SizeText="@FormatSize(File.SizeBytes)"
+    ImageUrl="@GetThumbnail()"
+    Icon="@GetIcon()"
+    PrimaryText="Keep"
+    OnPrimary="HandleKeep"
+    OnSecondary="HandleDelete" />
+
 @code {
 
     [Parameter] public MediaFile File { get; set; } = default!;
     [Parameter] public EventCallback<MediaFile> OnKeep { get; set; }
-    [Parameter] public bool ShowThumbnail { get; set; } = false;
     [Parameter] public EventCallback<MediaFile> OnDelete { get; set; }
+    [Parameter] public bool ShowThumbnail { get; set; } = true;
 
     protected override void OnParametersSet()
     {
@@ -28,12 +28,11 @@
         }
     }
 
-    string? GetThumbnail()
-    {
-        if (!ShowThumbnail) return null;
+    Task HandleKeep() => OnKeep.InvokeAsync(File);
+    Task HandleDelete() => OnDelete.InvokeAsync(File);
 
-        return File.ThumbnailPath;
-    }
+    string? GetThumbnail()
+        => ShowThumbnail ? File.ThumbnailPath : null;
 
     string GetIcon() => File.MainCategory switch
     {
