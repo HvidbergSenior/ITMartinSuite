@@ -1,14 +1,25 @@
 ﻿using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
+using ITMartinFileSorter.Domain.Interfaces;
 
-public class ImageCategorizer
+namespace ITMartinFileSorter.Application.Services;
+
+public class ImageCategorizer : IMediaSubCategorizer
 {
+    public MediaType Type => MediaType.Image;
     public void Categorize(MediaFile file)
     {
+        if (file == null)
+            throw new ArgumentNullException(nameof(file));
+
+        if (file.Type != MediaType.Image)
+            throw new InvalidOperationException(
+                $"Invalid media type: {file.Type}. Expected Image.");
+
         var name = file.FileName.ToLowerInvariant();
         var ext = file.Extension.ToLowerInvariant();
 
-        // 1️⃣ NAME-BASED DETECTION (always runs)
+        // 1️⃣ NAME-BASED (highest priority)
         if (IsScreenshot(name))
         {
             file.SubCategory = MediaSubCategory.Screenshot;
@@ -27,92 +38,79 @@ public class ImageCategorizer
             return;
         }
 
-        if (IsScan(file, ext))
-        {
-            file.SubCategory = MediaSubCategory.OtherImage;
-            return;
-        }
-        // 🔥 1.5 EXTENSION-BASED (VERY IMPORTANT)
+        // 2️⃣ EXTENSION RULES
         if (ext == ".gif")
         {
             file.SubCategory = MediaSubCategory.Meme;
             return;
         }
-        
-        // 2️⃣ DIMENSION-BASED DETECTION (if available)
-        if (file.Width != null && file.Height != null)
-        {
-            var w = file.Width.Value;
-            var h = file.Height.Value;
 
-            // 📱 Screenshot (common resolutions)
-            if ((w == 1920 && h == 1080) ||
-                (w == 1080 && h == 1920) ||
-                (w == 1170 && h == 2532) || // iPhone
-                (w == 1284 && h == 2778))
+        // 3️⃣ DIMENSION RULES
+        if (file.Width is int w && file.Height is int h)
+        {
+            if (IsScreenshotResolution(w, h))
             {
                 file.SubCategory = MediaSubCategory.Screenshot;
                 return;
             }
 
-            // 😂 Meme / low quality
-            if (w < 800 || h < 800)
+            if (IsLowResolution(w, h))
             {
                 file.SubCategory = MediaSubCategory.Meme;
                 return;
             }
 
-            // 📸 Real photo (high resolution)
-            if (w >= 2000 && h >= 1500)
+            if (IsHighResolution(w, h))
             {
                 file.IsProbablyRealPhoto = true;
                 file.SubCategory = MediaSubCategory.OtherImage;
                 return;
             }
         }
-// 🔥 If filename looks like phone screenshot but dimensions missing
-        if (name.Contains("screen") || name.Contains("screenshot"))
+
+        // 4️⃣ FALLBACK NAME CHECK
+        if (name.Contains("screen"))
         {
             file.SubCategory = MediaSubCategory.Screenshot;
             return;
         }
-        // 3️⃣ FALLBACK (important!)
+
+        // 5️⃣ DEFAULT
         file.SubCategory = MediaSubCategory.OtherImage;
     }
 
-    private bool IsScreenshot(string name)
-    {
-        return name.Contains("screenshot") ||
-               name.Contains("skærmbillede") ||
-               name.Contains("screen shot") ||
-               name.Contains("screen_") ||
-               name.Contains("capture") ||
-               name.StartsWith("snip");
-    }
+    // ===== RULES =====
 
-    private bool IsMeme(string name)
-    {
-        
-        return name.Contains("meme") ||
-               name.Contains("funny") ||
-               name.Contains("reaction") ||
-               name.Contains("sticker") ||
-               name.Contains("joker");
-    }
-    
+    private static bool IsScreenshot(string name) =>
+        name.Contains("screenshot") ||
+        name.Contains("skærmbillede") ||
+        name.Contains("screen shot") ||
+        name.Contains("screen_") ||
+        name.Contains("capture") ||
+        name.StartsWith("snip");
 
-    private bool IsSocial(string name)
-    {
-        return name.Contains("facebook") ||
-               name.Contains("messenger") ||
-               name.Contains("whatsapp") ||
-               name.Contains("instagram") ||
-               name.Contains("snapchat");
-    }
+    private static bool IsMeme(string name) =>
+        name.Contains("meme") ||
+        name.Contains("funny") ||
+        name.Contains("reaction") ||
+        name.Contains("sticker");
 
-    private bool IsScan(MediaFile file, string ext)
-    {
-        return ext is ".tif" or ".tiff"
-               || file.SizeBytes > 10_000_000;
-    }
+    private static bool IsSocial(string name) =>
+        name.Contains("facebook") ||
+        name.Contains("messenger") ||
+        name.Contains("whatsapp") ||
+        name.Contains("instagram") ||
+        name.Contains("snapchat");
+
+    private static bool IsScreenshotResolution(int w, int h) =>
+        (w == 1920 && h == 1080) ||
+        (w == 1080 && h == 1920) ||
+        (w == 1170 && h == 2532) ||
+        (w == 1284 && h == 2778);
+
+    private static bool IsLowResolution(int w, int h) =>
+        w < 800 || h < 800;
+
+    private static bool IsHighResolution(int w, int h) =>
+        w >= 2000 && h >= 1500;
 }

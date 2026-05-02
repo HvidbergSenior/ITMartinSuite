@@ -1,17 +1,18 @@
 ﻿using ITMartinFileSorter.Domain.Entities;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
 public class LibraryExportService
 {
     private readonly LibraryPathService _pathService;
-    private readonly FastVideoBatchExportService _videoService;
-    private readonly ImageBatchExportService _imageService;
-
+    private readonly IVideoBatchService _videoService;
+    private readonly IImageBatchService _imageService;
+    
     public LibraryExportService(
         LibraryPathService pathService,
-        FastVideoBatchExportService videoService,
-        ImageBatchExportService imageService)
+        IVideoBatchService videoService,
+        IImageBatchService imageService)
     {
         _pathService = pathService;
         _videoService = videoService;

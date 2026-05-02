@@ -5,10 +5,6 @@
 @inject IFileScanner FileScanner
 @inject ProgressService Progress
 @inject NavigationManager Navigation
-@inject ImageCategorizer ImageCategorizer
-@inject VideoCategorizer VideoCategorizer
-@inject DocumentCategorizer DocumentCategorizer
-@inject AudioCategorizer AudioCategorizer
 
 <PageLayout Title="📂 Scan & Organize Files">
     <div class="filesorter-app">
@@ -154,6 +150,7 @@
     {
         FolderPath = value;
     }
+
     protected override void OnInitialized()
     {
         if (string.IsNullOrWhiteSpace(DuplicateService.FolderPath))
@@ -161,6 +158,7 @@
             DuplicateService.FolderPath = @"C:\MediaLibrary";
         }
     }
+
     string GetCategoryCssClass(string cat) => cat switch
     {
         "Audio" => "category-audio",
@@ -187,37 +185,14 @@
         DuplicateService.Reset();
         DuplicateService.FolderPath = path;
 
-        var allPaths = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
-
-        Progress.Info.TotalWork = allPaths.Length;
-        Progress.Info.WorkDone = 0;
-        Progress.SetStage("Scanning files...");
-
-        await InvokeAsync(StateHasChanged);
-        await Task.Delay(50);
-
         var files = new List<MediaFile>();
         int refreshCounter = 0;
 
+        Progress.Start("Scanning files...", 0);
+
         foreach (var file in FileScanner.ScanFolder(path))
         {
-            switch (file.MainCategory)
-            {
-                case MediaMainCategory.Image:
-                    ImageCategorizer.Categorize(file);
-                    break;
-                case MediaMainCategory.Video:
-                    VideoCategorizer.Categorize(file);
-                    break;
-                case MediaMainCategory.Document:
-                    DocumentCategorizer.Categorize(file);
-                    break;
-                case MediaMainCategory.Audio:
-                    AudioCategorizer.Categorize(file);
-                    break;
-            }
-
-            // ✅ FIX: MEMES should NEVER require review
+            // memes auto handled
             if (file.SubCategory == MediaSubCategory.Meme)
             {
                 file.RequiresReview = false;
@@ -227,7 +202,7 @@
             files.Add(file);
             FilesDiscovered++;
 
-            Progress.Info.WorkDone = FilesDiscovered;
+            Progress.Increment();
             CurrentFileName = file.FileName;
 
             if (++refreshCounter % 5 == 0)
@@ -236,19 +211,20 @@
                 {
                     await InvokeAsync(StateHasChanged);
                 }
-                catch (Microsoft.JSInterop.JSDisconnectedException)
+                catch
                 {
                     return;
                 }
             }
         }
 
+        Progress.Info.TotalWork = FilesDiscovered;
+
         DuplicateService.AllFiles = files;
 
         Progress.SetStage("Removing duplicates...");
         await InvokeAsync(StateHasChanged);
 
-        // 🔥 Now just auto-handle (no navigation possible)
         await Task.Run(() => DuplicateService.BuildDuplicateGroups());
 
         Progress.SetStage("Done");

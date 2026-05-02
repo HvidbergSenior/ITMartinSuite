@@ -1,27 +1,27 @@
-﻿using ITMartinFileSorter.Domain.Entities;
-using ITMartinFileSorter.Domain.Enums;
+﻿using ITMartinFileSorter.Domain.Enums;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class AudioCategorizer
+public class AudioCategorizer : IMediaSubCategorizer
 {
+    public MediaType Type => MediaType.Audio;
     public void Categorize(MediaFile file)
     {
+        if (file == null)
+            throw new ArgumentNullException(nameof(file));
+
+        if (file.Type != MediaType.Audio)
+            throw new InvalidOperationException(
+                $"Invalid media type: {file.Type}. Expected Audio.");
+
         var ext = file.Extension.ToLowerInvariant();
 
-        string yearOnly = file.Year > 1990
-            ? file.Year.ToString()
-            : "Unknown";
-
-        if (ext is ".mp3" or ".flac")
-            file.SubCategory = MediaSubCategory.Music;
-
-        else if (ext is ".wav" or ".aac")
-            file.SubCategory = MediaSubCategory.VoiceMemo;
-
-        else
-            file.SubCategory = MediaSubCategory.UnknownAudio;
-
-        
+        file.SubCategory = ext switch
+        {
+            ".mp3" or ".flac" => MediaSubCategory.Music,
+            ".wav" or ".aac" => MediaSubCategory.VoiceMemo,
+            _ => MediaSubCategory.UnknownAudio
+        };
     }
 }

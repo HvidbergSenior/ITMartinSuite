@@ -1,6 +1,8 @@
 ﻿namespace ITMartinFileSorter.Domain.Enums
 {
-    // Top-level categories
+    // =========================
+    // MAIN CATEGORY
+    // =========================
     public enum MediaMainCategory
     {
         Audio = 0,
@@ -9,15 +11,17 @@
         Image = 3
     }
 
-    // Type-specific subcategories
+    // =========================
+    // SUB CATEGORY (TYPE-SPECIFIC)
+    // =========================
     public enum MediaSubCategory
     {
-        // ---------------- AUDIO ----------------
+        // ---------- AUDIO ----------
         Music,
         VoiceMemo,
         UnknownAudio,
 
-        // ---------------- VIDEO ----------------
+        // ---------- VIDEO ----------
         Movie,
         Clip,
         ScreenRecording,
@@ -25,7 +29,7 @@
         OtherVideo,
         UnknownVideo,
 
-        // ---------------- DOCUMENT ----------------
+        // ---------- DOCUMENT ----------
         Pdf,
         Word,
         Excel,
@@ -33,23 +37,20 @@
         Presentation,
         Csv,
         UnknownDocument,
-
-        // ---------------- IMAGE ----------------
+        
+        // ---------- IMAGE ----------
         Screenshot,
         Camera,
         PhonePhoto,
-        OtherImage,
-        UnknownImage,
-
-        // ---------------- SOURCE ----------------
-        Download,
-        WhatsApp,
-        Telegram,
+        Social,
         Meme,
-        Social
+        OtherImage,
+        UnknownImage
     }
 
-    // Tertiary categories: finer classification
+    // =========================
+    // TERTIARY CATEGORY
+    // =========================
     public enum MediaTertiaryCategory
     {
         // Location
@@ -68,7 +69,9 @@
         Unknown
     }
 
-    // File type
+    // =========================
+    // FILE TYPE
+    // =========================
     public enum MediaType
     {
         Audio,

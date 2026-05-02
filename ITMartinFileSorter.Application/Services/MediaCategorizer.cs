@@ -4,44 +4,21 @@ using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class MediaCategorizer : IMediaCategorizer
+public class MediaCategorizer
 {
-    private readonly ImageCategorizer _image;
-    private readonly VideoCategorizer _video;
-    private readonly AudioCategorizer _audio;
-    private readonly DocumentCategorizer _document;
+    private readonly Dictionary<MediaType, IMediaSubCategorizer> _map;
 
-    public MediaCategorizer(
-        ImageCategorizer image,
-        VideoCategorizer video,
-        AudioCategorizer audio,
-        DocumentCategorizer document)
+    public MediaCategorizer(IEnumerable<IMediaSubCategorizer> categorizers)
     {
-        _image = image;
-        _video = video;
-        _audio = audio;
-        _document = document;
+        _map = categorizers.ToDictionary(c => c.Type);
     }
 
     public void Categorize(MediaFile file)
     {
-        switch (file.Type)
-        {
-            case MediaType.Image:
-                _image.Categorize(file);
-                break;
+        if (!_map.TryGetValue(file.Type, out var categorizer))
+            throw new InvalidOperationException(
+                $"No categorizer registered for type {file.Type}");
 
-            case MediaType.Video:
-                _video.Categorize(file);
-                break;
-
-            case MediaType.Audio:
-                _audio.Categorize(file);
-                break;
-
-            case MediaType.Document:
-                _document.Categorize(file);
-                break;
-        }
+        categorizer.Categorize(file);
     }
 }

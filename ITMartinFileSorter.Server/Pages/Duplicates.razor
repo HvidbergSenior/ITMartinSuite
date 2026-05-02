@@ -1,4 +1,5 @@
 ﻿@page "/duplicates"
+
 @using ITMartinFileSorter.Domain.Entities
 @using ITMartinFileSorter.Domain.Enums
 
@@ -39,7 +40,7 @@
                 <ContentCard Title="Duplicate Group">
 
                     <button class="btn btn-success mb-3"
-                            @onclick="() => DeleteAllButOne(group)">
+                            @onclick="@(() => DeleteAllButOne(group))">
                         Keep Newest
                     </button>
 
@@ -58,6 +59,10 @@
                             {
                                 <span class="badge bg-danger">Deleted</span>
                             }
+                            else
+                            {
+                                <span class="badge bg-secondary">Pending</span>
+                            }
                         </div>
                     }
 
@@ -71,13 +76,23 @@
 
 @code {
 
+    // 🔥 REBUILD GROUPS (since service no longer has DuplicateGroups)
+    IEnumerable<List<MediaFile>> DuplicateGroups =>
+        DuplicateService.AllFiles
+            .Where(f => f.Hash != null)
+            .GroupBy(f => f.Hash)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.ToList());
+
     IEnumerable<List<MediaFile>> VisibleGroups =>
-        DuplicateService.DuplicateGroups
-            .Where(g => !DuplicateService.IsGroupHandled(g));
+        DuplicateGroups
+            .Where(g => !IsGroupHandled(g));
 
     bool AllGroupsHandled =>
-        DuplicateService.DuplicateGroups
-            .All(g => DuplicateService.IsGroupHandled(g));
+        DuplicateGroups.All(g => IsGroupHandled(g));
+
+    bool IsGroupHandled(List<MediaFile> group) =>
+        group.Count(f => f.Status == MediaFileStatus.ToDelete) == group.Count - 1;
 
     MediaFile GetNewest(List<MediaFile> group)
         => group.OrderByDescending(f => f.CreatedAt).First();
@@ -91,14 +106,14 @@
             f.Status = f == newest
                 ? MediaFileStatus.ToKeep
                 : MediaFileStatus.ToDelete;
-        }
 
-        DuplicateService.NotifyStateChanged(); // 🔥 CRITICAL
+            f.RequiresReview = false;
+        }
     }
 
     void DeleteAllDuplicatesGlobally()
     {
-        foreach (var group in DuplicateService.DuplicateGroups)
+        foreach (var group in DuplicateGroups)
         {
             DeleteAllButOne(group);
         }
@@ -106,7 +121,6 @@
 
     void Continue()
     {
-        DuplicateService.DuplicatesHandled = true;
         Navigation.NavigateTo("/filesorter");
     }
 }

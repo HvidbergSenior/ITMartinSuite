@@ -1,7 +1,9 @@
 ﻿@page "/export"
 
 @using ITMartin.Shared.Domain.Dtos
-@using ITMartinFileSorter.Application.Helpers
+@using ITMartinFileSorter.Domain.Entities
+@using ITMartinFileSorter.Domain.Enums
+
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
@@ -10,26 +12,14 @@
 <div class="filesorter-app">
     <div class="page-container stack export-page">
 
-        <!-- TITLE -->
         <SectionTitle Title="📦 Export Organized Files" />
 
-        <div class="export-info">
-            Review your file structure below. When ready, start export.
-        </div>
-
-        <!-- PREVIEW -->
         <ContentCard Title="📁 Preview of your organized library" CssClass="export-preview">
-            <div class="preview-description">
-                This is how your files will be structured after export.
-            </div>
-
-            <!-- 🔥 THIS enables scrolling -->
             <div class="preview-tree">
                 <ExportPreviewCard Items="PreviewItems" />
             </div>
         </ContentCard>
 
-        <!-- PROGRESS -->
         @if (IsExporting)
         {
             <ProgressPanel
@@ -40,49 +30,21 @@
                 CurrentItem="@CurrentExportFile"
                 LoadingText="Preparing export..."
                 Icon="📦" />
-
-            @if (ExportLogs.Any())
-            {
-                <ContentCard Title="Live Export Log">
-                    <div class="export-log">
-                        @foreach (var log in ExportLogs.TakeLast(12))
-                        {
-                            <div>@log</div>
-                        }
-                    </div>
-                </ContentCard>
-            }
         }
 
-        <!-- SUMMARY -->
         <ContentCard Title="Export Summary">
-            <div class="summary-grid">
-
-                <div class="summary-item">
-                    <strong>@DuplicateService.FilesToExport.Count()</strong>
-                    <span>Files</span>
-                </div>
-
-                <div class="summary-item">
-                    <strong>@DuplicateService.FilesToExport.Count(f => !string.IsNullOrWhiteSpace(f.UserFolderName))</strong>
-                    <span>Folders</span>
-                </div>
-
-                <div class="summary-item">
-                    <strong>@DuplicateService.FilesToExport.Count(f => !string.IsNullOrWhiteSpace(f.UserTitle))</strong>
-                    <span>Titles</span>
-                </div>
-
+            <div class="summary-item">
+                <strong>@FilesToExport.Count()</strong>
+                <span>Files</span>
             </div>
         </ContentCard>
 
-        <!-- CTA -->
         @if (!IsExporting)
         {
             <ActionButtonBar CssClass="bottom">
                 <button class="btn btn-primary btn-lg"
                         @onclick="StartExport">
-                    Start Export → Export @DuplicateService.FilesToExport.Count() files
+                    Start Export → @FilesToExport.Count()
                 </button>
             </ActionButtonBar>
         }
@@ -91,20 +53,15 @@
 </div>
 
 @code {
-    bool IsExporting = false;
-    int ExportedCount = 0;
-    int TotalToExport = 0;
 
-    string CurrentExportFile = "";
-    string CurrentStage = "";
+    IEnumerable<MediaFile> FilesToExport =>
+        DuplicateService.AllFiles
+            .Where(f => f.Status == MediaFileStatus.ToKeep ||
+                        f.SubCategory == MediaSubCategory.Meme ||
+                        f.SubCategory == MediaSubCategory.Screenshot);
 
-    List<string> ExportLogs = new();
-
-    void GoToOrganize() => Navigation.NavigateTo("/organize");
-
-    void GoBack() => Navigation.NavigateTo("/");
     IEnumerable<ExportPreviewItem> PreviewItems =>
-        DuplicateService.FilesToExport
+        FilesToExport
             .GroupBy(f => new
             {
                 f.MainCategory,
@@ -119,77 +76,43 @@
                 Count = g.Count()
             })
             .ToList();
+
+    bool IsExporting;
+    int ExportedCount;
+    int TotalToExport;
+
+    string CurrentExportFile = "";
+    string CurrentStage = "";
+
     int ProgressPercent =>
-        TotalToExport <= 0
-            ? 0
-            : Math.Min(100,
-                (int)((double)ExportedCount / TotalToExport * 100));
-
-    void AddLog(string message)
-    {
-        ExportLogs.Add($"{DateTime.Now:HH:mm:ss} - {message}");
-
-        if (ExportLogs.Count > 100)
-            ExportLogs.RemoveAt(0);
-    }
+        TotalToExport == 0 ? 0 :
+        (int)((double)ExportedCount / TotalToExport * 100);
 
     async Task StartExport()
     {
         IsExporting = true;
-        ExportLogs.Clear();
 
-        CurrentStage = "Preparing export...";
-        CurrentExportFile = "";
-        ExportedCount = 0;
-        TotalToExport = 0;
+        var files = FilesToExport.ToList();
 
-        AddLog("Export started");
+        var exportRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "FileSorterExport");
 
-        await InvokeAsync(StateHasChanged);
-
-        var files = DuplicateService.FilesToExport.ToList();
-
-        if (!files.Any())
-        {
-            AddLog("No files to export");
-            IsExporting = false;
-            return;
-        }
-
-        var exportRoot = LibraryPathHelper.GetLibraryPath(Configuration);
         Directory.CreateDirectory(exportRoot);
 
-        try
-        {
-            await LibraryExportService.ExportAsync(
-                files,
-                exportRoot,
-                async (done, total, fileName, stage) =>
-                {
-                    ExportedCount = done;
-                    TotalToExport = total;
-                    CurrentExportFile = fileName;
-                    CurrentStage = stage;
+        await LibraryExportService.ExportAsync(
+            files,
+            exportRoot,
+            async (done, total, fileName, stage) =>
+            {
+                ExportedCount = done;
+                TotalToExport = total;
+                CurrentExportFile = fileName;
+                CurrentStage = stage;
 
-                    AddLog($"{stage} {fileName}");
+                await InvokeAsync(StateHasChanged);
+            });
 
-                    await InvokeAsync(StateHasChanged);
-                });
-
-            CurrentStage = "Done ✔";
-            CurrentExportFile = "";
-
-            AddLog("Export completed successfully");
-
-            await InvokeAsync(StateHasChanged);
-
-            await Task.Delay(1000);
-
-            Navigation.NavigateTo("/library", forceLoad: true);
-        }
-        finally
-        {
-            IsExporting = false;
-        }
+        Navigation.NavigateTo("/filesorter", true);
     }
 }

@@ -1,8 +1,9 @@
 ﻿using System.Diagnostics;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class UniversalImageConverterService
+public class UniversalImageConverterService : IImageConverter
 {
     private readonly string _ffmpegPath;
 

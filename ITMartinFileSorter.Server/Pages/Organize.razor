@@ -9,46 +9,7 @@
 <div class="filesorter-app">
     <div class="page-container stack organize-page">
 
-        <!-- TITLE -->
-        <SectionTitle Title="🗂 Organize & Rename Files" />
-
-        <!-- BATCH -->
-        <ContentCard Title="Batch Apply">
-
-            <div class="organize-toolbar">
-
-                <div class="stack">
-                    <label>Folder name</label>
-                    <input @bind="BatchFolderName"
-                           placeholder="Example: Martin / Thailand / Work" />
-                </div>
-
-                <div class="stack">
-                    <label>Title</label>
-                    <input @bind="BatchTitle"
-                           placeholder="Example: Thailand Holiday" />
-                </div>
-
-            </div>
-
-            <div class="organize-actions row">
-                <button class="btn btn-primary"
-                        @onclick="ApplyToSelected">
-                    Apply to selected
-                </button>
-
-                <button class="btn btn-secondary"
-                        @onclick="SelectAllVisible">
-                    Select visible
-                </button>
-
-                <button class="btn btn-secondary"
-                        @onclick="ClearSelection">
-                    Clear
-                </button>
-            </div>
-
-        </ContentCard>
+        <SectionTitle Title="🗂 Organize Files" />
 
         <!-- FILTER -->
         <ContentCard Title="Filter">
@@ -86,13 +47,8 @@
                                 </div>
 
                                 <div>
-                                    <span class="item-label">Folder:</span>
-                                    @(file.UserFolderName ?? "-")
-                                </div>
-
-                                <div>
-                                    <span class="item-label">Title:</span>
-                                    @(file.UserTitle ?? "-")
+                                    <span class="item-label">Status:</span>
+                                    @file.Status
                                 </div>
 
                             </div>
@@ -100,7 +56,8 @@
                         </div>
 
                         <input type="checkbox"
-                               @bind="Selected[file]" />
+                               checked="@IsSelected(file)"
+                               @onchange="e => Toggle(file, (bool)e.Value!)" />
 
                     </div>
 
@@ -118,62 +75,27 @@
 
     </div>
 </div>
+
 @code {
-    string BatchFolderName = "";
-    string BatchTitle = "";
     string SelectedCategory = "";
 
-    Dictionary<MediaFile, bool> Selected = new();
+    HashSet<MediaFile> Selected = new();
 
     IEnumerable<MediaFile> FilteredFiles =>
         string.IsNullOrWhiteSpace(SelectedCategory)
-            ? DuplicateService.FilesToExport
-            : DuplicateService.FilesToExport
-                .Where(f =>
-                    f.MainCategory.ToString() == SelectedCategory);
+            ? DuplicateService.AllFiles.Where(f => f.Status == MediaFileStatus.ToKeep)
+            : DuplicateService.AllFiles.Where(f =>
+                f.Status == MediaFileStatus.ToKeep &&
+                f.MainCategory.ToString() == SelectedCategory);
 
-    protected override void OnInitialized()
+    bool IsSelected(MediaFile file) => Selected.Contains(file);
+
+    void Toggle(MediaFile file, bool value)
     {
-        foreach (var file in DuplicateService.FilesToExport)
-        {
-            if (!Selected.ContainsKey(file))
-                Selected[file] = false;
-        }
-    }
-
-    void ApplyToSelected()
-    {
-        foreach (var file in FilteredFiles)
-        {
-            if (!Selected.TryGetValue(file, out var isSelected) ||
-                !isSelected)
-                continue;
-
-            if (!string.IsNullOrWhiteSpace(BatchFolderName))
-                file.UserFolderName = BatchFolderName;
-
-            if (!string.IsNullOrWhiteSpace(BatchTitle))
-                file.UserTitle = BatchTitle;
-        }
-
-        BatchFolderName = "";
-        BatchTitle = "";
-    }
-
-    void SelectAllVisible()
-    {
-        foreach (var file in FilteredFiles)
-        {
-            Selected[file] = true;
-        }
-    }
-
-    void ClearSelection()
-    {
-        foreach (var key in Selected.Keys.ToList())
-        {
-            Selected[key] = false;
-        }
+        if (value)
+            Selected.Add(file);
+        else
+            Selected.Remove(file);
     }
 
     void GoToExport()

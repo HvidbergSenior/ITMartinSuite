@@ -1,48 +1,49 @@
 ﻿using ITMartinFileSorter.Domain.Enums;
 
-namespace ITMartinFileSorter.Domain.Entities;
-
 public class MediaFile
 {
     public string FullPath { get; }
     public string OriginalPath { get; }
     public string FileName { get; }
     public string Extension { get; }
+
     public long SizeBytes { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
-    public int Year { get; set; }
-    public int Month { get; set; }
+    public DateTime? CreatedAt { get; private set; }
+    public int Year { get; private set; }
+    public int Month { get; private set; }
+
     public MediaType Type { get; }
 
-    public string? WorkingPath { get; set; }
-    public string? ThumbnailPath { get; set; }
+    public MediaMainCategory MainCategory =>
+        Type switch
+        {
+            MediaType.Audio => MediaMainCategory.Audio,
+            MediaType.Video => MediaMainCategory.Video,
+            MediaType.Document => MediaMainCategory.Document,
+            MediaType.Image => MediaMainCategory.Image,
+            _ => MediaMainCategory.Image
+        };
 
-    public MediaMainCategory MainCategory { get; set; }
     public MediaSubCategory SubCategory { get; set; }
-    public MediaTertiaryCategory TertiaryCategory { get; set; }
+    public MediaTertiaryCategory TertiaryCategory { get; set; } = MediaTertiaryCategory.Unknown;
 
-    public string? DeviceModel { get; set; }
-    public string? Location { get; set; }
+    public MediaSource Source { get; set; } = MediaSource.Unknown;
+
     public string? Hash { get; private set; }
-    public string? UserFolderName { get; set; }
-    public string? UserTitle { get; set; }
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; } = new();
 
-    public string? DynamicFolder { get; set; }
-
-    public long? DurationMs { get; private set; }
     public int? Width { get; set; }
     public int? Height { get; set; }
 
-    public bool HasExif { get; set; }
-    public string? Format { get; set; }
     public bool IsDateReliable { get; private set; }
-    public bool IsProbablyRealPhoto { get; set; }
-    public string ExportPath => WorkingPath ?? FullPath;
-    public bool RequiresReview { get; set; } = true;
-    public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;
 
+    public bool IsImage => Type == MediaType.Image;
+    public bool IsVideo => Type == MediaType.Video;
+    public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;
+    public bool RequiresReview { get; set; } = false;
+    public bool IsProbablyRealPhoto { get; set; }
+    public bool HasExif { get; set; }
     public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)
     {
         FullPath = fullPath;
@@ -54,20 +55,7 @@ public class MediaFile
         SizeBytes = sizeBytes;
         Type = type;
 
-        if (createdAt != null)
-        {
-            SetDate(createdAt.Value, true); // ✅ ALWAYS go through method
-        }
-
-        MainCategory = type switch
-        {
-            MediaType.Audio => MediaMainCategory.Audio,
-            MediaType.Video => MediaMainCategory.Video,
-            MediaType.Document => MediaMainCategory.Document,
-            MediaType.Image => MediaMainCategory.Image,
-            _ => MediaMainCategory.Image
-        };
-
+        // ✅ default subcategory based on type
         SubCategory = type switch
         {
             MediaType.Audio => MediaSubCategory.UnknownAudio,
@@ -77,10 +65,10 @@ public class MediaFile
             _ => MediaSubCategory.UnknownImage
         };
 
-        TertiaryCategory = MediaTertiaryCategory.Unknown;
+        if (createdAt != null)
+            SetDate(createdAt.Value, true);
     }
 
-    // ✅ CENTRALIZED DATE SETTER
     public void SetDate(DateTime? date, bool isReliable)
     {
         CreatedAt = date;
@@ -94,14 +82,4 @@ public class MediaFile
     }
 
     public void SetHash(string hash) => Hash = hash;
-
-    public void SetVideoMetadata(long? durationMs, int? width, int? height)
-    {
-        DurationMs = durationMs;
-        Width = width;
-        Height = height;
-    }
-
-    public override string ToString()
-        => $"FileName={FileName}, Date={CreatedAt}, Reliable={IsDateReliable}, Status={Status}";
 }

@@ -6,10 +6,8 @@
 <div class="filesorter-app">
     <div class="page-container stack category-step-page">
 
-        <!-- TITLE -->
         <SectionTitle Title="@($"Step: {CurrentCategory}")" />
 
-        <!-- ACTIONS -->
         <ActionButtonBar>
             <button class="btn btn-secondary"
                     @onclick="AcceptAll"
@@ -18,7 +16,6 @@
             </button>
         </ActionButtonBar>
 
-        <!-- PRIMARY CTA -->
         <ActionButtonBar CssClass="bottom">
             <button class="btn btn-primary btn-lg"
                     @onclick="Continue"
@@ -27,7 +24,6 @@
             </button>
         </ActionButtonBar>
 
-        <!-- EMPTY -->
         @if (!Groups.Any())
         {
             <ContentCard Title="No files found">
@@ -37,7 +33,6 @@
             </ContentCard>
         }
 
-        <!-- GROUPS -->
         @foreach (var group in Groups)
         {
             <ContentCard Title="@group.Key.ToString()">
@@ -51,11 +46,11 @@
                             <MediaCard
                                 Title="@file.FileName"
                                 SizeText="@FormatSize(file.SizeBytes)"
-                                ImageUrl="@file.ThumbnailPath"
+                                ImageUrl="@file.FullPath"
                                 Icon="🖼️"
                                 PrimaryText="Keep"
-                                OnPrimary="() => Keep(file)"
-                                OnSecondary="() => Delete(file)" />
+                                OnPrimary="@(() => Keep(file))"
+                                OnSecondary="@(() => Delete(file))" />
 
                             <div class="media-status">
                                 @RenderStatus(file)
@@ -79,15 +74,19 @@
     MediaMainCategory CurrentCategory;
     Dictionary<int, List<MediaFile>> Groups = new();
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
-        CurrentCategory = Enum.Parse<MediaMainCategory>(CategoryString, true);
+        if (!Enum.TryParse<MediaMainCategory>(CategoryString, true, out CurrentCategory))
+        {
+            Navigation.NavigateTo("/filesorter");
+            return;
+        }
+
         Load();
     }
 
     void Load()
     {
-        // ✅ NO duplicate groups anymore
         var files = DuplicateService.AllFiles
             .Where(f => f.MainCategory == CurrentCategory)
             .ToList();
@@ -101,16 +100,12 @@
     void Keep(MediaFile file)
     {
         file.Status = MediaFileStatus.ToKeep;
-
-        DuplicateService.NotifyStateChanged();
         Load();
     }
 
     void Delete(MediaFile file)
     {
         file.Status = MediaFileStatus.ToDelete;
-
-        DuplicateService.NotifyStateChanged();
         Load();
     }
 
@@ -125,7 +120,6 @@
             file.Status = MediaFileStatus.ToKeep;
         }
 
-        DuplicateService.NotifyStateChanged();
         Load();
     }
 
@@ -135,8 +129,7 @@
             f.RequiresReview &&
             f.Status == MediaFileStatus.Initial);
 
-    bool CanContinue =>
-        !HasPending;
+    bool CanContinue => !HasPending;
 
     void Continue()
     {
@@ -152,6 +145,7 @@
         else
             builder.AddMarkupContent(2, "<span class='status pending'>● Pending</span>");
     };
+
     string FormatSize(long bytes)
     {
         string[] sizes = { "B", "KB", "MB", "GB", "TB" };

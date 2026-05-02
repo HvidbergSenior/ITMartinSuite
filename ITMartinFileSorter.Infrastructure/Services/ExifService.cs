@@ -1,19 +1,19 @@
 ﻿using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Jpeg;
+using ITMartinFileSorter.Domain.Interfaces;
 
-namespace ITMartinFileSorter.Infrastructure.Helpers;
+namespace ITMartinFileSorter.Infrastructure.Services;
 
-public static class ExifHelper
+public class ExifService : IExifService
 {
-    public static (string? Make, string? Model, string? Software)? ReadMetadata(string path)
+    public (string? Make, string? Model, string? Software)? ReadMetadata(string path)
     {
         try
         {
             var directories = ImageMetadataReader.ReadMetadata(path);
 
             var exif = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-            var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
 
             string? make = exif?.GetDescription(ExifDirectoryBase.TagMake);
             string? model = exif?.GetDescription(ExifDirectoryBase.TagModel);
@@ -30,7 +30,7 @@ public static class ExifHelper
         }
     }
 
-    public static bool IsIphone(string path)
+    public bool IsIphone(string path)
     {
         var meta = ReadMetadata(path);
         if (meta == null) return false;
@@ -40,7 +40,7 @@ public static class ExifHelper
                meta.Value.Software?.Contains("Apple", StringComparison.OrdinalIgnoreCase) == true;
     }
 
-    public static bool IsAndroid(string path)
+    public bool IsAndroid(string path)
     {
         var meta = ReadMetadata(path);
         if (meta == null) return false;
@@ -48,13 +48,13 @@ public static class ExifHelper
         return meta.Value.Make != null &&
                !meta.Value.Make.Contains("Apple", StringComparison.OrdinalIgnoreCase);
     }
-    public static (int? Width, int? Height) GetDimensions(string path)
+
+    public (int? Width, int? Height) GetDimensions(string path)
     {
         try
         {
             var directories = ImageMetadataReader.ReadMetadata(path);
 
-            // ✅ 1. EXIF (most reliable for camera images)
             var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
 
             if (subIfd != null &&
@@ -64,7 +64,6 @@ public static class ExifHelper
                 return (exifWidth, exifHeight);
             }
 
-            // ✅ 2. JPEG fallback
             var jpeg = directories.OfType<JpegDirectory>().FirstOrDefault();
 
             if (jpeg != null &&
@@ -74,7 +73,6 @@ public static class ExifHelper
                 return (jpegWidth, jpegHeight);
             }
 
-            // ✅ 3. Generic fallback (PNG, WebP, etc.)
             var dirWithDims = directories.FirstOrDefault(d =>
                 d.ContainsTag(ExifDirectoryBase.TagImageWidth) &&
                 d.ContainsTag(ExifDirectoryBase.TagImageHeight));

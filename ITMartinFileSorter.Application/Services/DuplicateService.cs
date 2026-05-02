@@ -1,5 +1,4 @@
-﻿using ITMartinFileSorter.Application.Helpers;
-using ITMartinFileSorter.Domain.Entities;
+﻿using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
 
 namespace ITMartinFileSorter.Application.Services;
@@ -10,79 +9,71 @@ public class DuplicateService
 
     public List<MediaFile> AllFiles { get; set; } = new();
 
-    // ❌ No longer used — kept empty to avoid breaking anything
-    public List<List<MediaFile>> DuplicateGroups => new();
-
-    public bool DuplicatesHandled { get; set; } = false;
-
-    public bool IsProcessing { get; set; }
-    public int ProcessedFiles { get; set; }
-    public int TotalFiles { get; set; }
-
-    public HashSet<MediaMainCategory> CompletedCategories { get; set; } = new();
-
-    public GroupingOptions? GroupingOptions { get; set; }
-
-    public event Action? OnChange;
-    public void NotifyStateChanged() => OnChange?.Invoke();
-
-    // ===== EXPORT =====
-    public IEnumerable<MediaFile> FilesToExport =>
-        AllFiles.Where(f =>
-            f.Status == MediaFileStatus.ToKeep ||
-            f.SubCategory == MediaSubCategory.Meme ||
-            f.SubCategory == MediaSubCategory.Screenshot);
-
-    // ===== BUILD DUPLICATES (AUTO HANDLE ONLY) =====
-    public void BuildDuplicateGroups()
-    {
-        var grouped = AllFiles
-            .GroupBy(f => f.Hash)
-            .Where(g => g.Count() > 1);
-
-        foreach (var group in grouped)
-        {
-            var list = group.ToList();
-
-            // 🔥 Always auto-handle duplicates
-            AutoHandleGroup(list);
-        }
-
-        DuplicatesHandled = true;
-
-        NotifyStateChanged();
-    }
-
-    // ===== RESET =====
     public void Reset()
     {
         AllFiles.Clear();
-        CompletedCategories.Clear();
-        DuplicatesHandled = false;
-        GroupingOptions = null;
     }
 
-    // ===== AUTO HANDLE (CORE LOGIC) =====
-    private void AutoHandleGroup(List<MediaFile> group)
+    public void BuildDuplicateGroups()
     {
-        // keep newest file
-        var keep = group
-            .OrderByDescending(f => f.CreatedAt ?? DateTime.MinValue)
-            .First();
+        if (AllFiles.Any(f => f.Hash == null))
+            throw new InvalidOperationException("Hash must be set before duplicate detection.");
 
-        foreach (var file in group)
+        var groups = AllFiles
+            .GroupBy(f => f.Hash)
+            .Where(g => g.Key != null && g.Count() > 1);
+
+        foreach (var group in groups)
         {
-            file.Status = file == keep
-                ? MediaFileStatus.ToKeep
-                : MediaFileStatus.ToDelete;
-
-            file.RequiresReview = false;
+            HandleGroup(group.ToList());
         }
     }
 
-    // ===== OPTIONAL (still usable if referenced elsewhere) =====
-    public bool IsGroupHandled(List<MediaFile> group)
+    private void HandleGroup(List<MediaFile> group)
     {
-        return group.Count(f => f.Status == MediaFileStatus.ToDelete) == group.Count - 1;
+        var keep = SelectBestFile(group);
+        var isSafe = IsSafeDuplicate(group);
+
+        foreach (var file in group)
+        {
+            if (file.Status != MediaFileStatus.Initial)
+                continue;
+
+            if (!isSafe)
+            {
+                file.Status = MediaFileStatus.ToKeep;
+                file.RequiresReview = true;
+                continue;
+            }
+
+            if (file == keep)
+            {
+                file.Status = MediaFileStatus.ToKeep;
+                file.RequiresReview = false;
+            }
+            else
+            {
+                file.Status = MediaFileStatus.ToDelete;
+                file.RequiresReview = false;
+            }
+        }
+    }
+
+    private MediaFile SelectBestFile(List<MediaFile> group)
+    {
+        return group
+            .OrderByDescending(f => f.IsDateReliable)
+            .ThenByDescending(f => f.CreatedAt ?? DateTime.MinValue)
+            .ThenByDescending(f => f.SizeBytes)
+            .ThenBy(f => f.FullPath)
+            .First();
+    }
+
+    private bool IsSafeDuplicate(List<MediaFile> group)
+    {
+        var sizes = group.Select(f => f.SizeBytes).Distinct().Count();
+        var names = group.Select(f => f.FileName).Distinct().Count();
+
+        return sizes == 1 && names == 1;
     }
 }

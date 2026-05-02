@@ -1,10 +1,12 @@
-﻿namespace ITMartinFileSorter.Application.Services;
+﻿using ITMartinFileSorter.Domain.Interfaces;
 
-public class FastVideoBatchExportService
+namespace ITMartinFileSorter.Application.Services;
+
+public class VideoBatchService: IVideoBatchService
 {
     private readonly FastUniversalVideoConverterService _converter;
 
-    public FastVideoBatchExportService(
+    public VideoBatchService(
         FastUniversalVideoConverterService converter)
     {
         _converter = converter;

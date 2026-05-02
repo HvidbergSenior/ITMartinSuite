@@ -1,5 +1,7 @@
 ﻿@page "/library"
 
+@using ITMartinFileSorter.Domain.Entities
+@using ITMartinFileSorter.Domain.Enums
 @using ITMartinFileSorter.Infrastructure.FileSystem
 @using ITMartinFileSorter.Application.Helpers
 
@@ -9,10 +11,8 @@
 <div class="filesorter-app">
     <div class="page-container stack library-page">
 
-        <!-- TITLE -->
         <SectionTitle Title="🎬 My Media Library" />
 
-        <!-- NAVIGATION -->
         <div class="library-actions">
 
             <button class="btn btn-secondary"
@@ -30,7 +30,6 @@
 
         <!-- FOLDERS -->
         <ContentCard Title="📁 Folders">
-
             @if (!Folders.Any())
             {
                 <div class="library-empty">
@@ -57,12 +56,10 @@
                     }
                 </div>
             }
-
         </ContentCard>
 
-        <!-- MEDIA -->
+        <!-- FILES -->
         <ContentCard Title="🎬 Media">
-
             @if (!Files.Any())
             {
                 <div class="library-empty">
@@ -78,7 +75,7 @@
                              @onclick="() => OpenFile(file)">
 
                             <div class="media-name">
-                                @GetIcon(file) @Path.GetFileName(file.FullPath)
+                                @GetIcon(file) @file.FileName
                             </div>
 
                             <div class="media-meta">
@@ -89,7 +86,6 @@
                     }
                 </div>
             }
-
         </ContentCard>
 
     </div>
@@ -143,7 +139,7 @@
     }
 
     // =========================
-    // LOAD DATA
+    // LOAD
     // =========================
 
     private void LoadFolder(string path)
@@ -189,25 +185,14 @@
     {
         var info = new FileInfo(file);
 
-        var type = FileScanner.IsVideo(file)
-            ? MediaType.Video
-            : FileScanner.IsImage(file)
-                ? MediaType.Image
+        var type =
+            FileScanner.IsImage(file) ? MediaType.Image :
+            FileScanner.IsVideo(file) ? MediaType.Video :
+            FileScanner.AudioExtensions.Contains(Path.GetExtension(file))
+                ? MediaType.Audio
                 : MediaType.Document;
 
         return new MediaFile(file, info.LastWriteTimeUtc, type, info.Length);
-    }
-
-    private string GetBreadcrumb()
-    {
-        if (string.IsNullOrEmpty(CurrentPath)) return "";
-
-        var relative = CurrentPath.Replace(RootPath, "").Trim('\\');
-
-        if (string.IsNullOrEmpty(relative))
-            return "Library";
-
-        return "Library / " + relative.Replace("\\", " / ");
     }
 
     string GetIcon(MediaFile file) => file.Type switch
@@ -231,5 +216,15 @@
         }
 
         return $"{len:0.#} {sizes[order]}";
+    }
+
+    // =========================
+    // DTO (missing in your code)
+    // =========================
+    private class FolderItem
+    {
+        public string Name { get; set; } = "";
+        public string FullPath { get; set; } = "";
+        public int FileCount { get; set; }
     }
 }

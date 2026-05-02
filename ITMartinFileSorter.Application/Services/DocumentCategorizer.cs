@@ -1,10 +1,12 @@
 ﻿using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
+using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class DocumentCategorizer
+public class DocumentCategorizer : IMediaSubCategorizer
 {
+    public MediaType Type => MediaType.Document;
     public void Categorize(MediaFile file)
     {
         var ext = file.Extension.ToLowerInvariant();

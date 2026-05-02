@@ -1,146 +1,180 @@
 ﻿using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
 using ITMartinFileSorter.Domain.Interfaces;
-using ITMartinFileSorter.Infrastructure.Helpers;
 
 namespace ITMartinFileSorter.Infrastructure.FileSystem;
 
 public sealed class FileScanner : IFileScanner
 {
-    private readonly IHashService _hashService;
-    private readonly IMediaDateService _mediaDateService;
+private readonly IFileSystem _fileSystem;
+private readonly IHashService _hashService;
+private readonly IMediaDateService _mediaDateService;
+private readonly IMediaClassificationService _classificationService;
+private readonly IExifService _exifService;
 
-    public FileScanner(
-        IHashService hashService,
-        IMediaDateService mediaDateService)
+public FileScanner(
+    IFileSystem fileSystem,
+    IHashService hashService,
+    IMediaDateService mediaDateService,
+    IMediaClassificationService classificationService,
+    IExifService exifService)
+{
+    _fileSystem = fileSystem;
+    _hashService = hashService;
+    _mediaDateService = mediaDateService;
+    _classificationService = classificationService;
+    _exifService = exifService;
+}
+
+public static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+{
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp",
+    ".webp", ".tiff", ".tif", ".heic", ".heif", ".avif"
+};
+
+public static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
+{
+    ".mp4", ".mov", ".avi", ".mkv", ".wmv"
+};
+
+public static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
+{
+    ".mp3", ".wav", ".flac", ".aac", ".ogg"
+};
+
+public static readonly HashSet<string> DocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
+{
+    ".pdf", ".doc", ".docx", ".txt",
+    ".xls", ".xlsx", ".ppt", ".pptx", ".csv"
+};
+
+private readonly EnumerationOptions _options = new()
+{
+    RecurseSubdirectories = true,
+    IgnoreInaccessible = true,
+    ReturnSpecialDirectories = false
+};
+
+public IEnumerable<MediaFile> ScanFolder(
+    string rootPath,
+    Action<int, string>? onProgress = null)
+{
+    if (string.IsNullOrWhiteSpace(rootPath) ||
+        !_fileSystem.DirectoryExists(rootPath))
+        yield break;
+
+    int index = 0;
+
+    foreach (var file in _fileSystem.EnumerateFiles(rootPath, "*.*", _options))
     {
-        _hashService = hashService;
-        _mediaDateService = mediaDateService;
-    }
+        index++;
+        onProgress?.Invoke(index, file);
 
-    public static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".jpg", ".jpeg", ".png", ".gif", ".bmp",
-        ".webp", ".tiff", ".tif", ".heic", ".heif", ".avif"
-    };
+        if (!IsSupportedMedia(file))
+            continue;
 
-    public static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp4", ".mov", ".avi", ".mkv", ".wmv"
-    };
+        long size;
+        DateTime lastWrite;
 
-    public static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp3", ".wav", ".flac", ".aac", ".ogg"
-    };
-
-    public static readonly HashSet<string> DocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".pdf", ".doc", ".docx", ".txt",
-        ".xls", ".xlsx", ".ppt", ".pptx", ".csv"
-    };
-
-    public static bool IsSupportedMedia(string path)
-    {
-        var extension = Path.GetExtension(path);
-        return ImageExtensions.Contains(extension) ||
-               VideoExtensions.Contains(extension) ||
-               AudioExtensions.Contains(extension) ||
-               DocumentExtensions.Contains(extension);
-    }
-
-    public static bool IsImage(string path)
-        => ImageExtensions.Contains(Path.GetExtension(path));
-
-    public static bool IsVideo(string path)
-        => VideoExtensions.Contains(Path.GetExtension(path));
-
-    private readonly EnumerationOptions _options = new()
-    {
-        RecurseSubdirectories = true,
-        IgnoreInaccessible = true,
-        ReturnSpecialDirectories = false
-    };
-
-    public IEnumerable<MediaFile> ScanFolder(
-        string rootPath,
-        Action<int, string>? onProgress = null)
-    {
-        if (string.IsNullOrWhiteSpace(rootPath) ||
-            !Directory.Exists(rootPath))
-            yield break;
-
-        int index = 0;
-
-        foreach (var file in Directory.EnumerateFiles(rootPath, "*.*", _options))
+        try
         {
-            index++;
-            onProgress?.Invoke(index, file);
+            size = _fileSystem.GetFileSize(file);
+            lastWrite = _fileSystem.GetLastWriteTime(file);
+        }
+        catch
+        {
+            continue;
+        }
 
-            if (!IsSupportedMedia(file))
-                continue;
+        var ext = Path.GetExtension(file);
 
-            FileInfo info;
+        var type =
+            IsImage(file) ? MediaType.Image :
+            IsVideo(file) ? MediaType.Video :
+            AudioExtensions.Contains(ext)
+                ? MediaType.Audio
+                : MediaType.Document;
 
+        // ===== DATE =====
+        DateTime? bestDate = null;
+        bool isReliable = false;
+
+        try
+        {
+            var result = _mediaDateService.GetBestDate(file);
+            bestDate = result.date;
+            isReliable = result.isReliable;
+        }
+        catch
+        {
+            // ignore
+        }
+
+        var finalDate = bestDate ?? lastWrite;
+
+        // ===== CREATE =====
+        var mediaFile = new MediaFile(
+            fullPath: file,
+            createdAt: finalDate,
+            type: type,
+            sizeBytes: size
+        );
+
+        mediaFile.SetDate(finalDate, isReliable);
+
+        // ===== IMAGE METADATA =====
+        if (type == MediaType.Image)
+        {
             try
             {
-                info = new FileInfo(file);
-            }
-            catch
-            {
-                continue;
-            }
-
-            var ext = Path.GetExtension(file);
-
-            MediaType type =
-                IsImage(file) ? MediaType.Image :
-                IsVideo(file) ? MediaType.Video :
-                AudioExtensions.Contains(ext)
-                    ? MediaType.Audio
-                    : MediaType.Document;
-
-            // ✅ STEP 1: GET DATE + RELIABILITY FIRST
-            DateTime? bestDate = null;
-            bool isReliable = false;
-
-            try
-            {
-                var result = _mediaDateService.GetBestDate(file);
-                bestDate = result.date;
-                isReliable = result.isReliable;
+                var (w, h) = _exifService.GetDimensions(file);
+                mediaFile.Width = w;
+                mediaFile.Height = h;
+                mediaFile.HasExif = w != null && h != null;
             }
             catch
             {
                 // ignore
             }
-
-            // ✅ STEP 2: CREATE FILE (no logic duplication)
-            var mediaFile = new MediaFile(
-                fullPath: file,
-                createdAt: bestDate ?? info.LastWriteTime,
-                type: type,
-                sizeBytes: info.Length
-            );
-
-            // ✅ STEP 3: APPLY DATE (single source of truth)
-            mediaFile.SetDate(
-                bestDate ?? info.LastWriteTime,
-                isReliable
-            );
-
-            // ✅ STEP 4: ADD DIMENSIONS (critical for categorization)
-            if (type == MediaType.Image)
-            {
-                var (w, h) = ExifHelper.GetDimensions(file);
-                mediaFile.Width = w;
-                mediaFile.Height = h;
-            }
-
-            // ✅ STEP 5: HASH
-            mediaFile.SetHash(_hashService.ComputeHash(file));
-
-            yield return mediaFile;
         }
+
+        // ===== HASH =====
+        try
+        {
+            mediaFile.SetHash(_hashService.ComputeHash(file));
+        }
+        catch
+        {
+            // ignore
+        }
+
+        // ===== CLASSIFICATION =====
+        try
+        {
+            _classificationService.Classify(mediaFile);
+        }
+        catch
+        {
+            // NEVER break scan
+        }
+
+        yield return mediaFile;
     }
+}
+
+public static bool IsSupportedMedia(string path)
+{
+    var extension = Path.GetExtension(path);
+    return ImageExtensions.Contains(extension) ||
+           VideoExtensions.Contains(extension) ||
+           AudioExtensions.Contains(extension) ||
+           DocumentExtensions.Contains(extension);
+}
+
+public static bool IsImage(string path)
+    => ImageExtensions.Contains(Path.GetExtension(path));
+
+public static bool IsVideo(string path)
+    => VideoExtensions.Contains(Path.GetExtension(path));
+
 }

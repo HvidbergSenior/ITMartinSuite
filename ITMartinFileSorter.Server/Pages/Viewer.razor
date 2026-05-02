@@ -1,4 +1,5 @@
 ﻿@page "/viewer"
+
 @using ITMartinFileSorter.Application.Helpers
 @using Microsoft.AspNetCore.WebUtilities
 @using ITMartinFileSorter.Infrastructure.FileSystem
@@ -39,19 +40,17 @@
         {
             <div class="viewer-stage">
 
-                <!-- filename (lightweight, not a card) -->
                 <div class="viewer-title">
                     @Path.GetFileName(FilePath)
                 </div>
 
-                <!-- media -->
                 @if (IsVideo)
                 {
                     <video class="viewer-media"
                            controls
                            autoplay
                            @key="WebPath">
-                        <source src="@WebPath" type="video/mp4" />
+                        <source src="@WebPath" />
                     </video>
                 }
                 else
@@ -88,14 +87,12 @@
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
             return;
 
-        // Build playlist
         Playlist = Directory
             .EnumerateFiles(folder)
             .Where(FileScanner.IsSupportedMedia)
             .OrderBy(x => x)
             .ToList();
 
-        // Find current index
         CurrentIndex = Playlist.FindIndex(f =>
             string.Equals(f, FilePath, StringComparison.OrdinalIgnoreCase));
 
@@ -107,6 +104,9 @@
 
     private void LoadCurrentMedia()
     {
+        if (!Playlist.Any())
+            return;
+
         FilePath = Playlist[CurrentIndex];
 
         var libraryRoot = LibraryPathHelper.GetLibraryPath(Configuration);
@@ -116,19 +116,16 @@
 
         WebPath = $"/libraryfiles/{relativePath}";
 
-        Console.WriteLine($"[VIEWER] {WebPath}");
-
         IsVideo = FileScanner.IsVideo(FilePath);
+
+        StateHasChanged(); // 🔥 FIX: ensures UI updates on next/prev
     }
 
     private void PlayNext()
     {
         if (Playlist.Count == 0) return;
 
-        CurrentIndex++;
-
-        if (CurrentIndex >= Playlist.Count)
-            CurrentIndex = 0;
+        CurrentIndex = (CurrentIndex + 1) % Playlist.Count;
 
         LoadCurrentMedia();
     }
@@ -152,13 +149,6 @@
 
     private void GoToFolder()
     {
-        var folder = Path.GetDirectoryName(FilePath);
-
-        if (!string.IsNullOrEmpty(folder))
-        {
-            Navigation.NavigateTo(
-                $"/library?path={Uri.EscapeDataString(folder)}",
-                true);
-        }
+        Navigation.NavigateTo("/library", true);
     }
 }
