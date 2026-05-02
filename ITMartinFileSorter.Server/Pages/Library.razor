@@ -13,22 +13,19 @@
         <SectionTitle Title="🎬 My Media Library" />
 
         <!-- NAVIGATION -->
-        <div class="library-actions row space-between">
+        <div class="library-actions">
 
-            <div class="row">
-                <button class="btn btn-secondary"
-                        @onclick="GoBack"
-                        disabled="@(!CanGoBack)">
-                    ← Back
-                </button>
+            <button class="btn btn-secondary"
+                    @onclick="GoBack"
+                    disabled="@(!CanGoBack)">
+                ← Back
+            </button>
 
-                <button class="btn btn-secondary"
-                        @onclick="GoToRoot"
-                        disabled="@(CurrentPath == RootPath)">
-                    📁 Library
-                </button>
-            </div>
-
+            <button class="btn btn-secondary"
+                    @onclick="GoToRoot"
+                    disabled="@(CurrentPath == RootPath)">
+                📁 Library
+            </button>
         </div>
 
         <!-- FOLDERS -->
@@ -36,19 +33,25 @@
 
             @if (!Folders.Any())
             {
-                <div class="text-muted">No folders found</div>
+                <div class="library-empty">
+                    No folders found
+                </div>
             }
             else
             {
                 <div class="library-grid">
                     @foreach (var folder in Folders)
                     {
-                        <div class="library-card"
+                        <div class="folder-card"
                              @onclick="() => OpenFolder(folder.FullPath)">
 
-                            <div class="library-icon">📁</div>
-                            <div class="library-name">@folder.Name</div>
-                            <div class="library-count">@folder.FileCount files</div>
+                            <div class="folder-title">
+                                📁 @folder.Name
+                            </div>
+
+                            <div class="folder-count">
+                                @folder.FileCount files
+                            </div>
 
                         </div>
                     }
@@ -62,20 +65,25 @@
 
             @if (!Files.Any())
             {
-                <div class="text-muted">No media files</div>
+                <div class="library-empty">
+                    No media files
+                </div>
             }
             else
             {
                 <div class="media-grid">
                     @foreach (var file in Files)
                     {
-                        <div class="media-clickable"
+                        <div class="media-card"
                              @onclick="() => OpenFile(file)">
 
-                            <MediaCard
-                                Title="@Path.GetFileName(file.FullPath)"
-                                SizeText="@FormatSize(file.SizeBytes)"
-                                Icon="@GetIcon(file)" />
+                            <div class="media-name">
+                                @GetIcon(file) @Path.GetFileName(file.FullPath)
+                            </div>
+
+                            <div class="media-meta">
+                                @FormatSize(file.SizeBytes)
+                            </div>
 
                         </div>
                     }
@@ -110,26 +118,18 @@
     private void GoBack()
     {
         var parent = Directory.GetParent(CurrentPath);
-
-        if (parent == null)
-            return;
-
-        Console.WriteLine($"[NAV] Back → {parent.FullName}");
+        if (parent == null) return;
 
         LoadFolder(parent.FullName);
     }
 
     private void GoToRoot()
     {
-        Console.WriteLine("[NAV] Root");
-
         LoadFolder(RootPath);
     }
 
     private void OpenFolder(string path)
     {
-        Console.WriteLine($"[NAV] Folder → {path}");
-
         LoadFolder(path);
     }
 
@@ -150,8 +150,6 @@
     {
         try
         {
-            Console.WriteLine($"[LOAD] {path}");
-
             CurrentPath = path;
 
             Folders = Directory
@@ -198,6 +196,18 @@
                 : MediaType.Document;
 
         return new MediaFile(file, info.LastWriteTimeUtc, type, info.Length);
+    }
+
+    private string GetBreadcrumb()
+    {
+        if (string.IsNullOrEmpty(CurrentPath)) return "";
+
+        var relative = CurrentPath.Replace(RootPath, "").Trim('\\');
+
+        if (string.IsNullOrEmpty(relative))
+            return "Library";
+
+        return "Library / " + relative.Replace("\\", " / ");
     }
 
     string GetIcon(MediaFile file) => file.Type switch

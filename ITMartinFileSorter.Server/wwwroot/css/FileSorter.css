@@ -1,23 +1,16 @@
-/* =========================
-ROOT
-========================= */
+/* =====================================================
+   ROOT
+===================================================== */
 .filesorter-app {
     padding: var(--space-lg);
 }
 
-/* =========================
-HERO (SCAN BOX)
-========================= */
+/* =====================================================
+   HERO
+===================================================== */
 .scan-hero-card {
     max-width: 1100px;
-    margin: 0 auto var(--space-lg) auto;
-}
-
-/* reuse card system */
-.scan-hero-card.card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
+    margin: 0 auto var(--space-lg);
 }
 
 .hero-text {
@@ -25,206 +18,560 @@ HERO (SCAN BOX)
     color: var(--text-muted);
 }
 
-/* =========================
-SECTION TITLE
-========================= */
+/* =====================================================
+   SECTION TITLE
+===================================================== */
 .section-title {
     font-size: 16px;
     font-weight: 600;
-    margin-bottom: var(--space-sm);
 }
 
-/* =========================
-CATEGORY GRID
-========================= */
+/* =====================================================
+   GRID
+===================================================== */
 .main-category-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: var(--space-md);
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
 }
 
-/* =========================
-CATEGORY CARD
-========================= */
+.grid-3 {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+/* =====================================================
+   CATEGORY CARD
+===================================================== */
 .category-card {
     position: relative;
     overflow: hidden;
 
     display: flex;
     flex-direction: column;
-    gap: var(--space-sm);
+    gap: 10px;
+
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
 
     cursor: pointer;
+    user-select: none;
 
+    background: linear-gradient(145deg, #1c1f27, #121419);
+    border: 1px solid rgba(255,255,255,0.06);
+
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* extend shared card */
-.category-card.card-hover {
-    transition: var(--transition);
+.category-card:hover {
+    transform: translateY(-4px);
 }
 
-/* locked */
+.category-card:active {
+    transform: translateY(-2px);
+}
+
 .category-card.locked {
-    opacity: 0.45;
-    cursor: not-allowed;
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: default;
 }
 
-.category-card.locked:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-/* =========================
-LEFT ACCENT STRIPE
-========================= */
+/* accent stripe */
 .category-card::before {
     content: "";
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
-    width: 3px;
-    border-radius: 3px;
-    background: transparent;
+    width: 4px;
+    border-radius: 4px;
+    box-shadow: 0 0 10px currentColor;
 }
 
-/* category colors */
 .category-image::before { background: #60a5fa; }
 .category-video::before { background: #a78bfa; }
 .category-audio::before { background: #34d399; }
 .category-document::before { background: #fbbf24; }
 .category-auto::before { background: #f87171; }
 
-/* =========================
-CONTENT
-========================= */
+/* =====================================================
+   CATEGORY CONTENT
+===================================================== */
 .category-title {
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
 }
 
 .category-status {
     font-size: 13px;
-    line-height: 1.4;
-}
-
-.text-success {
-    color: var(--success);
-    font-weight: 500;
-}
-
-.text-warning {
-    color: #facc15;
-    font-weight: 500;
-}
-
-.text-muted {
-    color: var(--text-muted);
+    line-height: 1.5;
 }
 
 .category-meta {
     font-size: 12px;
-    color: var(--text-muted);
+    opacity: 0.7;
 }
 
-/* =========================
-PROGRESS BAR
-========================= */
+/* =====================================================
+   PROGRESS
+===================================================== */
 .category-progress {
-    height: 6px;
-    background: rgba(255,255,255,0.06);
+    height: 8px;
+    background: rgba(255,255,255,0.05);
     border-radius: 999px;
     overflow: hidden;
-    margin-top: 4px;
 }
 
 .category-progress-fill {
     height: 100%;
     border-radius: 999px;
     background: linear-gradient(90deg, var(--accent), #60a5fa);
+    box-shadow: 0 0 8px rgba(59,130,246,0.4);
     transition: width 0.3s ease;
 }
 
-/* =========================
-CTA
-========================= */
+/* =====================================================
+   CATEGORY CTA
+===================================================== */
 .category-action {
     margin-top: auto;
 
     font-size: 13px;
     font-weight: 600;
-    color: var(--accent);
 
-    display: flex;
+    color: #60a5fa;
+    background: rgba(96,165,250,0.12);
+
+    padding: 7px 12px;
+    border-radius: 10px;
+
+    display: inline-flex;
     align-items: center;
     gap: 6px;
 
-    opacity: 0.85;
-    transition: var(--transition);
-
+    transition: all 0.2s ease;
 }
 
 .category-card:hover .category-action {
+    background: rgba(96,165,250,0.22);
     transform: translateX(4px);
-    opacity: 1;
 }
 
-/* =========================
-EXPORT BAR
-========================= */
-.export-bar {
-    margin-top: var(--space-lg);
+/* =====================================================
+   ACTION BAR
+===================================================== */
+.action-bar {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
+
+    padding: 12px 14px;
+
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
 }
 
-.export-status {
+.action-bar.bottom {
+    position: sticky;
+    bottom: 0;
+
+    justify-content: center;
+    padding: 16px;
+
+    background: var(--bg-main);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+}
+
+.action-bar.bottom .btn-lg {
+    min-width: 320px;
+    max-width: 500px;
+}
+
+/* =====================================================
+   CATEGORY STEP PAGE
+===================================================== */
+.category-step-page {
+    max-width: 1200px;
+    margin: 0 auto;
+
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.category-step-page .content-card {
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.category-step-page .stack {
+    gap: 10px;
+}
+
+.category-step-page .grid-3 {
+    gap: 20px;
+}
+
+.category-step-page .btn {
+    height: 38px;
+    padding: 0 14px;
     font-size: 13px;
-    color: var(--text-muted);
+    border-radius: 10px;
 }
 
-.spacer {
+/* =====================================================
+   MEDIA
+===================================================== */
+.media-clickable {
+    transition: transform 0.15s ease;
+}
+
+.media-clickable:hover {
+    transform: scale(1.01);
+}
+
+.media-clickable .card {
+    background: linear-gradient(160deg, #1a1d24, #121317);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.media-clickable:hover .card {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+}
+
+/* =====================================================
+   MEDIA STATUS
+===================================================== */
+.media-status {
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    background: rgba(255,255,255,0.03);
+}
+
+/* =====================================================
+   EXPORT PREVIEW (WORKING)
+===================================================== */
+.export-preview {
+    position: relative;
+
+    max-height: 320px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* description */
+.export-preview .preview-description {
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+/* 🔥 THIS is the scroll container */
+.export-preview .preview-tree {
+    overflow-y: auto;
+    flex: 1;                 /* <-- critical */
+    min-height: 0;           /* <-- CRITICAL FIX */
+    padding-right: 8px;
+}
+
+/* scrollbar */
+.export-preview .preview-tree::-webkit-scrollbar {
+    width: 6px;
+}
+
+.export-preview .preview-tree::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 6px;
+}
+
+/* fade */
+.export-preview::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+
+    background: linear-gradient(to bottom, transparent, #121317);
+    pointer-events: none;
+}
+
+/* =====================================================
+   TREE
+===================================================== */
+.tree {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tree-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 13px;
+    padding: 4px 6px;
+    border-radius: 6px;
+
+    transition: background 0.15s ease;
+}
+
+.tree-node:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.tree-node.root {
+    font-weight: 600;
+}
+
+.tree-node.year {
+    margin-left: 12px;
+    opacity: 0.9;
+}
+
+.tree-node.month {
+    margin-left: 24px;
+    opacity: 0.8;
+}
+
+.tree-branch {
+    font-family: monospace;
+    color: rgba(255,255,255,0.25);
+    min-width: 40px;
+}
+
+.tree-name {
     flex: 1;
 }
 
-/* =========================
-SMALL TEXT
-========================= */
-.small {
-    font-size: 11px;
-    color: var(--text-muted);
-}
-/* =========================
-   MEDIA GRID
-========================= */
-.category-step-page .grid {
-    margin-top: var(--space-sm);
-}
-
-/* =========================
-   MEDIA STATUS
-========================= */
-.media-status {
+.tree-count {
     font-size: 12px;
     color: var(--text-muted);
 }
 
-/* status variants */
-.status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.status.kept {
-    color: var(--success);
-}
-
-.status.duplicate {
-    color: var(--danger);
-}
-
-.status.pending {
+.preview-empty {
+    padding: 16px;
+    text-align: center;
     color: var(--text-muted);
+}
+
+/* =========================
+   LIBRARY PAGE
+========================= */
+.library-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* HEADER ACTIONS */
+.library-actions {
+    display: flex;
+    gap: 10px;
+}
+.library-path {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-left: 10px;
+}
+
+.library-path span {
+    opacity: 0.6;
+    margin: 0 6px;
+}
+
+/* =========================
+   FOLDER GRID
+========================= */
+.library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+}
+
+/* =========================
+   FOLDER CARD
+========================= */
+.folder-card {
+    background: linear-gradient(145deg, #1c1f27, #121419);
+    border-radius: 14px;
+    padding: 16px;
+
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.folder-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.6);
+}
+
+/* =========================
+   FOLDER ICON + TITLE
+========================= */
+.folder-title {
+    font-size: 15px;
+    font-weight: 600;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.folder-count {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* =========================
+   EMPTY STATE
+========================= */
+.library-empty {
+    text-align: center;
+    padding: 50px 20px;
+    opacity: 0.6;
+    font-size: 14px;
+}
+
+/* =========================
+   MEDIA LIST
+========================= */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.media-card {
+    background: linear-gradient(145deg, #1a1d24, #121317);
+    border-radius: 12px;
+    padding: 14px;
+
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: transform 0.15s ease;
+}
+
+.media-card:hover {
+    transform: translateY(-3px);
+}
+
+/* =========================
+   MEDIA META
+========================= */
+.media-name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.media-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.folder-card {
+    position: relative;
+}
+
+.folder-card::after {
+    content: "→";
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: 0.2s ease;
+    font-size: 14px;
+}
+
+.folder-card:hover::after {
+    opacity: 0.6;
+    transform: translateX(0);
+}
+
+.folder-card:has(.folder-count:not(:empty)) {
+    border-color: rgba(59,130,246,0.2);
+}
+
+.folder-card:has(.folder-count:not(:empty)):hover {
+    box-shadow: 0 14px 40px rgba(59,130,246,0.15);
+}
+
+
+/* =========================
+   CONTROLS BAR
+========================= */
+.viewer-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+
+    padding: 12px 16px;
+
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+}
+.viewer-container {
+    background: radial-gradient(circle at center, #111 0%, #000 80%);
+}
+.viewer-image {
+    cursor: zoom-in;
+}
+
+/* =========================
+   VIEWER PAGE FIX
+========================= */
+.viewer-page {
+    gap: 12px;
+}
+
+/* full stage */
+.viewer-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    height: calc(100vh - 180px); /* adjust if needed */
+    width: 100%;
+}
+
+/* title */
+.viewer-title {
+    font-size: 13px;
+    opacity: 0.6;
+    margin-bottom: 10px;
+}
+
+/* media */
+.viewer-media {
+    max-width: 100%;
+    max-height: 100%;
+
+    object-fit: contain;
+    cursor: zoom-in;
+    border-radius: 12px;
+
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+}
+.viewer-stage {
+    background: radial-gradient(circle at center, #111 0%, #000 90%);
+    border-radius: 20px;
 }

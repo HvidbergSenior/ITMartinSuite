@@ -26,7 +26,6 @@
     --space-lg: 28px;
 
     --transition: all 0.2s ease;
-    --shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
 /* =========================
@@ -35,13 +34,13 @@
 html, body {
     margin: 0;
     padding: 0;
-    background: var(--bg-main);
+    background: radial-gradient(circle at top, #111 0%, #0b0b0b 60%);
     color: var(--text-main);
     font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif;
 }
 
 /* =========================
-   APP LAYOUT (GENERIC)
+   LAYOUT
 ========================= */
 .app-shell {
     min-height: 100vh;
@@ -67,7 +66,7 @@ html, body {
 }
 
 /* =========================
-   FLEX HELPERS
+   FLEX
 ========================= */
 .row {
     display: flex;
@@ -86,6 +85,24 @@ html, body {
 }
 
 /* =========================
+   GRID
+========================= */
+.grid {
+    display: grid;
+    gap: 16px;
+}
+
+.grid-3 {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+/* =========================
+   SPACING
+========================= */
+.mt-3 { margin-top: 16px; }
+.mb-3 { margin-bottom: 16px; }
+
+/* =========================
    BUTTONS
 ========================= */
 .btn {
@@ -100,7 +117,18 @@ html, body {
 
     font-weight: 600;
     cursor: pointer;
-    transition: var(--transition);
+
+    transition: all 0.15s ease;
+
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn:active {
+    transform: translateY(0);
 }
 
 .btn-primary { background: var(--accent); color: white; }
@@ -113,39 +141,51 @@ html, body {
 .btn-danger { background: var(--danger); color: white; }
 
 /* =========================
-   CARD SYSTEM (GENERIC)
+   CARDS
 ========================= */
 .card,
 .content-card {
-    background: linear-gradient(145deg, #1a1d24, #121317);
+    background: linear-gradient(160deg, #1e222b, #121317);
     border-radius: var(--radius-md);
     padding: var(--space-md);
 
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.06);
 
     box-shadow:
-            0 10px 30px rgba(0,0,0,0.6),
-            inset 0 1px 0 rgba(255,255,255,0.03);
+            0 20px 40px rgba(0,0,0,0.7),
+            inset 0 1px 0 rgba(255,255,255,0.04);
+
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    will-change: transform;
+}
+
+.card:hover {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow:
+            0 30px 60px rgba(0,0,0,0.9),
+            inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 /* =========================
-   ALERTS
+   TEXT
 ========================= */
-.alert {
-    margin-top: 12px;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
+.text-muted { color: var(--text-muted); }
+.text-success { color: var(--success); font-weight: 500; }
+.text-warning { color: #facc15; font-weight: 500; }
+
+/* =========================
+   STATUS
+========================= */
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
 }
 
-.alert.success {
-    background: rgba(34,197,94,0.15);
-    color: #4ade80;
-}
-
-.alert.error {
-    background: rgba(239,68,68,0.15);
-    color: #f87171;
-}
+.status.kept { color: var(--success); }
+.status.duplicate { color: var(--danger); }
+.status.pending { color: var(--text-muted); }
 
 /* =========================
    TABLE
@@ -170,62 +210,4 @@ html, body {
 
 .table tr:hover {
     background: rgba(255,255,255,0.03);
-}
-
-/* =========================
-   STATS (GENERIC)
-========================= */
-.dashboard-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 28px;
-}
-
-.stat-card {
-    background: linear-gradient(145deg, #1a1d24, #121317);
-    border-radius: var(--radius-md);
-    padding: var(--space-md);
-
-    border: 1px solid rgba(255,255,255,0.05);
-
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-
-.stat-value {
-    font-size: 24px;
-    font-weight: 700;
-}
-
-/* =========================
-   UPLOAD (GENERIC)
-========================= */
-.upload-box {
-    border: 2px dashed rgba(255,255,255,0.1);
-    border-radius: var(--radius-md);
-    padding: 28px;
-    text-align: center;
-    background: rgba(255,255,255,0.02);
-    transition: var(--transition);
-}
-
-.upload-box:hover {
-    border-color: var(--accent);
-}
-
-.upload-icon {
-    font-size: 30px;
-    margin-bottom: 10px;
-}
-
-.upload-grid {
-    margin-top: 16px;
-}
-
-.upload-grid select {
-    background: var(--bg-soft);
-    border: 1px solid var(--border);
-    color: white;
-    padding: 10px;
-    border-radius: var(--radius-sm);
 }

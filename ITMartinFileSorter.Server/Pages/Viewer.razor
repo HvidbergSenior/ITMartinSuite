@@ -37,8 +37,14 @@
         <!-- MEDIA -->
         @if (!string.IsNullOrEmpty(FilePath))
         {
-            <ContentCard Title="@Path.GetFileName(FilePath)">
+            <div class="viewer-stage">
 
+                <!-- filename (lightweight, not a card) -->
+                <div class="viewer-title">
+                    @Path.GetFileName(FilePath)
+                </div>
+
+                <!-- media -->
                 @if (IsVideo)
                 {
                     <video class="viewer-media"
@@ -53,7 +59,7 @@
                     <img class="viewer-media" src="@WebPath" />
                 }
 
-            </ContentCard>
+            </div>
         }
 
     </div>

@@ -1,5 +1,7 @@
-﻿<div class="category-card @CssClass @(IsLocked ? "locked" : "active")"
-     @onclick="HandleClick">
+﻿<div class="category-card @CssClass @(IsLocked ? "locked" : "")"
+     @onclick="HandleClick"
+     @onclick:preventDefault
+     @onclick:stopPropagation>
 
     <!-- TITLE -->
     <div class="category-title">
@@ -43,7 +45,7 @@
     {
         <div class="category-progress">
             <div class="category-progress-fill"
-                style="width:@((double)ProcessedCount / Total * 100)%">
+                 style="width:@((double)ProcessedCount / Total * 100)%">
             </div>
         </div>
     }
@@ -67,12 +69,12 @@
     [Parameter] public string CssClass { get; set; } = "";
     [Parameter] public bool IsLocked { get; set; }
 
-    // ✅ FIXED (typed event)
     [Parameter] public EventCallback OnClick { get; set; }
-    private Task HandleClick()
-    {
-        if (IsLocked) return Task.CompletedTask;
 
-        return OnClick.InvokeAsync();
+    private async Task HandleClick()
+    {
+        if (IsLocked) return;
+
+        await OnClick.InvokeAsync();
     }
 }

@@ -18,12 +18,15 @@
         </div>
 
         <!-- PREVIEW -->
-        <ContentCard Title="📁 Preview of your organized library">
+        <ContentCard Title="📁 Preview of your organized library" CssClass="export-preview">
             <div class="preview-description">
                 This is how your files will be structured after export.
             </div>
 
-            <ExportPreviewCard Items="PreviewItems" />
+            <!-- 🔥 THIS enables scrolling -->
+            <div class="preview-tree">
+                <ExportPreviewCard Items="PreviewItems" />
+            </div>
         </ContentCard>
 
         <!-- PROGRESS -->
