@@ -1,21 +1,18 @@
 ﻿using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
 using ITMartinFileSorter.Domain.Interfaces;
-
+using ITMartinFileSorter.Domain.Helpers;
 namespace ITMartinFileSorter.Application.Services;
 
 public class LibraryExportService
 {
-    private readonly LibraryPathService _pathService;
     private readonly IVideoBatchService _videoService;
     private readonly IImageBatchService _imageService;
     
     public LibraryExportService(
-        LibraryPathService pathService,
         IVideoBatchService videoService,
         IImageBatchService imageService)
     {
-        _pathService = pathService;
         _videoService = videoService;
         _imageService = imageService;
     }
@@ -45,10 +42,7 @@ public class LibraryExportService
     {
         try
         {
-            var category =
-                file.SubCategory == MediaSubCategory.Screenshot ? "Screenshots" :
-                file.SubCategory == MediaSubCategory.Meme ? "Memes" :
-                file.MainCategory.ToString();
+            var category = CategoryHelper.GetCategory(file);
 
             var monthName = new DateTime(file.Year, file.Month, 1)
                 .ToString("MMMM");
@@ -63,6 +57,8 @@ public class LibraryExportService
                 await CopyFileAsync(file.FullPath, targetPath);
             }
 
+// ✅ STORE EXPORTED PATH
+            file.ExportedPath = targetPath;
             done++;
 
             if (progress != null)
@@ -82,12 +78,11 @@ public class LibraryExportService
         await progress(0, 0, "", "Converting images...");
 
     await _imageService.ConvertAllImagesAsync(
-        root,
+        list,
         (d, t, fileName) =>
         {
             progress?.Invoke(d, t, fileName, "Converting images...");
         });
-
     // =========================
     // 🎬 STEP 3: CONVERT VIDEOS
     // =========================
@@ -95,12 +90,11 @@ public class LibraryExportService
         await progress(0, 0, "", "Converting videos...");
 
     await _videoService.ConvertAllVideosAsync(
-        root,
+        list,
         (d, t, fileName) =>
         {
             progress?.Invoke(d, t, fileName, "Converting videos...");
         });
-
     // =========================
     // ✅ DONE
     // =========================

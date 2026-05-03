@@ -14,4 +14,8 @@ public class FakeVideoService : IVideoBatchService
         return Task.CompletedTask;
     }
 
+    public Task ConvertAllVideosAsync(IEnumerable<MediaFile> files, Action<int, int, string>? progress = null)
+    {
+        throw new NotImplementedException();
+    }
 }

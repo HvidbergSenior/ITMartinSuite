@@ -44,6 +44,7 @@ public class MediaFile
     public bool RequiresReview { get; set; } = true;
     public bool IsProbablyRealPhoto { get; set; }
     public bool HasExif { get; set; }
+    public string? ExportedPath { get; set; }
     public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)
     {
         FullPath = fullPath;

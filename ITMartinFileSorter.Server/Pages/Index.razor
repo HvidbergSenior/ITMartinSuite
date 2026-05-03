@@ -1,6 +1,7 @@
 ﻿@page "/"
 @page "/filesorter"
 
+@using ITMartinFileSorter.Domain.Helpers
 @implements IDisposable
 
 @inject DuplicateService DuplicateService
@@ -43,20 +44,9 @@
             <div class="main-category-row mt-3">
                 @foreach (var cat in CategoryOrder)
                 {
-                    var filesInCat = cat switch
-                    {
-                        "Screenshots" => DuplicateService.AllFiles
-                            .Where(f => f.SubCategory == MediaSubCategory.Screenshot),
-
-                        "Memes" => DuplicateService.AllFiles
-                            .Where(f => f.SubCategory == MediaSubCategory.Meme),
-
-                        _ => DuplicateService.AllFiles
-                            .Where(f => f.MainCategory.ToString() == cat &&
-                                        f.SubCategory != MediaSubCategory.Screenshot &&
-                                        f.SubCategory != MediaSubCategory.Meme)
-                    };
-
+                    var filesInCat = DuplicateService.AllFiles
+                        .Where(f => CategoryHelper.GetCategory(f) == cat);
+                    
                     var allFiles = filesInCat.ToList();
 
                     var needsReview = allFiles.Count(f =>
@@ -137,16 +127,6 @@
             ? 1
             : (int)((double)Progress.Info.WorkDone / Progress.Info.TotalWork * 100);
 
-    readonly string[] CategoryOrder =
-    {
-        "Audio",
-        "Document",
-        "Image",
-        "Video",
-        "Screenshots",
-        "Memes"
-    };
-
     bool ShowScanning =>
         IsScanning || Progress.Info.WorkDone > 0;
 
@@ -178,12 +158,13 @@
         FolderPath = value;
     }
 
+    // ✅ FIXED CSS mapping
     string GetCategoryCssClass(string cat) => cat switch
     {
         "Audio" => "category-audio",
-        "Document" => "category-document",
-        "Image" => "category-image",
-        "Video" => "category-video",
+        "Documents" => "category-document",
+        "Images" => "category-image",
+        "Videos" => "category-video",
         "Screenshots" => "category-auto",
         "Memes" => "category-auto",
         _ => ""
@@ -225,11 +206,9 @@
                 var file = FileScanner.ProcessFile(filePath);
                 if (file == null) return;
 
-                // ✅ ALWAYS start neutral
                 file.RequiresReview = true;
                 file.Status = MediaFileStatus.Initial;
 
-                // ✅ Auto categories
                 if (file.SubCategory is MediaSubCategory.Meme or MediaSubCategory.Screenshot)
                 {
                     file.RequiresReview = false;
@@ -260,7 +239,6 @@
         Progress.SetStage("Removing duplicates...");
         await Task.Run(() => DuplicateService.BuildDuplicateGroups());
 
-        // 🔥 FINAL STATE ENFORCEMENT (CRITICAL)
         foreach (var file in DuplicateService.AllFiles)
         {
             bool isAuto = file.SubCategory is MediaSubCategory.Meme or MediaSubCategory.Screenshot;
@@ -291,10 +269,19 @@
         if (cat == "Screenshots" || cat == "Memes")
             return;
 
-        if (!Enum.TryParse<MediaMainCategory>(cat, true, out _))
+        var mapped = cat switch
+        {
+            "Images" => MediaMainCategory.Image,
+            "Videos" => MediaMainCategory.Video,
+            "Documents" => MediaMainCategory.Document,
+            "Audio" => MediaMainCategory.Audio,
+            _ => (MediaMainCategory?)null
+        };
+
+        if (mapped == null)
             return;
 
-        Navigation.NavigateTo($"/category-step/{cat}");
+        Navigation.NavigateTo($"/category-step/{mapped}");
     }
 
     void GoToExport()
@@ -316,4 +303,13 @@
 
         return $"{len:0.#} {sizes[order]}";
     }
+    readonly string[] CategoryOrder =
+    [
+        "Audio",
+        "Documents",
+        "Images",
+        "Videos",
+        "Screenshots",
+        "Memes"
+    ];
 }

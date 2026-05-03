@@ -48,7 +48,6 @@ builder.Services.AddSingleton<DuplicateService>();
 
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<HomeLocationService>();
-builder.Services.AddScoped<LibraryPathService>();
 builder.Services.AddScoped<LibraryExportService>();
 builder.Services.AddScoped<FolderPathInfoService>();
 
@@ -86,37 +85,44 @@ app.UseStaticFiles(); // wwwroot
 
 var libraryPath = LibraryPathHelper.GetLibraryPath(builder.Configuration);
 
-Console.WriteLine($"[STATIC] Serving from: {libraryPath}");
-
 var provider = new FileExtensionContentTypeProvider();
 
-// video
+// ✅ LOWERCASE
 provider.Mappings[".mp4"] = "video/mp4";
 provider.Mappings[".mov"] = "video/mp4";
 provider.Mappings[".mkv"] = "video/mp4";
 
-// images
 provider.Mappings[".jpg"] = "image/jpeg";
 provider.Mappings[".jpeg"] = "image/jpeg";
 provider.Mappings[".png"] = "image/png";
 provider.Mappings[".webp"] = "image/webp";
 provider.Mappings[".gif"] = "image/gif";
 
-// register external library folder
+// ✅ UPPERCASE (🔥 FIX)
+provider.Mappings[".MP4"] = "video/mp4";
+provider.Mappings[".MOV"] = "video/mp4";
+provider.Mappings[".MKV"] = "video/mp4";
+
+provider.Mappings[".JPG"] = "image/jpeg";
+provider.Mappings[".JPEG"] = "image/jpeg";
+provider.Mappings[".PNG"] = "image/png";
+provider.Mappings[".WEBP"] = "image/webp";
+provider.Mappings[".GIF"] = "image/gif";
+
 if (Directory.Exists(libraryPath))
 {
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(libraryPath),
         RequestPath = "/libraryfiles",
+
+        // 🔥 IMPORTANT (prevents future edge cases)
+        ServeUnknownFileTypes = true,
+        DefaultContentType = "application/octet-stream",
+
         ContentTypeProvider = provider
     });
 }
-else
-{
-    Console.WriteLine("[ERROR] Library path does NOT exist!");
-}
-
 // =========================
 // PIPELINE
 // =========================

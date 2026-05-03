@@ -4,6 +4,7 @@
 @using ITMartinFileSorter.Domain.Enums
 @using ITMartinFileSorter.Infrastructure.FileSystem
 @using ITMartinFileSorter.Application.Helpers
+@using ITMartinFileSorter.Domain.Helpers
 
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
@@ -22,19 +23,17 @@
             </button>
 
             <button class="btn btn-secondary"
-                    @onclick="GoToRoot"
-                    disabled="@(CurrentPath == RootPath)">
+                    @onclick="GoToRoot">
                 📁 Library
             </button>
+
         </div>
 
         <!-- FOLDERS -->
         <ContentCard Title="📁 Folders">
             @if (!Folders.Any())
             {
-                <div class="library-empty">
-                    No folders found
-                </div>
+                <div class="library-empty">No folders found</div>
             }
             else
             {
@@ -58,13 +57,11 @@
             }
         </ContentCard>
 
-        <!-- FILES -->
+        <!-- MEDIA -->
         <ContentCard Title="🎬 Media">
             @if (!Files.Any())
             {
-                <div class="library-empty">
-                    No media files
-                </div>
+                <div class="library-empty">No media files</div>
             }
             else
             {
@@ -73,6 +70,12 @@
                     {
                         <div class="media-card"
                              @onclick="() => OpenFile(file)">
+
+                            @if (file.Type == MediaType.Image)
+                            {
+                                <img class="media-thumb"
+                                     src="@GetPreviewPath(file)" />
+                            }
 
                             <div class="media-name">
                                 @GetIcon(file) @file.FileName
@@ -101,16 +104,17 @@
     [Parameter]
     [SupplyParameterFromQuery]
     public string? path { get; set; }
-    
-    protected override void OnInitialized()
-    {
-        RootPath = path ?? LibraryPathHelper.GetLibraryPath(Configuration);
-        LoadFolder(RootPath);
-    }
 
-    // =========================
-    // NAVIGATION
-    // =========================
+    protected override void OnParametersSet()
+    {
+        RootPath = LibraryPathHelper.GetLibraryPath(Configuration);
+
+        var initial = string.IsNullOrWhiteSpace(path)
+            ? RootPath
+            : path;
+
+        LoadFolder(initial);
+    }
 
     private bool CanGoBack =>
         !string.Equals(CurrentPath, RootPath, StringComparison.OrdinalIgnoreCase);
@@ -118,9 +122,8 @@
     private void GoBack()
     {
         var parent = Directory.GetParent(CurrentPath);
-        if (parent == null) return;
-
-        LoadFolder(parent.FullName);
+        if (parent != null)
+            LoadFolder(parent.FullName);
     }
 
     private void GoToRoot()
@@ -130,7 +133,10 @@
 
     private void OpenFolder(string path)
     {
-        LoadFolder(path);
+        if (string.Equals(CurrentPath, path, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        Navigation.NavigateTo($"/library?path={Uri.EscapeDataString(path)}");
     }
 
     private void OpenFile(MediaFile file)
@@ -138,43 +144,41 @@
         var index = Files.FindIndex(f => f.FullPath == file.FullPath);
 
         Navigation.NavigateTo(
-            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}&index={index}&folder={Uri.EscapeDataString(CurrentPath)}",
-            forceLoad: true);
+            $"/viewer?path={Uri.EscapeDataString(file.FullPath)}&index={index}",
+            true);
     }
-
-    // =========================
-    // LOAD
-    // =========================
 
     private void LoadFolder(string path)
     {
-        try
-        {
-            CurrentPath = path;
+        if (!Directory.Exists(path))
+            return;
 
-            Folders = Directory
-                .EnumerateDirectories(path)
-                .Select(CreateFolderItem)
-                .OrderBy(x => x.Name)
-                .ToList();
+        CurrentPath = path;
 
-            Files = Directory
-                .EnumerateFiles(path, "*.*", SearchOption.TopDirectoryOnly)
-                .Where(FileScanner.IsSupportedMedia)
-                .Select(CreateMediaFile)
-                .ToList();
+        Folders = Directory
+            .EnumerateDirectories(path)
+            .Select(CreateFolderItem)
+            .OrderBy(x => x.Name)
+            .ToList();
 
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Load error: {ex}");
-        }
+        Files = Directory
+            .EnumerateFiles(path)
+            .Where(MediaDisplayHelper.IsDisplayable)
+            .Select(CreateMediaFile)
+            .ToList();
+
+        StateHasChanged();
     }
 
-    // =========================
-    // HELPERS
-    // =========================
+    private string GetPreviewPath(MediaFile file)
+    {
+        var root = LibraryPathHelper.GetLibraryPath(Configuration);
+
+        var relative = Path.GetRelativePath(root, file.FullPath)
+            .Replace("\\", "/");
+
+        return $"/libraryfiles/{relative}";
+    }
 
     private FolderItem CreateFolderItem(string folder) => new()
     {
@@ -222,9 +226,6 @@
         return $"{len:0.#} {sizes[order]}";
     }
 
-    // =========================
-    // DTO (missing in your code)
-    // =========================
     private class FolderItem
     {
         public string Name { get; set; } = "";

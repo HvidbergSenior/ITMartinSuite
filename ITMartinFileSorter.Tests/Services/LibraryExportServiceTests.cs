@@ -20,13 +20,11 @@ public class LibraryExportServiceTests
         _tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempRoot);
 
-        var pathService = new LibraryPathService(new FakeGpsService());
 
         _video = new FakeVideoService();
         _image = new FakeImageService();
 
         _sut = new LibraryExportService(
-            pathService,
             _video,
             _image);
     }

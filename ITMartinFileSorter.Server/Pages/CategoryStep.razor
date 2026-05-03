@@ -2,6 +2,7 @@
 
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 
 <div class="filesorter-app">
     <div class="page-container stack category-step-page">
@@ -46,7 +47,7 @@
                             <MediaCard
                                 Title="@file.FileName"
                                 SizeText="@FormatSize(file.SizeBytes)"
-                                ImageUrl="@file.FullPath"
+                                ImageUrl="@ToWebPath(file.ExportedPath)"
                                 Icon="🖼️"
                                 PrimaryText="Keep"
                                 OnPrimary="@(() => Keep(file))"
@@ -159,5 +160,25 @@
         }
 
         return $"{len:0.#} {sizes[order]}";
+    }
+
+    string ToWebPath(string? fullPath)
+    {
+        if (string.IsNullOrWhiteSpace(fullPath))
+            return "";
+
+        var root = Configuration["MediaSettings:LibraryRoot"];
+
+        var full = Path.GetFullPath(fullPath);
+        var baseRoot = Path.GetFullPath(root);
+
+        if (!full.StartsWith(baseRoot, StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        var relative = full.Substring(baseRoot.Length)
+            .TrimStart('\\', '/')
+            .Replace("\\", "/");
+
+        return $"/libraryfiles/{relative}";
     }
 }

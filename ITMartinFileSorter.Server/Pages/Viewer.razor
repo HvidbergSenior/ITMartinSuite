@@ -7,59 +7,73 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 
-<div class="filesorter-app">
-    <div class="page-container stack viewer-page">
+<div class="viewer-root">
 
-        <!-- NAVIGATION -->
-        <ActionButtonBar CssClass="bottom">
+    <div class="viewer-page">
 
-            <div class="row">
-                <button class="btn btn-secondary" @onclick="GoHome">
-                    🏠 Home
-                </button>
-
-                <button class="btn btn-secondary" @onclick="GoToFolder">
-                    📁 Folder
-                </button>
+        <!-- HEADER -->
+        <div class="viewer-header">
+            <div class="viewer-title">
+                @Path.GetFileName(FilePath)
             </div>
+        </div>
 
-            <div class="row">
-                <button class="btn btn-secondary" @onclick="PlayPrevious">
-                    ⬅ Previous
-                </button>
+        <!-- CONTENT -->
+        <div class="viewer-content">
 
-                <button class="btn btn-primary" @onclick="PlayNext">
-                    Next ➜
-                </button>
-            </div>
+            <div class="viewer-stage"
+                 @ref="StageRef"
+                 @onclick="HandleStageClick"
+                 tabindex="0"
+                 @onkeydown="HandleKey">
 
-        </ActionButtonBar>
-
-        <!-- MEDIA -->
-        @if (!string.IsNullOrEmpty(FilePath))
-        {
-            <div class="viewer-stage">
-
-                <div class="viewer-title">
-                    @Path.GetFileName(FilePath)
-                </div>
+                @if (!string.IsNullOrEmpty(FilePath))
+                {
+                    @if (IsVideo)
+                    {
+                        <video class="viewer-media"
+                               controls
+                               autoplay
+                               playsinline
+                               preload="metadata"
+                               @onclick:stopPropagation
+                               @key="WebPath">
+                            <source src="@WebPath" />
+                        </video>
+                    }
+                    else
+                    {
+                        <img class="viewer-media"
+                             src="@WebPath"
+                             @onclick:stopPropagation />
+                    }
+                }
 
                 @if (IsVideo)
                 {
-                    <video class="viewer-media"
-                           controls
-                           autoplay
-                           @key="WebPath">
-                        <source src="@WebPath" />
-                    </video>
+                    <!-- ✅ CLEAN VIDEO NAV -->
+                    <button class="nav-video left" @onclick="PlayPrevious">❮</button>
+                    <button class="nav-video right" @onclick="PlayNext">❯</button>
                 }
                 else
                 {
-                    <img class="viewer-media" src="@WebPath" />
+                    <!-- ✅ FULL IMAGE UX -->
+                    <div class="nav-zone left" @onclick="PlayPrevious"></div>
+                    <div class="nav-zone right" @onclick="PlayNext"></div>
+
+                    <div class="nav-btn left">❮</div>
+                    <div class="nav-btn right">❯</div>
                 }
 
             </div>
-        }
+
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="viewer-controls">
+            <button class="btn" @onclick="GoHome">🏠</button>
+            <button class="btn" @onclick="GoToFolder">📁</button>
+        </div>
 
     </div>
 </div>
@@ -71,6 +85,9 @@
 
     private List<string> Playlist = new();
     private int CurrentIndex = 0;
+    private string FolderPath = "";
+
+    private ElementReference StageRef;
 
     protected override void OnParametersSet()
     {
@@ -81,65 +98,58 @@
             return;
 
         FilePath = Uri.UnescapeDataString(path!);
+        FolderPath = Path.GetDirectoryName(FilePath) ?? "";
 
-        var folder = Path.GetDirectoryName(FilePath);
-
-        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        if (!Directory.Exists(FolderPath))
             return;
 
         Playlist = Directory
-            .EnumerateFiles(folder)
+            .EnumerateFiles(FolderPath)
             .Where(FileScanner.IsSupportedMedia)
             .OrderBy(x => x)
             .ToList();
 
-        CurrentIndex = Playlist.FindIndex(f =>
-            string.Equals(f, FilePath, StringComparison.OrdinalIgnoreCase));
+        CurrentIndex = Playlist.FindIndex(f => f == FilePath);
+        if (CurrentIndex < 0) CurrentIndex = 0;
 
-        if (CurrentIndex < 0)
-            CurrentIndex = 0;
-
-        LoadCurrentMedia();
+        Load();
     }
 
-    private void LoadCurrentMedia()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!Playlist.Any())
-            return;
+        if (firstRender)
+        {
+            await StageRef.FocusAsync();
+        }
+    }
+
+    private void Load()
+    {
+        if (!Playlist.Any()) return;
 
         FilePath = Playlist[CurrentIndex];
 
-        var libraryRoot = LibraryPathHelper.GetLibraryPath(Configuration);
+        var root = LibraryPathHelper.GetLibraryPath(Configuration);
 
-        var relativePath = Path.GetRelativePath(libraryRoot, FilePath)
+        var relative = Path.GetRelativePath(root, FilePath)
             .Replace("\\", "/");
 
-        WebPath = $"/libraryfiles/{relativePath}";
-
+        WebPath = $"/libraryfiles/{relative}";
         IsVideo = FileScanner.IsVideo(FilePath);
 
-        StateHasChanged(); // 🔥 FIX: ensures UI updates on next/prev
+        StateHasChanged();
     }
 
     private void PlayNext()
     {
-        if (Playlist.Count == 0) return;
-
         CurrentIndex = (CurrentIndex + 1) % Playlist.Count;
-
-        LoadCurrentMedia();
+        Load();
     }
 
     private void PlayPrevious()
     {
-        if (Playlist.Count == 0) return;
-
-        CurrentIndex--;
-
-        if (CurrentIndex < 0)
-            CurrentIndex = Playlist.Count - 1;
-
-        LoadCurrentMedia();
+        CurrentIndex = (CurrentIndex - 1 + Playlist.Count) % Playlist.Count;
+        Load();
     }
 
     private void GoHome()
@@ -149,6 +159,19 @@
 
     private void GoToFolder()
     {
-        Navigation.NavigateTo("/library", true);
+        Navigation.NavigateTo($"/library?path={Uri.EscapeDataString(FolderPath)}", true);
+    }
+
+    void HandleStageClick(MouseEventArgs e)
+    {
+        if (!IsVideo)
+            PlayNext();
+    }
+
+    void HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "ArrowRight") PlayNext();
+        if (e.Key == "ArrowLeft") PlayPrevious();
+        if (e.Key == "Escape") GoToFolder();
     }
 }

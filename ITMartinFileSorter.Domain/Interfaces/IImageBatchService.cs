@@ -3,6 +3,6 @@
 public interface IImageBatchService
 {
     Task ConvertAllImagesAsync(
-        string exportRoot,
+        IEnumerable<MediaFile> files,
         Action<int, int, string>? progress = null);
 }

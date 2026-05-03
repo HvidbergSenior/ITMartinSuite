@@ -3,6 +3,6 @@
 public interface IVideoBatchService
 {
     Task ConvertAllVideosAsync(
-        string exportRoot,
+        IEnumerable<MediaFile> files,
         Action<int, int, string>? progress = null);
 }

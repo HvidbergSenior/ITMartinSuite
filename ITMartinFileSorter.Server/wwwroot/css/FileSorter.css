@@ -6,19 +6,6 @@
 }
 
 /* =====================================================
-   HERO
-===================================================== */
-.scan-hero-card {
-    max-width: 1100px;
-    margin: 0 auto var(--space-lg);
-}
-
-.hero-text {
-    font-size: 14px;
-    color: var(--text-muted);
-}
-
-/* =====================================================
    SECTION TITLE
 ===================================================== */
 .section-title {
@@ -51,128 +38,101 @@
     padding: var(--space-md);
     border-radius: var(--radius-md);
     cursor: pointer;
-    user-select: none;
     background: linear-gradient(145deg, #1c1f27, #121419);
     border: 1px solid rgba(255,255,255,0.06);
     transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.category-card:hover { transform: translateY(-4px); }
-.category-card:active { transform: translateY(-2px); }
-
-.category-card.locked {
-    opacity: 0.5;
-    pointer-events: none;
+.category-card:hover {
+    transform: translateY(-4px);
 }
-
-/* accent stripe */
-.category-card::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    border-radius: 4px;
-    box-shadow: 0 0 10px currentColor;
-}
-
-.category-image::before { background: #60a5fa; }
-.category-video::before { background: #a78bfa; }
-.category-audio::before { background: #34d399; }
-.category-document::before { background: #fbbf24; }
-.category-auto::before { background: #f87171; }
 
 /* =====================================================
-   EXPORT PREVIEW (FIXED)
+   LIBRARY PAGE
 ===================================================== */
-.export-preview {
-    position: relative;
-    max-height: 320px;
+.library-page {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.library-actions {
     display: flex;
-    flex-direction: column;
-    overflow: hidden; /* 🔥 IMPORTANT */
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
-/* scroll container */
-.export-preview .preview-tree {
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
-    padding-right: 8px;
-
-    /* Firefox */
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.4) rgba(255,255,255,0.05);
+/* FOLDER GRID */
+.library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
 }
 
-/* Chrome / Edge */
-.export-preview .preview-tree::-webkit-scrollbar {
-    width: 10px;
+.folder-card {
+    background: linear-gradient(145deg, #1c1f27, #121419);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.18s ease;
 }
 
-.export-preview .preview-tree::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.4); /* 🔥 stronger contrast */
-    border-radius: 6px;
+.folder-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.5);
 }
 
-.export-preview .preview-tree::-webkit-scrollbar-track {
-    background: rgba(255,255,255,0.05);
+.folder-title {
+    font-size: 14px;
+    font-weight: 600;
 }
 
-/* ❌ REMOVED fade overlay (it hides scrollbar) */
-/* If you want it back later, we can do it properly */
-
-/* =====================================================
-   TREE
-===================================================== */
-.tree {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.tree-node {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    padding: 4px 6px;
-    border-radius: 6px;
-    transition: background 0.15s ease;
-}
-
-.tree-node:hover {
-    background: rgba(255,255,255,0.05);
-}
-
-.tree-node.root { font-weight: 600; }
-.tree-node.year { margin-left: 12px; opacity: 0.9; }
-.tree-node.month { margin-left: 24px; opacity: 0.8; }
-
-.tree-branch {
-    font-family: monospace;
-    color: rgba(255,255,255,0.25);
-    min-width: 40px;
-}
-
-.tree-name { flex: 1; }
-
-.tree-count {
+.folder-count {
     font-size: 12px;
     color: var(--text-muted);
 }
 
-.preview-empty {
-    padding: 16px;
-    text-align: center;
+/* MEDIA GRID */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.media-card {
+    background: linear-gradient(145deg, #1c1f27, #121419);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.media-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+}
+
+.media-thumb {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    object-fit: cover;
+}
+
+.media-name {
+    font-size: 13px;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.media-meta {
+    font-size: 12px;
     color: var(--text-muted);
 }
 
-/* =====================================================
-   SAFETY FIX (prevents overlap issues globally)
-===================================================== */
-.content-card {
-    position: relative;
-    z-index: 1;
+.library-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
 }

@@ -14,4 +14,8 @@ public class FakeImageService : IImageBatchService
         return Task.CompletedTask;
     }
 
+    public Task ConvertAllImagesAsync(IEnumerable<MediaFile> files, Action<int, int, string>? progress = null)
+    {
+        throw new NotImplementedException();
+    }
 }
