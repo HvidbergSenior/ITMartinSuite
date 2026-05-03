@@ -8,158 +8,70 @@
 @using ITMartinBudget.Domain.ValueObjects
 @using ITMartinBudget.Infrastructure
 @using Microsoft.EntityFrameworkCore
+
 @inject BudgetDbContext Db
 @inject NavigationManager Nav
+@inject IJSRuntime Js
 
 <div class="rules-page">
 
     <ContentCard>
-        <div class="rules-header">
-            <div>
-                <h2>🧠 Rule Engine</h2>
-                <div class="meta">Categorize unknown transactions</div>
-            </div>
-
-            <div class="rules-actions">
-                <button class="btn btn-primary" @onclick="GoToDashboard">📊 Dashboard</button>
-                <button class="btn btn-secondary" @onclick="LoadData">🔄 Refresh</button>
-            </div>
-        </div>
+        <h2>🧠 Rule Engine</h2>
     </ContentCard>
 
-    <div class="rules-grid">
+    <ContentCard Title="@($"Unknown ({_unknownGrouped.Count})")">
 
-        <!-- LEFT -->
-        <ContentCard Title="@($"🚨 Unknown ({_unknownGrouped.Sum(x => x.Count)} transactions / {_unknownGrouped.Count} groups)")">
+        @foreach (var item in _unknownGrouped)
+        {
+            var key = item.Description;
 
-            <input class="form-input" placeholder="Search..." @bind="_filter" />
+            <div class="rule-item">
 
-            <div class="stack">
+                <div @onclick="() => Toggle(key)">
+                    <strong>@item.Description</strong>
+                    <div>@item.Count</div>
+                </div>
 
-                @foreach (var item in FilteredUnknowns())
-                {
-                    var key = item.Description;
+                <select value="@GetSelectedValue(item)"
+                        @onchange="async (e) => await OnSubCategorySelected(item, e)">
+                    
+                    <option value="">Select</option>
 
-                    <div class="rule-item">
-
-                        <!-- CLICKABLE HEADER -->
-                        <div class="rule-main" @onclick="() => Toggle(key)">
-                            <strong>@GetDisplayName(item.Description)</strong>
-                            <div class="meta">@item.Count transactions</div>
-                        </div>
-
-                        <!-- CATEGORY SELECT -->
-                        <div class="rule-action">
-                            <select @onchange="async (e) => await OnSubCategorySelected(item, e)">
-                                <option value="">Select subcategory</option>
-
-                                @foreach (var sub in Enum.GetValues<SubCategory>())
-                                {
-                                    if (sub == SubCategory.Ukendt)
-                                        continue;
-
-                                    <option value="@sub">@sub</option>
-                                }
-                            </select>
-                        </div>
-
-                    </div>
-
-                    @if (IsOpen(key))
+                    @foreach (var sub in Enum.GetValues<SubCategory>())
                     {
-                        <div class="category-details open">
-
-                            @foreach (var tx in _transactions
-                                .Where(t => t.SubCategory == SubCategory.Ukendt &&
-                                            TransactionGroupingService.GetGroupingKey(t) == item.Description)
-                                .OrderByDescending(t => Math.Abs(t.Amount))
-                                .Take(20))
-                            {
-                                <div class="category-detail-row">
-                                    <span>@tx.Date.ToString("dd MMM") - @tx.Description</span>
-                                    <span class="amount @(tx.Amount > 0 ? "income" : "expense")">
-                                        @Format(Math.Abs(tx.Amount))
-                                    </span>
-                                </div>
-                            }
-
-                        </div>
+                        if (sub == SubCategory.Ukendt) continue;
+                        <option value="@sub">@sub</option>
                     }
-                }
+                </select>
 
             </div>
 
-        </ContentCard>
+            @if (IsOpen(key))
+            {
+                <div>
 
-        <!-- RIGHT -->
-        <div style="display:flex; flex-direction:column; gap:16px;">
-
-            <!-- RULES -->
-            <ContentCard Title="@($"📂 Rules ({_rules.Count})")">
-
-                @foreach (var group in _rules
-                    .GroupBy(x => CategoryMapper.Map(x.SubCategory))
-                    .OrderByDescending(g => g.Count()))
-                {
-                    <div class="rule-group">
-
-                        <div class="rule-group-header">
-                            <strong>@group.Key (@group.Count())</strong>
-                        </div>
-
-                        @foreach (var rule in group)
-                        {
-                            <div class="rule-row">
-                                <div>
-                                    <strong>@rule.Keyword</strong>
-                                    <div class="meta">→ @rule.SubCategory</div>
-                                </div>
-
-                                <button class="btn btn-danger"
-                                        @onclick="async () => await DeleteRule(rule)">
-                                    Delete
-                                </button>
-                            </div>
-                        }
-
-                    </div>
-                }
-
-            </ContentCard>
-
-            <!-- SUGGESTIONS -->
-            <ContentCard Title="@($"💡 Suggestions ({_suggestions.Count})")">
-
-                @foreach (var s in _suggestions)
-                {
-                    <div class="rule-row">
+                    @foreach (var tx in _transactions
+                        .Where(x => x.NormalizedDescription == key)
+                        .Take(10))
+                    {
                         <div>
-                            <strong>@s.Keyword</strong>
-                            <div class="meta">→ @s.SubCategory (@s.Count matches)</div>
+                            @tx.Date.ToString("dd MMM") - @tx.Description
                         </div>
+                    }
 
-                        <button class="btn btn-primary"
-                                @onclick="async () => await AcceptSuggestion(s)">
-                            Accept
-                        </button>
-                    </div>
-                }
+                </div>
+            }
+        }
 
-            </ContentCard>
-
-        </div>
-
-    </div>
+    </ContentCard>
 
 </div>
 
 @code {
     private List<UnknownGroup> _unknownGrouped = new();
     private List<CategoryRule> _rules = new();
-    private List<RuleSuggestion> _suggestions = new();
-    private List<BankTransaction> _transactions = new(); // 🔥 NEW
+    private List<BankTransaction> _transactions = new();
 
-    private string _filter = "";
     private string? _openKey;
 
     protected override async Task OnInitializedAsync()
@@ -169,90 +81,24 @@
 
     private async Task LoadData()
     {
-        var transactions = await Db.Transactions.ToListAsync();
-        _transactions = transactions; // 🔥 store raw
+        _transactions = await Db.Transactions.ToListAsync();
+        _rules = await Db.CategoryRules.ToListAsync();
 
-        // UNKNOWN GROUPS
-        _unknownGrouped = transactions
+        _unknownGrouped = _transactions
             .Where(x => x.SubCategory == SubCategory.Ukendt)
-            .GroupBy(x => TransactionGroupingService.GetGroupingKey(x))
+            .GroupBy(x => x.NormalizedDescription)
             .Select(g => new UnknownGroup
             {
                 Description = g.Key,
-                Count = g.Count(),
-                TotalAmount = g.Sum(x => x.Amount)
-            })
-            .OrderByDescending(x => x.Count)
-            .ToList();
-
-        _rules = await Db.CategoryRules.ToListAsync();
-
-        // SUGGESTIONS
-        _suggestions = transactions
-            .Where(t => t.SubCategory != SubCategory.Ukendt)
-            .GroupBy(x => TransactionGroupingService.GetGroupingKey(x))
-            .Where(g => g.Count() >= 3)
-            .Select(g => new RuleSuggestion
-            {
-                Keyword = g.Key,
-                SubCategory = g.First().SubCategory,
                 Count = g.Count()
             })
-            .Where(s => !_rules.Any(r => r.Keyword == s.Keyword))
-            .OrderByDescending(x => x.Count)
-            .Take(20)
             .ToList();
     }
 
-    void Toggle(string key)
-        => _openKey = _openKey == key ? null : key;
-
-    bool IsOpen(string key)
-        => _openKey == key;
-
-    private async Task OnSubCategorySelected(UnknownGroup item, ChangeEventArgs e)
-    {
-        if (!Enum.TryParse<SubCategory>(e.Value?.ToString(), out var sub))
-            return;
-
-        if (!_rules.Any(r => r.Keyword == item.Description))
-        {
-            Db.CategoryRules.Add(new CategoryRule
-            {
-                Keyword = item.Description,
-                SubCategory = sub,
-                IsVerified = true
-            });
-
-            await Db.SaveChangesAsync();
-        }
-
-        await ApplyRuleToTransactions(item.Description, sub);
-        await LoadData();
-    }
-
-    private async Task AcceptSuggestion(RuleSuggestion s)
-    {
-        if (!_rules.Any(r => r.Keyword == s.Keyword))
-        {
-            Db.CategoryRules.Add(new CategoryRule
-            {
-                Keyword = s.Keyword,
-                SubCategory = s.SubCategory,
-                IsVerified = true
-            });
-
-            await Db.SaveChangesAsync();
-        }
-
-        await ApplyRuleToTransactions(s.Keyword, s.SubCategory);
-        await LoadData();
-    }
-
-    private async Task ApplyRuleToTransactions(string keyword, SubCategory sub)
+    private async Task ApplyRule(string key, SubCategory sub)
     {
         var matches = _transactions
-            .Where(x => TransactionGroupingService.GetGroupingKey(x) == keyword)
+            .Where(x => x.NormalizedDescription == key)
             .ToList();
 
         foreach (var t in matches)
@@ -264,33 +110,33 @@
         await Db.SaveChangesAsync();
     }
 
-    private string GetDisplayName(string description)
-        => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(description);
-
-    private IEnumerable<UnknownGroup> FilteredUnknowns()
-        => string.IsNullOrWhiteSpace(_filter)
-            ? _unknownGrouped
-            : _unknownGrouped.Where(x =>
-                x.Description.Contains(_filter, StringComparison.OrdinalIgnoreCase));
-
-    private string Format(decimal? value)
-        => value?.ToString("N2") + " kr." ?? "-";
-
-    private void GoToDashboard()
-        => Nav.NavigateTo("/budget");
-
-    [Inject] IJSRuntime Js { get; set; } = default!;
-
-    private async Task DeleteRule(CategoryRule rule)
+    private async Task OnSubCategorySelected(UnknownGroup item, ChangeEventArgs e)
     {
-        var confirm = await Js.InvokeAsync<bool>("confirm", $"Delete rule '{rule.Keyword}'?");
-
-        if (!confirm)
+        if (!Enum.TryParse<SubCategory>(e.Value?.ToString(), out var sub))
             return;
 
-        Db.CategoryRules.Remove(rule);
-        await Db.SaveChangesAsync();
+        await ApplyRule(item.Description, sub);
+
+        if (!_rules.Any(r => r.Keyword == item.Description))
+        {
+            Db.CategoryRules.Add(new CategoryRule
+            {
+                Keyword = item.Description,
+                SubCategory = sub
+            });
+
+            await Db.SaveChangesAsync();
+        }
 
         await LoadData();
     }
+
+    private string? GetSelectedValue(UnknownGroup item)
+        => _rules.FirstOrDefault(r => r.Keyword == item.Description)?.SubCategory.ToString();
+
+    void Toggle(string key)
+        => _openKey = _openKey == key ? null : key;
+
+    bool IsOpen(string key)
+        => _openKey == key;
 }

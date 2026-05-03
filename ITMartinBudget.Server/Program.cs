@@ -1,4 +1,6 @@
+using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Application.Services;
+using ITMartinBudget.Domain;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
 using ITMartinBudget.Infrastructure;
@@ -8,19 +10,31 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 🔹 Razor
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// ✅ Database
+// 🔹 Database
 builder.Services.AddDbContext<BudgetDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
-// ✅ Services
-builder.Services.AddScoped<BudgetService>();
+// 🔹 Core services
+builder.Services.AddScoped<IBudgetService, BudgetService>();
+builder.Services.AddScoped<ITransactionGroupingService, TransactionGroupingService>();
+builder.Services.AddScoped<ICategoryRuleRepository, CategoryRuleRepository>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<INameNormalizer, NameNormalizer>();
+builder.Services.AddScoped<ITransactionProcessor, TransactionProcessor>(); // ✅ THIS LINE
+// 🔹 CSV import
 builder.Services.AddScoped<BankTransactionCsvService>();
-builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
+
+// 🔹 Logging (optional tuning)
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
+
 var app = builder.Build();
 
+
+// 🔥 DATABASE SEEDING
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BudgetDbContext>();
@@ -31,37 +45,29 @@ using (var scope = app.Services.CreateScope())
     {
         var rules = new[]
         {
-            // 🏠 SAVINGS / TRANSFERS
             ("boligopsparing", SubCategory.Opsparing),
             ("opsparing", SubCategory.Opsparing),
 
-            // ✈️ TRAVEL
             ("hotel", SubCategory.Rejser),
             ("booking", SubCategory.Rejser),
             ("airbnb", SubCategory.Rejser),
 
-            // 👕 SHOPPING
             ("arket", SubCategory.Tøj),
             ("zara", SubCategory.Tøj),
             ("hm", SubCategory.Tøj),
 
-            // ✂️ PERSONAL
             ("frisør", SubCategory.Frisør),
 
-            // 🍔 FOOD
             ("pizza", SubCategory.Restaurant),
             ("justeat", SubCategory.Fastfood),
             ("mcdonald", SubCategory.Fastfood),
 
-            // 📱 SUBSCRIPTIONS
             ("netflix", SubCategory.StreamingTjenester),
             ("spotify", SubCategory.StreamingTjenester),
 
-            // 🎮 PERSONAL / GAMBLING / RANDOM
             ("sport ventures", SubCategory.PersonligtForbrug),
             ("bet365", SubCategory.PersonligtForbrug),
 
-            // 🚗 TRANSPORT
             ("ok benzin", SubCategory.Benzin),
             ("circle k", SubCategory.Benzin),
             ("dsb", SubCategory.OffentligTransport),
@@ -70,10 +76,11 @@ using (var scope = app.Services.CreateScope())
         db.CategoryRules.AddRange(
             rules.Select(r => new CategoryRule
             {
-                Keyword = KeywordNormalizer.Normalize(r.Item1),
+                Keyword = r.Item1.ToLowerInvariant(), // ✅ safer than external normalizer here
                 SubCategory = r.Item2,
                 Priority = 10,
-                IsActive = true
+                IsActive = true,
+                IsVerified = true
             })
         );
 
@@ -81,6 +88,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+
+// 🔹 Middleware
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -89,6 +98,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+// 🔹 Blazor
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

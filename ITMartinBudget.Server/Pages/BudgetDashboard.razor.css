@@ -1,0 +1,307 @@
+﻿/* =========================
+   PAGE
+========================= */
+.budget-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    animation: fadeInPage 0.4s ease;
+}
+
+/* =========================
+   HEADER
+========================= */
+.budget-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 6px 12px;
+    border-radius: 10px;
+
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.page-sub {
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* =========================
+   KPI GRID
+========================= */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+/* KPI CARD */
+.kpi-big {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+
+    padding: 24px;
+    border-radius: 20px;
+
+    border: 1px solid var(--border);
+    background: linear-gradient(145deg, #1a1d24, #121317);
+
+    transition: all 0.25s ease;
+    animation: fadeInUp 0.5s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Glow hover */
+.kpi-big:hover {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+}
+
+/* Shine effect */
+.kpi-big::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.08), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.kpi-big:hover::after {
+    opacity: 1;
+}
+.kpi-value.negative {
+    color: #f87171;
+}
+/* KPI CONTENT */
+.kpi-icon {
+    font-size: 26px;
+    opacity: 0.9;
+}
+
+.kpi-label {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.kpi-value {
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+/* COLORS */
+.kpi-big.income {
+    border-left: 4px solid #22c55e;
+    background: linear-gradient(145deg, #0f2a1a, #121317);
+}
+
+.kpi-big.income:hover {
+    box-shadow: 0 0 40px rgba(34,197,94,0.3);
+}
+
+.kpi-big.expense {
+    border-left: 4px solid #ef4444;
+    background: linear-gradient(145deg, #2a1212, #121317);
+}
+
+.kpi-big.expense:hover {
+    box-shadow: 0 0 40px rgba(239,68,68,0.3);
+}
+
+.kpi-big.net {
+    border-left: 4px solid #3b82f6;
+    background: linear-gradient(145deg, #121a2a, #121317);
+}
+
+.kpi-big.net:hover {
+    box-shadow: 0 0 40px rgba(59,130,246,0.3);
+}
+
+/* =========================
+   UNKNOWN BANNER
+========================= */
+.unknown-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 18px 20px;
+    border-radius: 16px;
+
+    background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+    border: 1px solid rgba(245,158,11,0.4);
+
+    transition: 0.25s ease;
+}
+
+.unknown-banner:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.unknown-left {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.unknown-icon {
+    font-size: 22px;
+    color: #f59e0b;
+}
+
+.unknown-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.unknown-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* =========================
+   CATEGORIES CARD
+========================= */
+.categories-card {
+    padding: 22px;
+    border-radius: 20px;
+
+    background: linear-gradient(145deg, #1a1d24, #121317);
+    border: 1px solid var(--border);
+
+    box-shadow:
+            0 20px 40px rgba(0,0,0,0.7),
+            inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* GRID */
+.categories-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+/* COLUMN */
+.column-title {
+    margin-bottom: 14px;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.column-title.income { color: #22c55e; }
+.column-title.expense { color: #ef4444; }
+
+/* CATEGORY ROW */
+.category-row {
+    position: relative;
+    overflow: hidden;
+
+    padding: 12px 16px;
+    border-radius: 12px;
+
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+.category-row:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.6);
+}
+
+/* COLOR THEMES */
+.category-row.income {
+    background: linear-gradient(90deg, rgba(34,197,94,0.15), transparent);
+    border-left: 3px solid #22c55e;
+}
+
+.category-row.expense {
+    background: linear-gradient(90deg, rgba(239,68,68,0.15), transparent);
+    border-left: 3px solid #ef4444;
+}
+
+/* SHINE */
+.category-row::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.08), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.category-row:hover::after {
+    opacity: 1;
+}
+
+/* DETAILS */
+.category-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+}
+
+.category-details.open {
+    max-height: 420px;
+}
+
+.category-detail-row {
+    display: flex;
+    justify-content: space-between;
+
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--text-muted);
+
+    border-left: 2px solid rgba(255,255,255,0.05);
+    margin-left: 8px;
+}
+
+/* AMOUNTS */
+.amount.income { color: #4ade80; }
+.amount.expense { color: #f87171; }
+
+/* =========================
+   ANIMATIONS
+========================= */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInPage {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 900px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .categories-grid {
+        grid-template-columns: 1fr;
+    }
+}

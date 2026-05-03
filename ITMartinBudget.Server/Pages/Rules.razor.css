@@ -1,0 +1,77 @@
+﻿.rules-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rules-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.rules-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 24px;
+}
+
+/* ITEMS */
+.rule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.rule-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.rule-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* SELECT */
+.rule-action select {
+    min-width: 180px;
+    height: 40px;
+    border-radius: 10px;
+    padding: 0 10px;
+    background: #1f2229;
+    border: 1px solid #333;
+    color: white;
+}
+
+/* RULE LIST */
+.rule-group {
+    margin-bottom: 20px;
+}
+
+.rule-group-header {
+    font-weight: 600;
+    margin-bottom: 10px;
+    opacity: 0.8;
+}
+
+.rule-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    margin-bottom: 6px;
+}

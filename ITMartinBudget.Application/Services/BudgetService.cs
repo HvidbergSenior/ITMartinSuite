@@ -1,9 +1,10 @@
-﻿using ITMartinBudget.Domain.Entities;
+﻿using ITMartinBudget.Domain;
+using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Services;
 
-public class BudgetService
+public class BudgetService : IBudgetService
 {
     public IEnumerable<CategorySummary> GetSummary(List<BankTransaction> transactions, int year)
     {

@@ -66,6 +66,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMusicHelper.Web", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinFileSorter.Tests", "ITMartinFileSorter.Tests\ITMartinFileSorter.Tests.csproj", "{9C5B9AEC-F295-430C-B5DF-D5A6ABA5517D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinBudget.Tests", "ITMartinBudget.Tests\ITMartinBudget.Tests.csproj", "{9289FA43-5742-43E4-9FF8-7ECC8C1B1835}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -191,5 +193,9 @@ Global
 		{9C5B9AEC-F295-430C-B5DF-D5A6ABA5517D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9C5B9AEC-F295-430C-B5DF-D5A6ABA5517D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9C5B9AEC-F295-430C-B5DF-D5A6ABA5517D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9289FA43-5742-43E4-9FF8-7ECC8C1B1835}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9289FA43-5742-43E4-9FF8-7ECC8C1B1835}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9289FA43-5742-43E4-9FF8-7ECC8C1B1835}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9289FA43-5742-43E4-9FF8-7ECC8C1B1835}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

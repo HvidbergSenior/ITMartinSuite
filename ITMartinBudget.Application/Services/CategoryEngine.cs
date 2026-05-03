@@ -1,6 +1,7 @@
-﻿using ITMartinBudget.Domain.Entities;
+﻿using ITMartinBudget.Domain;
+using ITMartinBudget.Domain.Entities;
 
-public class CategoryEngine
+public class CategoryEngine : ICategoryEngine
 {
     private readonly List<CategoryRule> _rules;
 

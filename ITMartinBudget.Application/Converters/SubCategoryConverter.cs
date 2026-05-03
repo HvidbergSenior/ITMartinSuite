@@ -1,79 +1,67 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
 using CsvHelper.TypeConversion;
+using ITMartinBudget.Application.Interfaces;
+using ITMartinBudget.Domain;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Converters;
 
-public class SubCategoryConverter : DefaultTypeConverter
+public class SubCategoryConverter : DefaultTypeConverter, ISubCategoryConverter
 {
-    public override object ConvertFromString(string text, IReaderRow row, MemberMapData memberMapData)
+    public SubCategory Convert(IReaderRow row)
     {
         var hovedkategori = row.GetField("Hovedkategori")?.ToLowerInvariant() ?? "";
         var kategori = row.GetField("Kategori")?.ToLowerInvariant() ?? "";
         var tekst = row.GetField("Tekst")?.ToLowerInvariant() ?? "";
 
+        return Detect(hovedkategori, kategori, tekst);
+    }
+
+    public override object ConvertFromString(string text, IReaderRow row, MemberMapData memberMapData)
+    {
+        return Convert(row);
+    }
+
+    private static SubCategory Detect(string hovedkategori, string kategori, string tekst)
+    {
         var combined = $"{hovedkategori} {kategori} {tekst}";
 
-        // 🔁 TRANSFER
         if (tekst.StartsWith("til ") || tekst.StartsWith("fra ") || combined.Contains("overfør"))
             return SubCategory.Kontooverførsel;
 
-        // 💾 SAVINGS
         if (hovedkategori.Contains("opsparing"))
+            return kategori.Contains("børne")
+                ? SubCategory.Børneopsparing
+                : SubCategory.Opsparing;
+
+        if (hovedkategori.Contains("indtægt"))
         {
-            if (kategori.Contains("børne"))
-                return SubCategory.Børneopsparing;
-
-            return SubCategory.Opsparing;
-        }
-
-        // 💰 INCOME
-        if (hovedkategori.Contains("indtægt") || hovedkategori.Contains("indtægter"))
-        {
-            if (kategori.Contains("løn"))
-                return SubCategory.Løn;
-
-            if (kategori.Contains("skat"))
-                return SubCategory.OverskydendeSkat;
-
+            if (kategori.Contains("løn")) return SubCategory.Løn;
+            if (kategori.Contains("skat")) return SubCategory.OverskydendeSkat;
             return SubCategory.Pengegaver;
         }
 
-        // 🛒 FOOD
         if (hovedkategori.Contains("mad"))
         {
-            if (kategori.Contains("restaurant"))
-                return SubCategory.Restaurant;
-
-            if (kategori.Contains("fastfood"))
-                return SubCategory.Fastfood;
-
+            if (kategori.Contains("restaurant")) return SubCategory.Restaurant;
+            if (kategori.Contains("fastfood")) return SubCategory.Fastfood;
             return SubCategory.Dagligvarer;
         }
 
-        // 🚗 TRANSPORT
         if (hovedkategori.Contains("transport"))
         {
-            if (kategori.Contains("brændstof"))
-                return SubCategory.Benzin;
-
-            if (kategori.Contains("parkering"))
-                return SubCategory.Parkering;
-
+            if (kategori.Contains("brændstof")) return SubCategory.Benzin;
+            if (kategori.Contains("parkering")) return SubCategory.Parkering;
             return SubCategory.OffentligTransport;
         }
 
-        // 🏠 HOUSING
         if (hovedkategori.Contains("bolig"))
         {
-            if (kategori.Contains("realkredit"))
-                return SubCategory.RenterHusLån;
-
+            if (kategori.Contains("realkredit")) return SubCategory.RenterHusLån;
             return SubCategory.Husleje;
         }
 
-        // 📱 MEDIA
         if (hovedkategori.Contains("medier"))
         {
             if (tekst.Contains("spotify") || tekst.Contains("netflix"))
@@ -85,30 +73,22 @@ public class SubCategoryConverter : DefaultTypeConverter
             return SubCategory.StreamingTjenester;
         }
 
-        // 🏥 HEALTH
         if (kategori.Contains("medicin") || tekst.Contains("apotek"))
             return SubCategory.Medicin;
 
         if (tekst.Contains("tandlæge"))
             return SubCategory.Tandlæge;
 
-        // 👕 SHOPPING
         if (hovedkategori.Contains("tøj"))
             return SubCategory.Tøj;
 
-        // 🎮 LEISURE
         if (hovedkategori.Contains("fritid"))
         {
-            if (kategori.Contains("sport"))
-                return SubCategory.FitnessSport;
-
-            if (kategori.Contains("rejse"))
-                return SubCategory.Rejser;
-
+            if (kategori.Contains("sport")) return SubCategory.FitnessSport;
+            if (kategori.Contains("rejse")) return SubCategory.Rejser;
             return SubCategory.PersonligtForbrug;
         }
 
-        // 📊 FINANCE
         if (hovedkategori.Contains("forsikring"))
             return SubCategory.Forsikring;
 

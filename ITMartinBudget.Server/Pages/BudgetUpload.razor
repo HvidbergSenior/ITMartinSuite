@@ -1,17 +1,19 @@
 ﻿@page "/budget/upload"
+@layout BudgetMainLayout
+@rendermode InteractiveServer
+
 @using ITMartinBudget.Infrastructure
 @using ITMartinBudget.Infrastructure.Services
 @using Microsoft.EntityFrameworkCore
-@layout BudgetMainLayout
-@rendermode InteractiveServer
+
 @inject BudgetDbContext Db
 @inject BankTransactionCsvService CsvService
 @inject NavigationManager Nav
 @inject IJSRuntime Js
+
 <div class="budget-container">
 
     <ContentCard>
-
         <div class="stack">
 
             <div>
@@ -31,8 +33,13 @@
             }
 
             <div class="upload-box">
-                <InputFile OnChange="HandleBankCsvUpload" />
+                <InputFile OnChange="HandleBankCsvUpload" disabled="@_isUploading" />
             </div>
+
+            @if (_isUploading)
+            {
+                <div class="meta">Uploading...</div>
+            }
 
             @if (!string.IsNullOrWhiteSpace(_message))
             {
@@ -45,7 +52,6 @@
             }
 
         </div>
-
     </ContentCard>
 
 </div>
@@ -58,13 +64,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _hasExistingData = await Db.Transactions.AsNoTracking().AnyAsync();
+        _hasExistingData = await Db.Transactions.AnyAsync();
     }
 
     private async Task HandleBankCsvUpload(InputFileChangeEventArgs e)
     {
-        if (_isUploading)
-            return;
+        if (_isUploading) return;
 
         try
         {
@@ -75,42 +80,21 @@
             var file = e.File;
 
             if (file == null)
-            {
-                _error = "No file selected";
-                return;
-            }
+                throw new Exception("No file selected");
 
-            // 🔥 basic validation
             if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-            {
-                _error = "Only CSV files are allowed";
-                return;
-            }
-
-            if (file.Size == 0)
-            {
-                _error = "File is empty";
-                return;
-            }
+                throw new Exception("Only CSV files allowed");
 
             using var stream = file.OpenReadStream(long.MaxValue);
 
             var newTransactions = await CsvService.ImportAsync(stream);
 
-            if (!newTransactions.Any())
-            {
-                _message = "No new transactions (duplicates skipped)";
-            }
-            else
-            {
-                _message = $"✔ Imported {newTransactions.Count} new transactions";
-            }
-
-            var hasUnknowns = await Db.UnknownTransactions.AnyAsync();
+            _message = newTransactions.Any()
+                ? $"✔ Imported {newTransactions.Count} transactions"
+                : "No new transactions (duplicates skipped)";
 
             await Task.Delay(300);
-
-            Nav.NavigateTo("/budget", forceLoad: true);
+            Nav.NavigateTo("/budget", true);
         }
         catch (Exception ex)
         {
@@ -125,9 +109,7 @@
     private async Task ConfirmReset()
     {
         if (await Js.InvokeAsync<bool>("confirm", "Delete ALL data?"))
-        {
             await FullReset();
-        }
     }
 
     private async Task FullReset()

@@ -1,8 +1,10 @@
-﻿namespace ITMartinBudget.Application.Services;
+﻿using ITMartinBudget.Application.Interfaces;
 
-public static class NameNormalizer
+namespace ITMartinBudget.Application.Services;
+
+public class NameNormalizer : INameNormalizer
 {
-    public static string NormalizePersonName(string? name)
+    public string Normalize(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
             return string.Empty;
@@ -16,16 +18,15 @@ public static class NameNormalizer
         if (parts.Count == 0)
             return string.Empty;
 
-        // 🔥 ALWAYS prioritize known stable patterns
-
-        // 3+ names → use FIRST + SECOND (not last!)
+        // 🔥 3+ names → first + second (stable identity)
         if (parts.Count >= 3)
             return $"{parts[0]} {parts[1]}";
 
-        // 2 names → use both
+        // 🔥 2 names → both
         if (parts.Count == 2)
             return $"{parts[0]} {parts[1]}";
 
+        // 🔥 fallback
         return parts[0];
     }
 }

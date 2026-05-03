@@ -31,6 +31,7 @@ builder.Services.AddScoped<IExifService, ExifService>();
 builder.Services.AddScoped<IGpsService, GpsService>();
 builder.Services.AddScoped<IVideoBatchService, VideoBatchService>();
 builder.Services.AddScoped<IImageBatchService, ImageBatchService>();
+
 // =========================
 // CATEGORIZERS (INTERFACE-BASED)
 // =========================

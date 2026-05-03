@@ -1,19 +1,20 @@
 ﻿@page "/"
 @page "/budget"
+@layout BudgetMainLayout
+
 @using ITMartinBudget.Application.Services
+@using ITMartinBudget.Domain
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
 @using Microsoft.EntityFrameworkCore
-@layout BudgetMainLayout
 
-@inject BudgetService BudgetService
+@inject IBudgetService BudgetService
 @inject BudgetDbContext Db
 @inject NavigationManager Nav
 
 <div class="budget-page">
 
-    <!-- HEADER -->
     <div class="budget-header-row">
         <div>
             <h1 class="page-title">💰 Budget</h1>
@@ -26,146 +27,68 @@
     <!-- KPI -->
     <div class="kpi-grid">
         <div class="kpi-big income">
-            <div class="kpi-icon">📈</div>
-            <div>
-                <div class="kpi-label">Income</div>
-                <div class="kpi-value">@Format(_totals?.Income)</div>
-            </div>
+            <div class="kpi-label">Income</div>
+            <div class="kpi-value">@Format(_totals?.Income)</div>
         </div>
 
         <div class="kpi-big expense">
-            <div class="kpi-icon">📉</div>
-            <div>
-                <div class="kpi-label">Expenses</div>
-                <div class="kpi-value">@Format(_totals?.Expenses)</div>
-            </div>
+            <div class="kpi-label">Expenses</div>
+            <div class="kpi-value">@Format(_totals?.Expenses)</div>
         </div>
 
         <div class="kpi-big net">
-            <div class="kpi-icon">⚖️</div>
-            <div>
-                <div class="kpi-label">Net</div>
-                <div class="kpi-value">@Format(_totals?.Net)</div>
-            </div>
+            <div class="kpi-label">Net</div>
+            <div class="kpi-value">@Format(_totals?.Net)</div>
         </div>
     </div>
+
     @if (_unknownCount > 0)
     {
         <div class="unknown-banner">
-
-            <div class="unknown-left">
-                <div class="unknown-icon">⚠️</div>
-
-                <div>
-                    <div class="unknown-title">
-                        @_unknownCount ukendte transaktioner
-                    </div>
-
-                    <div class="unknown-sub">
-                        @Format(_unknownTotal) mangler kategorisering
-                    </div>
-                </div>
+            <div>
+                @_unknownCount unknown transactions
+                <br />
+                @Format(_unknownTotal)
             </div>
 
-            <button class="btn btn-primary"
-                    @onclick="GoToRules">
-                🔧 Gå til regler
+            <button class="btn btn-primary" @onclick="GoToRules">
+                🔧 Fix
             </button>
-
         </div>
     }
-    <!-- CATEGORIES -->
-    <div class="categories-card">
 
-        <div class="section-title">📂 Categories</div>
+    <!-- Categories -->
+    <div class="categories-grid">
 
-        <div class="categories-grid">
+        @foreach (var group in _summary.OrderByDescending(x => x.Total))
+        {
+            var key = group.SubCategory.ToString();
 
-            <!-- INCOME -->
             <div>
-                <div class="column-title income">💰 Income</div>
+                <div class="category-row"
+                     @onclick="() => Toggle(key)">
 
-                @foreach (var group in IncomeCategories()
-                              .OrderByDescending(x => x.Income))
+                    <span>@group.DisplayName</span>
+                    <span>@Format(group.Total)</span>
+                </div>
+
+                @if (IsOpen(key))
                 {
-                    var key = $"income-{(int)group.SubCategory}";
+                    <div class="category-details">
 
-                    <div>
-                        <div class="category-row income"
-                             @onclick="() => Toggle(key)">
-
-                            <span>@group.DisplayName</span>
-                            <span class="amount income">
-                                @Format(group.Income)
-                            </span>
-                        </div>
-
-                        @if (IsOpen(key))
+                        @foreach (var tx in _transactions
+                            .Where(t => t.SubCategory == group.SubCategory)
+                            .Take(20))
                         {
-                            <div class="category-details open">
-
-                                @foreach (var tx in _transactions
-                                    .Where(t => t.SubCategory == group.SubCategory && t.Amount > 0)
-                                    .OrderByDescending(t => t.Amount)
-                                    .Take(20))
-                                {
-                                    <div class="category-detail-row">
-                                        <span>@tx.Date.ToString("dd MMM") - @tx.NormalizedDescription</span>
-                                        <span class="amount income">
-                                            @Format(tx.Amount)
-                                        </span>
-                                    </div>
-                                }
-
+                            <div>
+                                @tx.Date.ToString("dd MMM") - @tx.NormalizedDescription
                             </div>
                         }
+
                     </div>
                 }
             </div>
-
-            <!-- EXPENSE -->
-            <div>
-                <div class="column-title expense">💸 Expenses</div>
-
-                @foreach (var group in ExpenseCategories()
-                    .OrderByDescending(x => x.Expenses))
-                {
-                    var key = $"expense-{group.SubCategory}";
-
-                    <div>
-                        <div class="category-row expense"
-                             @onclick="() => Toggle(key)">
-
-                            <span>@group.DisplayName</span>
-                            <span class="amount expense">
-                                @Format(group.Expenses)
-                            </span>
-                        </div>
-
-                        @if (IsOpen(key))
-                        {
-                            <div class="category-details open">
-
-                                @foreach (var tx in _transactions
-                                    .Where(t => t.SubCategory == group.SubCategory && t.Amount < 0)
-                                    .OrderBy(t => t.Amount)
-                                    .Take(20))
-                                {
-                                    <div class="category-detail-row">
-                                        <span>@tx.Date.ToString("dd MMM") - @tx.NormalizedDescription</span>
-                                        <span class="amount expense">
-                                            @Format(Math.Abs(tx.Amount))
-                                        </span>
-                                    </div>
-                                }
-
-                            </div>
-                        }
-                    </div>
-                }
-            </div>
-
-        </div>
+        }
 
     </div>
 
@@ -176,49 +99,32 @@
     private List<BankTransaction> _transactions = new();
     private YearSummary? _totals;
     private string? _openCategory;
+
     private int _unknownCount;
     private decimal _unknownTotal;
+
     protected override async Task OnParametersSetAsync()
     {
-        await LoadDataAsync();
+        await LoadData();
     }
 
-    private async Task LoadDataAsync()
+    private async Task LoadData()
     {
-        Db.ChangeTracker.Clear();
+        var all = await Db.Transactions.AsNoTracking().ToListAsync();
 
-        var all = await Db.Transactions
-            .AsNoTracking()
-            .ToListAsync();
-
-        Console.WriteLine($"DB COUNT: {all.Count}");
-
-        if (!all.Any())
-        {
-            _summary = new();
-            _transactions = new();
-            _totals = new YearSummary();
-            return;
-        }
+        if (!all.Any()) return;
 
         var year = all.Max(x => x.Date.Year);
 
-        var transactions = all
-            .Where(x => x.Date.Year == year)
-            .ToList();
-        
-        var unknowns = transactions
-            .Where(x => x.SubCategory == SubCategory.Ukendt)
-            .ToList();
+        _transactions = all.Where(x => x.Date.Year == year).ToList();
 
-        _unknownCount = unknowns.Count;
-        _unknownTotal = unknowns.Sum(x => Math.Abs(x.Amount));
-        
-        _transactions = transactions;
+        var unknown = _transactions.Where(x => x.SubCategory == SubCategory.Ukendt);
 
+        _unknownCount = unknown.Count();
+        _unknownTotal = unknown.Sum(x => Math.Abs(x.Amount));
 
-        _summary = BudgetService.GetSummary(transactions, year).ToList();
-        _totals = BudgetService.GetYearTotals(transactions, year);
+        _summary = BudgetService.GetSummary(_transactions, year).ToList();
+        _totals = BudgetService.GetYearTotals(_transactions, year);
     }
 
     void Toggle(string key)
@@ -227,8 +133,8 @@
     bool IsOpen(string key)
         => _openCategory == key;
 
-    private string Format(decimal? value)
-        => value?.ToString("N2") + " kr." ?? "-";
+    private string Format(decimal? v)
+        => v?.ToString("N2") + " kr." ?? "-";
 
     private void ResetData()
     {
@@ -239,14 +145,6 @@
         Nav.NavigateTo("/budget/upload", true);
     }
 
-    private IEnumerable<CategorySummary> IncomeCategories()
-        => _summary.Where(x => x.Income > 0);
-
-    private IEnumerable<CategorySummary> ExpenseCategories()
-        => _summary.Where(x => x.Expenses > 0);
-    
     private void GoToRules()
-    {
-        Nav.NavigateTo("/budget/rules");
-    }
+        => Nav.NavigateTo("/budget/rules");
 }
