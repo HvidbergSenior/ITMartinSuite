@@ -41,7 +41,7 @@ public class MediaFile
     public bool IsImage => Type == MediaType.Image;
     public bool IsVideo => Type == MediaType.Video;
     public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;
-    public bool RequiresReview { get; set; } = false;
+    public bool RequiresReview { get; set; } = true;
     public bool IsProbablyRealPhoto { get; set; }
     public bool HasExif { get; set; }
     public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)

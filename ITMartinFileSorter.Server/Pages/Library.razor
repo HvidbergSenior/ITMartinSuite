@@ -98,9 +98,13 @@
     private List<FolderItem> Folders = new();
     private List<MediaFile> Files = new();
 
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? path { get; set; }
+    
     protected override void OnInitialized()
     {
-        RootPath = LibraryPathHelper.GetLibraryPath(Configuration);
+        RootPath = path ?? LibraryPathHelper.GetLibraryPath(Configuration);
         LoadFolder(RootPath);
     }
 

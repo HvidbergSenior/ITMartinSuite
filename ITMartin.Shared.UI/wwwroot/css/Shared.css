@@ -211,3 +211,7 @@ html, body {
 .table tr:hover {
     background: rgba(255,255,255,0.03);
 }
+.content-card {
+    position: relative;
+    z-index: 1;
+}

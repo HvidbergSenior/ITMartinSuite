@@ -1,11 +1,13 @@
 ﻿@page "/"
 @page "/filesorter"
 
+@implements IDisposable
+
 @inject DuplicateService DuplicateService
 @inject IFileScanner FileScanner
 @inject ProgressService Progress
 @inject NavigationManager Navigation
-
+@inject IConfiguration Configuration
 <PageLayout Title="📂 Scan & Organize Files">
     <div class="filesorter-app">
 
@@ -50,7 +52,9 @@
                             .Where(f => f.SubCategory == MediaSubCategory.Meme),
 
                         _ => DuplicateService.AllFiles
-                            .Where(f => f.MainCategory.ToString() == cat)
+                            .Where(f => f.MainCategory.ToString() == cat &&
+                                        f.SubCategory != MediaSubCategory.Screenshot &&
+                                        f.SubCategory != MediaSubCategory.Meme)
                     };
 
                     var allFiles = filesInCat.ToList();
@@ -143,20 +147,35 @@
         "Memes"
     };
 
-    bool ShowScanning => IsScanning;
-    bool ShowSummary => !IsScanning && DuplicateService.AllFiles.Any();
+    bool ShowScanning =>
+        IsScanning || Progress.Info.WorkDone > 0;
+
+    bool ShowSummary =>
+        !IsScanning && DuplicateService.AllFiles.Any();
+
+    protected override void OnInitialized()
+    {
+        var source = Configuration["MediaSettings:SourceRoot"];
+
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            DuplicateService.FolderPath = source;
+        }
+    }
+
+    void HandleProgressChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Progress.OnChange -= HandleProgressChanged;
+    }
 
     void OnFolderPathChanged(string value)
     {
         FolderPath = value;
-    }
-
-    protected override void OnInitialized()
-    {
-        if (string.IsNullOrWhiteSpace(DuplicateService.FolderPath))
-        {
-            DuplicateService.FolderPath = @"C:\MediaLibrary";
-        }
     }
 
     string GetCategoryCssClass(string cat) => cat switch
@@ -179,55 +198,89 @@
             return;
 
         IsScanning = true;
-        FilesDiscovered = 0;
+        await InvokeAsync(StateHasChanged);
+
         CurrentFileName = "";
+        FilesDiscovered = 0;
 
         DuplicateService.Reset();
         DuplicateService.FolderPath = path;
 
-        var files = new List<MediaFile>();
-        int refreshCounter = 0;
+        var bag = new System.Collections.Concurrent.ConcurrentBag<MediaFile>();
 
-        Progress.Start("Scanning files...", 0);
+        var allPaths = FileScanner.EnumerateFiles(path).ToList();
 
-        foreach (var file in FileScanner.ScanFolder(path))
+        Progress.Start("Scanning files...", allPaths.Count);
+
+        var lastRender = DateTime.UtcNow;
+
+        await Parallel.ForEachAsync(allPaths, new ParallelOptions
         {
-            // memes auto handled
-            if (file.SubCategory == MediaSubCategory.Meme)
+            MaxDegreeOfParallelism = Environment.ProcessorCount
+        },
+        async (filePath, ct) =>
+        {
+            try
+            {
+                var file = FileScanner.ProcessFile(filePath);
+                if (file == null) return;
+
+                // ✅ ALWAYS start neutral
+                file.RequiresReview = true;
+                file.Status = MediaFileStatus.Initial;
+
+                // ✅ Auto categories
+                if (file.SubCategory is MediaSubCategory.Meme or MediaSubCategory.Screenshot)
+                {
+                    file.RequiresReview = false;
+                    file.Status = MediaFileStatus.ToKeep;
+                }
+
+                bag.Add(file);
+
+                Interlocked.Increment(ref FilesDiscovered);
+                Progress.Increment();
+
+                await InvokeAsync(() =>
+                {
+                    CurrentFileName = Path.GetFileName(filePath);
+
+                    if ((DateTime.UtcNow - lastRender).TotalMilliseconds > 100)
+                    {
+                        lastRender = DateTime.UtcNow;
+                        StateHasChanged();
+                    }
+                });
+            }
+            catch { }
+        });
+
+        DuplicateService.AllFiles = bag.ToList();
+
+        Progress.SetStage("Removing duplicates...");
+        await Task.Run(() => DuplicateService.BuildDuplicateGroups());
+
+        // 🔥 FINAL STATE ENFORCEMENT (CRITICAL)
+        foreach (var file in DuplicateService.AllFiles)
+        {
+            bool isAuto = file.SubCategory is MediaSubCategory.Meme or MediaSubCategory.Screenshot;
+
+            if (file.Status == MediaFileStatus.ToDelete)
+                continue;
+
+            if (isAuto)
             {
                 file.RequiresReview = false;
                 file.Status = MediaFileStatus.ToKeep;
             }
-
-            files.Add(file);
-            FilesDiscovered++;
-
-            Progress.Increment();
-            CurrentFileName = file.FileName;
-
-            if (++refreshCounter % 5 == 0)
+            else if (file.Status == MediaFileStatus.ToKeep && file.RequiresReview == false)
             {
-                try
-                {
-                    await InvokeAsync(StateHasChanged);
-                }
-                catch
-                {
-                    return;
-                }
+                file.RequiresReview = true;
+                file.Status = MediaFileStatus.Initial;
             }
         }
 
-        Progress.Info.TotalWork = FilesDiscovered;
-
-        DuplicateService.AllFiles = files;
-
-        Progress.SetStage("Removing duplicates...");
-        await InvokeAsync(StateHasChanged);
-
-        await Task.Run(() => DuplicateService.BuildDuplicateGroups());
-
-        Progress.SetStage("Done");
+        Progress.Complete();
         IsScanning = false;
 
         await InvokeAsync(StateHasChanged);

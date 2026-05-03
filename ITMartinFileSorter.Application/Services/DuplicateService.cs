@@ -36,16 +36,19 @@ public class DuplicateService
 
         foreach (var file in group)
         {
-            if (file.Status != MediaFileStatus.Initial)
+            // 🚫 NEVER touch auto categories
+            if (file.SubCategory is MediaSubCategory.Meme or MediaSubCategory.Screenshot)
                 continue;
 
             if (!isSafe)
             {
-                file.Status = MediaFileStatus.ToKeep;
+                // ⚠️ user must decide
+                file.Status = MediaFileStatus.Initial;
                 file.RequiresReview = true;
                 continue;
             }
 
+            // ✅ safe duplicates → auto resolve
             if (file == keep)
             {
                 file.Status = MediaFileStatus.ToKeep;

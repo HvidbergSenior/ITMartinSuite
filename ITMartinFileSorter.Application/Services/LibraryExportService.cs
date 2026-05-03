@@ -1,4 +1,5 @@
 ﻿using ITMartinFileSorter.Domain.Entities;
+using ITMartinFileSorter.Domain.Enums;
 using ITMartinFileSorter.Domain.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
@@ -20,93 +21,92 @@ public class LibraryExportService
     }
 
     public async Task ExportAsync(
-        IEnumerable<MediaFile> files,
-        string exportRoot,
-        Func<int, int, string, string, Task>? onProgress = null)
+    IEnumerable<MediaFile> files,
+    string root,
+    Func<int, int, string, string, Task>? progress)
+{
+    var list = files?.ToList() ?? new List<MediaFile>();
+
+    if (!list.Any())
+        return;
+
+    if (string.IsNullOrWhiteSpace(root))
+        throw new Exception("Export root is invalid");
+
+    EnsureBaseFolders(root);
+
+    int total = list.Count;
+    int done = 0;
+
+    // =========================
+    // 📦 STEP 1: COPY FILES
+    // =========================
+    foreach (var file in list)
     {
-        var fileList = files.ToList();
-
-        if (!fileList.Any())
-            return;
-
-        EnsureBaseFolders(exportRoot);
-
-        var grouped = fileList
-            .GroupBy(f => _pathService.BuildFolderPath(f))
-            .ToList();
-
-        int total = fileList.Count;
-        int done = 0;
-
-        // 🔥 INITIAL PROGRESS (forces UI to show)
-        if (onProgress != null)
-            await onProgress(0, total, "", "Starting export...");
-
-        foreach (var group in grouped)
+        try
         {
-            var targetFolder = Path.Combine(exportRoot, group.Key);
-            Directory.CreateDirectory(targetFolder);
+            var category =
+                file.SubCategory == MediaSubCategory.Screenshot ? "Screenshots" :
+                file.SubCategory == MediaSubCategory.Meme ? "Memes" :
+                file.MainCategory.ToString();
 
-            int index = 1;
+            var monthName = new DateTime(file.Year, file.Month, 1)
+                .ToString("MMMM");
 
-            foreach (var file in group)
+            var targetDir = Path.Combine(root, category, file.Year.ToString(), monthName);
+            Directory.CreateDirectory(targetDir);
+
+            var targetPath = Path.Combine(targetDir, file.FileName);
+
+            if (!File.Exists(targetPath))
             {
-                var newName = _pathService.BuildFileName(file, index);
-                var destination = Path.Combine(targetFolder, newName);
-
-                // 🔥 BEFORE COPY
-                if (onProgress != null)
-                {
-                    await onProgress(done, total, newName, "Copying files...");
-                }
-
-                // ✅ ASYNC COPY
-                await CopyFileAsync(file.FullPath, destination);
-
-                index++;
-                done++;
-
-                // 🔥 AFTER COPY
-                if (onProgress != null)
-                {
-                    await onProgress(done, total, newName, "Copying files...");
-                }
-
-                // 🔥 ALLOW UI TO UPDATE
-                await Task.Yield();
+                await CopyFileAsync(file.FullPath, targetPath);
             }
+
+            done++;
+
+            if (progress != null)
+                await progress(done, total, file.FileName, "Copying files...");
         }
-
-        // ===== VIDEO CONVERSION =====
-        await _videoService.ConvertAllVideosAsync(
-            exportRoot,
-            async (doneCount, totalCount, fileName) =>
-            {
-                if (onProgress != null)
-                {
-                    await onProgress(
-                        doneCount,
-                        totalCount,
-                        fileName,
-                        "Converting videos...");
-                }
-            });
-
-        // ===== IMAGE CONVERSION =====
-        await _imageService.ConvertAllImagesAsync(
-            exportRoot,
-            async (doneCount, totalCount, fileName) =>
-            {
-                if (onProgress != null)
-                {
-                    await onProgress(
-                        doneCount,
-                        totalCount,
-                        fileName,
-                        "Converting images...");
-                }
-            });
+        catch (Exception ex)
+        {
+            Console.WriteLine($"🔥 EXPORT ERROR: {file.FullPath}");
+            Console.WriteLine(ex);
+        }
     }
+
+    // =========================
+    // 🖼 STEP 2: CONVERT IMAGES
+    // =========================
+    if (progress != null)
+        await progress(0, 0, "", "Converting images...");
+
+    await _imageService.ConvertAllImagesAsync(
+        root,
+        (d, t, fileName) =>
+        {
+            progress?.Invoke(d, t, fileName, "Converting images...");
+        });
+
+    // =========================
+    // 🎬 STEP 3: CONVERT VIDEOS
+    // =========================
+    if (progress != null)
+        await progress(0, 0, "", "Converting videos...");
+
+    await _videoService.ConvertAllVideosAsync(
+        root,
+        (d, t, fileName) =>
+        {
+            progress?.Invoke(d, t, fileName, "Converting videos...");
+        });
+
+    // =========================
+    // ✅ DONE
+    // =========================
+    if (progress != null)
+        await progress(total, total, "", "Done ✅");
+}
 
     void EnsureBaseFolders(string exportRoot)
     {
