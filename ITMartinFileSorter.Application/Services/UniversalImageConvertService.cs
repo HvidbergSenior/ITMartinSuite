@@ -17,13 +17,9 @@ public class UniversalImageConverterService : IImageConverter
 
     public UniversalImageConverterService()
     {
-        _ffmpegPath = Path.Combine(
-            AppContext.BaseDirectory,
-            "ffmpeg",
-            "ffmpeg.exe");
+        _ffmpegPath = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
 
         Console.WriteLine($"[IMAGE CONVERTER] FFmpeg: {_ffmpegPath}");
-        Console.WriteLine($"[IMAGE CONVERTER] Exists: {File.Exists(_ffmpegPath)}");
     }
 
     public bool NeedsConversion(string path)
@@ -79,7 +75,7 @@ public class UniversalImageConverterService : IImageConverter
 
             CopyDates(inputPath, outputPath);
 
-            TryDeleteOriginal(inputPath, outputPath);
+            await SafeDeleteAsync(inputPath);
 
             Console.WriteLine("===== IMAGE DEBUG END =====");
 
@@ -157,27 +153,29 @@ public class UniversalImageConverterService : IImageConverter
         File.SetCreationTime(outputPath, created);
         File.SetLastWriteTime(outputPath, modified);
     }
-
-    private void TryDeleteOriginal(
-        string inputPath,
-        string outputPath)
+    private async Task SafeDeleteAsync(string path)
     {
-        if (!File.Exists(outputPath))
-            return;
-
-        if (string.Equals(inputPath, outputPath,
-            StringComparison.OrdinalIgnoreCase))
-            return;
-
-        try
+        for (int i = 0; i < 5; i++)
         {
-            File.Delete(inputPath);
+            try
+            {
+                if (!File.Exists(path))
+                    return;
 
-            Console.WriteLine($"[IMAGE ORIGINAL DELETED] {inputPath}");
+                File.Delete(path);
+
+                Console.WriteLine($"[IMAGE DELETE SUCCESS] {path}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[IMAGE DELETE RETRY {i}] {ex.Message}");
+                await Task.Delay(300);
+            }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[DELETE FAILED] {ex}");
-        }
+
+        Console.WriteLine($"[IMAGE DELETE FAILED] {path}");
     }
+
+    
 }

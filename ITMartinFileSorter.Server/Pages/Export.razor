@@ -218,13 +218,6 @@
 
             await Task.Delay(400);
 
-            // 🚀 OPEN IN EXPLORER (optional but great)
-            try
-            {
-                System.Diagnostics.Process.Start("explorer.exe", exportRoot);
-            }
-            catch { }
-
             Navigation.NavigateTo(
                 $"/library?path={Uri.EscapeDataString(exportRoot)}",
                 true);

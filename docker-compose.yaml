@@ -1,0 +1,47 @@
+﻿services:
+
+  filesorter-web:
+    container_name: filesorter-web
+    profiles: ["manual"]
+
+    build:
+      context: .
+      dockerfile: ITMartinFileSorter.Server/Dockerfile
+
+    ports:
+      - "5001:8080"
+
+    volumes:
+      - filesorter-data:/data
+      - filesorter-library:/library
+
+    restart: unless-stopped
+
+
+  image-processor:
+    container_name: image-processor
+    profiles: ["automatic"]
+
+    build:
+      context: .
+      dockerfile: ITMartinImageProcessor.Worker/Dockerfile
+
+    environment:
+      - INPUT_PATH=/data
+      - OUTPUT_PATH=/library
+      - ARCHIVE_PATH=/archive
+
+    volumes:
+      - processor-data:/data
+      - processor-output:/library
+      - processor-archive:/archive
+
+    restart: unless-stopped
+
+
+volumes:
+  filesorter-data:
+  filesorter-library:
+  processor-data:
+  processor-output:
+  processor-archive:

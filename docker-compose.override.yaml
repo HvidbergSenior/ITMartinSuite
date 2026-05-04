@@ -1,0 +1,12 @@
+﻿services:
+
+  filesorter-web:
+    volumes:
+      - C:\All_files_origin:/data
+      - C:\MediaLibrary_Organized:/library
+
+  image-processor:
+    volumes:
+      - C:\AutoProcessor_Input:/data
+      - C:\AutoProcessor_Output:/library
+      - C:\AutoProcessor_Archive:/archive

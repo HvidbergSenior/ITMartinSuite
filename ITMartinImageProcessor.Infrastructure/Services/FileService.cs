@@ -5,11 +5,27 @@ namespace ITMartinImageProcessor.Infrastructure.Services;
 public class FileService : IFileService
 {
     public IEnumerable<string> GetImages(string folder)
-        => Directory
-            .EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
+    {
+        if (!Directory.Exists(folder))
+        {
+            Console.WriteLine($"[WARNING] Folder missing: {folder}");
+            return Enumerable.Empty<string>();
+        }
+
+        return Directory
+            .EnumerateFiles(folder, "*.*", SearchOption.TopDirectoryOnly)
             .Where(f =>
-                f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase));
+            {
+                var isValid =
+                    f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase);
+
+                if (!isValid)
+                    Console.WriteLine($"[SKIP] Not jpg: {f}");
+
+                return isValid;
+            });
+    }
 
     public DateTime GetCreated(string path)
         => File.GetCreationTimeUtc(path);

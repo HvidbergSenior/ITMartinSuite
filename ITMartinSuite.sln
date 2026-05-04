@@ -53,7 +53,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinImageProcessor.Work
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4ED42768-65CC-424E-83FD-AC1B2CC5FF27}"
 	ProjectSection(SolutionItems) = preProject
-		compose.yaml = compose.yaml
+		docker-compose.yaml = docker-compose.yaml
+		docker-compose.override.yaml = docker-compose.override.yaml
+		docker-compose.synology.yaml = docker-compose.synology.yaml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMusicHelper.Application", "ITMartinMusicHelper.Application\ITMartinMusicHelper.Application.csproj", "{7F90EFD7-B3A0-4D36-8314-0C63FA1EF98E}"
