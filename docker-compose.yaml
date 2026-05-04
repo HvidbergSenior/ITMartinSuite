@@ -2,46 +2,52 @@
 
   filesorter-web:
     container_name: filesorter-web
-    profiles: ["manual"]
-
-    build:
-      context: .
-      dockerfile: ITMartinFileSorter.Server/Dockerfile
-
+    build: ./filesorter
     ports:
-      - "5001:8080"
-
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
     volumes:
-      - filesorter-data:/data
-      - filesorter-library:/library
-
+      - /volume1/photo:/data
+      - /volume1/docker/filesorter/library:/library
     restart: unless-stopped
+    networks:
+      - martinnet
 
+  budget-web:
+    container_name: budget-web
+    build: ./budget
+    ports:
+      - "8081:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - /volume1/docker/budget/data:/app/data
+    restart: unless-stopped
+    networks:
+      - martinnet
 
   image-processor:
     container_name: image-processor
-    profiles: ["automatic"]
-
-    build:
-      context: .
-      dockerfile: ITMartinImageProcessor.Worker/Dockerfile
-
-    environment:
-      - INPUT_PATH=/data
-      - OUTPUT_PATH=/library
-      - ARCHIVE_PATH=/archive
-
+    build: ./imageprocessor
     volumes:
-      - processor-data:/data
-      - processor-output:/library
-      - processor-archive:/archive
-
+      - /volume1/docker/imageprocessor/input:/data
+      - /volume1/docker/imageprocessor/output:/library
+      - /volume1/docker/imageprocessor/archive:/archive
     restart: unless-stopped
+    networks:
+      - martinnet
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiYmE3ODc2MjJmMTlhYzNjZTIzNDk5YzRkZTVjYjVjMDMiLCJ0IjoiNzAwZTU4MDUtNzZhNC00NzgwLTgyYTEtMmQ3YzkxZDkwMmRmIiwicyI6IlpqUTVPR1k1WWpFdFlUZGhNQzAwTVRCa0xUZzNPV1V0TlROaVpEQXhObVU1WVRSayJ9
+    networks:
+      - martinnet
 
-volumes:
-  filesorter-data:
-  filesorter-library:
-  processor-data:
-  processor-output:
-  processor-archive:
+networks:
+  martinnet:
+    driver: bridge
