@@ -15,8 +15,13 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // 🔹 Database
+var connectionString =
+    builder.Environment.IsDevelopment()
+        ? builder.Configuration.GetConnectionString("Default")
+        : "Data Source=/app/data/budget.db";
+
 builder.Services.AddDbContext<BudgetDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
+    options.UseSqlite(connectionString));
 
 // 🔹 Core services
 builder.Services.AddScoped<IBudgetService, BudgetService>();

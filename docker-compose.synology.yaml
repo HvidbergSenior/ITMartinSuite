@@ -7,46 +7,47 @@ services:
     build:
       context: .
       dockerfile: ITMartinFileSorter.Server/Dockerfile
-
     ports:
-      - "5001:8080"
-
+      - "8080:8080"
     volumes:
       - /volume1/photo:/data
       - /volume1/docker/filesorter/library:/library
-
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-
     restart: unless-stopped
 
+  budget-web:
+    container_name: budget-web
+    build:
+      context: .
+      dockerfile: ITMartinBudget.Server/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    restart: unless-stopped
 
   image-processor:
     container_name: image-processor
     build:
       context: .
       dockerfile: ITMartinImageProcessor.Worker/Dockerfile
-
     environment:
       - INPUT_PATH=/data
       - OUTPUT_PATH=/library
       - ARCHIVE_PATH=/archive
-
     volumes:
       - /volume1/docker/imageprocessor/input:/data
       - /volume1/docker/imageprocessor/output:/library
       - /volume1/docker/imageprocessor/archive:/archive
-
     restart: unless-stopped
-
 
   cloudflared:
     container_name: cloudflared
     image: cloudflare/cloudflared:latest
-
-    command: tunnel --config /etc/cloudflared/config.yml run
-
-    volumes:
-      - /volume1/docker/cloudflared:/etc/cloudflared
-
+    command: tunnel run --token YOUR_TOKEN
     restart: unless-stopped
+
+networks:
+  default:
+    name: media-network
