@@ -6,7 +6,6 @@ public class CategoryRule
 
     public string Keyword { get; set; } = string.Empty;
 
-    public SubCategory SubCategory { get; set; }
 
     public int Priority { get; set; } = 10;
 

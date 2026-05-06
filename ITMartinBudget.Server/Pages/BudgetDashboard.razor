@@ -1,7 +1,10 @@
 ﻿@page "/"
 @page "/budget"
+
 @layout BudgetMainLayout
 
+@using ITMartinBudget.Application
+@using ITMartinBudget.Application.Models
 @using ITMartinBudget.Application.Services
 @using ITMartinBudget.Domain
 @using ITMartinBudget.Domain.Entities
@@ -17,134 +20,331 @@
 
     <div class="budget-header-row">
         <div>
-            <h1 class="page-title">💰 Budget</h1>
-            <div class="page-sub">Current year overview</div>
+            <h1 class="page-title">💰 Budget Overview</h1>
+            <div class="page-sub">
+                Recurring income & expenses
+            </div>
         </div>
 
-        <button class="btn btn-danger" @onclick="ResetData">Reset</button>
+        <button class="btn btn-danger"
+                @onclick="ResetData">
+            Reset
+        </button>
     </div>
 
     <!-- KPI -->
     <div class="kpi-grid">
+
         <div class="kpi-big income">
-            <div class="kpi-label">Income</div>
-            <div class="kpi-value">@Format(_totals?.Income)</div>
+            <div class="kpi-label">
+                Total Income
+            </div>
+
+            <div class="kpi-value">
+                @Format(_totals?.Income)
+            </div>
         </div>
 
         <div class="kpi-big expense">
-            <div class="kpi-label">Expenses</div>
-            <div class="kpi-value">@Format(_totals?.Expenses)</div>
+            <div class="kpi-label">
+                Total Expenses
+            </div>
+
+            <div class="kpi-value">
+                @Format(_totals?.Expenses)
+            </div>
         </div>
 
         <div class="kpi-big net">
-            <div class="kpi-label">Net</div>
-            <div class="kpi-value">@Format(_totals?.Net)</div>
+            <div class="kpi-label">
+                Total Net
+            </div>
+
+            <div class="kpi-value">
+                @Format(_totals?.Net)
+            </div>
         </div>
+
     </div>
 
-    @if (_unknownCount > 0)
-    {
-        <div class="unknown-banner">
-            <div>
-                @_unknownCount unknown transactions
-                <br />
-                @Format(_unknownTotal)
-            </div>
+    <!-- MONTHLY OVERVIEW -->
+    <div class="monthly-section">
 
-            <button class="btn btn-primary" @onclick="GoToRules">
-                🔧 Fix
-            </button>
-        </div>
-    }
+        <h2 class="section-title">
+            Monthly Overview
+        </h2>
 
-    <!-- Categories -->
-    <div class="categories-grid">
+        <div class="monthly-grid">
 
-        @foreach (var group in _summary.OrderByDescending(x => x.Total))
-        {
-            var key = group.SubCategory.ToString();
+            @foreach (var month in _monthly)
+            {
+                <div class="month-card">
 
-            <div>
-                <div class="category-row"
-                     @onclick="() => Toggle(key)">
+                    <div class="month-title">
+                        @month.MonthName
+                    </div>
 
-                    <span>@group.DisplayName</span>
-                    <span>@Format(group.Total)</span>
-                </div>
+                    <div class="month-row">
+                        <span>Income</span>
 
-                @if (IsOpen(key))
-                {
-                    <div class="category-details">
+                        <span class="income">
+                            @Format(month.Income)
+                        </span>
+                    </div>
 
-                        @foreach (var tx in _transactions
-                            .Where(t => t.SubCategory == group.SubCategory)
-                            .Take(20))
-                        {
-                            <div>
-                                @tx.Date.ToString("dd MMM") - @tx.NormalizedDescription
-                            </div>
-                        }
+                    <div class="month-row">
+                        <span>Expenses</span>
+
+                        <span class="expense">
+                            @Format(month.Expenses)
+                        </span>
+                    </div>
+
+                    <div class="month-row total">
+
+                        <span>Net</span>
+
+                        <span class="@(month.Net >= 0
+                            ? "income"
+                            : "expense")">
+
+                            @Format(month.Net)
+
+                        </span>
 
                     </div>
-                }
-            </div>
-        }
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+    <!-- TWO COLUMNS -->
+    <div class="overview-grid">
+
+        <!-- INCOME -->
+        <div class="overview-column">
+
+            <h2>Income</h2>
+
+            @foreach (var item in IncomeItems)
+            {
+                <div class="overview-card">
+
+                    <div class="category-row"
+                         @onclick='() => Toggle($"{item.TransactionType}-{item.Title}")'>
+                        <div class="category-left">
+
+                            <div class="category-title">
+                                @item.Title
+                            </div>
+
+                            <div class="category-frequency">
+                                @item.Frequency
+                            </div>
+
+                        </div>
+
+                        <div class="category-right">
+
+                            <div class="category-amount income">
+                                @Format(item.MonthlyAverage)
+                            </div>
+
+                            <small>
+                                monthly
+                            </small>
+
+                        </div>
+
+                    </div>
+
+                        @if (IsOpen($"{item.TransactionType}-{item.Title}"))
+                    {
+                        <div class="category-details">
+
+                            @foreach (var tx in item.Transactions.Take(20))
+                            {
+                                <div class="tx-row">
+
+                                    <span class="tx-date">
+                                        @tx.Date.ToString("dd MMM")
+                                    </span>
+
+                                    <span class="tx-description">
+                                        @tx.Description
+                                    </span>
+
+                                    <span class="tx-amount income">
+                                        @Format(tx.Amount)
+                                    </span>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
+
+        <!-- EXPENSES -->
+        <div class="overview-column">
+
+            <h2>Expenses</h2>
+
+            @foreach (var item in ExpenseItems)
+            {
+                <div class="overview-card">
+
+                    <div class="category-row"
+                         @onclick="() => Toggle(item.Title)">
+
+                        <div class="category-left">
+
+                            <div class="category-title">
+                                @item.Title
+                            </div>
+
+                            <div class="category-frequency">
+                                @item.Frequency
+                            </div>
+
+                        </div>
+
+                        <div class="category-right">
+
+                            <div class="category-amount expense">
+                                @Format(item.MonthlyAverage)
+                            </div>
+
+                            <small>
+                                monthly
+                            </small>
+
+                        </div>
+
+                    </div>
+
+                    @if (IsOpen(item.Title))
+                    {
+                        <div class="category-details">
+
+                            @foreach (var tx in item.Transactions.Take(20))
+                            {
+                                <div class="tx-row">
+
+                                    <span class="tx-date">
+                                        @tx.Date.ToString("dd MMM")
+                                    </span>
+
+                                    <span class="tx-description">
+                                        @tx.Description
+                                    </span>
+
+                                    <span class="tx-amount expense">
+                                        @Format(tx.Amount)
+                                    </span>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
 
     </div>
 
 </div>
 
 @code {
-    private List<CategorySummary> _summary = new();
+
+    private List<BudgetOverviewItem> _overview = new();
+
+    private List<MonthlyBudgetSummary> _monthly = new();
+
     private List<BankTransaction> _transactions = new();
+
     private YearSummary? _totals;
+
     private string? _openCategory;
 
-    private int _unknownCount;
-    private decimal _unknownTotal;
+    private IEnumerable<BudgetOverviewItem> IncomeItems =>
+        _overview
+            .Where(x =>
+                x.TransactionType ==
+                TransactionType.Indkomst);
 
-    protected override async Task OnParametersSetAsync()
+    private IEnumerable<BudgetOverviewItem> ExpenseItems =>
+        _overview
+            .Where(x =>
+                x.TransactionType ==
+                TransactionType.Udgift);
+
+    protected override async Task OnInitializedAsync()
     {
         await LoadData();
     }
 
     private async Task LoadData()
     {
-        var all = await Db.Transactions.AsNoTracking().ToListAsync();
+        var all = await Db.Transactions
+            .AsNoTracking()
+            .ToListAsync();
 
-        if (!all.Any()) return;
+        if (!all.Any())
+            return;
 
         var year = all.Max(x => x.Date.Year);
 
-        _transactions = all.Where(x => x.Date.Year == year).ToList();
+        _transactions = all
+            .Where(x => x.Date.Year == year)
+            .ToList();
 
-        var unknown = _transactions.Where(x => x.SubCategory == SubCategory.Ukendt);
+        _overview = BudgetService
+            .GetBudgetOverview(_transactions, year)
+            .ToList();
 
-        _unknownCount = unknown.Count();
-        _unknownTotal = unknown.Sum(x => Math.Abs(x.Amount));
+        _monthly = BudgetService
+            .GetMonthlySummaries(_transactions, year)
+            .ToList();
 
-        _summary = BudgetService.GetSummary(_transactions, year).ToList();
-        _totals = BudgetService.GetYearTotals(_transactions, year);
+        _totals = BudgetService
+            .GetYearTotals(_transactions, year);
     }
 
     void Toggle(string key)
-        => _openCategory = _openCategory == key ? null : key;
+    {
+        _openCategory =
+            _openCategory == key
+                ? null
+                : key;
+    }
 
     bool IsOpen(string key)
         => _openCategory == key;
 
     private string Format(decimal? v)
-        => v?.ToString("N2") + " kr." ?? "-";
+        => v?.ToString("N2") + " kr."
+           ?? "-";
 
     private void ResetData()
     {
         Db.Transactions.RemoveRange(Db.Transactions);
-        Db.UnknownTransactions.RemoveRange(Db.UnknownTransactions);
+
+        Db.UnknownTransactions.RemoveRange(
+            Db.UnknownTransactions);
+
         Db.SaveChanges();
 
         Nav.NavigateTo("/budget/upload", true);
     }
-
-    private void GoToRules()
-        => Nav.NavigateTo("/budget/rules");
 }

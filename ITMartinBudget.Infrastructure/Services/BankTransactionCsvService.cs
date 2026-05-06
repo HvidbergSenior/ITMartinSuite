@@ -4,9 +4,11 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Domain.Entities;
-using ITMartinBudget.Infrastructure;
+using ITMartinBudget.Domain.Enums;
 using ITMartinBudget.Infrastructure.Csv;
 using Microsoft.EntityFrameworkCore;
+
+namespace ITMartinBudget.Infrastructure.Services;
 
 public class BankTransactionCsvService
 {
@@ -31,6 +33,7 @@ public class BankTransactionCsvService
         };
 
         using var csv = new CsvReader(reader, config);
+
         csv.Context.RegisterClassMap<BankTransactionMap>();
 
         var records = new List<BankTransaction>();
@@ -38,22 +41,40 @@ public class BankTransactionCsvService
         await foreach (var record in csv.GetRecordsAsync<BankTransaction>())
         {
             record.Description = Normalize(record.Description);
-            record.SubCategory = SubCategory.Ukendt;
+
+            record.Category = Category.Other;
+
+            record.TransactionType =
+                record.Amount < 0
+                    ? TransactionType.Udgift
+                    : TransactionType.Indkomst;
 
             await _processor.ProcessAsync(record);
+
+            if (record.Category == Category.Transfer)
+            {
+                record.TransactionType =
+                    TransactionType.Overførsel;
+            }
 
             records.Add(record);
         }
 
         var existingKeys = await GetExistingKeys();
+
         var newTransactions = Deduplicate(records, existingKeys);
+
         var unknowns = ExtractUnknowns(newTransactions);
 
         if (newTransactions.Any())
+        {
             await _db.Transactions.AddRangeAsync(newTransactions);
+        }
 
         if (unknowns.Any())
+        {
             await _db.UnknownTransactions.AddRangeAsync(unknowns);
+        }
 
         await _db.SaveChangesAsync();
 
@@ -63,9 +84,17 @@ public class BankTransactionCsvService
     private async Task<HashSet<string>> GetExistingKeys()
     {
         return (await _db.Transactions
-            .Select(x => new { x.Date, x.Amount, x.NormalizedDescription })
-            .ToListAsync())
-            .Select(x => CreateKey(x.Date, x.Amount, x.NormalizedDescription))
+                .Select(x => new
+                {
+                    x.Date,
+                    x.Amount,
+                    x.Description
+                })
+                .ToListAsync())
+            .Select(x => CreateKey(
+                x.Date,
+                x.Amount,
+                x.Description))
             .ToHashSet();
     }
 
@@ -74,34 +103,50 @@ public class BankTransactionCsvService
         HashSet<string> existingKeys)
     {
         return records
-            .GroupBy(t => CreateKey(t.Date, t.Amount, t.NormalizedDescription))
+            .GroupBy(t => CreateKey(
+                t.Date,
+                t.Amount,
+                t.Description))
             .Select(g => g.First())
             .Where(t => !existingKeys.Contains(
-                CreateKey(t.Date, t.Amount, t.NormalizedDescription)))
+                CreateKey(
+                    t.Date,
+                    t.Amount,
+                    t.Description)))
             .ToList();
     }
 
-    private List<UnknownTransaction> ExtractUnknowns(List<BankTransaction> transactions)
+    private List<UnknownTransaction> ExtractUnknowns(
+        List<BankTransaction> transactions)
     {
         return transactions
-            .Where(t => t.SubCategory == SubCategory.Ukendt)
+            .Where(t => t.Category == Category.Other)
             .Select(t => new UnknownTransaction
             {
-                Description = t.NormalizedDescription
+                Description = t.Description
             })
+            .DistinctBy(x => x.Description)
             .ToList();
     }
 
-    private string CreateKey(DateTime date, decimal amount, string description)
-        => $"{date:yyyyMMdd}-{amount:F2}-{description?.Trim().ToLower()}";
+    private string CreateKey(
+        DateTime date,
+        decimal amount,
+        string description)
+    {
+        return $"{date:yyyyMMdd}-{amount:F2}-{description?.Trim().ToLowerInvariant()}";
+    }
 
     private string Normalize(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
+        {
             return string.Empty;
+        }
 
         input = input.ToLowerInvariant();
-        input = Regex.Replace(input, @"[^a-zæøå0-9 ]", "");
+
+        input = Regex.Replace(input, @"\s+", " ");
 
         return input.Trim();
     }

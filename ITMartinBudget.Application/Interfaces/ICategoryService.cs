@@ -1,8 +1,9 @@
 ﻿using ITMartinBudget.Domain.Entities;
+using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Interfaces;
 
 public interface ICategoryService
 {
-    Task<SubCategory> DetectAsync(string groupingKey, BankTransaction tx);
+    Task<Category> DetectAsync(string groupingKey);
 }

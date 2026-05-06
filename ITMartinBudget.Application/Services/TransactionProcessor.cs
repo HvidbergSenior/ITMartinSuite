@@ -1,57 +1,129 @@
-﻿using System.Globalization;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Domain.Entities;
+using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Services;
 
 public class TransactionProcessor : ITransactionProcessor
 {
-    private readonly ITransactionGroupingService _grouping;
     private readonly ICategoryService _category;
-    private readonly INameNormalizer _nameNormalizer;
 
     public TransactionProcessor(
-        ITransactionGroupingService grouping,
-        ICategoryService category,
-        INameNormalizer nameNormalizer)
+        ICategoryService category)
     {
-        _grouping = grouping;
         _category = category;
-        _nameNormalizer = nameNormalizer;
     }
 
     public async Task ProcessAsync(BankTransaction tx)
     {
-        // Normalize MobilePay
-        if (tx.IsMobilePay)
+        // =====================================
+        // NORMALIZE DESCRIPTION
+        // =====================================
+
+        tx.Description =
+            NormalizeDescription(tx.Description);
+
+        // =====================================
+        // TRANSACTION TYPE
+        // =====================================
+
+        tx.TransactionType =
+            tx.Amount >= 0
+                ? TransactionType.Indkomst
+                : TransactionType.Udgift;
+
+        // =====================================
+        // CATEGORY
+        // =====================================
+
+        tx.Category =
+            await _category.DetectAsync(tx.Description);
+    }
+    private string NormalizeDescription(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
         {
-            var name = ExtractMobilePayName(tx.Description);
-            tx.MobilePayName = _nameNormalizer.Normalize(name);
+            return string.Empty;
         }
 
-        // Grouping
-        var groupingKey = _grouping.GetGroupingKey(tx);
-        tx.NormalizedDescription = groupingKey;
+        // =====================================
+        // LOWERCASE
+        // =====================================
 
-        // Classification
-        tx.SubCategory = await _category.DetectAsync(groupingKey, tx);
+        text = text.ToLowerInvariant();
 
-        // Map category
-        tx.Category = CategoryMapper.Map(tx.SubCategory);
-    }
+        // =====================================
+        // REMOVE LONG IDS
+        // =====================================
 
-    private string? ExtractMobilePayName(string description)
-    {
-        var cleaned = description
-            .Replace("mobilepay", "", StringComparison.OrdinalIgnoreCase)
+        text = Regex.Replace(
+            text,
+            @"p[a-z0-9]{6,}",
+            "");
+
+        text = Regex.Replace(
+            text,
+            @"\d{4,}",
+            "");
+
+        // =====================================
+        // KEEP IMPORTANT SYMBOLS
+        // =====================================
+
+        text = Regex.Replace(
+            text,
+            @"[^a-zæøå0-9\.\/\- ]",
+            " ");
+
+        // =====================================
+        // NORMALIZE SPACES
+        // =====================================
+
+        text = Regex.Replace(
+            text,
+            @"\s+",
+            " ")
             .Trim();
 
-        cleaned = Regex.Replace(cleaned, @"[^a-zA-ZæøåÆØÅ ]", "");
-        cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
+        // =====================================
+        // REMOVE NOISE WORDS
+        // =====================================
 
-        return string.IsNullOrWhiteSpace(cleaned)
-            ? null
-            : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(cleaned.ToLower());
+        var noiseWords = new[]
+        {
+            "dk",
+            "vdk",
+            "visa",
+            "mastercard",
+            "betaling",
+            "konto",
+            "fra",
+            "til",
+            "aps",
+            "a/s",
+            "as",
+            "bs"
+        };
+
+        foreach (var noise in noiseWords)
+        {
+            text = Regex.Replace(
+                text,
+                $@"\b{Regex.Escape(noise)}\b",
+                "");
+        }
+
+        // =====================================
+        // FINAL SPACE NORMALIZATION
+        // =====================================
+
+        text = Regex.Replace(
+            text,
+            @"\s+",
+            " ")
+            .Trim();
+
+        return text;
     }
 }

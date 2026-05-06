@@ -1,209 +1,166 @@
-﻿using ITMartinBudget.Domain;
+﻿using System.Globalization;
+using ITMartinBudget.Domain;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
+using ITMartinBudget.Application.Models;
 
 namespace ITMartinBudget.Application.Services;
 
 public class BudgetService : IBudgetService
 {
-    public IEnumerable<CategorySummary> GetSummary(List<BankTransaction> transactions, int year)
+    public IEnumerable<CategorySummary> GetSummary(
+        List<BankTransaction> transactions,
+        int year)
     {
         var filtered = transactions
             .Where(x => x.Date.Year == year)
             .Where(x =>
-                x.SubCategory != SubCategory.Kontooverførsel &&
-                x.SubCategory != SubCategory.OverførselFraAndre &&
-                x.SubCategory != SubCategory.OverførselTilAndre &&
-                x.SubCategory != SubCategory.Opsparing &&
-                x.SubCategory != SubCategory.Børneopsparing &&
-                x.SubCategory != SubCategory.Ukendt // 🔥 FIX
-            );
+                x.Category != Category.Transfer &&
+                x.Category != Category.Savings);
 
-        var grouped = filtered
-            .GroupBy(x => new
+        return filtered
+            .GroupBy(x => x.Category)
+            .Select(group => new CategorySummary
             {
-                x.Category,
-                x.SubCategory
-            });
+                Category = group.Key,
 
-        var result = new List<CategorySummary>();
+                DisplayName = group.Key.ToString(),
 
-        foreach (var group in grouped)
-        {
-            var income = group
-                .Where(x => x.TransactionType == TransactionType.Indkomst)
-                .Sum(x => x.Amount);
+                Income = group
+                    .Where(x => x.Amount > 0)
+                    .Sum(x => x.Amount),
 
-            var expenses = group
-                .Where(x => x.TransactionType == TransactionType.Udgift)
-                .Sum(x => Math.Abs(x.Amount));
+                Expenses = group
+                    .Where(x => x.Amount < 0)
+                    .Sum(x => Math.Abs(x.Amount)),
 
-            result.Add(new CategorySummary
-            {
-                Category = group.Key.Category,
-                SubCategory = group.Key.SubCategory,
-                DisplayName = GetDisplayName(group.Key.SubCategory),
-
-                Income = income,
-                Expenses = expenses,
-
-                TransactionCount = group.Count(),
-                Frequency = DetectFrequency(group.Select(x => x.Date).ToList()),
-                ExpenseType = GetExpenseType(group.Key.SubCategory)
-            });
-        }
-
-        return result
+                TransactionCount = group.Count()
+            })
             .OrderByDescending(x => x.Income + x.Expenses);
     }
 
-    public YearSummary GetYearTotals(List<BankTransaction> transactions, int year)
+    public YearSummary GetYearTotals(
+        List<BankTransaction> transactions,
+        int year)
     {
         var filtered = transactions
-            .Where(x => x.Date.Year == year)
-            .Where(x =>
-                x.SubCategory != SubCategory.Kontooverførsel &&
-                x.SubCategory != SubCategory.OverførselFraAndre &&
-                x.SubCategory != SubCategory.OverførselTilAndre &&
-                x.SubCategory != SubCategory.MobilePayFraAndre &&
-                x.SubCategory != SubCategory.MobilePayTilAndre &&
-                x.SubCategory != SubCategory.Ukendt // 🔥 FIX
-            );
+            .Where(x => x.Date.Year == year);
 
         return new YearSummary
         {
             Income = filtered
-                .Where(x => x.TransactionType == TransactionType.Indkomst)
+                .Where(x =>
+                    x.TransactionType == TransactionType.Indkomst)
+                .Where(x =>
+                    x.Category != Category.Transfer)
                 .Sum(x => x.Amount),
 
             Expenses = filtered
-                .Where(x => x.TransactionType == TransactionType.Udgift)
+                .Where(x =>
+                    x.TransactionType == TransactionType.Udgift)
+                .Where(x =>
+                    x.Category != Category.Transfer &&
+                    x.Category != Category.Savings)
                 .Sum(x => Math.Abs(x.Amount))
         };
     }
 
-    // 👇 NO CHANGES BELOW
-
-    private string GetDisplayName(SubCategory sub) => sub switch
+    public IEnumerable<BudgetOverviewItem> GetBudgetOverview(
+        List<BankTransaction> transactions,
+        int year)
     {
-        SubCategory.Løn => "Løn",
-        SubCategory.SU => "SU",
-        SubCategory.Feriepenge => "Feriepenge",
-        SubCategory.OverskydendeSkat => "Overskydende skat",
-        SubCategory.Renter => "Renter",
-        SubCategory.Pengegaver => "Gaver (ind)",
-        SubCategory.AndenIndtægt => "Anden indtægt",
+        return transactions
+            .Where(x => x.Date.Year == year)
+            .Where(x =>
+                x.TransactionType != TransactionType.Overførsel)
+            .GroupBy(x => new
+            {
+                x.TransactionType,
+                x.Category
+            })
+            .Select(group => new BudgetOverviewItem
+            {
+                Title = group.Key.Category.ToString(),
 
-        SubCategory.OverførselFraAndre => "Overførsel fra",
-        SubCategory.OverførselTilAndre => "Overførsel til",
-        SubCategory.MobilePayFraAndre => "MobilePay fra",
-        SubCategory.MobilePayTilAndre => "MobilePay til",
-        SubCategory.Opsparing => "Opsparing",
-        SubCategory.Børneopsparing => "Børneopsparing",
-        SubCategory.Kontooverførsel => "Kontooverførsel",
+                TransactionType = group.Key.TransactionType,
 
-        SubCategory.Husleje => "Husleje",
-        SubCategory.RenterHusLån => "Renter lån",
-        SubCategory.VarmeVandAffald => "Varme/Vand/Affald",
-        SubCategory.ReparationHus => "Hus reparation",
-        SubCategory.Grundejerforening => "Grundejerforening",
+                Total = group
+                    .Sum(x => Math.Abs(x.Amount)),
 
-        SubCategory.Benzin => "Benzin",
-        SubCategory.Parkering => "Parkering",
-        SubCategory.ReparationBil => "Bil reparation",
-        SubCategory.OffentligTransport => "Offentlig transport",
-        SubCategory.Andet => "Andet transport",
+                MonthlyAverage =
+                    group.Sum(x => Math.Abs(x.Amount)) / 12m,
 
-        SubCategory.Dagligvarer => "Dagligvarer",
-        SubCategory.Restaurant => "Restaurant",
-        SubCategory.Fastfood => "Fastfood",
-
-        SubCategory.Telefonabonnement => "Telefon",
-        SubCategory.Internet => "Internet",
-        SubCategory.StreamingTjenester => "Streaming",
-
-        SubCategory.Tandlæge => "Tandlæge",
-        SubCategory.Medicin => "Medicin",
-
-        SubCategory.Tøj => "Tøj",
-
-        SubCategory.PersonligtForbrug => "Personligt",
-        SubCategory.FitnessSport => "Fitness/Sport",
-        SubCategory.Rejser => "Rejser",
-        SubCategory.Koncerter => "Koncerter",
-
-        SubCategory.FagforeningAkasse => "Fagforening/A-kasse",
-        SubCategory.Forsikring => "Forsikring",
-
-        SubCategory.Frisør => "Frisør",
-        SubCategory.PersonligPleje => "Pleje",
-        SubCategory.GaverTilAndre => "Gaver (ud)",
-
-        SubCategory.Ukendt => "Ukendt",
-
-        _ => sub.ToString()
-    };
-
-    private ExpenseType GetExpenseType(SubCategory sub)
-    {
-        return sub switch
-        {
-            SubCategory.Husleje or
-            SubCategory.RenterHusLån or
-            SubCategory.Forsikring or
-            SubCategory.FagforeningAkasse or
-            SubCategory.Telefonabonnement or
-            SubCategory.Internet or
-            SubCategory.StreamingTjenester
-                => ExpenseType.Fixed,
-
-            SubCategory.Dagligvarer or
-            SubCategory.Benzin or
-            SubCategory.Parkering or
-            SubCategory.Medicin
-                => ExpenseType.Variable,
-
-            SubCategory.Restaurant or
-            SubCategory.Fastfood or
-            SubCategory.PersonligtForbrug or
-            SubCategory.FitnessSport or
-            SubCategory.Rejser or
-            SubCategory.Koncerter or
-            SubCategory.GaverTilAndre or
-            SubCategory.Frisør or
-            SubCategory.PersonligPleje or
-            SubCategory.Tøj
-                => ExpenseType.Optional,
-
-            _ => ExpenseType.Variable
-        };
+                Transactions = group
+                    .OrderByDescending(x => x.Date)
+                    .ToList()
+            })
+            .OrderByDescending(x => x.Total);
     }
 
-    private TransactionFrequency DetectFrequency(List<DateTime> dates)
+    public IEnumerable<MonthlyBudgetSummary>
+        GetMonthlySummaries(
+            List<BankTransaction> transactions,
+            int year)
     {
-        if (dates.Count < 2)
-            return TransactionFrequency.OneTime;
+        return transactions
+            .Where(x => x.Date.Year == year)
+            .GroupBy(x => new
+            {
+                x.Date.Year,
+                x.Date.Month
+            })
+            .Select(g => new MonthlyBudgetSummary
+            {
+                Year = g.Key.Year,
 
-        dates = dates.OrderBy(x => x).ToList();
+                Month = g.Key.Month,
 
-        var diffs = new List<int>();
+                MonthName =
+                    new DateTime(
+                            g.Key.Year,
+                            g.Key.Month,
+                            1)
+                        .ToString("MMMM"),
 
-        for (int i = 1; i < dates.Count; i++)
-            diffs.Add((dates[i] - dates[i - 1]).Days);
+                Income = g
+                    .Where(x =>
+                        x.TransactionType ==
+                        TransactionType.Indkomst)
+                    .Where(x =>
+                        x.Category != Category.Transfer)
+                    .Sum(x => x.Amount),
 
-        if (!diffs.Any())
-            return TransactionFrequency.OneTime;
+                Expenses = g
+                    .Where(x =>
+                        x.TransactionType ==
+                        TransactionType.Udgift)
+                    .Where(x =>
+                        x.Category != Category.Transfer &&
+                        x.Category != Category.Savings)
+                    .Sum(x => Math.Abs(x.Amount))
+            })
+            .OrderBy(x => x.Year)
+            .ThenBy(x => x.Month);
+    }
 
-        var sorted = diffs.OrderBy(x => x).ToList();
-        var middle = sorted.Skip(sorted.Count / 4).Take(sorted.Count / 2).ToList();
+    private TransactionFrequency DetectFrequency(
+        List<BankTransaction> transactions)
+    {
+        var months = transactions
+            .Select(x => new
+            {
+                x.Date.Year,
+                x.Date.Month
+            })
+            .Distinct()
+            .Count();
 
-        var avg = middle.Any() ? middle.Average() : sorted.Average();
-
-        if (avg <= 7) return TransactionFrequency.Weekly;
-        if (avg <= 31) return TransactionFrequency.Monthly;
-        if (avg <= 100) return TransactionFrequency.Quarterly;
-        if (avg <= 370) return TransactionFrequency.Yearly;
-
-        return TransactionFrequency.Irregular;
+        return months switch
+        {
+            >= 10 => TransactionFrequency.Monthly,
+            >= 4 => TransactionFrequency.Quarterly,
+            >= 2 => TransactionFrequency.Irregular,
+            _ => TransactionFrequency.OneTime
+        };
     }
 }

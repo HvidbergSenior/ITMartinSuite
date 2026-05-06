@@ -18,7 +18,6 @@ namespace ITMartinBudget.Infrastructure.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     Keyword = table.Column<string>(type: "TEXT", nullable: false),
-                    SubCategory = table.Column<int>(type: "INTEGER", nullable: false),
                     Priority = table.Column<int>(type: "INTEGER", nullable: false),
                     IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
                     IsVerified = table.Column<bool>(type: "INTEGER", nullable: false),
@@ -39,10 +38,8 @@ namespace ITMartinBudget.Infrastructure.Migrations
                     Description = table.Column<string>(type: "TEXT", nullable: false),
                     Amount = table.Column<decimal>(type: "TEXT", nullable: false),
                     Category = table.Column<int>(type: "INTEGER", nullable: false),
-                    SubCategory = table.Column<int>(type: "INTEGER", nullable: false),
-                    ExpenseType = table.Column<int>(type: "INTEGER", nullable: false),
-                    MobilePayName = table.Column<string>(type: "TEXT", nullable: true),
-                    ContactId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    TransactionType = table.Column<int>(type: "INTEGER", nullable: false),
+                    ExpenseType = table.Column<int>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {

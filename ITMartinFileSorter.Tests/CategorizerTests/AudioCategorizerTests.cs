@@ -1,9 +1,7 @@
 ﻿using ITMartinFileSorter.Application.Services;
-using ITMartinFileSorter.Domain.Entities;
 using ITMartinFileSorter.Domain.Enums;
-using NUnit.Framework;
 
-namespace ITMartinFileSorter.Tests.Services;
+namespace ITMartinFileSorter.Tests.CategorizerTests;
 
 [TestFixture]
 public class AudioCategorizerTests

@@ -2,15 +2,16 @@
 
 public enum Category
 {
-    Indkomst,   //(UI grouping only)
-    
-    
-    Mad,
+    Income,
+    Housing,
+    Food,
     Transport,
-    Bolig,
-    Fritid,
     Shopping,
-    Sundhed,
-    Abonnement,
-    Andet       // fallback / unknown
+    Health,
+    Entertainment,
+    Travel,
+    Bills,
+    Savings,
+    Transfer,
+    Other
 }

@@ -73,7 +73,7 @@ public class BankTransactionCsvServiceTests
         {
             Date = new DateTime(2024, 1, 1),
             Amount = 100,
-            NormalizedDescription = "group"
+            Description = "group"
         };
 
         _db.Transactions.Add(existing);
@@ -83,7 +83,7 @@ public class BankTransactionCsvServiceTests
             .Setup(x => x.ProcessAsync(It.IsAny<BankTransaction>()))
             .Callback<BankTransaction>(tx =>
             {
-                tx.NormalizedDescription = "group";
+                tx.Description = "group";
             })
             .Returns(Task.CompletedTask);
 

@@ -15,7 +15,7 @@ namespace ITMartinBudget.Infrastructure.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.26");
+            modelBuilder.HasAnnotation("ProductVersion", "8.0.25");
 
             modelBuilder.Entity("ITMartinBudget.Domain.Entities.BankTransaction", b =>
                 {
@@ -29,9 +29,6 @@ namespace ITMartinBudget.Infrastructure.Migrations
                     b.Property<int>("Category")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid?>("ContactId")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("Date")
                         .HasColumnType("TEXT");
 
@@ -39,17 +36,10 @@ namespace ITMartinBudget.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("ExpenseType")
+                    b.Property<int?>("ExpenseType")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("MobilePayName")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NormalizedDescription")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("SubCategory")
+                    b.Property<int>("TransactionType")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -80,9 +70,6 @@ namespace ITMartinBudget.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Priority")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("SubCategory")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
