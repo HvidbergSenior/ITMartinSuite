@@ -4,148 +4,157 @@ namespace ITMartinBudget.Application;
 
 public static class CategoryRules
 {
+    // Match ONLY complete words
+    public static readonly HashSet<string> ExactWordRules =
+    [
+        "su",
+        "ok",
+        "q8",
+        "dsb"
+    ];
+
     public static readonly Dictionary<string, Category> Rules = new()
     {
+        // =====================================
+        // INCOME
+        // =====================================
+
+        ["løn"] = Category.Income,
+        ["lønoverførsel"] = Category.Income,
+        ["månedsløn"] = Category.Income,
+        ["plusløn"] = Category.Income,
+
+        ["su"] = Category.Income,
+
+        ["pension"] = Category.Income,
+        ["feriepenge"] = Category.Income,
+        ["fk-feriepenge"] = Category.Income,
+        ["bonus"] = Category.Income,
+        ["bonustryghedsgruppen"] = Category.Income,
+        ["udbetaling"] = Category.Income,
+        ["overskydende skat"] = Category.Income,
+        ["skat"] = Category.Income,
+        ["danmark"] = Category.Income,
+
         // =====================================
         // FOOD
         // =====================================
 
+        ["føtex"] = Category.Food,
+        ["foetex"] = Category.Food,
         ["netto"] = Category.Food,
         ["rema"] = Category.Food,
         ["rema1000"] = Category.Food,
-        ["føtex"] = Category.Food,
-        ["bilka"] = Category.Food,
         ["lidl"] = Category.Food,
-        ["aldi"] = Category.Food,
-        ["brugsen"] = Category.Food,
+        ["kvickly"] = Category.Food,
+        ["salling"] = Category.Food,
         ["meny"] = Category.Food,
-        ["spar"] = Category.Food,
-        ["365discount"] = Category.Food,
         ["løvbjerg"] = Category.Food,
+        ["brugsen"] = Category.Food,
+        ["superbrugsen"] = Category.Food,
+        ["bilka"] = Category.Food,
+
         ["wolt"] = Category.Food,
         ["justeat"] = Category.Food,
+        ["sunset"] = Category.Food,
         ["mcdonald"] = Category.Food,
         ["burger king"] = Category.Food,
-        ["sunset"] = Category.Food,
         ["skumhuset"] = Category.Food,
 
         // =====================================
         // TRANSPORT
         // =====================================
 
-        ["ok benzin"] = Category.Transport,
         ["circle k"] = Category.Transport,
+        ["uno-x"] = Category.Transport,
+        ["ok"] = Category.Transport,
         ["q8"] = Category.Transport,
         ["shell"] = Category.Transport,
-        ["dsb"] = Category.Transport,
-        ["fynbus"] = Category.Transport,
-        ["rejsekort"] = Category.Transport,
+        ["ingo"] = Category.Transport,
+        ["benzin"] = Category.Transport,
+        ["easypark"] = Category.Transport,
         ["parkering"] = Category.Transport,
+        ["epass24"] = Category.Transport,
+        ["rejsekort"] = Category.Transport,
+        ["dsb"] = Category.Transport,
         ["brobizz"] = Category.Transport,
-
-        // =====================================
-        // SHOPPING
-        // =====================================
-
-        ["amazon"] = Category.Shopping,
-        ["zalando"] = Category.Shopping,
-        ["about you"] = Category.Shopping,
-        ["blue tomato"] = Category.Shopping,
-        ["hm"] = Category.Shopping,
-        ["h&m"] = Category.Shopping,
-        ["ikea"] = Category.Shopping,
-        ["elgiganten"] = Category.Shopping,
-        ["power"] = Category.Shopping,
-        ["proshop"] = Category.Shopping,
-
-        // =====================================
-        // ENTERTAINMENT
-        // =====================================
-
-        ["steam"] = Category.Entertainment,
-        ["steamgames"] = Category.Entertainment,
-        ["playstation"] = Category.Entertainment,
-        ["xbox"] = Category.Entertainment,
-        ["netflix"] = Category.Entertainment,
-        ["spotify"] = Category.Entertainment,
-        ["disney"] = Category.Entertainment,
-        ["youtube"] = Category.Entertainment,
-        ["viaplay"] = Category.Entertainment,
-        ["tivoli"] = Category.Entertainment,
-
-        // =====================================
-        // HOUSING
-        // =====================================
-
-        ["realkredit"] = Category.Housing,
-        ["jyske realkredit"] = Category.Housing,
-        ["husleje"] = Category.Housing,
-        ["bolig"] = Category.Housing,
-        ["ejendom"] = Category.Housing,
 
         // =====================================
         // BILLS
         // =====================================
 
-        ["norlys"] = Category.Bills,
-        ["telia"] = Category.Bills,
+        ["spotify"] = Category.Bills,
+        ["netflix"] = Category.Bills,
+        ["netflix.com"] = Category.Bills,
+
         ["telenor"] = Category.Bills,
-        ["3 mobil"] = Category.Bills,
-        ["yousee"] = Category.Bills,
-        ["ewii"] = Category.Bills,
-        ["verdo"] = Category.Bills,
-        ["vand"] = Category.Bills,
-        ["el"] = Category.Bills,
-        ["internet"] = Category.Bills,
+        ["mobilepay telenor"] = Category.Bills,
+
+        ["nrgi"] = Category.Bills,
+        ["nrgi elhandel"] = Category.Bills,
+        ["mobilepay nrgi elhandel"] = Category.Bills,
+
+        ["de letsikr"] = Category.Bills,
 
         // =====================================
-        // HEALTH
+        // SHOPPING
         // =====================================
 
-        ["apotek"] = Category.Health,
-        ["læge"] = Category.Health,
-        ["tandlæge"] = Category.Health,
-        ["frisør"] = Category.Health,
-        ["piet frisørsalon"] = Category.Health,
-        ["fitness"] = Category.Health,
+        ["about you"] = Category.Shopping,
+        ["rivalxt"] = Category.Shopping,
+        ["blue tomato"] = Category.Shopping,
+        ["blue tomato gmbh"] = Category.Shopping,
+
+        // =====================================
+        // ENTERTAINMENT
+        // =====================================
+
+        ["steamgames"] = Category.Entertainment,
+        ["steamgames.com"] = Category.Entertainment,
+
+        // =====================================
+        // HOUSING
+        // =====================================
+
+        ["termin jyske realkredit"] = Category.Housing,
+        ["jyske realkredit"] = Category.Housing,
+        ["mobilepay boligmontering"] = Category.Housing,
 
         // =====================================
         // TRAVEL
         // =====================================
 
-        ["sas"] = Category.Travel,
-        ["ryanair"] = Category.Travel,
-        ["booking.com"] = Category.Travel,
-        ["airbnb"] = Category.Travel,
-        ["united tickets"] = Category.Travel,
-        ["hotel"] = Category.Travel,
-
-        // =====================================
-        // INCOME
-        // =====================================
-
-        ["løn"] = Category.Income,
-        ["månedsløn"] = Category.Income,
-        ["lønoverførsel"] = Category.Income,
-        ["pension"] = Category.Income,
-        ["feriepenge"] = Category.Income,
-        ["skat"] = Category.Income,
-        ["su"] = Category.Income,
-
-        // =====================================
-        // SAVINGS
-        // =====================================
-
-        ["opsparing"] = Category.Savings,
-        ["savings"] = Category.Savings,
+        ["vesterlund-efterskol"] = Category.Travel,
 
         // =====================================
         // TRANSFER
         // =====================================
 
-        ["mobilepay overførsel"] = Category.Transfer,
-        ["intern overførsel"] = Category.Transfer,
-        ["egen konto"] = Category.Transfer,
-        ["kontooverførsel"] = Category.Transfer
+        ["mobilepay"] = Category.Transfer,
+
+        ["bjørneo"] = Category.Transfer,
+        ["børneo"] = Category.Transfer,
+
+        ["mobilepay inge kjærulff torp"] = Category.Transfer,
+        ["mobilepay bertil hvidberg john"] = Category.Transfer,
+        ["mobilepay dorthe møller johnse"] = Category.Transfer,
+
+        ["mobilepay julius hvidberg john"] = Category.Transfer,
+        ["mobilepay marianne hvidberg"] = Category.Transfer,
+        ["mobilepay sonja johnsen"] = Category.Transfer,
+        ["mobilepay karl jon nielsen"] = Category.Transfer,
+        ["mobilepay anne bro friis jense"] = Category.Transfer,
+
+        // =====================================
+        // HEALTH
+        // =====================================
+
+        ["silvan"] = Category.Housing,
+
+        // =====================================
+        // OTHER
+        // =====================================
+
+        ["sp alpex"] = Category.Other,
     };
 }
