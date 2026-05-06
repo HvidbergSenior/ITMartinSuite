@@ -1,0 +1,148 @@
+﻿@page "/map/{MapName}"
+@layout R6AssistantLayout
+@inject RecommendationService RecommendationService
+@inject NavigationManager NavigationManager
+
+<div class="stack">
+
+    <div class="row space-between">
+
+        <div>
+            <h1>@MapName</h1>
+
+            <div class="text-muted">
+                Site recommendations
+            </div>
+        </div>
+
+        <button class="btn btn-secondary"
+                @onclick="GoBack">
+
+            Back
+
+        </button>
+
+    </div>
+
+    @if (_recommendations.Count == 0)
+    {
+        <div class="content-card">
+            Loading recommendations...
+        </div>
+    }
+    else
+    {
+        @foreach (var site in _recommendations)
+        {
+            <div class="content-card stack">
+
+                <div>
+
+                    <h2>
+                        @site.SiteName
+                    </h2>
+
+                    <div class="text-muted">
+                        Recommended setup
+                    </div>
+
+                </div>
+
+                <div>
+
+                    <h3>
+                        Attackers
+                    </h3>
+
+                    <div class="row">
+
+                        @foreach (var op in site.Attackers)
+                        {
+                            <div class="btn btn-primary">
+                                @op
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+
+                <div>
+
+                    <h3>
+                        Defenders
+                    </h3>
+
+                    <div class="row">
+
+                        @foreach (var op in site.Defenders)
+                        {
+                            <div class="btn btn-success">
+                                @op
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+
+                <div>
+
+                    <h3>
+                        Recommended Bans
+                    </h3>
+
+                    <div class="row">
+
+                        @foreach (var op in site.Bans)
+                        {
+                            <div class="btn btn-danger">
+                                @op
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(site.Notes))
+                {
+                    <div class="card">
+
+                        <strong>
+                            Notes
+                        </strong>
+
+                        <div class="mt-3">
+                            @site.Notes
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+    }
+
+</div>
+
+@code {
+
+    [Parameter]
+    public string MapName { get; set; } = string.Empty;
+
+    private List<SiteRecommendation> _recommendations = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recommendations =
+            await RecommendationService
+                .GetRecommendations(MapName);
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+
+}

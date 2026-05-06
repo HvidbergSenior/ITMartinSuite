@@ -1,0 +1,28 @@
+﻿[
+  {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "mapName": "Clubhouse",
+    "siteName": "CCTV / Cash",
+    "attackers": [
+      "Ace",
+      "Buck",
+      "Nomad",
+      "Dokkaebi",
+      "Thatcher"
+    ],
+    "defenders": [
+      "Azami",
+      "Bandit",
+      "Mute",
+      "Smoke",
+      "Wamai"
+    ],
+    "bans": [
+      "Fenrir",
+      "Mira",
+      "Jackal",
+      "Thatcher"
+    ],
+    "notes": "Need breach and rafters control"
+  }
+]
