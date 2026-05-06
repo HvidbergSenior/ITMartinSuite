@@ -1,0 +1,59 @@
+﻿@page "/"
+@layout R6AssistantLayout
+@inject RecommendationService RecommendationService
+@inject NavigationManager NavigationManager
+
+<div class="stack">
+
+    <div>
+        <h1>
+            Maps
+        </h1>
+
+        <div class="text-muted">
+            Select a map
+        </div>
+    </div>
+
+    @if (_maps.Count == 0)
+    {
+        <div class="content-card">
+            Loading maps...
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-3">
+
+            @foreach (var map in _maps)
+            {
+                <button class="card btn-secondary"
+                        @onclick="() => GoToMap(map)">
+
+                    <h2>
+                        @map
+                    </h2>
+
+                </button>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<string> _maps = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _maps = await RecommendationService.GetMaps();
+    }
+
+    private void GoToMap(string map)
+    {
+        NavigationManager.NavigateTo($"/map/{map}");
+    }
+
+}

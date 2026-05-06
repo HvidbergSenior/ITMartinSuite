@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartinR6Assistant.Application\ITMartinR6Assistant.Application.csproj" />
+      <ProjectReference Include="..\ITMartinR6Assistant.Domain\ITMartinR6Assistant.Domain.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="Data\\*.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+</Project>

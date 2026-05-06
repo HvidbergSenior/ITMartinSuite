@@ -1,0 +1,258 @@
+/* =========================
+   R6 ASSISTANT
+========================= */
+
+.r6-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.r6-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.r6-title {
+    margin: 0;
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.r6-subtitle {
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* =========================
+   MAP GRID
+========================= */
+
+.map-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fill, minmax(240px, 1fr));
+
+    gap: 20px;
+}
+
+.map-card {
+    position: relative;
+
+    min-height: 140px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+
+    overflow: hidden;
+
+    cursor: pointer;
+
+    background:
+            linear-gradient(
+                    180deg,
+                    rgba(0,0,0,0.1),
+                    rgba(0,0,0,0.75)
+            ),
+            linear-gradient(
+                    160deg,
+                    #20242d,
+                    #121317
+            );
+
+    border-radius: var(--radius-lg);
+
+    padding: 22px;
+
+    border: 1px solid rgba(255,255,255,0.06);
+
+    transition:
+            transform 0.2s ease,
+            border-color 0.2s ease,
+            box-shadow 0.2s ease;
+}
+
+.map-card:hover {
+    transform: translateY(-6px);
+
+    border-color: rgba(59,130,246,0.4);
+
+    box-shadow:
+            0 20px 40px rgba(0,0,0,0.7),
+            0 0 30px rgba(59,130,246,0.15);
+}
+
+.map-name {
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.map-meta {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* =========================
+   SITE CARD
+========================= */
+
+.site-card {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.site-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.site-title {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+}
+
+.site-subtitle {
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* =========================
+   OPERATOR SECTIONS
+========================= */
+
+.operator-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.operator-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.operator-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* =========================
+   OPERATOR PILLS
+========================= */
+
+.operator-pill {
+    padding: 10px 16px;
+
+    border-radius: 999px;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    border: 1px solid rgba(255,255,255,0.08);
+
+    transition:
+            transform 0.15s ease,
+            opacity 0.15s ease;
+}
+
+.operator-pill:hover {
+    transform: translateY(-2px);
+}
+
+.operator-pill.attack {
+    background:
+            linear-gradient(
+                    135deg,
+                    #2563eb,
+                    #1d4ed8
+            );
+
+    color: white;
+}
+
+.operator-pill.defense {
+    background:
+            linear-gradient(
+                    135deg,
+                    #16a34a,
+                    #15803d
+            );
+
+    color: white;
+}
+
+.operator-pill.ban {
+    background:
+            linear-gradient(
+                    135deg,
+                    #dc2626,
+                    #991b1b
+            );
+
+    color: white;
+}
+
+/* =========================
+   NOTES
+========================= */
+
+.notes-box {
+    background: rgba(255,255,255,0.03);
+
+    border-left: 4px solid var(--accent);
+
+    border-radius: var(--radius-md);
+
+    padding: 18px;
+}
+
+.notes-title {
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+/* =========================
+   EMPTY STATE
+========================= */
+
+.empty-state {
+    padding: 28px;
+
+    border-radius: var(--radius-md);
+
+    background: rgba(255,255,255,0.03);
+
+    border: 1px solid rgba(255,255,255,0.05);
+
+    color: var(--text-muted);
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 768px) {
+
+    .r6-title {
+        font-size: 32px;
+    }
+
+    .site-title {
+        font-size: 24px;
+    }
+
+    .map-card {
+        min-height: 120px;
+    }
+
+}
