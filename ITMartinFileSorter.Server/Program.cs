@@ -45,8 +45,7 @@ builder.Services.AddScoped<MediaCategorizer>();
 // =========================
 // APP SERVICES
 // =========================
-builder.Services.AddSingleton<DuplicateService>();
-
+builder.Services.AddScoped<DuplicateService>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<HomeLocationService>();
 builder.Services.AddScoped<LibraryExportService>();

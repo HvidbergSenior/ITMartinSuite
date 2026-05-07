@@ -3,14 +3,20 @@
   filesorter-web:
     container_name: filesorter-web
     build: ./filesorter
+
     ports:
       - "8080:8080"
+
     environment:
       - ASPNETCORE_URLS=http://+:8080
+
     volumes:
-      - /volume1/photo:/data
+      - /volume1/docker/filesorter/incoming:/data
       - /volume1/docker/filesorter/library:/library
+      - /volume1/docker/filesorter/config:/config
+
     restart: unless-stopped
+
     networks:
       - martinnet
 

@@ -218,6 +218,17 @@
 
             await Task.Delay(400);
 
+// ✅ RESET SESSION STATE
+            DuplicateService.Reset();
+
+            ExportedCount = 0;
+            TotalToExport = 0;
+            CurrentExportFile = "";
+            CurrentStage = "";
+            IsExporting = false;
+
+            await InvokeAsync(StateHasChanged);
+
             Navigation.NavigateTo(
                 $"/library?path={Uri.EscapeDataString(exportRoot)}",
                 true);
