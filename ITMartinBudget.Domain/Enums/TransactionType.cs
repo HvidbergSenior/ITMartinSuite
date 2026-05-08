@@ -4,6 +4,4 @@ public enum TransactionType
 {
     Indkomst,
     Udgift,
-    Overførsel,
-    MobilePay
 }

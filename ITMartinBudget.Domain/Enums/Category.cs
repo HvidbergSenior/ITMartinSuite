@@ -2,7 +2,8 @@
 
 public enum Category
 {
-    Income,
+    FixedIncome,
+    FixedExpenses,
     Housing,
     Food,
     Transport,

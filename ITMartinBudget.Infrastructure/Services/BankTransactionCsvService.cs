@@ -13,6 +13,7 @@ namespace ITMartinBudget.Infrastructure.Services;
 public class BankTransactionCsvService
 {
     private readonly BudgetDbContext _db;
+
     private readonly ITransactionProcessor _processor;
 
     public BankTransactionCsvService(
@@ -20,6 +21,7 @@ public class BankTransactionCsvService
         ITransactionProcessor processor)
     {
         _db = db;
+
         _processor = processor;
     }
 
@@ -27,7 +29,8 @@ public class BankTransactionCsvService
     {
         using var reader = new StreamReader(stream);
 
-        var config = new CsvConfiguration(new CultureInfo("da-DK"))
+        var config = new CsvConfiguration(
+            new CultureInfo("da-DK"))
         {
             Delimiter = ";"
         };
@@ -40,10 +43,13 @@ public class BankTransactionCsvService
 
         await foreach (var record in csv.GetRecordsAsync<BankTransaction>())
         {
-            record.Description = Normalize(record.Description);
+            record.Description =
+                Normalize(record.Description);
 
-            record.Category = Category.Other;
+            record.Category =
+                Category.Other;
 
+            // ACCOUNTING TRUTH
             record.TransactionType =
                 record.Amount < 0
                     ? TransactionType.Udgift
@@ -51,29 +57,28 @@ public class BankTransactionCsvService
 
             await _processor.ProcessAsync(record);
 
-            if (record.Category == Category.Transfer)
-            {
-                record.TransactionType =
-                    TransactionType.Overførsel;
-            }
-
             records.Add(record);
         }
 
-        var existingKeys = await GetExistingKeys();
+        var existingKeys =
+            await GetExistingKeys();
 
-        var newTransactions = Deduplicate(records, existingKeys);
+        var newTransactions =
+            Deduplicate(records, existingKeys);
 
-        var unknowns = ExtractUnknowns(newTransactions);
+        var unknowns =
+            ExtractUnknowns(newTransactions);
 
         if (newTransactions.Any())
         {
-            await _db.Transactions.AddRangeAsync(newTransactions);
+            await _db.Transactions
+                .AddRangeAsync(newTransactions);
         }
 
         if (unknowns.Any())
         {
-            await _db.UnknownTransactions.AddRangeAsync(unknowns);
+            await _db.UnknownTransactions
+                .AddRangeAsync(unknowns);
         }
 
         await _db.SaveChangesAsync();
@@ -134,7 +139,8 @@ public class BankTransactionCsvService
         decimal amount,
         string description)
     {
-        return $"{date:yyyyMMdd}-{amount:F2}-{description?.Trim().ToLowerInvariant()}";
+        return
+            $"{date:yyyyMMdd}-{amount:F2}-{description?.Trim().ToLowerInvariant()}";
     }
 
     private string Normalize(string? input)
@@ -146,7 +152,10 @@ public class BankTransactionCsvService
 
         input = input.ToLowerInvariant();
 
-        input = Regex.Replace(input, @"\s+", " ");
+        input = Regex.Replace(
+            input,
+            @"\s+",
+            " ");
 
         return input.Trim();
     }

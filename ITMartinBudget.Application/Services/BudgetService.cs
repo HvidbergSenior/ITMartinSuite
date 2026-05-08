@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text.RegularExpressions;
 using ITMartinBudget.Domain;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
@@ -44,23 +45,19 @@ public class BudgetService : IBudgetService
         int year)
     {
         var filtered = transactions
-            .Where(x => x.Date.Year == year);
+            .Where(x => x.Date.Year == year)
+            .Where(x =>
+                x.Category != Category.Transfer &&
+                x.Category != Category.Savings);
 
         return new YearSummary
         {
             Income = filtered
-                .Where(x =>
-                    x.TransactionType == TransactionType.Indkomst)
-                .Where(x =>
-                    x.Category != Category.Transfer)
+                .Where(x => x.Amount > 0)
                 .Sum(x => x.Amount),
 
             Expenses = filtered
-                .Where(x =>
-                    x.TransactionType == TransactionType.Udgift)
-                .Where(x =>
-                    x.Category != Category.Transfer &&
-                    x.Category != Category.Savings)
+                .Where(x => x.Amount < 0)
                 .Sum(x => Math.Abs(x.Amount))
         };
     }
@@ -69,30 +66,44 @@ public class BudgetService : IBudgetService
         List<BankTransaction> transactions,
         int year)
     {
-        return transactions
-            .Where(x => x.Date.Year == year)
+        var filtered = transactions
+            .Where(x => x.Date.Year == year);
+
+        return filtered
             .Where(x =>
-                x.TransactionType != TransactionType.Overførsel)
+                x.Category != Category.Transfer &&
+                x.Category != Category.Savings)
             .GroupBy(x => new
             {
                 x.TransactionType,
-                x.Category
+                x.Category,
+                Title = GetGroupTitle(x)
             })
-            .Select(group => new BudgetOverviewItem
+            .Select(group =>
             {
-                Title = group.Key.Category.ToString(),
-
-                TransactionType = group.Key.TransactionType,
-
-                Total = group
-                    .Sum(x => Math.Abs(x.Amount)),
-
-                MonthlyAverage =
-                    group.Sum(x => Math.Abs(x.Amount)) / 12m,
-
-                Transactions = group
+                var txs = group
                     .OrderByDescending(x => x.Date)
-                    .ToList()
+                    .ToList();
+
+                var total =
+                    group.Key.TransactionType == TransactionType.Udgift
+                        ? txs.Sum(x => Math.Abs(x.Amount))
+                        : txs.Sum(x => x.Amount);
+                return new BudgetOverviewItem
+                {
+                    Title = group.Key.Title,
+
+                    Category = group.Key.Category,
+
+                    TransactionType =
+                        txs.First().TransactionType,
+
+                    Total = total,
+
+                    MonthlyAverage = total,
+
+                    Transactions = txs
+                };
             })
             .OrderByDescending(x => x.Total);
     }
@@ -102,8 +113,13 @@ public class BudgetService : IBudgetService
             List<BankTransaction> transactions,
             int year)
     {
-        return transactions
+        var filtered = transactions
             .Where(x => x.Date.Year == year)
+            .Where(x =>
+                x.Category != Category.Transfer &&
+                x.Category != Category.Savings);
+
+        return filtered
             .GroupBy(x => new
             {
                 x.Date.Year,
@@ -123,44 +139,205 @@ public class BudgetService : IBudgetService
                         .ToString("MMMM"),
 
                 Income = g
-                    .Where(x =>
-                        x.TransactionType ==
-                        TransactionType.Indkomst)
-                    .Where(x =>
-                        x.Category != Category.Transfer)
+                    .Where(x => x.Amount > 0)
                     .Sum(x => x.Amount),
 
                 Expenses = g
-                    .Where(x =>
-                        x.TransactionType ==
-                        TransactionType.Udgift)
-                    .Where(x =>
-                        x.Category != Category.Transfer &&
-                        x.Category != Category.Savings)
+                    .Where(x => x.Amount < 0)
                     .Sum(x => Math.Abs(x.Amount))
             })
             .OrderBy(x => x.Year)
             .ThenBy(x => x.Month);
     }
 
-    private TransactionFrequency DetectFrequency(
-        List<BankTransaction> transactions)
+    private string GetGroupTitle(BankTransaction tx)
     {
-        var months = transactions
-            .Select(x => new
-            {
-                x.Date.Year,
-                x.Date.Month
-            })
-            .Distinct()
-            .Count();
+        var text = tx.Description.ToLowerInvariant();
 
-        return months switch
+        // =====================================
+        // FIXED INCOME
+        // =====================================
+
+        if (text.Contains("løn") ||
+            text.Contains("lønoverførsel") ||
+            text.Contains("månedsløn") ||
+            text.Contains("plusløn"))
         {
-            >= 10 => TransactionFrequency.Monthly,
-            >= 4 => TransactionFrequency.Quarterly,
-            >= 2 => TransactionFrequency.Irregular,
-            _ => TransactionFrequency.OneTime
-        };
+            return "Salary";
+        }
+
+        if (Regex.IsMatch(
+                text,
+                @"(?<![a-zæøå])su(?![a-zæøå])"))
+        {
+            return "SU";
+        }
+
+        // =====================================
+        // FOOD
+        // =====================================
+
+        if (text.Contains("su fdb") ||
+            text.Contains("fdb") ||
+            text.Contains("superbrugsen") ||
+            text.Contains("superbrugs"))
+        {
+            return "SuperBrugsen";
+        }
+
+        if (text.Contains("brugsen"))
+            return "Brugsen";
+
+        if (text.Contains("føtex") ||
+            text.Contains("foetex"))
+        {
+            return "Føtex";
+        }
+
+        if (text.Contains("netto"))
+            return "Netto";
+
+        if (text.Contains("rema"))
+            return "Rema 1000";
+
+        if (text.Contains("løvbjerg") ||
+            text.Contains("loevbjerg"))
+        {
+            return "Løvbjerg";
+        }
+
+        if (text.Contains("bilka"))
+            return "Bilka";
+
+        // =====================================
+        // FIXED EXPENSES
+        // =====================================
+
+        if (text.Contains("spotify"))
+            return "Spotify";
+
+        if (text.Contains("netflix"))
+            return "Netflix";
+
+        if (text.Contains("telenor"))
+            return "Telenor";
+
+        if (text.Contains("nrgi"))
+            return "NRGi";
+
+        if (text.Contains("jyske realkredit"))
+            return "Jyske Realkredit";
+
+        if (text.Contains("alka"))
+            return "Alka Forsikring";
+
+        if (text.Contains("allente"))
+            return "Allente";
+
+        if (text.Contains("letsikr"))
+            return "Letsikring";
+
+        if (text.Contains("fitness"))
+            return "Fitness";
+
+        if (text.Contains("kredsløb"))
+            return "Kredsløb";
+
+        if (text.Contains("aarhus vand"))
+            return "Aarhus Vand";
+
+        if (text.Contains("google one"))
+            return "Google One";
+
+        if (text.Contains("suno"))
+            return "Suno";
+
+        if (text.Contains("playstation"))
+            return "PlayStation";
+
+        if (text.Contains("jetbrains"))
+            return "JetBrains";
+
+        if (text.Contains("hog-hinnerup"))
+            return "HOG Hinnerup";
+
+        if (text.Contains("parcelforeningen"))
+            return "Parcelforeningen";
+
+        if (text.Contains("motoropkrævning") ||
+            text.Contains("motorstyrelsen"))
+        {
+            return "Motoropkrævning";
+        }
+
+        if (text.Contains("akademikernes a-kasse") ||
+            text.Contains("a-kasse"))
+        {
+            return "A-Kasse";
+        }
+
+        if (text.Contains("socialpædagogernes"))
+            return "Fagforening";
+
+        if (text.Contains("dmr"))
+            return "DMR";
+
+        // =====================================
+        // TRANSPORT
+        // =====================================
+
+        if (text.Contains("circle k"))
+            return "Circle K";
+
+        if (text.Contains("uno-x"))
+            return "Uno-X";
+
+        if (text.Contains("q8"))
+            return "Q8";
+
+        if (text.Contains("ok"))
+            return "OK";
+
+        if (text.Contains("shell"))
+            return "Shell";
+
+        if (text.Contains("ingo"))
+            return "Ingo";
+
+        if (text.Contains("brobizz"))
+            return "BroBizz";
+
+        if (text.Contains("rejsekort"))
+            return "Rejsekort";
+
+        if (text.Contains("easypark"))
+            return "EasyPark";
+
+        if (text.Contains("sejer") ||
+            text.Contains("mekaniker") ||
+            text.Contains("værksted") ||
+            text.Contains("autoservice"))
+        {
+            return "Mechanic";
+        }
+
+        // =====================================
+        // ENTERTAINMENT
+        // =====================================
+
+        if (text.Contains("steam"))
+            return "Steam";
+
+        if (text.Contains("xbox"))
+            return "Xbox";
+
+        if (text.Contains("nintendo"))
+            return "Nintendo";
+
+        // =====================================
+        // DEFAULT
+        // =====================================
+
+        return tx.Category.ToString();
     }
 }

@@ -5,8 +5,6 @@
 
 @using ITMartinBudget.Application
 @using ITMartinBudget.Application.Models
-@using ITMartinBudget.Application.Services
-@using ITMartinBudget.Domain
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
@@ -19,98 +17,196 @@
 <div class="budget-page">
 
     <div class="budget-header-row">
+
         <div>
-            <h1 class="page-title">💰 Budget Overview</h1>
+
+            <h1 class="page-title">
+                💰 Budget Overview
+            </h1>
+
             <div class="page-sub">
-                Recurring income & expenses
+                Fixed income & recurring expenses
             </div>
+
         </div>
 
         <button class="btn btn-danger"
                 @onclick="ResetData">
             Reset
         </button>
+
     </div>
 
     <!-- KPI -->
     <div class="kpi-grid">
 
         <div class="kpi-big income">
+
             <div class="kpi-label">
-                Total Income
+                Income
             </div>
 
             <div class="kpi-value">
                 @Format(_totals?.Income)
             </div>
+
         </div>
 
         <div class="kpi-big expense">
+
             <div class="kpi-label">
-                Total Expenses
+                Expenses
             </div>
 
             <div class="kpi-value">
                 @Format(_totals?.Expenses)
             </div>
+
         </div>
 
         <div class="kpi-big net">
+
             <div class="kpi-label">
-                Total Net
+                Net
             </div>
 
             <div class="kpi-value">
                 @Format(_totals?.Net)
             </div>
+
         </div>
 
     </div>
 
-    <!-- MONTHLY OVERVIEW -->
-    <div class="monthly-section">
+    <!-- SUMMARY CARDS -->
+    <div class="fixed-grid">
 
-        <h2 class="section-title">
-            Monthly Overview
-        </h2>
+        <div class="fixed-card income @(IsOpen("fixed-income") ? "active" : "")"
+             @onclick='() => Toggle("fixed-income")'>
 
-        <div class="monthly-grid">
+            <div class="fixed-label">
+                Fixed Income (Year)
+            </div>
 
-            @foreach (var month in _monthly)
+            <div class="fixed-value">
+                @Format(FixedIncomeTotal)
+            </div>
+
+            <div class="fixed-sub">
+                Click to view transactions
+            </div>
+
+        </div>
+
+        <div class="fixed-card expense @(IsOpen("fixed-expenses") ? "active" : "")"
+             @onclick='() => Toggle("fixed-expenses")'>
+
+            <div class="fixed-label">
+                Fixed Expenses (Year)
+            </div>
+
+            <div class="fixed-value">
+                @Format(FixedExpenseTotal)
+            </div>
+
+            <div class="fixed-sub">
+                Click to view transactions
+            </div>
+
+        </div>
+
+        <div class="fixed-card income @(IsOpen("other-income") ? "active" : "")"
+             @onclick='() => Toggle("other-income")'>
+
+            <div class="fixed-label">
+                Other Income (Year)
+            </div>
+
+            <div class="fixed-value">
+                @Format(VariableIncomeTotal)
+            </div>
+
+            <div class="fixed-sub">
+                Click to view transactions
+            </div>
+
+        </div>
+
+        <div class="fixed-card expense @(IsOpen("other-expenses") ? "active" : "")"
+             @onclick='() => Toggle("other-expenses")'>
+
+            <div class="fixed-label">
+                Other Expenses (Year)
+            </div>
+
+            <div class="fixed-value">
+                @Format(VariableExpenseTotal)
+            </div>
+
+            <div class="fixed-sub">
+                Click to view transactions
+            </div>
+
+        </div>
+
+        @if (ExpenseRefunds > 0)
+        {
+            <div class="fixed-card net @(IsOpen("expense-refunds") ? "active" : "")"
+                 @onclick='() => Toggle("expense-refunds")'>
+
+                <div class="fixed-label">
+                    Expense Refunds / Corrections
+                </div>
+
+                <div class="fixed-value">
+                    @Format(ExpenseRefunds)
+                </div>
+
+                <div class="fixed-sub">
+                    Click to view transactions
+                </div>
+
+            </div>
+        }
+
+    </div>
+
+    <!-- EXPENSE REFUNDS -->
+    @if (IsOpen("expense-refunds"))
+    {
+        <div class="transaction-group-section">
+
+            <h2 class="section-title">
+                Expense Refunds / Corrections
+            </h2>
+
+            @foreach (var tx in ExpenseRefundTransactions
+                          .OrderByDescending(x => x.Amount))
             {
-                <div class="month-card">
+                <div class="overview-card"
+                     @key="tx.Id">
 
-                    <div class="month-title">
-                        @month.MonthName
+                    <div class="tx-row">
+
+                        <span class="tx-date">
+                            @tx.Date.ToString("dd MMM yyyy")
+                        </span>
+
+                        <span class="tx-description">
+                            @tx.Description
+                        </span>
+
+                        <span class="tx-amount income">
+                            @Format(tx.Amount)
+                        </span>
+
                     </div>
 
-                    <div class="month-row">
-                        <span>Income</span>
+                    <div class="tx-row">
 
-                        <span class="income">
-                            @Format(month.Income)
-                        </span>
-                    </div>
-
-                    <div class="month-row">
-                        <span>Expenses</span>
-
-                        <span class="expense">
-                            @Format(month.Expenses)
-                        </span>
-                    </div>
-
-                    <div class="month-row total">
-
-                        <span>Net</span>
-
-                        <span class="@(month.Net >= 0
-                            ? "income"
-                            : "expense")">
-
-                            @Format(month.Net)
-
-                        </span>
+                        <small>
+                            @tx.Category
+                        </small>
 
                     </div>
 
@@ -118,31 +214,28 @@
             }
 
         </div>
+    }
 
-    </div>
+    <!-- FIXED INCOME -->
+    @if (IsOpen("fixed-income"))
+    {
+        <div class="transaction-group-section">
 
-    <!-- TWO COLUMNS -->
-    <div class="overview-grid">
+            <h2 class="section-title">
+                Fixed Income Transactions
+            </h2>
 
-        <!-- INCOME -->
-        <div class="overview-column">
-
-            <h2>Income</h2>
-
-            @foreach (var item in IncomeItems)
+            @foreach (var item in FixedIncomeItems)
             {
-                <div class="overview-card">
+                <div class="overview-card"
+                     @key="@($"{item.Category}-{item.Title}")">
 
-                    <div class="category-row"
-                         @onclick='() => Toggle($"{item.TransactionType}-{item.Title}")'>
+                    <div class="category-row">
+
                         <div class="category-left">
 
                             <div class="category-title">
                                 @item.Title
-                            </div>
-
-                            <div class="category-frequency">
-                                @item.Frequency
                             </div>
 
                         </div>
@@ -150,59 +243,58 @@
                         <div class="category-right">
 
                             <div class="category-amount income">
-                                @Format(item.MonthlyAverage)
+                                @Format(item.Total)
                             </div>
-
-                            <small>
-                                monthly
-                            </small>
 
                         </div>
 
                     </div>
 
-                        @if (IsOpen($"{item.TransactionType}-{item.Title}"))
-                    {
-                        <div class="category-details">
+                    <div class="category-details">
 
-                            @foreach (var tx in item.Transactions.Take(20))
-                            {
-                                <div class="tx-row">
+                        @foreach (var tx in item.Transactions.Take(20))
+                        {
+                            <div class="tx-row"
+                                 @key="tx.Id">
 
-                                    <span class="tx-date">
-                                        @tx.Date.ToString("dd MMM")
-                                    </span>
+                                <span class="tx-date">
+                                    @tx.Date.ToString("dd MMM")
+                                </span>
 
-                                    <span class="tx-description">
-                                        @tx.Description
-                                    </span>
+                                <span class="tx-description">
+                                    @tx.Description
+                                </span>
 
-                                    <span class="tx-amount income">
-                                        @Format(tx.Amount)
-                                    </span>
+                                <span class="tx-amount income">
+                                    @Format(tx.Amount)
+                                </span>
 
-                                </div>
-                            }
+                            </div>
+                        }
 
-                        </div>
-                    }
+                    </div>
 
                 </div>
             }
 
         </div>
+    }
 
-        <!-- EXPENSES -->
-        <div class="overview-column">
+    <!-- FIXED EXPENSES -->
+    @if (IsOpen("fixed-expenses"))
+    {
+        <div class="transaction-group-section">
 
-            <h2>Expenses</h2>
+            <h2 class="section-title">
+                Fixed Expense Transactions
+            </h2>
 
-            @foreach (var item in ExpenseItems)
+            @foreach (var item in FixedExpenseItems)
             {
-                <div class="overview-card">
+                <div class="overview-card"
+                     @key="@($"{item.Category}-{item.Title}")">
 
-                    <div class="category-row"
-                         @onclick="() => Toggle(item.Title)">
+                    <div class="category-row">
 
                         <div class="category-left">
 
@@ -210,8 +302,146 @@
                                 @item.Title
                             </div>
 
-                            <div class="category-frequency">
-                                @item.Frequency
+                        </div>
+
+                        <div class="category-right">
+
+                            <div class="category-amount expense">
+                                @Format(item.Total)
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="category-details">
+
+                        @foreach (var tx in item.Transactions.Take(20))
+                        {
+                            <div class="tx-row"
+                                 @key="tx.Id">
+
+                                <span class="tx-date">
+                                    @tx.Date.ToString("dd MMM")
+                                </span>
+
+                                <span class="tx-description">
+                                    @tx.Description
+                                </span>
+
+                                <span class="tx-amount @(tx.Amount > 0 ? "income" : "expense")">
+                                    @Format(tx.Amount)
+                                </span>
+
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+        <h2>Large Uncategorized Transactions</h2>
+
+        @foreach (var tx in _transactions
+                      .Where(x => x.Category == Category.Other)
+                      .Where(x => Math.Abs(x.Amount) >= 5000)
+                      .OrderByDescending(x => Math.Abs(x.Amount)))
+        {
+            <div>
+                @tx.Date.ToShortDateString()
+                |
+                @tx.Amount
+                |
+                "@tx.Description"
+                |
+                @tx.TransactionType
+            </div>
+        }
+    }<!-- OTHER INCOME -->
+    @if (IsOpen("other-income"))
+    {
+        <div class="transaction-group-section">
+
+            <h2 class="section-title">
+                Other Income Transactions
+            </h2>
+
+            @foreach (var item in VariableIncomeItems)
+            {
+                <div class="overview-card"
+                     @key="@($"{item.Category}-{item.Title}")">
+
+                    <div class="category-row">
+
+                        <div class="category-left">
+
+                            <div class="category-title">
+                                @item.Title
+                            </div>
+
+                        </div>
+
+                        <div class="category-right">
+
+                            <div class="category-amount income">
+                                @Format(item.Total)
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="category-details">
+
+                        @foreach (var tx in item.Transactions.Take(20))
+                        {
+                            <div class="tx-row"
+                                 @key="tx.Id">
+
+                                <span class="tx-date">
+                                    @tx.Date.ToString("dd MMM")
+                                </span>
+
+                                <span class="tx-description">
+                                    @tx.Description
+                                </span>
+
+                                <span class="tx-amount income">
+                                    @Format(tx.Amount)
+                                </span>
+
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
+    <!-- OTHER EXPENSES -->
+    @if (IsOpen("other-expenses"))
+    {
+        <div class="transaction-group-section">
+
+            <h2 class="section-title">
+                Other Expense Transactions
+            </h2>
+
+            @foreach (var item in VariableExpenseItems)
+            {
+                <div class="overview-card"
+                     @key="@($"{item.Category}-{item.Title}")">
+
+                    <div class="category-row">
+
+                        <div class="category-left">
+
+                            <div class="category-title">
+                                @item.Title
                             </div>
 
                         </div>
@@ -219,49 +449,42 @@
                         <div class="category-right">
 
                             <div class="category-amount expense">
-                                @Format(item.MonthlyAverage)
+                                @Format(item.Total)
                             </div>
-
-                            <small>
-                                monthly
-                            </small>
 
                         </div>
 
                     </div>
 
-                    @if (IsOpen(item.Title))
-                    {
-                        <div class="category-details">
+                    <div class="category-details">
 
-                            @foreach (var tx in item.Transactions.Take(20))
-                            {
-                                <div class="tx-row">
+                        @foreach (var tx in item.Transactions.Take(20))
+                        {
+                            <div class="tx-row"
+                                 @key="tx.Id">
 
-                                    <span class="tx-date">
-                                        @tx.Date.ToString("dd MMM")
-                                    </span>
+                                <span class="tx-date">
+                                    @tx.Date.ToString("dd MMM")
+                                </span>
 
-                                    <span class="tx-description">
-                                        @tx.Description
-                                    </span>
+                                <span class="tx-description">
+                                    @tx.Description
+                                </span>
 
-                                    <span class="tx-amount expense">
-                                        @Format(tx.Amount)
-                                    </span>
+                                <span class="tx-amount expense">
+                                    @Format(tx.Amount)
+                                </span>
 
-                                </div>
-                            }
+                            </div>
+                        }
 
-                        </div>
-                    }
+                    </div>
 
                 </div>
             }
 
         </div>
-
-    </div>
+    }
 
 </div>
 
@@ -277,17 +500,60 @@
 
     private string? _openCategory;
 
-    private IEnumerable<BudgetOverviewItem> IncomeItems =>
+    private IEnumerable<BudgetOverviewItem> FixedIncomeItems =>
         _overview
-            .Where(x =>
-                x.TransactionType ==
-                TransactionType.Indkomst);
+            .Where(x => x.Category == Category.FixedIncome);
 
-    private IEnumerable<BudgetOverviewItem> ExpenseItems =>
+    private IEnumerable<BudgetOverviewItem> FixedExpenseItems =>
         _overview
+            .Where(x => x.Category == Category.FixedExpenses);
+
+    private IEnumerable<BudgetOverviewItem> VariableIncomeItems =>
+        _overview
+            .Where(x => x.TransactionType == TransactionType.Indkomst)
+            .Where(x => x.Category != Category.FixedIncome)
+            .Where(x => x.Category != Category.Transfer)
+            .Where(x => x.Category != Category.Savings)
+            .Where(x => x.Category != Category.FixedExpenses)
+            .OrderByDescending(x => x.Total);
+
+    private IEnumerable<BudgetOverviewItem> VariableExpenseItems =>
+        _overview
+            .Where(x => x.TransactionType == TransactionType.Udgift)
+            .Where(x => x.Category != Category.FixedExpenses)
+            .Where(x => x.Category != Category.Transfer)
+            .Where(x => x.Category != Category.Savings)
+            .OrderByDescending(x => x.Total);
+
+    private decimal FixedIncomeTotal =>
+        FixedIncomeItems.Sum(x => x.Total);
+
+    private decimal FixedExpenseTotal =>
+        FixedExpenseItems.Sum(x => x.Total);
+
+    private decimal VariableIncomeTotal =>
+        VariableIncomeItems.Sum(x => x.Total);
+
+    private decimal VariableExpenseTotal =>
+        VariableExpenseItems.Sum(x => x.Total);
+
+    private List<BankTransaction> ExpenseRefundTransactions =>
+        _transactions
+            .Where(x => x.Amount > 0)
             .Where(x =>
-                x.TransactionType ==
-                TransactionType.Udgift);
+                x.Category == Category.FixedExpenses
+                || x.Category == Category.Food
+                || x.Category == Category.Transport
+                || x.Category == Category.Shopping
+                || x.Category == Category.Health
+                || x.Category == Category.Housing
+                || x.Category == Category.Travel
+                || x.Category == Category.Entertainment
+                || x.Category == Category.Bills)
+            .ToList();
+
+    private decimal ExpenseRefunds =>
+        ExpenseRefundTransactions.Sum(x => x.Amount);
 
     protected override async Task OnInitializedAsync()
     {
@@ -301,7 +567,14 @@
             .ToListAsync();
 
         if (!all.Any())
+        {
+            _transactions = [];
+            _overview = [];
+            _monthly = [];
+            _totals = new YearSummary();
+
             return;
+        }
 
         var year = all.Max(x => x.Date.Year);
 
@@ -321,7 +594,7 @@
             .GetYearTotals(_transactions, year);
     }
 
-    void Toggle(string key)
+    private void Toggle(string key)
     {
         _openCategory =
             _openCategory == key
@@ -329,11 +602,11 @@
                 : key;
     }
 
-    bool IsOpen(string key)
+    private bool IsOpen(string key)
         => _openCategory == key;
 
-    private string Format(decimal? v)
-        => v?.ToString("N2") + " kr."
+    private string Format(decimal? value)
+        => value?.ToString("N2") + " kr."
            ?? "-";
 
     private void ResetData()

@@ -7,6 +7,8 @@ public class BudgetOverviewItem
 {
     public string Title { get; set; } = "";
 
+    public Category Category { get; set; }
+
     public decimal Total { get; set; }
 
     public decimal MonthlyAverage { get; set; }
@@ -14,8 +16,6 @@ public class BudgetOverviewItem
     public TransactionFrequency Frequency { get; set; }
 
     public TransactionType TransactionType { get; set; }
-
-    public ExpenseType? ExpenseType { get; set; }
 
     public List<BankTransaction> Transactions { get; set; } = [];
 }
