@@ -180,6 +180,10 @@
                 Expense Refunds / Corrections
             </h2>
 
+            <div class="section-note">
+                Showing all refund/correction transactions.
+            </div>
+
             @foreach (var tx in ExpenseRefundTransactions
                           .OrderByDescending(x => x.Amount))
             {
@@ -224,6 +228,11 @@
             <h2 class="section-title">
                 Fixed Income Transactions
             </h2>
+
+            <div class="section-note">
+                Showing latest 20 transactions per category.
+                Totals are calculated from ALL transactions.
+            </div>
 
             @foreach (var item in FixedIncomeItems)
             {
@@ -289,6 +298,11 @@
                 Fixed Expense Transactions
             </h2>
 
+            <div class="section-note">
+                Showing latest 20 transactions per category.
+                Totals are calculated from ALL transactions.
+            </div>
+
             @foreach (var item in FixedExpenseItems)
             {
                 <div class="overview-card"
@@ -342,24 +356,9 @@
             }
 
         </div>
-        <h2>Large Uncategorized Transactions</h2>
+    }
 
-        @foreach (var tx in _transactions
-                      .Where(x => x.Category == Category.Other)
-                      .Where(x => Math.Abs(x.Amount) >= 5000)
-                      .OrderByDescending(x => Math.Abs(x.Amount)))
-        {
-            <div>
-                @tx.Date.ToShortDateString()
-                |
-                @tx.Amount
-                |
-                "@tx.Description"
-                |
-                @tx.TransactionType
-            </div>
-        }
-    }<!-- OTHER INCOME -->
+    <!-- OTHER INCOME -->
     @if (IsOpen("other-income"))
     {
         <div class="transaction-group-section">
@@ -367,6 +366,11 @@
             <h2 class="section-title">
                 Other Income Transactions
             </h2>
+
+            <div class="section-note">
+                Showing latest 20 transactions per category.
+                Totals are calculated from ALL transactions.
+            </div>
 
             @foreach (var item in VariableIncomeItems)
             {
@@ -422,6 +426,7 @@
 
         </div>
     }
+
     <!-- OTHER EXPENSES -->
     @if (IsOpen("other-expenses"))
     {
@@ -430,6 +435,11 @@
             <h2 class="section-title">
                 Other Expense Transactions
             </h2>
+
+            <div class="section-note">
+                Showing latest 20 transactions per category.
+                Totals are calculated from ALL transactions.
+            </div>
 
             @foreach (var item in VariableExpenseItems)
             {
@@ -510,6 +520,7 @@
 
     private IEnumerable<BudgetOverviewItem> VariableIncomeItems =>
         _overview
+            .Where(x => x.Total > 0)
             .Where(x => x.TransactionType == TransactionType.Indkomst)
             .Where(x => x.Category != Category.FixedIncome)
             .Where(x => x.Category != Category.Transfer)
@@ -519,6 +530,7 @@
 
     private IEnumerable<BudgetOverviewItem> VariableExpenseItems =>
         _overview
+            .Where(x => x.Total > 0)
             .Where(x => x.TransactionType == TransactionType.Udgift)
             .Where(x => x.Category != Category.FixedExpenses)
             .Where(x => x.Category != Category.Transfer)

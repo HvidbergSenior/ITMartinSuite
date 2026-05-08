@@ -67,12 +67,12 @@ public class BudgetService : IBudgetService
         int year)
     {
         var filtered = transactions
-            .Where(x => x.Date.Year == year);
-
-        return filtered
+            .Where(x => x.Date.Year == year)
             .Where(x =>
                 x.Category != Category.Transfer &&
-                x.Category != Category.Savings)
+                x.Category != Category.Savings);
+
+        return filtered
             .GroupBy(x => new
             {
                 x.TransactionType,
@@ -89,14 +89,14 @@ public class BudgetService : IBudgetService
                     group.Key.TransactionType == TransactionType.Udgift
                         ? txs.Sum(x => Math.Abs(x.Amount))
                         : txs.Sum(x => x.Amount);
+
                 return new BudgetOverviewItem
                 {
                     Title = group.Key.Title,
 
                     Category = group.Key.Category,
 
-                    TransactionType =
-                        txs.First().TransactionType,
+                    TransactionType = group.Key.TransactionType,
 
                     Total = total,
 
@@ -154,10 +154,6 @@ public class BudgetService : IBudgetService
     {
         var text = tx.Description.ToLowerInvariant();
 
-        // =====================================
-        // FIXED INCOME
-        // =====================================
-
         if (text.Contains("løn") ||
             text.Contains("lønoverførsel") ||
             text.Contains("månedsløn") ||
@@ -173,46 +169,6 @@ public class BudgetService : IBudgetService
             return "SU";
         }
 
-        // =====================================
-        // FOOD
-        // =====================================
-
-        if (text.Contains("su fdb") ||
-            text.Contains("fdb") ||
-            text.Contains("superbrugsen") ||
-            text.Contains("superbrugs"))
-        {
-            return "SuperBrugsen";
-        }
-
-        if (text.Contains("brugsen"))
-            return "Brugsen";
-
-        if (text.Contains("føtex") ||
-            text.Contains("foetex"))
-        {
-            return "Føtex";
-        }
-
-        if (text.Contains("netto"))
-            return "Netto";
-
-        if (text.Contains("rema"))
-            return "Rema 1000";
-
-        if (text.Contains("løvbjerg") ||
-            text.Contains("loevbjerg"))
-        {
-            return "Løvbjerg";
-        }
-
-        if (text.Contains("bilka"))
-            return "Bilka";
-
-        // =====================================
-        // FIXED EXPENSES
-        // =====================================
-
         if (text.Contains("spotify"))
             return "Spotify";
 
@@ -222,121 +178,33 @@ public class BudgetService : IBudgetService
         if (text.Contains("telenor"))
             return "Telenor";
 
-        if (text.Contains("nrgi"))
-            return "NRGi";
-
-        if (text.Contains("jyske realkredit"))
-            return "Jyske Realkredit";
-
         if (text.Contains("alka"))
             return "Alka Forsikring";
 
-        if (text.Contains("allente"))
-            return "Allente";
+        if (text.Contains("nrgi"))
+            return "NRGi";
 
-        if (text.Contains("letsikr"))
-            return "Letsikring";
+        if (text.Contains("føtex") ||
+            text.Contains("foetex"))
+            return "Føtex";
 
-        if (text.Contains("fitness"))
-            return "Fitness";
+        if (text.Contains("netto"))
+            return "Netto";
 
-        if (text.Contains("kredsløb"))
-            return "Kredsløb";
+        if (text.Contains("rema"))
+            return "Rema 1000";
 
-        if (text.Contains("aarhus vand"))
-            return "Aarhus Vand";
+        if (text.Contains("bilka"))
+            return "Bilka";
 
-        if (text.Contains("google one"))
-            return "Google One";
-
-        if (text.Contains("suno"))
-            return "Suno";
-
-        if (text.Contains("playstation"))
-            return "PlayStation";
-
-        if (text.Contains("jetbrains"))
-            return "JetBrains";
-
-        if (text.Contains("hog-hinnerup"))
-            return "HOG Hinnerup";
-
-        if (text.Contains("parcelforeningen"))
-            return "Parcelforeningen";
-
-        if (text.Contains("motoropkrævning") ||
-            text.Contains("motorstyrelsen"))
-        {
-            return "Motoropkrævning";
-        }
-
-        if (text.Contains("akademikernes a-kasse") ||
-            text.Contains("a-kasse"))
-        {
-            return "A-Kasse";
-        }
-
-        if (text.Contains("socialpædagogernes"))
-            return "Fagforening";
-
-        if (text.Contains("dmr"))
-            return "DMR";
-
-        // =====================================
-        // TRANSPORT
-        // =====================================
+        if (text.Contains("steam"))
+            return "Steam";
 
         if (text.Contains("circle k"))
             return "Circle K";
 
         if (text.Contains("uno-x"))
             return "Uno-X";
-
-        if (text.Contains("q8"))
-            return "Q8";
-
-        if (text.Contains("ok"))
-            return "OK";
-
-        if (text.Contains("shell"))
-            return "Shell";
-
-        if (text.Contains("ingo"))
-            return "Ingo";
-
-        if (text.Contains("brobizz"))
-            return "BroBizz";
-
-        if (text.Contains("rejsekort"))
-            return "Rejsekort";
-
-        if (text.Contains("easypark"))
-            return "EasyPark";
-
-        if (text.Contains("sejer") ||
-            text.Contains("mekaniker") ||
-            text.Contains("værksted") ||
-            text.Contains("autoservice"))
-        {
-            return "Mechanic";
-        }
-
-        // =====================================
-        // ENTERTAINMENT
-        // =====================================
-
-        if (text.Contains("steam"))
-            return "Steam";
-
-        if (text.Contains("xbox"))
-            return "Xbox";
-
-        if (text.Contains("nintendo"))
-            return "Nintendo";
-
-        // =====================================
-        // DEFAULT
-        // =====================================
 
         return tx.Category.ToString();
     }
