@@ -330,5 +330,89 @@ public static class CategoryRules
         // =====================================
 
         ["sp alpex"] = Category.Other,
+        // =====================================
+// FOOD
+// =====================================
+
+["spar"] = Category.Food,
+["spar skejby"] = Category.Food,
+
+["kiwi"] = Category.Food,
+["best"] = Category.Food,
+
+// =====================================
+// HEALTH
+// =====================================
+
+["sygeforsikringen danmark"] = Category.Health,
+["bs sygeforsikringen danmark"] = Category.Health,
+
+["tandlæge"] = Category.Health,
+["tandlaege"] = Category.Health,
+["dk tandlaege i skejby centre"] = Category.Health,
+
+// =====================================
+// SHOPPING
+// =====================================
+
+["hennes & mauritz"] = Category.Shopping,
+["hm"] = Category.Shopping,
+
+["km mode"] = Category.Shopping,
+
+["normal"] = Category.Shopping,
+["normal a/s"] = Category.Shopping,
+
+["elgiganten"] = Category.Shopping,
+["proshop"] = Category.Shopping,
+
+["apple.com/bill"] = Category.Shopping,
+["google play"] = Category.Shopping,
+
+["iexpert"] = Category.Shopping,
+["squaretrade"] = Category.Shopping,
+
+// =====================================
+// ENTERTAINMENT
+// =====================================
+
+["story house egmont"] = Category.Entertainment,
+["royalcdkeys"] = Category.Entertainment,
+
+// =====================================
+// TRANSPORT
+// =====================================
+
+["thansen"] = Category.Transport,
+["apcoa"] = Category.Transport,
+["apcoa flow"] = Category.Transport,
+
+// =====================================
+// FIXED EXPENSES
+// =====================================
+
+["fagligt fælles forbund"] = Category.FixedExpenses,
+["bs fagligt fælles forbund"] = Category.FixedExpenses,
+
+["parcelforening"] = Category.FixedExpenses,
+
+// =====================================
+// TRANSFER
+// =====================================
+
+["vdk mob.pay*sonja johnsen"] = Category.Transfer,
+["vdk mob.pay*julius hvidberg j"] = Category.Transfer,
+["vdk mob.pay*christian birkefe"] = Category.Transfer,
+
+["overførsel"] = Category.Transfer,
+
+// =====================================
+// OTHER
+// =====================================
+
+["kattemad"] = Category.Other,
+["tm-materialer"] = Category.Other,
+["Fødevarecheck"] = Category.Other,
+
     };
 }

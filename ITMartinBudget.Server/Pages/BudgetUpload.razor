@@ -114,12 +114,13 @@
 
     private async Task FullReset()
     {
-        Db.Transactions.RemoveRange(Db.Transactions);
-        Db.UnknownTransactions.RemoveRange(Db.UnknownTransactions);
+        Db.Transactions.RemoveRange(
+            Db.Transactions);
 
         await Db.SaveChangesAsync();
 
         _hasExistingData = false;
+
         _message = "All data deleted";
     }
 }

@@ -25,14 +25,20 @@ public class BankTransactionCsvService
         _processor = processor;
     }
 
-    public async Task<List<BankTransaction>> ImportAsync(Stream stream)
+    public async Task<List<BankTransaction>> ImportAsync(
+        Stream stream)
     {
         using var reader = new StreamReader(stream);
 
         var config = new CsvConfiguration(
             new CultureInfo("da-DK"))
         {
-            Delimiter = ";"
+            Delimiter = ";",
+            MissingFieldFound = null,
+            BadDataFound = x =>
+            {
+                Console.WriteLine($"BAD DATA: {x.RawRecord}");
+            }
         };
 
         using var csv = new CsvReader(reader, config);
@@ -43,13 +49,23 @@ public class BankTransactionCsvService
 
         await foreach (var record in csv.GetRecordsAsync<BankTransaction>())
         {
+            Console.WriteLine("-------------");
+            Console.WriteLine(record.Date);
+            Console.WriteLine(record.Description);
+            Console.WriteLine(record.Amount);
+            // KEEP RAW BANK DESCRIPTION
             record.Description =
+                record.Description?.Trim() ??
+                string.Empty;
+
+            // STORE NORMALIZED VERSION
+            record.NormalizedDescription =
                 Normalize(record.Description);
 
             record.Category =
                 Category.Other;
 
-            // ACCOUNTING TRUTH
+            // PURE MONEY FLOW
             record.TransactionType =
                 record.Amount < 0
                     ? TransactionType.Udgift
@@ -66,19 +82,10 @@ public class BankTransactionCsvService
         var newTransactions =
             Deduplicate(records, existingKeys);
 
-        var unknowns =
-            ExtractUnknowns(newTransactions);
-
         if (newTransactions.Any())
         {
             await _db.Transactions
                 .AddRangeAsync(newTransactions);
-        }
-
-        if (unknowns.Any())
-        {
-            await _db.UnknownTransactions
-                .AddRangeAsync(unknowns);
         }
 
         await _db.SaveChangesAsync();
@@ -93,13 +100,13 @@ public class BankTransactionCsvService
                 {
                     x.Date,
                     x.Amount,
-                    x.Description
+                    x.NormalizedDescription
                 })
                 .ToListAsync())
             .Select(x => CreateKey(
                 x.Date,
                 x.Amount,
-                x.Description))
+                x.NormalizedDescription))
             .ToHashSet();
     }
 
@@ -111,36 +118,23 @@ public class BankTransactionCsvService
             .GroupBy(t => CreateKey(
                 t.Date,
                 t.Amount,
-                t.Description))
+                t.NormalizedDescription))
             .Select(g => g.First())
             .Where(t => !existingKeys.Contains(
                 CreateKey(
                     t.Date,
                     t.Amount,
-                    t.Description)))
+                    t.NormalizedDescription)))
             .ToList();
     }
-
-    private List<UnknownTransaction> ExtractUnknowns(
-        List<BankTransaction> transactions)
-    {
-        return transactions
-            .Where(t => t.Category == Category.Other)
-            .Select(t => new UnknownTransaction
-            {
-                Description = t.Description
-            })
-            .DistinctBy(x => x.Description)
-            .ToList();
-    }
-
+    
     private string CreateKey(
         DateTime date,
         decimal amount,
         string description)
     {
         return
-            $"{date:yyyyMMdd}-{amount:F2}-{description?.Trim().ToLowerInvariant()}";
+            $"{date:yyyyMMdd}-{amount:F2}-{description}";
     }
 
     private string Normalize(string? input)
@@ -152,6 +146,18 @@ public class BankTransactionCsvService
 
         input = input.ToLowerInvariant();
 
+        input = input
+            .Replace("æ", "ae")
+            .Replace("ø", "oe")
+            .Replace("å", "aa");
+
+        // remove punctuation
+        input = Regex.Replace(
+            input,
+            @"[^\w\s]",
+            " ");
+
+        // collapse spaces
         input = Regex.Replace(
             input,
             @"\s+",

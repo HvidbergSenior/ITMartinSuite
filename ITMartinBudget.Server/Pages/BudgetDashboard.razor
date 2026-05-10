@@ -624,10 +624,7 @@
     private void ResetData()
     {
         Db.Transactions.RemoveRange(Db.Transactions);
-
-        Db.UnknownTransactions.RemoveRange(
-            Db.UnknownTransactions);
-
+        
         Db.SaveChanges();
 
         Nav.NavigateTo("/budget/upload", true);

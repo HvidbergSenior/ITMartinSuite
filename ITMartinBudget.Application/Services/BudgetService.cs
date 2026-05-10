@@ -208,4 +208,23 @@ public class BudgetService : IBudgetService
 
         return tx.Category.ToString();
     }
+    private static string GetCategoryTitle(Category category)
+    {
+        return category switch
+        {
+            Category.FixedIncome => "Salary",
+            Category.FixedExpenses => "Fixed Expenses",
+            Category.Food => "Supermarket / Food",
+            Category.Transport => "Transport",
+            Category.Shopping => "Shopping",
+            Category.Health => "Health",
+            Category.Housing => "Housing",
+            Category.Entertainment => "Entertainment",
+            Category.Travel => "Travel",
+            Category.Transfer => "Transfers",
+            Category.Bills => "Bills",
+            Category.Savings => "Savings",
+            _ => "Other"
+        };
+    }
 }

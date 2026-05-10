@@ -6,17 +6,19 @@ public class CategorySummary
 {
     public Category Category { get; set; }
 
+    public string DisplayName { get; set; } =
+        string.Empty;
+
     public decimal Income { get; set; }
+
     public decimal Expenses { get; set; }
 
-    // 🔥 Derived
+    // positive income minus expenses
     public decimal Total => Income - Expenses;
 
-    public string DisplayName { get; set; } = string.Empty;
-
     public int TransactionCount { get; set; }
+
     public TransactionFrequency Frequency { get; set; }
 
-    // 🔥 ADD THIS
-    public ExpenseType ExpenseType { get; set; }
+    public ExpenseType? ExpenseType { get; set; }
 }

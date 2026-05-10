@@ -23,32 +23,43 @@
   budget-web:
     container_name: budget-web
     build: ./budget
+
     ports:
       - "8081:8080"
+
     environment:
       - ASPNETCORE_URLS=http://+:8080
+
     volumes:
       - /volume1/docker/budget/data:/app/data
+
     restart: unless-stopped
+
     networks:
       - martinnet
 
   image-processor:
     container_name: image-processor
     build: ./imageprocessor
+
     volumes:
       - /volume1/docker/imageprocessor/input:/data
       - /volume1/docker/imageprocessor/output:/library
       - /volume1/docker/imageprocessor/archive:/archive
+
     restart: unless-stopped
+
     networks:
       - martinnet
 
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
+
     restart: unless-stopped
+
     command: tunnel run
+
     environment:
       - TUNNEL_TOKEN=eyJhIjoiYmE3ODc2MjJmMTlhYzNjZTIzNDk5YzRkZTVjYjVjMDMiLCJ0IjoiNzAwZTU4MDUtNzZhNC00NzgwLTgyYTEtMmQ3YzkxZDkwMmRmIiwicyI6Ik56SmlZbUUwWmpNdE1EazNaUzAwWXpneUxUa3paamt0TnpkbU56ZzJNemN3TUdFeE5HVXdaRE5qWldRdE1qRmhOeTAwT0RSbUxUbGxOalV0WTJNd1lqUmtNakpqWTJJMSJ9
     networks:
@@ -71,6 +82,25 @@
 
     networks:
       - martinnet
+
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+
+    network_mode: host
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=Europe/Copenhagen
+      - VERSION=docker
+
+    volumes:
+      - /volume1/docker/plex/config:/config
+      - /volume1/docker/plex/Movies:/movies
+      - /volume1/docker/plex/Tv:/tv
+
+    restart: unless-stopped
 
 networks:
   martinnet:

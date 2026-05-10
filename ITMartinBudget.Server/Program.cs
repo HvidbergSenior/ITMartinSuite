@@ -8,55 +8,104 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Razor
+// =========================
+// RAZOR
+// =========================
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Database
+// =========================
+// DATABASE
+// =========================
 var connectionString =
     builder.Environment.IsDevelopment()
-        ? builder.Configuration.GetConnectionString("Default")
+        ? builder.Configuration
+            .GetConnectionString("Default")
         : "Data Source=/app/data/budget.db";
 
+Console.WriteLine($"DB: {connectionString}");
 builder.Services.AddDbContext<BudgetDbContext>(options =>
-    options.UseSqlite(connectionString));
+{
+    options.UseSqlite(connectionString);
+});
 
-// Services
-builder.Services.AddScoped<IBudgetService, BudgetService>();
-builder.Services.AddScoped<ITransactionGroupingService, TransactionGroupingService>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<ITransactionProcessor, TransactionProcessor>();
+// =========================
+// APPLICATION SERVICES
+// =========================
+builder.Services.AddScoped<
+    IBudgetService,
+    BudgetService>();
 
-// CSV
-builder.Services.AddScoped<BankTransactionCsvService>();
+builder.Services.AddScoped<
+    ITransactionGroupingService,
+    TransactionGroupingService>();
 
-// Logging
+builder.Services.AddScoped<
+    ICategoryService,
+    CategoryService>();
+
+builder.Services.AddScoped<
+    ITransactionProcessor,
+    TransactionProcessor>();
+
+// =========================
+// IMPORT / RULES
+// =========================
+builder.Services.AddScoped<
+    BankTransactionCsvService>();
+
+builder.Services.AddScoped<
+    CategoryRuleStartupService>();
+
+// =========================
+// LOGGING
+// =========================
 builder.Logging.AddFilter(
     "Microsoft.EntityFrameworkCore",
     LogLevel.Warning);
 
+// =========================
+// BUILD
+// =========================
 var app = builder.Build();
 
-// Database
+// =========================
+// DATABASE INIT
+// =========================
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider
-        .GetRequiredService<BudgetDbContext>();
+    var db =
+        scope.ServiceProvider
+            .GetRequiredService<BudgetDbContext>();
 
     db.Database.Migrate();
+
+    var seeder =
+        scope.ServiceProvider
+            .GetRequiredService<CategoryRuleStartupService>();
+
+    await seeder.SeedAsync();
 }
 
-// Middleware
+// =========================
+// MIDDLEWARE
+// =========================
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
 }
 
 app.UseStaticFiles();
+
 app.UseAntiforgery();
 
-// Blazor
+// =========================
+// BLAZOR
+// =========================
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+// =========================
+// RUN
+// =========================
 app.Run();

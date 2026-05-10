@@ -16,7 +16,10 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddServerSideBlazor()
-    .AddCircuitOptions(options => { options.DetailedErrors = true; });
+    .AddCircuitOptions(options =>
+    {
+        options.DetailedErrors = true;
+    });
 
 // =========================
 // CORE SERVICES
@@ -29,11 +32,9 @@ builder.Services.AddScoped<IMediaDateService, MediaDateService>();
 builder.Services.AddScoped<IMediaClassificationService, MediaClassificationService>();
 builder.Services.AddScoped<IExifService, ExifService>();
 builder.Services.AddScoped<IGpsService, GpsService>();
-builder.Services.AddScoped<IVideoBatchService, VideoBatchService>();
-builder.Services.AddScoped<IImageBatchService, ImageBatchService>();
 
 // =========================
-// CATEGORIZERS (INTERFACE-BASED)
+// CATEGORIZERS
 // =========================
 builder.Services.AddScoped<IMediaSubCategorizer, ImageCategorizer>();
 builder.Services.AddScoped<IMediaSubCategorizer, VideoCategorizer>();
@@ -73,6 +74,9 @@ builder.Services.AddControllers();
 // =========================
 var app = builder.Build();
 
+// =========================
+// ERROR HANDLING
+// =========================
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -81,27 +85,39 @@ if (!app.Environment.IsDevelopment())
 // =========================
 // STATIC FILES
 // =========================
-app.UseStaticFiles(); // wwwroot
 
-var libraryPath = LibraryPathHelper.GetLibraryPath(builder.Configuration);
+// wwwroot
+app.UseStaticFiles();
 
-var provider = new FileExtensionContentTypeProvider();
+// Library path
+var libraryPath =
+    LibraryPathHelper.GetLibraryPath(
+        builder.Configuration);
 
-// ✅ LOWERCASE
+// MIME types
+var provider =
+    new FileExtensionContentTypeProvider();
+
+// =========================
+// VIDEO
+// =========================
 provider.Mappings[".mp4"] = "video/mp4";
-provider.Mappings[".mov"] = "video/mp4";
-provider.Mappings[".mkv"] = "video/mp4";
+provider.Mappings[".MP4"] = "video/mp4";
 
+provider.Mappings[".mov"] = "video/quicktime";
+provider.Mappings[".MOV"] = "video/quicktime";
+
+provider.Mappings[".mkv"] = "video/x-matroska";
+provider.Mappings[".MKV"] = "video/x-matroska";
+
+// =========================
+// IMAGES
+// =========================
 provider.Mappings[".jpg"] = "image/jpeg";
 provider.Mappings[".jpeg"] = "image/jpeg";
 provider.Mappings[".png"] = "image/png";
 provider.Mappings[".webp"] = "image/webp";
 provider.Mappings[".gif"] = "image/gif";
-
-// ✅ UPPERCASE (🔥 FIX)
-provider.Mappings[".MP4"] = "video/mp4";
-provider.Mappings[".MOV"] = "video/mp4";
-provider.Mappings[".MKV"] = "video/mp4";
 
 provider.Mappings[".JPG"] = "image/jpeg";
 provider.Mappings[".JPEG"] = "image/jpeg";
@@ -109,20 +125,43 @@ provider.Mappings[".PNG"] = "image/png";
 provider.Mappings[".WEBP"] = "image/webp";
 provider.Mappings[".GIF"] = "image/gif";
 
+// =========================
+// IPHONE / MODERN
+// =========================
+provider.Mappings[".heic"] = "image/heic";
+provider.Mappings[".HEIC"] = "image/heic";
+
+provider.Mappings[".avif"] = "image/avif";
+provider.Mappings[".AVIF"] = "image/avif";
+
+// =========================
+// LIBRARY STATIC FILES
+// =========================
 if (Directory.Exists(libraryPath))
 {
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new PhysicalFileProvider(libraryPath),
-        RequestPath = "/libraryfiles",
+        FileProvider =
+            new PhysicalFileProvider(libraryPath),
 
-        // 🔥 IMPORTANT (prevents future edge cases)
-        ServeUnknownFileTypes = true,
-        DefaultContentType = "application/octet-stream",
+        RequestPath =
+            "/libraryfiles",
 
-        ContentTypeProvider = provider
+        ContentTypeProvider =
+            provider,
+
+        OnPrepareResponse = ctx =>
+        {
+            const int duration =
+                60 * 60 * 24 * 30;
+
+            ctx.Context.Response.Headers.Append(
+                "Cache-Control",
+                $"public,max-age={duration}");
+        }
     });
 }
+
 // =========================
 // PIPELINE
 // =========================

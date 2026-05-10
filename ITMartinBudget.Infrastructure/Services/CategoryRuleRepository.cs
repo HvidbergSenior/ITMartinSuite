@@ -8,13 +8,18 @@ public class CategoryRuleRepository : ICategoryRuleRepository
 {
     private readonly BudgetDbContext _db;
 
-    public CategoryRuleRepository(BudgetDbContext db)
+    public CategoryRuleRepository(
+        BudgetDbContext db)
     {
         _db = db;
     }
 
     public Task<List<CategoryRule>> GetAllAsync()
     {
-        return _db.CategoryRules.ToListAsync();
+        return _db.CategoryRules
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.Priority)
+            .ThenByDescending(x => x.Pattern.Length)
+            .ToListAsync();
     }
 }
