@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-using ITMartin.Media.Entities;
+using ITMartin.Media.Domain.Entities;
 using ITMartinFileSorter.Application.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;

@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Entities;
+﻿using ITMartin.Media.Domain.Entities;
 using ITMartin.Media.Enums;
 using ITMartinFileSorter.Application.Interfaces;
 

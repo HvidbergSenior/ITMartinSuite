@@ -1,6 +1,6 @@
 ﻿using ITMartin.Media.Enums;
 
-namespace ITMartin.Media.Entities;
+namespace ITMartin.Media.Domain.Entities;
 
 public class MediaFile
 {
@@ -54,6 +54,9 @@ public class MediaFile
     public string? ExportedPath { get; set; }
     public string? OcrText { get; set; }
     public bool OcrProcessed { get; set; }
+
+    public List<string> AiTags { get; set; } = [];
+
     public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)
     {
         FullPath = fullPath;

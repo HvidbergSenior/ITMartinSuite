@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Entities;
+﻿namespace ITMartin.Media.Domain.Entities;
 
 public class ProgressInfo
 {

@@ -1,0 +1,50 @@
+﻿.results-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fill, minmax(420px, 1fr));
+
+    gap: 20px;
+}
+
+.result-card {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 14px;
+    padding: 20px;
+    color: white;
+}
+
+.preview-image {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-top: 12px;
+}
+
+.section {
+    margin-top: 18px;
+}
+
+.ocr-box {
+    background: #2a2a2a;
+    padding: 12px;
+    border-radius: 10px;
+    max-height: 180px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-size: 12px;
+}
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag {
+    background: #2563eb;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}

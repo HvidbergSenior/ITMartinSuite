@@ -1,0 +1,105 @@
+﻿@page "/ai-results"
+
+@using System.Net.Http.Json
+@using ITMartin.Media.Domain.Models
+
+@inject HttpClient Http
+
+<PageTitle>AI Results</PageTitle>
+
+<h1>AI Scan Results</h1>
+
+@if (!results.Any())
+{
+    <p>Loading scan results...</p>
+}
+else
+{
+    <div class="results-grid">
+
+        @foreach (var item in results)
+        {
+            <div class="result-card">
+
+                <h3>@item.FileName</h3>
+
+                @if (IsImage(item.FullPath))
+                {
+                    <img class="preview-image"
+                         src="@($"/thumbnail?path={Uri.EscapeDataString(item.FullPath)}")" />
+                }
+
+                <div class="section">
+                    <strong>AI Description</strong>
+
+                    <p>@item.AiDescription</p>
+                </div>
+
+                <div class="section">
+                    <strong>OCR Text</strong>
+
+                    <div class="ocr-box">
+                        @item.OcrText
+                    </div>
+                </div>
+
+                <div class="section">
+                    <strong>Tags</strong>
+
+                    <div class="tags">
+
+                        @foreach (var tag in item.AiTags)
+                        {
+                            <span class="tag">
+                                @tag
+                            </span>
+                        }
+
+                    </div>
+                </div>
+
+                <div class="section">
+                    <strong>Confidence</strong>
+
+                    <div>
+                        @(item.AiConfidence * 100)%
+                    </div>
+                </div>
+
+            </div>
+        }
+
+    </div>
+}
+
+@code {
+
+    private List<AiScanResultViewModel> results = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var data =
+            await Http.GetFromJsonAsync<
+                List<AiScanResultViewModel>>(
+                "/api/scan-preview");
+
+        if (data != null)
+        {
+            results = data;
+        }
+    }
+
+    private bool IsImage(string path)
+    {
+        var ext =
+            Path.GetExtension(path)
+                .ToLower();
+
+        return ext is
+            ".jpg" or
+            ".jpeg" or
+            ".png" or
+            ".gif" or
+            ".webp";
+    }
+}

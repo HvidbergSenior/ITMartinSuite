@@ -1,4 +1,7 @@
+using ITMartin.Media.Domain.Interfaces;
+using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Interfaces;
 using ITMartinFileSorter.Application.Services;
 using ITMartinFileSorter.Server;
@@ -6,6 +9,10 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
+using Microsoft.AspNetCore.Components;
+using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================
@@ -25,12 +32,28 @@ builder.Services.AddServerSideBlazor()
 // =========================
 builder.Services.AddMediaInfrastructure(
     builder.Configuration);
+
 builder.Services.AddSingleton<
     IOcrService,
     OcrService>();
+
+builder.Services.AddScoped<
+    IAiCacheService,
+    SqliteAiCacheService>();
 // =========================
 // APP SERVICES
 // =========================
+builder.Services.AddScoped(sp =>
+{
+    var navigation =
+        sp.GetRequiredService<NavigationManager>();
+
+    return new HttpClient
+    {
+        BaseAddress =
+            new Uri(navigation.BaseUri)
+    };
+});
 builder.Services.AddScoped<DuplicateService>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<HomeLocationService>();
@@ -41,7 +64,23 @@ builder.Services.AddScoped<FolderPathInfoService>();
 // CONTROLLERS
 // =========================
 builder.Services.AddControllers();
+var dataFolder =
+    @"C:\FileSorterData";
 
+Directory.CreateDirectory(
+    dataFolder);
+
+var dbPath =
+    Path.Combine(
+        dataFolder,
+        "media.db");
+
+builder.Services.AddDbContext<
+    MediaDbContext>(options =>
+{
+    options.UseSqlite(
+        $"Data Source={dbPath}");
+});
 // =========================
 // BUILD
 // =========================
@@ -146,5 +185,46 @@ app.MapControllers();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+app.MapGet("/api/scan-preview", (
+    IFileScanner scanner) =>
+{
+    var results =
+        scanner.ScanFolder(
+                @"C:\FileSorterTests\Test1_Source")
+            .Take(50)
+            .Select(x => new AiScanResultViewModel
+            {
+                FullPath = x.FullPath,
+                FileName = Path.GetFileName(x.FullPath),
+                OcrText = x.OcrText,
+                AiDescription = x.AiDescription,
+                AiTags = x.AiTags,
+                AiConfidence = x.AiConfidence ?? 0
+            })
+            .ToList();
 
+    return Results.Ok(results);
+});
+
+app.MapGet("/thumbnail", (
+    string path) =>
+{
+    if (!System.IO.File.Exists(path))
+        return Results.NotFound();
+
+    var ext = Path.GetExtension(path);
+
+    var contentType =
+        ext.ToLower() switch
+        {
+            ".jpg" => "image/jpeg",
+            ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+
+    return Results.File(path, contentType);
+});
 app.Run();

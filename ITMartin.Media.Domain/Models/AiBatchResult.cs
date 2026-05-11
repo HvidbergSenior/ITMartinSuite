@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Models;
+﻿namespace ITMartin.Media.Domain.Models;
 
 public sealed class AiBatchResult
 {

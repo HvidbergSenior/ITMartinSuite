@@ -1,4 +1,5 @@
 ﻿using ITMartin.Media.Application.Services;
+using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Infrastructure.FileSystem;
 using ITMartin.Media.Infrastructure.Hashing;
@@ -26,7 +27,8 @@ public static class DependencyInjection
         services.AddScoped<IFileSystem, FileSystemService>();
 
         services.AddScoped<IFileScanner, FileScanner>();
-
+        services.AddScoped<IAiAnalysisService,
+            OpenAiAnalysisService>();
         // =========================
         // CLASSIFICATION
         // =========================

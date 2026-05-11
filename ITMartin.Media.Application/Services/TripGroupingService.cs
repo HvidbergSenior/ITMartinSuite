@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
 using ITMartin.Media.Application.Helpers;
-using ITMartin.Media.Entities;
+using ITMartin.Media.Domain.Entities;
 using ITMartin.Media.Enums;
 using ITMartin.Media.Interfaces;
 

@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
-using ITMartin.Media.Entities;
+using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Interfaces;
-using ITMartin.Media.Models;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
 
@@ -136,16 +136,12 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
     {
         var items = files.Select(x => new
         {
-            x.Id,
-            x.FileName,
-            x.Type,
-            Extension = Path.GetExtension(x.FullPath),
-
-            OcrText = string.IsNullOrWhiteSpace(x.OcrText)
-                ? null
-                : x.OcrText.Substring(
-                    0,
-                    Math.Min(x.OcrText.Length, 1000))
+            FullPath = x.FullPath,
+            FileName = Path.GetFileName(x.FullPath),
+            x.OcrText,
+            x.AiDescription,
+            x.AiTags,
+            x.AiConfidence
         });
 
         var json = JsonSerializer.Serialize(items);

@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Entities;
+﻿using ITMartin.Media.Domain.Entities;
 
 namespace ITMartinFileSorter.Application.Interfaces;
 

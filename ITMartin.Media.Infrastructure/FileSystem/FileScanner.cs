@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Entities;
+﻿using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Enums;
 using ITMartin.Media.Interfaces;
 using ITMartin.OCR.Interfaces;
@@ -13,6 +14,8 @@ public sealed class FileScanner : IFileScanner
     private readonly IMediaClassificationService _classificationService;
     private readonly IExifService _exifService;
     private readonly IOcrService _ocrService;
+    private readonly IAiAnalysisService _aiAnalysisService;
+    private readonly IAiCacheService _aiCacheService;
 
     public FileScanner(
         IFileSystem fileSystem,
@@ -20,7 +23,9 @@ public sealed class FileScanner : IFileScanner
         IMediaDateService mediaDateService,
         IMediaClassificationService classificationService,
         IExifService exifService,
-        IOcrService ocrService)
+        IOcrService ocrService,
+        IAiAnalysisService aiAnalysisService,
+        IAiCacheService aiCacheService)
     {
         _fileSystem = fileSystem;
         _hashService = hashService;
@@ -28,6 +33,8 @@ public sealed class FileScanner : IFileScanner
         _classificationService = classificationService;
         _exifService = exifService;
         _ocrService = ocrService;
+        _aiAnalysisService = aiAnalysisService;
+        _aiCacheService = aiCacheService;
     }
 
     // =========================
@@ -186,6 +193,78 @@ public sealed class FileScanner : IFileScanner
             {
                 mediaFile.SetHash(
                     _hashService.ComputeHash(file));
+            }
+            catch
+            {
+            }
+
+            // =========================
+            // AI ANALYSIS
+            // =========================
+
+            try
+            {
+                if (type == MediaType.Image &&
+                    mediaFile.Hash != null)
+                {
+                    // CACHE CHECK
+
+                    var cached =
+                        _aiCacheService
+                            .GetAsync(mediaFile.Hash)
+                            .GetAwaiter()
+                            .GetResult();
+
+                    if (cached != null)
+                    {
+                        mediaFile.AiDescription =
+                            cached.Description;
+
+                        mediaFile.AiTags =
+                            cached.Tags;
+
+                        mediaFile.AiConfidence =
+                            (float?)cached.Confidence;
+
+                        mediaFile.AiProcessed = true;
+
+                        Console.WriteLine(
+                            $"AI CACHE HIT: {file}");
+                    }
+                    else
+                    {
+                        // OPENAI CALL
+
+                        var aiResult =
+                            _aiAnalysisService
+                                .AnalyzeImageAsync(file)
+                                .GetAwaiter()
+                                .GetResult();
+
+                        mediaFile.AiDescription =
+                            aiResult.Description;
+
+                        mediaFile.AiTags =
+                            aiResult.Tags;
+
+                        mediaFile.AiConfidence =
+                            (float?)aiResult.Confidence;
+
+                        mediaFile.AiProcessed = true;
+
+                        Console.WriteLine(
+                            $"AI for {file}: {mediaFile.AiDescription}");
+
+                        // SAVE CACHE
+
+                        _aiCacheService
+                            .SaveAsync(
+                                mediaFile.Hash,
+                                aiResult)
+                            .GetAwaiter()
+                            .GetResult();
+                    }
+                }
             }
             catch
             {
