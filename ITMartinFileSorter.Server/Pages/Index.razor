@@ -2,6 +2,7 @@
 @page "/filesorter"
 
 @using ITMartin.Media.Domain.Entities
+@using ITMartin.Media.Domain.Interfaces
 @using ITMartin.Media.Enums
 @using ITMartin.Media.Helpers
 @using ITMartin.Media.Interfaces
@@ -16,6 +17,7 @@
 @inject IConfiguration Configuration
 @inject IAiEnrichmentService AiEnrichmentService
 @inject ILogger<Index> Logger
+@inject IMediaNormalizationService MediaNormalizationService
 
 <PageLayout Title="📂 Scan & Organize Files">
 
@@ -30,7 +32,7 @@
             <FolderInputPanel
                 Value="@FolderPath"
                 ValueChanged="OnFolderPathChanged"
-                ButtonText="@(IsScanning ? "Scanning..." : "Scan Folder")"
+                ButtonText="@(IsScanning ? Progress.Info.Stage : "Scan Folder")"
                 Disabled="@IsScanning"
                 OnAction="ScanFolder" />
 
@@ -51,7 +53,7 @@
                 Total="@Progress.Info.TotalWork"
                 Percent="@ProgressPercent"
                 CurrentItem="@CurrentFileName"
-                LoadingText="Scanning files..."
+                LoadingText="Processing media..."
                 Icon="📂" />
         }
 
@@ -199,150 +201,144 @@
     }
 
     private async Task ScanFolder()
+{
+    if (IsScanning)
+        return;
+
+    ErrorMessage = "";
+
+    var path = FolderPath;
+
+    Logger.LogInformation(
+        "Starting scan for {Path}",
+        path);
+
+    if (string.IsNullOrWhiteSpace(path))
     {
-        if (IsScanning)
-            return;
+        ErrorMessage =
+            "Please enter a folder path.";
 
-        ErrorMessage = "";
+        return;
+    }
 
-        var path = FolderPath;
+    if (!Directory.Exists(path))
+    {
+        ErrorMessage =
+            $"Folder not found: {path}";
 
-        Logger.LogInformation(
-            "Starting scan for {Path}",
+        Logger.LogWarning(
+            "Folder not found: {Path}",
             path);
 
-        if (string.IsNullOrWhiteSpace(path))
+        return;
+    }
+
+    IsScanning = true;
+
+    await InvokeAsync(StateHasChanged);
+
+    CurrentFileName = "";
+
+    DuplicateService.Reset();
+
+    DuplicateService.FolderPath = path;
+
+    var bag =
+        new System.Collections.Concurrent
+            .ConcurrentBag<MediaFile>();
+
+    var allPaths =
+        FileScanner.EnumerateFiles(path)
+            .ToList();
+
+    Progress.Start(
+        "Scanning files...",
+        allPaths.Count);
+
+    var lastRender = DateTime.UtcNow;
+
+    await Parallel.ForEachAsync(
+        allPaths,
+        new ParallelOptions
         {
-            ErrorMessage =
-                "Please enter a folder path.";
-
-            return;
-        }
-
-        if (!Directory.Exists(path))
+            MaxDegreeOfParallelism = 4
+        },
+        async (filePath, ct) =>
         {
-            ErrorMessage =
-                $"Folder not found: {path}";
-
-            Logger.LogWarning(
-                "Folder not found: {Path}",
-                path);
-
-            return;
-        }
-
-        IsScanning = true;
-
-        await InvokeAsync(StateHasChanged);
-
-        CurrentFileName = "";
-
-        DuplicateService.Reset();
-
-        DuplicateService.FolderPath = path;
-
-        var bag =
-            new System.Collections.Concurrent
-                .ConcurrentBag<MediaFile>();
-
-        var allPaths =
-            FileScanner.EnumerateFiles(path)
-                .ToList();
-
-        Progress.Start(
-            "Scanning files...",
-            allPaths.Count);
-
-        var lastRender = DateTime.UtcNow;
-
-        await Parallel.ForEachAsync(
-            allPaths,
-            new ParallelOptions
+            try
             {
-                MaxDegreeOfParallelism =
-                    Environment.ProcessorCount
-            },
-            async (filePath, ct) =>
-            {
-                try
+                var file =
+                    FileScanner.ProcessFile(filePath);
+
+                if (file == null)
+                    return;
+
+                file.RequiresReview = true;
+
+                file.Status =
+                    MediaFileStatus.Initial;
+
+                if (file.SubCategory is
+                    MediaSubCategory.Meme or
+                    MediaSubCategory.Screenshot)
                 {
-                    var file =
-                        FileScanner.ProcessFile(filePath);
-
-                    if (file == null)
-                        return;
-
-                    file.RequiresReview = true;
+                    file.RequiresReview = false;
 
                     file.Status =
-                        MediaFileStatus.Initial;
-
-                    if (file.SubCategory is
-                        MediaSubCategory.Meme or
-                        MediaSubCategory.Screenshot)
-                    {
-                        file.RequiresReview = false;
-
-                        file.Status =
-                            MediaFileStatus.ToKeep;
-                    }
-
-                    bag.Add(file);
-
-                    Progress.Increment();
-
-                    await InvokeAsync(() =>
-                    {
-                        CurrentFileName =
-                            Path.GetFileName(filePath);
-
-                        if ((DateTime.UtcNow - lastRender)
-                            .TotalMilliseconds > 100)
-                        {
-                            lastRender = DateTime.UtcNow;
-
-                            StateHasChanged();
-                        }
-                    });
+                        MediaFileStatus.ToKeep;
                 }
-                catch (Exception ex)
+
+                bag.Add(file);
+
+                Progress.Increment();
+
+                await InvokeAsync(() =>
                 {
-                    Logger.LogError(
-                        ex,
-                        "Failed processing file {File}",
-                        filePath);
-                }
-            });
+                    CurrentFileName =
+                        Path.GetFileName(filePath);
 
-        DuplicateService.AllFiles =
-            bag.ToList();
+                    if ((DateTime.UtcNow - lastRender)
+                        .TotalMilliseconds > 100)
+                    {
+                        lastRender = DateTime.UtcNow;
 
-        Progress.SetStage(
-            "Removing duplicates...");
-
-        await Task.Run(() =>
-            DuplicateService.BuildDuplicateGroups());
-
-        Progress.SetStage(
-            "AI enrichment...");
-
-        await AiEnrichmentService.EnrichBatchAsync(
-            DuplicateService.AllFiles,
-            async () =>
+                        StateHasChanged();
+                    }
+                });
+            }
+            catch (Exception ex)
             {
-                await InvokeAsync(StateHasChanged);
-            });
+                Logger.LogError(
+                    ex,
+                    "Failed processing file {File}",
+                    filePath);
+            }
+        });
 
-        Progress.Complete();
+    DuplicateService.AllFiles =
+        bag.ToList();
 
-        IsScanning = false;
+    // =========================
+    // DUPLICATES
+    // =========================
 
-        Logger.LogInformation(
-            "Scan completed for {Path}",
-            path);
+    Progress.Start(
+        "Removing duplicates...",
+        DuplicateService.AllFiles.Count);
 
-        await InvokeAsync(StateHasChanged);
-    }
+    await Task.Run(() =>
+        DuplicateService.BuildDuplicateGroups());
+
+    Progress.Complete();
+
+    IsScanning = false;
+
+    Logger.LogInformation(
+        "Scan completed for {Path}",
+        path);
+
+    await InvokeAsync(StateHasChanged);
+}
 
     private void OpenCategory(string cat)
     {

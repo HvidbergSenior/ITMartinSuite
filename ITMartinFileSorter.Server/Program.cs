@@ -32,7 +32,9 @@ builder.Services.AddServerSideBlazor()
 // =========================
 builder.Services.AddMediaInfrastructure(
     builder.Configuration);
-
+builder.Services.AddScoped<
+    IMediaNormalizationService,
+    MediaNormalizationService>();
 builder.Services.AddSingleton<
     IOcrService,
     OcrService>();
@@ -75,7 +77,7 @@ var dbPath =
         dataFolder,
         "media.db");
 
-builder.Services.AddDbContext<
+builder.Services.AddDbContextFactory<
     MediaDbContext>(options =>
 {
     options.UseSqlite(

@@ -10,19 +10,22 @@ namespace ITMartin.Media.Infrastructure.Services;
 public sealed class SqliteAiCacheService
     : IAiCacheService
 {
-    private readonly MediaDbContext _db;
+    private readonly IDbContextFactory<MediaDbContext> _dbFactory;
 
     public SqliteAiCacheService(
-        MediaDbContext db)
+        IDbContextFactory<MediaDbContext> dbFactory)
     {
-        _db = db;
+        _dbFactory = dbFactory;
     }
 
     public async Task<AiCacheItem?> GetAsync(
         string hash)
     {
+        await using var db =
+            await _dbFactory.CreateDbContextAsync();
+
         var entity =
-            await _db.AiCache
+            await db.AiCache
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
                     x => x.Hash == hash);
@@ -46,8 +49,11 @@ public sealed class SqliteAiCacheService
         string hash,
         AiAnalysisResult result)
     {
+        await using var db =
+            await _dbFactory.CreateDbContextAsync();
+
         var exists =
-            await _db.AiCache
+            await db.AiCache
                 .AnyAsync(x => x.Hash == hash);
 
         if (exists)
@@ -63,8 +69,8 @@ public sealed class SqliteAiCacheService
                 result.Tags)
         };
 
-        _db.AiCache.Add(entity);
+        db.AiCache.Add(entity);
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
     }
 }

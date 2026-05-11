@@ -46,9 +46,6 @@ public sealed class OpenAiAnalysisService
                     ".png" => "image/png",
                     ".webp" => "image/webp",
                     ".gif" => "image/gif",
-                    ".heic" => "image/heic",
-                    ".heif" => "image/heif",
-                    ".avif" => "image/avif",
                     _ => "image/jpeg"
                 };
 

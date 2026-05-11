@@ -8,7 +8,8 @@ public class ImageBatchService : IImageBatchService
 {
     private readonly ImageConverterService _converter;
 
-    public ImageBatchService(ImageConverterService converter)
+    public ImageBatchService(
+        ImageConverterService converter)
     {
         _converter = converter;
     }
@@ -18,30 +19,50 @@ public class ImageBatchService : IImageBatchService
         Action<int, int, string>? progress = null)
     {
         var images = files
-            .Where(f => f.Type == MediaType.Image && !string.IsNullOrEmpty(f.ExportedPath))
+            .Where(f => f.Type == MediaType.Image)
             .ToList();
 
         int total = images.Count;
         int current = 0;
 
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "ITMartinFileSorter");
+
+        Directory.CreateDirectory(tempRoot);
+
         foreach (var file in images)
         {
             try
             {
-                var output = await _converter
-                    .ConvertToJpgAsync(file.ExportedPath!);
+                var output =
+                    await _converter.ConvertToJpgAsync(
+                        file.FullPath);
 
-                // 🔥 IMPORTANT
-                file.ExportedPath = output;
+                // IMPORTANT
+
+                file.NormalizedPath = output;
+
+                Console.WriteLine(
+                    $"NORMALIZED IMAGE: {output}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[IMAGE ERROR] {file.FileName}: {ex}");
+                Console.WriteLine(
+                    $"[IMAGE ERROR] {file.FileName}: {ex}");
+
+                // fallback
+
+                file.NormalizedPath =
+                    file.FullPath;
             }
 
             current++;
 
-            progress?.Invoke(current, total, file.FileName);
+            progress?.Invoke(
+                current,
+                total,
+                file.FileName);
         }
     }
 }

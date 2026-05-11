@@ -39,55 +39,111 @@ public class ImageConverterService : IImageConverterService
                name.Contains("meme");
     }
 
-    public async Task<string?> ConvertToJpgAsync(string inputPath)
+    public async Task<string?> ConvertToJpgAsync(
+    string inputPath)
+{
+    Console.WriteLine(
+        "===== IMAGE DEBUG START =====");
+
+    Console.WriteLine(
+        $"Input path: {inputPath}");
+
+    if (!File.Exists(inputPath))
     {
-        Console.WriteLine("===== IMAGE DEBUG START =====");
-        Console.WriteLine($"Input path: {inputPath}");
+        Console.WriteLine(
+            "Input file missing");
 
-        if (!File.Exists(inputPath))
+        return null;
+    }
+
+    // =========================
+    // KEEP ORIGINALS
+    // =========================
+
+    if (ShouldKeepOriginal(inputPath))
+    {
+        Console.WriteLine(
+            "Keeping original");
+
+        return inputPath;
+    }
+
+    if (!NeedsConversion(inputPath))
+    {
+        Console.WriteLine(
+            "No conversion needed");
+
+        return inputPath;
+    }
+
+    // =========================
+    // TEMP NORMALIZED FOLDER
+    // =========================
+
+    var tempRoot =
+        Path.Combine(
+            Path.GetTempPath(),
+            "ITMartinFileSorter",
+            "images");
+
+    Directory.CreateDirectory(
+        tempRoot);
+
+    // =========================
+    // SAFE OUTPUT NAME
+    // =========================
+
+    var fileName =
+        Path.GetFileNameWithoutExtension(
+            inputPath);
+
+    var outputPath =
+        Path.Combine(
+            tempRoot,
+            $"{fileName}.jpg");
+
+    Console.WriteLine(
+        $"Output path: {outputPath}");
+
+    try
+    {
+        // Already converted
+
+        if (File.Exists(outputPath))
         {
-            Console.WriteLine("Input file missing");
-            return null;
-        }
-
-        if (ShouldKeepOriginal(inputPath))
-        {
-            Console.WriteLine("Keeping original");
-            return inputPath;
-        }
-
-        if (!NeedsConversion(inputPath))
-        {
-            Console.WriteLine("No conversion needed");
-            return inputPath;
-        }
-
-        var outputPath = Path.ChangeExtension(inputPath, ".jpg");
-
-        Console.WriteLine($"Output path: {outputPath}");
-
-        try
-        {
-            await ConvertWithFfmpeg(inputPath, outputPath);
-
-            if (!File.Exists(outputPath))
-                throw new Exception("JPG not created");
-
-            CopyDates(inputPath, outputPath);
-
-            await SafeDeleteAsync(inputPath);
-
-            Console.WriteLine("===== IMAGE DEBUG END =====");
+            Console.WriteLine(
+                "Already normalized");
 
             return outputPath;
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[IMAGE CONVERT ERROR] {ex}");
 
-            return inputPath;
+        await ConvertWithFfmpeg(
+            inputPath,
+            outputPath);
+
+        if (!File.Exists(outputPath))
+        {
+            throw new Exception(
+                "JPG not created");
         }
+
+        CopyDates(
+            inputPath,
+            outputPath);
+
+        Console.WriteLine(
+            "===== IMAGE DEBUG END =====");
+
+        return outputPath;
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"[IMAGE CONVERT ERROR] {ex}");
+
+        return inputPath;
+    }
+}
 
     private async Task ConvertWithFfmpeg(
         string inputPath,
@@ -153,29 +209,4 @@ public class ImageConverterService : IImageConverterService
         File.SetCreationTime(outputPath, created);
         File.SetLastWriteTime(outputPath, modified);
     }
-    private async Task SafeDeleteAsync(string path)
-    {
-        for (int i = 0; i < 5; i++)
-        {
-            try
-            {
-                if (!File.Exists(path))
-                    return;
-
-                File.Delete(path);
-
-                Console.WriteLine($"[IMAGE DELETE SUCCESS] {path}");
-                return;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[IMAGE DELETE RETRY {i}] {ex.Message}");
-                await Task.Delay(300);
-            }
-        }
-
-        Console.WriteLine($"[IMAGE DELETE FAILED] {path}");
-    }
-
-    
 }

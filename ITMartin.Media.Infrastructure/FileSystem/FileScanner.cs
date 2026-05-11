@@ -198,78 +198,7 @@ public sealed class FileScanner : IFileScanner
             {
             }
 
-            // =========================
-            // AI ANALYSIS
-            // =========================
-
-            try
-            {
-                if (type == MediaType.Image &&
-                    mediaFile.Hash != null)
-                {
-                    // CACHE CHECK
-
-                    var cached =
-                        _aiCacheService
-                            .GetAsync(mediaFile.Hash)
-                            .GetAwaiter()
-                            .GetResult();
-
-                    if (cached != null)
-                    {
-                        mediaFile.AiDescription =
-                            cached.Description;
-
-                        mediaFile.AiTags =
-                            cached.Tags;
-
-                        mediaFile.AiConfidence =
-                            (float?)cached.Confidence;
-
-                        mediaFile.AiProcessed = true;
-
-                        Console.WriteLine(
-                            $"AI CACHE HIT: {file}");
-                    }
-                    else
-                    {
-                        // OPENAI CALL
-
-                        var aiResult =
-                            _aiAnalysisService
-                                .AnalyzeImageAsync(file)
-                                .GetAwaiter()
-                                .GetResult();
-
-                        mediaFile.AiDescription =
-                            aiResult.Description;
-
-                        mediaFile.AiTags =
-                            aiResult.Tags;
-
-                        mediaFile.AiConfidence =
-                            (float?)aiResult.Confidence;
-
-                        mediaFile.AiProcessed = true;
-
-                        Console.WriteLine(
-                            $"AI for {file}: {mediaFile.AiDescription}");
-
-                        // SAVE CACHE
-
-                        _aiCacheService
-                            .SaveAsync(
-                                mediaFile.Hash,
-                                aiResult)
-                            .GetAwaiter()
-                            .GetResult();
-                    }
-                }
-            }
-            catch
-            {
-            }
-
+            
             // =========================
             // CLASSIFICATION
             // =========================

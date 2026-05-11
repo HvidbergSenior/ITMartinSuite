@@ -1,6 +1,7 @@
 ﻿@page "/export"
 
 @using ITMartin.Media.Domain.Entities
+@using ITMartin.Media.Domain.Interfaces
 @using ITMartin.Media.Enums
 @using ITMartinFileSorter.Application.Services
 
@@ -9,7 +10,8 @@
 @inject IConfiguration Configuration
 @inject LibraryExportService LibraryExportService
 @inject ILogger<Export> Logger
-
+@inject IAiEnrichmentService AiEnrichmentService
+@inject IMediaNormalizationService MediaNormalizationService
 <div class="filesorter-app">
 
     <div class="page-container stack export-page">
@@ -219,122 +221,173 @@
     // =========================
 
     private async Task StartExport()
+{
+    if (IsExporting)
+        return;
+
+    try
     {
-        if (IsExporting)
-            return;
+        IsExporting = true;
 
-        try
+        ExportedCount = 0;
+
+        CurrentStage = "Preparing export...";
+
+        await InvokeAsync(StateHasChanged);
+
+        var files = FilesToExport.ToList();
+
+        TotalToExport = files.Count;
+
+        var exportRoot = LibraryRoot;
+
+        var sourceRoot = SourceRoot;
+
+        // =========================
+        // SAFETY
+        // =========================
+
+        if (string.IsNullOrWhiteSpace(exportRoot))
         {
-            IsExporting = true;
+            throw new Exception(
+                "LibraryRoot missing in configuration.");
+        }
 
-            ExportedCount = 0;
+        if (string.IsNullOrWhiteSpace(sourceRoot))
+        {
+            throw new Exception(
+                "SourceRoot missing in configuration.");
+        }
 
-            CurrentStage = "Preparing export...";
+        if (Path.GetFullPath(exportRoot)
+            .Equals(
+                Path.GetFullPath(sourceRoot),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new Exception(
+                "Source and Library folders cannot be the same.");
+        }
 
-            await InvokeAsync(StateHasChanged);
+        Directory.CreateDirectory(exportRoot);
 
-            var files = FilesToExport.ToList();
+        // =========================
+        // AI ENRICHMENT
+        // =========================
 
-            TotalToExport = files.Count;
+        CurrentStage = "AI enrichment...";
 
-            var exportRoot = LibraryRoot;
+        await InvokeAsync(StateHasChanged);
 
-            var sourceRoot = SourceRoot;
-
-            // SAFETY CHECKS
-
-            if (string.IsNullOrWhiteSpace(exportRoot))
+        await AiEnrichmentService.EnrichBatchAsync(
+            files,
+            async () =>
             {
-                throw new Exception(
-                    "LibraryRoot missing in configuration.");
-            }
+                ExportedCount++;
 
-            if (string.IsNullOrWhiteSpace(sourceRoot))
+                CurrentExportFile =
+                    $"AI batch processed";
+
+                await InvokeAsync(StateHasChanged);
+            });
+
+        // =========================
+        // NORMALIZATION
+        // =========================
+
+        ExportedCount = 0;
+
+        CurrentStage = "Normalizing media...";
+
+        await InvokeAsync(StateHasChanged);
+
+        await MediaNormalizationService.NormalizeAsync(
+            files,
+            async (done, total, fileName) =>
             {
-                throw new Exception(
-                    "SourceRoot missing in configuration.");
-            }
+                ExportedCount = done;
 
-            if (Path.GetFullPath(exportRoot)
-                .Equals(
-                    Path.GetFullPath(sourceRoot),
-                    StringComparison.OrdinalIgnoreCase))
+                TotalToExport = total;
+
+                CurrentExportFile = fileName;
+
+                await InvokeAsync(StateHasChanged);
+            });
+
+        // =========================
+        // EXPORT
+        // =========================
+
+        ExportedCount = 0;
+
+        CurrentStage = "Exporting files...";
+
+        await InvokeAsync(StateHasChanged);
+
+        await LibraryExportService.ExportAsync(
+            files,
+            exportRoot,
+            async (done, total, fileName, stage) =>
             {
-                throw new Exception(
-                    "Source and Library folders cannot be the same.");
-            }
+                ExportedCount = done;
 
-            Directory.CreateDirectory(exportRoot);
+                TotalToExport = total;
 
-            Logger.LogInformation(
-                "Starting export. Source: {Source} Export: {Export} Files: {Count}",
-                sourceRoot,
-                exportRoot,
-                files.Count);
+                CurrentExportFile = fileName;
 
-            await LibraryExportService.ExportAsync(
-                files,
-                exportRoot,
-                async (done, total, fileName, stage) =>
+                CurrentStage = stage;
+
+                if ((DateTime.UtcNow - LastRender)
+                    .TotalMilliseconds > 100)
                 {
-                    ExportedCount = done;
+                    LastRender = DateTime.UtcNow;
 
-                    TotalToExport = total;
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
 
-                    CurrentExportFile = fileName;
+        ExportedCount = TotalToExport;
 
-                    CurrentStage = stage;
+        CurrentStage = "Opening library...";
 
-                    if ((DateTime.UtcNow - LastRender)
-                        .TotalMilliseconds > 100)
-                    {
-                        LastRender = DateTime.UtcNow;
+        await InvokeAsync(StateHasChanged);
 
-                        await InvokeAsync(StateHasChanged);
-                    }
-                });
+        await Task.Delay(400);
 
-            ExportedCount = TotalToExport;
+        Logger.LogInformation(
+            "Export completed successfully to {ExportRoot}",
+            exportRoot);
 
-            CurrentStage = "Opening library...";
+        // =========================
+        // RESET
+        // =========================
 
-            await InvokeAsync(StateHasChanged);
+        DuplicateService.Reset();
 
-            await Task.Delay(400);
+        ExportedCount = 0;
+        TotalToExport = 0;
+        CurrentExportFile = "";
+        CurrentStage = "";
+        IsExporting = false;
 
-            Logger.LogInformation(
-                "Export completed successfully to {ExportRoot}",
-                exportRoot);
+        await InvokeAsync(StateHasChanged);
 
-            // RESET SESSION
-
-            DuplicateService.Reset();
-
-            ExportedCount = 0;
-            TotalToExport = 0;
-            CurrentExportFile = "";
-            CurrentStage = "";
-            IsExporting = false;
-
-            await InvokeAsync(StateHasChanged);
-
-            Navigation.NavigateTo(
-                $"/library?path={Uri.EscapeDataString(exportRoot)}",
-                true);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(
-                ex,
-                "Export failed");
-
-            CurrentStage = "❌ Export failed";
-
-            IsExporting = false;
-
-            await InvokeAsync(StateHasChanged);
-        }
+        Navigation.NavigateTo(
+            $"/library?path={Uri.EscapeDataString(exportRoot)}",
+            true);
     }
+    catch (Exception ex)
+    {
+        Logger.LogError(
+            ex,
+            "Export failed");
+
+        CurrentStage = "❌ Export failed";
+
+        IsExporting = false;
+
+        await InvokeAsync(StateHasChanged);
+    }
+}
 
     // =========================
     // DTOs

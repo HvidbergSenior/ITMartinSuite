@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
 using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
+using ITMartin.Media.Enums;
 using ITMartin.Media.Interfaces;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
@@ -9,10 +11,31 @@ namespace ITMartin.Media.Infrastructure.Ai;
 
 public sealed class AiEnrichmentService : IAiEnrichmentService
 {
+    private static readonly HashSet<string> AllowedCategories =
+    [
+        "Travel",
+        "Family",
+        "Work",
+        "Screenshots",
+        "Documents",
+        "Music",
+        "Movies",
+        "Games",
+        "Memes",
+        "Receipts",
+        "Unknown"
+    ];
+
     private readonly ChatClient _client;
 
-    public AiEnrichmentService(IConfiguration configuration)
+    private readonly IAiAnalysisService _aiAnalysisService;
+
+    public AiEnrichmentService(
+        IConfiguration configuration,
+        IAiAnalysisService aiAnalysisService)
     {
+        _aiAnalysisService = aiAnalysisService;
+
         var apiKey = configuration["OpenAI:ApiKey"];
 
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -25,7 +48,8 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
     public async Task EnrichBatchAsync(
         List<MediaFile> files,
-        Func<Task>? onBatchCompleted = null)
+        Func<Task>? onBatchCompleted = null,
+        CancellationToken cancellationToken = default)
     {
         var filesToProcess = files
             .Where(NeedsAi)
@@ -34,66 +58,106 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         if (filesToProcess.Count == 0)
             return;
 
-        const int batchSize = 10;
+        const int batchSize = 5;
 
         foreach (var batch in filesToProcess.Chunk(batchSize))
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var batchList = batch.ToList();
+
             try
             {
-                var batchList = batch.ToList();
+                // =========================
+                // VISION ANALYSIS
+                // =========================
 
-                var prompt = BuildBatchPrompt(batchList);
-
-                var response = await _client.CompleteChatAsync(
-                [
-                    new SystemChatMessage("""
-                    You are a file classification AI.
-
-                    Return ONLY valid JSON.
-                    Return ONLY a JSON array.
-
-                    Do not return markdown.
-                    Do not return explanations.
-                    Do not wrap in ```json.
-                    """),
-
-                    new UserChatMessage(prompt)
-                ],
-                new ChatCompletionOptions
+                foreach (var file in batchList)
                 {
-                    Temperature = 0
-                });
-
-                var text = response.Value.Content
-                    .FirstOrDefault()?.Text;
-
-                Console.WriteLine($"RAW AI RESPONSE: {text}");
-
-                if (string.IsNullOrWhiteSpace(text))
-                    continue;
-
-                var results = JsonSerializer.Deserialize<List<AiBatchResult>>(
-                    text,
-                    new JsonSerializerOptions
+                    try
                     {
-                        PropertyNameCaseInsensitive = true
-                    });
+                        if (file.Type == MediaType.Image)
+                        {
+                            var aiPath =
+                                file.NormalizedPath ??
+                                file.FullPath;
+
+                            var vision =
+                                await _aiAnalysisService
+                                    .AnalyzeImageAsync(aiPath);
+
+                            file.AiDescription =
+                                vision.Description;
+
+                            file.AiTags =
+                                vision.Tags;
+
+                            file.AiConfidence =
+                                (float?)vision.Confidence;
+
+                            Console.WriteLine(
+                                $"VISION AI: {aiPath}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(
+                            $"VISION ERROR: {ex}");
+                    }
+                }
+
+                // =========================
+                // BATCH CLASSIFICATION
+                // =========================
+
+                var results = await ProcessBatchAsync(
+                    batchList,
+                    cancellationToken);
 
                 if (results == null)
                     continue;
 
                 foreach (var result in results)
                 {
+                    Console.WriteLine("=================================");
+                    Console.WriteLine($"ID: {result.Id}");
+                    Console.WriteLine($"Category: {result.Category}");
+                    Console.WriteLine($"SubCategory: {result.SubCategory}");
+                    Console.WriteLine($"Description: {result.Description}");
+                    Console.WriteLine($"Confidence: {result.Confidence}");
+
                     var file = batchList
                         .FirstOrDefault(x => x.Id == result.Id);
 
                     if (file == null)
                         continue;
 
-                    file.AiCategory = result.Category;
+                    Console.WriteLine(
+                        $"FILE: {file.FullPath}");
+
+                    var category =
+                        AllowedCategories.Contains(
+                            result.Category)
+                            ? result.Category
+                            : "Unknown";
+
+                    file.AiCategory = category;
                     file.AiSubCategory = result.SubCategory;
-                    file.AiDescription = result.Description;
-                    file.AiConfidence = (float?)result.Confidence;
+
+                    // Keep best vision description if available
+
+                    if (string.IsNullOrWhiteSpace(
+                            file.AiDescription))
+                    {
+                        file.AiDescription =
+                            result.Description;
+                    }
+
+                    file.AiConfidence =
+                        Math.Max(
+                            file.AiConfidence ?? 0,
+                            (float?)result.Confidence ?? 0);
+
                     file.AiProcessed = true;
                 }
 
@@ -105,46 +169,150 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
                     await onBatchCompleted();
                 }
 
-                await Task.Delay(3000);
+                await Task.Delay(
+                    2000,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"AI BATCH ERROR: {ex}");
+                Console.WriteLine(
+                    $"AI BATCH ERROR: {ex}");
 
-                await Task.Delay(10000);
+                await Task.Delay(
+                    10000,
+                    cancellationToken);
             }
         }
     }
 
+    private async Task<List<AiBatchResult>?> ProcessBatchAsync(
+        List<MediaFile> batch,
+        CancellationToken cancellationToken)
+    {
+        var prompt = BuildBatchPrompt(batch);
+
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            try
+            {
+                var response =
+                    await _client.CompleteChatAsync(
+                    [
+                        new SystemChatMessage("""
+                        You are a file classification AI.
+
+                        Return ONLY valid JSON.
+                        Return ONLY a JSON array.
+
+                        Never skip files.
+                        Never return markdown.
+                        Never explain anything.
+                        """),
+
+                        new UserChatMessage(prompt)
+                    ],
+                    new ChatCompletionOptions
+                    {
+                        Temperature = 0
+                    },
+                    cancellationToken);
+
+                var text =
+                    response.Value.Content
+                        .FirstOrDefault()?.Text;
+
+                Console.WriteLine(
+                    $"RAW AI RESPONSE: {text}");
+
+                if (string.IsNullOrWhiteSpace(text))
+                    return null;
+
+                var results =
+                    JsonSerializer.Deserialize<
+                        List<AiBatchResult>>(
+                        text,
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                return results;
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine(
+                    $"JSON PARSE ERROR (attempt {attempt}): {ex}");
+
+                if (attempt == 2)
+                    throw;
+
+                await Task.Delay(
+                    2000,
+                    cancellationToken);
+            }
+        }
+
+        return null;
+    }
+
     public async Task<string> TestAsync()
     {
-        var response = await _client.CompleteChatAsync(
-        [
-            new UserChatMessage("Say hello")
-        ]);
+        var response =
+            await _client.CompleteChatAsync(
+            [
+                new UserChatMessage("Say hello")
+            ]);
 
         return response.Value.Content
             .FirstOrDefault()?.Text ?? "No response";
     }
 
-    private static bool NeedsAi(MediaFile file)
+    private static bool NeedsAi(
+        MediaFile file)
     {
         return file.RequiresReview;
     }
 
-    private static string BuildBatchPrompt(List<MediaFile> files)
+    private static string BuildBatchPrompt(
+        List<MediaFile> files)
     {
         var items = files.Select(x => new
         {
-            FullPath = x.FullPath,
-            FileName = Path.GetFileName(x.FullPath),
-            x.OcrText,
-            x.AiDescription,
-            x.AiTags,
-            x.AiConfidence
+            x.Id,
+
+            FileName =
+                Path.GetFileName(
+                    x.NormalizedPath ??
+                    x.FullPath),
+
+            OcrText =
+                string.IsNullOrWhiteSpace(x.OcrText)
+                    ? null
+                    : x.OcrText.Length > 2000
+                        ? x.OcrText[..2000]
+                        : x.OcrText,
+
+            VisionDescription =
+                x.AiDescription,
+
+            VisionTags =
+                x.AiTags,
+
+            VisionConfidence =
+                x.AiConfidence
         });
 
-        var json = JsonSerializer.Serialize(items);
+        var json =
+            JsonSerializer.Serialize(
+                items,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
 
         return $$"""
         Classify these files.
@@ -152,18 +320,50 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         You MUST return one result for every file.
         Never skip files.
 
+        VisionDescription contains AI image analysis.
+        VisionTags contains detected image contents.
+
+        Prefer VisionDescription over filename.
+        Use OCR as supporting context.
+
+        If uncertain use "Unknown".
+
+        Confidence must be between 0 and 1.
+
         Allowed categories:
-        - Travel
-        - Family
-        - Work
-        - Screenshots
-        - Documents
-        - Music
-        - Movies
-        - Games
-        - Memes
-        - Receipts
-        - Unknown
+
+        Travel:
+        Vacation photos/videos, hotels, flights, countries, landmarks.
+
+        Family:
+        Personal photos/videos of people, birthdays, children, pets.
+
+        Work:
+        Work-related files, office documents, business screenshots.
+
+        Screenshots:
+        Screen captures from phones, PCs, apps, websites, chats.
+
+        Documents:
+        PDFs, scans, letters, forms, contracts.
+
+        Music:
+        Audio/music related files.
+
+        Movies:
+        Movies, TV shows, video entertainment.
+
+        Games:
+        Game screenshots, gameplay captures, gaming media.
+
+        Memes:
+        Funny images, jokes, internet memes.
+
+        Receipts:
+        Store receipts, invoices, payment confirmations.
+
+        Unknown:
+        Use when classification is uncertain.
 
         Return ONLY a JSON array.
 

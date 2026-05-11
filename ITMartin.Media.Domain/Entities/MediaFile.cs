@@ -52,6 +52,7 @@ public class MediaFile
     public bool IsProbablyRealPhoto { get; set; }
     public bool HasExif { get; set; }
     public string? ExportedPath { get; set; }
+    public string? NormalizedPath { get; set; }
     public string? OcrText { get; set; }
     public bool OcrProcessed { get; set; }
 

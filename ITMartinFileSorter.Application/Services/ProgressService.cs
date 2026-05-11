@@ -10,22 +10,30 @@ public class ProgressService : IProgressService
 
     public event Action? OnChange;
 
-    Stopwatch _timer = new();
+    private readonly Stopwatch _timer = new();
 
-    int _lastWorkDone = 0;
-    DateTime _lastUpdate = DateTime.UtcNow;
+    private int _lastWorkDone = 0;
 
-    public void Start(string stage, int totalWork)
+    private DateTime _lastUpdate =
+        DateTime.UtcNow;
+
+    public void Start(
+        string stage,
+        int totalWork)
     {
         Info = new ProgressInfo
         {
             Stage = stage,
             TotalWork = totalWork,
-            WorkDone = 0
+            WorkDone = 0,
+            SpeedPerSecond = 0,
+            EstimatedRemaining = null
         };
 
         _timer.Restart();
+
         _lastWorkDone = 0;
+
         _lastUpdate = DateTime.UtcNow;
 
         Notify();
@@ -34,6 +42,7 @@ public class ProgressService : IProgressService
     public void SetStage(string stage)
     {
         Info.Stage = stage;
+
         Notify();
     }
 
@@ -41,40 +50,98 @@ public class ProgressService : IProgressService
     {
         Info.WorkDone += amount;
 
+        ClampProgress();
+
         UpdateSpeedAndEta();
 
         Notify();
     }
 
-    void UpdateSpeedAndEta()
+    // =========================
+    // NEW
+    // =========================
+
+    public void Update(int value)
     {
-        var now = DateTime.UtcNow;
-        var seconds = (now - _lastUpdate).TotalSeconds;
+        Info.WorkDone = value;
 
-        if (seconds < 0.5) return;
+        ClampProgress();
 
-        var workDiff = Info.WorkDone - _lastWorkDone;
+        UpdateSpeedAndEta();
 
-        var speed = workDiff / seconds;
-
-        Info.SpeedPerSecond = speed;
-
-        var remaining = Info.TotalWork - Info.WorkDone;
-
-        if (speed > 0)
-            Info.EstimatedRemaining =
-                TimeSpan.FromSeconds(remaining / speed);
-
-        _lastWorkDone = Info.WorkDone;
-        _lastUpdate = now;
-    }
-
-    public void Complete()
-    {
-        Info.WorkDone = Info.TotalWork;
-        Info.Stage = "Completed";
         Notify();
     }
 
-    void Notify() => OnChange?.Invoke();
+    // =========================
+    // COMPLETE
+    // =========================
+
+    public void Complete()
+    {
+        Info.WorkDone =
+            Info.TotalWork;
+
+        Info.Stage =
+            "Completed";
+
+        Info.EstimatedRemaining =
+            TimeSpan.Zero;
+
+        Notify();
+    }
+
+    // =========================
+    // HELPERS
+    // =========================
+
+    private void ClampProgress()
+    {
+        if (Info.WorkDone < 0)
+            Info.WorkDone = 0;
+
+        if (Info.WorkDone > Info.TotalWork)
+            Info.WorkDone = Info.TotalWork;
+    }
+
+    private void UpdateSpeedAndEta()
+    {
+        var now = DateTime.UtcNow;
+
+        var seconds =
+            (now - _lastUpdate)
+            .TotalSeconds;
+
+        if (seconds < 0.5)
+            return;
+
+        var workDiff =
+            Info.WorkDone - _lastWorkDone;
+
+        var speed =
+            workDiff / seconds;
+
+        Info.SpeedPerSecond =
+            speed;
+
+        var remaining =
+            Info.TotalWork - Info.WorkDone;
+
+        if (speed > 0)
+        {
+            Info.EstimatedRemaining =
+                TimeSpan.FromSeconds(
+                    remaining / speed);
+        }
+
+        _lastWorkDone =
+            Info.WorkDone;
+
+        _lastUpdate =
+            now;
+    }
+
+    private void Notify()
+    {
+        OnChange?.Invoke();
+    }
 }

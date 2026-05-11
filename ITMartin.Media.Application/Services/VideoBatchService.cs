@@ -8,7 +8,8 @@ public class VideoBatchService : IVideoBatchService
 {
     private readonly VideoConverterService _converter;
 
-    public VideoBatchService(VideoConverterService converter)
+    public VideoBatchService(
+        VideoConverterService converter)
     {
         _converter = converter;
     }
@@ -18,33 +19,50 @@ public class VideoBatchService : IVideoBatchService
         Action<int, int, string>? progress = null)
     {
         var videos = files
-            .Where(f => f.Type == MediaType.Video && !string.IsNullOrEmpty(f.ExportedPath))
+            .Where(f => f.Type == MediaType.Video)
             .ToList();
 
         int total = videos.Count;
         int current = 0;
 
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            "ITMartinFileSorter");
+
+        Directory.CreateDirectory(tempRoot);
+
         foreach (var file in videos)
         {
             try
             {
-                var folder = Path.GetDirectoryName(file.ExportedPath!)!;
+                var output =
+                    await _converter
+                        .ConvertToUniversalMp4Async(
+                            file.FullPath,
+                            tempRoot);
 
-                var output = await _converter
-                    .ConvertToUniversalMp4Async(file.ExportedPath!, folder);
+                // IMPORTANT
 
-                // 🔥 IMPORTANT
-                file.ExportedPath = output;
+                file.NormalizedPath = output;
+
+                Console.WriteLine(
+                    $"NORMALIZED VIDEO: {output}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[VIDEO ERROR] {file.FileName}: {ex}");
-                continue;
+                Console.WriteLine(
+                    $"[VIDEO ERROR] {file.FileName}: {ex}");
+
+                file.NormalizedPath =
+                    file.FullPath;
             }
 
             current++;
 
-            progress?.Invoke(current, total, file.FileName);
+            progress?.Invoke(
+                current,
+                total,
+                file.FileName);
         }
     }
 }
