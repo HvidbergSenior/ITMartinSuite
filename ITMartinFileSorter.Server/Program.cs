@@ -136,9 +136,6 @@ if (!string.IsNullOrWhiteSpace(libraryPath) &&
         }
     });
 }
-Console.WriteLine(
-    builder.Configuration["OpenAi:ApiKey"]);
-
 
 // =========================
 // PIPELINE
@@ -149,16 +146,5 @@ app.MapControllers();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-app.MapGet("/ai-test", async (
-    IAiEnrichmentService ai) =>
-{
-    return await ai.TestAsync();
-});
-app.MapGet("/ocr-test", async (
-    IOcrService ocr) =>
-{
-    var text = await ocr.ExtractTextAsync(
-        @"C:\FileSorterTests\Test1_Source\test.jpg");
-    return text ?? "OCR returned null";
-});
+
 app.Run();
