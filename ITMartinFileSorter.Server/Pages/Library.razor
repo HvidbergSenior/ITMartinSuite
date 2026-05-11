@@ -1,19 +1,21 @@
 ﻿@page "/library"
 
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
-@using ITMartinFileSorter.Infrastructure.FileSystem
-@using ITMartinFileSorter.Application.Helpers
-@using ITMartinFileSorter.Domain.Helpers
+@using ITMartin.Media.Entities
+@using ITMartin.Media.Enums
+@using ITMartin.Media.Helpers
+@using ITMartin.Media.Infrastructure.FileSystem
 
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
+@inject ILogger<Library> Logger
 
 <div class="filesorter-app">
+
     <div class="page-container stack library-page">
 
         <SectionTitle Title="🎬 My Media Library" />
 
+        <!-- ACTIONS -->
         <div class="library-actions">
 
             <button class="btn btn-secondary"
@@ -31,13 +33,17 @@
 
         <!-- FOLDERS -->
         <ContentCard Title="📁 Folders">
+
             @if (!Folders.Any())
             {
-                <div class="library-empty">No folders found</div>
+                <div class="library-empty">
+                    No folders found
+                </div>
             }
             else
             {
                 <div class="library-grid">
+
                     @foreach (var folder in Folders)
                     {
                         <div class="folder-card"
@@ -53,19 +59,25 @@
 
                         </div>
                     }
+
                 </div>
             }
+
         </ContentCard>
 
         <!-- MEDIA -->
         <ContentCard Title="🎬 Media">
+
             @if (!Files.Any())
             {
-                <div class="library-empty">No media files</div>
+                <div class="library-empty">
+                    No media files
+                </div>
             }
             else
             {
                 <div class="media-grid">
+
                     @foreach (var file in Files)
                     {
                         <div class="media-card"
@@ -74,11 +86,13 @@
                             @if (file.Type == MediaType.Image)
                             {
                                 <img class="media-thumb"
-                                     src="@GetPreviewPath(file)" />
+                                     src="@GetPreviewPath(file)"
+                                     alt="@file.FileName" />
                             }
 
                             <div class="media-name">
-                                @GetIcon(file) @file.FileName
+                                @GetIcon(file)
+                                @file.FileName
                             </div>
 
                             <div class="media-meta">
@@ -87,19 +101,25 @@
 
                         </div>
                     }
+
                 </div>
             }
+
         </ContentCard>
 
     </div>
+
 </div>
 
 @code {
+
     private string RootPath = "";
+
     private string CurrentPath = "";
 
-    private List<FolderItem> Folders = new();
-    private List<MediaFile> Files = new();
+    private List<FolderItem> Folders = [];
+
+    private List<MediaFile> Files = [];
 
     [Parameter]
     [SupplyParameterFromQuery]
@@ -107,23 +127,33 @@
 
     protected override void OnParametersSet()
     {
-        RootPath = LibraryPathHelper.GetLibraryPath(Configuration);
+        RootPath =
+            Configuration["MediaSettings:LibraryRoot"]
+            ?? "";
 
-        var initial = string.IsNullOrWhiteSpace(path)
-            ? RootPath
-            : path;
+        var initial =
+            string.IsNullOrWhiteSpace(path)
+                ? RootPath
+                : path;
 
         LoadFolder(initial);
     }
 
     private bool CanGoBack =>
-        !string.Equals(CurrentPath, RootPath, StringComparison.OrdinalIgnoreCase);
+        !string.Equals(
+            CurrentPath,
+            RootPath,
+            StringComparison.OrdinalIgnoreCase);
 
     private void GoBack()
     {
-        var parent = Directory.GetParent(CurrentPath);
+        var parent =
+            Directory.GetParent(CurrentPath);
+
         if (parent != null)
+        {
             LoadFolder(parent.FullName);
+        }
     }
 
     private void GoToRoot()
@@ -133,15 +163,30 @@
 
     private void OpenFolder(string path)
     {
-        if (string.Equals(CurrentPath, path, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(
+                CurrentPath,
+                path,
+                StringComparison.OrdinalIgnoreCase))
+        {
             return;
+        }
 
-        Navigation.NavigateTo($"/library?path={Uri.EscapeDataString(path)}");
+        Logger.LogInformation(
+            "Opening folder {Folder}",
+            path);
+
+        Navigation.NavigateTo(
+            $"/library?path={Uri.EscapeDataString(path)}");
     }
 
     private void OpenFile(MediaFile file)
     {
-        var index = Files.FindIndex(f => f.FullPath == file.FullPath);
+        var index = Files.FindIndex(f =>
+            f.FullPath == file.FullPath);
+
+        Logger.LogInformation(
+            "Opening file viewer for {File}",
+            file.FileName);
 
         Navigation.NavigateTo(
             $"/viewer?path={Uri.EscapeDataString(file.FullPath)}&index={index}",
@@ -151,9 +196,19 @@
     private void LoadFolder(string path)
     {
         if (!Directory.Exists(path))
+        {
+            Logger.LogWarning(
+                "Library folder does not exist: {Path}",
+                path);
+
             return;
+        }
 
         CurrentPath = path;
+
+        Logger.LogInformation(
+            "Loading library folder {Path}",
+            path);
 
         Folders = Directory
             .EnumerateDirectories(path)
@@ -165,6 +220,7 @@
             .EnumerateFiles(path)
             .Where(MediaDisplayHelper.IsDisplayable)
             .Select(CreateMediaFile)
+            .OrderByDescending(f => f.CreatedAt)
             .ToList();
 
         StateHasChanged();
@@ -172,52 +228,84 @@
 
     private string GetPreviewPath(MediaFile file)
     {
-        var root = LibraryPathHelper.GetLibraryPath(Configuration);
+        var root =
+            Configuration["MediaSettings:LibraryRoot"];
 
-        var relative = Path.GetRelativePath(root, file.FullPath)
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return "";
+        }
+
+        var relative = Path
+            .GetRelativePath(root, file.FullPath)
             .Replace("\\", "/");
 
         return $"/libraryfiles/{relative}";
     }
 
-    private FolderItem CreateFolderItem(string folder) => new()
+    private FolderItem CreateFolderItem(string folder)
     {
-        Name = Path.GetFileName(folder),
-        FullPath = folder,
-        FileCount = Directory
-            .EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
-            .Count(FileScanner.IsSupportedMedia)
-    };
+        return new FolderItem
+        {
+            Name = Path.GetFileName(folder),
+
+            FullPath = folder,
+
+            FileCount = Directory
+                .EnumerateFiles(
+                    folder,
+                    "*.*",
+                    SearchOption.AllDirectories)
+                .Count(FileScanner.IsSupportedMedia)
+        };
+    }
 
     private MediaFile CreateMediaFile(string file)
     {
         var info = new FileInfo(file);
 
         var type =
-            FileScanner.IsImage(file) ? MediaType.Image :
-            FileScanner.IsVideo(file) ? MediaType.Video :
-            FileScanner.AudioExtensions.Contains(Path.GetExtension(file))
-                ? MediaType.Audio
-                : MediaType.Document;
+            FileScanner.IsImage(file)
+                ? MediaType.Image
+                : FileScanner.IsVideo(file)
+                    ? MediaType.Video
+                    : FileScanner.AudioExtensions.Contains(
+                        Path.GetExtension(file))
+                        ? MediaType.Audio
+                        : MediaType.Document;
 
-        return new MediaFile(file, info.LastWriteTimeUtc, type, info.Length);
+        return new MediaFile(
+            file,
+            info.LastWriteTimeUtc,
+            type,
+            info.Length);
     }
 
-    string GetIcon(MediaFile file) => file.Type switch
-    {
-        MediaType.Image => "🖼️",
-        MediaType.Video => "🎬",
-        MediaType.Audio => "🎵",
-        _ => "📄"
-    };
+    private static string GetIcon(MediaFile file) =>
+        file.Type switch
+        {
+            MediaType.Image => "🖼️",
+            MediaType.Video => "🎬",
+            MediaType.Audio => "🎵",
+            _ => "📄"
+        };
 
-    string FormatSize(long bytes)
+    private static string FormatSize(long bytes)
     {
-        string[] sizes = { "B", "KB", "MB", "GB" };
+        string[] sizes =
+        [
+            "B",
+            "KB",
+            "MB",
+            "GB"
+        ];
+
         double len = bytes;
-        int order = 0;
 
-        while (len >= 1024 && order < sizes.Length - 1)
+        var order = 0;
+
+        while (len >= 1024 &&
+               order < sizes.Length - 1)
         {
             order++;
             len /= 1024;
@@ -226,10 +314,12 @@
         return $"{len:0.#} {sizes[order]}";
     }
 
-    private class FolderItem
+    private sealed class FolderItem
     {
         public string Name { get; set; } = "";
+
         public string FullPath { get; set; } = "";
+
         public int FileCount { get; set; }
     }
 }

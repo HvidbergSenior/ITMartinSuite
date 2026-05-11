@@ -1,17 +1,21 @@
 ﻿@page "/duplicates"
 
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
+@using ITMartin.Media.Entities
+@using ITMartin.Media.Enums
+@using ITMartinFileSorter.Application.Services
 
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
+@inject ILogger<Duplicates> Logger
 
 <div class="category-page duplicate-page">
 
     <ActionButtonBar CssClass="bottom">
+
         <SectionTitle Title="Handle Duplicates" />
 
         <div class="duplicate-actions">
+
             <button class="btn btn-success"
                     @onclick="Continue"
                     disabled="@(!AllGroupsHandled)">
@@ -22,14 +26,18 @@
                     @onclick="DeleteAllDuplicatesGlobally">
                 Delete All (Keep Newest)
             </button>
+
         </div>
+
     </ActionButtonBar>
 
     <div class="duplicate-content">
 
         @if (!VisibleGroups.Any())
         {
-            <EmptyState Message="All duplicates handled ✔" Type="success" />
+            <EmptyState
+                Message="All duplicates handled ✔"
+                Type="success" />
         }
         else
         {
@@ -44,25 +52,35 @@
                         Keep Newest
                     </button>
 
-                    @foreach (var file in group.OrderByDescending(f => f.CreatedAt))
+                    @foreach (var file in group
+                        .OrderByDescending(f => f.CreatedAt))
                     {
                         var isNewest = file == newest;
 
                         <div class="duplicate-row @(isNewest ? "newest-file" : "")">
+
                             <strong>@file.FileName</strong>
 
                             @if (isNewest)
                             {
-                                <span class="badge bg-success">Kept</span>
+                                <span class="badge bg-success">
+                                    Kept
+                                </span>
                             }
-                            else if (file.Status == MediaFileStatus.ToDelete)
+                            else if (file.Status ==
+                                     MediaFileStatus.ToDelete)
                             {
-                                <span class="badge bg-danger">Deleted</span>
+                                <span class="badge bg-danger">
+                                    Deleted
+                                </span>
                             }
                             else
                             {
-                                <span class="badge bg-secondary">Pending</span>
+                                <span class="badge bg-secondary">
+                                    Pending
+                                </span>
                             }
+
                         </div>
                     }
 
@@ -76,51 +94,75 @@
 
 @code {
 
-    // 🔥 REBUILD GROUPS (since service no longer has DuplicateGroups)
-    IEnumerable<List<MediaFile>> DuplicateGroups =>
+    private IEnumerable<List<MediaFile>> DuplicateGroups =>
         DuplicateService.AllFiles
-            .Where(f => f.Hash != null)
+            .Where(f => !string.IsNullOrWhiteSpace(f.Hash))
             .GroupBy(f => f.Hash)
             .Where(g => g.Count() > 1)
             .Select(g => g.ToList());
 
-    IEnumerable<List<MediaFile>> VisibleGroups =>
+    private IEnumerable<List<MediaFile>> VisibleGroups =>
         DuplicateGroups
             .Where(g => !IsGroupHandled(g));
 
-    bool AllGroupsHandled =>
-        DuplicateGroups.All(g => IsGroupHandled(g));
+    private bool AllGroupsHandled =>
+        DuplicateGroups.All(IsGroupHandled);
 
-    bool IsGroupHandled(List<MediaFile> group) =>
-        group.Count(f => f.Status == MediaFileStatus.ToDelete) == group.Count - 1;
+    private static bool IsGroupHandled(
+        List<MediaFile> group)
+    {
+        return group.Count(f =>
+                   f.Status == MediaFileStatus.ToDelete)
+               == group.Count - 1;
+    }
 
-    MediaFile GetNewest(List<MediaFile> group)
-        => group.OrderByDescending(f => f.CreatedAt).First();
+    private static MediaFile GetNewest(
+        List<MediaFile> group)
+    {
+        return group
+            .OrderByDescending(f => f.CreatedAt)
+            .First();
+    }
 
-    void DeleteAllButOne(List<MediaFile> group)
+    private void DeleteAllButOne(
+        List<MediaFile> group)
     {
         var newest = GetNewest(group);
 
-        foreach (var f in group)
+        foreach (var file in group)
         {
-            f.Status = f == newest
-                ? MediaFileStatus.ToKeep
-                : MediaFileStatus.ToDelete;
+            file.Status =
+                file == newest
+                    ? MediaFileStatus.ToKeep
+                    : MediaFileStatus.ToDelete;
 
-            f.RequiresReview = false;
+            file.RequiresReview = false;
         }
+
+        Logger.LogInformation(
+            "Duplicate group handled. Kept newest file {File}",
+            newest.FileName);
     }
 
-    void DeleteAllDuplicatesGlobally()
+    private void DeleteAllDuplicatesGlobally()
     {
-        foreach (var group in DuplicateGroups)
+        var groups = DuplicateGroups.ToList();
+
+        foreach (var group in groups)
         {
             DeleteAllButOne(group);
         }
+
+        Logger.LogInformation(
+            "Handled all duplicate groups globally. Groups: {Count}",
+            groups.Count);
     }
 
-    void Continue()
+    private void Continue()
     {
+        Logger.LogInformation(
+            "Continuing from duplicate handling");
+
         Navigation.NavigateTo("/filesorter");
     }
 }

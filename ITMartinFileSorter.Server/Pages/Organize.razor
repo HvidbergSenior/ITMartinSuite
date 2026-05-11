@@ -1,29 +1,50 @@
 ﻿@page "/organize"
 
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
+@using ITMartin.Media.Entities
+@using ITMartinFileSorter.Application.Services
 
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
+@inject ILogger<Organize> Logger
 
 <div class="filesorter-app">
+
     <div class="page-container stack organize-page">
 
         <SectionTitle Title="🗂 Organize Files" />
 
         <!-- FILTER -->
         <ContentCard Title="Filter">
+
             <select @bind="SelectedCategory">
-                <option value="">All categories</option>
-                <option value="Image">Images</option>
-                <option value="Video">Videos</option>
-                <option value="Audio">Audio</option>
-                <option value="Document">Documents</option>
+
+                <option value="">
+                    All categories
+                </option>
+
+                <option value="Image">
+                    Images
+                </option>
+
+                <option value="Video">
+                    Videos
+                </option>
+
+                <option value="Audio">
+                    Audio
+                </option>
+
+                <option value="Document">
+                    Documents
+                </option>
+
             </select>
+
         </ContentCard>
 
         <!-- FILES -->
         <div class="organize-grid">
+
             @foreach (var file in FilteredFiles)
             {
                 <div class="organize-file-card">
@@ -32,22 +53,34 @@
 
                         <div class="stack">
 
-                            <div class="item-title">@file.FileName</div>
+                            <div class="item-title">
+                                @file.FileName
+                            </div>
 
                             <div class="organize-meta">
 
                                 <div>
-                                    <span class="item-label">Type:</span>
+                                    <span class="item-label">
+                                        Type:
+                                    </span>
+
                                     @file.MainCategory
                                 </div>
 
                                 <div>
-                                    <span class="item-label">Date:</span>
-                                    @(file.CreatedAt?.ToString("yyyy-MM-dd") ?? "Unknown")
+                                    <span class="item-label">
+                                        Date:
+                                    </span>
+
+                                    @(file.CreatedAt?.ToString("yyyy-MM-dd")
+                                      ?? "Unknown")
                                 </div>
 
                                 <div>
-                                    <span class="item-label">Status:</span>
+                                    <span class="item-label">
+                                        Status:
+                                    </span>
+
                                     @file.Status
                                 </div>
 
@@ -57,49 +90,85 @@
 
                         <input type="checkbox"
                                checked="@IsSelected(file)"
-                               @onchange="e => Toggle(file, (bool)e.Value!)" />
+                               @onchange="e => Toggle(
+                                   file,
+                                   (bool)e.Value!)" />
 
                     </div>
 
                 </div>
             }
+
         </div>
 
         <!-- CTA -->
         <ActionButtonBar CssClass="bottom">
+
             <button class="btn btn-success btn-lg"
                     @onclick="GoToExport">
+
                 Continue to Export
+
             </button>
+
         </ActionButtonBar>
 
     </div>
+
 </div>
 
 @code {
-    string SelectedCategory = "";
 
-    HashSet<MediaFile> Selected = new();
+    private string SelectedCategory = "";
 
-    IEnumerable<MediaFile> FilteredFiles =>
+    private readonly HashSet<MediaFile> Selected = [];
+
+    private IEnumerable<MediaFile> FilteredFiles =>
         string.IsNullOrWhiteSpace(SelectedCategory)
-            ? DuplicateService.AllFiles.Where(f => f.Status == MediaFileStatus.ToKeep)
-            : DuplicateService.AllFiles.Where(f =>
-                f.Status == MediaFileStatus.ToKeep &&
-                f.MainCategory.ToString() == SelectedCategory);
+            ? DuplicateService.AllFiles
+                .Where(f =>
+                    f.Status == MediaFileStatus.ToKeep)
+                .OrderByDescending(f => f.CreatedAt)
 
-    bool IsSelected(MediaFile file) => Selected.Contains(file);
+            : DuplicateService.AllFiles
+                .Where(f =>
+                    f.Status == MediaFileStatus.ToKeep &&
+                    f.MainCategory.ToString() ==
+                    SelectedCategory)
+                .OrderByDescending(f => f.CreatedAt);
 
-    void Toggle(MediaFile file, bool value)
+    private bool IsSelected(MediaFile file)
     {
-        if (value)
-            Selected.Add(file);
-        else
-            Selected.Remove(file);
+        return Selected.Contains(file);
     }
 
-    void GoToExport()
+    private void Toggle(
+        MediaFile file,
+        bool value)
     {
+        if (value)
+        {
+            Selected.Add(file);
+
+            Logger.LogInformation(
+                "Selected file {File}",
+                file.FileName);
+        }
+        else
+        {
+            Selected.Remove(file);
+
+            Logger.LogInformation(
+                "Deselected file {File}",
+                file.FileName);
+        }
+    }
+
+    private void GoToExport()
+    {
+        Logger.LogInformation(
+            "Navigating to export page");
+
         Navigation.NavigateTo("/export");
     }
 }

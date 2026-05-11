@@ -1,9 +1,10 @@
-﻿using ITMartinFileSorter.Domain.Entities;
-using ITMartinFileSorter.Domain.Enums;
+﻿using ITMartin.Media.Entities;
+using ITMartin.Media.Enums;
+using ITMartinFileSorter.Application.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class DuplicateService
+public class DuplicateService : IDuplicateService
 {
     public string FolderPath { get; set; } = "";
 

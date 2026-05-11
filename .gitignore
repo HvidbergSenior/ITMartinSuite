@@ -12,8 +12,10 @@ obj/
 *.log
 
 ITMartinFileSorter.Server/ffmpeg/*.exe
-
+appsettings.json
 appsettings.Development.json
-
+**/appsettings.Development.json
+**/appsettings.json
 publish/
 **/publish/
+secrets.json

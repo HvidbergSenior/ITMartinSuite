@@ -1,36 +1,48 @@
 ﻿@page "/category-step/{CategoryString}"
 
+@using ITMartin.Media.Entities
+@using ITMartin.Media.Enums
+@using ITMartinFileSorter.Application.Services
+
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject ILogger<CategoryStep> Logger
 
 <div class="filesorter-app">
+
     <div class="page-container stack category-step-page">
 
         <SectionTitle Title="@($"Step: {CurrentCategory}")" />
 
         <ActionButtonBar>
+
             <button class="btn btn-secondary"
                     @onclick="AcceptAll"
                     disabled="@(!HasPending)">
                 Accept All
             </button>
+
         </ActionButtonBar>
 
         <ActionButtonBar CssClass="bottom">
+
             <button class="btn btn-primary btn-lg"
                     @onclick="Continue"
                     disabled="@(!CanContinue)">
                 Continue
             </button>
+
         </ActionButtonBar>
 
         @if (!Groups.Any())
         {
             <ContentCard Title="No files found">
+
                 <div class="text-muted">
                     No files available in this category.
                 </div>
+
             </ContentCard>
         }
 
@@ -66,27 +78,38 @@
         }
 
     </div>
+
 </div>
 
 @code {
 
-    [Parameter] public string CategoryString { get; set; } = "";
+    [Parameter]
+    public string CategoryString { get; set; } = "";
 
-    MediaMainCategory CurrentCategory;
-    Dictionary<int, List<MediaFile>> Groups = new();
+    private MediaMainCategory CurrentCategory;
+
+    private Dictionary<int, List<MediaFile>> Groups = new();
 
     protected override void OnParametersSet()
     {
-        if (!Enum.TryParse<MediaMainCategory>(CategoryString, true, out CurrentCategory))
+        if (!Enum.TryParse<MediaMainCategory>(
+                CategoryString,
+                true,
+                out CurrentCategory))
         {
+            Logger.LogWarning(
+                "Invalid category route: {Category}",
+                CategoryString);
+
             Navigation.NavigateTo("/filesorter");
+
             return;
         }
 
         Load();
     }
 
-    void Load()
+    private void Load()
     {
         var files = DuplicateService.AllFiles
             .Where(f => f.MainCategory == CurrentCategory)
@@ -95,65 +118,116 @@
         Groups = files
             .GroupBy(f => f.Year)
             .OrderByDescending(g => g.Key)
-            .ToDictionary(g => g.Key, g => g.ToList());
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToList());
+
+        Logger.LogInformation(
+            "Loaded {Count} files for category {Category}",
+            files.Count,
+            CurrentCategory);
     }
 
-    void Keep(MediaFile file)
+    private void Keep(MediaFile file)
     {
         file.Status = MediaFileStatus.ToKeep;
+
+        Logger.LogInformation(
+            "File marked as kept: {File}",
+            file.FileName);
+
         Load();
     }
 
-    void Delete(MediaFile file)
+    private void Delete(MediaFile file)
     {
         file.Status = MediaFileStatus.ToDelete;
+
+        Logger.LogInformation(
+            "File marked as delete: {File}",
+            file.FileName);
+
         Load();
     }
 
-    void AcceptAll()
+    private void AcceptAll()
     {
-        foreach (var file in DuplicateService.AllFiles
-                     .Where(f =>
-                         f.MainCategory == CurrentCategory &&
-                         f.RequiresReview &&
-                         f.Status == MediaFileStatus.Initial))
+        var files = DuplicateService.AllFiles
+            .Where(f =>
+                f.MainCategory == CurrentCategory &&
+                f.RequiresReview &&
+                f.Status == MediaFileStatus.Initial)
+            .ToList();
+
+        foreach (var file in files)
         {
             file.Status = MediaFileStatus.ToKeep;
         }
 
+        Logger.LogInformation(
+            "Accepted all pending files for category {Category}. Count: {Count}",
+            CurrentCategory,
+            files.Count);
+
         Load();
     }
 
-    bool HasPending =>
+    private bool HasPending =>
         DuplicateService.AllFiles.Any(f =>
             f.MainCategory == CurrentCategory &&
             f.RequiresReview &&
             f.Status == MediaFileStatus.Initial);
 
-    bool CanContinue => !HasPending;
+    private bool CanContinue => !HasPending;
 
-    void Continue()
+    private void Continue()
     {
+        Logger.LogInformation(
+            "Continuing from category {Category}",
+            CurrentCategory);
+
         Navigation.NavigateTo("/filesorter");
     }
 
-    RenderFragment RenderStatus(MediaFile file) => builder =>
+    private RenderFragment RenderStatus(MediaFile file) => builder =>
     {
         if (file.Status == MediaFileStatus.ToKeep)
-            builder.AddMarkupContent(0, "<span class='status kept'>✔ Kept</span>");
+        {
+            builder.AddMarkupContent(
+                0,
+                "<span class='status kept'>✔ Kept</span>");
+        }
         else if (file.Status == MediaFileStatus.ToDelete)
-            builder.AddMarkupContent(1, "<span class='status duplicate'>⚠ Duplicate</span>");
+        {
+            builder.AddMarkupContent(
+                1,
+                "<span class='status duplicate'>⚠ Duplicate</span>");
+        }
         else
-            builder.AddMarkupContent(2, "<span class='status pending'>● Pending</span>");
+        {
+            builder.AddMarkupContent(
+                2,
+                "<span class='status pending'>● Pending</span>");
+        }
     };
 
-    string FormatSize(long bytes)
+    private static string FormatSize(long bytes)
     {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
+        string[] sizes =
+        [
+            "B",
+            "KB",
+            "MB",
+            "GB",
+            "TB"
+        ];
 
-        while (len >= 1024 && order < sizes.Length - 1)
+        double len = bytes;
+
+        var order = 0;
+
+        while (len >= 1024 &&
+               order < sizes.Length - 1)
         {
             order++;
             len /= 1024;
@@ -162,20 +236,32 @@
         return $"{len:0.#} {sizes[order]}";
     }
 
-    string ToWebPath(string? fullPath)
+    private string ToWebPath(string? fullPath)
     {
         if (string.IsNullOrWhiteSpace(fullPath))
             return "";
 
-        var root = Configuration["MediaSettings:LibraryRoot"];
+        var root =
+            Configuration["MediaSettings:LibraryRoot"];
 
-        var full = Path.GetFullPath(fullPath);
-        var baseRoot = Path.GetFullPath(root);
-
-        if (!full.StartsWith(baseRoot, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(root))
             return "";
 
-        var relative = full.Substring(baseRoot.Length)
+        var full =
+            Path.GetFullPath(fullPath);
+
+        var baseRoot =
+            Path.GetFullPath(root);
+
+        if (!full.StartsWith(
+                baseRoot,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "";
+        }
+
+        var relative = full
+            .Substring(baseRoot.Length)
             .TrimStart('\\', '/')
             .Replace("\\", "/");
 

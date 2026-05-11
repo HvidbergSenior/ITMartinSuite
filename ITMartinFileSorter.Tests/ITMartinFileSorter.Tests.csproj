@@ -29,4 +29,11 @@
     <ProjectReference Include="..\ITMartinFileSorter.Domain\ITMartinFileSorter.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="CategorizerTests\" />
+    <Folder Include="FileScannerTests\" />
+    <Folder Include="Services\DuplicateServiceTests\" />
+    <Folder Include="Services\MediaDateServiceTests\" />
+  </ItemGroup>
+
 </Project>

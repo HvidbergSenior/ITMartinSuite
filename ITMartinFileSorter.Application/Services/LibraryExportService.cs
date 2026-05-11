@@ -1,10 +1,11 @@
-﻿using ITMartinFileSorter.Domain.Entities;
-using ITMartinFileSorter.Domain.Enums;
-using ITMartinFileSorter.Domain.Interfaces;
-using ITMartinFileSorter.Domain.Helpers;
+﻿using ITMartin.Media.Entities;
+using ITMartin.Media.Helpers;
+using ITMartin.Media.Interfaces;
+using ITMartinFileSorter.Application.Interfaces;
+
 namespace ITMartinFileSorter.Application.Services;
 
-public class LibraryExportService
+public class LibraryExportService : ILibraryExportService
 {
     private readonly IVideoBatchService _videoService;
     private readonly IImageBatchService _imageService;

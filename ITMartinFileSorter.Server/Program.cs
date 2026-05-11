@@ -1,12 +1,11 @@
+using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Interfaces;
+using ITMartinFileSorter.Application.Services;
+using ITMartinFileSorter.Server;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
-using ITMartinFileSorter.Application.Services;
-using ITMartinFileSorter.Application.Helpers;
-using ITMartinFileSorter.Domain.Interfaces;
-using ITMartinFileSorter.Infrastructure.FileSystem;
-using ITMartinFileSorter.Infrastructure.Services;
-using ITMartinFileSorter.Server;
-
+using ITMartin.OCR.Interfaces;
+using ITMartin.OCR.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================
@@ -22,27 +21,13 @@ builder.Services.AddServerSideBlazor()
     });
 
 // =========================
-// CORE SERVICES
+// MEDIA PLATFORM
 // =========================
-builder.Services.AddScoped<IFileScanner, FileScanner>();
-builder.Services.AddScoped<IFileSystem, FileSystemService>();
-
-builder.Services.AddScoped<IHashService, Sha256HashService>();
-builder.Services.AddScoped<IMediaDateService, MediaDateService>();
-builder.Services.AddScoped<IMediaClassificationService, MediaClassificationService>();
-builder.Services.AddScoped<IExifService, ExifService>();
-builder.Services.AddScoped<IGpsService, GpsService>();
-
-// =========================
-// CATEGORIZERS
-// =========================
-builder.Services.AddScoped<IMediaSubCategorizer, ImageCategorizer>();
-builder.Services.AddScoped<IMediaSubCategorizer, VideoCategorizer>();
-builder.Services.AddScoped<IMediaSubCategorizer, AudioCategorizer>();
-builder.Services.AddScoped<IMediaSubCategorizer, DocumentCategorizer>();
-
-builder.Services.AddScoped<MediaCategorizer>();
-
+builder.Services.AddMediaInfrastructure(
+    builder.Configuration);
+builder.Services.AddSingleton<
+    IOcrService,
+    OcrService>();
 // =========================
 // APP SERVICES
 // =========================
@@ -51,18 +36,6 @@ builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<HomeLocationService>();
 builder.Services.AddScoped<LibraryExportService>();
 builder.Services.AddScoped<FolderPathInfoService>();
-
-// =========================
-// MEDIA PROCESSING
-// =========================
-builder.Services.AddScoped<FastUniversalVideoConverterService>();
-builder.Services.AddScoped<VideoBatchService>();
-
-builder.Services.AddScoped<UniversalImageConverterService>();
-builder.Services.AddScoped<ImageBatchService>();
-
-builder.Services.AddScoped<ThumbnailService>();
-builder.Services.AddScoped<SubtitleService>();
 
 // =========================
 // CONTROLLERS
@@ -89,12 +62,13 @@ if (!app.Environment.IsDevelopment())
 // wwwroot
 app.UseStaticFiles();
 
-// Library path
-var libraryPath =
-    LibraryPathHelper.GetLibraryPath(
-        builder.Configuration);
+// =========================
+// LIBRARY FILES
+// =========================
 
-// MIME types
+var libraryPath =
+    builder.Configuration["MediaSettings:LibraryRoot"];
+
 var provider =
     new FileExtensionContentTypeProvider();
 
@@ -126,7 +100,7 @@ provider.Mappings[".WEBP"] = "image/webp";
 provider.Mappings[".GIF"] = "image/gif";
 
 // =========================
-// IPHONE / MODERN
+// MODERN / IPHONE
 // =========================
 provider.Mappings[".heic"] = "image/heic";
 provider.Mappings[".HEIC"] = "image/heic";
@@ -135,9 +109,10 @@ provider.Mappings[".avif"] = "image/avif";
 provider.Mappings[".AVIF"] = "image/avif";
 
 // =========================
-// LIBRARY STATIC FILES
+// STATIC LIBRARY FILES
 // =========================
-if (Directory.Exists(libraryPath))
+if (!string.IsNullOrWhiteSpace(libraryPath) &&
+    Directory.Exists(libraryPath))
 {
     app.UseStaticFiles(new StaticFileOptions
     {
@@ -161,6 +136,9 @@ if (Directory.Exists(libraryPath))
         }
     });
 }
+Console.WriteLine(
+    builder.Configuration["OpenAi:ApiKey"]);
+
 
 // =========================
 // PIPELINE
@@ -171,5 +149,16 @@ app.MapControllers();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-
+app.MapGet("/ai-test", async (
+    IAiEnrichmentService ai) =>
+{
+    return await ai.TestAsync();
+});
+app.MapGet("/ocr-test", async (
+    IOcrService ocr) =>
+{
+    var text = await ocr.ExtractTextAsync(
+        @"C:\FileSorterTests\Test1_Source\test.jpg");
+    return text ?? "OCR returned null";
+});
 app.Run();

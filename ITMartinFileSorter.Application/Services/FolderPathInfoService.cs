@@ -1,6 +1,8 @@
-﻿    namespace ITMartinFileSorter.Application.Services;
+﻿    using ITMartinFileSorter.Application.Interfaces;
 
-    public class FolderPathInfoService
+    namespace ITMartinFileSorter.Application.Services;
+
+    public class FolderPathInfoService : IFolderPathInfoService
     {
         public string? GetPathInfo(
             string? configuredPath,

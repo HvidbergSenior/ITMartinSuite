@@ -1,24 +1,43 @@
 ﻿@page "/images/{SubCategory}"
+
+@using ITMartin.Media.Entities
+@using ITMartin.Media.Enums
 @using ITMartinFileSorter.Application.Services
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
 
 @inject DuplicateService DuplicateService
 
-<h3>@SubCategory</h3>
+<div class="filesorter-app">
 
-<div class="filesorter-app"/>
-<div class="page-container stack">
-    <SectionTitle Title="@SubCategory" />
-    <ContentCard Title="Images">
-        <div class="d-flex flex-wrap gap-2">
-            @foreach (var file in Files)
+    <div class="page-container stack">
+
+        <SectionTitle Title="@DisplayTitle" />
+
+        <ContentCard Title="Images">
+
+            @if (!Files.Any())
             {
-                <FileSorterMediaCard File="file"
-                                     ShowThumbnail="true" />
+                <div class="text-muted">
+                    No images found.
+                </div>
             }
-        </div>
-    </ContentCard>
+            else
+            {
+                <div class="d-flex flex-wrap gap-2">
+
+                    @foreach (var file in Files)
+                    {
+                        <FileSorterMediaCard
+                            File="file"
+                            ShowThumbnail="true" />
+                    }
+
+                </div>
+            }
+
+        </ContentCard>
+
+    </div>
+
 </div>
 
 @code {
@@ -26,12 +45,19 @@
     [Parameter]
     public string? SubCategory { get; set; }
 
-    List<MediaFile> Files =>
+    private string DisplayTitle =>
+        string.IsNullOrWhiteSpace(SubCategory)
+            ? "Images"
+            : SubCategory;
+
+    private List<MediaFile> Files =>
         DuplicateService.AllFiles
             .Where(f =>
                 f.MainCategory == MediaMainCategory.Image &&
-                f.SubCategory.ToString() == SubCategory)
+                string.Equals(
+                    f.SubCategory.ToString(),
+                    SubCategory,
+                    StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(f => f.CreatedAt)
             .ToList();
-
 }

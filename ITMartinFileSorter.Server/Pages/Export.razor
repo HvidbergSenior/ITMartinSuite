@@ -1,36 +1,53 @@
 ﻿@page "/export"
 
-@using ITMartinFileSorter.Domain.Entities
-@using ITMartinFileSorter.Domain.Enums
+@using ITMartin.Media.Entities
+@using ITMartin.Media.Enums
+@using ITMartinFileSorter.Application.Services
 
 @inject DuplicateService DuplicateService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject LibraryExportService LibraryExportService
+@inject ILogger<Export> Logger
 
 <div class="filesorter-app">
+
     <div class="page-container stack export-page">
 
         <SectionTitle Title="📦 Export Organized Files" />
 
-        <!-- 🔍 SHOW PATHS (helps debugging + UX) -->
+        <!-- PATHS -->
         <ContentCard>
+
             <div class="text-muted small">
+
                 Source: @SourceRoot
+
                 <br />
+
                 Library: @LibraryRoot
+
             </div>
+
         </ContentCard>
 
+        <!-- PREVIEW -->
         <ContentCard Title="📁 Preview of your organized library">
+
             @foreach (var cat in Categories)
             {
                 <div class="tree">
 
                     <div class="tree-node root"
                          @onclick="() => Toggle(cat.Name)">
-                        @(IsExpanded(cat.Name) ? "▼" : "▶") 📁 @cat.Name
-                        <span class="tree-count">(@cat.Total)</span>
+
+                        @(IsExpanded(cat.Name) ? "▼" : "▶")
+                        📁 @cat.Name
+
+                        <span class="tree-count">
+                            (@cat.Total)
+                        </span>
+
                     </div>
 
                     @if (IsExpanded(cat.Name))
@@ -38,17 +55,27 @@
                         @foreach (var year in cat.Years)
                         {
                             <div class="tree-node year">
-                                <span class="tree-branch">├──</span>
+
+                                <span class="tree-branch">
+                                    ├──
+                                </span>
+
                                 📂 @year.Year
-                                <span class="tree-count">(@year.Count)</span>
+
+                                <span class="tree-count">
+                                    (@year.Count)
+                                </span>
+
                             </div>
                         }
                     }
 
                 </div>
             }
+
         </ContentCard>
 
+        <!-- EXPORT PROGRESS -->
         @if (IsExporting)
         {
             <ProgressPanel
@@ -61,24 +88,41 @@
                 Icon="📦" />
         }
 
+        <!-- SUMMARY -->
         <ContentCard Title="Export Summary">
+
             <div class="summary-item">
-                <strong>@FilesToExport.Count()</strong>
-                <span>Files</span>
+
+                <strong>
+                    @FilesToExport.Count()
+                </strong>
+
+                <span>
+                    Files
+                </span>
+
             </div>
+
         </ContentCard>
 
+        <!-- ACTIONS -->
         @if (!IsExporting)
         {
             <ActionButtonBar CssClass="bottom">
+
                 <button class="btn btn-primary btn-lg"
                         @onclick="StartExport">
-                    Start Export → @FilesToExport.Count()
+
+                    Start Export →
+                    @FilesToExport.Count()
+
                 </button>
+
             </ActionButtonBar>
         }
 
     </div>
+
 </div>
 
 @code {
@@ -87,32 +131,40 @@
     // CONFIG
     // =========================
 
-    string SourceRoot => Configuration["MediaSettings:SourceRoot"] ?? "";
-    string LibraryRoot => Configuration["MediaSettings:LibraryRoot"] ?? "";
+    private string SourceRoot =>
+        Configuration["MediaSettings:SourceRoot"] ?? "";
+
+    private string LibraryRoot =>
+        Configuration["MediaSettings:LibraryRoot"] ?? "";
 
     // =========================
     // DATA
     // =========================
 
-    IEnumerable<MediaFile> FilesToExport =>
+    private IEnumerable<MediaFile> FilesToExport =>
         DuplicateService.AllFiles
-            .Where(f => f.Status == MediaFileStatus.ToKeep ||
-                        f.SubCategory == MediaSubCategory.Meme ||
-                        f.SubCategory == MediaSubCategory.Screenshot);
+            .Where(f =>
+                f.Status == MediaFileStatus.ToKeep ||
+                f.SubCategory == MediaSubCategory.Meme ||
+                f.SubCategory == MediaSubCategory.Screenshot);
 
-    List<ExportCategory> Categories =>
+    private List<ExportCategory> Categories =>
         FilesToExport
             .GroupBy(f => new
             {
                 Category =
-                    f.SubCategory == MediaSubCategory.Screenshot ? "Screenshots" :
-                    f.SubCategory == MediaSubCategory.Meme ? "Memes" :
-                    f.MainCategory.ToString()
+                    f.SubCategory == MediaSubCategory.Screenshot
+                        ? "Screenshots"
+                        : f.SubCategory == MediaSubCategory.Meme
+                            ? "Memes"
+                            : f.MainCategory.ToString()
             })
             .Select(cat => new ExportCategory
             {
                 Name = cat.Key.Category,
+
                 Total = cat.Count(),
+
                 Years = cat
                     .GroupBy(f => f.Year)
                     .OrderByDescending(y => y.Key)
@@ -126,73 +178,99 @@
             .OrderBy(c => c.Name)
             .ToList();
 
-    HashSet<string> expanded = new();
+    private readonly HashSet<string> Expanded = [];
 
-    void Toggle(string name)
+    private void Toggle(string name)
     {
-        if (!expanded.Add(name))
-            expanded.Remove(name);
+        if (!Expanded.Add(name))
+        {
+            Expanded.Remove(name);
+        }
     }
 
-    bool IsExpanded(string name) => expanded.Contains(name);
+    private bool IsExpanded(string name) =>
+        Expanded.Contains(name);
 
     // =========================
     // STATE
     // =========================
 
-    bool IsExporting;
-    int ExportedCount;
-    int TotalToExport;
+    private bool IsExporting;
 
-    string CurrentExportFile = "";
-    string CurrentStage = "";
+    private int ExportedCount;
 
-    DateTime _lastRender = DateTime.UtcNow;
+    private int TotalToExport;
 
-    int ProgressPercent =>
-        TotalToExport == 0 ? 0 :
-        (int)((double)ExportedCount / TotalToExport * 100);
+    private string CurrentExportFile = "";
+
+    private string CurrentStage = "";
+
+    private DateTime LastRender =
+        DateTime.UtcNow;
+
+    private int ProgressPercent =>
+        TotalToExport == 0
+            ? 0
+            : (int)((double)ExportedCount /
+                    TotalToExport * 100);
 
     // =========================
     // EXPORT
     // =========================
 
-    async Task StartExport()
+    private async Task StartExport()
     {
-        if (IsExporting) return;
+        if (IsExporting)
+            return;
 
         try
         {
             IsExporting = true;
+
             ExportedCount = 0;
+
             CurrentStage = "Preparing export...";
 
             await InvokeAsync(StateHasChanged);
 
             var files = FilesToExport.ToList();
+
             TotalToExport = files.Count;
 
             var exportRoot = LibraryRoot;
+
             var sourceRoot = SourceRoot;
 
-            // 🛑 SAFETY CHECK
+            // SAFETY CHECKS
+
             if (string.IsNullOrWhiteSpace(exportRoot))
-                throw new Exception("❌ LibraryRoot missing in appsettings");
+            {
+                throw new Exception(
+                    "LibraryRoot missing in configuration.");
+            }
 
             if (string.IsNullOrWhiteSpace(sourceRoot))
-                throw new Exception("❌ SourceRoot missing in appsettings");
+            {
+                throw new Exception(
+                    "SourceRoot missing in configuration.");
+            }
 
             if (Path.GetFullPath(exportRoot)
-                .Equals(Path.GetFullPath(sourceRoot), StringComparison.OrdinalIgnoreCase))
+                .Equals(
+                    Path.GetFullPath(sourceRoot),
+                    StringComparison.OrdinalIgnoreCase))
             {
-                throw new Exception("❌ Source and Library folders cannot be the same.");
+                throw new Exception(
+                    "Source and Library folders cannot be the same.");
             }
 
             Directory.CreateDirectory(exportRoot);
 
-            Console.WriteLine($"📁 SOURCE: {sourceRoot}");
-            Console.WriteLine($"📁 EXPORT: {exportRoot}");
-            Console.WriteLine($"📦 FILES: {files.Count}");
+            Logger.LogInformation(
+                "Starting export. Source: {Source} Export: {Export} Files: {Count}",
+                sourceRoot,
+                exportRoot,
+                files.Count);
 
             await LibraryExportService.ExportAsync(
                 files,
@@ -200,13 +278,18 @@
                 async (done, total, fileName, stage) =>
                 {
                     ExportedCount = done;
+
                     TotalToExport = total;
+
                     CurrentExportFile = fileName;
+
                     CurrentStage = stage;
 
-                    if ((DateTime.UtcNow - _lastRender).TotalMilliseconds > 100)
+                    if ((DateTime.UtcNow - LastRender)
+                        .TotalMilliseconds > 100)
                     {
-                        _lastRender = DateTime.UtcNow;
+                        LastRender = DateTime.UtcNow;
+
                         await InvokeAsync(StateHasChanged);
                     }
                 });
@@ -214,11 +297,17 @@
             ExportedCount = TotalToExport;
 
             CurrentStage = "Opening library...";
+
             await InvokeAsync(StateHasChanged);
 
             await Task.Delay(400);
 
-// ✅ RESET SESSION STATE
+            Logger.LogInformation(
+                "Export completed successfully to {ExportRoot}",
+                exportRoot);
+
+            // RESET SESSION
+
             DuplicateService.Reset();
 
             ExportedCount = 0;
@@ -235,9 +324,12 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"🔥 EXPORT FAILED: {ex}");
+            Logger.LogError(
+                ex,
+                "Export failed");
 
             CurrentStage = "❌ Export failed";
+
             IsExporting = false;
 
             await InvokeAsync(StateHasChanged);
@@ -248,16 +340,19 @@
     // DTOs
     // =========================
 
-    public class ExportCategory
+    public sealed class ExportCategory
     {
         public string Name { get; set; } = "";
+
         public int Total { get; set; }
+
         public List<ExportYear> Years { get; set; } = [];
     }
 
-    public class ExportYear
+    public sealed class ExportYear
     {
         public int Year { get; set; }
+
         public int Count { get; set; }
     }
 }

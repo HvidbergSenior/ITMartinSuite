@@ -1,11 +1,11 @@
 ﻿@page "/viewer"
 
-@using ITMartinFileSorter.Application.Helpers
+@using ITMartin.Media.Infrastructure.FileSystem
 @using Microsoft.AspNetCore.WebUtilities
-@using ITMartinFileSorter.Infrastructure.FileSystem
 
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject ILogger<Viewer> Logger
 
 <div class="viewer-root">
 
@@ -13,9 +13,11 @@
 
         <!-- HEADER -->
         <div class="viewer-header">
+
             <div class="viewer-title">
                 @Path.GetFileName(FilePath)
             </div>
+
         </div>
 
         <!-- CONTENT -->
@@ -27,7 +29,7 @@
                  tabindex="0"
                  @onkeydown="HandleKey">
 
-                @if (!string.IsNullOrEmpty(FilePath))
+                @if (!string.IsNullOrWhiteSpace(FilePath))
                 {
                     @if (IsVideo)
                     {
@@ -38,31 +40,53 @@
                                preload="metadata"
                                @onclick:stopPropagation
                                @key="WebPath">
+
                             <source src="@WebPath" />
+
                         </video>
                     }
                     else
                     {
                         <img class="viewer-media"
                              src="@WebPath"
+                             alt="@Path.GetFileName(FilePath)"
                              @onclick:stopPropagation />
                     }
                 }
 
                 @if (IsVideo)
                 {
-                    <!-- ✅ CLEAN VIDEO NAV -->
-                    <button class="nav-video left" @onclick="PlayPrevious">❮</button>
-                    <button class="nav-video right" @onclick="PlayNext">❯</button>
+                    <!-- VIDEO NAV -->
+
+                    <button class="nav-video left"
+                            @onclick="PlayPrevious">
+                        ❮
+                    </button>
+
+                    <button class="nav-video right"
+                            @onclick="PlayNext">
+                        ❯
+                    </button>
                 }
                 else
                 {
-                    <!-- ✅ FULL IMAGE UX -->
-                    <div class="nav-zone left" @onclick="PlayPrevious"></div>
-                    <div class="nav-zone right" @onclick="PlayNext"></div>
+                    <!-- IMAGE NAV -->
 
-                    <div class="nav-btn left">❮</div>
-                    <div class="nav-btn right">❯</div>
+                    <div class="nav-zone left"
+                         @onclick="PlayPrevious">
+                    </div>
+
+                    <div class="nav-zone right"
+                         @onclick="PlayNext">
+                    </div>
+
+                    <div class="nav-btn left">
+                        ❮
+                    </div>
+
+                    <div class="nav-btn right">
+                        ❯
+                    </div>
                 }
 
             </div>
@@ -71,37 +95,71 @@
 
         <!-- CONTROLS -->
         <div class="viewer-controls">
-            <button class="btn" @onclick="GoHome">🏠</button>
-            <button class="btn" @onclick="GoToFolder">📁</button>
+
+            <button class="btn"
+                    @onclick="GoHome">
+                🏠
+            </button>
+
+            <button class="btn"
+                    @onclick="GoToFolder">
+                📁
+            </button>
+
         </div>
 
     </div>
+
 </div>
 
 @code {
+
     private string FilePath = "";
+
     private string WebPath = "";
+
     private bool IsVideo;
 
-    private List<string> Playlist = new();
-    private int CurrentIndex = 0;
+    private List<string> Playlist = [];
+
+    private int CurrentIndex;
+
     private string FolderPath = "";
 
     private ElementReference StageRef;
 
     protected override void OnParametersSet()
     {
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        var query = QueryHelpers.ParseQuery(uri.Query);
+        var uri =
+            Navigation.ToAbsoluteUri(
+                Navigation.Uri);
+
+        var query =
+            QueryHelpers.ParseQuery(uri.Query);
 
         if (!query.TryGetValue("path", out var path))
-            return;
+        {
+            Logger.LogWarning(
+                "Viewer opened without path query");
 
-        FilePath = Uri.UnescapeDataString(path!);
-        FolderPath = Path.GetDirectoryName(FilePath) ?? "";
+            return;
+        }
+
+        FilePath =
+            Uri.UnescapeDataString(path!);
+
+        FolderPath =
+            Path.GetDirectoryName(FilePath)
+            ?? "";
 
         if (!Directory.Exists(FolderPath))
+        {
+            Logger.LogWarning(
+                "Viewer folder does not exist: {Folder}",
+                FolderPath);
+
             return;
+        }
 
         Playlist = Directory
             .EnumerateFiles(FolderPath)
@@ -109,13 +167,24 @@
             .OrderBy(x => x)
             .ToList();
 
-        CurrentIndex = Playlist.FindIndex(f => f == FilePath);
-        if (CurrentIndex < 0) CurrentIndex = 0;
+        CurrentIndex =
+            Playlist.FindIndex(f =>
+                f == FilePath);
+
+        if (CurrentIndex < 0)
+        {
+            CurrentIndex = 0;
+        }
+
+        Logger.LogInformation(
+            "Loaded viewer for {File}",
+            FilePath);
 
         Load();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
         if (firstRender)
         {
@@ -125,53 +194,104 @@
 
     private void Load()
     {
-        if (!Playlist.Any()) return;
+        if (!Playlist.Any())
+        {
+            return;
+        }
 
         FilePath = Playlist[CurrentIndex];
 
-        var root = LibraryPathHelper.GetLibraryPath(Configuration);
+        var root =
+            Configuration["MediaSettings:LibraryRoot"];
 
-        var relative = Path.GetRelativePath(root, FilePath)
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            Logger.LogWarning(
+                "LibraryRoot missing in configuration");
+
+            return;
+        }
+
+        var relative = Path
+            .GetRelativePath(root, FilePath)
             .Replace("\\", "/");
 
-        WebPath = $"/libraryfiles/{relative}";
-        IsVideo = FileScanner.IsVideo(FilePath);
+        WebPath =
+            $"/libraryfiles/{relative}";
+
+        IsVideo =
+            FileScanner.IsVideo(FilePath);
+
+        Logger.LogInformation(
+            "Viewing file {File}",
+            FilePath);
 
         StateHasChanged();
     }
 
     private void PlayNext()
     {
-        CurrentIndex = (CurrentIndex + 1) % Playlist.Count;
+        if (!Playlist.Any())
+            return;
+
+        CurrentIndex =
+            (CurrentIndex + 1) %
+            Playlist.Count;
+
         Load();
     }
 
     private void PlayPrevious()
     {
-        CurrentIndex = (CurrentIndex - 1 + Playlist.Count) % Playlist.Count;
+        if (!Playlist.Any())
+            return;
+
+        CurrentIndex =
+            (CurrentIndex - 1 + Playlist.Count) %
+            Playlist.Count;
+
         Load();
     }
 
     private void GoHome()
     {
-        Navigation.NavigateTo("/library", true);
+        Navigation.NavigateTo(
+            "/library",
+            true);
     }
 
     private void GoToFolder()
     {
-        Navigation.NavigateTo($"/library?path={Uri.EscapeDataString(FolderPath)}", true);
+        Navigation.NavigateTo(
+            $"/library?path={Uri.EscapeDataString(FolderPath)}",
+            true);
     }
 
-    void HandleStageClick(MouseEventArgs e)
+    private void HandleStageClick(
+        MouseEventArgs e)
     {
         if (!IsVideo)
+        {
             PlayNext();
+        }
     }
 
-    void HandleKey(KeyboardEventArgs e)
+    private void HandleKey(
+        KeyboardEventArgs e)
     {
-        if (e.Key == "ArrowRight") PlayNext();
-        if (e.Key == "ArrowLeft") PlayPrevious();
-        if (e.Key == "Escape") GoToFolder();
+        if (e.Key == "ArrowRight")
+        {
+            PlayNext();
+        }
+
+        if (e.Key == "ArrowLeft")
+        {
+            PlayPrevious();
+        }
+
+        if (e.Key == "Escape")
+        {
+            GoToFolder();
+        }
     }
 }

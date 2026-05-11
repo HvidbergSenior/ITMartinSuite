@@ -1,9 +1,10 @@
 ﻿using System.Diagnostics;
-using ITMartinFileSorter.Application.Helpers;
+using ITMartin.Media.Entities;
+using ITMartinFileSorter.Application.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class ProgressService
+public class ProgressService : IProgressService
 {
     public ProgressInfo Info { get; private set; } = new();
 

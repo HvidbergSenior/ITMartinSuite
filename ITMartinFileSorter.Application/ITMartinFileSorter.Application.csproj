@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Media.Domain\ITMartin.Media.Domain.csproj" />
         <ProjectReference Include="..\ITMartinFileSorter.Domain\ITMartinFileSorter.Domain.csproj" />
     </ItemGroup>
 
@@ -16,6 +17,10 @@
         <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260308" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
         <PackageReference Include="TagLibSharp" Version="2.3.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Helpers\" />
     </ItemGroup>
 
 </Project>

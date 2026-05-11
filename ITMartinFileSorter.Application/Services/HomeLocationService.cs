@@ -1,10 +1,10 @@
-﻿using ITMartinFileSorter.Application.Helpers;
-using ITMartinFileSorter.Domain.Entities;
-using ITMartinFileSorter.Domain.Interfaces;
+﻿using ITMartin.Media.Entities;
+using ITMartin.Media.Interfaces;
+using ITMartinFileSorter.Application.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class HomeLocationService
+public class HomeLocationService : IHomeLocationService
 {
     private readonly IGpsService _gpsService;
 

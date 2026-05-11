@@ -1,7 +1,12 @@
 ﻿@page "/"
 @page "/filesorter"
 
-@using ITMartinFileSorter.Domain.Helpers
+@using ITMartin.Media.Entities
+@using ITMartin.Media.Enums
+@using ITMartin.Media.Helpers
+@using ITMartin.Media.Interfaces
+@using ITMartinFileSorter.Application.Services
+
 @implements IDisposable
 
 @inject DuplicateService DuplicateService
@@ -9,11 +14,15 @@
 @inject ProgressService Progress
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject IAiEnrichmentService AiEnrichmentService
+@inject ILogger<Index> Logger
 
 <PageLayout Title="📂 Scan & Organize Files">
+
     <div class="filesorter-app">
 
         <ContentCard CssClass="scan-hero-card">
+
             <p class="hero-text">
                 Scan photos, videos, audio and documents.
             </p>
@@ -25,10 +34,13 @@
                 Disabled="@IsScanning"
                 OnAction="ScanFolder" />
 
-            @if (!string.IsNullOrEmpty(ErrorMessage))
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
             {
-                <div class="text-danger mt-2">@ErrorMessage</div>
+                <div class="text-danger mt-2">
+                    @ErrorMessage
+                </div>
             }
+
         </ContentCard>
 
         @if (ShowScanning)
@@ -48,24 +60,22 @@
             <SectionTitle Title="File Summary" />
 
             <div class="main-category-row mt-3">
+
                 @foreach (var cat in CategoryOrder)
                 {
                     var filesInCat = DuplicateService.AllFiles
-                        .Where(f => CategoryHelper.GetCategory(f) == cat);
+                        .Where(f => CategoryHelper.GetCategory(f) == cat)
+                        .ToList();
 
-                    var allFiles = filesInCat.ToList();
-
-                    var needsReview = allFiles.Count(f =>
+                    var needsReview = filesInCat.Count(f =>
                         f.RequiresReview &&
                         f.Status == MediaFileStatus.Initial);
 
-                    var processedCount = allFiles.Count(f =>
+                    var processedCount = filesInCat.Count(f =>
                         f.Status == MediaFileStatus.ToKeep ||
                         f.Status == MediaFileStatus.ToDelete);
 
-                    var total = allFiles.Count;
-
-                    var totalSize = allFiles
+                    var totalSize = filesInCat
                         .Where(f => f.Status != MediaFileStatus.ToDelete)
                         .Sum(f => f.SizeBytes);
 
@@ -75,15 +85,18 @@
                         Title="@(isAuto ? $"{cat} (Auto)" : cat)"
                         ReviewCount="@needsReview"
                         ProcessedCount="@processedCount"
-                        Total="@total"
+                        Total="@filesInCat.Count"
                         SizeText="@FormatSize(totalSize)"
                         CssClass="@GetCategoryCssClass(cat)"
                         OnClick="@(e => OpenCategory(cat))" />
                 }
+
             </div>
 
             <ActionButtonBar CssClass="bottom export-bar">
+
                 <div class="export-status">
+
                     @if (!IsCompleted)
                     {
                         <span class="text-muted">
@@ -96,6 +109,7 @@
                             ✔ All files processed — ready to export
                         </span>
                     }
+
                 </div>
 
                 <span class="spacer"></span>
@@ -105,44 +119,63 @@
                         @onclick="GoToExport">
                     📦 Export Files
                 </button>
+
             </ActionButtonBar>
         }
+
     </div>
+
 </PageLayout>
 
 @code {
 
-    string FolderPath
+    private string FolderPath
     {
         get => DuplicateService.FolderPath;
         set => DuplicateService.FolderPath = value;
     }
 
-    bool IsScanning = false;
-    string CurrentFileName = "";
-    int FilesDiscovered = 0;
-    string ErrorMessage = "";
+    private bool IsScanning;
 
-    bool IsCompleted =>
+    private string CurrentFileName = "";
+
+    private string ErrorMessage = "";
+
+    private bool IsCompleted =>
         DuplicateService.AllFiles
-            .Any(f => f.RequiresReview && f.Status == MediaFileStatus.Initial) == false;
+            .Any(f =>
+                f.RequiresReview &&
+                f.Status == MediaFileStatus.Initial) == false;
 
-    int ProgressPercent =>
+    private int ProgressPercent =>
         Progress.Info.TotalWork == 0
             ? 1
-            : (int)((double)Progress.Info.WorkDone / Progress.Info.TotalWork * 100);
+            : (int)((double)Progress.Info.WorkDone /
+                    Progress.Info.TotalWork * 100);
 
-    bool ShowScanning =>
+    private bool ShowScanning =>
         IsScanning || Progress.Info.WorkDone > 0;
 
-    bool ShowSummary =>
-        !IsScanning && DuplicateService.AllFiles.Any();
+    private bool ShowSummary =>
+        !IsScanning &&
+        DuplicateService.AllFiles.Any();
+
+    private readonly string[] CategoryOrder =
+    [
+        "Audio",
+        "Documents",
+        "Images",
+        "Videos",
+        "Screenshots",
+        "Memes"
+    ];
 
     protected override void OnInitialized()
     {
         Progress.OnChange += HandleProgressChanged;
 
-        var source = Configuration["MediaSettings:SourceRoot"];
+        var source =
+            Configuration["MediaSettings:SourceRoot"];
 
         if (!string.IsNullOrWhiteSpace(source))
         {
@@ -150,7 +183,7 @@
         }
     }
 
-    void HandleProgressChanged()
+    private void HandleProgressChanged()
     {
         InvokeAsync(StateHasChanged);
     }
@@ -160,108 +193,164 @@
         Progress.OnChange -= HandleProgressChanged;
     }
 
-    void OnFolderPathChanged(string value)
+    private void OnFolderPathChanged(string value)
     {
         FolderPath = value;
     }
 
-    async Task ScanFolder()
+    private async Task ScanFolder()
     {
-        if (IsScanning) return;
+        if (IsScanning)
+            return;
 
         ErrorMessage = "";
 
         var path = FolderPath;
 
-        Console.WriteLine($"PATH: {path}");
+        Logger.LogInformation(
+            "Starting scan for {Path}",
+            path);
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            ErrorMessage = "Please enter a folder path.";
+            ErrorMessage =
+                "Please enter a folder path.";
+
             return;
         }
 
         if (!Directory.Exists(path))
         {
-            ErrorMessage = $"Folder not found: {path}";
-            Console.WriteLine($"Folder not found: {path}");
+            ErrorMessage =
+                $"Folder not found: {path}";
+
+            Logger.LogWarning(
+                "Folder not found: {Path}",
+                path);
+
             return;
         }
 
         IsScanning = true;
+
         await InvokeAsync(StateHasChanged);
 
         CurrentFileName = "";
-        FilesDiscovered = 0;
 
         DuplicateService.Reset();
+
         DuplicateService.FolderPath = path;
 
-        var bag = new System.Collections.Concurrent.ConcurrentBag<MediaFile>();
+        var bag =
+            new System.Collections.Concurrent
+                .ConcurrentBag<MediaFile>();
 
-        var allPaths = FileScanner.EnumerateFiles(path).ToList();
+        var allPaths =
+            FileScanner.EnumerateFiles(path)
+                .ToList();
 
-        Progress.Start("Scanning files...", allPaths.Count);
+        Progress.Start(
+            "Scanning files...",
+            allPaths.Count);
 
         var lastRender = DateTime.UtcNow;
 
-        await Parallel.ForEachAsync(allPaths, new ParallelOptions
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount
-        },
-        async (filePath, ct) =>
-        {
-            try
+        await Parallel.ForEachAsync(
+            allPaths,
+            new ParallelOptions
             {
-                var file = FileScanner.ProcessFile(filePath);
-                if (file == null) return;
-
-                file.RequiresReview = true;
-                file.Status = MediaFileStatus.Initial;
-
-                if (file.SubCategory is MediaSubCategory.Meme or MediaSubCategory.Screenshot)
+                MaxDegreeOfParallelism =
+                    Environment.ProcessorCount
+            },
+            async (filePath, ct) =>
+            {
+                try
                 {
-                    file.RequiresReview = false;
-                    file.Status = MediaFileStatus.ToKeep;
-                }
+                    var file =
+                        FileScanner.ProcessFile(filePath);
 
-                bag.Add(file);
+                    if (file == null)
+                        return;
 
-                Interlocked.Increment(ref FilesDiscovered);
-                Progress.Increment();
+                    file.RequiresReview = true;
 
-                await InvokeAsync(() =>
-                {
-                    CurrentFileName = Path.GetFileName(filePath);
+                    file.Status =
+                        MediaFileStatus.Initial;
 
-                    if ((DateTime.UtcNow - lastRender).TotalMilliseconds > 100)
+                    if (file.SubCategory is
+                        MediaSubCategory.Meme or
+                        MediaSubCategory.Screenshot)
                     {
-                        lastRender = DateTime.UtcNow;
-                        StateHasChanged();
+                        file.RequiresReview = false;
+
+                        file.Status =
+                            MediaFileStatus.ToKeep;
                     }
-                });
-            }
-            catch (Exception ex)
+
+                    bag.Add(file);
+
+                    Progress.Increment();
+
+                    await InvokeAsync(() =>
+                    {
+                        CurrentFileName =
+                            Path.GetFileName(filePath);
+
+                        if ((DateTime.UtcNow - lastRender)
+                            .TotalMilliseconds > 100)
+                        {
+                            lastRender = DateTime.UtcNow;
+
+                            StateHasChanged();
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(
+                        ex,
+                        "Failed processing file {File}",
+                        filePath);
+                }
+            });
+
+        DuplicateService.AllFiles =
+            bag.ToList();
+
+        Progress.SetStage(
+            "Removing duplicates...");
+
+        await Task.Run(() =>
+            DuplicateService.BuildDuplicateGroups());
+
+        Progress.SetStage(
+            "AI enrichment...");
+
+        await AiEnrichmentService.EnrichBatchAsync(
+            DuplicateService.AllFiles,
+            async () =>
             {
-                Console.WriteLine(ex);
-            }
-        });
-
-        DuplicateService.AllFiles = bag.ToList();
-
-        Progress.SetStage("Removing duplicates...");
-        await Task.Run(() => DuplicateService.BuildDuplicateGroups());
+                await InvokeAsync(StateHasChanged);
+            });
 
         Progress.Complete();
+
         IsScanning = false;
+
+        Logger.LogInformation(
+            "Scan completed for {Path}",
+            path);
 
         await InvokeAsync(StateHasChanged);
     }
 
-    void OpenCategory(string cat)
+    private void OpenCategory(string cat)
     {
-        if (cat == "Screenshots" || cat == "Memes")
+        if (cat == "Screenshots" ||
+            cat == "Memes")
+        {
             return;
+        }
 
         var mapped = cat switch
         {
@@ -275,21 +364,32 @@
         if (mapped == null)
             return;
 
-        Navigation.NavigateTo($"/category-step/{mapped}");
+        Navigation.NavigateTo(
+            $"/category-step/{mapped}");
     }
 
-    void GoToExport()
+    private void GoToExport()
     {
         Navigation.NavigateTo("/export");
     }
 
-    string FormatSize(long bytes)
+    private static string FormatSize(long bytes)
     {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
+        string[] sizes =
+        [
+            "B",
+            "KB",
+            "MB",
+            "GB",
+            "TB"
+        ];
 
-        while (len >= 1024 && order < sizes.Length - 1)
+        double len = bytes;
+
+        var order = 0;
+
+        while (len >= 1024 &&
+               order < sizes.Length - 1)
         {
             order++;
             len /= 1024;
@@ -298,23 +398,16 @@
         return $"{len:0.#} {sizes[order]}";
     }
 
-    readonly string[] CategoryOrder =
-    [
-        "Audio",
-        "Documents",
-        "Images",
-        "Videos",
-        "Screenshots",
-        "Memes"
-    ];
-    string GetCategoryCssClass(string cat) => cat switch
-    {
-        "Audio" => "category-audio",
-        "Documents" => "category-document",
-        "Images" => "category-image",
-        "Videos" => "category-video",
-        "Screenshots" => "category-auto",
-        "Memes" => "category-auto",
-        _ => ""
-    };
+    private static string GetCategoryCssClass(
+        string cat) =>
+        cat switch
+        {
+            "Audio" => "category-audio",
+            "Documents" => "category-document",
+            "Images" => "category-image",
+            "Videos" => "category-video",
+            "Screenshots" => "category-auto",
+            "Memes" => "category-auto",
+            _ => ""
+        };
 }
