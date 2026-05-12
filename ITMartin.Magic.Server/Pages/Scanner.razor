@@ -1,0 +1,88 @@
+﻿@page "/scanner"
+@using Microsoft.JSInterop
+
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>
+    MTG Scanner
+</PageTitle>
+
+<h3>MTG Webcam Scanner</h3>
+
+<div class="scanner-container">
+
+    <video id="video"
+           autoplay
+           playsinline
+           width="640"
+           height="480"
+           class="scanner-video">
+    </video>
+
+</div>
+
+<div class="mt-3">
+
+    <button class="btn btn-primary"
+            @onclick="Capture">
+        Capture Frame
+    </button>
+
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_lastImage))
+{
+    <div class="mt-4">
+
+        <img src="@_lastImage"
+             class="preview-image" />
+
+    </div>
+}
+
+@code {
+
+    private string? _lastImage;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync(
+                "webcam.start");
+        }
+    }
+
+    private async Task Capture()
+    {
+        var base64 =
+            await JS.InvokeAsync<string>(
+                "webcam.capture");
+
+        var response =
+            await Http.PostAsJsonAsync(
+                "api/scanner/frame",
+                new CaptureFrameRequest
+                {
+                    Base64Image = base64
+                });
+
+        var result =
+            await response.Content
+                .ReadFromJsonAsync<CaptureFrameResponse>();
+
+        _lastImage = result?.ImagePath;
+    }
+
+    public class CaptureFrameRequest
+    {
+        public string Base64Image { get; set; } = "";
+    }
+
+    public class CaptureFrameResponse
+    {
+        public string ImagePath { get; set; } = "";
+    }
+}

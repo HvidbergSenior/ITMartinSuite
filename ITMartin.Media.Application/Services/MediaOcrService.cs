@@ -29,11 +29,14 @@ public class MediaOcrService : IMediaOcrService
 
         foreach (var file in ocrFiles)
         {
+            var path =
+                file.NormalizedPath ??
+                file.FullPath;
+
             try
             {
-                var path =
-                    file.NormalizedPath ??
-                    file.FullPath;
+                Console.WriteLine(
+                    $"OCR PATH USED: {path}");
 
                 var text =
                     await _ocrService
@@ -44,7 +47,7 @@ public class MediaOcrService : IMediaOcrService
                 file.OcrProcessed = true;
 
                 Console.WriteLine(
-                    $"OCR DONE: {file.FileName}");
+                    $"OCR DONE: {path}");
             }
             catch (Exception ex)
             {
@@ -59,7 +62,7 @@ public class MediaOcrService : IMediaOcrService
                 await progress(
                     done,
                     total,
-                    file.FileName);
+                    Path.GetFileName(path));
             }
         }
     }

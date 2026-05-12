@@ -1,0 +1,14 @@
+﻿@using ITMartin.Magic.Server.Layout
+
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData"
+                   DefaultLayout="typeof(MagicLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MagicLayout)">
+            <p>Sorry, page not found.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
