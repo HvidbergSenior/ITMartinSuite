@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="wwwroot\app.css" />
+      <_ContentIncludedByDefault Remove="wwwroot\bootstrap\bootstrap.min.css" />
+      <_ContentIncludedByDefault Remove="wwwroot\bootstrap\bootstrap.min.css.map" />
+      <_ContentIncludedByDefault Remove="wwwroot\favicon.png" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Include="Layout\FileSorterLayout.razor" />
+      <AdditionalFiles Include="Pages\AiCollections.razor" />
+      <AdditionalFiles Include="Pages\AiResults.razor" />
+      <AdditionalFiles Include="Pages\CategoryStep.razor" />
+      <AdditionalFiles Include="Pages\Duplicates.razor" />
+      <AdditionalFiles Include="Pages\Export.razor" />
+      <AdditionalFiles Include="Pages\ImageSubcategory.razor" />
+      <AdditionalFiles Include="Pages\Index.razor" />
+      <AdditionalFiles Include="Pages\Library.razor" />
+      <AdditionalFiles Include="Pages\Organize.razor" />
+      <AdditionalFiles Include="Pages\Viewer.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartin.Magic.Application\ITMartin.Magic.Application.csproj" />
+      <ProjectReference Include="..\ITMartin.Magic.Domain\ITMartin.Magic.Domain.csproj" />
+      <ProjectReference Include="..\ITMartin.Magic.Infrastructure\ITMartin.Magic.Infrastructure.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
+      <ProjectReference Include="..\ITMartin.OCR\ITMartin.OCR.csproj" />
+      <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+    </ItemGroup>
+
+</Project>
