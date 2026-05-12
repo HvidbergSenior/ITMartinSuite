@@ -1,0 +1,17 @@
+﻿.category-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background: linear-gradient(145deg, #1c1f27, #121419);
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.category-card:hover {
+    transform: translateY(-4px);
+}

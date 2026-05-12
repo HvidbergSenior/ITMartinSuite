@@ -1,25 +1,40 @@
 ﻿using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Helpers;
 using ITMartin.Media.Interfaces;
 using ITMartinFileSorter.Application.Interfaces;
 
 namespace ITMartinFileSorter.Application.Services;
 
-public class LibraryExportService : ILibraryExportService
+public class LibraryExportService
+    : ILibraryExportService
 {
+    private readonly IMediaNamingService
+        _mediaNamingService;
+
+    public LibraryExportService(
+        IMediaNamingService mediaNamingService)
+    {
+        _mediaNamingService =
+            mediaNamingService;
+    }
+
     public async Task ExportAsync(
         IEnumerable<MediaFile> files,
         string root,
         Func<int, int, string, string, Task>? progress)
     {
-        var list = files?.ToList() ?? [];
+        var list =
+            files?.ToList() ?? [];
 
         if (!list.Any())
             return;
 
         if (string.IsNullOrWhiteSpace(root))
+        {
             throw new Exception(
                 "Export root is invalid");
+        }
 
         EnsureBaseFolders(root);
 
@@ -35,12 +50,26 @@ public class LibraryExportService : ILibraryExportService
             try
             {
                 var category =
-                    CategoryHelper.GetCategory(file);
+                    CategoryHelper
+                        .GetCategory(file);
+
+                // SAFER DATE HANDLING
+
+                var safeMonth =
+                    Math.Clamp(
+                        file.Month,
+                        1,
+                        12);
+
+                var safeYear =
+                    Math.Max(
+                        file.Year,
+                        2000);
 
                 var monthName =
                     new DateTime(
-                            file.Year,
-                            file.Month,
+                            safeYear,
+                            safeMonth,
                             1)
                         .ToString("MMMM");
 
@@ -48,7 +77,7 @@ public class LibraryExportService : ILibraryExportService
                     Path.Combine(
                         root,
                         category,
-                        file.Year.ToString(),
+                        safeYear.ToString(),
                         monthName);
 
                 Directory.CreateDirectory(
@@ -63,23 +92,23 @@ public class LibraryExportService : ILibraryExportService
                     file.FullPath;
 
                 // =========================
-                // SAFE UNIQUE FILENAME
+                // AI FILE NAME
                 // =========================
 
-                var fileName =
-                    Path.GetFileNameWithoutExtension(
-                        sourcePath);
-
-                var extension =
-                    Path.GetExtension(sourcePath);
-
                 var safeFileName =
-                    $"{fileName}_{file.Id:N}{extension}";
+                    _mediaNamingService
+                        .BuildFileName(file);
 
                 var targetPath =
                     Path.Combine(
                         targetDir,
                         safeFileName);
+
+                // Avoid collisions
+
+                targetPath =
+                    EnsureUniqueFileName(
+                        targetPath);
 
                 // =========================
                 // COPY
@@ -106,7 +135,7 @@ public class LibraryExportService : ILibraryExportService
                     await progress(
                         done,
                         total,
-                        safeFileName,
+                        Path.GetFileName(targetPath),
                         "Copying files...");
                 }
             }
@@ -182,6 +211,42 @@ public class LibraryExportService : ILibraryExportService
                 bufferSize,
                 useAsync: true);
 
-        await source.CopyToAsync(destination);
+        await source.CopyToAsync(
+            destination);
+    }
+
+    private static string EnsureUniqueFileName(
+        string path)
+    {
+        if (!File.Exists(path))
+        {
+            return path;
+        }
+
+        var directory =
+            Path.GetDirectoryName(path)!;
+
+        var name =
+            Path.GetFileNameWithoutExtension(path);
+
+        var ext =
+            Path.GetExtension(path);
+
+        var counter = 2;
+
+        while (true)
+        {
+            var candidate =
+                Path.Combine(
+                    directory,
+                    $"{name}_{counter}{ext}");
+
+            if (!File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            counter++;
+        }
     }
 }

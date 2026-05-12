@@ -1,8 +1,6 @@
 ﻿using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Enums;
 using ITMartin.Media.Interfaces;
-using ITMartin.OCR.Interfaces;
 
 namespace ITMartin.Media.Infrastructure.FileSystem;
 
@@ -13,28 +11,19 @@ public sealed class FileScanner : IFileScanner
     private readonly IMediaDateService _mediaDateService;
     private readonly IMediaClassificationService _classificationService;
     private readonly IExifService _exifService;
-    private readonly IOcrService _ocrService;
-    private readonly IAiAnalysisService _aiAnalysisService;
-    private readonly IAiCacheService _aiCacheService;
 
     public FileScanner(
         IFileSystem fileSystem,
         IHashService hashService,
         IMediaDateService mediaDateService,
         IMediaClassificationService classificationService,
-        IExifService exifService,
-        IOcrService ocrService,
-        IAiAnalysisService aiAnalysisService,
-        IAiCacheService aiCacheService)
+        IExifService exifService)
     {
         _fileSystem = fileSystem;
         _hashService = hashService;
         _mediaDateService = mediaDateService;
         _classificationService = classificationService;
         _exifService = exifService;
-        _ocrService = ocrService;
-        _aiAnalysisService = aiAnalysisService;
-        _aiCacheService = aiCacheService;
     }
 
     // =========================
@@ -161,30 +150,7 @@ public sealed class FileScanner : IFileScanner
                 {
                 }
             }
-
-            // =========================
-            // OCR
-            // =========================
-
-            try
-            {
-                if (SupportsOcr(file))
-                {
-                    mediaFile.OcrText =
-                        _ocrService.ExtractTextAsync(file)
-                            .GetAwaiter()
-                            .GetResult();
-
-                    mediaFile.OcrProcessed = true;
-
-                    Console.WriteLine(
-                        $"OCR for {file}: {mediaFile.OcrText}");
-                }
-            }
-            catch
-            {
-            }
-
+            
             // =========================
             // HASH
             // =========================

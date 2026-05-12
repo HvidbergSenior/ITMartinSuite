@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ITMartin.Media.Interfaces;
 
 namespace ITMartin.Media.Application.Services;
@@ -13,42 +14,47 @@ public class VideoConverterService : IVideoConverterService
 
     public VideoConverterService()
     {
-        _ffmpegPath =
-            OperatingSystem.IsWindows()
-                ? "ffmpeg.exe"
-                : "ffmpeg";
+        if (OperatingSystem.IsWindows())
+        {
+            var ffmpegFolder =
+                Path.Combine(
+                    AppContext.BaseDirectory,
+                    "ffmpeg");
 
-        _ffprobePath =
-            OperatingSystem.IsWindows()
-                ? "ffprobe.exe"
-                : "ffprobe";
+            _ffmpegPath =
+                Path.Combine(
+                    ffmpegFolder,
+                    "ffmpeg.exe");
+
+            _ffprobePath =
+                Path.Combine(
+                    ffmpegFolder,
+                    "ffprobe.exe");
+        }
+        else
+        {
+            _ffmpegPath = "ffmpeg";
+            _ffprobePath = "ffprobe";
+        }
 
         Console.WriteLine(
-            $"[FFMPEG PATH] {_ffmpegPath}");
+            $"[FFMPEG] {_ffmpegPath}");
 
         Console.WriteLine(
-            $"[FFPROBE PATH] {_ffprobePath}");
+            $"[FFPROBE] {_ffprobePath}");
     }
 
     public async Task<string?> ConvertToUniversalMp4Async(
         string inputPath,
         string outputFolder)
     {
-        // =========================
-        // INPUT VALIDATION
-        // =========================
-
         if (!File.Exists(inputPath))
         {
             Console.WriteLine(
-                $"[VIDEO] Missing input: {inputPath}");
+                $"[VIDEO] Missing: {inputPath}");
 
             return null;
         }
-
-        // =========================
-        // NORMALIZED TEMP FOLDER
-        // =========================
 
         var tempRoot =
             Path.Combine(
@@ -59,119 +65,117 @@ public class VideoConverterService : IVideoConverterService
         Directory.CreateDirectory(
             tempRoot);
 
-        // =========================
-        // SAFE FILE NAMES
-        // =========================
+        // CLEANER FILE NAME
 
-        var name =
-            Path.GetFileNameWithoutExtension(
-                inputPath);
+        var baseName =
+            BuildCleanName(
+                Path.GetFileNameWithoutExtension(
+                    inputPath));
 
-        var finalOutputPath =
+        var uniqueName =
+            $"{baseName}_{DateTime.UtcNow:yyyyMMddHHmmss}";
+
+        var finalOutput =
             Path.Combine(
                 tempRoot,
-                $"{name}.mp4");
+                $"{uniqueName}.mp4");
 
-        var tempOutputPath =
+        var tempOutput =
             Path.Combine(
                 tempRoot,
-                $"{name}.temp.mp4");
+                $"{uniqueName}.tmp.mp4");
 
-        // Already normalized
+        Console.WriteLine(
+            $"[VIDEO INPUT] {inputPath}");
 
-        if (File.Exists(finalOutputPath))
-        {
-            Console.WriteLine(
-                $"[VIDEO] Already normalized: {finalOutputPath}");
-
-            return finalOutputPath;
-        }
-
-        // =========================
-        // CODEC INFO
-        // =========================
+        Console.WriteLine(
+            $"[VIDEO OUTPUT] {finalOutput}");
 
         var info =
             await GetCodecInfoAsync(
                 inputPath);
 
         Console.WriteLine(
-            $"Video codec: {info.VideoCodec}");
+            $"[VIDEO CODEC] {info.VideoCodec}");
 
         Console.WriteLine(
-            $"Audio codec: {info.AudioCodec}");
-
-        // =========================
-        // CONVERSION
-        // =========================
+            $"[AUDIO CODEC] {info.AudioCodec}");
 
         try
         {
-            if (CanCopy(inputPath, info))
+            var shouldCopy =
+                CanCopy(
+                    inputPath,
+                    info);
+
+            if (shouldCopy)
             {
                 Console.WriteLine(
-                    "[VIDEO] Fast copy / rewrap");
+                    "[VIDEO] Rewrap");
 
                 await RunFfmpegAsync(
                     $"-y -i \"{inputPath}\" " +
                     "-map_metadata 0 " +
                     "-c copy " +
                     "-movflags +faststart " +
-                    $"\"{tempOutputPath}\"");
+                    $"\"{tempOutput}\"");
             }
             else
             {
                 Console.WriteLine(
-                    "[VIDEO] Full re-encode");
+                    "[VIDEO] Re-encode");
 
                 await RunFfmpegAsync(
                     $"-y -i \"{inputPath}\" " +
                     "-map_metadata 0 " +
                     "-c:v libx264 " +
-                    "-preset veryfast " +
-                    "-crf 18 " +
-                    "-vf \"scale='min(1920,iw)':-2\" " +
+                    "-preset medium " +
+                    "-crf 20 " +
                     "-pix_fmt yuv420p " +
+                    "-vf \"scale='min(1920,iw)':-2\" " +
                     "-c:a aac " +
                     "-b:a 192k " +
                     "-movflags +faststart " +
-                    $"\"{tempOutputPath}\"");
+                    $"\"{tempOutput}\"");
             }
+
+            await WaitForOutputReady(
+                tempOutput);
+
+            if (!File.Exists(tempOutput))
+            {
+                throw new Exception(
+                    "Output file missing");
+            }
+
+            File.Move(
+                tempOutput,
+                finalOutput,
+                true);
+
+            Console.WriteLine(
+                $"[VIDEO DONE] {finalOutput}");
+
+            return finalOutput;
         }
         catch (Exception ex)
         {
             Console.WriteLine(
-                $"[VIDEO] Fallback: {ex.Message}");
+                $"[VIDEO ERROR] {ex}");
 
-            await RunFfmpegAsync(
-                $"-y -i \"{inputPath}\" " +
-                "-c:v libx264 " +
-                "-preset veryfast " +
-                "-crf 18 " +
-                "-c:a aac " +
-                $"\"{tempOutputPath}\"");
+            try
+            {
+                if (File.Exists(tempOutput))
+                {
+                    File.Delete(tempOutput);
+                }
+            }
+            catch
+            {
+            }
+
+            return inputPath;
         }
-
-        // =========================
-        // WAIT FOR FILE
-        // =========================
-
-        await WaitForOutputReady(
-            tempOutputPath);
-
-        // =========================
-        // FINALIZE
-        // =========================
-
-        File.Move(
-            tempOutputPath,
-            finalOutputPath,
-            true);
-
-        Console.WriteLine(
-            $"[VIDEO DONE] {finalOutputPath}");
-
-        return finalOutputPath;
     }
 
     private bool CanCopy(
@@ -182,6 +186,13 @@ public class VideoConverterService : IVideoConverterService
             Path.GetExtension(inputPath)
                 .ToLowerInvariant();
 
+        // AVI should NEVER be copied
+
+        if (ext == ".avi")
+        {
+            return false;
+        }
+
         return ext is ".mp4" or ".mov"
                && info.VideoCodec == "h264"
                && info.AudioCodec == "aac";
@@ -190,43 +201,29 @@ public class VideoConverterService : IVideoConverterService
     private async Task<CodecInfo> GetCodecInfoAsync(
         string inputPath)
     {
-        var args =
-            $"-v quiet -print_format json -show_streams \"{inputPath}\"";
-
-        using var process =
-            StartProcess(
-                _ffprobePath,
-                args);
-
-        var output =
-            await process.StandardOutput
-                .ReadToEndAsync();
-
-        var error =
-            await process.StandardError
-                .ReadToEndAsync();
-
-        await process.WaitForExitAsync();
-
-        Console.WriteLine(
-            "===== FFPROBE DEBUG =====");
-
-        Console.WriteLine(output);
-
-        Console.WriteLine(error);
-
-        if (string.IsNullOrWhiteSpace(output))
-        {
-            Console.WriteLine(
-                "[FFPROBE ERROR] EMPTY OUTPUT");
-
-            return new CodecInfo(
-                null,
-                null);
-        }
-
         try
         {
+            var args =
+                $"-v quiet -print_format json -show_streams \"{inputPath}\"";
+
+            using var process =
+                StartProcess(
+                    _ffprobePath,
+                    args);
+
+            var output =
+                await process.StandardOutput
+                    .ReadToEndAsync();
+
+            await process.WaitForExitAsync();
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return new CodecInfo(
+                    null,
+                    null);
+            }
+
             using var doc =
                 JsonDocument.Parse(output);
 
@@ -244,39 +241,24 @@ public class VideoConverterService : IVideoConverterService
 
             foreach (var stream in streams.EnumerateArray())
             {
-                if (!stream.TryGetProperty(
-                        "codec_type",
-                        out var typeProp))
-                {
-                    continue;
-                }
-
-                if (!stream.TryGetProperty(
-                        "codec_name",
-                        out var nameProp))
-                {
-                    continue;
-                }
-
                 var type =
-                    typeProp.GetString();
+                    stream.GetProperty("codec_type")
+                        .GetString();
 
-                var name =
-                    nameProp.GetString();
-
-                Console.WriteLine(
-                    $"[STREAM] {type} - {name}");
+                var codec =
+                    stream.GetProperty("codec_name")
+                        .GetString();
 
                 if (type == "video" &&
                     video == null)
                 {
-                    video = name;
+                    video = codec;
                 }
 
                 if (type == "audio" &&
                     audio == null)
                 {
-                    audio = name;
+                    audio = codec;
                 }
             }
 
@@ -287,7 +269,7 @@ public class VideoConverterService : IVideoConverterService
         catch (Exception ex)
         {
             Console.WriteLine(
-                $"[FFPROBE PARSE ERROR] {ex}");
+                $"[FFPROBE ERROR] {ex}");
 
             return new CodecInfo(
                 null,
@@ -303,27 +285,52 @@ public class VideoConverterService : IVideoConverterService
                 _ffmpegPath,
                 args);
 
-        var output =
-            await process.StandardOutput
-                .ReadToEndAsync();
+        var errorBuilder =
+            new StringBuilder();
 
-        var error =
-            await process.StandardError
-                .ReadToEndAsync();
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                Console.WriteLine(
+                    $"[FFMPEG] {e.Data}");
 
-        await process.WaitForExitAsync();
+                errorBuilder.AppendLine(e.Data);
+            }
+        };
 
-        Console.WriteLine(
-            "===== FFMPEG DEBUG =====");
+        process.BeginErrorReadLine();
 
-        Console.WriteLine(output);
+        var waitTask =
+            process.WaitForExitAsync();
 
-        Console.WriteLine(error);
+        var timeoutTask =
+            Task.Delay(
+                TimeSpan.FromMinutes(15));
+
+        var completed =
+            await Task.WhenAny(
+                waitTask,
+                timeoutTask);
+
+        if (completed == timeoutTask)
+        {
+            try
+            {
+                process.Kill(true);
+            }
+            catch
+            {
+            }
+
+            throw new Exception(
+                "FFmpeg timeout");
+        }
 
         if (process.ExitCode != 0)
         {
             throw new Exception(
-                $"FFmpeg failed:\n{error}");
+                errorBuilder.ToString());
         }
     }
 
@@ -331,24 +338,32 @@ public class VideoConverterService : IVideoConverterService
         string file,
         string args)
     {
-        return Process.Start(
-            new ProcessStartInfo
+        var process =
+            new Process
             {
-                FileName = file,
-                Arguments = args,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
-            })!;
+                StartInfo =
+                    new ProcessStartInfo
+                    {
+                        FileName = file,
+                        Arguments = args,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = Encoding.UTF8,
+                        StandardErrorEncoding = Encoding.UTF8
+                    }
+            };
+
+        process.Start();
+
+        return process;
     }
 
     private async Task WaitForOutputReady(
         string path)
     {
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < 40; i++)
         {
             try
             {
@@ -370,6 +385,32 @@ public class VideoConverterService : IVideoConverterService
 
             await Task.Delay(250);
         }
+
+        throw new Exception(
+            "Output file never became ready");
+    }
+
+    private static string BuildCleanName(
+        string value)
+    {
+        value =
+            Regex.Replace(
+                value,
+                @"[^a-zA-Z0-9_\- ]",
+                "");
+
+        value =
+            Regex.Replace(
+                value,
+                @"\s+",
+                "_");
+
+        if (value.Length > 40)
+        {
+            value = value[..40];
+        }
+
+        return value.Trim('_');
     }
 
     private record CodecInfo(

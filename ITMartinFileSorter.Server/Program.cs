@@ -1,3 +1,4 @@
+using ITMartin.Media.Application.Services;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure;
@@ -33,15 +34,37 @@ builder.Services.AddServerSideBlazor()
 builder.Services.AddMediaInfrastructure(
     builder.Configuration);
 builder.Services.AddScoped<
+    IImageConverterService,
+    ImageConverterService>();
+
+builder.Services.AddScoped<
+    IVideoConverterService,
+    VideoConverterService>();
+
+builder.Services.AddScoped<
+    IImageBatchService,
+    ImageBatchService>();
+
+builder.Services.AddScoped<
+    IVideoBatchService,
+    VideoBatchService>();
+builder.Services.AddScoped<IMediaNamingService,
+    MediaNamingService>();
+builder.Services.AddScoped<
     IMediaNormalizationService,
     MediaNormalizationService>();
 builder.Services.AddSingleton<
     IOcrService,
     OcrService>();
-
+builder.Services.AddScoped<
+    IAiCollectionService,
+    AiCollectionService>();
 builder.Services.AddScoped<
     IAiCacheService,
     SqliteAiCacheService>();
+builder.Services.AddScoped<
+    IMediaOcrService,
+    MediaOcrService>();
 // =========================
 // APP SERVICES
 // =========================
@@ -61,7 +84,9 @@ builder.Services.AddScoped<ProgressService>();
 builder.Services.AddScoped<HomeLocationService>();
 builder.Services.AddScoped<LibraryExportService>();
 builder.Services.AddScoped<FolderPathInfoService>();
-
+builder.Services.AddScoped<
+    IMediaVisionService,
+    MediaVisionService>();
 // =========================
 // CONTROLLERS
 // =========================

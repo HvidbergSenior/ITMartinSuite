@@ -12,13 +12,16 @@
 @inject ILogger<Export> Logger
 @inject IAiEnrichmentService AiEnrichmentService
 @inject IMediaNormalizationService MediaNormalizationService
+@inject IMediaOcrService MediaOcrService
+@inject IMediaVisionService MediaVisionService
+@inject IAiCollectionService AiCollectionService
+
 <div class="filesorter-app">
 
     <div class="page-container stack export-page">
 
         <SectionTitle Title="📦 Export Organized Files" />
 
-        <!-- PATHS -->
         <ContentCard>
 
             <div class="text-muted small">
@@ -33,64 +36,128 @@
 
         </ContentCard>
 
-        <!-- PREVIEW -->
         <ContentCard Title="📁 Preview of your organized library">
 
             @foreach (var cat in Categories)
             {
-                <div class="tree">
+            <div class="tree">
 
-                    <div class="tree-node root"
-                         @onclick="() => Toggle(cat.Name)">
+                <div class="tree-node root"
+                     @onclick="() => Toggle(cat.Name)">
 
-                        @(IsExpanded(cat.Name) ? "▼" : "▶")
-                        📁 @cat.Name
+                    @(IsExpanded(cat.Name) ? "▼" : "▶")
+                    📁 @cat.Name
 
-                        <span class="tree-count">
+                    <span class="tree-count">
                             (@cat.Total)
                         </span>
 
-                    </div>
+                </div>
 
-                    @if (IsExpanded(cat.Name))
-                    {
-                        @foreach (var year in cat.Years)
-                        {
-                            <div class="tree-node year">
+                @if (IsExpanded(cat.Name))
+                {
+                @foreach (var year in cat.Years)
+                {
+                <div class="tree-node year">
 
                                 <span class="tree-branch">
                                     ├──
                                 </span>
 
-                                📂 @year.Year
+                    📂 @year.Year
 
-                                <span class="tree-count">
+                    <span class="tree-count">
                                     (@year.Count)
                                 </span>
 
-                            </div>
-                        }
-                    }
-
                 </div>
+                }
+                }
+
+            </div>
             }
 
         </ContentCard>
 
-        <!-- EXPORT PROGRESS -->
         @if (IsExporting)
         {
-            <ProgressPanel
-                Title="@CurrentStage"
-                Current="@ExportedCount"
-                Total="@TotalToExport"
-                Percent="@ProgressPercent"
-                CurrentItem="@CurrentExportFile"
-                LoadingText="Preparing export..."
-                Icon="📦" />
+        <ContentCard CssClass="pipeline-card">
+
+            <div class="pipeline-header">
+                ⚡ AI Processing Pipeline
+            </div>
+
+            <div class="pipeline-stages">
+
+                <div class="@GetStageClass("Normalize")">
+                    @GetStageIcon("Normalize")
+                    Normalize
+                </div>
+
+                <div class="@GetStageClass("OCR")">
+                    @GetStageIcon("OCR")
+                    OCR
+                </div>
+
+                <div class="@GetStageClass("Vision")">
+                    @GetStageIcon("Vision")
+                    Vision
+                </div>
+
+                <div class="@GetStageClass("AI")">
+                    @GetStageIcon("AI")
+                    AI
+                </div>
+
+                <div class="@GetStageClass("Export")">
+                    @GetStageIcon("Export")
+                    Export
+                </div>
+
+            </div>
+
+            <div class="progress-track">
+
+                <div class="progress-fill"
+                     style="width:@($"{ProgressPercent}%")">
+                </div>
+
+            </div>
+
+            <div class="progress-details">
+
+                <div class="progress-stage">
+                    @CurrentStage
+                </div>
+
+                <div class="progress-count">
+                    @ExportedCount / @TotalToExport
+                </div>
+
+                <div class="progress-file">
+                    @CurrentExportFile
+                </div>
+
+            </div>
+
+        </ContentCard>
+
+        <ContentCard Title="📜 Live Activity">
+
+            <div class="activity-log">
+
+                @foreach (var entry in ActivityLog)
+                {
+                <div class="activity-entry">
+                    @entry
+                </div>
+                }
+
+            </div>
+
+        </ContentCard>
         }
 
-        <!-- SUMMARY -->
         <ContentCard Title="Export Summary">
 
             <div class="summary-item">
@@ -107,20 +174,19 @@
 
         </ContentCard>
 
-        <!-- ACTIONS -->
         @if (!IsExporting)
         {
-            <ActionButtonBar CssClass="bottom">
+        <ActionButtonBar CssClass="bottom">
 
-                <button class="btn btn-primary btn-lg"
-                        @onclick="StartExport">
+            <button class="btn btn-primary btn-lg"
+                    @onclick="StartExport">
 
-                    Start Export →
-                    @FilesToExport.Count()
+                Start Export →
+                @FilesToExport.Count()
 
-                </button>
+            </button>
 
-            </ActionButtonBar>
+        </ActionButtonBar>
         }
 
     </div>
@@ -129,283 +195,383 @@
 
 @code {
 
-    // =========================
-    // CONFIG
-    // =========================
+private string SourceRoot =>
+Configuration["MediaSettings:SourceRoot"] ?? "";
 
-    private string SourceRoot =>
-        Configuration["MediaSettings:SourceRoot"] ?? "";
+private string LibraryRoot =>
+Configuration["MediaSettings:LibraryRoot"] ?? "";
 
-    private string LibraryRoot =>
-        Configuration["MediaSettings:LibraryRoot"] ?? "";
+private IEnumerable<MediaFile> FilesToExport =>
+DuplicateService.AllFiles
+.Where(f =>
+f.Status == MediaFileStatus.ToKeep ||
+f.SubCategory == MediaSubCategory.Meme ||
+f.SubCategory == MediaSubCategory.Screenshot);
 
-    // =========================
-    // DATA
-    // =========================
+private readonly HashSet<string> Expanded = [];
 
-    private IEnumerable<MediaFile> FilesToExport =>
-        DuplicateService.AllFiles
-            .Where(f =>
-                f.Status == MediaFileStatus.ToKeep ||
-                f.SubCategory == MediaSubCategory.Meme ||
-                f.SubCategory == MediaSubCategory.Screenshot);
+private readonly List<string> ActivityLog = [];
 
-    private List<ExportCategory> Categories =>
-        FilesToExport
-            .GroupBy(f => new
-            {
-                Category =
-                    f.SubCategory == MediaSubCategory.Screenshot
-                        ? "Screenshots"
-                        : f.SubCategory == MediaSubCategory.Meme
-                            ? "Memes"
-                            : f.MainCategory.ToString()
-            })
-            .Select(cat => new ExportCategory
-            {
-                Name = cat.Key.Category,
+private bool IsExporting;
 
-                Total = cat.Count(),
+private int ExportedCount;
 
-                Years = cat
-                    .GroupBy(f => f.Year)
-                    .OrderByDescending(y => y.Key)
-                    .Select(y => new ExportYear
-                    {
-                        Year = y.Key,
-                        Count = y.Count()
-                    })
-                    .ToList()
-            })
-            .OrderBy(c => c.Name)
-            .ToList();
+private int TotalToExport;
 
-    private readonly HashSet<string> Expanded = [];
+private string CurrentExportFile = "";
 
-    private void Toggle(string name)
-    {
-        if (!Expanded.Add(name))
-        {
-            Expanded.Remove(name);
-        }
-    }
+private string CurrentStage = "";
 
-    private bool IsExpanded(string name) =>
-        Expanded.Contains(name);
+private int ProgressPercent =>
+TotalToExport == 0
+? 0
+: (int)((double)ExportedCount /
+TotalToExport * 100);
 
-    // =========================
-    // STATE
-    // =========================
-
-    private bool IsExporting;
-
-    private int ExportedCount;
-
-    private int TotalToExport;
-
-    private string CurrentExportFile = "";
-
-    private string CurrentStage = "";
-
-    private DateTime LastRender =
-        DateTime.UtcNow;
-
-    private int ProgressPercent =>
-        TotalToExport == 0
-            ? 0
-            : (int)((double)ExportedCount /
-                    TotalToExport * 100);
-
-    // =========================
-    // EXPORT
-    // =========================
-
-    private async Task StartExport()
+private List<ExportCategory> Categories =>
+FilesToExport
+.GroupBy(f => new
 {
-    if (IsExporting)
-        return;
+Category =
+f.SubCategory == MediaSubCategory.Screenshot
+? "Screenshots"
+: f.SubCategory == MediaSubCategory.Meme
+? "Memes"
+: f.MainCategory.ToString()
+})
+.Select(cat => new ExportCategory
+{
+Name = cat.Key.Category,
+Total = cat.Count(),
 
-    try
-    {
-        IsExporting = true;
+Years = cat
+.GroupBy(f => f.Year)
+.OrderByDescending(y => y.Key)
+.Select(y => new ExportYear
+{
+Year = y.Key,
+Count = y.Count()
+})
+.ToList()
+})
+.OrderBy(c => c.Name)
+.ToList();
 
-        ExportedCount = 0;
-
-        CurrentStage = "Preparing export...";
-
-        await InvokeAsync(StateHasChanged);
-
-        var files = FilesToExport.ToList();
-
-        TotalToExport = files.Count;
-
-        var exportRoot = LibraryRoot;
-
-        var sourceRoot = SourceRoot;
-
-        // =========================
-        // SAFETY
-        // =========================
-
-        if (string.IsNullOrWhiteSpace(exportRoot))
-        {
-            throw new Exception(
-                "LibraryRoot missing in configuration.");
-        }
-
-        if (string.IsNullOrWhiteSpace(sourceRoot))
-        {
-            throw new Exception(
-                "SourceRoot missing in configuration.");
-        }
-
-        if (Path.GetFullPath(exportRoot)
-            .Equals(
-                Path.GetFullPath(sourceRoot),
-                StringComparison.OrdinalIgnoreCase))
-        {
-            throw new Exception(
-                "Source and Library folders cannot be the same.");
-        }
-
-        Directory.CreateDirectory(exportRoot);
-
-        // =========================
-        // AI ENRICHMENT
-        // =========================
-
-        CurrentStage = "AI enrichment...";
-
-        await InvokeAsync(StateHasChanged);
-
-        await AiEnrichmentService.EnrichBatchAsync(
-            files,
-            async () =>
-            {
-                ExportedCount++;
-
-                CurrentExportFile =
-                    $"AI batch processed";
-
-                await InvokeAsync(StateHasChanged);
-            });
-
-        // =========================
-        // NORMALIZATION
-        // =========================
-
-        ExportedCount = 0;
-
-        CurrentStage = "Normalizing media...";
-
-        await InvokeAsync(StateHasChanged);
-
-        await MediaNormalizationService.NormalizeAsync(
-            files,
-            async (done, total, fileName) =>
-            {
-                ExportedCount = done;
-
-                TotalToExport = total;
-
-                CurrentExportFile = fileName;
-
-                await InvokeAsync(StateHasChanged);
-            });
-
-        // =========================
-        // EXPORT
-        // =========================
-
-        ExportedCount = 0;
-
-        CurrentStage = "Exporting files...";
-
-        await InvokeAsync(StateHasChanged);
-
-        await LibraryExportService.ExportAsync(
-            files,
-            exportRoot,
-            async (done, total, fileName, stage) =>
-            {
-                ExportedCount = done;
-
-                TotalToExport = total;
-
-                CurrentExportFile = fileName;
-
-                CurrentStage = stage;
-
-                if ((DateTime.UtcNow - LastRender)
-                    .TotalMilliseconds > 100)
-                {
-                    LastRender = DateTime.UtcNow;
-
-                    await InvokeAsync(StateHasChanged);
-                }
-            });
-
-        ExportedCount = TotalToExport;
-
-        CurrentStage = "Opening library...";
-
-        await InvokeAsync(StateHasChanged);
-
-        await Task.Delay(400);
-
-        Logger.LogInformation(
-            "Export completed successfully to {ExportRoot}",
-            exportRoot);
-
-        // =========================
-        // RESET
-        // =========================
-
-        DuplicateService.Reset();
-
-        ExportedCount = 0;
-        TotalToExport = 0;
-        CurrentExportFile = "";
-        CurrentStage = "";
-        IsExporting = false;
-
-        await InvokeAsync(StateHasChanged);
-
-        Navigation.NavigateTo(
-            $"/library?path={Uri.EscapeDataString(exportRoot)}",
-            true);
-    }
-    catch (Exception ex)
-    {
-        Logger.LogError(
-            ex,
-            "Export failed");
-
-        CurrentStage = "❌ Export failed";
-
-        IsExporting = false;
-
-        await InvokeAsync(StateHasChanged);
-    }
+private void Toggle(string name)
+{
+if (!Expanded.Add(name))
+{
+Expanded.Remove(name);
+}
 }
 
-    // =========================
-    // DTOs
-    // =========================
+private bool IsExpanded(string name) =>
+Expanded.Contains(name);
 
-    public sealed class ExportCategory
-    {
-        public string Name { get; set; } = "";
+private string GetStageClass(string stage)
+{
+if (CurrentStage.Contains(stage,
+StringComparison.OrdinalIgnoreCase))
+{
+return "pipeline-stage active";
+}
 
-        public int Total { get; set; }
+if (IsStageDone(stage))
+{
+return "pipeline-stage done";
+}
 
-        public List<ExportYear> Years { get; set; } = [];
-    }
+return "pipeline-stage";
+}
 
-    public sealed class ExportYear
-    {
-        public int Year { get; set; }
+private string GetStageIcon(string stage)
+{
+if (CurrentStage.Contains(stage,
+StringComparison.OrdinalIgnoreCase))
+{
+return "⟳";
+}
 
-        public int Count { get; set; }
-    }
+if (IsStageDone(stage))
+{
+return "✓";
+}
+
+return "•";
+}
+
+private bool IsStageDone(string stage)
+{
+return stage switch
+{
+"Normalize" =>
+CurrentStage.Contains("OCR") ||
+CurrentStage.Contains("Vision") ||
+CurrentStage.Contains("AI") ||
+CurrentStage.Contains("Export"),
+
+"OCR" =>
+CurrentStage.Contains("Vision") ||
+CurrentStage.Contains("AI") ||
+CurrentStage.Contains("Export"),
+
+"Vision" =>
+CurrentStage.Contains("AI") ||
+CurrentStage.Contains("Export"),
+
+"AI" =>
+CurrentStage.Contains("Export"),
+
+"Export" =>
+CurrentStage.Contains("Opening"),
+
+_ => false
+};
+}
+
+private async Task UpdateUi()
+{
+await InvokeAsync(StateHasChanged);
+
+await Task.Delay(25);
+}
+
+private async Task AddLog(
+string message)
+{
+ActivityLog.Insert(
+0,
+$"[{DateTime.Now:HH:mm:ss}] {message}");
+
+if (ActivityLog.Count > 100)
+{
+ActivityLog.RemoveAt(
+ActivityLog.Count - 1);
+}
+
+await UpdateUi();
+}
+
+private async Task StartExport()
+{
+if (IsExporting)
+return;
+
+try
+{
+ActivityLog.Clear();
+
+IsExporting = true;
+
+var files =
+FilesToExport.ToList();
+
+TotalToExport = files.Count;
+
+Directory.CreateDirectory(
+LibraryRoot);
+
+// =========================
+// NORMALIZE
+// =========================
+
+ExportedCount = 0;
+
+CurrentStage = "Normalize";
+
+await AddLog(
+"Starting normalization...");
+
+await MediaNormalizationService.NormalizeAsync(
+files,
+async (done, total, fileName) =>
+{
+ExportedCount = done;
+TotalToExport = total;
+CurrentExportFile = fileName;
+
+await AddLog(
+$"Normalizing: {fileName}");
+
+await UpdateUi();
+});
+
+// =========================
+// OCR
+// =========================
+
+ExportedCount = 0;
+
+CurrentStage = "OCR";
+
+await AddLog(
+"Starting OCR processing...");
+
+await MediaOcrService.ProcessAsync(
+files,
+async (done, total, fileName) =>
+{
+ExportedCount = done;
+TotalToExport = total;
+CurrentExportFile = fileName;
+
+await AddLog(
+$"OCR scanning: {fileName}");
+
+await UpdateUi();
+});
+
+// =========================
+// VISION
+// =========================
+
+ExportedCount = 0;
+
+CurrentStage = "Vision";
+
+await AddLog(
+"Starting Vision AI...");
+
+await MediaVisionService.ProcessAsync(
+files,
+async (done, total, fileName) =>
+{
+ExportedCount = done;
+TotalToExport = total;
+CurrentExportFile = fileName;
+
+await AddLog(
+$"Vision analyzing: {fileName}");
+
+await UpdateUi();
+});
+
+// =========================
+// AI
+// =========================
+
+ExportedCount = 0;
+
+var aiFiles =
+files
+.Where(x => x.RequiresReview)
+.ToList();
+
+TotalToExport = aiFiles.Count;
+
+CurrentStage =
+$"AI ({aiFiles.Count} files)";
+
+await AddLog(
+$"Starting AI enrichment for {aiFiles.Count} files...");
+
+await AiEnrichmentService.EnrichBatchAsync(
+aiFiles,
+async () =>
+{
+ExportedCount += 5;
+
+if (ExportedCount > TotalToExport)
+{
+ExportedCount = TotalToExport;
+}
+
+CurrentExportFile =
+"AI batch processed";
+
+await AddLog(
+"AI batch completed");
+
+await UpdateUi();
+});
+
+// =========================
+// EXPORT
+// =========================
+
+ExportedCount = 0;
+
+CurrentStage = "Export";
+
+await AddLog(
+"Starting export...");
+
+await LibraryExportService.ExportAsync(
+files,
+LibraryRoot,
+async (done, total, fileName, stage) =>
+{
+ExportedCount = done;
+TotalToExport = total;
+CurrentExportFile = fileName;
+
+await AddLog(
+$"Exported: {fileName}");
+
+await UpdateUi();
+});
+
+// =========================
+// COLLECTIONS
+// =========================
+
+CurrentStage =
+"Building collections";
+
+await AddLog(
+"Building AI collections...");
+
+DuplicateService.AiCollections =
+AiCollectionService
+.BuildCollections(files);
+
+CurrentStage =
+"Opening library";
+
+await AddLog(
+"Opening media library...");
+
+await Task.Delay(500);
+
+DuplicateService.Reset();
+
+IsExporting = false;
+
+Navigation.NavigateTo(
+$"/library?path={Uri.EscapeDataString(LibraryRoot)}",
+true);
+}
+catch (Exception ex)
+{
+Logger.LogError(
+ex,
+"Export failed");
+
+await AddLog(
+$"ERROR: {ex.Message}");
+
+CurrentStage =
+"❌ Export failed";
+
+IsExporting = false;
+
+await UpdateUi();
+}
+}
+
+public sealed class ExportCategory
+{
+public string Name { get; set; } = "";
+
+public int Total { get; set; }
+
+public List<ExportYear> Years { get; set; } = [];
+}
+
+public sealed class ExportYear
+{
+public int Year { get; set; }
+
+public int Count { get; set; }
+}
 }

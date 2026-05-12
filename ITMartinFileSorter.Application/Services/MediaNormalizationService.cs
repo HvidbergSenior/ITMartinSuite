@@ -8,81 +8,88 @@ namespace ITMartinFileSorter.Application.Services;
 public sealed class MediaNormalizationService
     : IMediaNormalizationService
 {
-    private readonly IImageBatchService _imageService;
-    private readonly IVideoBatchService _videoService;
+    private readonly IImageConverterService _imageConverter;
+
+    private readonly IVideoConverterService _videoConverter;
 
     public MediaNormalizationService(
-        IImageBatchService imageService,
-        IVideoBatchService videoService)
+        IImageConverterService imageConverter,
+        IVideoConverterService videoConverter)
     {
-        _imageService = imageService;
-        _videoService = videoService;
+        _imageConverter = imageConverter;
+        _videoConverter = videoConverter;
     }
 
     public async Task NormalizeAsync(
         List<MediaFile> files,
         Func<int, int, string, Task>? progress = null)
     {
-        var images = files
-            .Where(x => x.Type == MediaType.Image)
-            .ToList();
+        int total = files.Count;
 
-        var videos = files
-            .Where(x => x.Type == MediaType.Video)
-            .ToList();
+        int done = 0;
 
-        // =========================
-        // IMAGES
-        // =========================
-
-        await _imageService.ConvertAllImagesAsync(
-            images,
-            async (done, total, fileName) =>
+        foreach (var file in files)
+        {
+            try
             {
-                var file = images.FirstOrDefault(x =>
-                    x.FileName == fileName);
+                string? normalized = null;
 
-                if (file != null &&
-                    !string.IsNullOrWhiteSpace(file.ExportedPath))
+                // =========================
+                // IMAGE
+                // =========================
+
+                if (file.Type == MediaType.Image)
                 {
-                    file.NormalizedPath =
-                        file.ExportedPath;
+                    normalized =
+                        await _imageConverter
+                            .ConvertToJpgAsync(
+                                file.FullPath);
                 }
 
-                if (progress != null)
+                // =========================
+                // VIDEO
+                // =========================
+
+                else if (file.Type == MediaType.Video)
                 {
-                    await progress(
-                        done,
-                        total,
-                        fileName);
+                    normalized =
+                        await _videoConverter
+                            .ConvertToUniversalMp4Async(
+                                file.FullPath,
+                                Path.GetTempPath());
                 }
-            });
 
-        // =========================
-        // VIDEOS
-        // =========================
+                // =========================
+                // STORE NORMALIZED PATH
+                // =========================
 
-        await _videoService.ConvertAllVideosAsync(
-            videos,
-            async (done, total, fileName) =>
+                file.NormalizedPath =
+                    normalized ??
+                    file.FullPath;
+
+                Console.WriteLine(
+                    $"NORMALIZED: {file.NormalizedPath}");
+            }
+            catch (Exception ex)
             {
-                var file = videos.FirstOrDefault(x =>
-                    x.FileName == fileName);
+                Console.WriteLine(
+                    $"NORMALIZE ERROR FILE: {file.FullPath}");
 
-                if (file != null &&
-                    !string.IsNullOrWhiteSpace(file.ExportedPath))
-                {
-                    file.NormalizedPath =
-                        file.ExportedPath;
-                }
+                Console.WriteLine(ex);
+                
+                file.NormalizedPath =
+                    file.FullPath;
+            }
 
-                if (progress != null)
-                {
-                    await progress(
-                        done,
-                        total,
-                        fileName);
-                }
-            });
+            done++;
+
+            if (progress != null)
+            {
+                await progress(
+                    done,
+                    total,
+                    file.FileName);
+            }
+        }
     }
 }

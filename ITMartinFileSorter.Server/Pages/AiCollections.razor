@@ -1,0 +1,112 @@
+﻿@page "/ai-collections"
+
+@using ITMartin.Media.Domain.Entities
+@using ITMartin.Media.Domain.Models
+@using ITMartinFileSorter.Application.Services
+
+@inject DuplicateService DuplicateService
+@inject NavigationManager Navigation
+
+<PageTitle>AI Collections</PageTitle>
+
+<div class="collections-page">
+
+    <div class="hero">
+
+        <h1>
+            ✨ AI Collections
+        </h1>
+
+        <p>
+            Automatically generated memories,
+            themes and smart groups.
+        </p>
+
+    </div>
+
+    @if (!Collections.Any())
+    {
+        <div class="empty-state">
+
+            <h3>No collections yet</h3>
+
+            <p>
+                Run export with AI enrichment first.
+            </p>
+
+        </div>
+    }
+    else
+    {
+        <div class="collections-grid">
+
+            @foreach (var collection in Collections)
+            {
+                <div class="collection-card"
+                     @onclick="() => OpenCollection(collection)">
+
+                    <div class="collection-cover">
+
+                        @if (!string.IsNullOrWhiteSpace(
+                                 collection.CoverImage))
+                        {
+                            <img src="@GetImage(collection.CoverImage)" />
+                        }
+                        else
+                        {
+                            <div class="placeholder">
+                                📁
+                            </div>
+                        }
+
+                        <div class="overlay">
+
+                            <div class="count">
+                                @collection.Files.Count files
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="collection-content">
+
+                        <h3>
+                            @collection.Title
+                        </h3>
+
+                        <p>
+                            @collection.Description
+                        </p>
+
+                        <div class="category">
+                            @collection.Category
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<AiCollection> Collections =>
+        DuplicateService.AiCollections;
+
+    private void OpenCollection(
+        AiCollection collection)
+    {
+        Navigation.NavigateTo(
+            $"/ai-collection/{Uri.EscapeDataString(collection.Title)}");
+    }
+
+    private string GetImage(string path)
+    {
+        return $"/thumbnail?path={Uri.EscapeDataString(path)}";
+    }
+}

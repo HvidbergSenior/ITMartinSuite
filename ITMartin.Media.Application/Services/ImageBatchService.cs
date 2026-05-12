@@ -33,31 +33,32 @@ public class ImageBatchService : IImageBatchService
 
         foreach (var file in images)
         {
+            current++;
+
+            progress?.Invoke(
+                current - 1,
+                total,
+                $"Converting {file.FileName}");
+
+            await Task.Yield();
+
             try
             {
                 var output =
                     await _converter.ConvertToJpgAsync(
+                        file.NormalizedPath ??
                         file.FullPath);
 
-                // IMPORTANT
-
-                file.NormalizedPath = output;
-
-                Console.WriteLine(
-                    $"NORMALIZED IMAGE: {output}");
+                if (!string.IsNullOrWhiteSpace(output))
+                {
+                    file.NormalizedPath = output;
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(
                     $"[IMAGE ERROR] {file.FileName}: {ex}");
-
-                // fallback
-
-                file.NormalizedPath =
-                    file.FullPath;
             }
-
-            current++;
 
             progress?.Invoke(
                 current,

@@ -33,31 +33,33 @@ public class VideoBatchService : IVideoBatchService
 
         foreach (var file in videos)
         {
+            current++;
+
+            progress?.Invoke(
+                current - 1,
+                total,
+                $"Converting {file.FileName}");
+
+            await Task.Yield();
+
             try
             {
                 var output =
-                    await _converter
-                        .ConvertToUniversalMp4Async(
-                            file.FullPath,
-                            tempRoot);
+                    await _converter.ConvertToUniversalMp4Async(
+                        file.NormalizedPath ??
+                        file.FullPath,
+                        Path.GetTempPath());
 
-                // IMPORTANT
-
-                file.NormalizedPath = output;
-
-                Console.WriteLine(
-                    $"NORMALIZED VIDEO: {output}");
+                if (!string.IsNullOrWhiteSpace(output))
+                {
+                    file.NormalizedPath = output;
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(
                     $"[VIDEO ERROR] {file.FileName}: {ex}");
-
-                file.NormalizedPath =
-                    file.FullPath;
             }
-
-            current++;
 
             progress?.Invoke(
                 current,

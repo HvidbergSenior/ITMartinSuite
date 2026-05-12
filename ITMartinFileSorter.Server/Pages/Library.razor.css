@@ -1,0 +1,52 @@
+﻿.library-page {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.library-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.library-grid,
+.media-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fill, minmax(220px, 1fr));
+
+    gap: 14px;
+}
+
+.folder-card {
+    padding: 14px;
+    cursor: pointer;
+}
+
+.media-card {
+    padding: 12px;
+    cursor: pointer;
+}
+
+.folder-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.folder-count,
+.media-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.media-thumb {
+    margin-bottom: 6px;
+}
+
+.media-name {
+    font-size: 13px;
+    font-weight: 500;
+
+    word-break: break-word;
+}

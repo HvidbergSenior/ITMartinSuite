@@ -13,6 +13,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Media.Domain\ITMartin.Media.Domain.csproj" />
+      <ProjectReference Include="..\ITMartin.OCR\ITMartin.OCR.csproj" />
     </ItemGroup>
 
 </Project>

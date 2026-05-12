@@ -28,13 +28,11 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
     private readonly ChatClient _client;
 
-    private readonly IAiAnalysisService _aiAnalysisService;
 
     public AiEnrichmentService(
         IConfiguration configuration,
         IAiAnalysisService aiAnalysisService)
     {
-        _aiAnalysisService = aiAnalysisService;
 
         var apiKey = configuration["OpenAI:ApiKey"];
 
@@ -68,44 +66,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
             try
             {
-                // =========================
-                // VISION ANALYSIS
-                // =========================
-
-                foreach (var file in batchList)
-                {
-                    try
-                    {
-                        if (file.Type == MediaType.Image)
-                        {
-                            var aiPath =
-                                file.NormalizedPath ??
-                                file.FullPath;
-
-                            var vision =
-                                await _aiAnalysisService
-                                    .AnalyzeImageAsync(aiPath);
-
-                            file.AiDescription =
-                                vision.Description;
-
-                            file.AiTags =
-                                vision.Tags;
-
-                            file.AiConfidence =
-                                (float?)vision.Confidence;
-
-                            Console.WriteLine(
-                                $"VISION AI: {aiPath}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(
-                            $"VISION ERROR: {ex}");
-                    }
-                }
-
+                
                 // =========================
                 // BATCH CLASSIFICATION
                 // =========================
@@ -164,10 +125,8 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
                 Console.WriteLine(
                     $"Processed AI batch: {batchList.Count} files");
 
-                if (onBatchCompleted != null)
-                {
-                    await onBatchCompleted();
-                }
+                await (onBatchCompleted?.Invoke()
+                       ?? Task.CompletedTask);
 
                 await Task.Delay(
                     2000,
@@ -284,26 +243,32 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         {
             x.Id,
 
-            FileName =
-                Path.GetFileName(
-                    x.NormalizedPath ??
-                    x.FullPath),
+            FileName = Path.GetFileName(
+                x.NormalizedPath ??
+                x.FullPath),
 
-            OcrText =
+            MediaType = x.Type.ToString(),
+
+            OCR =
                 string.IsNullOrWhiteSpace(x.OcrText)
                     ? null
-                    : x.OcrText.Length > 2000
-                        ? x.OcrText[..2000]
+                    : x.OcrText.Length > 3000
+                        ? x.OcrText[..3000]
                         : x.OcrText,
 
-            VisionDescription =
-                x.AiDescription,
+            ImageDescription =
+                string.IsNullOrWhiteSpace(x.AiDescription)
+                    ? null
+                    : x.AiDescription,
 
-            VisionTags =
-                x.AiTags,
+            ImageTags =
+                x.AiTags?.Any() == true
+                    ? x.AiTags
+                    : null,
 
-            VisionConfidence =
-                x.AiConfidence
+            Width = x.Width,
+            Height = x.Height,
+            Year = x.Year
         });
 
         var json =
@@ -315,72 +280,132 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
                 });
 
         return $$"""
-        Classify these files.
+You are an intelligent media classification AI.
 
-        You MUST return one result for every file.
-        Never skip files.
+Your task:
+Classify media files into categories using ALL available context.
 
-        VisionDescription contains AI image analysis.
-        VisionTags contains detected image contents.
+You MUST return:
+- one result per file
+- valid JSON only
+- a JSON array only
 
-        Prefer VisionDescription over filename.
-        Use OCR as supporting context.
+Never:
+- skip files
+- explain reasoning
+- return markdown
+- return extra text
 
-        If uncertain use "Unknown".
+Use ALL available information:
 
-        Confidence must be between 0 and 1.
+1. OCR text
+2. Vision AI descriptions
+3. Vision AI tags
+4. Filename
+5. Media type
+6. Metadata
 
-        Allowed categories:
+Priority rules:
 
-        Travel:
-        Vacation photos/videos, hotels, flights, countries, landmarks.
+- VisionDescription is strongest for photos/videos.
+- OCR is strongest for documents/screenshots/receipts.
+- Filename is weakest and should only support classification.
+- Use Unknown if confidence is low.
 
-        Family:
-        Personal photos/videos of people, birthdays, children, pets.
+Confidence:
+- Must be between 0 and 1.
+- Use high confidence only when evidence is strong.
 
-        Work:
-        Work-related files, office documents, business screenshots.
+Allowed categories ONLY:
 
-        Screenshots:
-        Screen captures from phones, PCs, apps, websites, chats.
+Travel
+Family
+Work
+Screenshots
+Documents
+Music
+Movies
+Games
+Memes
+Receipts
+Unknown
 
-        Documents:
-        PDFs, scans, letters, forms, contracts.
+Category guidance:
 
-        Music:
-        Audio/music related files.
+Travel:
+Vacations, landmarks, hotels, beaches,
+mountains, tourism, airports, travel memories.
 
-        Movies:
-        Movies, TV shows, video entertainment.
+Family:
+People, children, birthdays, pets,
+family gatherings, personal life moments.
 
-        Games:
-        Game screenshots, gameplay captures, gaming media.
+Work:
+Business files, office screenshots,
+work chats, presentations, spreadsheets.
 
-        Memes:
-        Funny images, jokes, internet memes.
+Screenshots:
+Desktop captures, mobile screenshots,
+UI captures, websites, chat screenshots,
+software screenshots.
 
-        Receipts:
-        Store receipts, invoices, payment confirmations.
+Documents:
+Scanned papers, PDFs, contracts,
+letters, forms, text-heavy images.
 
-        Unknown:
-        Use when classification is uncertain.
+Music:
+Music files, album art, concerts,
+audio-related content.
 
-        Return ONLY a JSON array.
+Movies:
+Movies, TV shows, cinematic media,
+video entertainment.
 
-        Example:
+Games:
+Gameplay, gaming screenshots,
+game menus, gaming media.
 
-        [
-          {
-            "id": "00000000-0000-0000-0000-000000000000",
-            "category": "Travel",
-            "subCategory": "Spain",
-            "description": "Vacation photos from Spain",
-            "confidence": 0.92
-          }
-        ]
+Memes:
+Funny edited images, jokes,
+reaction memes, ironic screenshots,
+internet humor.
 
-        Files:
-        {{json}}
-        """;
+Receipts:
+Receipts, invoices, payment confirmations,
+shopping transactions, bills.
+
+Unknown:
+Use when classification is uncertain.
+
+SubCategory rules:
+
+- Keep short.
+- Use locations, game names,
+movie names, event names,
+or document types when obvious.
+
+Examples:
+- Spain
+- Minecraft
+- Disney
+- Invoice
+- Steam
+- Airport
+
+Return format example:
+
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "category": "Travel",
+    "subCategory": "Spain",
+    "description": "Vacation photos from Spain",
+    "confidence": 0.96
+  }
+]
+
+Files:
+{{json}}
+""";
     }
 }
