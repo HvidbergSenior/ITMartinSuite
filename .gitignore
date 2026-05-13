@@ -1,21 +1,35 @@
+# Build output
 bin/
 obj/
+publish/
+**/publish/
+
+# IDEs
 .idea/
 .vs/
 
+# User-specific files
 *.user
 *.suo
 
+# Database files
 *.db
 *.db-shm
 *.db-wal
+
+# Logs
 *.log
 
+# FFmpeg executables
 ITMartinFileSorter.Server/ffmpeg/*.exe
+
+# App settings / secrets
 appsettings.json
 appsettings.Development.json
-**/appsettings.Development.json
 **/appsettings.json
-publish/
-**/publish/
+**/appsettings.Development.json
 secrets.json
+
+# Magic scanner generated frames
+ITMartin.Magic.Server/data/frames/
+ITMartin.Magic.Server/data/
