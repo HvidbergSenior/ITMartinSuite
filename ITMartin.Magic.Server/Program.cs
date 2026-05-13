@@ -1,13 +1,13 @@
 using ITMartin.Magic.Server;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.FileProviders;
+
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Infrastructure.OCR;
-using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Infrastructure.Scryfall;
 using ITMartin.Magic.Infrastructure.Services;
+
 using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR.Interfaces;
@@ -23,6 +23,10 @@ builder.Services
     .AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// =========================
+// SIGNALR
+// =========================
+
 builder.Services.Configure<HubOptions>(
     options =>
     {
@@ -30,15 +34,30 @@ builder.Services.Configure<HubOptions>(
             1024 * 1024 * 20;
     });
 
+// =========================
+// HTTP
+// =========================
+
 builder.Services.AddHttpClient<
     IScryfallService,
     ScryfallService>();
+
+// =========================
+// OCR
+// =========================
+
 builder.Services.AddScoped<
     IOcrService,
     OcrService>();
+
 builder.Services.AddScoped<
     ICardRecognitionService,
     CardRecognitionService>();
+
+// =========================
+// AI
+// =========================
+
 builder.Services.AddScoped<
     IImageAnalysisService,
     OpenAiImageAnalysisService>();
@@ -46,9 +65,55 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IMagicCardAnalysisService,
     OpenAiMagicCardAnalysisService>();
+builder.Services.AddScoped<
+    IBorderDetectionService,
+    BorderDetectionService>();
+// =========================
+// OPENCV PIPELINE
+// =========================
+
+builder.Services.AddScoped<
+    ICardBoundaryDetectionService,
+    OpenCvCardBoundaryDetectionService>();
+
+builder.Services.AddScoped<
+    IPerspectiveCorrectionService,
+    OpenCvPerspectiveCorrectionService>();
+
+builder.Services.AddScoped<
+    IBlurDetectionService,
+    OpenCvBlurDetectionService>();
+
+builder.Services.AddScoped<
+    IOcrRegionExtractor,
+    OpenCvOcrRegionExtractor>();
+
+// =========================
+// URLS
+// =========================
 
 builder.WebHost.UseUrls(
     "https://0.0.0.0:5020");
+
+// =========================
+// DATA FOLDERS
+// =========================
+
+var dataFolders =
+    new[]
+    {
+        "data",
+        "data/frames",
+        "data/debug",
+        "data/normalized",
+        "data/ocr"
+    };
+
+foreach (var folder in dataFolders)
+{
+    Directory.CreateDirectory(folder);
+}
+
 // =========================
 // BUILD
 // =========================
@@ -62,6 +127,7 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
+
     app.UseHsts();
 }
 
@@ -72,24 +138,21 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 // =========================
-// FRAME STORAGE
+// STATIC DATA ACCESS
 // =========================
 
-var framesPath =
+var dataPath =
     Path.Combine(
         builder.Environment.ContentRootPath,
-        "data",
-        "frames");
-
-Directory.CreateDirectory(framesPath);
+        "data");
 
 app.UseStaticFiles(
     new StaticFileOptions
     {
         FileProvider =
-            new PhysicalFileProvider(framesPath),
+            new PhysicalFileProvider(dataPath),
 
-        RequestPath = "/frames"
+        RequestPath = "/data"
     });
 
 // =========================

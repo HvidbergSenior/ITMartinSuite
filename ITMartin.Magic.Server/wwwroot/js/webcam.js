@@ -3,6 +3,10 @@
     video: null,
     stream: null,
 
+    // =========================================
+    // START CAMERA
+    // =========================================
+
     async start() {
 
         this.video =
@@ -12,6 +16,10 @@
         {
             this.stop();
         }
+
+        // =====================================
+        // GET CAMERA
+        // =====================================
 
         this.stream =
             await navigator.mediaDevices
@@ -29,11 +37,21 @@
 
                         height: {
                             ideal: 1080
+                        },
+
+                        focusMode: "continuous",
+
+                        aspectRatio: {
+                            ideal: 1.7777777778
                         }
                     },
 
                     audio: false
                 });
+
+        // =====================================
+        // VIDEO ELEMENT
+        // =====================================
 
         this.video.srcObject =
             this.stream;
@@ -50,181 +68,179 @@
 
         await this.video.play();
 
+        // =====================================
+        // CAMERA INFO
+        // =====================================
+
+        const track =
+            this.stream.getVideoTracks()[0];
+
+        const settings =
+            track.getSettings();
+
         console.log(
-            "VIDEO:",
+            "CAMERA SETTINGS:",
+            settings);
+
+        try
+        {
+            const capabilities =
+                track.getCapabilities();
+
+            console.log(
+                "CAMERA CAPABILITIES:",
+                capabilities);
+        }
+        catch
+        {
+            console.log(
+                "Capabilities not supported");
+        }
+
+        console.log(
+            "VIDEO SIZE:",
             this.video.videoWidth,
             this.video.videoHeight);
 
+        // =====================================
+        // AUTOFOCUS SETTLE
+        // =====================================
+
         await new Promise(x =>
             setTimeout(x, 1200));
+
+        console.log("CAMERA READY");
+
+        // =====================================
+        // TAP TO FOCUS
+        // =====================================
+
+        this.video.onclick =
+            async () =>
+            {
+                try
+                {
+                    await track.applyConstraints({
+
+                        advanced: [
+                            {
+                                focusMode: "continuous"
+                            }
+                        ]
+                    });
+
+                    console.log("FOCUS TRIGGERED");
+                }
+                catch (e)
+                {
+                    console.log(
+                        "Focus trigger unsupported",
+                        e);
+                }
+            };
     },
+
+    // =========================================
+    // CAPTURE
+    // =========================================
 
     async capture() {
 
+        // =====================================
+        // WAIT FOR FOCUS
+        // =====================================
+
         await new Promise(x =>
-            setTimeout(x, 250));
-
-        const frame =
-            this.captureFrame();
-
-        return {
-
-            image:
-                frame.canvas.toDataURL(
-                    "image/jpeg",
-                    1.0)
-        };
-    },
-
-    captureFrame() {
+            setTimeout(x, 400));
 
         const canvas =
-            document.createElement(
-                "canvas");
+            document.createElement("canvas");
 
         const ctx =
             canvas.getContext("2d");
 
-        canvas.width = 1200;
-        canvas.height = 1680;
-
-        const guide =
-            document.querySelector(
-                ".scanner-guide");
-
-        const videoRect =
-            this.video.getBoundingClientRect();
-
-        const guideRect =
-            guide.getBoundingClientRect();
-
-        const realWidth =
+        const width =
             this.video.videoWidth;
 
-        const realHeight =
+        const height =
             this.video.videoHeight;
 
-        // =====================================
-        // REAL RENDERED VIDEO AREA
-        // =====================================
+        canvas.width = width;
 
-        const videoAspect =
-            realWidth / realHeight;
-
-        const elementAspect =
-            videoRect.width / videoRect.height;
-
-        let renderedWidth;
-        let renderedHeight;
-
-        let offsetX = 0;
-        let offsetY = 0;
-
-        if (videoAspect > elementAspect)
-        {
-            renderedWidth =
-                videoRect.width;
-
-            renderedHeight =
-                renderedWidth / videoAspect;
-
-            offsetY =
-                (videoRect.height - renderedHeight) / 2;
-        }
-        else
-        {
-            renderedHeight =
-                videoRect.height;
-
-            renderedWidth =
-                renderedHeight * videoAspect;
-
-            offsetX =
-                (videoRect.width - renderedWidth) / 2;
-        }
+        canvas.height = height;
 
         // =====================================
-        // SCALE
+        // DRAW FULL FRAME
         // =====================================
-
-        const scaleX =
-            realWidth / renderedWidth;
-
-        const scaleY =
-            realHeight / renderedHeight;
-
-        // =====================================
-        // GUIDE POSITION
-        // =====================================
-
-        const relativeX =
-            guideRect.left -
-            videoRect.left -
-            offsetX;
-
-        const relativeY =
-            guideRect.top -
-            videoRect.top -
-            offsetY;
-
-        const sx =
-            relativeX * scaleX;
-
-        const sy =
-            relativeY * scaleY;
-
-        const sw =
-            guideRect.width * scaleX;
-
-        const sh =
-            guideRect.height * scaleY;
-
-        console.log({
-            realWidth,
-            realHeight,
-            renderedWidth,
-            renderedHeight,
-            sx,
-            sy,
-            sw,
-            sh
-        });
-
-        ctx.imageSmoothingEnabled = true;
-
-        ctx.imageSmoothingQuality = "high";
 
         ctx.drawImage(
             this.video,
-            sx,
-            sy,
-            sw,
-            sh,
             0,
             0,
-            canvas.width,
-            canvas.height);
+            width,
+            height);
 
         // =====================================
-        // DEBUG BORDER
+        // DEBUG PREVIEW
         // =====================================
 
-        ctx.strokeStyle =
-            "#00ff99";
+        const old =
+            document.getElementById(
+                "debug-canvas");
 
-        ctx.lineWidth = 10;
+        if (old)
+        {
+            old.remove();
+        }
 
-        ctx.strokeRect(
-            0,
-            0,
-            canvas.width,
-            canvas.height);
+        canvas.id =
+            "debug-canvas";
+
+        canvas.style.position =
+            "fixed";
+
+        canvas.style.right =
+            "12px";
+
+        canvas.style.bottom =
+            "12px";
+
+        canvas.style.width =
+            "140px";
+
+        canvas.style.border =
+            "3px solid lime";
+
+        canvas.style.borderRadius =
+            "12px";
+
+        canvas.style.zIndex =
+            "999999";
+
+        document.body.appendChild(
+            canvas);
+
+        console.log(
+            "CAPTURED:",
+            width,
+            height);
+
+        // =====================================
+        // JPEG EXPORT
+        // =====================================
 
         return {
-            canvas,
-            ctx
+
+            image:
+                canvas.toDataURL(
+                    "image/jpeg",
+                    0.92)
         };
     },
+
+    // =========================================
+    // STOP
+    // =========================================
 
     stop() {
 
@@ -238,5 +254,7 @@
             .forEach(x => x.stop());
 
         this.stream = null;
+
+        console.log("CAMERA STOPPED");
     }
 };

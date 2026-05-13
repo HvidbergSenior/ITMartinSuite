@@ -9,6 +9,13 @@
 @inject ICardRecognitionService CardRecognitionService
 @inject IScryfallService ScryfallService
 
+@inject ICardBoundaryDetectionService CardBoundaryDetectionService
+@inject IPerspectiveCorrectionService PerspectiveCorrectionService
+@inject IOcrRegionExtractor OcrRegionExtractor
+@inject IBorderDetectionService BorderDetectionService
+
+@implements IAsyncDisposable
+
 <PageTitle>
     MTG Scanner
 </PageTitle>
@@ -28,7 +35,7 @@
             </h1>
 
             <div class="scanner-subtitle">
-                OCR + OpenAI + Scryfall Matching
+                Phone Camera + OpenCV + OCR + OpenAI
             </div>
 
         </div>
@@ -49,39 +56,17 @@
                class="scanner-video">
         </video>
 
-        <!-- ========================================= -->
-        <!-- OCR OVERLAY -->
-        <!-- ========================================= -->
-
-        <div class="ocr-overlay">
-
-            <div class="ocr-title-box"></div>
-
-            <div class="ocr-bottom-box"></div>
-
-            <div class="ocr-pt-box"></div>
-
-        </div>
-
-        <!-- ========================================= -->
         <!-- GUIDE -->
-        <!-- ========================================= -->
 
         <div class="scanner-guide">
 
             <div class="guide-text">
-
-                Keep card centered
-                <br />
-                avoid blur & glare
-
+                Point phone at card and tap capture
             </div>
 
         </div>
 
-        <!-- ========================================= -->
         <!-- PROCESSING -->
-        <!-- ========================================= -->
 
         @if (_isProcessing)
         {
@@ -93,7 +78,7 @@
                     </div>
 
                     <div class="mt-3">
-                        Scanning card...
+                        @_detectedText
                     </div>
 
                 </div>
@@ -158,6 +143,7 @@
             <div class="debug-grid">
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         Title
                     </div>
@@ -165,9 +151,11 @@
                     <div class="debug-value">
                         @_detection.Name
                     </div>
+
                 </div>
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         Set
                     </div>
@@ -175,9 +163,11 @@
                     <div class="debug-value">
                         @_detection.SetCode
                     </div>
+
                 </div>
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         Collector
                     </div>
@@ -185,9 +175,11 @@
                     <div class="debug-value">
                         @_detection.CollectorNumber
                     </div>
+
                 </div>
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         Artist
                     </div>
@@ -195,9 +187,11 @@
                     <div class="debug-value">
                         @_detection.Artist
                     </div>
+
                 </div>
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         Old Border
                     </div>
@@ -205,9 +199,11 @@
                     <div class="debug-value">
                         @_detection.IsOldBorder
                     </div>
+
                 </div>
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         White Border
                     </div>
@@ -215,19 +211,23 @@
                     <div class="debug-value">
                         @_detection.IsWhiteBorder
                     </div>
+
                 </div>
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         OCR Confidence
                     </div>
 
                     <div class="debug-value">
-                        @((_detection.Confidence * 100).ToString("0"))%
+                        @((_detection.OcrConfidence * 100).ToString("0"))%
                     </div>
+
                 </div>
 
                 <div class="debug-item">
+
                     <div class="debug-label">
                         Exact Printing
                     </div>
@@ -235,6 +235,7 @@
                     <div class="debug-value">
                         @_detection.ExactPrintingCertain
                     </div>
+
                 </div>
 
             </div>
@@ -252,20 +253,12 @@
 
             <div class="card-result">
 
-                <!-- ========================================= -->
-                <!-- IMAGE -->
-                <!-- ========================================= -->
-
                 <div class="image-panel">
 
                     <img src="@_card.ImageUrl"
                          class="matched-card-image" />
 
                 </div>
-
-                <!-- ========================================= -->
-                <!-- DETAILS -->
-                <!-- ========================================= -->
 
                 <div class="card-details">
 
@@ -296,10 +289,6 @@
                     </div>
 
                     <hr />
-
-                    <!-- ========================================= -->
-                    <!-- GRID -->
-                    <!-- ========================================= -->
 
                     <div class="detail-grid">
 
@@ -355,10 +344,6 @@
 
                     <hr />
 
-                    <!-- ========================================= -->
-                    <!-- ORACLE -->
-                    <!-- ========================================= -->
-
                     <div class="oracle-box">
 
                         @_card.OracleText
@@ -383,8 +368,6 @@
     private bool _isProcessing;
 
     private CardDetectionResult? _detection;
-
-    private decimal _blurScore;
 
     // =========================================
     // START CAMERA
@@ -431,7 +414,7 @@
         {
             _isProcessing = true;
 
-            _detectedText = null;
+            _detectedText = "Capturing...";
 
             _card = null;
 
@@ -456,120 +439,216 @@
                 Convert.FromBase64String(clean);
 
             // =====================================
-            // SAVE
+            // SAVE FRAME
             // =====================================
 
-            var folder =
+            var framesFolder =
                 Path.Combine(
                     Directory.GetCurrentDirectory(),
                     "data",
                     "frames");
 
-            Directory.CreateDirectory(folder);
+            Directory.CreateDirectory(
+                framesFolder);
 
-            var fileName =
-                $"{Guid.NewGuid()}.jpg";
-
-            var path =
+            var framePath =
                 Path.Combine(
-                    folder,
-                    fileName);
+                    framesFolder,
+                    $"{Guid.NewGuid()}.jpg");
 
             await File.WriteAllBytesAsync(
-                path,
+                framePath,
                 bytes);
 
             // =====================================
-            // OCR DETECTION
+            // BOUNDARY DETECTION
             // =====================================
+
+            _detectedText =
+                "Detecting card...";
+
+            StateHasChanged();
+
+            var corners =
+                await CardBoundaryDetectionService
+                    .DetectAsync(framePath);
+
+            if (corners == null ||
+                !corners.Success)
+            {
+                _detectedText =
+                    "Could not detect card.";
+
+                return;
+            }
+
+            // =====================================
+            // NORMALIZATION
+            // =====================================
+
+            _detectedText =
+                "Correcting perspective...";
+
+            StateHasChanged();
+
+            var normalizedPath =
+                await PerspectiveCorrectionService
+                    .CorrectAsync(
+                        framePath,
+                        corners);
+
+            if (normalizedPath == null)
+            {
+                _detectedText =
+                    "Perspective correction failed.";
+
+                return;
+            }
+
+            // =====================================
+            // OCR REGIONS
+            // =====================================
+
+            _detectedText =
+                "Extracting OCR regions...";
+
+            StateHasChanged();
+
+            var regions =
+                await OcrRegionExtractor
+                    .ExtractAsync(
+                        normalizedPath);
+
+            if (regions == null)
+            {
+                _detectedText =
+                    "OCR region extraction failed.";
+
+                return;
+            }
+
+            // =====================================
+            // OCR
+            // =====================================
+
+            _detectedText =
+                "Reading text...";
+
+            StateHasChanged();
 
             var detection =
                 await CardRecognitionService
-                    .DetectAsync(path);
+                    .DetectAsync(
+                        regions);
 
             if (detection == null)
             {
                 _detectedText =
-                    "OCR failed or image too blurry.";
+                    "OCR failed.";
 
                 return;
             }
 
-            _detection = detection;
+            detection.IsOldBorder =
+                BorderDetectionService
+                    .IsOldBorder(
+                        normalizedPath);
+
+            detection.IsWhiteBorder =
+                BorderDetectionService
+                    .IsWhiteBorder(
+                        normalizedPath);
+
+            _detection =
+                detection;
 
             // =====================================
-            // OPENAI
+            // AI
             // =====================================
+
+            _detectedText =
+                "Analyzing card...";
+
+            StateHasChanged();
 
             var magic =
                 await MagicCardAnalysisService
                     .AnalyzeMagicCardAsync(
-                        path,
+                        normalizedPath,
                         detection);
-            
-            if (magic == null)
-            {
-                _detectedText =
-                    "OpenAI could not identify card.";
 
-                return;
+            if (magic != null)
+            {
+                detection.Name =
+                    magic.CardName ??
+                    detection.Name;
+
+                detection.SetCode =
+                    magic.SetCode ??
+                    detection.SetCode;
+
+                detection.CollectorNumber =
+                    magic.CollectorNumber ??
+                    detection.CollectorNumber;
+
+                detection.Artist =
+                    magic.Artist ??
+                    detection.Artist;
+
+                detection.ManaCost =
+                    magic.ManaCost ??
+                    detection.ManaCost;
+
+                detection.CardType =
+                    magic.CardType ??
+                    detection.CardType;
+
+                detection.IsOldBorder =
+                    magic.IsOldBorder;
+
+                detection.IsWhiteBorder =
+                    magic.IsWhiteBorder;
+
+                detection.ExactPrintingCertain =
+                    magic.ExactPrintingCertain;
+
+                detection.Confidence =
+                    magic.Confidence;
+
+                detection.ReleaseEra =
+                    magic.ReleaseEra;
             }
 
             // =====================================
-            // MERGE AI RESULT
+            // SCRYFALL
             // =====================================
-
-            detection.Name =
-                magic.CardName;
-
-            detection.SetCode =
-                magic.SetCode;
-
-            detection.CollectorNumber =
-                magic.CollectorNumber;
-
-            detection.Artist =
-                magic.Artist;
-
-            detection.ManaCost =
-                magic.ManaCost;
-
-            detection.CardType =
-                magic.CardType;
-
-            detection.IsOldBorder =
-                magic.IsOldBorder;
-
-            detection.IsWhiteBorder =
-                magic.IsWhiteBorder;
-
-            detection.ExactPrintingCertain =
-                magic.ExactPrintingCertain;
-
-            detection.Confidence =
-                magic.Confidence;
-
-            detection.ReleaseEra =
-                magic.ReleaseEra;
 
             _detectedText =
-                $"AI: {magic.CardName} | " +
-                $"SET={magic.SetCode} | " +
-                $"#{magic.CollectorNumber} | " +
-                $"CONF={(magic.Confidence * 100):0}%";
+                "Matching printing...";
 
-            // =====================================
-            // SCRYFALL MATCH
-            // =====================================
+            StateHasChanged();
 
             _card =
                 await ScryfallService
-                    .SearchAsync(detection);
+                    .SearchAsync(
+                        detection);
+
+            // =====================================
+            // FINAL STATUS
+            // =====================================
+
+            _detectedText =
+                $@"NAME: {detection.Name}
+SET: {detection.SetCode}
+COLLECTOR: {detection.CollectorNumber}
+ARTIST: {detection.Artist}
+PT: {detection.PowerToughness}
+OCR: {(detection.OcrConfidence * 100):0}%";
 
             if (_card == null)
             {
-                _detectedText =
-                    "Could not match printing.";
+                _detectedText +=
+                    "\n\nNo exact Scryfall match found.";
             }
         }
         catch (Exception ex)
@@ -577,7 +656,7 @@
             Console.WriteLine(ex);
 
             _detectedText =
-                ex.Message;
+                ex.ToString();
         }
         finally
         {
