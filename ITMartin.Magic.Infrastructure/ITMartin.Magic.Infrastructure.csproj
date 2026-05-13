@@ -12,6 +12,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Magic.Application\ITMartin.Magic.Application.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
       <ProjectReference Include="..\ITMartin.OCR\ITMartin.OCR.csproj" />
     </ItemGroup>
 

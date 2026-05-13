@@ -2,10 +2,9 @@
 
 @using ITMartin.Magic.Application.Interfaces
 @using ITMartin.Magic.Application.Models
-@using ITMartin.Media.Domain.Interfaces
 @using Microsoft.JSInterop
 
-@inject IAiAnalysisService AiAnalysisService
+@inject IMagicCardAnalysisService MagicCardAnalysisService
 @inject IJSRuntime JS
 @inject ICardRecognitionService CardRecognitionService
 @inject IScryfallService ScryfallService
@@ -16,6 +15,10 @@
 
 <div class="scanner-page">
 
+    <!-- ========================================= -->
+    <!-- HEADER -->
+    <!-- ========================================= -->
+
     <div class="scanner-header">
 
         <div>
@@ -25,23 +28,29 @@
             </h1>
 
             <div class="scanner-subtitle">
-                OpenAI Vision + OCR + Scryfall matching
+                OCR + OpenAI + Scryfall Matching
             </div>
 
         </div>
 
     </div>
 
+    <!-- ========================================= -->
+    <!-- CAMERA -->
+    <!-- ========================================= -->
+
     <div class="scanner-wrapper">
 
         <video id="video"
                autoplay
+               muted
                playsinline
+               webkit-playsinline
                class="scanner-video">
         </video>
 
         <!-- ========================================= -->
-        <!-- LIVE OCR OVERLAY -->
+        <!-- OCR OVERLAY -->
         <!-- ========================================= -->
 
         <div class="ocr-overlay">
@@ -55,7 +64,7 @@
         </div>
 
         <!-- ========================================= -->
-        <!-- CARD GUIDE -->
+        <!-- GUIDE -->
         <!-- ========================================= -->
 
         <div class="scanner-guide">
@@ -69,6 +78,10 @@
             </div>
 
         </div>
+
+        <!-- ========================================= -->
+        <!-- PROCESSING -->
+        <!-- ========================================= -->
 
         @if (_isProcessing)
         {
@@ -89,6 +102,10 @@
         }
 
     </div>
+
+    <!-- ========================================= -->
+    <!-- BUTTONS -->
+    <!-- ========================================= -->
 
     <div class="scanner-buttons">
 
@@ -113,6 +130,10 @@
 
     </div>
 
+    <!-- ========================================= -->
+    <!-- STATUS -->
+    <!-- ========================================= -->
+
     @if (!string.IsNullOrWhiteSpace(_detectedText))
     {
         <div class="alert alert-dark scanner-alert mt-4">
@@ -122,11 +143,118 @@
         </div>
     }
 
+    <!-- ========================================= -->
+    <!-- OCR DEBUG -->
+    <!-- ========================================= -->
+
+    @if (_detection != null)
+    {
+        <div class="debug-panel mt-4">
+
+            <h4 class="mb-3">
+                OCR Debug
+            </h4>
+
+            <div class="debug-grid">
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        Title
+                    </div>
+
+                    <div class="debug-value">
+                        @_detection.Name
+                    </div>
+                </div>
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        Set
+                    </div>
+
+                    <div class="debug-value">
+                        @_detection.SetCode
+                    </div>
+                </div>
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        Collector
+                    </div>
+
+                    <div class="debug-value">
+                        @_detection.CollectorNumber
+                    </div>
+                </div>
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        Artist
+                    </div>
+
+                    <div class="debug-value">
+                        @_detection.Artist
+                    </div>
+                </div>
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        Old Border
+                    </div>
+
+                    <div class="debug-value">
+                        @_detection.IsOldBorder
+                    </div>
+                </div>
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        White Border
+                    </div>
+
+                    <div class="debug-value">
+                        @_detection.IsWhiteBorder
+                    </div>
+                </div>
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        OCR Confidence
+                    </div>
+
+                    <div class="debug-value">
+                        @((_detection.Confidence * 100).ToString("0"))%
+                    </div>
+                </div>
+
+                <div class="debug-item">
+                    <div class="debug-label">
+                        Exact Printing
+                    </div>
+
+                    <div class="debug-value">
+                        @_detection.ExactPrintingCertain
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- ========================================= -->
+    <!-- MATCHED CARD -->
+    <!-- ========================================= -->
+
     @if (_card != null)
     {
         <div class="result-panel mt-5">
 
             <div class="card-result">
+
+                <!-- ========================================= -->
+                <!-- IMAGE -->
+                <!-- ========================================= -->
 
                 <div class="image-panel">
 
@@ -134,6 +262,10 @@
                          class="matched-card-image" />
 
                 </div>
+
+                <!-- ========================================= -->
+                <!-- DETAILS -->
+                <!-- ========================================= -->
 
                 <div class="card-details">
 
@@ -164,6 +296,10 @@
                     </div>
 
                     <hr />
+
+                    <!-- ========================================= -->
+                    <!-- GRID -->
+                    <!-- ========================================= -->
 
                     <div class="detail-grid">
 
@@ -219,6 +355,10 @@
 
                     <hr />
 
+                    <!-- ========================================= -->
+                    <!-- ORACLE -->
+                    <!-- ========================================= -->
+
                     <div class="oracle-box">
 
                         @_card.OracleText
@@ -242,6 +382,14 @@
 
     private bool _isProcessing;
 
+    private CardDetectionResult? _detection;
+
+    private decimal _blurScore;
+
+    // =========================================
+    // START CAMERA
+    // =========================================
+
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
     {
@@ -251,6 +399,10 @@
                 "webcam.start");
         }
     }
+
+    // =========================================
+    // DISPOSE
+    // =========================================
 
     public async ValueTask DisposeAsync()
     {
@@ -263,6 +415,10 @@
         {
         }
     }
+
+    // =========================================
+    // CAPTURE
+    // =========================================
 
     private async Task Capture()
     {
@@ -279,7 +435,13 @@
 
             _card = null;
 
+            _detection = null;
+
             StateHasChanged();
+
+            // =====================================
+            // CAPTURE
+            // =====================================
 
             var capture =
                 await JS.InvokeAsync<CaptureResult>(
@@ -292,6 +454,10 @@
 
             var bytes =
                 Convert.FromBase64String(clean);
+
+            // =====================================
+            // SAVE
+            // =====================================
 
             var folder =
                 Path.Combine(
@@ -313,10 +479,34 @@
                 path,
                 bytes);
 
-            var magic =
-                await AiAnalysisService
-                    .AnalyzeMagicCardAsync(path);
+            // =====================================
+            // OCR DETECTION
+            // =====================================
 
+            var detection =
+                await CardRecognitionService
+                    .DetectAsync(path);
+
+            if (detection == null)
+            {
+                _detectedText =
+                    "OCR failed or image too blurry.";
+
+                return;
+            }
+
+            _detection = detection;
+
+            // =====================================
+            // OPENAI
+            // =====================================
+
+            var magic =
+                await MagicCardAnalysisService
+                    .AnalyzeMagicCardAsync(
+                        path,
+                        detection);
+            
             if (magic == null)
             {
                 _detectedText =
@@ -325,26 +515,52 @@
                 return;
             }
 
+            // =====================================
+            // MERGE AI RESULT
+            // =====================================
+
+            detection.Name =
+                magic.CardName;
+
+            detection.SetCode =
+                magic.SetCode;
+
+            detection.CollectorNumber =
+                magic.CollectorNumber;
+
+            detection.Artist =
+                magic.Artist;
+
+            detection.ManaCost =
+                magic.ManaCost;
+
+            detection.CardType =
+                magic.CardType;
+
+            detection.IsOldBorder =
+                magic.IsOldBorder;
+
+            detection.IsWhiteBorder =
+                magic.IsWhiteBorder;
+
+            detection.ExactPrintingCertain =
+                magic.ExactPrintingCertain;
+
+            detection.Confidence =
+                magic.Confidence;
+
+            detection.ReleaseEra =
+                magic.ReleaseEra;
+
             _detectedText =
                 $"AI: {magic.CardName} | " +
                 $"SET={magic.SetCode} | " +
                 $"#{magic.CollectorNumber} | " +
                 $"CONF={(magic.Confidence * 100):0}%";
 
-            var detection =
-                new CardDetectionResult
-                {
-                    Name = magic.CardName,
-                    SetCode = magic.SetCode,
-                    CollectorNumber = magic.CollectorNumber,
-                    Artist = magic.Artist,
-                    ManaCost = magic.ManaCost,
-                    CardType = magic.CardType,
-                    IsOldBorder = magic.IsOldBorder,
-                    IsWhiteBorder = magic.IsWhiteBorder,
-                    ExactPrintingCertain = magic.ExactPrintingCertain,
-                    Confidence = magic.Confidence
-                };
+            // =====================================
+            // SCRYFALL MATCH
+            // =====================================
 
             _card =
                 await ScryfallService
@@ -370,6 +586,10 @@
             StateHasChanged();
         }
     }
+
+    // =========================================
+    // SCORE CLASS
+    // =========================================
 
     private string GetScoreClass()
     {

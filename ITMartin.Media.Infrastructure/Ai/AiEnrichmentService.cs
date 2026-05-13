@@ -30,8 +30,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
 
     public AiEnrichmentService(
-        IConfiguration configuration,
-        IAiAnalysisService aiAnalysisService)
+        IConfiguration configuration)
     {
 
         var apiKey = configuration["OpenAI:ApiKey"];

@@ -10,6 +10,8 @@ public class CardDetectionResult
 
     public decimal Confidence { get; set; }
 
+    public decimal OcrConfidence { get; set; }
+
     public bool ExactPrintingCertain { get; set; }
 
     // =====================================
@@ -49,6 +51,12 @@ public class CardDetectionResult
     public string? Rarity { get; set; }
 
     public string? PowerToughness { get; set; }
+
+    // =====================================
+    // DEBUG / OCR
+    // =====================================
+
+    public string? OcrDebugText { get; set; }
 
     // =====================================
     // FINGERPRINT

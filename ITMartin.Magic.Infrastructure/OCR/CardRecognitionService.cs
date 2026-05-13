@@ -21,96 +21,246 @@ public class CardRecognitionService
     }
 
     public async Task<CardDetectionResult?> DetectAsync(
-    string imagePath)
-{
-    try
+        string imagePath)
     {
-        var titleCrop =
-            await CropAsync(
-                imagePath,
-                CropType.Title);
+        try
+        {
+            // =====================================
+            // VALIDATE IMAGE
+            // =====================================
 
-        var bottomCrop =
-            await CropAsync(
-                imagePath,
-                CropType.Bottom);
+            var blurScore =
+                await CalculateBlurScoreAsync(
+                    imagePath);
 
-        var setCrop =
-            await CropAsync(
-                imagePath,
-                CropType.SetSymbol);
+            Console.WriteLine(
+                $"FINAL BLUR SCORE: {blurScore}");
 
-        var titleText =
-            await _ocrService
-                .ExtractTextAsync(titleCrop);
+            // =====================================
+            // NORMALIZE
+            // =====================================
 
-        var bottomText =
-            await _ocrService
-                .ExtractTextAsync(bottomCrop);
+            var normalizedPath =
+                await NormalizeCardAsync(
+                    imagePath);
 
-        var setText =
-            await _ocrService
-                .ExtractTextAsync(setCrop);
+            Console.WriteLine(
+                $"NORMALIZED: {normalizedPath}");
 
-        Console.WriteLine(
-            $"TITLE OCR: {titleText}");
+            // =====================================
+            // OCR CROPS
+            // =====================================
 
-        Console.WriteLine(
-            $"BOTTOM OCR: {bottomText}");
+            var titleCrop =
+                await CropAsync(
+                    normalizedPath,
+                    CropType.Title);
 
-        Console.WriteLine(
-            $"SET OCR: {setText}");
+            var bottomCrop =
+                await CropAsync(
+                    normalizedPath,
+                    CropType.Bottom);
 
-        var oldBorder =
-            IsOldBorder(imagePath);
+            var setCrop =
+                await CropAsync(
+                    normalizedPath,
+                    CropType.SetSymbol);
 
-        var whiteBorder =
-            IsWhiteBorder(imagePath);
+            var ptCrop =
+                await CropAsync(
+                    normalizedPath,
+                    CropType.PowerToughness);
 
-        Console.WriteLine(
-            $"OLD BORDER DETECTED: {oldBorder}");
+            Console.WriteLine(
+                $"TITLE CROP: {titleCrop}");
 
-        Console.WriteLine(
-            $"WHITE BORDER DETECTED: {whiteBorder}");
+            Console.WriteLine(
+                $"BOTTOM CROP: {bottomCrop}");
 
-        var result =
-            new CardDetectionResult
+            Console.WriteLine(
+                $"SET CROP: {setCrop}");
+
+            Console.WriteLine(
+                $"PT CROP: {ptCrop}");
+
+            // =====================================
+            // OCR
+            // =====================================
+
+            var titleText =
+                await _ocrService
+                    .ExtractTextAsync(titleCrop);
+
+            var bottomText =
+                await _ocrService
+                    .ExtractTextAsync(bottomCrop);
+
+            var setText =
+                await _ocrService
+                    .ExtractTextAsync(setCrop);
+
+            var ptText =
+                await _ocrService
+                    .ExtractTextAsync(ptCrop);
+
+            Console.WriteLine(
+                $"TITLE OCR: {titleText}");
+
+            Console.WriteLine(
+                $"BOTTOM OCR: {bottomText}");
+
+            Console.WriteLine(
+                $"SET OCR: {setText}");
+
+            Console.WriteLine(
+                $"PT OCR: {ptText}");
+
+            // =====================================
+            // BORDER DETECTION
+            // =====================================
+
+            var oldBorder =
+                IsOldBorder(normalizedPath);
+
+            var whiteBorder =
+                IsWhiteBorder(normalizedPath);
+
+            Console.WriteLine(
+                $"OLD BORDER DETECTED: {oldBorder}");
+
+            Console.WriteLine(
+                $"WHITE BORDER DETECTED: {whiteBorder}");
+
+            // =====================================
+            // RESULT
+            // =====================================
+
+            var result =
+                new CardDetectionResult
+                {
+                    Name =
+                        CleanupTitle(
+                            ExtractFirstLine(
+                                titleText)),
+
+                    CollectorNumber =
+                        ExtractCollectorNumber(
+                            bottomText),
+
+                    Artist =
+                        ExtractArtist(
+                            bottomText),
+
+                    Copyright =
+                        ExtractCopyright(
+                            bottomText),
+
+                    SetCode =
+                        ExtractSetCode(
+                            setText),
+
+                    PowerToughness =
+                        ExtractPowerToughness(
+                            ptText),
+
+                    IsOldBorder =
+                        oldBorder,
+
+                    IsWhiteBorder =
+                        whiteBorder,
+
+                    OcrConfidence =
+                        (decimal)Math.Min(
+                            blurScore / 20d,
+                            1d)
+                };
+
+            Console.WriteLine(
+                $"FINAL OCR RESULT: " +
+                $"NAME={result.Name} | " +
+                $"SET={result.SetCode} | " +
+                $"COLLECTOR={result.CollectorNumber} | " +
+                $"ARTIST={result.Artist} | " +
+                $"PT={result.PowerToughness}");
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+
+            return null;
+        }
+    }
+
+    // =========================================
+    // NORMALIZE CARD
+    // =========================================
+
+    private async Task<string> NormalizeCardAsync(
+        string path)
+    {
+        using var image =
+            await Image.LoadAsync(path);
+
+        image.Mutate(x =>
+        {
+            x.AutoOrient();
+
+            x.Resize(new ResizeOptions
             {
-                Name =
-                    ExtractFirstLine(titleText),
+                Mode = ResizeMode.Max,
+                Size = new Size(1200, 1680)
+            });
+        });
 
-                CollectorNumber =
-                    ExtractCollectorNumber(
-                        bottomText),
+        var output =
+            Path.Combine(
+                Path.GetDirectoryName(path)!,
+                $"normalized_{Guid.NewGuid()}.jpg");
 
-                Artist =
-                    ExtractArtist(
-                        bottomText),
+        await image.SaveAsJpegAsync(output);
 
-                Copyright =
-                    ExtractCopyright(
-                        bottomText),
-
-                SetCode =
-                    ExtractSetCode(
-                        setText),
-
-                IsOldBorder =
-                    oldBorder,
-
-                IsWhiteBorder =
-                    whiteBorder
-            };
-
-        return result;
+        return output;
     }
-    catch (Exception ex)
+
+    // =========================================
+    // BLUR SCORE
+    // =========================================
+
+    private async Task<double> CalculateBlurScoreAsync(
+        string path)
     {
-        Console.WriteLine(ex);
+        using var image =
+            await Image.LoadAsync<Rgba32>(path);
 
-        return null;
+        double total = 0;
+
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width - 1; x++)
+            {
+                var p1 = image[x, y];
+                var p2 = image[x + 1, y];
+
+                var gray1 =
+                    (p1.R + p1.G + p1.B) / 3d;
+
+                var gray2 =
+                    (p2.R + p2.G + p2.B) / 3d;
+
+                total +=
+                    Math.Abs(gray1 - gray2);
+            }
+        }
+
+        return total /
+               (image.Width * image.Height);
     }
-}
+
+    // =========================================
+    // CROP
+    // =========================================
 
     private async Task<string> CropAsync(
         string path,
@@ -119,28 +269,6 @@ public class CardRecognitionService
         using var image =
             await Image.LoadAsync(path);
 
-        var width =
-            image.Width;
-
-        var height =
-            image.Height;
-
-        // =====================================
-        // CARD POSITION
-        // =====================================
-
-        var cardX =
-            width * 0.31;
-
-        var cardY =
-            height * 0.17;
-
-        var cardWidth =
-            width * 0.36;
-
-        var cardHeight =
-            height * 0.66;
-
         Rectangle crop;
 
         switch (type)
@@ -148,28 +276,41 @@ public class CardRecognitionService
             case CropType.Title:
 
                 crop = new Rectangle(
-                    (int)(image.Width * 0.25),
-                    (int)(image.Height * 0.08),
-                    (int)(image.Width * 0.56),
-                    (int)(image.Height * 0.07));
+                    (int)(image.Width * 0.08),
+                    (int)(image.Height * 0.04),
+                    (int)(image.Width * 0.72),
+                    (int)(image.Height * 0.06));
+
                 break;
 
             case CropType.Bottom:
 
                 crop = new Rectangle(
-                    (int)(image.Width * 0.28),
-                    (int)(image.Height * 0.76),
-                    (int)(image.Width * 0.44),
-                    (int)(image.Height * 0.08));
+                    (int)(image.Width * 0.07),
+                    (int)(image.Height * 0.84),
+                    (int)(image.Width * 0.74),
+                    (int)(image.Height * 0.06));
+
                 break;
 
             case CropType.SetSymbol:
 
                 crop = new Rectangle(
-                    (int)(image.Width * 0.71),
-                    (int)(image.Height * 0.735),
+                    (int)(image.Width * 0.74),
+                    (int)(image.Height * 0.55),
                     (int)(image.Width * 0.09),
+                    (int)(image.Height * 0.07));
+
+                break;
+
+            case CropType.PowerToughness:
+
+                crop = new Rectangle(
+                    (int)(image.Width * 0.83),
+                    (int)(image.Height * 0.84),
+                    (int)(image.Width * 0.11),
                     (int)(image.Height * 0.06));
+
                 break;
 
             default:
@@ -186,23 +327,36 @@ public class CardRecognitionService
             $"W={crop.Width} " +
             $"H={crop.Height}");
 
+        // =====================================
+        // RAW DEBUG
+        // =====================================
+
+        using var rawDebug =
+            image.Clone(x => x.Crop(crop));
+
+        var rawPath =
+            Path.Combine(
+                Path.GetDirectoryName(path)!,
+                $"{type}_RAW_{Guid.NewGuid()}.jpg");
+
+        await rawDebug.SaveAsJpegAsync(rawPath);
+
+        Console.WriteLine(
+            $"RAW CROP: {rawPath}");
+
+        // =====================================
+        // OCR PROCESSING
+        // =====================================
+
         image.Mutate(x =>
         {
             x.Crop(crop);
 
             x.Resize(
-                crop.Width * 8,
-                crop.Height * 8);
+                crop.Width * 4,
+                crop.Height * 4);
 
             x.AutoOrient();
-
-            x.Grayscale();
-
-            x.Contrast(5f);
-
-            x.Brightness(1.25f);
-
-            x.GaussianSharpen(4f);
         });
 
         var output =
@@ -212,8 +366,36 @@ public class CardRecognitionService
 
         await image.SaveAsJpegAsync(output);
 
+        Console.WriteLine(
+            $"OCR CROP: {output}");
+
         return output;
     }
+
+    // =========================================
+    // CLEANUP TITLE
+    // =========================================
+
+    private static string? CleanupTitle(
+        string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        text =
+            text.Replace("|", "")
+                .Replace("[", "")
+                .Replace("]", "")
+                .Trim();
+
+        return text;
+    }
+
+    // =========================================
+    // OCR HELPERS
+    // =========================================
 
     private static string? ExtractFirstLine(
         string text)
@@ -278,6 +460,7 @@ public class CardRecognitionService
             ? match.Value
             : null;
     }
+
     private static string? ExtractSetCode(
         string text)
     {
@@ -307,6 +490,11 @@ public class CardRecognitionService
 
         return text;
     }
+
+    // =========================================
+    // OLD BORDER DETECTION
+    // =========================================
+
     private static bool IsOldBorder(
         string path)
     {
@@ -315,32 +503,48 @@ public class CardRecognitionService
             using Image<Rgba32> image =
                 Image.Load<Rgba32>(path);
 
-            // SAMPLE OLD FRAME RED AREA
+            var samplePoints =
+                new[]
+                {
+                    new Point(
+                        (int)(image.Width * 0.10),
+                        (int)(image.Height * 0.10)),
 
-            var x =
-                (int)(image.Width * 0.42);
+                    new Point(
+                        (int)(image.Width * 0.90),
+                        (int)(image.Height * 0.10))
+                };
 
-            var y =
-                (int)(image.Height * 0.22);
+            double total = 0;
 
-            var pixel =
-                image[x, y];
+            foreach (var point in samplePoints)
+            {
+                var pixel =
+                    image[point.X, point.Y];
+
+                total +=
+                    (pixel.R +
+                     pixel.G +
+                     pixel.B) / 3d;
+            }
+
+            var brightness =
+                total / samplePoints.Length;
 
             Console.WriteLine(
-                $"OLD BORDER SAMPLE: " +
-                $"R={pixel.R} " +
-                $"G={pixel.G} " +
-                $"B={pixel.B}");
+                $"OLD BORDER BRIGHTNESS: {brightness}");
 
-            // old cards are darker/desaturated
-
-            return pixel.R < 170;
+            return brightness < 110;
         }
         catch
         {
             return false;
         }
     }
+
+    // =========================================
+    // WHITE BORDER DETECTION
+    // =========================================
 
     private static bool IsWhiteBorder(
         string path)
@@ -350,28 +554,38 @@ public class CardRecognitionService
             using Image<Rgba32> image =
                 Image.Load<Rgba32>(path);
 
-            // SAMPLE LEFT BORDER
+            var samplePoints =
+                new[]
+                {
+                    new Point(
+                        (int)(image.Width * 0.02),
+                        (int)(image.Height * 0.50)),
 
-            var x =
-                (int)(image.Width * 0.34);
+                    new Point(
+                        (int)(image.Width * 0.98),
+                        (int)(image.Height * 0.50))
+                };
 
-            var y =
-                (int)(image.Height * 0.55);
+            double total = 0;
 
-            var pixel =
-                image[x, y];
+            foreach (var point in samplePoints)
+            {
+                var pixel =
+                    image[point.X, point.Y];
+
+                total +=
+                    (pixel.R +
+                     pixel.G +
+                     pixel.B) / 3d;
+            }
 
             var brightness =
-                (pixel.R + pixel.G + pixel.B) / 3;
+                total / samplePoints.Length;
 
             Console.WriteLine(
-                $"WHITE BORDER SAMPLE: " +
-                $"R={pixel.R} " +
-                $"G={pixel.G} " +
-                $"B={pixel.B} " +
-                $"BR={brightness}");
+                $"WHITE BORDER BRIGHTNESS: {brightness}");
 
-            return brightness > 170;
+            return brightness > 180;
         }
         catch
         {

@@ -1,9 +1,3 @@
-/* =========================================
-FILE:
-Scanner.razor.css
-FULL CLEAN VERSION
-========================================= */
-
 .scanner-page {
     padding: 32px;
     max-width: 1400px;
@@ -11,48 +5,43 @@ FULL CLEAN VERSION
 }
 
 /* =========================================
-HEADER
-========================================= */
-
-.scanner-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: end;
-    margin-bottom: 32px;
-}
-
-.scanner-title {
-    font-size: 42px;
-    font-weight: 800;
-    margin-bottom: 4px;
-    color: white;
-}
-
-.scanner-subtitle {
-    color: #888;
-    font-size: 15px;
-}
-
-/* =========================================
 SCANNER
 ========================================= */
 
 .scanner-wrapper {
+
     position: relative;
-    width: 720px;
+
+    width: 100%;
+    max-width: 720px;
+
+    aspect-ratio: 16 / 9;
+
     margin: auto;
+
     overflow: hidden;
+
     border-radius: 28px;
+
     background: #000;
 
+    border: 1px solid rgba(255,255,255,.06);
+
     box-shadow:
-            0 0 40px rgba(0,0,0,0.35);
+            0 0 40px rgba(0,0,0,0.35),
+            0 0 120px rgba(0,0,0,.25);
 }
 
 .scanner-video {
-    width: 720px;
+
+    width: 100%;
+    height: 100%;
+
     display: block;
+
     background: black;
+
+    object-fit: contain;
 }
 
 /* =========================================
@@ -66,8 +55,9 @@ CARD GUIDE
     left: 50%;
     top: 50%;
 
-    width: 240px;
-    height: 340px;
+    width: 36%;
+
+    aspect-ratio: 63 / 88;
 
     transform: translate(-50%, -50%);
 
@@ -107,6 +97,10 @@ GUIDE TEXT
     text-align: center;
 
     white-space: nowrap;
+
+    border: 1px solid rgba(255,255,255,.08);
+
+    backdrop-filter: blur(12px);
 }
 
 /* =========================================
@@ -114,9 +108,41 @@ OCR OVERLAY
 ========================================= */
 
 .ocr-overlay {
+
     position: absolute;
+
     inset: 0;
+
     pointer-events: none;
+}
+
+.ocr-title-box,
+.ocr-bottom-box,
+.ocr-pt-box {
+
+    position: absolute;
+
+    border-radius: 10px;
+
+    backdrop-filter: blur(2px);
+
+    animation:
+            ocrPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes ocrPulse {
+
+    0% {
+        opacity: .72;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: .72;
+    }
 }
 
 /* =========================================
@@ -125,8 +151,6 @@ TITLE BOX
 
 .ocr-title-box {
 
-    position: absolute;
-
     left: 34.5%;
     top: 19.7%;
 
@@ -134,7 +158,6 @@ TITLE BOX
     height: 5.5%;
 
     border: 3px solid #ff3b3b;
-    border-radius: 10px;
 
     box-shadow:
             0 0 18px #ff3b3b;
@@ -144,12 +167,10 @@ TITLE BOX
 }
 
 /* =========================================
-BOTTOM TEXT
+BOTTOM BOX
 ========================================= */
 
 .ocr-bottom-box {
-
-    position: absolute;
 
     left: 35%;
     top: 74.2%;
@@ -158,7 +179,6 @@ BOTTOM TEXT
     height: 6.2%;
 
     border: 3px solid #00d9ff;
-    border-radius: 10px;
 
     box-shadow:
             0 0 18px #00d9ff;
@@ -168,12 +188,10 @@ BOTTOM TEXT
 }
 
 /* =========================================
-POWER TOUGHNESS
+PT BOX
 ========================================= */
 
 .ocr-pt-box {
-
-    position: absolute;
 
     left: 59.8%;
     top: 73.7%;
@@ -182,7 +200,6 @@ POWER TOUGHNESS
     height: 4.8%;
 
     border: 3px solid #00ff4c;
-    border-radius: 10px;
 
     box-shadow:
             0 0 18px #00ff4c;
@@ -190,283 +207,25 @@ POWER TOUGHNESS
     background:
             rgba(0,255,76,.08);
 }
-/* =========================================
-BUTTONS
-========================================= */
-
-.scanner-buttons {
-    display: flex;
-    justify-content: center;
-    margin-top: 28px;
-}
-
-.scan-button {
-    min-width: 220px;
-    height: 58px;
-    font-size: 20px;
-    border-radius: 16px;
-    font-weight: 600;
-}
-
-/* =========================================
-LOADING
-========================================= */
-
-.scanner-overlay {
-    position: absolute;
-    inset: 0;
-
-    background: rgba(0,0,0,0.65);
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    z-index: 100;
-}
-
-.scanner-loading {
-    text-align: center;
-    color: white;
-    font-size: 20px;
-}
-
-/* =========================================
-ALERT
-========================================= */
-
-.scanner-alert {
-    border-radius: 16px;
-    font-size: 16px;
-    border: 1px solid #333;
-    background: #111;
-    color: #ddd;
-}
-
-/* =========================================
-RESULT PANEL
-========================================= */
-
-.result-panel {
-
-    background: #111;
-
-    border-radius: 28px;
-
-    padding: 32px;
-
-    color: white;
-
-    box-shadow:
-            0 0 36px rgba(0,0,0,0.25);
-}
-
-.card-result {
-    display: flex;
-    gap: 42px;
-    align-items: flex-start;
-}
-
-.image-panel {
-    flex-shrink: 0;
-}
-
-.matched-card-image {
-
-    width: 360px;
-
-    border-radius: 22px;
-
-    box-shadow:
-            0 0 28px rgba(0,0,0,0.45);
-}
-
-.card-details {
-    flex: 1;
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-}
-
-.card-name {
-    font-size: 38px;
-    font-weight: 700;
-    margin-bottom: 6px;
-    color: white;
-}
-
-.set-line {
-    color: #aaa;
-    font-size: 15px;
-}
-
-/* =========================================
-SCORE
-========================================= */
-
-.score-badge {
-
-    width: 74px;
-    height: 74px;
-
-    border-radius: 50%;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 24px;
-    font-weight: 800;
-
-    box-shadow:
-            0 0 18px rgba(0,0,0,0.25);
-}
-
-.score-perfect {
-    background: #00ff99;
-    color: black;
-}
-
-.score-good {
-    background: #ffd166;
-    color: black;
-}
-
-.score-weak {
-    background: #ff6b6b;
-    color: white;
-}
-
-/* =========================================
-DETAILS
-========================================= */
-
-.detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
-}
-
-.detail-full {
-    grid-column: span 2;
-}
-
-.detail-item {
-    background: rgba(255,255,255,0.03);
-    padding: 14px 18px;
-    border-radius: 16px;
-}
-
-.detail-label {
-    color: #888;
-    font-size: 13px;
-    margin-bottom: 4px;
-}
-
-.detail-value {
-    font-size: 17px;
-    color: white;
-}
-
-/* =========================================
-ORACLE
-========================================= */
-
-.oracle-box {
-
-    background: rgba(255,255,255,0.04);
-
-    padding: 18px;
-
-    border-radius: 18px;
-
-    line-height: 1.8;
-
-    white-space: pre-wrap;
-
-    color: #eee;
-}
-
-/* =========================================
-DEBUG
-========================================= */
-
-.debug-panel {
-
-    margin-top: 24px;
-
-    background: #111;
-
-    border-radius: 18px;
-
-    padding: 18px;
-
-    border: 1px solid #2a2a2a;
-}
-
-.debug-title {
-
-    color: white;
-
-    font-size: 18px;
-
-    font-weight: 700;
-
-    margin-bottom: 14px;
-}
-
-.debug-preview {
-
-    width: 320px;
-
-    max-width: 100%;
-
-    border-radius: 12px;
-
-    border: 2px solid #333;
-}
-
-/* =========================================
-HR
-========================================= */
-
-hr {
-    border-color: rgba(255,255,255,0.08);
-    margin-top: 28px;
-    margin-bottom: 28px;
-}
 
 /* =========================================
 RESPONSIVE
 ========================================= */
 
-@media (max-width: 1100px) {
+@media (max-width: 700px) {
 
-    .card-result {
-        flex-direction: column;
+    .scanner-page {
+        padding: 16px;
     }
 
-    .matched-card-image {
-        width: 100%;
-        max-width: 420px;
+    .scanner-guide {
+        width: 52%;
     }
 
-    .scanner-wrapper {
-        width: 100%;
-    }
+    .guide-text {
 
-    .scanner-video {
-        width: 100%;
-    }
+        font-size: 12px;
 
-    .detail-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .detail-full {
-        grid-column: span 1;
+        padding: 8px 12px;
     }
 }

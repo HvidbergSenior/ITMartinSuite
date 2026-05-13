@@ -8,16 +8,14 @@ namespace ITMartin.Media.Application.Services;
 public class MediaVisionService
     : IMediaVisionService
 {
-    private readonly IAiAnalysisService _aiAnalysisService;
-
+    private readonly IImageAnalysisService _imageAnalysisService;
     private readonly IAiCacheService _cacheService;
 
     public MediaVisionService(
-        IAiAnalysisService aiAnalysisService,
-        IAiCacheService cacheService)
+        IAiCacheService cacheService, IImageAnalysisService imageAnalysisService)
     {
-        _aiAnalysisService = aiAnalysisService;
         _cacheService = cacheService;
+        _imageAnalysisService = imageAnalysisService;
     }
 
     public async Task ProcessAsync(
@@ -68,7 +66,7 @@ public class MediaVisionService
                         file.FullPath;
 
                     var result =
-                        await _aiAnalysisService
+                        await _imageAnalysisService
                             .AnalyzeImageAsync(path);
 
                     file.AiDescription =

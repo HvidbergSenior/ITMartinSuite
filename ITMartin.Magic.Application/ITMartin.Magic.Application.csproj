@@ -12,6 +12,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Magic.Domain\ITMartin.Magic.Domain.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Domain\ITMartin.Media.Domain.csproj" />
     </ItemGroup>
 
 </Project>

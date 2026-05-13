@@ -4,5 +4,6 @@ public enum CropType
 {
     Title,
     Bottom,
-    SetSymbol
+    SetSymbol,
+    PowerToughness
 }

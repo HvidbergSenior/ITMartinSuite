@@ -5,9 +5,11 @@ using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Infrastructure.OCR;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Infrastructure.Scryfall;
+using ITMartin.Magic.Infrastructure.Services;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure.Ai;
+using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 
@@ -38,8 +40,15 @@ builder.Services.AddScoped<
     ICardRecognitionService,
     CardRecognitionService>();
 builder.Services.AddScoped<
-    IAiAnalysisService,
-    OpenAiAnalysisService>();
+    IImageAnalysisService,
+    OpenAiImageAnalysisService>();
+
+builder.Services.AddScoped<
+    IMagicCardAnalysisService,
+    OpenAiMagicCardAnalysisService>();
+
+builder.WebHost.UseUrls(
+    "https://0.0.0.0:5020");
 // =========================
 // BUILD
 // =========================

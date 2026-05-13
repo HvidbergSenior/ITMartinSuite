@@ -27,8 +27,8 @@ public static class DependencyInjection
         services.AddScoped<IFileSystem, FileSystemService>();
 
         services.AddScoped<IFileScanner, FileScanner>();
-        services.AddScoped<IAiAnalysisService,
-            OpenAiAnalysisService>();
+        services.AddScoped<IImageAnalysisService,
+            OpenAiImageAnalysisService>();
         // =========================
         // CLASSIFICATION
         // =========================

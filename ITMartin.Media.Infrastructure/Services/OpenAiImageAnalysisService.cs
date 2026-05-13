@@ -1,22 +1,21 @@
 ﻿using System.Security.Cryptography;
 using System.Text.Json;
-using ITMartin.Media.Domain.Entities;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
-namespace ITMartin.Media.Infrastructure.Ai;
 
-public sealed class OpenOpenAiAnalysisService
+namespace ITMartin.Media.Infrastructure.Services;
+
+public sealed class OpenAiImageAnalysisService
     : IImageAnalysisService
 {
     private readonly ChatClient _client;
 
-    // simple in-memory cache
     private static readonly Dictionary<string, object>
         Cache = new();
 
-    public OpenOpenAiAnalysisService(
+    public OpenAiImageAnalysisService(
         IConfiguration configuration)
     {
         var apiKey =
@@ -32,10 +31,6 @@ public sealed class OpenOpenAiAnalysisService
             model: "gpt-4.1-mini",
             apiKey: apiKey);
     }
-
-    // =========================================
-    // GENERIC IMAGE ANALYSIS
-    // =========================================
 
     public async Task<AiAnalysisResult>
         AnalyzeImageAsync(
@@ -143,10 +138,6 @@ public sealed class OpenOpenAiAnalysisService
         }
     }
 
-    // =========================================
-    // HELPERS
-    // =========================================
-
     private static string CreateHash(
         byte[] bytes)
     {
@@ -164,7 +155,7 @@ public sealed class OpenOpenAiAnalysisService
     {
         var ext =
             Path.GetExtension(filePath)
-                .ToLower();
+                .ToLowerInvariant();
 
         return ext switch
         {
