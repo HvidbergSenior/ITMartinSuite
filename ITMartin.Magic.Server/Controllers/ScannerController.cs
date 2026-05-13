@@ -4,8 +4,17 @@ namespace ITMartin.Magic.Server.Controllers;
 
 [ApiController]
 [Route("api/scanner")]
+[IgnoreAntiforgeryToken]
 public class ScannerController : ControllerBase
 {
+    private readonly IWebHostEnvironment _environment;
+
+    public ScannerController(
+        IWebHostEnvironment environment)
+    {
+        _environment = environment;
+    }
+
     [HttpPost("frame")]
     public async Task<IActionResult> SaveFrame(
         [FromBody] CaptureFrameRequest request)
@@ -21,7 +30,7 @@ public class ScannerController : ControllerBase
 
         var folder =
             Path.Combine(
-                Directory.GetCurrentDirectory(),
+                _environment.ContentRootPath,
                 "data",
                 "frames");
 
@@ -34,6 +43,9 @@ public class ScannerController : ControllerBase
             Path.Combine(
                 folder,
                 fileName);
+
+        Console.WriteLine(
+            $"SAVING FRAME: {path}");
 
         await System.IO.File.WriteAllBytesAsync(
             path,

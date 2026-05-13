@@ -1,30 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
+      <UserSecretsId>22e3bb64-61ca-4ad9-ab40-c9acef3dbb71</UserSecretsId>
+  </PropertyGroup>
 
     <ItemGroup>
       <_ContentIncludedByDefault Remove="wwwroot\app.css" />
       <_ContentIncludedByDefault Remove="wwwroot\bootstrap\bootstrap.min.css" />
       <_ContentIncludedByDefault Remove="wwwroot\bootstrap\bootstrap.min.css.map" />
       <_ContentIncludedByDefault Remove="wwwroot\favicon.png" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <AdditionalFiles Include="Layout\FileSorterLayout.razor" />
-      <AdditionalFiles Include="Pages\AiCollections.razor" />
-      <AdditionalFiles Include="Pages\AiResults.razor" />
-      <AdditionalFiles Include="Pages\CategoryStep.razor" />
-      <AdditionalFiles Include="Pages\Duplicates.razor" />
-      <AdditionalFiles Include="Pages\Export.razor" />
-      <AdditionalFiles Include="Pages\ImageSubcategory.razor" />
-      <AdditionalFiles Include="Pages\Index.razor" />
-      <AdditionalFiles Include="Pages\Library.razor" />
-      <AdditionalFiles Include="Pages\Organize.razor" />
-      <AdditionalFiles Include="Pages\Viewer.razor" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,7 +1,9 @@
-﻿namespace ITMartin.Magic.Application.Interfaces;
+﻿using ITMartin.Magic.Application.Models;
+
+namespace ITMartin.Magic.Application.Interfaces;
 
 public interface ICardRecognitionService
 {
-    Task<string?> DetectCardNameAsync(
+    Task<CardDetectionResult?> DetectAsync(
         string imagePath);
 }

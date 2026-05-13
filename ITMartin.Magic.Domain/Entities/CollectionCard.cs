@@ -12,5 +12,13 @@ public class CollectionCard
 
     public string ImageUrl { get; set; } = "";
 
+    public decimal? EurPrice { get; set; }
+
+    public decimal? UsdPrice { get; set; }
+
+    public bool IsFoil { get; set; }
+
+    public string CollectorNumber { get; set; } = "";
+
     public DateTime AddedAt { get; set; }
 }

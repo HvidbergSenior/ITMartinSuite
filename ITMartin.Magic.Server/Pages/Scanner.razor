@@ -1,49 +1,246 @@
 ﻿@page "/scanner"
+
+@using ITMartin.Magic.Application.Interfaces
+@using ITMartin.Magic.Application.Models
+@using ITMartin.Media.Domain.Interfaces
 @using Microsoft.JSInterop
 
-@inject HttpClient Http
+@inject IAiAnalysisService AiAnalysisService
 @inject IJSRuntime JS
+@inject ICardRecognitionService CardRecognitionService
+@inject IScryfallService ScryfallService
 
 <PageTitle>
     MTG Scanner
 </PageTitle>
 
-<h3>MTG Webcam Scanner</h3>
+<div class="scanner-page">
 
-<div class="scanner-container">
+    <div class="scanner-header">
 
-    <video id="video"
-           autoplay
-           playsinline
-           width="640"
-           height="480"
-           class="scanner-video">
-    </video>
+        <div>
 
-</div>
+            <h1 class="scanner-title">
+                MTG Card Scanner
+            </h1>
 
-<div class="mt-3">
+            <div class="scanner-subtitle">
+                OpenAI Vision + OCR + Scryfall matching
+            </div>
 
-    <button class="btn btn-primary"
-            @onclick="Capture">
-        Capture Frame
-    </button>
-
-</div>
-
-@if (!string.IsNullOrWhiteSpace(_lastImage))
-{
-    <div class="mt-4">
-
-        <img src="@_lastImage"
-             class="preview-image" />
+        </div>
 
     </div>
-}
+
+    <div class="scanner-wrapper">
+
+        <video id="video"
+               autoplay
+               playsinline
+               class="scanner-video">
+        </video>
+
+        <!-- ========================================= -->
+        <!-- LIVE OCR OVERLAY -->
+        <!-- ========================================= -->
+
+        <div class="ocr-overlay">
+
+            <div class="ocr-title-box"></div>
+
+            <div class="ocr-bottom-box"></div>
+
+            <div class="ocr-pt-box"></div>
+
+        </div>
+
+        <!-- ========================================= -->
+        <!-- CARD GUIDE -->
+        <!-- ========================================= -->
+
+        <div class="scanner-guide">
+
+            <div class="guide-text">
+
+                Keep card centered
+                <br />
+                avoid blur & glare
+
+            </div>
+
+        </div>
+
+        @if (_isProcessing)
+        {
+            <div class="scanner-overlay">
+
+                <div class="scanner-loading">
+
+                    <div class="spinner-border text-light">
+                    </div>
+
+                    <div class="mt-3">
+                        Scanning card...
+                    </div>
+
+                </div>
+
+            </div>
+        }
+
+    </div>
+
+    <div class="scanner-buttons">
+
+        <button class="btn btn-success btn-lg scan-button"
+                @onclick="Capture"
+                disabled="@_isProcessing">
+
+            @if (_isProcessing)
+            {
+                <span>
+                    Processing...
+                </span>
+            }
+            else
+            {
+                <span>
+                    Capture Card
+                </span>
+            }
+
+        </button>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_detectedText))
+    {
+        <div class="alert alert-dark scanner-alert mt-4">
+
+            @_detectedText
+
+        </div>
+    }
+
+    @if (_card != null)
+    {
+        <div class="result-panel mt-5">
+
+            <div class="card-result">
+
+                <div class="image-panel">
+
+                    <img src="@_card.ImageUrl"
+                         class="matched-card-image" />
+
+                </div>
+
+                <div class="card-details">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <h2 class="card-name">
+                                @_card.Name
+                            </h2>
+
+                            <div class="set-line">
+
+                                @_card.Set.ToUpperInvariant()
+                                ·
+                                #@_card.CollectorNumber
+
+                            </div>
+
+                        </div>
+
+                        <div class="score-badge @GetScoreClass()">
+
+                            @_card.MatchScore
+
+                        </div>
+
+                    </div>
+
+                    <hr />
+
+                    <div class="detail-grid">
+
+                        <div class="detail-item">
+
+                            <div class="detail-label">
+                                Mana Cost
+                            </div>
+
+                            <div class="detail-value">
+                                @_card.ManaCost
+                            </div>
+
+                        </div>
+
+                        <div class="detail-item">
+
+                            <div class="detail-label">
+                                Rarity
+                            </div>
+
+                            <div class="detail-value">
+                                @_card.Rarity
+                            </div>
+
+                        </div>
+
+                        <div class="detail-item detail-full">
+
+                            <div class="detail-label">
+                                Type
+                            </div>
+
+                            <div class="detail-value">
+                                @_card.TypeLine
+                            </div>
+
+                        </div>
+
+                        <div class="detail-item detail-full">
+
+                            <div class="detail-label">
+                                Artist
+                            </div>
+
+                            <div class="detail-value">
+                                @_card.Artist
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <hr />
+
+                    <div class="oracle-box">
+
+                        @_card.OracleText
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
 
 @code {
 
-    private string? _lastImage;
+    private string? _detectedText;
+
+    private ScryfallCard? _card;
+
+    private bool _isProcessing;
 
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
@@ -55,34 +252,142 @@
         }
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "webcam.stop");
+        }
+        catch
+        {
+        }
+    }
+
     private async Task Capture()
     {
-        var base64 =
-            await JS.InvokeAsync<string>(
-                "webcam.capture");
+        if (_isProcessing)
+        {
+            return;
+        }
 
-        var response =
-            await Http.PostAsJsonAsync(
-                "api/scanner/frame",
-                new CaptureFrameRequest
+        try
+        {
+            _isProcessing = true;
+
+            _detectedText = null;
+
+            _card = null;
+
+            StateHasChanged();
+
+            var capture =
+                await JS.InvokeAsync<CaptureResult>(
+                    "webcam.capture");
+
+            var clean =
+                capture.Image.Replace(
+                    "data:image/jpeg;base64,",
+                    "");
+
+            var bytes =
+                Convert.FromBase64String(clean);
+
+            var folder =
+                Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "data",
+                    "frames");
+
+            Directory.CreateDirectory(folder);
+
+            var fileName =
+                $"{Guid.NewGuid()}.jpg";
+
+            var path =
+                Path.Combine(
+                    folder,
+                    fileName);
+
+            await File.WriteAllBytesAsync(
+                path,
+                bytes);
+
+            var magic =
+                await AiAnalysisService
+                    .AnalyzeMagicCardAsync(path);
+
+            if (magic == null)
+            {
+                _detectedText =
+                    "OpenAI could not identify card.";
+
+                return;
+            }
+
+            _detectedText =
+                $"AI: {magic.CardName} | " +
+                $"SET={magic.SetCode} | " +
+                $"#{magic.CollectorNumber} | " +
+                $"CONF={(magic.Confidence * 100):0}%";
+
+            var detection =
+                new CardDetectionResult
                 {
-                    Base64Image = base64
-                });
+                    Name = magic.CardName,
+                    SetCode = magic.SetCode,
+                    CollectorNumber = magic.CollectorNumber,
+                    Artist = magic.Artist,
+                    ManaCost = magic.ManaCost,
+                    CardType = magic.CardType,
+                    IsOldBorder = magic.IsOldBorder,
+                    IsWhiteBorder = magic.IsWhiteBorder,
+                    ExactPrintingCertain = magic.ExactPrintingCertain,
+                    Confidence = magic.Confidence
+                };
 
-        var result =
-            await response.Content
-                .ReadFromJsonAsync<CaptureFrameResponse>();
+            _card =
+                await ScryfallService
+                    .SearchAsync(detection);
 
-        _lastImage = result?.ImagePath;
+            if (_card == null)
+            {
+                _detectedText =
+                    "Could not match printing.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+
+            _detectedText =
+                ex.Message;
+        }
+        finally
+        {
+            _isProcessing = false;
+
+            StateHasChanged();
+        }
     }
 
-    public class CaptureFrameRequest
+    private string GetScoreClass()
     {
-        public string Base64Image { get; set; } = "";
-    }
+        if (_card == null)
+        {
+            return "";
+        }
 
-    public class CaptureFrameResponse
-    {
-        public string ImagePath { get; set; } = "";
+        if (_card.MatchScore >= 8000)
+        {
+            return "score-perfect";
+        }
+
+        if (_card.MatchScore >= 4000)
+        {
+            return "score-good";
+        }
+
+        return "score-weak";
     }
 }
