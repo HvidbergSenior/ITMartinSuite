@@ -1,5 +1,6 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
+using ITMartin.Magic.Domain;
 using OpenCvSharp;
 
 namespace ITMartin.Magic.Infrastructure.Services;
@@ -40,45 +41,78 @@ public class OpenCvOcrRegionExtractor
                 $"NORMALIZED SIZE: {width}x{height}");
 
             // =====================================
-            // MTG OCR GEOMETRY
-            // =====================================
+// LAYOUT DETECTION
+// =====================================
+
+            var layout =
+                _layoutDetectionService
+                    .Detect(normalizedCardPath);
+
+            Console.WriteLine(
+                $"DETECTED LAYOUT: {layout}");
+
+// =====================================
+// OCR PROFILE
+// =====================================
+
+            var profile =
+                OcrGeometryProfiles
+                    .Get(layout);
+
+// =====================================
+// OCR GEOMETRY
+// =====================================
 
             var titleRect =
                 CreateRect(
                     width,
                     height,
-                    0.085,
-                    0.032,
-                    0.50,
-                    0.026);
+                    profile.TitleX,
+                    profile.TitleY,
+                    profile.TitleWidth,
+                    profile.TitleHeight);
 
             var bottomRect =
                 CreateRect(
                     width,
                     height,
-                    0.055,
-                    0.948,
-                    0.36,
-                    0.018);
+                    profile.BottomX,
+                    profile.BottomY,
+                    profile.BottomWidth,
+                    profile.BottomHeight);
 
             var artistRect =
                 CreateRect(
                     width,
                     height,
-                    0.43,
-                    0.948,
-                    0.22,
-                    0.018);
+                    profile.ArtistX,
+                    profile.ArtistY,
+                    profile.ArtistWidth,
+                    profile.ArtistHeight);
 
-            var setRect =
-                CreateRect(
-                    width,
-                    height,
-                    0.77,
-                    0.60,
-                    0.10,
-                    0.07);
+// =====================================
+// OLD BORDER:
+// NO SET SYMBOL
+// =====================================
 
+            Rect setRect;
+
+            if (layout == CardLayoutType.OldBorder)
+            {
+                setRect =
+                    new Rect(0, 0, 1, 1);
+            }
+            else
+            {
+                setRect =
+                    CreateRect(
+                        width,
+                        height,
+                        profile.SetX,
+                        profile.SetY,
+                        profile.SetWidth,
+                        profile.SetHeight);
+            }
             // =====================================
             // DEBUG OVERLAY
             // =====================================
@@ -197,100 +231,92 @@ public class OpenCvOcrRegionExtractor
         string name)
     {
         using var crop =
-            new Mat(source, rect);
+                new Mat(source, rect);
 
         using var resized =
             new Mat();
+
+// =====================================
+// UPSCALE
+// =====================================
 
         Cv2.Resize(
             crop,
             resized,
             new OpenCvSharp.Size(
-                crop.Width * 8,
-                crop.Height * 8),
+                crop.Width * 4,
+                crop.Height * 4),
             0,
             0,
-            InterpolationFlags.Lanczos4);
+            InterpolationFlags.Cubic);
+
+        using var gray =
+            new Mat();
+
+        Cv2.CvtColor(
+            resized,
+            gray,
+            ColorConversionCodes.BGR2GRAY);
+
+// =====================================
+// LIGHT DENOISE
+// =====================================
+
+        using var denoised =
+            new Mat();
+
+        Cv2.FastNlMeansDenoising(
+            gray,
+            denoised,
+            10);
+
+// =====================================
+// LIGHT CONTRAST
+// =====================================
+
+        using var contrasted =
+            new Mat();
+
+        denoised.ConvertTo(
+            contrasted,
+            -1,
+            1.4,
+            10);
+
+// =====================================
+// LIGHT SHARPEN
+// =====================================
 
         using var processed =
             new Mat();
 
-        // =====================================
-        // TITLE OCR
-        // =====================================
+        var kernel =
+            InputArray.Create(
+                new float[,]
+                {
+                    { 0, -1, 0 },
+                    { -1, 5, -1 },
+                    { 0, -1, 0 }
+                });
 
-        if (name == "title")
+        Cv2.Filter2D(
+            contrasted,
+            processed,
+            -1,
+            kernel);
+        if (name == "bottom" || name == "artist")
         {
-            using var hsv =
-                new Mat();
-
-            Cv2.CvtColor(
-                resized,
-                hsv,
-                ColorConversionCodes.BGR2HSV);
-
-            // =================================
-            // EXTRACT BRIGHT TITLE TEXT
-            // =================================
-
-            using var mask =
-                new Mat();
-
-            Cv2.InRange(
-                hsv,
-                new Scalar(0, 0, 140),
-                new Scalar(180, 80, 255),
-                mask);
-
-            // =================================
-            // CLEANUP
-            // =================================
-
-            using var kernel =
-                Cv2.GetStructuringElement(
-                    MorphShapes.Rect,
-                    new OpenCvSharp.Size(3, 3));
-
-            Cv2.MorphologyEx(
-                mask,
-                mask,
-                MorphTypes.Close,
-                kernel);
-
-            Cv2.GaussianBlur(
-                mask,
+            Cv2.Threshold(
                 processed,
-                new OpenCvSharp.Size(3, 3),
-                0);
-        }
-
-        // =====================================
-        // NORMAL OCR
-        // =====================================
-
-        else
-        {
-            using var gray =
-                new Mat();
-
-            Cv2.CvtColor(
-                resized,
-                gray,
-                ColorConversionCodes.BGR2GRAY);
-
-            Cv2.AdaptiveThreshold(
-                gray,
                 processed,
+                140,
                 255,
-                AdaptiveThresholdTypes.GaussianC,
-                ThresholdTypes.Binary,
-                31,
-                8);
+                ThresholdTypes.Binary);
         }
 
-        // =====================================
-        // SAVE
-        // =====================================
+// =====================================
+// SAVE
+// =====================================
 
         var output =
             Path.Combine(
@@ -305,5 +331,7 @@ public class OpenCvOcrRegionExtractor
             $"OCR CROP [{name}]: {output}");
 
         return output;
+
     }
+
 }

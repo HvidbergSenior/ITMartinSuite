@@ -2,6 +2,7 @@
 
     video: null,
     stream: null,
+    isStarting: false,
 
     // =========================================
     // START CAMERA
@@ -9,135 +10,52 @@
 
     async start() {
 
-        this.video =
-            document.getElementById("video");
+        try {
 
-        if (this.stream)
-        {
+            this.video =
+                document.getElementById("video");
+
+            if (!this.video) {
+
+                throw new Error(
+                    "VIDEO ELEMENT NOT FOUND");
+            }
+
             this.stop();
-        }
 
-        // =====================================
-        // GET CAMERA
-        // =====================================
+            this.stream =
+                await navigator.mediaDevices
+                    .getUserMedia({
 
-        this.stream =
-            await navigator.mediaDevices
-                .getUserMedia({
-
-                    video: {
-
-                        facingMode: {
-                            ideal: "environment"
-                        },
-
-                        width: {
-                            ideal: 1920
-                        },
-
-                        height: {
-                            ideal: 1080
-                        },
-
-                        focusMode: "continuous",
-
-                        aspectRatio: {
-                            ideal: 1.7777777778
-                        }
-                    },
-
-                    audio: false
-                });
-
-        // =====================================
-        // VIDEO ELEMENT
-        // =====================================
-
-        this.video.srcObject =
-            this.stream;
-
-        this.video.setAttribute(
-            "playsinline",
-            true);
-
-        this.video.setAttribute(
-            "webkit-playsinline",
-            true);
-
-        this.video.muted = true;
-
-        await this.video.play();
-
-        // =====================================
-        // CAMERA INFO
-        // =====================================
-
-        const track =
-            this.stream.getVideoTracks()[0];
-
-        const settings =
-            track.getSettings();
-
-        console.log(
-            "CAMERA SETTINGS:",
-            settings);
-
-        try
-        {
-            const capabilities =
-                track.getCapabilities();
-
-            console.log(
-                "CAMERA CAPABILITIES:",
-                capabilities);
-        }
-        catch
-        {
-            console.log(
-                "Capabilities not supported");
-        }
-
-        console.log(
-            "VIDEO SIZE:",
-            this.video.videoWidth,
-            this.video.videoHeight);
-
-        // =====================================
-        // AUTOFOCUS SETTLE
-        // =====================================
-
-        await new Promise(x =>
-            setTimeout(x, 1200));
-
-        console.log("CAMERA READY");
-
-        // =====================================
-        // TAP TO FOCUS
-        // =====================================
-
-        this.video.onclick =
-            async () =>
-            {
-                try
-                {
-                    await track.applyConstraints({
-
-                        advanced: [
-                            {
-                                focusMode: "continuous"
+                        video: {
+                            facingMode: {
+                                ideal: "environment"
                             }
-                        ]
+                        },
+
+                        audio: false
                     });
 
-                    console.log("FOCUS TRIGGERED");
-                }
-                catch (e)
-                {
-                    console.log(
-                        "Focus trigger unsupported",
-                        e);
-                }
-            };
+            this.video.srcObject =
+                this.stream;
+
+            this.video.autoplay = true;
+            this.video.muted = true;
+            this.video.playsInline = true;
+
+            await this.video.play();
+
+            console.log(
+                "CAMERA READY");
+        }
+        catch (err) {
+
+            console.error(
+                "CAMERA FAILED",
+                err);
+
+            throw err;
+        }
     },
 
     // =========================================
@@ -146,12 +64,23 @@
 
     async capture() {
 
+        if (!this.video ||
+            !this.stream) {
+
+            throw new Error(
+                "Camera not started");
+        }
+
         // =====================================
-        // WAIT FOR FOCUS
+        // AUTOFOCUS WAIT
         // =====================================
 
         await new Promise(x =>
-            setTimeout(x, 400));
+            setTimeout(x, 300));
+
+        // =====================================
+        // CANVAS
+        // =====================================
 
         const canvas =
             document.createElement("canvas");
@@ -166,11 +95,10 @@
             this.video.videoHeight;
 
         canvas.width = width;
-
         canvas.height = height;
 
         // =====================================
-        // DRAW FULL FRAME
+        // DRAW FRAME
         // =====================================
 
         ctx.drawImage(
@@ -188,8 +116,7 @@
             document.getElementById(
                 "debug-canvas");
 
-        if (old)
-        {
+        if (old) {
             old.remove();
         }
 
@@ -226,7 +153,7 @@
             height);
 
         // =====================================
-        // JPEG EXPORT
+        // RETURN JPEG
         // =====================================
 
         return {
@@ -234,27 +161,36 @@
             image:
                 canvas.toDataURL(
                     "image/jpeg",
-                    0.92)
+                    0.98)
         };
     },
 
     // =========================================
-    // STOP
+    // STOP CAMERA
     // =========================================
 
     stop() {
 
-        if (!this.stream)
-        {
-            return;
+        try {
+
+            if (!this.stream) {
+                return;
+            }
+
+            this.stream
+                .getTracks()
+                .forEach(x => x.stop());
+
+            this.stream = null;
+
+            console.log(
+                "CAMERA STOPPED");
         }
+        catch (e) {
 
-        this.stream
-            .getTracks()
-            .forEach(x => x.stop());
-
-        this.stream = null;
-
-        console.log("CAMERA STOPPED");
+            console.error(
+                "STOP CAMERA FAILED",
+                e);
+        }
     }
 };

@@ -1,48 +1,99 @@
-﻿namespace ITMartin.Media.Domain.Models;
+﻿using System.Text.Json.Serialization;
+
+namespace ITMartin.Media.Domain.Models;
 
 public class MagicCardAnalysisResult
 {
-    // =====================================
-    // CORE
-    // =====================================
+// =====================================
+// CORE
+// =====================================
 
-    public string CardName { get; set; } = "";
+[JsonPropertyName("name")]
+public string CardName { get; set; } = "";
 
-    public decimal Confidence { get; set; }
+// GPT DRIFT FIX
+[JsonPropertyName("title")]
+public string? LegacyTitle
+{
+    get => CardName;
+    set
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            CardName = value;
+        }
+    }
+}
 
-    public bool ExactPrintingCertain { get; set; }
+[JsonPropertyName("confidence")]
+public decimal Confidence { get; set; }
 
-    // =====================================
-    // PRINT IDENTIFICATION
-    // =====================================
+[JsonPropertyName("exactPrintingCertain")]
+public bool ExactPrintingCertain { get; set; }
 
-    public string? SetCode { get; set; }
+// =====================================
+// PRINT IDENTIFICATION
+// =====================================
 
-    public string? CollectorNumber { get; set; }
+[JsonPropertyName("setCode")]
+public string? SetCode { get; set; }
 
-    public string? Copyright { get; set; }
+[JsonPropertyName("collectorNumber")]
+public string? CollectorNumber { get; set; }
 
-    public string? ReleaseEra { get; set; }
+[JsonPropertyName("copyright")]
+public string? Copyright { get; set; }
 
-    // =====================================
-    // VISUAL FRAME ANALYSIS
-    // =====================================
+[JsonPropertyName("copyrightLine")]
+public string? LegacyCopyright
+{
+    get => Copyright;
+    set
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            Copyright = value;
+        }
+    }
+}
 
-    public bool IsOldBorder { get; set; }
+[JsonPropertyName("releaseEra")]
+public string? ReleaseEra { get; set; }
 
-    public bool IsWhiteBorder { get; set; }
+// =====================================
+// VISUAL FRAME ANALYSIS
+// =====================================
 
-    // =====================================
-    // CARD CONTENT
-    // =====================================
+[JsonPropertyName("oldBorder")]
+public bool IsOldBorder { get; set; }
 
-    public string? Artist { get; set; }
+[JsonPropertyName("whiteBorder")]
+public bool IsWhiteBorder { get; set; }
 
-    public string? ManaCost { get; set; }
+// =====================================
+// CARD CONTENT
+// =====================================
 
-    public string? CardType { get; set; }
+[JsonPropertyName("artist")]
+public string? Artist { get; set; }
 
-    public string? Rarity { get; set; }
+[JsonPropertyName("manaCost")]
+public string? ManaCost { get; set; }
 
-    public string? PowerToughness { get; set; }
+[JsonPropertyName("cardType")]
+public string? CardType { get; set; }
+
+[JsonPropertyName("rarity")]
+public string? Rarity { get; set; }
+
+[JsonPropertyName("powerToughness")]
+public string? PowerToughness { get; set; }
+
+// GPT DRIFT FIX
+[JsonPropertyName("power")]
+public string? Power { get; set; }
+
+[JsonPropertyName("toughness")]
+public string? Toughness { get; set; }
+
 }

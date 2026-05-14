@@ -48,25 +48,37 @@
 
     <div class="scanner-wrapper">
 
-        <video id="video"
-               autoplay
-               muted
-               playsinline
-               webkit-playsinline
-               class="scanner-video">
-        </video>
+        @if (!_cameraStarted)
+        {
+            <div class="camera-start-panel">
 
-        <!-- GUIDE -->
+                <button class="btn btn-primary btn-lg"
+                        @onclick="StartCamera">
 
-        <div class="scanner-guide">
+                    Start Camera
 
-            <div class="guide-text">
-                Point phone at card and tap capture
+                </button>
+
             </div>
+        }
+        else
+        {
+            <video id="video"
+                   autoplay
+                   muted
+                   playsinline
+                   webkit-playsinline
+                   class="scanner-video">
+            </video>
 
-        </div>
+            <div class="scanner-guide">
 
-        <!-- PROCESSING -->
+                <div class="guide-text">
+                    Point phone at card and tap capture
+                </div>
+
+            </div>
+        }
 
         @if (_isProcessing)
         {
@@ -368,19 +380,15 @@
     private bool _isProcessing;
 
     private CardDetectionResult? _detection;
-
+    private bool _cameraStarted;
     // =========================================
     // START CAMERA
     // =========================================
 
-    protected override async Task OnAfterRenderAsync(
+    protected override Task OnAfterRenderAsync(
         bool firstRender)
     {
-        if (firstRender)
-        {
-            await JS.InvokeVoidAsync(
-                "webcam.start");
-        }
+        return Task.CompletedTask;
     }
 
     // =========================================
@@ -398,13 +406,56 @@
         {
         }
     }
+    private async Task StartCamera()
+    {
+        try
+        {
+            // =====================================
+            // SHOW VIDEO
+            // =====================================
 
+            _cameraStarted = true;
+
+            StateHasChanged();
+
+            // =====================================
+            // WAIT FOR RENDER
+            // =====================================
+
+            await Task.Delay(300);
+
+            // =====================================
+            // START CAMERA
+            // =====================================
+
+            await JS.InvokeVoidAsync(
+                "webcam.start");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+
+            _cameraStarted = false;
+
+            _detectedText =
+                ex.ToString();
+        }
+
+        StateHasChanged();
+    }
     // =========================================
     // CAPTURE
     // =========================================
 
     private async Task Capture()
     {
+        if (!_cameraStarted)
+        {
+            _detectedText =
+                "Camera not started.";
+
+            return;
+        }
         if (_isProcessing)
         {
             return;

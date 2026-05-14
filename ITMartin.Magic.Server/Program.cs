@@ -73,6 +73,10 @@ builder.Services.AddScoped<
 // =========================
 
 builder.Services.AddScoped<
+    ICardLayoutDetectionService,
+    CardLayoutDetectionService>();
+
+builder.Services.AddScoped<
     ICardBoundaryDetectionService,
     OpenCvCardBoundaryDetectionService>();
 
@@ -87,7 +91,6 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IOcrRegionExtractor,
     OpenCvOcrRegionExtractor>();
-
 // =========================
 // URLS
 // =========================

@@ -52,27 +52,6 @@ public class OpenAiMagicCardAnalysisService
         try
         {
             // =====================================
-            // EARLY VALIDATION
-            // =====================================
-
-            if (string.IsNullOrWhiteSpace(
-                    detection.Name))
-            {
-                Console.WriteLine(
-                    "AI SKIPPED: Missing OCR title");
-
-                return null;
-            }
-
-            if (detection.OcrConfidence < 0.30m)
-            {
-                Console.WriteLine(
-                    $"AI SKIPPED: Low OCR confidence ({detection.OcrConfidence})");
-
-                return null;
-            }
-
-            // =====================================
             // IMAGE
             // =====================================
 
@@ -306,48 +285,62 @@ public class OpenAiMagicCardAnalysisService
         BuildSystemPrompt()
     {
         return new SystemChatMessage("""
-        You are an expert Magic The Gathering
-        printing identification system.
+                                     You are an expert Magic The Gathering
+                                     printing identification system.
 
-        Your job is to identify the EXACT
-        printing/version of the card shown.
+                                     Identify the EXACT Magic card printing.
 
-        IMPORTANT:
-        Many old MTG cards DO NOT contain
-        set symbols.
+                                     IMPORTANT:
+                                     Many old MTG cards do NOT contain
+                                     set symbols.
 
-        If:
-        - set symbol is missing
-        - collector number is unreadable
-        - copyright line unclear
+                                     Return ONLY valid JSON.
 
-        then DO NOT confidently guess the set.
+                                     Use EXACTLY this schema:
 
-        Use null if uncertain.
+                                     {
+                                     "name": string|null,
+                                     "artist": string|null,
+                                     "setCode": string|null,
+                                     "collectorNumber": string|null,
+                                     "oldBorder": boolean,
+                                     "whiteBorder": boolean,
+                                     "powerToughness": string|null,
+                                     "manaCost": string|null,
+                                     "cardType": string|null,
+                                     "rarity": string|null,
+                                     "confidence": number,
+                                     "exactPrintingCertain": boolean
+                                     }
 
-        Priority order:
-        1. Collector number
-        2. Set symbol
-        3. Border color
-        4. Copyright line
-        5. Artist
-        6. Card frame/border
-        7. Mana cost
-        8. Layout/template era
-        9. Rarity color
+                                     Rules:
 
-        Very important:
-        - white border is NOT Alpha/Beta
-        - Alpha/Beta are black bordered
-        - old cards often have ambiguous printings
+                                     * ALWAYS use "name"
+                                     * NEVER use "title"
+                                     * NEVER add extra properties
+                                     * Use null if uncertain
+                                     * Return ONLY JSON
 
-        Determine:
-        - if border is white
-        - if exact printing is certain
+                                     Priority order:
 
-        Return ONLY valid JSON.
-        """);
+                                     1. Collector number
+                                     2. Set symbol
+                                     3. Border color
+                                     4. Copyright line
+                                     5. Artist
+                                     6. Card frame
+                                     7. Mana cost
+                                     8. Layout era
+                                     9. Rarity
+
+                                     Very important:
+
+                                     * white border is NOT Alpha/Beta
+                                     * Alpha/Beta are black bordered
+                                     * old cards often have ambiguous printings
+                                     """);
     }
+
 
     // =========================================
     // USER PROMPT

@@ -19,25 +19,42 @@ public static class OcrGeometryProfiles
 
                 return new OcrGeometryProfile
                 {
-                    TitleX = 0.045,
-                    TitleY = 0.020,
-                    TitleWidth = 0.62,
-                    TitleHeight = 0.050,
+                    // =====================================
+                    // TITLE
+                    // =====================================
 
-                    BottomX = 0.040,
-                    BottomY = 0.955,
-                    BottomWidth = 0.34,
-                    BottomHeight = 0.020,
+                    TitleX = 0.030,
+                    TitleY = 0.018,
+                    TitleWidth = 0.68,
+                    TitleHeight = 0.045,
 
-                    ArtistX = 0.36,
-                    ArtistY = 0.955,
-                    ArtistWidth = 0.34,
-                    ArtistHeight = 0.020,
+                    // =====================================
+// COPYRIGHT / BOTTOM
+// =====================================
 
-                    SetX = 0.77,
-                    SetY = 0.60,
-                    SetWidth = 0.10,
-                    SetHeight = 0.07
+                    BottomX = 0.030,
+                    BottomY = 0.930,
+                    BottomWidth = 0.52,
+                    BottomHeight = 0.045,
+
+// =====================================
+// ARTIST
+// =====================================
+
+                    ArtistX = 0.54,
+                    ArtistY = 0.930,
+                    ArtistWidth = 0.28,
+                    ArtistHeight = 0.045,
+
+
+                    // =====================================
+                    // UNUSED FOR OLD BORDER
+                    // =====================================
+
+                    SetX = 0,
+                    SetY = 0,
+                    SetWidth = 0,
+                    SetHeight = 0
                 };
 
             // =====================================

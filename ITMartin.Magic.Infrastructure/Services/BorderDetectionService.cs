@@ -52,7 +52,7 @@ public class BorderDetectionService
             Console.WriteLine(
                 $"OLD BORDER BRIGHTNESS: {brightness}");
 
-            return brightness < 110;
+            return brightness < 165;
         }
         catch
         {
@@ -106,7 +106,7 @@ public class BorderDetectionService
             Console.WriteLine(
                 $"WHITE BORDER BRIGHTNESS: {brightness}");
 
-            return brightness > 180;
+            return brightness > 125;
         }
         catch
         {

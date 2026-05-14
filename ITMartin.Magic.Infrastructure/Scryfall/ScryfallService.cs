@@ -220,181 +220,205 @@ public class ScryfallService
 // =========================================
 
 private int ScoreCard(
-    ScryfallCard card,
-    CardDetectionResult detection)
+ScryfallCard card,
+CardDetectionResult detection)
 {
-    var score = 0;
+var score = 0;
 
-    // =====================================
-    // NAME
-    // =====================================
+// =====================================
+// NAME
+// =====================================
 
-    if (Normalize(card.Name) ==
-        Normalize(detection.Name))
+if (Normalize(card.Name) ==
+    Normalize(detection.Name))
+{
+    score += 5000;
+}
+else
+{
+    return -999999;
+}
+
+// =====================================
+// OLD FRAME
+// =====================================
+
+if (detection.IsOldBorder)
+{
+    if (card.Frame == "1993")
     {
-        score += 5000;
+        score += 6000;
     }
     else
     {
-        // HARD FAIL
-        return -999999;
+        score -= 12000;
     }
+}
 
-    // =====================================
-    // OLD FRAME
-    // =====================================
+// =====================================
+// WHITE BORDER
+// =====================================
 
-    if (detection.Fingerprint.OldFrame)
+if (detection.IsWhiteBorder)
+{
+    if (card.BorderColor == "white")
     {
-        if (card.Frame == "1993")
-        {
-            score += 4000;
-        }
-        else
-        {
-            score -= 10000;
-        }
-    }
-
-    // =====================================
-    // WHITE BORDER
-    // =====================================
-
-    if (detection.Fingerprint.WhiteBorder)
-    {
-        if (card.BorderColor == "white")
-        {
-            score += 10000;
-        }
-        else
-        {
-            score -= 15000;
-        }
+        score += 15000;
     }
     else
     {
-        if (card.BorderColor == "black")
-        {
-            score += 3000;
-        }
+        score -= 25000;
+    }
+}
+else
+{
+    if (card.BorderColor == "black")
+    {
+        score += 4000;
+    }
+}
+// =====================================
+// OLD CORE SET HEURISTICS
+// =====================================
+
+if (detection.IsOldBorder &&
+    detection.IsWhiteBorder)
+{
+// Alpha/Beta impossible
+    if (card.Set is "lea" or "leb")
+    {
+        score -= 50000;
     }
 
-    // =====================================
-    // POWER / TOUGHNESS
-    // =====================================
-
-    if (!string.IsNullOrWhiteSpace(
-            detection.PowerToughness))
+// Prefer Revised over 4th
+    if (card.Set == "3ed")
     {
-        var pt =
-            $"{card.Power}/{card.Toughness}";
-
-        if (Normalize(pt) ==
-            Normalize(detection.PowerToughness))
-        {
-            score += 7000;
-        }
-        else
-        {
-            score -= 4000;
-        }
+        score += 8000;
     }
 
-    // =====================================
-    // ARTIST
-    // =====================================
-
-    if (!string.IsNullOrWhiteSpace(
-            detection.Artist))
+// Unlimited possible
+    if (card.Set == "2ed")
     {
-        if (Normalize(card.Artist) ==
-            Normalize(detection.Artist))
+        score += 4000;
+    }
+
+// 4th Edition less likely
+    if (card.Set == "4ed")
+    {
+        score -= 4000;
+    }
+
+}
+
+// =====================================
+// POWER / TOUGHNESS
+// =====================================
+
+if (!string.IsNullOrWhiteSpace(
+        detection.PowerToughness))
+{
+    var pt =
+        $"{card.Power}/{card.Toughness}";
+
+    if (Normalize(pt) ==
+        Normalize(detection.PowerToughness))
+    {
+        score += 8000;
+    }
+}
+
+// =====================================
+// ARTIST
+// =====================================
+
+if (!string.IsNullOrWhiteSpace(
+        detection.Artist))
+{
+    if (Normalize(card.Artist) ==
+        Normalize(detection.Artist))
+    {
+        score += 6000;
+    }
+}
+
+// =====================================
+// NO SET SYMBOL
+// =====================================
+
+if (!detection.HasSetSymbol)
+{
+    if (card.Set is
+        "lea" or
+        "leb" or
+        "2ed" or
+        "3ed" or
+        "4ed")
+    {
+        score += 6000;
+    }
+    else
+    {
+        score -= 10000;
+    }
+}
+
+// =====================================
+// MANA COST
+// =====================================
+
+if (!string.IsNullOrWhiteSpace(
+        detection.ManaCost))
+{
+    if (Normalize(card.ManaCost) ==
+        Normalize(detection.ManaCost))
+    {
+        score += 3000;
+    }
+}
+
+// =====================================
+// TYPE
+// =====================================
+
+if (!string.IsNullOrWhiteSpace(
+        detection.CardType))
+{
+    if (!string.IsNullOrWhiteSpace(
+            detection.CardType))
+    {
+        var detected =
+                Normalize(detection.CardType);
+
+        var actual =
+            Normalize(card.TypeLine);
+
+        if (actual.Contains(detected))
         {
             score += 6000;
         }
-    }
 
-    // =====================================
-    // SET SYMBOL LOGIC
-    // =====================================
-
-    // NO SYMBOL:
-    // alpha/beta/unlimited/revised/4th
-
-    if (!detection.HasSetSymbol)
-    {
-        if (card.Set is
-            "lea" or
-            "leb" or
-            "2ed" or
-            "3ed" or
-            "4ed")
+// PRE-6TH EDITION WORDING
+        if (detected.Contains("summon"))
         {
-            score += 5000;
+            if (actual.Contains("summon"))
+            {
+                score += 12000;
+            }
+            else
+            {
+                score -= 15000;
+            }
         }
-        else
-        {
-            score -= 8000;
-        }
-    }
-    else
-    {
-        // HAS SYMBOL:
-        // NOT early core sets
 
-        if (card.Set is
-            "lea" or
-            "leb" or
-            "2ed" or
-            "3ed" or
-            "4ed")
-        {
-            score -= 12000;
-        }
     }
 
-    // =====================================
-    // TYPE LINE
-    // =====================================
+}
 
-    if (!string.IsNullOrWhiteSpace(
-            detection.TypeLine))
-    {
-        if (Normalize(card.TypeLine)
-            .Contains(
-                Normalize(detection.TypeLine)))
-        {
-            score += 1200;
-        }
-    }
+Console.WriteLine(
+    $"FINAL SCORE: {card.Name} [{card.Set}] = {score}");
 
-    // =====================================
-    // MANA COST
-    // =====================================
+return score;
 
-    if (!string.IsNullOrWhiteSpace(
-            detection.ManaCost))
-    {
-        if (Normalize(card.ManaCost) ==
-            Normalize(detection.ManaCost))
-        {
-            score += 2000;
-        }
-    }
-
-    // =====================================
-    // CONFIDENCE PENALTY
-    // =====================================
-
-    if (detection.Confidence < 0.50m)
-    {
-        score -= 3000;
-    }
-
-    Console.WriteLine(
-        $"FINAL SCORE: {card.Name} [{card.Set}] = {score}");
-
-    return score;
 }
 
     // =========================================
