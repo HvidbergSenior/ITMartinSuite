@@ -31,13 +31,17 @@
         <div>
 
             <h1 class="scanner-title">
-                MTG Card Scanner
+                MTG Scanner
             </h1>
 
             <div class="scanner-subtitle">
-                Phone Camera + OpenCV + OCR + OpenAI
+                AI powered printing detection
             </div>
 
+        </div>
+
+        <div class="ai-badge">
+            GPT + OCR
         </div>
 
     </div>
@@ -52,11 +56,8 @@
         {
             <div class="camera-start-panel">
 
-                <button class="btn btn-primary btn-lg"
-                        @onclick="StartCamera">
-
+                <button @onclick="StartCamera">
                     Start Camera
-
                 </button>
 
             </div>
@@ -71,11 +72,29 @@
                    class="scanner-video">
             </video>
 
+            <!-- ========================================= -->
+            <!-- CARD GUIDE -->
+            <!-- ========================================= -->
+
             <div class="scanner-guide">
 
                 <div class="guide-text">
-                    Point phone at card and tap capture
+                    Align card inside frame
                 </div>
+
+            </div>
+
+            <!-- ========================================= -->
+            <!-- OCR VISUALIZATION -->
+            <!-- ========================================= -->
+
+            <div class="ocr-overlay">
+
+                <div class="ocr-title-box"></div>
+
+                <div class="ocr-bottom-box"></div>
+
+                <div class="ocr-pt-box"></div>
 
             </div>
         }
@@ -89,7 +108,7 @@
                     <div class="spinner-border text-light">
                     </div>
 
-                    <div class="mt-3">
+                    <div class="mt-4 fw-bold">
                         @_detectedText
                     </div>
 
@@ -101,7 +120,7 @@
     </div>
 
     <!-- ========================================= -->
-    <!-- BUTTONS -->
+    <!-- BUTTON -->
     <!-- ========================================= -->
 
     <div class="scanner-buttons">
@@ -113,13 +132,13 @@
             @if (_isProcessing)
             {
                 <span>
-                    Processing...
+                    Scanning...
                 </span>
             }
             else
             {
                 <span>
-                    Capture Card
+                    Scan Card
                 </span>
             }
 
@@ -141,230 +160,334 @@
     }
 
     <!-- ========================================= -->
-    <!-- OCR DEBUG -->
+    <!-- RESULT -->
     <!-- ========================================= -->
 
-    @if (_detection != null)
+    @if (_searchResult != null)
     {
-        <div class="debug-panel mt-4">
+        <div class="result-panel">
 
-            <h4 class="mb-3">
-                OCR Debug
-            </h4>
+            @if (_searchResult.BestMatch != null)
+            {
+                <div class="card-result">
 
-            <div class="debug-grid">
+                    <!-- ========================================= -->
+                    <!-- IMAGE -->
+                    <!-- ========================================= -->
 
-                <div class="debug-item">
+                    <div class="image-panel">
 
-                    <div class="debug-label">
-                        Title
+                        <img src="@_searchResult.BestMatch.ImageUrl"
+                             class="matched-card-image" />
+
                     </div>
 
-                    <div class="debug-value">
-                        @_detection.Name
-                    </div>
+                    <!-- ========================================= -->
+                    <!-- DETAILS -->
+                    <!-- ========================================= -->
 
-                </div>
+                    <div class="card-details">
 
-                <div class="debug-item">
+                        <div class="card-header">
 
-                    <div class="debug-label">
-                        Set
-                    </div>
+                            <div>
 
-                    <div class="debug-value">
-                        @_detection.SetCode
-                    </div>
+                                <h2 class="card-name">
+                                    @_searchResult.BestMatch.Name
+                                </h2>
 
-                </div>
+                                <div class="set-line">
 
-                <div class="debug-item">
+                                    Most likely:
+                                    @_searchResult.BestMatch.Set.ToUpperInvariant()
+                                    ·
+                                    #@_searchResult.BestMatch.CollectorNumber
 
-                    <div class="debug-label">
-                        Collector
-                    </div>
+                                </div>
 
-                    <div class="debug-value">
-                        @_detection.CollectorNumber
-                    </div>
+                            </div>
 
-                </div>
+                            <div class="score-badge @GetScoreClass()">
 
-                <div class="debug-item">
-
-                    <div class="debug-label">
-                        Artist
-                    </div>
-
-                    <div class="debug-value">
-                        @_detection.Artist
-                    </div>
-
-                </div>
-
-                <div class="debug-item">
-
-                    <div class="debug-label">
-                        Old Border
-                    </div>
-
-                    <div class="debug-value">
-                        @_detection.IsOldBorder
-                    </div>
-
-                </div>
-
-                <div class="debug-item">
-
-                    <div class="debug-label">
-                        White Border
-                    </div>
-
-                    <div class="debug-value">
-                        @_detection.IsWhiteBorder
-                    </div>
-
-                </div>
-
-                <div class="debug-item">
-
-                    <div class="debug-label">
-                        OCR Confidence
-                    </div>
-
-                    <div class="debug-value">
-                        @((_detection.OcrConfidence * 100).ToString("0"))%
-                    </div>
-
-                </div>
-
-                <div class="debug-item">
-
-                    <div class="debug-label">
-                        Exact Printing
-                    </div>
-
-                    <div class="debug-value">
-                        @_detection.ExactPrintingCertain
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-    }
-
-    <!-- ========================================= -->
-    <!-- MATCHED CARD -->
-    <!-- ========================================= -->
-
-    @if (_card != null)
-    {
-        <div class="result-panel mt-5">
-
-            <div class="card-result">
-
-                <div class="image-panel">
-
-                    <img src="@_card.ImageUrl"
-                         class="matched-card-image" />
-
-                </div>
-
-                <div class="card-details">
-
-                    <div class="card-header">
-
-                        <div>
-
-                            <h2 class="card-name">
-                                @_card.Name
-                            </h2>
-
-                            <div class="set-line">
-
-                                @_card.Set.ToUpperInvariant()
-                                ·
-                                #@_card.CollectorNumber
+                                @_searchResult?.Matches?.FirstOrDefault()?.ConfidenceLabel
 
                             </div>
 
                         </div>
 
-                        <div class="score-badge @GetScoreClass()">
+                        <!-- ========================================= -->
+                        <!-- PRICES -->
+                        <!-- ========================================= -->
 
-                            @_card.MatchScore
+                        <div class="price-grid">
+
+                            <div class="price-box">
+
+                                <div class="price-label">
+                                    EUR
+                                </div>
+
+                                <div class="price-value">
+                                    €@(_searchResult.BestMatch.EurPrice ?? 0)
+                                </div>
+
+                            </div>
+
+                            <div class="price-box">
+
+                                <div class="price-label">
+                                    USD
+                                </div>
+
+                                <div class="price-value">
+                                    $@(_searchResult.BestMatch.UsdPrice ?? 0)
+                                </div>
+
+                            </div>
+
+                            <div class="price-box">
+
+                                <div class="price-label">
+                                    EUR Foil
+                                </div>
+
+                                <div class="price-value">
+                                    €@(_searchResult.BestMatch.EurFoilPrice ?? 0)
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <!-- ========================================= -->
+                        <!-- DETAILS -->
+                        <!-- ========================================= -->
+
+                        <div class="detail-grid">
+
+                            <div class="detail-item">
+
+                                <div class="detail-label">
+                                    OCR Confidence
+                                </div>
+
+                                <div class="detail-value">
+                                    @(((_detection?.Confidence ?? 0) * 100).ToString("0"))%
+                                </div>
+
+                            </div>
+
+                            <div class="detail-item">
+
+                                <div class="detail-label">
+                                    Border
+                                </div>
+
+                                <div class="detail-value">
+
+                                    @if (_detection?.IsWhiteBorder == true)
+                                    {
+                                        <span>White Border</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Black Border</span>
+                                    }
+
+                                </div>
+
+                            </div>
+
+                            <div class="detail-item">
+
+                                <div class="detail-label">
+                                    Mana Cost
+                                </div>
+
+                                <div class="detail-value">
+                                    @_searchResult.BestMatch.ManaCost
+                                </div>
+
+                            </div>
+
+                            <div class="detail-item">
+
+                                <div class="detail-label">
+                                    Rarity
+                                </div>
+
+                                <div class="detail-value">
+                                    @_searchResult.BestMatch.Rarity
+                                </div>
+
+                            </div>
+
+                            <div class="detail-item detail-full">
+
+                                <div class="detail-label">
+                                    Type
+                                </div>
+
+                                <div class="detail-value">
+                                    @_searchResult.BestMatch.TypeLine
+                                </div>
+
+                            </div>
+
+                            <div class="detail-item detail-full">
+
+                                <div class="detail-label">
+                                    Artist
+                                </div>
+
+                                <div class="detail-value">
+                                    @_searchResult.BestMatch.Artist
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <!-- ========================================= -->
+                        <!-- ORACLE -->
+                        <!-- ========================================= -->
+
+                        <div class="oracle-box">
+
+                            @_searchResult.BestMatch.OracleText
 
                         </div>
 
                     </div>
 
-                    <hr />
+                </div>
+            }
 
-                    <div class="detail-grid">
+            <!-- ========================================= -->
+            <!-- ALTERNATIVES -->
+            <!-- ========================================= -->
 
-                        <div class="detail-item">
+            @if (_searchResult.Matches.Any())
+            {
+                <div class="top-matches-panel">
 
-                            <div class="detail-label">
-                                Mana Cost
+                    <h3 class="mb-4">
+                        Alternative Printings
+                    </h3>
+
+                    <div class="matches-grid">
+
+                        @foreach (var match in _searchResult.Matches)
+                        {
+                            <div class="match-card">
+
+                                <img src="@match.Card.ImageUrl"
+                                     class="match-image" />
+
+                                <div class="match-content">
+
+                                    <div class="match-name">
+                                        @match.Card.Name
+                                    </div>
+
+                                    <div class="match-set">
+
+                                        @match.Card.Set.ToUpperInvariant()
+                                        ·
+                                        #@match.Card.CollectorNumber
+
+                                    </div>
+
+                                    <div class="match-score">
+                                        Score: @match.Score
+                                    </div>
+
+                                    <div class="match-confidence">
+                                        @match.ConfidenceLabel
+                                    </div>
+
+                                </div>
+
+                                <div class="match-price">
+
+                                    €@(match.Card.EurPrice ?? 0)
+
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+            }
+
+            <!-- ========================================= -->
+            <!-- DEBUG -->
+            <!-- ========================================= -->
+
+            @if (_detection != null)
+            {
+                <div class="debug-panel">
+
+                    <h4 class="mb-3">
+                        OCR Debug
+                    </h4>
+
+                    <div class="debug-grid">
+
+                        <div class="debug-item">
+
+                            <div class="debug-label">
+                                Title
                             </div>
 
-                            <div class="detail-value">
-                                @_card.ManaCost
+                            <div class="debug-value">
+                                @_detection.Name
                             </div>
 
                         </div>
 
-                        <div class="detail-item">
+                        <div class="debug-item">
 
-                            <div class="detail-label">
-                                Rarity
+                            <div class="debug-label">
+                                Set
                             </div>
 
-                            <div class="detail-value">
-                                @_card.Rarity
-                            </div>
-
-                        </div>
-
-                        <div class="detail-item detail-full">
-
-                            <div class="detail-label">
-                                Type
-                            </div>
-
-                            <div class="detail-value">
-                                @_card.TypeLine
+                            <div class="debug-value">
+                                @_detection.SetCode
                             </div>
 
                         </div>
 
-                        <div class="detail-item detail-full">
+                        <div class="debug-item">
 
-                            <div class="detail-label">
+                            <div class="debug-label">
+                                Collector
+                            </div>
+
+                            <div class="debug-value">
+                                @_detection.CollectorNumber
+                            </div>
+
+                        </div>
+
+                        <div class="debug-item">
+
+                            <div class="debug-label">
                                 Artist
                             </div>
 
-                            <div class="detail-value">
-                                @_card.Artist
+                            <div class="debug-value">
+                                @_detection.Artist
                             </div>
 
                         </div>
 
                     </div>
 
-                    <hr />
-
-                    <div class="oracle-box">
-
-                        @_card.OracleText
-
-                    </div>
-
                 </div>
-
-            </div>
+            }
 
         </div>
     }
@@ -375,25 +498,13 @@
 
     private string? _detectedText;
 
-    private ScryfallCard? _card;
+    private CardSearchResult? _searchResult;
 
     private bool _isProcessing;
 
     private CardDetectionResult? _detection;
+
     private bool _cameraStarted;
-    // =========================================
-    // START CAMERA
-    // =========================================
-
-    protected override Task OnAfterRenderAsync(
-        bool firstRender)
-    {
-        return Task.CompletedTask;
-    }
-
-    // =========================================
-    // DISPOSE
-    // =========================================
 
     public async ValueTask DisposeAsync()
     {
@@ -406,27 +517,16 @@
         {
         }
     }
+
     private async Task StartCamera()
     {
         try
         {
-            // =====================================
-            // SHOW VIDEO
-            // =====================================
-
             _cameraStarted = true;
 
             StateHasChanged();
 
-            // =====================================
-            // WAIT FOR RENDER
-            // =====================================
-
             await Task.Delay(300);
-
-            // =====================================
-            // START CAMERA
-            // =====================================
 
             await JS.InvokeVoidAsync(
                 "webcam.start");
@@ -437,26 +537,16 @@
 
             _cameraStarted = false;
 
-            _detectedText =
-                ex.ToString();
+            _detectedText = ex.ToString();
         }
 
         StateHasChanged();
     }
-    // =========================================
-    // CAPTURE
-    // =========================================
 
     private async Task Capture()
     {
-        if (!_cameraStarted)
-        {
-            _detectedText =
-                "Camera not started.";
-
-            return;
-        }
-        if (_isProcessing)
+        if (!_cameraStarted ||
+            _isProcessing)
         {
             return;
         }
@@ -465,17 +555,14 @@
         {
             _isProcessing = true;
 
-            _detectedText = "Capturing...";
+            _detectedText =
+                "Capturing card...";
 
-            _card = null;
+            _searchResult = null;
 
             _detection = null;
 
             StateHasChanged();
-
-            // =====================================
-            // CAPTURE
-            // =====================================
 
             var capture =
                 await JS.InvokeAsync<CaptureResult>(
@@ -488,10 +575,6 @@
 
             var bytes =
                 Convert.FromBase64String(clean);
-
-            // =====================================
-            // SAVE FRAME
-            // =====================================
 
             var framesFolder =
                 Path.Combine(
@@ -511,12 +594,8 @@
                 framePath,
                 bytes);
 
-            // =====================================
-            // BOUNDARY DETECTION
-            // =====================================
-
             _detectedText =
-                "Detecting card...";
+                "Detecting card edges...";
 
             StateHasChanged();
 
@@ -532,10 +611,6 @@
 
                 return;
             }
-
-            // =====================================
-            // NORMALIZATION
-            // =====================================
 
             _detectedText =
                 "Correcting perspective...";
@@ -556,10 +631,6 @@
                 return;
             }
 
-            // =====================================
-            // OCR REGIONS
-            // =====================================
-
             _detectedText =
                 "Extracting OCR regions...";
 
@@ -573,24 +644,19 @@
             if (regions == null)
             {
                 _detectedText =
-                    "OCR region extraction failed.";
+                    "OCR extraction failed.";
 
                 return;
             }
 
-            // =====================================
-            // OCR
-            // =====================================
-
             _detectedText =
-                "Reading text...";
+                "Reading card text...";
 
             StateHasChanged();
 
             var detection =
                 await CardRecognitionService
-                    .DetectAsync(
-                        regions);
+                    .DetectAsync(regions);
 
             if (detection == null)
             {
@@ -613,12 +679,8 @@
             _detection =
                 detection;
 
-            // =====================================
-            // AI
-            // =====================================
-
             _detectedText =
-                "Analyzing card...";
+                "AI analyzing printing...";
 
             StateHasChanged();
 
@@ -665,42 +727,20 @@
 
                 detection.Confidence =
                     magic.Confidence;
-
-                detection.ReleaseEra =
-                    magic.ReleaseEra;
             }
 
-            // =====================================
-            // SCRYFALL
-            // =====================================
-
             _detectedText =
-                "Matching printing...";
+                "Matching edition...";
 
             StateHasChanged();
 
-            _card =
+            _searchResult =
                 await ScryfallService
                     .SearchAsync(
                         detection);
 
-            // =====================================
-            // FINAL STATUS
-            // =====================================
-
             _detectedText =
-                $@"NAME: {detection.Name}
-SET: {detection.SetCode}
-COLLECTOR: {detection.CollectorNumber}
-ARTIST: {detection.Artist}
-PT: {detection.PowerToughness}
-OCR: {(detection.OcrConfidence * 100):0}%";
-
-            if (_card == null)
-            {
-                _detectedText +=
-                    "\n\nNo exact Scryfall match found.";
-            }
+                "Scan complete";
         }
         catch (Exception ex)
         {
@@ -717,23 +757,23 @@ OCR: {(detection.OcrConfidence * 100):0}%";
         }
     }
 
-    // =========================================
-    // SCORE CLASS
-    // =========================================
-
     private string GetScoreClass()
     {
-        if (_card == null)
+        if (_searchResult?.BestMatch == null)
         {
             return "";
         }
 
-        if (_card.MatchScore >= 8000)
+        var score =
+            _searchResult.Matches
+                .FirstOrDefault()?.Score ?? 0;
+
+        if (score >= 30000)
         {
             return "score-perfect";
         }
 
-        if (_card.MatchScore >= 4000)
+        if (score >= 15000)
         {
             return "score-good";
         }

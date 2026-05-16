@@ -13,16 +13,13 @@ namespace ITMartinBudget.Infrastructure.Services;
 public class BankTransactionCsvService
 {
     private readonly BudgetDbContext _db;
-
-    private readonly ITransactionProcessor _processor;
+    private ITransactionCategorizer _categorizer;
 
     public BankTransactionCsvService(
-        BudgetDbContext db,
-        ITransactionProcessor processor)
+        BudgetDbContext db, ITransactionCategorizer categorizer)
     {
         _db = db;
-
-        _processor = processor;
+        _categorizer = categorizer;
     }
 
     public async Task<List<BankTransaction>> ImportAsync(
@@ -71,8 +68,7 @@ public class BankTransactionCsvService
                     ? TransactionType.Udgift
                     : TransactionType.Indkomst;
 
-            await _processor.ProcessAsync(record);
-
+            _categorizer.Categorize(record);
             records.Add(record);
         }
 

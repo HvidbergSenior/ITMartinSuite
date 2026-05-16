@@ -1,7 +1,72 @@
 .scanner-page {
-    padding: 32px;
-    max-width: 1400px;
+
+    min-height: 100vh;
+
+    padding: 20px;
+    padding-bottom: 120px;
+
+    max-width: 900px;
+
     margin: auto;
+
+    background:
+            linear-gradient(
+                    to bottom,
+                    #07111f 0%,
+                    #0f172a 40%,
+                    #111827 100%);
+
+    color: white;
+}
+
+/* =========================================
+HEADER
+========================================= */
+
+.scanner-header {
+
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 24px;
+}
+
+.scanner-title {
+
+    font-size: 34px;
+    font-weight: 900;
+
+    line-height: 1;
+}
+
+.scanner-subtitle {
+
+    margin-top: 6px;
+
+    color: #94a3b8;
+
+    font-size: 15px;
+}
+
+.ai-badge {
+
+    padding: 10px 16px;
+
+    border-radius: 999px;
+
+    background:
+            rgba(255,255,255,.08);
+
+    border:
+            1px solid rgba(255,255,255,.12);
+
+    backdrop-filter: blur(12px);
+
+    font-weight: 700;
+
+    color: white;
 }
 
 /* =========================================
@@ -21,15 +86,15 @@ SCANNER
 
     overflow: hidden;
 
-    border-radius: 28px;
+    border-radius: 32px;
 
     background: black;
 
-    border: 1px solid rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.08);
 
     box-shadow:
             0 0 40px rgba(0,0,0,0.35),
-            0 0 120px rgba(0,0,0,.25);
+            0 0 120px rgba(0,0,0,.35);
 }
 
 .scanner-video {
@@ -45,59 +110,6 @@ SCANNER
 }
 
 /* =========================================
-VISUAL GUIDE ONLY
-========================================= */
-
-.scanner-guide {
-
-    position: absolute;
-
-    left: 50%;
-    top: 50%;
-
-    width: 72%;
-
-    aspect-ratio: 63 / 88;
-
-    transform: translate(-50%, -50%);
-
-    border: 4px solid #00ff99;
-
-    border-radius: 22px;
-
-    box-shadow:
-            0 0 24px rgba(0,255,153,.9),
-            0 0 64px rgba(0,255,153,.45);
-
-    pointer-events: none;
-}
-
-.guide-text {
-
-    position: absolute;
-
-    top: -58px;
-    left: 50%;
-
-    transform: translateX(-50%);
-
-    background: rgba(0,0,0,.78);
-
-    color: white;
-
-    padding: 10px 16px;
-
-    border-radius: 14px;
-
-    font-size: 14px;
-
-    white-space: nowrap;
-
-    border: 1px solid rgba(255,255,255,.08);
-
-    backdrop-filter: blur(10px);
-}
-/* =========================================
 CARD GUIDE
 ========================================= */
 
@@ -108,18 +120,37 @@ CARD GUIDE
     left: 50%;
     top: 50%;
 
-    width: 36%;
+    width: 38%;
 
     aspect-ratio: 63 / 88;
 
     transform: translate(-50%, -50%);
 
-    border: 3px solid #00ff99;
-    border-radius: 20px;
+    border: 4px solid #00ff99;
+
+    border-radius: 24px;
 
     box-shadow:
-            0 0 18px rgba(0,255,153,.95),
-            0 0 42px rgba(0,255,153,.45);
+            0 0 22px rgba(0,255,153,.95),
+            0 0 64px rgba(0,255,153,.55);
+
+    pointer-events: none;
+}
+
+/* =========================================
+DARK OUTSIDE MASK
+========================================= */
+
+.scanner-guide::before {
+
+    content: "";
+
+    position: fixed;
+
+    inset: -2000px;
+
+    box-shadow:
+            0 0 0 4000px rgba(0,0,0,.45);
 
     pointer-events: none;
 }
@@ -132,7 +163,7 @@ GUIDE TEXT
 
     position: absolute;
 
-    top: -64px;
+    bottom: -62px;
     left: 50%;
 
     transform: translateX(-50%);
@@ -141,9 +172,9 @@ GUIDE TEXT
 
     color: white;
 
-    padding: 10px 16px;
+    padding: 10px 18px;
 
-    border-radius: 14px;
+    border-radius: 999px;
 
     font-size: 14px;
 
@@ -153,7 +184,9 @@ GUIDE TEXT
 
     border: 1px solid rgba(255,255,255,.08);
 
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(14px);
+
+    font-weight: 600;
 }
 
 /* =========================================
@@ -175,7 +208,7 @@ OCR OVERLAY
 
     position: absolute;
 
-    border-radius: 10px;
+    border-radius: 12px;
 
     backdrop-filter: blur(2px);
 
@@ -262,16 +295,515 @@ PT BOX
 }
 
 /* =========================================
+SCAN BUTTON
+========================================= */
+
+.scanner-buttons {
+
+    position: fixed;
+
+    left: 0;
+    right: 0;
+    bottom: 22px;
+
+    display: flex;
+
+    justify-content: center;
+
+    z-index: 999;
+}
+
+.scan-button {
+
+    border: none !important;
+
+    padding:
+            18px 42px !important;
+
+    border-radius: 999px !important;
+
+    font-size: 20px !important;
+    font-weight: 800 !important;
+
+    background:
+            linear-gradient(
+                    135deg,
+                    #7c3aed,
+                    #2563eb) !important;
+
+    box-shadow:
+            0 12px 36px rgba(0,0,0,.45),
+            0 0 32px rgba(124,58,237,.35);
+
+    transition: all .2s ease;
+}
+
+.scan-button:hover {
+
+    transform: translateY(-2px) scale(1.02);
+}
+
+/* =========================================
+LOADING OVERLAY
+========================================= */
+
+.scanner-overlay {
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+            rgba(0,0,0,.72);
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+
+    z-index: 10;
+
+    backdrop-filter: blur(10px);
+}
+
+.scanner-loading {
+
+    text-align: center;
+}
+
+.scanner-loading .spinner-border {
+
+    width: 72px;
+    height: 72px;
+}
+
+/* =========================================
+RESULT PANEL
+========================================= */
+
+.result-panel {
+
+    margin-top: 32px;
+}
+
+/* =========================================
+RESULT HERO CARD
+========================================= */
+
+.card-result {
+
+    background:
+            rgba(255,255,255,.06);
+
+    border:
+            1px solid rgba(255,255,255,.08);
+
+    border-radius: 28px;
+
+    overflow: hidden;
+
+    backdrop-filter: blur(18px);
+
+    box-shadow:
+            0 0 32px rgba(0,0,0,.24);
+}
+
+.image-panel {
+
+    padding: 18px;
+}
+
+.matched-card-image {
+
+    width: 100%;
+
+    border-radius: 22px;
+
+    display: block;
+
+    box-shadow:
+            0 10px 28px rgba(0,0,0,.4);
+}
+
+.card-details {
+
+    padding: 22px;
+}
+
+.card-header {
+
+    display: flex;
+
+    justify-content: space-between;
+    align-items: flex-start;
+
+    gap: 14px;
+}
+
+.card-name {
+
+    font-size: 34px;
+
+    font-weight: 900;
+
+    line-height: 1.05;
+}
+
+.set-line {
+
+    margin-top: 6px;
+
+    color: #94a3b8;
+
+    font-size: 15px;
+}
+
+/* =========================================
+CONFIDENCE BADGE
+========================================= */
+
+.score-badge {
+
+    padding:
+            12px 16px;
+
+    border-radius: 999px;
+
+    font-size: 14px;
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+.score-perfect {
+
+    background: #16a34a;
+}
+
+.score-good {
+
+    background: #ca8a04;
+}
+
+.score-weak {
+
+    background: #dc2626;
+}
+
+/* =========================================
+PRICE GRID
+========================================= */
+
+.price-grid {
+
+    display: grid;
+
+    grid-template-columns:
+            repeat(3, 1fr);
+
+    gap: 14px;
+
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.price-box {
+
+    background:
+            rgba(255,255,255,.05);
+
+    border:
+            1px solid rgba(255,255,255,.08);
+
+    border-radius: 20px;
+
+    padding: 18px;
+
+    text-align: center;
+}
+
+.price-label {
+
+    color: #94a3b8;
+
+    font-size: 13px;
+}
+
+.price-value {
+
+    margin-top: 10px;
+
+    font-size: 28px;
+    font-weight: 900;
+}
+
+/* =========================================
+DETAIL GRID
+========================================= */
+
+.detail-grid {
+
+    display: grid;
+
+    grid-template-columns:
+            repeat(2, 1fr);
+
+    gap: 14px;
+
+    margin-top: 24px;
+}
+
+.detail-item {
+
+    background:
+            rgba(255,255,255,.04);
+
+    border-radius: 18px;
+
+    padding: 18px;
+}
+
+.detail-full {
+
+    grid-column: span 2;
+}
+
+.detail-label {
+
+    color: #94a3b8;
+
+    font-size: 13px;
+}
+
+.detail-value {
+
+    margin-top: 8px;
+
+    font-size: 18px;
+
+    font-weight: 700;
+}
+
+/* =========================================
+ORACLE BOX
+========================================= */
+
+.oracle-box {
+
+    margin-top: 24px;
+
+    background:
+            rgba(255,255,255,.05);
+
+    border-radius: 20px;
+
+    padding: 20px;
+
+    line-height: 1.7;
+
+    color: #f3f4f6;
+}
+
+/* =========================================
+MATCHES
+========================================= */
+
+.top-matches-panel {
+
+    margin-top: 36px;
+}
+
+.matches-grid {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 16px;
+}
+
+.match-card {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    background:
+            rgba(255,255,255,.05);
+
+    border:
+            1px solid rgba(255,255,255,.08);
+
+    border-radius: 22px;
+
+    padding: 14px;
+}
+
+.match-image {
+
+    width: 78px;
+
+    border-radius: 14px;
+}
+
+.match-content {
+
+    flex: 1;
+}
+
+.match-name {
+
+    font-size: 18px;
+
+    font-weight: 800;
+}
+
+.match-set {
+
+    margin-top: 4px;
+
+    color: #94a3b8;
+}
+
+.match-score {
+
+    margin-top: 8px;
+
+    font-size: 13px;
+
+    color: #cbd5e1;
+}
+
+.match-confidence {
+
+    margin-top: 6px;
+
+    font-weight: 700;
+}
+
+.match-price {
+
+    font-size: 24px;
+
+    font-weight: 900;
+}
+
+/* =========================================
+DEBUG
+========================================= */
+
+.debug-panel {
+
+    margin-top: 32px;
+
+    background:
+            rgba(255,255,255,.04);
+
+    border:
+            1px solid rgba(255,255,255,.08);
+
+    border-radius: 24px;
+
+    padding: 20px;
+}
+
+.debug-grid {
+
+    display: grid;
+
+    grid-template-columns:
+            repeat(2, 1fr);
+
+    gap: 12px;
+}
+
+.debug-item {
+
+    background:
+            rgba(255,255,255,.04);
+
+    border-radius: 16px;
+
+    padding: 14px;
+}
+
+.debug-label {
+
+    color: #94a3b8;
+
+    font-size: 13px;
+}
+
+.debug-value {
+
+    margin-top: 8px;
+
+    font-size: 16px;
+
+    font-weight: 700;
+}
+
+/* =========================================
+START CAMERA
+========================================= */
+
+.camera-start-panel {
+
+    position: absolute;
+
+    inset: 0;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+}
+
+.camera-start-panel button {
+
+    padding:
+            20px 36px;
+
+    border: none;
+
+    border-radius: 999px;
+
+    background:
+            linear-gradient(
+                    135deg,
+                    #2563eb,
+                    #7c3aed);
+
+    color: white;
+
+    font-size: 22px;
+    font-weight: 800;
+
+    box-shadow:
+            0 14px 42px rgba(0,0,0,.45);
+}
+
+/* =========================================
 RESPONSIVE
 ========================================= */
 
 @media (max-width: 700px) {
 
     .scanner-page {
-        padding: 16px;
+
+        padding: 14px;
+        padding-bottom: 120px;
+    }
+
+    .scanner-title {
+
+        font-size: 28px;
     }
 
     .scanner-guide {
+
         width: 52%;
     }
 
@@ -280,5 +812,42 @@ RESPONSIVE
         font-size: 12px;
 
         padding: 8px 12px;
+    }
+
+    .card-name {
+
+        font-size: 28px;
+    }
+
+    .price-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+    .detail-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+    .detail-full {
+
+        grid-column: span 1;
+    }
+
+    .price-value {
+
+        font-size: 24px;
+    }
+
+    .match-price {
+
+        font-size: 20px;
+    }
+
+    .scan-button {
+
+        width: calc(100% - 32px);
+
+        max-width: 420px;
     }
 }

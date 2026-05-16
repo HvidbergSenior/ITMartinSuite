@@ -14,16 +14,13 @@ public class BudgetDbContext : DbContext
     public DbSet<BankTransaction> Transactions =>
         Set<BankTransaction>();
 
-    public DbSet<CategoryRule> CategoryRules =>
-        Set<CategoryRule>();
-
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         // =====================================
-        // TRANSACTION UNIQUE INDEX
+        // UNIQUE TRANSACTION
         // =====================================
 
         modelBuilder.Entity<BankTransaction>()
@@ -31,36 +28,9 @@ public class BudgetDbContext : DbContext
             {
                 x.Date,
                 x.Amount,
-                x.Description
+                x.NormalizedDescription
             })
             .IsUnique();
-
-        // =====================================
-        // TRANSACTION -> MATCHED RULE
-        // =====================================
-
-        modelBuilder.Entity<BankTransaction>()
-            .HasOne(x => x.MatchedRule)
-            .WithMany()
-            .HasForeignKey(x => x.MatchedRuleId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        // =====================================
-        // CATEGORY RULE CONFIG
-        // =====================================
-
-        modelBuilder.Entity<CategoryRule>()
-            .Property(x => x.Pattern)
-            .HasMaxLength(300);
-
-        modelBuilder.Entity<CategoryRule>()
-            .HasIndex(x => x.Pattern);
-
-        modelBuilder.Entity<CategoryRule>()
-            .HasIndex(x => x.Priority);
-
-        modelBuilder.Entity<CategoryRule>()
-            .HasIndex(x => x.IsActive);
 
         // =====================================
         // TRANSACTION CONFIG
@@ -75,15 +45,26 @@ public class BudgetDbContext : DbContext
             .HasMaxLength(1000);
 
         modelBuilder.Entity<BankTransaction>()
+            .Property(x => x.Title)
+            .HasMaxLength(300);
+
+        // =====================================
+        // INDEXES
+        // =====================================
+
+        modelBuilder.Entity<BankTransaction>()
             .HasIndex(x => x.Category);
+
+        modelBuilder.Entity<BankTransaction>()
+            .HasIndex(x => x.BudgetGroup);
 
         modelBuilder.Entity<BankTransaction>()
             .HasIndex(x => x.TransactionType);
 
         modelBuilder.Entity<BankTransaction>()
-            .HasIndex(x => x.NeedsReview);
+            .HasIndex(x => x.ImportedAt);
 
         modelBuilder.Entity<BankTransaction>()
-            .HasIndex(x => x.ImportedAt);
+            .HasIndex(x => x.IsRecurring);
     }
 }

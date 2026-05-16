@@ -2,17 +2,18 @@
 
 public enum Category
 {
-    FixedIncome,
-    FixedExpenses,
-    Housing,
+    Income,
+
     Food,
     Transport,
     Shopping,
     Health,
     Entertainment,
-    Travel,
+    Housing,
     Bills,
+
     Savings,
     Transfer,
+
     Other
 }

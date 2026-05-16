@@ -1,6 +1,4 @@
-﻿using System.Globalization;
-using System.Text.RegularExpressions;
-using ITMartinBudget.Domain;
+﻿using ITMartinBudget.Domain;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
 using ITMartinBudget.Application.Models;
@@ -9,23 +7,30 @@ namespace ITMartinBudget.Application.Services;
 
 public class BudgetService : IBudgetService
 {
+    // =====================================
+    // CATEGORY SUMMARY
+    // =====================================
+
     public IEnumerable<CategorySummary> GetSummary(
         List<BankTransaction> transactions,
         int year)
     {
         var filtered = transactions
-            .Where(x => x.Date.Year == year)
+
             .Where(x =>
-                x.Category != Category.Transfer &&
-                x.Category != Category.Savings);
+                x.Date.Year == year);
 
         return filtered
+
             .GroupBy(x => x.Category)
+
             .Select(group => new CategorySummary
             {
                 Category = group.Key,
 
-                DisplayName = group.Key.ToString(),
+                DisplayName =
+                    GetCategoryTitle(
+                        group.Key),
 
                 Income = group
                     .Where(x => x.Amount > 0)
@@ -35,196 +40,138 @@ public class BudgetService : IBudgetService
                     .Where(x => x.Amount < 0)
                     .Sum(x => Math.Abs(x.Amount)),
 
-                TransactionCount = group.Count()
+                TransactionCount =
+                    group.Count()
             })
-            .OrderByDescending(x => x.Income + x.Expenses);
+
+            .OrderByDescending(x =>
+                x.Income + x.Expenses);
     }
+
+    // =====================================
+    // RAW CASHFLOW TOTALS
+    // =====================================
 
     public YearSummary GetYearTotals(
         List<BankTransaction> transactions,
         int year)
     {
         var filtered = transactions
-            .Where(x => x.Date.Year == year)
+
             .Where(x =>
-                x.Category != Category.Transfer &&
-                x.Category != Category.Savings);
+                x.Date.Year == year);
 
         return new YearSummary
         {
             Income = filtered
-                .Where(x => x.Amount > 0)
-                .Sum(x => x.Amount),
+
+                .Where(x =>
+                    x.Amount > 0)
+
+                .Sum(x =>
+                    x.Amount),
 
             Expenses = filtered
-                .Where(x => x.Amount < 0)
-                .Sum(x => Math.Abs(x.Amount))
+
+                .Where(x =>
+                    x.Amount < 0)
+
+                .Sum(x =>
+                    Math.Abs(x.Amount))
         };
     }
 
-    public IEnumerable<BudgetOverviewItem> GetBudgetOverview(
-        List<BankTransaction> transactions,
-        int year)
-    {
-        var filtered = transactions
-            .Where(x => x.Date.Year == year)
-            .Where(x =>
-                x.Category != Category.Transfer &&
-                x.Category != Category.Savings);
+    // =====================================
+    // BUDGET OVERVIEW
+    // =====================================
 
-        return filtered
-            .GroupBy(x => new
-            {
-                x.TransactionType,
-                x.Category,
-                Title = GetGroupTitle(x)
-            })
-            .Select(group =>
-            {
-                var txs = group
-                    .OrderByDescending(x => x.Date)
-                    .ToList();
-
-                var total =
-                    group.Key.TransactionType == TransactionType.Udgift
-                        ? txs.Sum(x => Math.Abs(x.Amount))
-                        : txs.Sum(x => x.Amount);
-
-                return new BudgetOverviewItem
-                {
-                    Title = group.Key.Title,
-
-                    Category = group.Key.Category,
-
-                    TransactionType = group.Key.TransactionType,
-
-                    Total = total,
-
-                    MonthlyAverage = total,
-
-                    Transactions = txs
-                };
-            })
-            .OrderByDescending(x => x.Total);
-    }
-
-    public IEnumerable<MonthlyBudgetSummary>
-        GetMonthlySummaries(
+    public IEnumerable<BudgetOverviewItem>
+        GetBudgetOverview(
             List<BankTransaction> transactions,
             int year)
     {
-        var filtered = transactions
-            .Where(x => x.Date.Year == year)
-            .Where(x =>
-                x.Category != Category.Transfer &&
-                x.Category != Category.Savings);
+        return transactions
 
-        return filtered
+            .Where(x =>
+                x.Date.Year == year)
+
             .GroupBy(x => new
             {
-                x.Date.Year,
-                x.Date.Month
+                x.Title,
+                x.BudgetGroup
             })
-            .Select(g => new MonthlyBudgetSummary
-            {
-                Year = g.Key.Year,
 
-                Month = g.Key.Month,
+            .Select(group =>
+                new BudgetOverviewItem
+                {
+                    Title =
+                        group.Key.Title,
 
-                MonthName =
-                    new DateTime(
-                            g.Key.Year,
-                            g.Key.Month,
-                            1)
-                        .ToString("MMMM"),
+                    BudgetGroup =
+                        group.Key.BudgetGroup,
 
-                Income = g
-                    .Where(x => x.Amount > 0)
-                    .Sum(x => x.Amount),
+                    Category =
+                        group.First().Category,
 
-                Expenses = g
-                    .Where(x => x.Amount < 0)
-                    .Sum(x => Math.Abs(x.Amount))
-            })
-            .OrderBy(x => x.Year)
-            .ThenBy(x => x.Month);
+                    TransactionType =
+                        group.First().TransactionType,
+
+                    Total =
+                        group.Sum(x => x.Amount),
+
+                    Transactions =
+                        group
+                            .OrderByDescending(x => x.Date)
+                            .ToList()
+                })
+
+            .OrderByDescending(x =>
+                Math.Abs(x.Total))
+
+            .ToList();
     }
 
-    private string GetGroupTitle(BankTransaction tx)
-    {
-        var text = tx.Description.ToLowerInvariant();
+    // =====================================
+    // CATEGORY TITLES
+    // =====================================
 
-        if (text.Contains("løn") ||
-            text.Contains("lønoverførsel") ||
-            text.Contains("månedsløn") ||
-            text.Contains("plusløn"))
-        {
-            return "Salary";
-        }
-
-        if (Regex.IsMatch(
-                text,
-                @"(?<![a-zæøå])su(?![a-zæøå])"))
-        {
-            return "SU";
-        }
-
-        if (text.Contains("spotify"))
-            return "Spotify";
-
-        if (text.Contains("netflix"))
-            return "Netflix";
-
-        if (text.Contains("telenor"))
-            return "Telenor";
-
-        if (text.Contains("alka"))
-            return "Alka Forsikring";
-
-        if (text.Contains("nrgi"))
-            return "NRGi";
-
-        if (text.Contains("føtex") ||
-            text.Contains("foetex"))
-            return "Føtex";
-
-        if (text.Contains("netto"))
-            return "Netto";
-
-        if (text.Contains("rema"))
-            return "Rema 1000";
-
-        if (text.Contains("bilka"))
-            return "Bilka";
-
-        if (text.Contains("steam"))
-            return "Steam";
-
-        if (text.Contains("circle k"))
-            return "Circle K";
-
-        if (text.Contains("uno-x"))
-            return "Uno-X";
-
-        return tx.Category.ToString();
-    }
-    private static string GetCategoryTitle(Category category)
+    private static string GetCategoryTitle(
+        Category category)
     {
         return category switch
         {
-            Category.FixedIncome => "Salary",
-            Category.FixedExpenses => "Fixed Expenses",
-            Category.Food => "Supermarket / Food",
-            Category.Transport => "Transport",
-            Category.Shopping => "Shopping",
-            Category.Health => "Health",
-            Category.Housing => "Housing",
-            Category.Entertainment => "Entertainment",
-            Category.Travel => "Travel",
-            Category.Transfer => "Transfers",
-            Category.Bills => "Bills",
-            Category.Savings => "Savings",
-            _ => "Other"
+            Category.Income =>
+                "Income",
+
+            Category.Food =>
+                "Food",
+
+            Category.Transport =>
+                "Transport",
+
+            Category.Shopping =>
+                "Shopping",
+
+            Category.Health =>
+                "Health",
+
+            Category.Housing =>
+                "Housing",
+
+            Category.Entertainment =>
+                "Entertainment",
+
+            Category.Bills =>
+                "Bills",
+
+            Category.Transfer =>
+                "Transfers",
+
+            Category.Savings =>
+                "Savings",
+
+            _ =>
+                "Other"
         };
     }
 }

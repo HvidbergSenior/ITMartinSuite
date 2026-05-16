@@ -4,6 +4,6 @@ namespace ITMartin.Magic.Application.Interfaces;
 
 public interface IScryfallService
 {
-    Task<ScryfallCard?> SearchAsync(
+    Task<CardSearchResult?> SearchAsync(
         CardDetectionResult detection);
 }

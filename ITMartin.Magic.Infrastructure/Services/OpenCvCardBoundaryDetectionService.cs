@@ -56,6 +56,17 @@ public class OpenCvCardBoundaryDetectionService
                 ColorConversionCodes.BGR2GRAY);
 
             // =====================================
+            // STRONGER CONTRAST
+            // =====================================
+
+            using var enhanced =
+                new Mat();
+
+            Cv2.EqualizeHist(
+                gray,
+                enhanced);
+
+            // =====================================
             // BLUR
             // =====================================
 
@@ -63,9 +74,9 @@ public class OpenCvCardBoundaryDetectionService
                 new Mat();
 
             Cv2.GaussianBlur(
-                gray,
+                enhanced,
                 blurred,
-                new OpenCvSharp.Size(5, 5),
+                new OpenCvSharp.Size(7, 7),
                 0);
 
             // =====================================
@@ -78,8 +89,23 @@ public class OpenCvCardBoundaryDetectionService
             Cv2.Canny(
                 blurred,
                 edges,
-                75,
-                200);
+                40,
+                120);
+
+            // =====================================
+            // DILATE
+            // closes contour gaps
+            // =====================================
+
+            using var kernel =
+                Cv2.GetStructuringElement(
+                    MorphShapes.Rect,
+                    new OpenCvSharp.Size(5, 5));
+
+            Cv2.Dilate(
+                edges,
+                edges,
+                kernel);
 
             // =====================================
             // FIND CONTOURS
@@ -113,18 +139,39 @@ public class OpenCvCardBoundaryDetectionService
                         0.02 * perimeter,
                         true);
 
+                // =====================================
+                // MUST HAVE 4 SIDES
+                // =====================================
+
                 if (approx.Length != 4)
                 {
                     continue;
                 }
 
-                var area =
-                    Cv2.ContourArea(approx);
+                // =====================================
+                // MUST BE CONVEX
+                // =====================================
 
-                if (area < 100000)
+                if (!Cv2.IsContourConvex(approx))
                 {
                     continue;
                 }
+
+                // =====================================
+                // AREA
+                // =====================================
+
+                var area =
+                    Cv2.ContourArea(approx);
+
+                if (area < 50000)
+                {
+                    continue;
+                }
+
+                // =====================================
+                // BEST MATCH
+                // =====================================
 
                 if (area > bestArea)
                 {
@@ -133,8 +180,15 @@ public class OpenCvCardBoundaryDetectionService
                 }
             }
 
+            // =====================================
+            // FAIL
+            // =====================================
+
             if (bestQuad == null)
             {
+                Console.WriteLine(
+                    "CARD DETECTION FAILED");
+
                 return null;
             }
 
@@ -180,8 +234,11 @@ public class OpenCvCardBoundaryDetectionService
                 debugPath,
                 debug);
 
+            Console.WriteLine(
+                $"BOUNDARY DEBUG: {debugPath}");
+
             // =====================================
-            // SCALE BACK TO ORIGINAL
+            // SCALE BACK
             // =====================================
 
             var reverseScale =
@@ -211,7 +268,8 @@ public class OpenCvCardBoundaryDetectionService
                         ordered[3],
                         reverseScale),
 
-                DebugImagePath = debugPath
+                DebugImagePath =
+                    debugPath
             };
         });
     }

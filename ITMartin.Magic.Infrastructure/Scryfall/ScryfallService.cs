@@ -22,7 +22,7 @@ public class ScryfallService
         _http = http;
     }
 
-    public async Task<ScryfallCard?> SearchAsync(
+    public async Task<CardSearchResult?> SearchAsync(
         CardDetectionResult detection)
     {
         try
@@ -198,7 +198,27 @@ public class ScryfallService
                 $"[{bestItem.Card.Set}] " +
                 $"#{bestItem.Card.CollectorNumber}");
 
-            return bestItem.Card;
+            return new CardSearchResult
+            {
+                BestMatch = bestItem.Card,
+
+                Matches = scored
+                    .Take(5)
+                    .Select(x => new ScryfallMatch
+                    {
+                        Card = x.Card,
+                        Score = x.Score,
+
+                        ConfidenceLabel =
+                            x.Score switch
+                            {
+                                > 30000 => "Very Likely",
+                                > 15000 => "Likely",
+                                _ => "Possible"
+                            }
+                    })
+                    .ToList()
+            };
         }
         catch (Exception ex)
         {

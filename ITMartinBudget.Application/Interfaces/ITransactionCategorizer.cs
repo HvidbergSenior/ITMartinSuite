@@ -2,7 +2,7 @@
 
 namespace ITMartinBudget.Application.Interfaces;
 
-public interface ITransactionGroupingService
+public interface ITransactionCategorizer
 {
-    string GetGroupingKey(BankTransaction tx);
+    void Categorize(BankTransaction transaction);
 }

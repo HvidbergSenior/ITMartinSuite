@@ -18,7 +18,5 @@ public class CategorySummary
 
     public int TransactionCount { get; set; }
 
-    public TransactionFrequency Frequency { get; set; }
-
     public ExpenseType? ExpenseType { get; set; }
 }

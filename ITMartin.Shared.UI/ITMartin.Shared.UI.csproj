@@ -22,4 +22,11 @@
         <ProjectReference Include="..\ITMartin.Shared.Domain\ITMartin.Shared.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <UpToDateCheckInput Remove="Components\Budget\BudgetCategoryCard.razor" />
+      <UpToDateCheckInput Remove="Components\Budget\BudgetHeader.razor" />
+      <UpToDateCheckInput Remove="Components\Budget\BudgetMainLayout.razor" />
+      <UpToDateCheckInput Remove="Components\Budget\KpiCard.razor" />
+    </ItemGroup>
+
 </Project>

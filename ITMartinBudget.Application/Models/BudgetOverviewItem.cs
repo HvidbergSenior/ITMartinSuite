@@ -13,9 +13,10 @@ public class BudgetOverviewItem
 
     public decimal MonthlyAverage { get; set; }
 
-    public TransactionFrequency Frequency { get; set; }
 
     public TransactionType TransactionType { get; set; }
 
     public List<BankTransaction> Transactions { get; set; } = [];
+    
+    public BudgetGroup BudgetGroup { get; set; }
 }

@@ -35,27 +35,14 @@ builder.Services.AddDbContext<BudgetDbContext>(options =>
 builder.Services.AddScoped<
     IBudgetService,
     BudgetService>();
-
 builder.Services.AddScoped<
-    ITransactionGroupingService,
-    TransactionGroupingService>();
-
-builder.Services.AddScoped<
-    ICategoryService,
-    CategoryService>();
-
-builder.Services.AddScoped<
-    ITransactionProcessor,
-    TransactionProcessor>();
-
+    ITransactionCategorizer,
+    TransactionCategorizer>();
 // =========================
 // IMPORT / RULES
 // =========================
 builder.Services.AddScoped<
     BankTransactionCsvService>();
-
-builder.Services.AddScoped<
-    CategoryRuleStartupService>();
 
 // =========================
 // LOGGING
@@ -80,11 +67,6 @@ using (var scope = app.Services.CreateScope())
 
     db.Database.Migrate();
 
-    var seeder =
-        scope.ServiceProvider
-            .GetRequiredService<CategoryRuleStartupService>();
-
-    await seeder.SeedAsync();
 }
 
 // =========================
