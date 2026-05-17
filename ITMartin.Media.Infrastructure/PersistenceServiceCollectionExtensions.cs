@@ -24,7 +24,13 @@ public static class PersistenceServiceCollectionExtensions
 
         services.AddDbContext<Persistence.MediaDbContext>(options =>
         {
-            options.UseSqlite(connectionString);
+            options.UseSqlite(
+                connectionString,
+                builder =>
+                {
+                    builder.MigrationsAssembly(
+                        typeof(Persistence.MediaDbContext).Assembly.FullName);
+                });
         });
 
         services.AddScoped<IWorkflowCheckpointStore, EfWorkflowCheckpointStore>();

@@ -96,7 +96,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Magic.Application"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Magic.Infrastructure", "ITMartin.Magic.Infrastructure\ITMartin.Magic.Infrastructure.csproj", "{90F4758E-FCEA-4C08-AB69-98E3185C1133}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.FileSorter.Worker", "ITMartin.FileSorter.Worker\ITMartin.FileSorter.Worker.csproj", "{A43FE91A-51AB-4568-9752-FF76944F73DD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinFileSorter.Worker", "ITMartinFileSorter.Worker\ITMartinFileSorter.Worker.csproj", "{A43FE91A-51AB-4568-9752-FF76944F73DD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
