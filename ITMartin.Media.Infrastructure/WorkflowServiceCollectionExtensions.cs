@@ -1,12 +1,11 @@
 ﻿using ITMartin.Media.Application.Abstractions.Orchestration;
-using ITMartin.Media.Application.Orchestration;
 using ITMartin.Media.Application.Workflow;
 using ITMartin.Media.Application.Workflow.Abstractions;
 using ITMartin.Media.Application.Workflow.Steps;
 using ITMartin.Media.Infrastructure.Workers;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ITMartin.Media.Infrastructure.DependencyInjection;
+namespace ITMartin.Media.Infrastructure;
 
 public static class WorkflowServiceCollectionExtensions
 {

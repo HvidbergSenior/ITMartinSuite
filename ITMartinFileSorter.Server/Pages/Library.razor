@@ -1,6 +1,8 @@
 ﻿@page "/library"
 
+@using ITMartin.Media.Domain.Constants
 @using ITMartin.Media.Domain.Entities
+@using ITMartin.Media.Domain.Helpers
 @using ITMartin.Media.Enums
 @using ITMartin.Media.Helpers
 @using ITMartin.Media.Infrastructure.FileSystem
@@ -256,7 +258,7 @@
                     folder,
                     "*.*",
                     SearchOption.AllDirectories)
-                .Count(FileScanner.IsSupportedMedia)
+                .Count(MediaFileHelper.IsSupportedMedia)
         };
     }
 
@@ -264,16 +266,19 @@
     {
         var info = new FileInfo(file);
 
+        var extension =
+            Path.GetExtension(file)
+                .ToLowerInvariant();
+
         var type =
-            FileScanner.IsImage(file)
+            MediaExtensions.ImageExtensions.Contains(extension)
                 ? MediaType.Image
-                : FileScanner.IsVideo(file)
+                : MediaExtensions.VideoExtensions.Contains(extension)
                     ? MediaType.Video
-                    : FileScanner.AudioExtensions.Contains(
-                        Path.GetExtension(file))
+                    : MediaExtensions.AudioExtensions.Contains(extension)
                         ? MediaType.Audio
                         : MediaType.Document;
-
+        
         return new MediaFile(
             file,
             info.LastWriteTimeUtc,

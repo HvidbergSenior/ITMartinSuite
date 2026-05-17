@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Infrastructure.FileSystem;
+﻿using ITMartin.Media.Domain.Constants;
+using ITMartin.Media.Infrastructure.FileSystem;
 using ITMartin.Media.Infrastructure.Videos;
 using ITMartin.Media.Interfaces;
 
@@ -33,7 +34,7 @@ public class MediaDateService : IMediaDateService
         try
         {
             // Images
-            if (FileScanner.ImageExtensions.Contains(ext))
+            if (MediaExtensions.ImageExtensions.Contains(ext))
             {
                 var date = _imageMetadataService.GetCreationTime(path);
                 if (date != null)
@@ -41,7 +42,7 @@ public class MediaDateService : IMediaDateService
             }
 
             // Videos
-            if (FileScanner.VideoExtensions.Contains(ext))
+            if (MediaExtensions.VideoExtensions.Contains(ext))
             {
                 var date = _videoMetadataService.GetCreationTime(path);
                 if (date != null)
@@ -49,7 +50,7 @@ public class MediaDateService : IMediaDateService
             }
 
             // Documents
-            if (FileScanner.DocumentExtensions.Contains(ext))
+            if (MediaExtensions.DocumentExtensions.Contains(ext))
             {
                 var date = _documentMetadataService.GetCreationTime(path);
                 if (date != null)

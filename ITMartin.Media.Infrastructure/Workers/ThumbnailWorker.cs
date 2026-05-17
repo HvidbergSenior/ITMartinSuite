@@ -2,8 +2,8 @@
 using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
 using ITMartin.Media.Application.Abstractions.Strategies;
-using ITMartin.Media.Application.BackgroundJobs.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace ITMartin.Media.Infrastructure.Workers;
 

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
 
 namespace ITMartin.Media.Infrastructure.BackgroundJobs;
 

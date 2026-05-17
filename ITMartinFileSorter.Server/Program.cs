@@ -319,39 +319,24 @@ app.MapRazorComponents<App>()
 app.MapGet(
     "/api/scan-preview",
     (IFileScanner scanner) =>
-{
-    var results =
-        scanner
-            .ScanFolder(
-                @"C:\FileSorterTests\Test1_Source")
-            .Take(50)
-            .Select(x =>
-                new AiScanResultViewModel
-                {
-                    FullPath =
-                        x.FullPath,
+    {
+        var results =
+            scanner
+                .EnumerateFiles(
+                    @"C:\FileSorterTests\Test1_Source")
+                .Take(50)
+                .Select(path =>
+                    new AiScanResultViewModel
+                    {
+                        FullPath = path,
 
-                    FileName =
-                        Path.GetFileName(
-                            x.FullPath),
+                        FileName =
+                            Path.GetFileName(path)
+                    })
+                .ToList();
 
-                    OcrText =
-                        x.OcrText,
-
-                    AiDescription =
-                        x.AiDescription,
-
-                    AiTags =
-                        x.AiTags,
-
-                    AiConfidence =
-                        x.AiConfidence ?? 0
-                })
-            .ToList();
-
-    return Results.Ok(results);
-});
-
+        return Results.Ok(results);
+    });
 // =========================
 // THUMBNAILS
 // KEEP FOR PACKAGE 2

@@ -1,5 +1,6 @@
 ﻿@page "/viewer"
 
+@using ITMartin.Media.Domain.Helpers
 @using ITMartin.Media.Infrastructure.FileSystem
 @using Microsoft.AspNetCore.WebUtilities
 
@@ -163,7 +164,7 @@
 
         Playlist = Directory
             .EnumerateFiles(FolderPath)
-            .Where(FileScanner.IsSupportedMedia)
+            .Where(MediaFileHelper.IsSupportedMedia)
             .OrderBy(x => x)
             .ToList();
 
@@ -220,7 +221,7 @@
             $"/libraryfiles/{relative}";
 
         IsVideo =
-            FileScanner.IsVideo(FilePath);
+            MediaFileHelper.IsSupportedMedia(FilePath);
 
         Logger.LogInformation(
             "Viewing file {File}",

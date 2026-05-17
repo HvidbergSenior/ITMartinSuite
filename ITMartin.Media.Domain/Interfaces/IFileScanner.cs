@@ -1,9 +1,7 @@
-﻿using ITMartin.Media.Domain.Enums;
+﻿using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Domain.Enums;
 
-namespace ITMartin.Media.Interfaces;
-
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Enums;
+namespace ITMartin.Media.Domain.Interfaces;
 
 public interface IFileScanner
 {
