@@ -96,6 +96,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Magic.Application"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Magic.Infrastructure", "ITMartin.Magic.Infrastructure\ITMartin.Magic.Infrastructure.csproj", "{90F4758E-FCEA-4C08-AB69-98E3185C1133}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.FileSorter.Worker", "ITMartin.FileSorter.Worker\ITMartin.FileSorter.Worker.csproj", "{A43FE91A-51AB-4568-9752-FF76944F73DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -277,5 +279,9 @@ Global
 		{90F4758E-FCEA-4C08-AB69-98E3185C1133}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90F4758E-FCEA-4C08-AB69-98E3185C1133}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90F4758E-FCEA-4C08-AB69-98E3185C1133}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A43FE91A-51AB-4568-9752-FF76944F73DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A43FE91A-51AB-4568-9752-FF76944F73DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A43FE91A-51AB-4568-9752-FF76944F73DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A43FE91A-51AB-4568-9752-FF76944F73DD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

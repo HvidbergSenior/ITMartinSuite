@@ -1,5 +1,4 @@
 using ITMartin.IndexServer.Components;
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
