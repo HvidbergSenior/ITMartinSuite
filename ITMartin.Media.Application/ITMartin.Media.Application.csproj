@@ -7,13 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Pipelines\" />
-      <Folder Include="Processors\" />
+      <ProjectReference Include="..\ITMartin.Media.Domain\ITMartin.Media.Domain.csproj" />
+      <ProjectReference Include="..\ITMartin.OCR\ITMartin.OCR.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ITMartin.Media.Domain\ITMartin.Media.Domain.csproj" />
-      <ProjectReference Include="..\ITMartin.OCR\ITMartin.OCR.csproj" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
     </ItemGroup>
 
 </Project>

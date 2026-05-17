@@ -1,17 +1,20 @@
-﻿using ITMartin.Media.Domain.Entities;
+﻿using ITMartin.Media.Domain.Enums;
 
 namespace ITMartin.Media.Interfaces;
 
+using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Enums;
+
 public interface IFileScanner
 {
-    // 🔹 Fast path discovery (no heavy work)
-    IEnumerable<string> EnumerateFiles(string rootPath);
-
-    // 🔹 Process a single file (parallel-safe)
-    MediaFile? ProcessFile(string path);
-
-    // 🔹 Legacy / compatibility (optional)
-    IEnumerable<MediaFile> ScanFolder(
+    Task<IEnumerable<string>> ScanAsync(
         string rootPath,
-        Action<int, string>? onProgress = null);
+        CancellationToken cancellationToken);
+
+    IEnumerable<string> EnumerateFiles(
+        string rootPath);
+
+    MediaFile? ProcessFile(
+        string path,
+        ScanMode scanMode);
 }

@@ -1,0 +1,12 @@
+﻿using ITMartin.Media.Domain.Entities;
+
+namespace ITMartin.Media.Application.Interfaces;
+
+public interface ILibraryExportService
+{
+    Task ExportAsync(
+        IEnumerable<MediaFile> files,
+        string root,
+        Func<int, int, string, string, Task>?
+            progress);
+}

@@ -1,4 +1,5 @@
 ﻿using System.Security.Cryptography;
+using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Interfaces;
 
 namespace ITMartin.Media.Infrastructure.Hashing;

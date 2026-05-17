@@ -1,28 +1,33 @@
+using ITMartin.Media.Application.Interfaces;
+using ITMartin.Media.Application.Pipelines;
+using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure;
-using ITMartin.Media.Infrastructure.Ai;
+using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Interfaces;
-using ITMartinFileSorter.Application.Services;
-using ITMartinFileSorter.Server;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.FileProviders;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
+using ITMartinFileSorter.Application.Services;
+using ITMartinFileSorter.Server;
 using Microsoft.AspNetCore.Components;
-using ITMartin.Media.Infrastructure;
-using ITMartin.Media.Infrastructure.Services;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================
 // BLAZOR
 // =========================
-builder.Services.AddRazorComponents()
+
+builder.Services
+    .AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddServerSideBlazor()
+builder.Services
+    .AddServerSideBlazor()
     .AddCircuitOptions(options =>
     {
         options.DetailedErrors = true;
@@ -31,66 +36,109 @@ builder.Services.AddServerSideBlazor()
 // =========================
 // MEDIA PLATFORM
 // =========================
+
 builder.Services.AddMediaInfrastructure(
     builder.Configuration);
-builder.Services.AddScoped<
-    IImageConverterService,
-    ImageConverterService>();
 
-builder.Services.AddScoped<
-    IVideoConverterService,
-    VideoConverterService>();
-
-builder.Services.AddScoped<
-    IImageBatchService,
-    ImageBatchService>();
-
-builder.Services.AddScoped<
-    IVideoBatchService,
-    VideoBatchService>();
-builder.Services.AddScoped<IMediaNamingService,
-    MediaNamingService>();
-builder.Services.AddScoped<
-    IMediaNormalizationService,
-    MediaNormalizationService>();
-builder.Services.AddSingleton<
-    IOcrService,
-    OcrService>();
-builder.Services.AddScoped<
-    IAiCollectionService,
-    AiCollectionService>();
-builder.Services.AddScoped<
-    IAiCacheService,
-    SqliteAiCacheService>();
-builder.Services.AddScoped<
-    IMediaOcrService,
-    MediaOcrService>();
 // =========================
-// APP SERVICES
+// PIPELINES
 // =========================
+
+builder.Services.AddScoped<
+    Package1ScanPipeline>();
+
+builder.Services.AddScoped<
+    Package1ExportPipeline>();
+
+builder.Services.AddScoped<
+    Package1Pipeline>();
+
+// =========================
+// DUPLICATES
+// =========================
+
+builder.Services.AddScoped<
+    IDuplicateService,
+    DuplicateService>();
+
+// =========================
+// EXPORT
+// =========================
+
+builder.Services.AddScoped<
+    ILibraryExportService,
+    LibraryExportService>();
+
+// =========================
+// UI / WORKFLOW
+// =========================
+
+builder.Services.AddScoped<
+    ProgressService>();
+
 builder.Services.AddScoped(sp =>
 {
     var navigation =
-        sp.GetRequiredService<NavigationManager>();
+        sp.GetRequiredService<
+            NavigationManager>();
 
     return new HttpClient
     {
         BaseAddress =
-            new Uri(navigation.BaseUri)
+            new Uri(
+                navigation.BaseUri)
     };
 });
-builder.Services.AddScoped<DuplicateService>();
-builder.Services.AddScoped<ProgressService>();
-builder.Services.AddScoped<HomeLocationService>();
-builder.Services.AddScoped<LibraryExportService>();
-builder.Services.AddScoped<FolderPathInfoService>();
+
+// =========================
+// AI
+// KEEP FOR PACKAGE 2
+// =========================
+
 builder.Services.AddScoped<
     IMediaVisionService,
     MediaVisionService>();
+
+builder.Services.AddScoped<
+    IAiCollectionService,
+    AiCollectionService>();
+
+builder.Services.AddScoped<
+    IAiCacheService,
+    SqliteAiCacheService>();
+
+builder.Services.AddScoped<
+    IMediaOcrService,
+    MediaOcrService>();
+
+// =========================
+// OCR
+// KEEP FOR PACKAGE 2
+// =========================
+
+builder.Services.AddSingleton<
+    IOcrService,
+    OcrService>();
+
+
+// =========================
+// NAMING
+// =========================
+
+builder.Services.AddScoped<
+    IMediaNamingService,
+    MediaNamingService>();
+
 // =========================
 // CONTROLLERS
 // =========================
+
 builder.Services.AddControllers();
+
+// =========================
+// SQLITE
+// =========================
+
 var dataFolder =
     @"C:\FileSorterData";
 
@@ -108,17 +156,21 @@ builder.Services.AddDbContextFactory<
     options.UseSqlite(
         $"Data Source={dbPath}");
 });
+
 // =========================
 // BUILD
 // =========================
+
 var app = builder.Build();
 
 // =========================
 // ERROR HANDLING
 // =========================
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler(
+        "/Error");
 }
 
 // =========================
@@ -133,7 +185,8 @@ app.UseStaticFiles();
 // =========================
 
 var libraryPath =
-    builder.Configuration["MediaSettings:LibraryRoot"];
+    builder.Configuration[
+        "MediaSettings:LibraryRoot"];
 
 var provider =
     new FileExtensionContentTypeProvider();
@@ -141,117 +194,206 @@ var provider =
 // =========================
 // VIDEO
 // =========================
-provider.Mappings[".mp4"] = "video/mp4";
-provider.Mappings[".MP4"] = "video/mp4";
 
-provider.Mappings[".mov"] = "video/quicktime";
-provider.Mappings[".MOV"] = "video/quicktime";
+provider.Mappings[".mp4"] =
+    "video/mp4";
 
-provider.Mappings[".mkv"] = "video/x-matroska";
-provider.Mappings[".MKV"] = "video/x-matroska";
+provider.Mappings[".MP4"] =
+    "video/mp4";
+
+provider.Mappings[".mov"] =
+    "video/quicktime";
+
+provider.Mappings[".MOV"] =
+    "video/quicktime";
+
+provider.Mappings[".mkv"] =
+    "video/x-matroska";
+
+provider.Mappings[".MKV"] =
+    "video/x-matroska";
 
 // =========================
 // IMAGES
 // =========================
-provider.Mappings[".jpg"] = "image/jpeg";
-provider.Mappings[".jpeg"] = "image/jpeg";
-provider.Mappings[".png"] = "image/png";
-provider.Mappings[".webp"] = "image/webp";
-provider.Mappings[".gif"] = "image/gif";
 
-provider.Mappings[".JPG"] = "image/jpeg";
-provider.Mappings[".JPEG"] = "image/jpeg";
-provider.Mappings[".PNG"] = "image/png";
-provider.Mappings[".WEBP"] = "image/webp";
-provider.Mappings[".GIF"] = "image/gif";
+provider.Mappings[".jpg"] =
+    "image/jpeg";
+
+provider.Mappings[".jpeg"] =
+    "image/jpeg";
+
+provider.Mappings[".png"] =
+    "image/png";
+
+provider.Mappings[".webp"] =
+    "image/webp";
+
+provider.Mappings[".gif"] =
+    "image/gif";
+
+provider.Mappings[".JPG"] =
+    "image/jpeg";
+
+provider.Mappings[".JPEG"] =
+    "image/jpeg";
+
+provider.Mappings[".PNG"] =
+    "image/png";
+
+provider.Mappings[".WEBP"] =
+    "image/webp";
+
+provider.Mappings[".GIF"] =
+    "image/gif";
 
 // =========================
 // MODERN / IPHONE
 // =========================
-provider.Mappings[".heic"] = "image/heic";
-provider.Mappings[".HEIC"] = "image/heic";
 
-provider.Mappings[".avif"] = "image/avif";
-provider.Mappings[".AVIF"] = "image/avif";
+provider.Mappings[".heic"] =
+    "image/heic";
+
+provider.Mappings[".HEIC"] =
+    "image/heic";
+
+provider.Mappings[".avif"] =
+    "image/avif";
+
+provider.Mappings[".AVIF"] =
+    "image/avif";
 
 // =========================
 // STATIC LIBRARY FILES
 // =========================
-if (!string.IsNullOrWhiteSpace(libraryPath) &&
-    Directory.Exists(libraryPath))
+
+if (!string.IsNullOrWhiteSpace(
+        libraryPath) &&
+    Directory.Exists(
+        libraryPath))
 {
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider =
-            new PhysicalFileProvider(libraryPath),
-
-        RequestPath =
-            "/libraryfiles",
-
-        ContentTypeProvider =
-            provider,
-
-        OnPrepareResponse = ctx =>
+    app.UseStaticFiles(
+        new StaticFileOptions
         {
-            const int duration =
-                60 * 60 * 24 * 30;
+            FileProvider =
+                new PhysicalFileProvider(
+                    libraryPath),
 
-            ctx.Context.Response.Headers.Append(
-                "Cache-Control",
-                $"public,max-age={duration}");
-        }
-    });
+            RequestPath =
+                "/libraryfiles",
+
+            ContentTypeProvider =
+                provider,
+
+            OnPrepareResponse = ctx =>
+            {
+                const int duration =
+                    60 * 60 * 24 * 30;
+
+                ctx.Context
+                    .Response
+                    .Headers
+                    .Append(
+                        "Cache-Control",
+                        $"public,max-age={duration}");
+            }
+        });
 }
 
 // =========================
 // PIPELINE
 // =========================
+
 app.UseAntiforgery();
 
 app.MapControllers();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-app.MapGet("/api/scan-preview", (
-    IFileScanner scanner) =>
+
+// =========================
+// TEST ENDPOINT
+// KEEP FOR NOW
+// =========================
+
+app.MapGet(
+    "/api/scan-preview",
+    (IFileScanner scanner) =>
 {
     var results =
-        scanner.ScanFolder(
+        scanner
+            .ScanFolder(
                 @"C:\FileSorterTests\Test1_Source")
             .Take(50)
-            .Select(x => new AiScanResultViewModel
-            {
-                FullPath = x.FullPath,
-                FileName = Path.GetFileName(x.FullPath),
-                OcrText = x.OcrText,
-                AiDescription = x.AiDescription,
-                AiTags = x.AiTags,
-                AiConfidence = x.AiConfidence ?? 0
-            })
+            .Select(x =>
+                new AiScanResultViewModel
+                {
+                    FullPath =
+                        x.FullPath,
+
+                    FileName =
+                        Path.GetFileName(
+                            x.FullPath),
+
+                    OcrText =
+                        x.OcrText,
+
+                    AiDescription =
+                        x.AiDescription,
+
+                    AiTags =
+                        x.AiTags,
+
+                    AiConfidence =
+                        x.AiConfidence ?? 0
+                })
             .ToList();
 
     return Results.Ok(results);
 });
 
-app.MapGet("/thumbnail", (
-    string path) =>
+// =========================
+// THUMBNAILS
+// KEEP FOR PACKAGE 2
+// =========================
+
+app.MapGet(
+    "/thumbnail",
+    (string path) =>
 {
     if (!System.IO.File.Exists(path))
+    {
         return Results.NotFound();
+    }
 
-    var ext = Path.GetExtension(path);
+    var ext =
+        Path.GetExtension(path);
 
     var contentType =
         ext.ToLower() switch
         {
-            ".jpg" => "image/jpeg",
-            ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => "application/octet-stream"
+            ".jpg" =>
+                "image/jpeg",
+
+            ".jpeg" =>
+                "image/jpeg",
+
+            ".png" =>
+                "image/png",
+
+            ".gif" =>
+                "image/gif",
+
+            ".webp" =>
+                "image/webp",
+
+            _ =>
+                "application/octet-stream"
         };
 
-    return Results.File(path, contentType);
+    return Results.File(
+        path,
+        contentType);
 });
+
 app.Run();

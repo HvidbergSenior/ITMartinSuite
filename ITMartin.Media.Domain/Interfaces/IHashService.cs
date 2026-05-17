@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Interfaces;
+﻿namespace ITMartin.Media.Domain.Interfaces;
 
 public interface IHashService
 {
