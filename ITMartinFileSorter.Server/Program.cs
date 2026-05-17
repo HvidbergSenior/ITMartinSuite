@@ -11,11 +11,12 @@ using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using ITMartinFileSorter.Application.Services;
 using ITMartinFileSorter.Server;
+using ITMartinFileSorter.Server.Endpoints;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-
+using ITMartin.Media.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================
@@ -156,13 +157,13 @@ builder.Services.AddDbContextFactory<
     options.UseSqlite(
         $"Data Source={dbPath}");
 });
-
+builder.Services.AddMediaPersistence(builder.Configuration);
 // =========================
 // BUILD
 // =========================
 
 var app = builder.Build();
-
+app.MapTestEndpoints();
 // =========================
 // ERROR HANDLING
 // =========================
