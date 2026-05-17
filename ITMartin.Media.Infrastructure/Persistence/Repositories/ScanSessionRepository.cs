@@ -1,4 +1,5 @@
 ﻿using ITMartin.Media.Application.Abstractions.Scanning;
+using ITMartin.Media.Application.Models.Scanning;
 using ITMartin.Media.Domain.Entities;
 
 namespace ITMartin.Media.Infrastructure.Persistence.Repositories;

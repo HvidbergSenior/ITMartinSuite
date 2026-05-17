@@ -1,6 +1,6 @@
-﻿namespace ITMartin.Media.Infrastructure.Persistence.Entities;
+﻿namespace ITMartin.Media.Application.Models.Scanning;
 
-public sealed class ScanSessionEntity
+public sealed class ScanSession
 {
     public Guid Id { get; set; }
 

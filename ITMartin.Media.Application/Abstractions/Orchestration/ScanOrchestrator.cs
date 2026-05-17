@@ -1,11 +1,10 @@
 ﻿using ITMartin.Media.Application.Abstractions.Events;
-using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Events.Scanning;
 using ITMartin.Media.Application.Models.Scan;
-using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Application.Models.Scanning;
 
-namespace ITMartin.Media.Application.Orchestration;
+namespace ITMartin.Media.Application.Abstractions.Orchestration;
 
 public sealed class ScanOrchestrator : IScanOrchestrator
 {
@@ -29,7 +28,7 @@ public sealed class ScanOrchestrator : IScanOrchestrator
             Id = Guid.NewGuid(),
             RootPath = request.RootPath,
             Status = "Running",
-            StartedAt = DateTimeOffset.UtcNow
+            StartedAtUtc = DateTimeOffset.UtcNow
         };
 
         await _repository.CreateAsync(session, cancellationToken);

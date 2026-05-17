@@ -3,17 +3,17 @@ using ITMartin.Media.Domain.Entities;
 
 namespace ITMartin.Media.Application.Abstractions.Scanning;
 
-public interface IScanSessionRepository
+public interface IScanSessionStore
 {
     Task CreateAsync(
         ScanSession session,
-        CancellationToken cancellationToken);
-
-    Task<ScanSession?> GetAsync(
-        Guid id,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken = default);
 
     Task UpdateAsync(
         ScanSession session,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken = default);
+
+    Task<ScanSession?> GetAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }
