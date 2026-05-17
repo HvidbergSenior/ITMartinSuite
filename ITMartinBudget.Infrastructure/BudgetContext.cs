@@ -29,8 +29,7 @@ public class BudgetDbContext : DbContext
                 x.Date,
                 x.Amount,
                 x.NormalizedDescription
-            })
-            .IsUnique();
+            });
 
         // =====================================
         // TRANSACTION CONFIG

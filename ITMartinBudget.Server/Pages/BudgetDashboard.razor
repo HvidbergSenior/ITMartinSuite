@@ -45,10 +45,10 @@
         <div class="kpi-card kpi-income">
 
             <div class="kpi-label">
-                Total Money In
+                All Money In
             </div>
 
-            <div class="kpi-value">
+            <div class="kpi-value positive">
                 @Format(_totals?.Income)
             </div>
 
@@ -57,11 +57,11 @@
         <div class="kpi-card kpi-expense">
 
             <div class="kpi-label">
-                Total Money Out
+                All Money Out
             </div>
 
-            <div class="kpi-value">
-                @Format(Math.Abs(_totals?.Expenses ?? 0))
+            <div class="kpi-value negative">
+                @Format(_totals?.Expenses)
             </div>
 
         </div>
@@ -69,7 +69,7 @@
         <div class="kpi-card kpi-net">
 
             <div class="kpi-label">
-                Net Cashflow
+                Net Bank Movement
             </div>
 
             <div class="kpi-value">
@@ -78,77 +78,246 @@
 
         </div>
 
+        <div class="kpi-card kpi-real-expense">
+
+            <div class="kpi-label">
+                Real Spending
+            </div>
+
+            <div class="kpi-value negative">
+                @Format(
+                    FixedExpenseItems.Sum(x => x.Total)
+                    + VariableExpenseItems.Sum(x => x.Total))
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- RECONCILIATION -->
+
+    <div class="reconciliation-box">
+
+        <div class="reconciliation-title">
+            How totals are calculated
+        </div>
+
+        <div class="reconciliation-line income">
+
+            <div>
+                Real Income
+            </div>
+
+            <div>
+                @Format(
+                    FixedIncomeItems.Sum(x => x.Total)
+                    + VariableIncomeItems.Sum(x => x.Total)
+                    + GiftIncomeItems.Sum(x => x.Total))
+            </div>
+
+        </div>
+
+        <div class="reconciliation-line transfer">
+
+            <div>
+                Incoming Transfers
+            </div>
+
+            <div>
+                @Format(
+                    TransferItems
+                        .Where(x => x.Total > 0)
+                        .Sum(x => x.Total))
+            </div>
+
+        </div>
+
+        <div class="reconciliation-line total">
+
+            <div>
+                = All Money In
+            </div>
+
+            <div>
+                @Format(_totals?.Income)
+            </div>
+
+        </div>
+
+        <hr />
+
+        <div class="reconciliation-line expense">
+
+            <div>
+                Real Expenses
+            </div>
+
+            <div>
+                @Format(
+                    FixedExpenseItems.Sum(x => x.Total)
+                    + VariableExpenseItems.Sum(x => x.Total))
+            </div>
+
+        </div>
+
+        <div class="reconciliation-line transfer">
+
+            <div>
+                Outgoing Transfers
+            </div>
+
+            <div>
+                @Format(
+                    TransferItems
+                        .Where(x => x.Total < 0)
+                        .Sum(x => x.Total))
+            </div>
+
+        </div>
+
+        <div class="reconciliation-line total">
+
+            <div>
+                = All Money Out
+            </div>
+
+            <div>
+                @Format(_totals?.Expenses)
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- DEBUG SECTION -->
+
+    <div class="reconciliation-box">
+
+        <div class="reconciliation-title">
+            Transactions Using Fallback Rules
+        </div>
+
+        @foreach (var tx in _transactions
+
+                     .Where(x =>
+
+                         x.Title == "Variable Income"
+                         ||
+
+                         x.Title == "Variable Expense")
+
+                     .OrderByDescending(x =>
+                         Math.Abs(x.Amount)))
+        {
+            <div class="reconciliation-line">
+
+                <div>
+
+                    <strong>
+                        @tx.Description
+                    </strong>
+
+                    <br />
+
+                    <small>
+                        @tx.BudgetGroup
+                    </small>
+
+                </div>
+
+                <div>
+                    @Format(tx.Amount)
+                </div>
+
+            </div>
+        }
+
     </div>
 
     <!-- DASHBOARD -->
 
-    <div class="dashboard-grid">
+    <div class="dashboard-wrapper">
 
         <!-- INCOME -->
 
-        <div class="dashboard-column">
+        <div class="dashboard-group income-group">
 
-            <div class="column-title income">
+            <div class="group-header income">
                 Income
             </div>
 
-            @Card(
-                "fixed-income",
-                "Salary / Fixed Income",
-                FixedIncomeItems.Sum(x => x.Total),
-                "Recurring income")
+            <div class="group-grid">
 
-            @Card(
-                "other-income",
-                "Variable Income",
-                VariableIncomeItems.Sum(x => x.Total),
-                "Extra income")
+                @Card(
+                    "fixed-income",
+                    "Salary / Fixed Income",
+                    FixedIncomeItems.Sum(x => x.Total),
+                    "Recurring income")
 
-            @Card(
-                "gift-income",
-                "Money Gifts",
-                GiftIncomeItems
-                    .Where(x => x.Total > 0)
-                    .Sum(x => x.Total),
-                "Family / reimbursements")
+                @Card(
+                    "other-income",
+                    "Variable Income",
+                    VariableIncomeItems.Sum(x => x.Total),
+                    "Extra income")
+
+                @Card(
+                    "gift-income",
+                    "Money Gifts",
+                    GiftIncomeItems.Sum(x => x.Total),
+                    "Family / reimbursements")
+
+            </div>
 
         </div>
 
         <!-- EXPENSES -->
 
-        <div class="dashboard-column">
+        <div class="dashboard-group expense-group">
 
-            <div class="column-title expense">
+            <div class="group-header expense">
                 Expenses
             </div>
 
-            @Card(
-                "fixed-expenses",
-                "Fixed Expenses",
-                Math.Abs(FixedExpenseItems.Sum(x => x.Total)),
-                "Recurring bills")
+            <div class="group-grid">
 
-            @Card(
-                "other-expenses",
-                "Variable Expenses",
-                Math.Abs(VariableExpenseItems.Sum(x => x.Total)),
-                "Food / shopping / life")
+                @Card(
+                    "fixed-expenses",
+                    "Fixed Expenses",
+                    FixedExpenseItems.Sum(x => x.Total),
+                    "Recurring bills")
+
+                @Card(
+                    "other-expenses",
+                    "Variable Expenses",
+                    VariableExpenseItems.Sum(x => x.Total),
+                    "Food / shopping / life")
+
+            </div>
 
         </div>
 
-        <!-- OTHER -->
+        <!-- TRANSFERS -->
 
-        <div class="dashboard-column">
+        <div class="dashboard-group other-group">
 
-            <div class="column-title neutral">
-                Other
+            <div class="group-header neutral">
+                Transfers & Savings
             </div>
 
-            @Card(
-                "transfers",
-                "Transfers Between Own Accounts",
-                Math.Abs(TransferItems.Sum(x => x.Total)),
-                "Savings / internal movements")
+            <div class="transfer-help">
+                These are movements between your own accounts.
+                They affect bank balance but are not real spending.
+            </div>
+
+            <div class="group-grid">
+
+                @Card(
+                    "transfers",
+                    "Transfers Between Own Accounts",
+                    TransferItems.Sum(x => x.Total),
+                    "Savings / internal movements")
+
+            </div>
 
         </div>
 
@@ -159,38 +328,32 @@
     @Section(
         "fixed-income",
         "Fixed Income",
-        FixedIncomeItems,
-        true)
+        FixedIncomeItems)
 
     @Section(
         "other-income",
         "Variable Income",
-        VariableIncomeItems,
-        true)
+        VariableIncomeItems)
 
     @Section(
         "gift-income",
         "Money Gifts",
-        GiftIncomeItems,
-        true)
+        GiftIncomeItems)
 
     @Section(
         "fixed-expenses",
         "Fixed Expenses",
-        FixedExpenseItems,
-        false)
+        FixedExpenseItems)
 
     @Section(
         "other-expenses",
         "Variable Expenses",
-        VariableExpenseItems,
-        false)
+        VariableExpenseItems)
 
     @Section(
         "transfers",
         "Transfers Between Own Accounts",
-        TransferItems,
-        false)
+        TransferItems)
 
 </div>
 
@@ -203,10 +366,6 @@
     private YearSummary? _totals;
 
     private string? _openCategory = "fixed-expenses";
-
-    // =====================================
-    // GROUPS
-    // =====================================
 
     private IEnumerable<BudgetOverviewItem> FixedIncomeItems =>
         _overview.Where(x =>
@@ -237,10 +396,6 @@
         _overview.Where(x =>
             x.BudgetGroup ==
             BudgetGroup.InternalTransfer);
-
-    // =====================================
-    // INIT
-    // =====================================
 
     protected override async Task OnInitializedAsync()
     {
@@ -274,10 +429,6 @@
             .GetYearTotals(all, latestYear);
     }
 
-    // =====================================
-    // UI
-    // =====================================
-
     private void Toggle(string key)
     {
         _openCategory =
@@ -292,10 +443,6 @@
     private string Format(decimal? value)
         => value?.ToString("N2") + " kr."
            ?? "-";
-
-    // =====================================
-    // CARD
-    // =====================================
 
     private RenderFragment Card(
         string key,
@@ -326,8 +473,16 @@
             builder.CloseElement();
 
             builder.OpenElement(seq++, "div");
-            builder.AddAttribute(seq++, "class", "summary-value");
-            builder.AddContent(seq++, Format(Math.Abs(total)));
+
+            builder.AddAttribute(
+                seq++,
+                "class",
+                total >= 0
+                    ? "summary-value positive"
+                    : "summary-value negative");
+
+            builder.AddContent(seq++, Format(total));
+
             builder.CloseElement();
 
             builder.OpenElement(seq++, "div");
@@ -338,15 +493,10 @@
             builder.CloseElement();
         };
 
-    // =====================================
-    // SECTION
-    // =====================================
-
     private RenderFragment Section(
         string key,
         string title,
-        IEnumerable<BudgetOverviewItem> items,
-        bool income)
+        IEnumerable<BudgetOverviewItem> items)
         => builder =>
         {
             if (!IsOpen(key))
@@ -410,13 +560,13 @@
                 builder.AddAttribute(
                     seq++,
                     "class",
-                    income
-                        ? "category-total income"
-                        : "category-total expense");
+                    item.Total >= 0
+                        ? "category-total positive"
+                        : "category-total negative");
 
                 builder.AddContent(
                     seq++,
-                    Format(Math.Abs(item.Total)));
+                    Format(item.Total));
 
                 builder.CloseElement();
 
@@ -463,13 +613,13 @@
                     builder.AddAttribute(
                         seq++,
                         "class",
-                        income
-                            ? "transaction-amount income"
-                            : "transaction-amount expense");
+                        tx.Amount >= 0
+                            ? "transaction-amount positive"
+                            : "transaction-amount negative");
 
                     builder.AddContent(
                         seq++,
-                        Format(Math.Abs(tx.Amount)));
+                        Format(tx.Amount));
 
                     builder.CloseElement();
 
@@ -481,10 +631,6 @@
 
             builder.CloseElement();
         };
-
-    // =====================================
-    // RESET
-    // =====================================
 
     private void ResetData()
     {

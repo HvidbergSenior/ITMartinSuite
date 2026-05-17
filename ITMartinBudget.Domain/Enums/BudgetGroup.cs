@@ -7,7 +7,7 @@ public enum BudgetGroup
 
     FixedExpense,
     VariableExpense,
-
+    CompanyExpense,
     InternalTransfer,
     Savings,
 

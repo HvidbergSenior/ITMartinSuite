@@ -7,7 +7,6 @@ public static class TransactionRules
 {
     public static readonly List<TransactionRule> Rules =
     [
-
         // =====================================
         // FIXED INCOME
         // =====================================
@@ -85,6 +84,23 @@ public static class TransactionRules
             BudgetGroup = BudgetGroup.VariableIncome
         },
 
+        new()
+        {
+            Pattern = "foedevarecheck",
+            Title = "Government Support",
+            Category = Category.Income,
+            BudgetGroup = BudgetGroup.VariableIncome
+        },
+
+        new()
+        {
+            Pattern = "danmark",
+            Title = "Insurance Reimbursement",
+            Category = Category.Income,
+            BudgetGroup = BudgetGroup.VariableIncome,
+            TransactionType = TransactionType.Indkomst
+        },
+
         // =====================================
         // MONEY GIFTS / PRIVATE TRANSFERS
         // =====================================
@@ -108,6 +124,24 @@ public static class TransactionRules
         // =====================================
         // INTERNAL TRANSFERS
         // =====================================
+
+        new()
+        {
+            Pattern = "til 7633 8119308",
+            Title = "Aldersopsparing",
+            Category = Category.Savings,
+            BudgetGroup = BudgetGroup.InternalTransfer,
+            IsRecurring = true
+        },
+
+        new()
+        {
+            Pattern = "til 7633 0008318157",
+            Title = "Ratepension",
+            Category = Category.Savings,
+            BudgetGroup = BudgetGroup.InternalTransfer,
+            IsRecurring = true
+        },
 
         new()
         {
@@ -145,6 +179,78 @@ public static class TransactionRules
         {
             Pattern = "mobilepay julius hvidberg",
             Title = "Family Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "mob pay julius hvidberg",
+            Title = "Family Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "mob pay bent moller",
+            Title = "Family Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "mob pay christian birkefe",
+            Title = "Family Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "vdk mob pay dorthe moller joh",
+            Title = "Family Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "vdk mob pay bertil hvidberg j",
+            Title = "Family Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "vdk mob pay eigil hvidberg jo",
+            Title = "Family Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "9490 71557243",
+            Title = "Internal Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "til 7633",
+            Title = "Internal Bank Transfer",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
+        },
+
+        new()
+        {
+            Pattern = "overfoersel",
+            Title = "Transfer",
             Category = Category.Transfer,
             BudgetGroup = BudgetGroup.InternalTransfer
         },
@@ -204,7 +310,17 @@ public static class TransactionRules
             Title = "Alka Forsikring",
             Category = Category.Bills,
             BudgetGroup = BudgetGroup.FixedExpense,
+            TransactionType = TransactionType.Udgift,
             IsRecurring = true
+        },
+
+        new()
+        {
+            Pattern = "alka",
+            Title = "Insurance Refund",
+            Category = Category.Income,
+            BudgetGroup = BudgetGroup.VariableIncome,
+            TransactionType = TransactionType.Indkomst
         },
 
         new()
@@ -263,6 +379,24 @@ public static class TransactionRules
 
         new()
         {
+            Pattern = "3f kontingent",
+            Title = "Union",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense,
+            IsRecurring = true
+        },
+
+        new()
+        {
+            Pattern = "fagligt faelles forbund",
+            Title = "Union",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense,
+            IsRecurring = true
+        },
+
+        new()
+        {
             Pattern = "jyske realkredit",
             Title = "Jyske Realkredit",
             Category = Category.Housing,
@@ -299,20 +433,55 @@ public static class TransactionRules
 
         new()
         {
-            Pattern = "boliglaan",
-            Title = "Boliglån",
-            Category = Category.Housing,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
+            Pattern = "ejendomsskat",
+            Title = "Property Tax",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense
         },
 
         new()
         {
-            Pattern = "huslaan",
-            Title = "Huslån",
-            Category = Category.Housing,
+            Pattern = "personskatter",
+            Title = "Taxes",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense
+        },
+
+        new()
+        {
+            Pattern = "parcelforening",
+            Title = "Parcelforening",
+            Category = Category.Bills,
             BudgetGroup = BudgetGroup.FixedExpense,
             IsRecurring = true
+        },
+
+        // =====================================
+        // COMPANY EXPENSES
+        // =====================================
+
+        new()
+        {
+            Pattern = "proshop",
+            Title = "Company Expense",
+            Category = Category.Other,
+            BudgetGroup = BudgetGroup.CompanyExpense
+        },
+
+        new()
+        {
+            Pattern = "elgiganten skejby",
+            Title = "Company Electronics",
+            Category = Category.Other,
+            BudgetGroup = BudgetGroup.CompanyExpense
+        },
+
+        new()
+        {
+            Pattern = "jetbrains",
+            Title = "JetBrains",
+            Category = Category.Other,
+            BudgetGroup = BudgetGroup.CompanyExpense
         },
 
         // =====================================
@@ -321,7 +490,7 @@ public static class TransactionRules
 
         new()
         {
-            Pattern = "foetex",
+            Pattern = "føtex",
             Title = "Føtex",
             Category = Category.Food,
             BudgetGroup = BudgetGroup.VariableExpense
@@ -347,6 +516,62 @@ public static class TransactionRules
         {
             Pattern = "bilka",
             Title = "Bilka",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "lidl",
+            Title = "Lidl",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "spar",
+            Title = "Spar",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "loevbjerg",
+            Title = "Løvbjerg",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "meny",
+            Title = "Meny",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "coop",
+            Title = "Groceries",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "kiwi",
+            Title = "Groceries",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "salling stormagasin",
+            Title = "Groceries",
             Category = Category.Food,
             BudgetGroup = BudgetGroup.VariableExpense
         },
@@ -387,6 +612,106 @@ public static class TransactionRules
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
+        new()
+        {
+            Pattern = "ingo",
+            Title = "Fuel",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "easypark",
+            Title = "EasyPark",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "apcoa",
+            Title = "Apcoa",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "epass24",
+            Title = "Parking",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "parkering",
+            Title = "Parking",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "rejsekort",
+            Title = "Rejsekort",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "brobizz",
+            Title = "BroBizz",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "dmr period afgift",
+            Title = "Vehicle Registration",
+            Category = Category.Transport,
+            BudgetGroup = BudgetGroup.FixedExpense
+        },
+
+        // =====================================
+        // HEALTH
+        // =====================================
+
+        new()
+        {
+            Pattern = "tandlaege",
+            Title = "Dentist",
+            Category = Category.Health,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "apotek",
+            Title = "Pharmacy",
+            Category = Category.Health,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "sygeforsikringen danmark",
+            Title = "Health Insurance",
+            Category = Category.Health,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "fitnessunited",
+            Title = "Fitness",
+            Category = Category.Health,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
         // =====================================
         // ENTERTAINMENT
         // =====================================
@@ -415,8 +740,72 @@ public static class TransactionRules
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
+        new()
+        {
+            Pattern = "openai",
+            Title = "OpenAI",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "chatgpt",
+            Title = "ChatGPT",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "bogshoppen",
+            Title = "Books",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "joytunes",
+            Title = "Music Learning",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "musikhuset aarhus",
+            Title = "Culture",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "myticket",
+            Title = "Tickets",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "holdet",
+            Title = "Sports",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "spilforsyningen",
+            Title = "Gaming",
+            Category = Category.Entertainment,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
         // =====================================
-        // FOOD DELIVERY
+        // FOOD DELIVERY / RESTAURANTS
         // =====================================
 
         new()
@@ -451,40 +840,220 @@ public static class TransactionRules
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
+        new()
+        {
+            Pattern = "cafe vestergade",
+            Title = "Restaurant",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "aeblehaven",
+            Title = "Restaurant",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "bagergaarden",
+            Title = "Bakery",
+            Category = Category.Food,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
         // =====================================
-        // PARKING / TRAVEL
+        // SHOPPING
         // =====================================
 
         new()
         {
-            Pattern = "easypark",
-            Title = "EasyPark",
-            Category = Category.Transport,
+            Pattern = "normal",
+            Title = "Everyday Shopping",
+            Category = Category.Shopping,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "apcoa",
-            Title = "Apcoa",
-            Category = Category.Transport,
+            Pattern = "kattemad",
+            Title = "Pets",
+            Category = Category.Shopping,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "rejsekort",
-            Title = "Rejsekort",
-            Category = Category.Transport,
+            Pattern = "apple com bill",
+            Title = "Apple",
+            Category = Category.Entertainment,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "brobizz",
-            Title = "BroBizz",
-            Category = Category.Transport,
+            Pattern = "one com",
+            Title = "Hosting",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense
+        },
+
+        new()
+        {
+            Pattern = "hog hinnerup dk",
+            Title = "Website",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense
+        },
+
+        new()
+        {
+            Pattern = "royaldckeys",
+            Title = "Gaming",
+            Category = Category.Entertainment,
             BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "storm house",
+            Title = "Shopping",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "skejby center",
+            Title = "Shopping",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "tm materialer",
+            Title = "Materials",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "squaretradecopay",
+            Title = "Insurance Copay",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "vesterlund efterskol",
+            Title = "School",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense
+        },
+
+        new()
+        {
+            Pattern = "kontoret",
+            Title = "Office",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "elgiganten",
+            Title = "Electronics",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "piet frisorsalon",
+            Title = "Hairdresser",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "isager",
+            Title = "Shopping",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "kim mode",
+            Title = "Clothing",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "hennes mauritz",
+            Title = "Clothing",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "storv house",
+            Title = "Shopping",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "ecco",
+            Title = "Shoes",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "trendhim",
+            Title = "Accessories",
+            Category = Category.Shopping,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        // =====================================
+        // OTHER
+        // =====================================
+
+        new()
+        {
+            Pattern = "stiftelsen idre",
+            Title = "Donation",
+            Category = Category.Other,
+            BudgetGroup = BudgetGroup.VariableExpense
+        },
+
+        new()
+        {
+            Pattern = "depotsikring",
+            Title = "Insurance",
+            Category = Category.Bills,
+            BudgetGroup = BudgetGroup.FixedExpense
+        },
+
+        new()
+        {
+            Pattern = "101 udbet fra 3fa",
+            Title = "3F Refund",
+            Category = Category.Transfer,
+            BudgetGroup = BudgetGroup.InternalTransfer
         },
 
         // =====================================
@@ -494,9 +1063,19 @@ public static class TransactionRules
         new()
         {
             Pattern = "mobilepay",
-            Title = "MobilePay",
+            Title = "MobilePay Expense",
             Category = Category.Other,
-            BudgetGroup = BudgetGroup.VariableExpense
+            BudgetGroup = BudgetGroup.VariableExpense,
+            TransactionType = TransactionType.Udgift
+        },
+
+        new()
+        {
+            Pattern = "mobilepay",
+            Title = "MobilePay Income",
+            Category = Category.Income,
+            BudgetGroup = BudgetGroup.VariableIncome,
+            TransactionType = TransactionType.Indkomst
         }
     ];
 }

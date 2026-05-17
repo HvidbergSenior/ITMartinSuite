@@ -69,6 +69,13 @@ public class BankTransactionCsvService
                     : TransactionType.Indkomst;
 
             _categorizer.Categorize(record);
+            if (record.BudgetGroup == 0)
+            {
+                record.BudgetGroup =
+                    record.Amount >= 0
+                        ? BudgetGroup.VariableIncome
+                        : BudgetGroup.VariableExpense;
+            }
             records.Add(record);
         }
 
@@ -111,16 +118,12 @@ public class BankTransactionCsvService
         HashSet<string> existingKeys)
     {
         return records
-            .GroupBy(t => CreateKey(
-                t.Date,
-                t.Amount,
-                t.NormalizedDescription))
-            .Select(g => g.First())
-            .Where(t => !existingKeys.Contains(
-                CreateKey(
-                    t.Date,
-                    t.Amount,
-                    t.NormalizedDescription)))
+            .Where(t =>
+                !existingKeys.Contains(
+                    CreateKey(
+                        t.Date,
+                        t.Amount,
+                        t.NormalizedDescription)))
             .ToList();
     }
     

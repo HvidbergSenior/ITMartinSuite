@@ -11,26 +11,13 @@ public class TransactionCategorizer
     public void Categorize(
         BankTransaction tx)
     {
-        // =====================================
-        // NORMALIZE
-        // =====================================
-
         tx.NormalizedDescription =
             Normalize(tx.Description);
-
-        // =====================================
-        // TRANSACTION TYPE
-        // =====================================
 
         tx.TransactionType =
             tx.Amount >= 0
                 ? TransactionType.Indkomst
                 : TransactionType.Udgift;
-
-        // =====================================
-        // MATCH RULE
-        // LONGEST PATTERN FIRST
-        // =====================================
 
         var rule =
             TransactionRules.Rules
@@ -39,12 +26,17 @@ public class TransactionCategorizer
                     x.Pattern.Length)
 
                 .FirstOrDefault(x =>
-                    tx.NormalizedDescription
-                        .Contains(x.Pattern));
 
-        // =====================================
-        // RULE MATCHED
-        // =====================================
+                    tx.NormalizedDescription
+                        .Contains(x.Pattern)
+
+                    &&
+
+                    (
+                        x.TransactionType == null
+                        || x.TransactionType ==
+                        tx.TransactionType
+                    ));
 
         if (rule is not null)
         {
@@ -63,16 +55,8 @@ public class TransactionCategorizer
             return;
         }
 
-        // =====================================
-        // FALLBACK
-        // =====================================
-
         tx.Category =
             Category.Other;
-
-        // =====================================
-        // DEFAULT GROUPS
-        // =====================================
 
         if (tx.TransactionType ==
             TransactionType.Indkomst)
@@ -95,10 +79,6 @@ public class TransactionCategorizer
         tx.IsRecurring = false;
     }
 
-    // =====================================
-    // NORMALIZE
-    // =====================================
-
     private string Normalize(
         string input)
     {
@@ -110,28 +90,16 @@ public class TransactionCategorizer
         input =
             input.ToLowerInvariant();
 
-        // =====================================
-        // DANISH CHARS
-        // =====================================
-
         input = input
 
             .Replace("æ", "ae")
             .Replace("ø", "oe")
             .Replace("å", "aa");
 
-        // =====================================
-        // REMOVE SPECIAL CHARS
-        // =====================================
-
         input = Regex.Replace(
             input,
             @"[^\w\s]",
             " ");
-
-        // =====================================
-        // REMOVE EXTRA SPACES
-        // =====================================
 
         input = Regex.Replace(
             input,

@@ -15,4 +15,5 @@ public class TransactionRule
     public BudgetGroup BudgetGroup { get; set; }
 
     public bool IsRecurring { get; set; }
+    public TransactionType? TransactionType { get; set; }
 }
