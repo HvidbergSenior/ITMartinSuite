@@ -156,12 +156,6 @@ var dbPath =
         dataFolder,
         "media.db");
 
-builder.Services.AddDbContextFactory<
-    MediaDbContext>(options =>
-{
-    options.UseSqlite(
-        $"Data Source={dbPath}");
-});
 
 // =========================
 // BUILD

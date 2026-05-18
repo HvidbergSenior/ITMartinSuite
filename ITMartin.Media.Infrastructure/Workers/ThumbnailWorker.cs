@@ -28,8 +28,14 @@ public sealed class ThumbnailWorker : BackgroundService
                 .GetRequiredService<IBackgroundJobQueue>();
 
             var strategy = scope.ServiceProvider
-                .GetRequiredService<IThumbnailStrategy>();
+                .GetService<IThumbnailStrategy>();
 
+            if (strategy is null)
+            {
+                await Task.Delay(1000, stoppingToken);
+
+                continue;
+            }
             var job = await queue.DequeueAsync(
                 "thumbnails",
                 stoppingToken);

@@ -24,4 +24,19 @@ public sealed class MediaDbContext
 
     public DbSet<ScanSessionEntity> ScanSessions
         => Set<ScanSessionEntity>();
+    
+    protected override void OnModelCreating(
+        ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<AiCache>()
+            .HasKey(x => x.Hash);
+
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .HasKey(x => x.Id);
+
+        modelBuilder.Entity<ScanSessionEntity>()
+            .HasKey(x => x.Id);
+    }
 }

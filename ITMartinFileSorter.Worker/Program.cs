@@ -1,10 +1,11 @@
 // File: ITMartin.FileSorter.Worker/Program.cs
 
 using ITMartin.FileSorter.Worker;
+using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Infrastructure;
 using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.Queues;
-using Microsoft.Extensions.Hosting;
+using ITMartin.Media.Infrastructure.SignalR.Runtime;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -15,6 +16,13 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddMediaInfrastructure(
     builder.Configuration);
 
+// =========================
+// RUNTIME
+// =========================
+
+builder.Services.AddSingleton<
+    IRuntimeEventPublisher,
+    NullRuntimeEventPublisher>();
 // =========================
 // QUEUES
 // =========================

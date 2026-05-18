@@ -1,9 +1,12 @@
-﻿using ITMartin.Media.Application.Abstractions.Distributed;
+﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Application.Abstractions.Distributed;
 using ITMartin.Media.Application.Abstractions.Nodes;
 using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Queues;
 using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
+using ITMartin.Media.Application.Abstractions.Strategies;
+using ITMartin.Media.Application.Abstractions.Strategies.Scanning;
 using ITMartin.Media.Application.Abstractions.Workflows;
 using ITMartin.Media.Application.Pipelines;
 using ITMartin.Media.Application.Plugins.Abstractions;
@@ -15,6 +18,7 @@ using ITMartin.Media.Application.Workflow.Abstractions;
 using ITMartin.Media.Application.Workflow.Steps;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Infrastructure.Ai;
+using ITMartin.Media.Infrastructure.BackgroundJobs;
 using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.Distributed;
 using ITMartin.Media.Infrastructure.FileSystem;
@@ -48,7 +52,7 @@ public static class DependencyInjection
             configuration.GetConnectionString("MediaDb")
             ?? "Data Source=media.db";
 
-        services.AddDbContext<Persistence.MediaDbContext>(options =>
+        services.AddDbContextFactory<Persistence.MediaDbContext>(options =>
         {
             options.UseSqlite(
                 connectionString,
@@ -64,7 +68,10 @@ public static class DependencyInjection
         // =========================
 
         services.AddScoped<IWorkflowCheckpointStore, EfWorkflowCheckpointStore>();
-
+        services.AddSingleton<
+            IWorkflowStateStore,
+            InMemoryWorkflowStateStore>();
+        
         services.AddScoped<IScanSessionStore, EfScanSessionStore>();
 
         // =========================
@@ -84,7 +91,9 @@ public static class DependencyInjection
         services.AddInMemoryQueue<WorkflowExecutionMessage>();
 
         services.AddSingleton<IMessageSerializer, SystemTextJsonMessageSerializer>();
-
+        services.AddSingleton<
+            IBackgroundJobQueue,
+            InMemoryBackgroundJobQueue>();
         // =========================
         // WORKFLOWS
         // =========================
@@ -109,7 +118,6 @@ public static class DependencyInjection
         // RUNTIME
         // =========================
 
-        services.AddSingleton<IRuntimeEventPublisher, SignalRRuntimeEventPublisher>();
 
         services.AddScoped<IWorkerHeartbeatService, WorkerHeartbeatService>();
 
@@ -179,7 +187,6 @@ public static class DependencyInjection
         // =========================
 
         services.AddScoped<IMediaClassificationService, MediaClassificationService>();
-
         // =========================
         // HASHING
         // =========================
