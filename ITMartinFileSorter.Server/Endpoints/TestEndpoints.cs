@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
+using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Workflows;
 using ITMartin.Media.Infrastructure.Persistence;
 using ITMartin.Media.Infrastructure.Workflows;
@@ -75,6 +76,21 @@ public static class TestEndpoints
                     cancellationToken);
 
                 return Results.Ok(context.WorkflowId);
+            });
+        app.MapPost(
+            "/api/package1/test-run",
+            async (
+                Package1WorkflowOrchestrator orchestrator,
+                CancellationToken cancellationToken) =>
+            {
+                var sessionId = Guid.NewGuid();
+
+                await orchestrator.ExecuteAsync(
+                    sessionId,
+                    @"C:\FileSorterTests\Test1_Source",
+                    cancellationToken);
+
+                return Results.Ok(sessionId);
             });
         return app;
     }

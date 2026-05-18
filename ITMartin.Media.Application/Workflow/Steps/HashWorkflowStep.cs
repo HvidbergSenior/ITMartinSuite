@@ -1,7 +1,5 @@
-﻿using ITMartin.Media.Application.Processors;
-using ITMartin.Media.Application.Workflow.Abstractions;
-using ITMartin.Media.Application.Workflow.Models;
-using ITMartin.Media.Application.Services;
+﻿using ITMartin.Media.Application.Abstractions.Workflows;
+using ITMartin.Media.Application.Processors;
 
 namespace ITMartin.Media.Application.Workflow.Steps;
 
@@ -18,9 +16,20 @@ public sealed class HashWorkflowStep : IWorkflowStep
     public string Name => "Hashing";
 
     public async Task ExecuteAsync(
-        WorkflowStepContext context)
+        WorkflowExecutionContext context,
+        CancellationToken cancellationToken = default)
     {
-        await _processor.ProcessAsync(
-            context.CancellationToken);
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var files =
+                context.Items["files"];
+
+            await _processor.ProcessAsync(
+                cancellationToken);
+
+            context.Items["hashedFiles"] =
+                files;
+        }
     }
 }
