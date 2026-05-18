@@ -1,14 +1,16 @@
-﻿namespace ITMartin.Media.Application.Plugins.Models;
+﻿// File: ITMartin.Media.Application/Plugins/Models/PluginDescriptor.cs
+
+namespace ITMartin.Media.Application.Plugins.Models;
 
 public sealed class PluginDescriptor
 {
-    public string Name { get; set; } = string.Empty;
+    public required string Name { get; init; }
 
-    public string Version { get; set; } = string.Empty;
+    public required string Version { get; init; }
 
-    public string AssemblyPath { get; set; } = string.Empty;
+    public required string AssemblyPath { get; init; }
 
-    public bool Enabled { get; set; }
+    public bool Enabled { get; init; }
 
-    public DateTimeOffset LoadedAt { get; set; }
+    public DateTimeOffset LoadedAt { get; init; }
 }

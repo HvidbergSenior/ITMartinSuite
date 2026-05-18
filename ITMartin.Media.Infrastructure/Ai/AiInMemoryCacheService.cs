@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿// File: ITMartin.Media.Infrastructure.Services/InMemoryAiCacheService.cs
+
 using ITMartin.Media.Domain.Entities;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
@@ -8,31 +9,31 @@ namespace ITMartin.Media.Infrastructure.Ai;
 public sealed class InMemoryAiCacheService
     : IAiCacheService
 {
-    private readonly ConcurrentDictionary<
-        string,
-        AiCacheItem> _cache = new();
+    private readonly Dictionary<string, AiCacheItem> _cache = [];
 
     public Task<AiCacheItem?> GetAsync(
-        string hash)
+        string hash,
+        CancellationToken cancellationToken = default)
     {
         _cache.TryGetValue(
             hash,
-            out var result);
+            out var item);
 
-        return Task.FromResult(result);
+        return Task.FromResult(item);
     }
 
     public Task SaveAsync(
         string hash,
-        AiAnalysisResult result)
+        AiAnalysisResult result,
+        CancellationToken cancellationToken = default)
     {
         _cache[hash] = new AiCacheItem
         {
             Hash = hash,
             Description = result.Description,
-            Tags = result.Tags,
             Confidence = result.Confidence,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Tags = result.Tags.ToList()
         };
 
         return Task.CompletedTask;

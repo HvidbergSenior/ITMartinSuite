@@ -1,12 +1,14 @@
+// File: ITMartinFileSorter.Server/Program.cs
+
+using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines;
-using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.Persistence;
 using ITMartin.Media.Infrastructure.Services;
-using ITMartin.Media.Interfaces;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using ITMartinFileSorter.Application.Services;
@@ -16,7 +18,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-using ITMartin.Media.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================
@@ -33,6 +35,12 @@ builder.Services
     {
         options.DetailedErrors = true;
     });
+
+// =========================
+// SIGNALR
+// =========================
+
+builder.Services.AddMediaSignalR();
 
 // =========================
 // MEDIA PLATFORM
@@ -93,7 +101,6 @@ builder.Services.AddScoped(sp =>
 
 // =========================
 // AI
-// KEEP FOR PACKAGE 2
 // =========================
 
 builder.Services.AddScoped<
@@ -114,13 +121,11 @@ builder.Services.AddScoped<
 
 // =========================
 // OCR
-// KEEP FOR PACKAGE 2
 // =========================
 
 builder.Services.AddSingleton<
     IOcrService,
     OcrService>();
-
 
 // =========================
 // NAMING
@@ -157,13 +162,15 @@ builder.Services.AddDbContextFactory<
     options.UseSqlite(
         $"Data Source={dbPath}");
 });
-builder.Services.AddMediaPersistence(builder.Configuration);
+
 // =========================
 // BUILD
 // =========================
 
 var app = builder.Build();
+
 app.MapTestEndpoints();
+
 // =========================
 // ERROR HANDLING
 // =========================
@@ -178,7 +185,6 @@ if (!app.Environment.IsDevelopment())
 // STATIC FILES
 // =========================
 
-// wwwroot
 app.UseStaticFiles();
 
 // =========================
@@ -309,12 +315,13 @@ app.UseAntiforgery();
 
 app.MapControllers();
 
+app.MapMediaSignalRHubs();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 // =========================
-// TEST ENDPOINT
-// KEEP FOR NOW
+// TEST ENDPOINTS
 // =========================
 
 app.MapGet(
@@ -338,10 +345,6 @@ app.MapGet(
 
         return Results.Ok(results);
     });
-// =========================
-// THUMBNAILS
-// KEEP FOR PACKAGE 2
-// =========================
 
 app.MapGet(
     "/thumbnail",
@@ -381,5 +384,28 @@ app.MapGet(
         path,
         contentType);
 });
+
+// =========================
+// RUNTIME TEST
+// =========================
+
+app.MapPost(
+    "/api/runtime/test-heartbeat",
+    async (
+        IWorkerHeartbeatService heartbeatService,
+        CancellationToken cancellationToken) =>
+    {
+        await heartbeatService.PublishHeartbeatAsync(
+            "FileSorter-Worker",
+            "Running",
+            1,
+            cancellationToken);
+
+        return Results.Ok();
+    });
+
+// =========================
+// RUN
+// =========================
 
 app.Run();

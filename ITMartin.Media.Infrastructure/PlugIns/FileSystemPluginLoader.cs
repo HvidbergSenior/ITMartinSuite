@@ -1,8 +1,11 @@
-﻿namespace ITMartin.Media.Infrastructure.Plugins;
+﻿// File: ITMartin.Media.Infrastructure.Plugins/FileSystemPluginLoader.cs
 
 using System.Reflection;
-using ITMartin.Media.Application.Plugins.Models;
 using ITMartin.Media.Application.Plugins.Abstractions;
+using ITMartin.Media.Application.Plugins.Models;
+
+namespace ITMartin.Media.Infrastructure.Plugins;
+
 
 public sealed class FileSystemPluginLoader
     : IPluginLoader
@@ -22,13 +25,21 @@ public sealed class FileSystemPluginLoader
 
     public Task<IReadOnlyCollection<PluginDescriptor>>
         LoadAsync(
-            CancellationToken cancellationToken)
+            string pluginDirectory,
+            CancellationToken cancellationToken = default)
     {
+        var folder =
+            string.IsNullOrWhiteSpace(pluginDirectory)
+                ? _pluginFolder
+                : pluginDirectory;
+
+        Directory.CreateDirectory(folder);
+
         IReadOnlyCollection<PluginDescriptor>
             plugins =
                 Directory
                     .EnumerateFiles(
-                        _pluginFolder,
+                        folder,
                         "*.dll",
                         SearchOption.TopDirectoryOnly)
                     .Select(x =>
