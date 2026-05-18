@@ -98,6 +98,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Magic.Infrastructu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinFileSorter.Worker", "ITMartinFileSorter.Worker\ITMartinFileSorter.Worker.csproj", "{A43FE91A-51AB-4568-9752-FF76944F73DD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Media.Contracts", "ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj", "{9D8415D2-C2B9-4375-A713-389694BBEFED}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -283,5 +285,9 @@ Global
 		{A43FE91A-51AB-4568-9752-FF76944F73DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A43FE91A-51AB-4568-9752-FF76944F73DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A43FE91A-51AB-4568-9752-FF76944F73DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D8415D2-C2B9-4375-A713-389694BBEFED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D8415D2-C2B9-4375-A713-389694BBEFED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D8415D2-C2B9-4375-A713-389694BBEFED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D8415D2-C2B9-4375-A713-389694BBEFED}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

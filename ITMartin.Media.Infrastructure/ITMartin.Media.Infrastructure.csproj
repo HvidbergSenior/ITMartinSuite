@@ -32,6 +32,7 @@
 
     <ItemGroup>
       <Folder Include="Helpers\" />
+      <Folder Include="Nodes\" />
       <Folder Include="Persistence\Migrations\" />
     </ItemGroup>
 

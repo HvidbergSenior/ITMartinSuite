@@ -1,8 +1,13 @@
-﻿namespace ITMartin.Media.Application.Plugins;
+﻿// File: ITMartin.Media.Application/Abstractions/Plugins/IMediaPlugin.cs
+
+namespace ITMartin.Media.Application.Plugins;
 
 public interface IMediaPlugin
 {
     string Name { get; }
 
-    Task InitializeAsync(CancellationToken cancellationToken);
+    string Version { get; }
+
+    Task InitializeAsync(
+        CancellationToken cancellationToken = default);
 }
