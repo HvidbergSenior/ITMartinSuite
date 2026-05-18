@@ -1,4 +1,6 @@
-﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+﻿// File: ITMartin.Media.Infrastructure/DependencyInjection.cs
+
+using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.Distributed;
 using ITMartin.Media.Application.Abstractions.Nodes;
 using ITMartin.Media.Application.Abstractions.Orchestration;
@@ -68,10 +70,11 @@ public static class DependencyInjection
         // =========================
 
         services.AddScoped<IWorkflowCheckpointStore, EfWorkflowCheckpointStore>();
-        services.AddSingleton<
-            IWorkflowStateStore,
-            InMemoryWorkflowStateStore>();
-        
+
+        services.AddScoped<IWorkflowResumeStore, EfWorkflowResumeStore>();
+
+        services.AddScoped<IWorkflowRecoveryStore, EfWorkflowRecoveryStore>();
+
         services.AddScoped<IScanSessionStore, EfScanSessionStore>();
 
         // =========================
@@ -86,14 +89,18 @@ public static class DependencyInjection
         // QUEUES
         // =========================
 
-        services.AddSingleton(typeof(IQueueTransport<>), typeof(ChannelQueueTransport<>));
+        services.AddSingleton(
+            typeof(IQueueTransport<>),
+            typeof(ChannelQueueTransport<>));
 
         services.AddInMemoryQueue<WorkflowExecutionMessage>();
 
-        services.AddSingleton<IMessageSerializer, SystemTextJsonMessageSerializer>();
-        services.AddSingleton<
-            IBackgroundJobQueue,
+        services.AddSingleton<IMessageSerializer,
+            SystemTextJsonMessageSerializer>();
+
+        services.AddSingleton<IBackgroundJobQueue,
             InMemoryBackgroundJobQueue>();
+
         // =========================
         // WORKFLOWS
         // =========================
@@ -104,7 +111,15 @@ public static class DependencyInjection
 
         services.AddScoped<IWorkflowRuntime, InMemoryWorkflowRuntime>();
 
+        services.AddScoped<IWorkflowRegistry, WorkflowRegistry>();
+
         services.AddScoped<WorkflowRecoveryService>();
+
+        services.AddHostedService<WorkflowRecoveryHostedService>();
+
+        // =========================
+        // WORKFLOW STEPS
+        // =========================
 
         services.AddScoped<FileDiscoveryWorkflowStep>();
 
@@ -112,25 +127,27 @@ public static class DependencyInjection
 
         services.AddScoped<MetadataWorkflowStep>();
 
+        // =========================
+        // WORKFLOW DEFINITIONS
+        // =========================
+
+        services.AddScoped<IWorkflowDefinition,
+            WorkflowDefinition>();
+
         services.AddScoped<Package1WorkflowOrchestrator>();
 
         // =========================
         // RUNTIME
         // =========================
 
-
-        services.AddScoped<IWorkerHeartbeatService, WorkerHeartbeatService>();
+        services.AddScoped<IWorkerHeartbeatService,
+            WorkerHeartbeatService>();
 
         // =========================
         // WORKERS
         // =========================
 
         services.AddHostedService<ThumbnailWorker>();
-
-        // =========================
-        // PLUGINS
-        // =========================
-
 
         // =========================
         // FILE SYSTEM
@@ -186,7 +203,9 @@ public static class DependencyInjection
         // CLASSIFICATION
         // =========================
 
-        services.AddScoped<IMediaClassificationService, MediaClassificationService>();
+        services.AddScoped<IMediaClassificationService,
+            MediaClassificationService>();
+
         // =========================
         // HASHING
         // =========================
@@ -203,11 +222,14 @@ public static class DependencyInjection
 
         services.AddScoped<IMediaDateService, MediaDateService>();
 
-        services.AddScoped<IImageMetadataService, ImageMetadataService>();
+        services.AddScoped<IImageMetadataService,
+            ImageMetadataService>();
 
-        services.AddScoped<IVideoMetadataService, VideoMetadataService>();
+        services.AddScoped<IVideoMetadataService,
+            VideoMetadataService>();
 
-        services.AddScoped<IDocumentMetadataService, DocumentMetadataService>();
+        services.AddScoped<IDocumentMetadataService,
+            DocumentMetadataService>();
 
         // =========================
         // VIDEO
@@ -215,7 +237,8 @@ public static class DependencyInjection
 
         services.AddScoped<VideoConverterService>();
 
-        services.AddScoped<IVideoBatchService, VideoBatchService>();
+        services.AddScoped<IVideoBatchService,
+            VideoBatchService>();
 
         services.AddScoped<SubtitleService>();
 
@@ -223,7 +246,8 @@ public static class DependencyInjection
         // IMAGE
         // =========================
 
-        services.AddScoped<IImageBatchService, ImageBatchService>();
+        services.AddScoped<IImageBatchService,
+            ImageBatchService>();
 
         services.AddScoped<ImageConverterService>();
 
@@ -235,9 +259,11 @@ public static class DependencyInjection
         // AI
         // =========================
 
-        services.AddScoped<IAiEnrichmentService, AiEnrichmentService>();
+        services.AddScoped<IAiEnrichmentService,
+            AiEnrichmentService>();
 
-        services.AddScoped<IImageAnalysisService, OpenAiImageAnalysisService>();
+        services.AddScoped<IImageAnalysisService,
+            OpenAiImageAnalysisService>();
 
         // =========================
         // CONFIG

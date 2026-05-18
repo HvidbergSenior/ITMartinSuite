@@ -17,6 +17,30 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.25");
 
+            modelBuilder.Entity("ITMartin.Media.Infrastructure.Entities.AiCache", b =>
+                {
+                    b.Property<string>("Hash")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TagsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Hash");
+
+                    b.ToTable("AiCache");
+                });
+
             modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.ScanSessionEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -31,7 +55,6 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("RootPath")
                         .IsRequired()
-                        .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("StartedAtUtc")
@@ -39,7 +62,6 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("TotalFiles")
@@ -68,7 +90,6 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("StepName")
                         .IsRequired()
-                        .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
@@ -79,14 +100,32 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("WorkflowName")
                         .IsRequired()
-                        .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WorkflowId");
-
                     b.ToTable("WorkflowCheckpoints");
+                });
+
+            modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.WorkflowResumeEntity", b =>
+                {
+                    b.Property<Guid>("WorkflowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastCompletedStep")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("WorkflowId");
+
+                    b.ToTable("WorkflowResumes");
                 });
 #pragma warning restore 612, 618
         }

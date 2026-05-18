@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using ITMartin.Media.Application.Abstractions.Workflows;
+using ITMartin.Media.Application.Models.Workflows;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -91,5 +92,27 @@ public sealed class EfWorkflowCheckpointStore
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+    public async Task<WorkflowCheckpoint?> GetLatestCheckpointAsync(
+        Guid workflowId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity =
+            await _dbContext.WorkflowCheckpoints
+                .Where(x => x.WorkflowId == workflowId)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        if (entity is null)
+        {
+            return null;
+        }
+
+        return new WorkflowCheckpoint(
+            entity.WorkflowId,
+            entity.WorkflowName,
+            entity.StepName,
+            entity.StateJson,
+            entity.CreatedAtUtc);
     }
 }

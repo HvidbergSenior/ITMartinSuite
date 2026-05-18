@@ -31,6 +31,7 @@ public sealed class Package1WorkflowOrchestrator
                     _serviceProvider.GetRequiredService<FileDiscoveryWorkflowStep>(),
                     _serviceProvider.GetRequiredService<HashWorkflowStep>(),
                     _serviceProvider.GetRequiredService<MetadataWorkflowStep>()
+                    
                 ]
             };
 

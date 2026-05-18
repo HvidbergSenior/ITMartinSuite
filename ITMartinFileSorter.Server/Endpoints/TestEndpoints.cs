@@ -53,30 +53,7 @@ public static class TestEndpoints
 
                 return Results.Ok();
             });
-        app.MapPost(
-            "/api/test/workflow",
-            async (
-                IWorkflowExecutor executor,
-                CancellationToken cancellationToken) =>
-            {
-                var workflow =
-                    new TestWorkflowDefinition();
-
-                var context =
-                    new WorkflowExecutionContext
-                    {
-                        WorkflowId = Guid.NewGuid(),
-                        WorkflowName = workflow.Name,
-                        CancellationToken = cancellationToken
-                    };
-
-                await executor.ExecuteAsync(
-                    workflow,
-                    context,
-                    cancellationToken);
-
-                return Results.Ok(context.WorkflowId);
-            });
+        
         app.MapPost(
             "/api/package1/test-run",
             async (
@@ -92,6 +69,16 @@ public static class TestEndpoints
 
                 return Results.Ok(sessionId);
             });
+        app.MapPost("/test/{workflowId:guid}", async (
+            Guid workflowId,
+            Package1WorkflowOrchestrator orchestrator) =>
+        {
+            await orchestrator.ExecuteAsync(
+                workflowId,
+                @"C:\Media", CancellationToken.None);
+
+            return Results.Ok();
+        });
         return app;
     }
 }

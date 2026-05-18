@@ -1,4 +1,8 @@
-﻿namespace ITMartin.Media.Application.Abstractions.Workflows;
+﻿// File: ITMartin.Media.Application/Abstractions/Workflows/IWorkflowCheckpointStore.cs
+
+using ITMartin.Media.Application.Models.Workflows;
+
+namespace ITMartin.Media.Application.Abstractions.Workflows;
 
 public interface IWorkflowCheckpointStore
 {
@@ -12,6 +16,10 @@ public interface IWorkflowCheckpointStore
     Task<T?> LoadCheckpointAsync<T>(
         Guid workflowId,
         string stepName,
+        CancellationToken cancellationToken = default);
+
+    Task<WorkflowCheckpoint?> GetLatestCheckpointAsync(
+        Guid workflowId,
         CancellationToken cancellationToken = default);
 
     Task MarkCompletedAsync(
