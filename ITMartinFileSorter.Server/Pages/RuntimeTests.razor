@@ -1,0 +1,56 @@
+﻿@page "/runtime-test"
+
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+
+<h3>Runtime Test</h3>
+
+<p>Status: @_status</p>
+
+<ul>
+    @foreach (var message in _messages)
+    {
+        <li>@message</li>
+    }
+</ul>
+
+@code
+{
+    private HubConnection? _connection;
+
+    private string _status = "Disconnected";
+
+    private readonly List<string> _messages = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _connection =
+            new HubConnectionBuilder()
+                .WithUrl(
+                    Navigation.ToAbsoluteUri(
+                        "/media/runtime"))
+                .WithAutomaticReconnect()
+                .Build();
+
+        _connection.On<object>(
+            "WorkerHeartbeatMessage",
+            message =>
+            {
+                _status =
+                    $"MESSAGE RECEIVED {DateTime.Now:T}";
+
+                _messages.Add(
+                    message?.ToString()
+                    ?? "null");
+
+                InvokeAsync(StateHasChanged);
+            });
+        
+        await _connection.StartAsync();
+
+        _status = "Connected";
+    }
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+}
