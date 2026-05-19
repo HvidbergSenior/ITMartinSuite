@@ -1,5 +1,5 @@
 ﻿
-namespace ITMartin.Media.Runtime.Interfaces;
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 public interface IWorkflowDefinition
 {

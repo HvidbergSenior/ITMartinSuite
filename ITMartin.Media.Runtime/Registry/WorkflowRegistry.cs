@@ -1,6 +1,6 @@
-﻿using ITMartin.Media.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
-namespace ITMartin.Media.Runtime.Workflows;
+namespace ITMartin.Media.Runtime.Registry;
 
 public sealed class WorkflowRegistry(
     IEnumerable<IWorkflowDefinition> workflows)

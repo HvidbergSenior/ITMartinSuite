@@ -17,7 +17,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Pipelines\Package1\Orchestration\" />
       <Folder Include="Pipelines\Package1\Services\" />
+      <Folder Include="Pipelines\Package1\Workflow\" />
     </ItemGroup>
 
 </Project>

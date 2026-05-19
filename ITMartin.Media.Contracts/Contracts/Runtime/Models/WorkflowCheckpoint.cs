@@ -1,6 +1,4 @@
-﻿// File: ITMartin.Media.Application/Models/Workflows/WorkflowCheckpoint.cs
-
-namespace ITMartin.Media.Application.Models.Workflows;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed record WorkflowCheckpoint(
     Guid WorkflowId,

@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Runtime.Interfaces;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Services;
 
 public interface IWorkflowRecoveryService
 {

@@ -1,6 +1,4 @@
-﻿using ITMartin.Media.Runtime.Interfaces;
-
-namespace ITMartin.Media.Runtime.Workflows;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 public sealed class WorkflowDefinition
     : IWorkflowDefinition

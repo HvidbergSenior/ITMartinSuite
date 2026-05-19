@@ -1,5 +1,5 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Steps;
-using ITMartin.Media.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Models;
 

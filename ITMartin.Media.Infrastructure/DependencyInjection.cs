@@ -12,6 +12,9 @@ using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Application.Services;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
+using ITMartin.Media.Contracts.Contracts.Runtime.Services;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Infrastructure.BackgroundJobs;
@@ -29,13 +32,13 @@ using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.Videos;
 using ITMartin.Media.Infrastructure.Workers;
 using ITMartin.Media.Interfaces;
-using ITMartin.Media.Runtime.Interfaces;
-using ITMartin.Media.Runtime.Services;
-using ITMartin.Media.Runtime.Workflows;
+using ITMartin.Media.Runtime.Execution;
+using ITMartin.Media.Runtime.HostedServices;
+using ITMartin.Media.Runtime.Registry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using WorkflowRecoveryService = ITMartin.Media.Runtime.Services.WorkflowRecoveryService;
+using WorkflowRecoveryService = ITMartin.Media.Runtime.Recovery.WorkflowRecoveryService;
 
 namespace ITMartin.Media.Infrastructure;
 

@@ -1,9 +1,10 @@
-﻿using ITMartin.Media.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
+using ITMartin.Media.Contracts.Contracts.Runtime.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace ITMartin.Media.Runtime.Services;
+namespace ITMartin.Media.Runtime.HostedServices;
 
 public sealed class WorkflowRecoveryHostedService(
     IServiceScopeFactory serviceScopeFactory,

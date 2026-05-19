@@ -1,6 +1,6 @@
-﻿using ITMartin.Media.Runtime.Workflows;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
-namespace ITMartin.Media.Runtime.Interfaces;
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 public interface IWorkflowStep
 {

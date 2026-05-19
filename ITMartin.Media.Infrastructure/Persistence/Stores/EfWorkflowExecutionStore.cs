@@ -1,5 +1,5 @@
-﻿using ITMartin.Media.Infrastructure.Persistence.Entities;
-using ITMartin.Media.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
+using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMartin.Media.Infrastructure.Persistence.Stores;

@@ -1,9 +1,11 @@
 ﻿using System.Text.Json;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Runtime.Interfaces;
-using ITMartin.Media.Runtime.Workflows;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
+using ITMartin.Media.Contracts.Contracts.Runtime.Services;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
-namespace ITMartin.Media.Runtime.Services;
+namespace ITMartin.Media.Runtime.Recovery;
 
 public sealed class WorkflowRecoveryService(
     IWorkflowCheckpointStore checkpointStore,

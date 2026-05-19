@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Runtime.Workflows;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed class WorkflowExecutionContext<TState>
     where TState : class
