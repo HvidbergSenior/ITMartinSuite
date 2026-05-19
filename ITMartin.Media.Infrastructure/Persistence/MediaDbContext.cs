@@ -18,14 +18,18 @@ public sealed class MediaDbContext
     }
     public DbSet<WorkflowResumeEntity> WorkflowResumes => Set<WorkflowResumeEntity>();
     public DbSet<AiCache> AiCache => Set<AiCache>();
-
+    public DbSet<WorkflowInstanceEntity>
+        WorkflowInstances
+        => Set<WorkflowInstanceEntity>();
     public DbSet<WorkflowCheckpointEntity> WorkflowCheckpoints
         => Set<WorkflowCheckpointEntity>();
     public DbSet<WorkflowStepExecutionEntity> WorkflowStepExecutions
         => Set<WorkflowStepExecutionEntity>();
     public DbSet<ScanSessionEntity> ScanSessions
         => Set<ScanSessionEntity>();
-    
+    public DbSet<Package1ManifestEntity>
+        Package1Manifests
+        => Set<Package1ManifestEntity>();
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -50,5 +54,9 @@ public sealed class MediaDbContext
                 x.StepName,
                 x.Status
             });
+        modelBuilder.Entity<WorkflowInstanceEntity>()
+            .HasKey(x => x.WorkflowId);
+        modelBuilder.Entity<Package1ManifestEntity>()
+            .HasKey(x => x.WorkflowId);
     }
 }

@@ -41,6 +41,39 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
                     b.ToTable("AiCache");
                 });
 
+            modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.Package1ManifestEntity", b =>
+                {
+                    b.Property<Guid>("WorkflowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FileCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FilesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HashedFilesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MetadataFilesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RootPath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("WorkflowId");
+
+                    b.ToTable("Package1Manifests");
+                });
+
             modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.ScanSessionEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -105,6 +138,40 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("WorkflowCheckpoints");
+                });
+
+            modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.WorkflowInstanceEntity", b =>
+                {
+                    b.Property<Guid>("WorkflowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CurrentStep")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FailureReason")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WorkflowName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("WorkflowId");
+
+                    b.ToTable("WorkflowInstances");
                 });
 
             modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.WorkflowResumeEntity", b =>

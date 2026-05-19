@@ -13,15 +13,13 @@ public sealed class Package1WorkflowDefinition
     public Package1WorkflowDefinition(
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
         HashWorkflowStep hashWorkflowStep,
-        MetadataWorkflowStep metadataWorkflowStep,
-        CrashWorkflowStep crashWorkflowStep)
+        MetadataWorkflowStep metadataWorkflowStep)
     {
         Steps =
         [
             fileDiscoveryWorkflowStep,
             hashWorkflowStep,
-            metadataWorkflowStep,
-            crashWorkflowStep
+            metadataWorkflowStep
         ];
     }
 }

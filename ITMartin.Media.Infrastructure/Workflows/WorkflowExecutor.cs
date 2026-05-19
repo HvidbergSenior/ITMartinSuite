@@ -10,6 +10,7 @@ public sealed class WorkflowExecutor(
     IWorkflowCheckpointStore workflowCheckpointStore,
     IWorkflowResumeStore workflowResumeStore,
     IWorkflowStepExecutionStore workflowStepExecutionStore,
+    IWorkflowInstanceStore workflowInstanceStore,
     ILogger<WorkflowExecutor> logger)
     : IWorkflowExecutor
 {
@@ -21,6 +22,18 @@ public sealed class WorkflowExecutor(
         where TState : class
     {
         var workflowId = context.WorkflowId;
+        var existingResume =
+            await workflowResumeStore.GetAsync(
+                workflowId,
+                cancellationToken);
+
+        if (existingResume is null)
+        {
+            await workflowInstanceStore.CreateAsync(
+                workflowId,
+                workflow.Name,
+                cancellationToken);
+        }
 
         var resumeState = await workflowResumeStore.GetAsync(
             workflowId,
@@ -32,8 +45,7 @@ public sealed class WorkflowExecutor(
 
         if (resumeState?.LastCompletedStep is not null)
         {
-            var completedIndex = steps.FindIndex(
-                x => x.Name == resumeState.LastCompletedStep);
+            var completedIndex = steps.FindIndex(x => x.Name == resumeState.LastCompletedStep);
 
             if (completedIndex >= 0)
             {
@@ -69,36 +81,44 @@ public sealed class WorkflowExecutor(
                 "Executing workflow step {StepName}",
                 step.Name);
 
+            await workflowInstanceStore.SetRunningStepAsync(
+                workflowId,
+                step.Name,
+                cancellationToken);
+
             await workflowStepExecutionStore.MarkStartedAsync(
                 workflowId,
                 step.Name,
                 cancellationToken);
 
-            await step.ExecuteAsync(
-                context,
-                cancellationToken);
+            try
+            {
+                await step.ExecuteAsync(
+                    context,
+                    cancellationToken);
 
-            await workflowStepExecutionStore.MarkCompletedAsync(
-                workflowId,
-                step.Name,
-                cancellationToken);
-            
-            await workflowCheckpointStore.SaveCheckpointAsync(
-                workflowId,
-                workflow.Name,
-                step.Name,
-                context.State,
-                cancellationToken);
-            
-            await workflowResumeStore.SaveAsync(
-                new WorkflowResumeState(
+                await workflowResumeStore.MarkCompletedAsync(
                     workflowId,
-                    step.Name,
-                    DateTimeOffset.UtcNow),
-                cancellationToken);
+                    cancellationToken);
+
+                await workflowInstanceStore.MarkCompletedAsync(
+                    workflowId,
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await workflowInstanceStore.MarkFailedAsync(
+                    workflowId,
+                    ex.Message,
+                    cancellationToken);
+
+                logger.LogError(
+                    ex,
+                    "Workflow step failed {StepName}",
+                    step.Name);
+
+                throw;
+            }
         }
-        await workflowResumeStore.MarkCompletedAsync(
-            workflowId,
-            cancellationToken);
     }
 }

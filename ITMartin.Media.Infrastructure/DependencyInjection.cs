@@ -11,6 +11,8 @@ using ITMartin.Media.Application.Abstractions.Strategies;
 using ITMartin.Media.Application.Abstractions.Strategies.Scanning;
 using ITMartin.Media.Application.Abstractions.Workflows;
 using ITMartin.Media.Application.Pipelines;
+using ITMartin.Media.Application.Pipelines.Package1.Models;
+using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Plugins.Abstractions;
 using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Application.Services;
@@ -125,9 +127,10 @@ public static class DependencyInjection
         // =========================
         // WORKFLOW STEPS
         // =========================
-        services.AddScoped<CrashWorkflowStep>();
         services.AddScoped<FileDiscoveryWorkflowStep>();
-
+        services.AddScoped<
+            IWorkflowInstanceStore,
+            EfWorkflowInstanceStore>();
         services.AddScoped<HashWorkflowStep>();
 
         services.AddScoped<MetadataWorkflowStep>();
@@ -232,11 +235,13 @@ public static class DependencyInjection
 
         services.AddScoped<IDocumentMetadataService,
             DocumentMetadataService>();
-
+        services.AddScoped<Package1ManifestBuilder>();
         // =========================
         // VIDEO
         // =========================
-
+        services.AddScoped<
+            IPackage1ManifestStore,
+            EfPackage1ManifestStore>();
         services.AddScoped<VideoConverterService>();
 
         services.AddScoped<IVideoBatchService,
