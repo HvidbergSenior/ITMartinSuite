@@ -1,13 +1,11 @@
 ﻿using ITMartin.Media.Application.Abstractions.Events;
 using ITMartin.Media.Application.Abstractions.Scanning;
-using ITMartin.Media.Application.Abstractions.Workflows;
 using ITMartin.Media.Application.Events.Scanning;
 using ITMartin.Media.Application.Models.Scan;
 using ITMartin.Media.Application.Models.Scanning;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Application.Pipelines.Package1.Services;
-using ITMartin.Media.Application.Workflows;
-using ITMartin.Media.Application.Workflows.Models;
+using ITMartin.Media.Runtime.Interfaces;
+using ITMartin.Media.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Abstractions.Orchestration;
 

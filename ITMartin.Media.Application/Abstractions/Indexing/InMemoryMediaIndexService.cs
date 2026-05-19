@@ -6,7 +6,7 @@ using ITMartin.Media.Domain.Entities;
 public sealed class InMemoryMediaIndexService
     : IMediaIndexService
 {
-    private static readonly List<MediaIndexEntity>
+    private static readonly List<MediaIndex>
         Index = [];
 
     public Task IndexAsync(
@@ -14,7 +14,7 @@ public sealed class InMemoryMediaIndexService
         CancellationToken cancellationToken)
     {
         Index.Add(
-            new MediaIndexEntity
+            new MediaIndex
             {
                 Id = Guid.NewGuid(),
                 FilePath = mediaFile.FullPath,
@@ -27,12 +27,12 @@ public sealed class InMemoryMediaIndexService
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyCollection<MediaIndexEntity>>
+    public Task<IReadOnlyCollection<MediaIndex>>
         SearchAsync(
             string query,
             CancellationToken cancellationToken)
     {
-        IReadOnlyCollection<MediaIndexEntity>
+        IReadOnlyCollection<MediaIndex>
             results =
                 Index
                     .Where(x =>

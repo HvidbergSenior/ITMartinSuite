@@ -2,7 +2,7 @@
 using ITMartin.Media.Application.Models;
 using ITMartin.Media.Application.Processors;
 
-namespace ITMartin.Media.Application.Pipelines;
+namespace ITMartin.Media.Application.Pipelines.Package1;
 
 public class Package1ScanPipeline
 {

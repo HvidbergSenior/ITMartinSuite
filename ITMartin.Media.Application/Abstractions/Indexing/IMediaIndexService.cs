@@ -8,7 +8,7 @@ public interface IMediaIndexService
         MediaFile mediaFile,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyCollection<MediaIndexEntity>>
+    Task<IReadOnlyCollection<MediaIndex>>
         SearchAsync(
             string query,
             CancellationToken cancellationToken);

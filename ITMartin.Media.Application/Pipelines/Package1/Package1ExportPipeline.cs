@@ -2,9 +2,8 @@
 using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Models;
 using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Enums;
 
-namespace ITMartin.Media.Application.Pipelines;
+namespace ITMartin.Media.Application.Pipelines.Package1;
 
 public class Package1ExportPipeline
 {

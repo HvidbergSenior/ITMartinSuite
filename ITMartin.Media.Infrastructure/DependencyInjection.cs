@@ -3,24 +3,15 @@
 using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.Distributed;
 using ITMartin.Media.Application.Abstractions.Nodes;
-using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Queues;
 using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
-using ITMartin.Media.Application.Abstractions.Strategies;
-using ITMartin.Media.Application.Abstractions.Strategies.Scanning;
-using ITMartin.Media.Application.Abstractions.Workflows;
 using ITMartin.Media.Application.Pipelines;
+using ITMartin.Media.Application.Pipelines.Package1;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Application.Pipelines.Package1.Services;
-using ITMartin.Media.Application.Plugins.Abstractions;
+using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Application.Services;
-using ITMartin.Media.Application.Services.Workflows;
-using ITMartin.Media.Application.Workflow;
-using ITMartin.Media.Application.Workflow.Abstractions;
-using ITMartin.Media.Application.Workflows;
-using ITMartin.Media.Application.Workflows.Steps;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Infrastructure.BackgroundJobs;
@@ -33,18 +24,18 @@ using ITMartin.Media.Infrastructure.Metadata;
 using ITMartin.Media.Infrastructure.Notifications;
 using ITMartin.Media.Infrastructure.Options;
 using ITMartin.Media.Infrastructure.Persistence.Stores;
-using ITMartin.Media.Infrastructure.Plugins;
 using ITMartin.Media.Infrastructure.Queues;
 using ITMartin.Media.Infrastructure.Services;
-using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using ITMartin.Media.Infrastructure.Videos;
 using ITMartin.Media.Infrastructure.Workers;
-using ITMartin.Media.Infrastructure.Workflows;
 using ITMartin.Media.Interfaces;
+using ITMartin.Media.Runtime.Interfaces;
+using ITMartin.Media.Runtime.Services;
+using ITMartin.Media.Runtime.Workflows;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using WorkflowRecoveryService = ITMartin.Media.Infrastructure.Workflows.WorkflowRecoveryService;
+using WorkflowRecoveryService = ITMartin.Media.Runtime.Services.WorkflowRecoveryService;
 
 namespace ITMartin.Media.Infrastructure;
 
@@ -111,8 +102,6 @@ public static class DependencyInjection
         // WORKFLOWS
         // =========================
         services.AddScoped<IWorkflowExecutor, WorkflowExecutor>();
-
-        services.AddScoped<IWorkflowRuntime, InMemoryWorkflowRuntime>();
 
         services.AddScoped<IWorkflowRegistry, WorkflowRegistry>();
 

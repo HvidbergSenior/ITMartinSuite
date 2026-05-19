@@ -1,5 +1,5 @@
-﻿using ITMartin.Media.Application.Abstractions.Workflows;
-using ITMartin.Media.Infrastructure.Persistence.Entities;
+﻿using ITMartin.Media.Infrastructure.Persistence.Entities;
+using ITMartin.Media.Runtime.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMartin.Media.Infrastructure.Persistence.Stores;
