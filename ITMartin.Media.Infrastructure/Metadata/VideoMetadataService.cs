@@ -1,10 +1,10 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.Text;
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Domain.Steps.MetadataStep;
 using Microsoft.Extensions.Logging;
 
-namespace ITMartin.Media.Infrastructure.Videos;
+namespace ITMartin.Media.Infrastructure.Metadata;
 
 public class VideoMetadataService : IVideoMetadataService
 {
@@ -129,5 +129,70 @@ public class VideoMetadataService : IVideoMetadataService
             return "Camera";
 
         return "Unknown";
+    }
+
+    public TimeSpan? GetDuration(string path)
+    {
+        try
+        {
+            var ffprobePath = OperatingSystem.IsWindows()
+                ? Path.Combine(
+                    AppContext.BaseDirectory,
+                    "ffmpeg",
+                    "ffprobe.exe")
+                : "ffprobe";
+
+            var arguments =
+                "-v error " +
+                "-show_entries format=duration " +
+                "-of default=noprint_wrappers=1:nokey=1 " +
+                $"\"{path}\"";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffprobePath,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
+
+            using var process =
+                Process.Start(psi);
+
+            if (process is null)
+            {
+                return null;
+            }
+
+            var output =
+                process.StandardOutput
+                    .ReadToEnd();
+
+            process.WaitForExit();
+
+            if (double.TryParse(
+                    output.Trim(),
+                    CultureInfo.InvariantCulture,
+                    out var seconds))
+            {
+                return TimeSpan.FromSeconds(
+                    seconds);
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+        
+    }
+
+    public (int Width, int Height)? GetDimensions(string path)
+    {
+        throw new NotImplementedException();
     }
 }

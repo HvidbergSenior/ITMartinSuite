@@ -1,28 +1,28 @@
 ﻿using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Domain.Steps.NormalizationStep;
 using ITMartin.Media.Enums;
-using ITMartin.Media.Interfaces;
 
-namespace ITMartin.Media.Application.Services;
+namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
-public class ImageBatchService : IImageBatchService
+public class VideoBatchService : IVideoBatchService
 {
-    private readonly ImageConverterService _converter;
+    private readonly VideoConverterService _converter;
 
-    public ImageBatchService(
-        ImageConverterService converter)
+    public VideoBatchService(
+        VideoConverterService converter)
     {
         _converter = converter;
     }
 
-    public async Task ConvertAllImagesAsync(
+    public async Task ConvertAllVideosAsync(
         IEnumerable<MediaFile> files,
         Action<int, int, string>? progress = null)
     {
-        var images = files
-            .Where(f => f.Type == MediaType.Image)
+        var videos = files
+            .Where(f => f.Type == MediaType.Video)
             .ToList();
 
-        int total = images.Count;
+        int total = videos.Count;
         int current = 0;
 
         var tempRoot = Path.Combine(
@@ -31,7 +31,7 @@ public class ImageBatchService : IImageBatchService
 
         Directory.CreateDirectory(tempRoot);
 
-        foreach (var file in images)
+        foreach (var file in videos)
         {
             current++;
 
@@ -45,9 +45,10 @@ public class ImageBatchService : IImageBatchService
             try
             {
                 var output =
-                    await _converter.ConvertToJpgAsync(
+                    await _converter.ConvertToUniversalMp4Async(
                         file.NormalizedPath ??
-                        file.FullPath);
+                        file.FullPath,
+                        Path.GetTempPath());
 
                 if (!string.IsNullOrWhiteSpace(output))
                 {
@@ -57,7 +58,7 @@ public class ImageBatchService : IImageBatchService
             catch (Exception ex)
             {
                 Console.WriteLine(
-                    $"[IMAGE ERROR] {file.FileName}: {ex}");
+                    $"[VIDEO ERROR] {file.FileName}: {ex}");
             }
 
             progress?.Invoke(

@@ -1,92 +1,194 @@
-﻿using ITMartin.Media.Enums;
+﻿// File:
+// ITMartin.Media.Domain/Entities/MediaFile.cs
+
+using ITMartin.Media.Enums;
 
 namespace ITMartin.Media.Domain.Entities;
 
 public class MediaFile
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } =
+        Guid.NewGuid();
+
     public string FullPath { get; }
+
     public string OriginalPath { get; }
+
     public string FileName { get; }
+
     public string Extension { get; }
 
     public long SizeBytes { get; set; }
 
     public DateTime? CreatedAt { get; private set; }
+
     public int Year { get; private set; }
+
     public int Month { get; private set; }
+
     public string? AiCategory { get; set; }
+
     public string? AiSubCategory { get; set; }
+
     public string? AiDescription { get; set; }
+
     public float? AiConfidence { get; set; }
+
     public bool AiProcessed { get; set; }
+
     public MediaType Type { get; }
 
     public MediaMainCategory MainCategory =>
         Type switch
         {
-            MediaType.Audio => MediaMainCategory.Audio,
-            MediaType.Video => MediaMainCategory.Video,
-            MediaType.Document => MediaMainCategory.Document,
-            MediaType.Image => MediaMainCategory.Image,
-            _ => MediaMainCategory.Image
+            MediaType.Audio =>
+                MediaMainCategory.Audio,
+
+            MediaType.Video =>
+                MediaMainCategory.Video,
+
+            MediaType.Document =>
+                MediaMainCategory.Document,
+
+            MediaType.Image =>
+                MediaMainCategory.Image,
+
+            _ =>
+                MediaMainCategory.Image
         };
 
-    public MediaSubCategory SubCategory { get; set; }
-    public MediaTertiaryCategory TertiaryCategory { get; set; } = MediaTertiaryCategory.Unknown;
+    public MediaSubCategory
+        SubCategory { get; set; }
 
-    public MediaSource Source { get; set; } = MediaSource.Unknown;
+    public MediaTertiaryCategory
+        TertiaryCategory { get; set; } =
+            MediaTertiaryCategory.Unknown;
+
+    public MediaSource
+        Source { get; set; } =
+            MediaSource.Unknown;
 
     public string? Hash { get; private set; }
-    public List<string> Tags { get; } = new();
+
+    public List<string> Tags { get; } = [];
 
     public int? Width { get; set; }
+
     public int? Height { get; set; }
+
+    public TimeSpan? Duration { get; set; }
 
     public bool IsDateReliable { get; private set; }
 
-    public bool IsImage => Type == MediaType.Image;
-    public bool IsVideo => Type == MediaType.Video;
-    public MediaFileStatus Status { get; set; } = MediaFileStatus.Initial;
+    public bool IsImage =>
+        Type == MediaType.Image;
+
+    public bool IsVideo =>
+        Type == MediaType.Video;
+
+    public bool IsAudio =>
+        Type == MediaType.Audio;
+
+    public bool IsDocument =>
+        Type == MediaType.Document;
+
+    public MediaFileStatus
+        Status { get; set; } =
+            MediaFileStatus.Initial;
+
     public bool RequiresReview { get; set; } = true;
+
     public bool IsProbablyRealPhoto { get; set; }
+
     public bool HasExif { get; set; }
+
     public string? ExportedPath { get; set; }
+
     public string? NormalizedPath { get; set; }
+
+    public string? ThumbnailPath { get; set; }
+
     public string? OcrText { get; set; }
+
     public bool OcrProcessed { get; set; }
+
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
+
+    public string? CameraModel { get; set; }
+
+    public string? Artist { get; set; }
+
+    public string? Album { get; set; }
+
+    public string? Title { get; set; }
+
+    public int? TrackNumber { get; set; }
+
+    public int? PageCount { get; set; }
+
+    public string? Author { get; set; }
+
+    public string? DocumentTitle { get; set; }
 
     public List<string> AiTags { get; set; } = [];
 
-    public MediaFile(string fullPath, DateTime? createdAt, MediaType type, long sizeBytes)
+    public MediaFile(
+        string fullPath,
+        DateTime? createdAt,
+        MediaType type,
+        long sizeBytes)
     {
         FullPath = fullPath;
+
         OriginalPath = fullPath;
 
-        FileName = Path.GetFileName(fullPath);
-        Extension = Path.GetExtension(fullPath);
+        FileName =
+            Path.GetFileName(fullPath);
 
-        SizeBytes = sizeBytes;
+        Extension =
+            Path.GetExtension(fullPath);
+
+        SizeBytes =
+            sizeBytes;
+
         Type = type;
 
-        // ✅ default subcategory based on type
         SubCategory = type switch
         {
-            MediaType.Audio => MediaSubCategory.UnknownAudio,
-            MediaType.Video => MediaSubCategory.UnknownVideo,
-            MediaType.Document => MediaSubCategory.UnknownDocument,
-            MediaType.Image => MediaSubCategory.UnknownImage,
-            _ => MediaSubCategory.UnknownImage
+            MediaType.Audio =>
+                MediaSubCategory.UnknownAudio,
+
+            MediaType.Video =>
+                MediaSubCategory.UnknownVideo,
+
+            MediaType.Document =>
+                MediaSubCategory.UnknownDocument,
+
+            MediaType.Image =>
+                MediaSubCategory.UnknownImage,
+
+            _ =>
+                MediaSubCategory.UnknownImage
         };
 
         if (createdAt != null)
-            SetDate(createdAt.Value, true);
+        {
+            SetDate(
+                createdAt.Value,
+                true);
+        }
     }
 
-    public void SetDate(DateTime? date, bool isReliable)
+    public void SetDate(
+        DateTime? date,
+        bool isReliable)
     {
         CreatedAt = date;
-        IsDateReliable = isReliable;
+
+        IsDateReliable =
+            isReliable;
 
         if (date is { } d)
         {
@@ -95,5 +197,9 @@ public class MediaFile
         }
     }
 
-    public void SetHash(string hash) => Hash = hash;
+    public void SetHash(
+        string hash)
+    {
+        Hash = hash;
+    }
 }

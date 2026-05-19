@@ -1,8 +1,8 @@
 ﻿using System.IO.Compression;
 using System.Xml.Linq;
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Domain.Steps.MetadataStep;
 
-namespace ITMartin.Media.Infrastructure.Videos;
+namespace ITMartin.Media.Infrastructure.Metadata;
 
 public class DocumentMetadataService : IDocumentMetadataService
 {
@@ -63,5 +63,20 @@ public class DocumentMetadataService : IDocumentMetadataService
         {
             return null;
         }
+    }
+
+    public string? GetTitle(string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    public string? GetAuthor(string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    public int? GetPageCount(string path)
+    {
+        throw new NotImplementedException();
     }
 }

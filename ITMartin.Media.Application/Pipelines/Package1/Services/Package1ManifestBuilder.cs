@@ -1,6 +1,7 @@
-﻿using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 
-namespace ITMartin.Media.Application.Pipelines.Package1.Models;
+namespace ITMartin.Media.Application.Pipelines.Package1.Services;
 
 public sealed class Package1ManifestBuilder
 {
@@ -10,13 +11,20 @@ public sealed class Package1ManifestBuilder
     {
         return new Package1Manifest
         {
-            WorkflowId = workflowId,
-            RootPath = state.RootPath,
-            FileCount = state.Files.Count,
-            Files = state.Files.ToList(),
-            HashedFiles = state.HashedFiles.ToList(),
-            MetadataFiles = state.MetadataFiles.ToList(),
-            CreatedAtUtc = DateTime.UtcNow
+            WorkflowId =
+                workflowId,
+
+            RootPath =
+                state.RootPath,
+
+            FileCount =
+                state.MediaFiles.Count,
+
+            MediaFiles =
+                state.MediaFiles.ToList(),
+
+            CreatedAtUtc =
+                DateTimeOffset.UtcNow
         };
     }
 }

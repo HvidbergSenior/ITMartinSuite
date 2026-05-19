@@ -2,27 +2,27 @@
 using ITMartin.Media.Enums;
 using ITMartin.Media.Interfaces;
 
-namespace ITMartin.Media.Application.Services;
+namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
-public class VideoBatchService : IVideoBatchService
+public class ImageBatchService : IImageBatchService
 {
-    private readonly VideoConverterService _converter;
+    private readonly ImageConverterService _converter;
 
-    public VideoBatchService(
-        VideoConverterService converter)
+    public ImageBatchService(
+        ImageConverterService converter)
     {
         _converter = converter;
     }
 
-    public async Task ConvertAllVideosAsync(
+    public async Task ConvertAllImagesAsync(
         IEnumerable<MediaFile> files,
         Action<int, int, string>? progress = null)
     {
-        var videos = files
-            .Where(f => f.Type == MediaType.Video)
+        var images = files
+            .Where(f => f.Type == MediaType.Image)
             .ToList();
 
-        int total = videos.Count;
+        int total = images.Count;
         int current = 0;
 
         var tempRoot = Path.Combine(
@@ -31,7 +31,7 @@ public class VideoBatchService : IVideoBatchService
 
         Directory.CreateDirectory(tempRoot);
 
-        foreach (var file in videos)
+        foreach (var file in images)
         {
             current++;
 
@@ -45,10 +45,9 @@ public class VideoBatchService : IVideoBatchService
             try
             {
                 var output =
-                    await _converter.ConvertToUniversalMp4Async(
+                    await _converter.ConvertToJpgAsync(
                         file.NormalizedPath ??
-                        file.FullPath,
-                        Path.GetTempPath());
+                        file.FullPath);
 
                 if (!string.IsNullOrWhiteSpace(output))
                 {
@@ -58,7 +57,7 @@ public class VideoBatchService : IVideoBatchService
             catch (Exception ex)
             {
                 Console.WriteLine(
-                    $"[VIDEO ERROR] {file.FileName}: {ex}");
+                    $"[IMAGE ERROR] {file.FileName}: {ex}");
             }
 
             progress?.Invoke(

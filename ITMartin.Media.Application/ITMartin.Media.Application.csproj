@@ -18,6 +18,11 @@
 
     <ItemGroup>
       <Folder Include="Pipelines\Package1\Operations\" />
+      <Folder Include="Services\Steps\FileDiscoveryStep\" />
+      <Folder Include="Services\Steps\HashStep\" />
+      <Folder Include="Services\Steps\ManifestBuildStep\" />
+      <Folder Include="Services\Steps\MetaDataStep\" />
+      <Folder Include="Services\Steps\ThumbnailStep\" />
     </ItemGroup>
 
 </Project>

@@ -2,9 +2,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Domain.Steps.NormalizationStep;
 
-namespace ITMartin.Media.Application.Services;
+namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
 public class VideoConverterService : IVideoConverterService
 {

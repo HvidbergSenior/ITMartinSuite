@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Domain.Steps.NormalizationStep;
 
-namespace ITMartin.Media.Application.Services;
+namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
 public class ImageConverterService : IImageConverterService
 {

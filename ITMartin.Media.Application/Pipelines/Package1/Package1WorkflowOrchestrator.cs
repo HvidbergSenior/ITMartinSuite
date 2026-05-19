@@ -16,12 +16,13 @@ public sealed class Package1WorkflowOrchestrator
     private readonly Package1WorkflowDefinition _workflowDefinition;
     private readonly IScanSessionRepository _repository;
     private readonly IEventPublisher _eventPublisher;
-
+    private readonly IWorkflowCheckpointStore
+        _workflowCheckpointStore;
     public Package1WorkflowOrchestrator(
         IWorkflowInstanceStore workflowInstanceStore,
         Package1WorkflowDefinition workflowDefinition,
         IScanSessionRepository repository,
-        IEventPublisher eventPublisher)
+        IEventPublisher eventPublisher, IWorkflowCheckpointStore workflowCheckpointStore)
     {
         _workflowInstanceStore =
             workflowInstanceStore;
@@ -34,6 +35,7 @@ public sealed class Package1WorkflowOrchestrator
 
         _eventPublisher =
             eventPublisher;
+        _workflowCheckpointStore = workflowCheckpointStore;
     }
 
     public async Task<Guid> StartAsync(
@@ -64,7 +66,15 @@ public sealed class Package1WorkflowOrchestrator
             session.Id,
             _workflowDefinition.Name,
             cancellationToken);
-
+        await _workflowCheckpointStore.SaveCheckpointAsync(
+            session.Id,
+            _workflowDefinition.Name,
+            "Initial",
+            new Package1WorkflowState
+            {
+                RootPath = request.RootPath
+            },
+            cancellationToken);
         await _workflowInstanceStore.SetRunningStepAsync(
             session.Id,
             "FileDiscoveryWorkflowStep",

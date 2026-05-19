@@ -1,8 +1,8 @@
-﻿using ITMartin.Media.Interfaces;
+﻿using ITMartin.Media.Domain.Steps.MetadataStep;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
-
-namespace ITMartin.Media.Infrastructure.Videos;
+using SixLabors.ImageSharp;
+namespace ITMartin.Media.Infrastructure.Metadata;
 
 public class ImageMetadataService : IImageMetadataService
 {
@@ -68,6 +68,36 @@ public class ImageMetadataService : IImageMetadataService
 
         return null;
     }
+
+    public (int Width, int Height)? GetDimensions(
+        string path)
+    {
+        try
+        {
+            var info =
+                Image.Identify(path);
+
+            if (info is null)
+            {
+                return null;
+            }
+
+            return (
+                info.Width,
+                info.Height);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public string? GetCameraModel(string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    
 
     public string GetModelFromFileName(string path)
     {

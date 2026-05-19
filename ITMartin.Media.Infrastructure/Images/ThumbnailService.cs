@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Enums;
 using ITMartin.Media.Interfaces;
 using SixLabors.ImageSharp;

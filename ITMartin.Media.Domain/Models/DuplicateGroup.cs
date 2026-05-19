@@ -1,4 +1,6 @@
-﻿namespace ITMartin.Media.Domain.Models;
+﻿using ITMartin.Media.Domain.Entities;
+
+namespace ITMartin.Media.Domain.Models;
 
 public sealed class DuplicateGroup
 {
@@ -6,6 +8,6 @@ public sealed class DuplicateGroup
 
     public long TotalSizeBytes { get; set; }
 
-    public IReadOnlyCollection<DuplicateFile> Files { get; set; }
+    public List<MediaFile> Files { get; set; }
         = [];
 }

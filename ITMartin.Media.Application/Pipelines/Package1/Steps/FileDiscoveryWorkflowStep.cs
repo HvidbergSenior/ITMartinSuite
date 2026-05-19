@@ -1,7 +1,8 @@
-﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
+﻿using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Domain.Entities;
 using ITMartin.Media.Domain.Interfaces;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
@@ -10,11 +11,13 @@ public sealed class FileDiscoveryWorkflowStep
     : IWorkflowStep
 {
     private readonly IFileScanner _fileScanner;
-
+    private readonly IMediaTypeResolver
+        _mediaTypeResolver;
     public FileDiscoveryWorkflowStep(
-        IFileScanner fileScanner)
+        IFileScanner fileScanner, IMediaTypeResolver mediaTypeResolver)
     {
         _fileScanner = fileScanner;
+        _mediaTypeResolver = mediaTypeResolver;
     }
 
     public string Name => "FileDiscovery";
@@ -29,7 +32,7 @@ public sealed class FileDiscoveryWorkflowStep
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
 
-        if (state.Files.Count > 0)
+        if (state.MediaFiles.Count > 0)
         {
             return;
         }
@@ -39,7 +42,14 @@ public sealed class FileDiscoveryWorkflowStep
                 state.RootPath,
                 cancellationToken);
 
-        state.Files =
-            files.ToList();
+        state.MediaFiles =
+            files
+                .Select(path =>
+                    new MediaFile(
+                        path,
+                        File.GetCreationTimeUtc(path),
+                        _mediaTypeResolver.Resolve(path),
+                        new FileInfo(path).Length))
+                .ToList();
     }
 }

@@ -5,12 +5,12 @@ using ITMartin.Media.Domain.Entities;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
-public class ExportWorkflowStep
+public class Package1ExportService
 {
     private readonly ILibraryExportService
         _libraryExportService;
 
-    public ExportWorkflowStep(
+    public Package1ExportService(
         ILibraryExportService
             libraryExportService)
     {

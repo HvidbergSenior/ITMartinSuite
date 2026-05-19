@@ -2,20 +2,19 @@
 using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
 public sealed class HashWorkflowStep : IWorkflowStep
 {
-    private readonly HashProcessor _processor;
     private readonly ILogger<HashWorkflowStep> _logger;
-
-    public HashWorkflowStep(
-        HashProcessor processor, ILogger<HashWorkflowStep> logger)
+private readonly IHashService _hashService;
+    public HashWorkflowStep(ILogger<HashWorkflowStep> logger, IHashService hashService)
     {
-        _processor = processor;
         _logger = logger;
+        _hashService = hashService;
     }
 
     public string Name => "Hashing";
@@ -30,32 +29,32 @@ public sealed class HashWorkflowStep : IWorkflowStep
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
 
-        foreach (var file in state.Files)
+        foreach (var file in state.MediaFiles)
         {
-            if (state.HashedFiles.Contains(file))
+            if (!string.IsNullOrWhiteSpace(
+                    file.Hash))
             {
                 continue;
             }
 
             _logger.LogInformation(
                 "Hashing {File}",
-                file);
+                file.FullPath);
 
-            // TODO:
-            // real hash logic later
+            var hash =
+                _hashService.ComputeHash(
+                    file.FullPath);
 
-            state.HashedFiles.Add(file);
+            file.SetHash(hash);
 
             _logger.LogInformation(
                 "Hashed {Count}/{Total}",
-                state.HashedFiles.Count,
-                state.Files.Count);
-
-            // TEMP crash test
-            // throw new Exception("Crash test");
+                state.MediaFiles.Count(x =>
+                    !string.IsNullOrWhiteSpace(
+                        x.Hash)),
+                state.MediaFiles.Count);
         }
 
-        await _processor.ProcessAsync(
-            cancellationToken);
+        await Task.CompletedTask;
     }
 }

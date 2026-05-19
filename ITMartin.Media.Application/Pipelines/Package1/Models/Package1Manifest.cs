@@ -1,18 +1,20 @@
-﻿namespace ITMartin.Media.Application.Pipelines.Package1.Models;
+﻿// File:
+// ITMartin.Media.Application/Pipelines/Package1/Models/Package1Manifest.cs
+
+using ITMartin.Media.Domain.Entities;
+
+namespace ITMartin.Media.Application.Pipelines.Package1.Models;
 
 public sealed class Package1Manifest
 {
-    public Guid WorkflowId { get; set; }
+    public required Guid WorkflowId { get; init; }
 
-    public required string RootPath { get; set; }
+    public required string RootPath { get; init; }
 
-    public int FileCount { get; set; }
+    public List<MediaFile>
+        MediaFiles { get; init; } = [];
 
-    public List<string> Files { get; set; } = [];
+    public int FileCount { get; init; }
 
-    public List<string> HashedFiles { get; set; } = [];
-
-    public List<string> MetadataFiles { get; set; } = [];
-
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; init; }
 }

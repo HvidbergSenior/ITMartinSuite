@@ -8,6 +8,7 @@ using ITMartin.Media.Application.Pipelines.Package1;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Services;
+using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure;
@@ -59,7 +60,7 @@ builder.Services.AddScoped<
     IScanSessionRepository,
     ScanSessionRepository>();
 builder.Services.AddScoped<
-    ExportWorkflowStep>();
+    ExportWorkflowExecutionStep>();
 
 // =========================
 // DUPLICATES

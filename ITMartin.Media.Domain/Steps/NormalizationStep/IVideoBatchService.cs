@@ -1,6 +1,6 @@
 ﻿using ITMartin.Media.Domain.Entities;
 
-namespace ITMartin.Media.Interfaces;
+namespace ITMartin.Media.Domain.Steps.NormalizationStep;
 
 public interface IVideoBatchService
 {

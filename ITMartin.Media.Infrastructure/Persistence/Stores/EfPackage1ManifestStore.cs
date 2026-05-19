@@ -1,5 +1,9 @@
-﻿using System.Text.Json;
+﻿// File:
+// ITMartin.Media.Infrastructure/Persistence/Stores/EfPackage1ManifestStore.cs
+
+using System.Text.Json;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
+using ITMartin.Media.Domain.Entities;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,19 +23,17 @@ public sealed class EfPackage1ManifestStore(
                 WorkflowId = manifest.WorkflowId,
                 RootPath = manifest.RootPath,
                 FileCount = manifest.FileCount,
-                FilesJson =
+
+                MediaFilesJson =
                     JsonSerializer.Serialize(
-                        manifest.Files),
-                HashedFilesJson =
-                    JsonSerializer.Serialize(
-                        manifest.HashedFiles),
-                MetadataFilesJson =
-                    JsonSerializer.Serialize(
-                        manifest.MetadataFiles),
-                CreatedAtUtc = manifest.CreatedAtUtc
+                        manifest.MediaFiles),
+
+                CreatedAtUtc =
+                    manifest.CreatedAtUtc
             };
 
-        dbContext.Package1Manifests.Add(entity);
+        dbContext.Package1Manifests.Add(
+            entity);
 
         await dbContext.SaveChangesAsync(
             cancellationToken);
@@ -53,24 +55,28 @@ public sealed class EfPackage1ManifestStore(
             return null;
         }
 
+        var mediaFiles =
+            JsonSerializer.Deserialize<
+                List<MediaFile>>(
+                    entity.MediaFilesJson)
+            ?? [];
+
         return new Package1Manifest
         {
-            WorkflowId = entity.WorkflowId,
-            RootPath = entity.RootPath,
-            FileCount = entity.FileCount,
-            Files =
-                JsonSerializer.Deserialize<List<string>>(
-                    entity.FilesJson)
-                ?? [],
-            HashedFiles =
-                JsonSerializer.Deserialize<List<string>>(
-                    entity.HashedFilesJson)
-                ?? [],
-            MetadataFiles =
-                JsonSerializer.Deserialize<List<string>>(
-                    entity.MetadataFilesJson)
-                ?? [],
-            CreatedAtUtc = entity.CreatedAtUtc
+            WorkflowId =
+                entity.WorkflowId,
+
+            RootPath =
+                entity.RootPath,
+
+            FileCount =
+                entity.FileCount,
+
+            MediaFiles =
+                mediaFiles,
+
+            CreatedAtUtc =
+                entity.CreatedAtUtc
         };
     }
 }

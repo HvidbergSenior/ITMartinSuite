@@ -1,8 +1,8 @@
-﻿using ITMartin.Media.Interfaces;
+﻿using ITMartin.Media.Domain.Interfaces;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 
-namespace ITMartin.Media.Infrastructure.Videos;
+namespace ITMartin.Media.Infrastructure.Metadata;
 
 public class GpsService : IGpsService
 {

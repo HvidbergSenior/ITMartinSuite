@@ -1,7 +1,5 @@
 ﻿using ITMartin.Media.Domain.Constants;
-using ITMartin.Media.Infrastructure.FileSystem;
-using ITMartin.Media.Infrastructure.Videos;
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Domain.Steps.MetadataStep;
 
 namespace ITMartin.Media.Infrastructure.Metadata;
 

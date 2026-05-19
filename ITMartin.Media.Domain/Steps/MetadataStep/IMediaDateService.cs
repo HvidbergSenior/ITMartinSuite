@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Interfaces;
+﻿namespace ITMartin.Media.Domain.Steps.MetadataStep;
 
 public interface IMediaDateService
 {

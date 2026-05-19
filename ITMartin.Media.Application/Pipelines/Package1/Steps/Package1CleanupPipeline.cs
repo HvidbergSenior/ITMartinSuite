@@ -1,7 +1,7 @@
 ﻿using ITMartin.Media.Application.Models;
 using ITMartin.Media.Domain.Entities;
 
-namespace ITMartin.Media.Application.Pipelines.Package1;
+namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
 public class Package1CleanupPipeline
 {
