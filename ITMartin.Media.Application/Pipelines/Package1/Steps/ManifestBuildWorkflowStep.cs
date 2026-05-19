@@ -1,111 +1,56 @@
-﻿using ITMartin.Media.Application.Interfaces;
-using ITMartin.Media.Application.Models;
-using ITMartin.Media.Application.Processors;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
-public class Package1ScanPipeline
+public sealed class ManifestBuildWorkflowStep
+    : IWorkflowStep
 {
-    private readonly FileEnumerationProcessor
-        _fileEnumerationProcessor;
+    private readonly Package1ManifestBuilder
+        _manifestBuilder;
 
-    private readonly ParallelScanProcessor
-        _parallelScanProcessor;
+    private readonly ILogger<
+            ManifestBuildWorkflowStep>
+        _logger;
+    private readonly IPackage1ManifestStore
+        _manifestStore;
 
-    private readonly IDuplicateService
-        _duplicateService;
-
-    private readonly Package1CleanupPipeline
-        _cleanupPipeline;
-
-    public Package1ScanPipeline(
-        FileEnumerationProcessor
-            fileEnumerationProcessor,
-
-        ParallelScanProcessor
-            parallelScanProcessor,
-
-        IDuplicateService
-            duplicateService,
-
-        Package1CleanupPipeline
-            cleanupPipeline)
+    public ManifestBuildWorkflowStep(
+        Package1ManifestBuilder manifestBuilder,
+        ILogger<ManifestBuildWorkflowStep> logger, IPackage1ManifestStore manifestStore)
     {
-        _fileEnumerationProcessor =
-            fileEnumerationProcessor;
-
-        _parallelScanProcessor =
-            parallelScanProcessor;
-
-        _duplicateService =
-            duplicateService;
-
-        _cleanupPipeline =
-            cleanupPipeline;
+        _manifestBuilder = manifestBuilder;
+        _logger = logger;
+        _manifestStore = manifestStore;
     }
 
-    public async Task<Package1ScanResult>
-        RunAsync(
-            string folderPath,
-            Action<int, int, string>?
-                progress = null)
+    public string Name => "Manifest";
+
+    public async Task ExecuteAsync<TState>(
+        WorkflowExecutionContext<TState> context,
+        CancellationToken cancellationToken = default)
+        where TState : class
     {
-        _duplicateService.Reset();
+        var state =
+            context.State as Package1WorkflowState
+            ?? throw new InvalidOperationException(
+                "Invalid workflow state");
 
-        var paths =
-            _fileEnumerationProcessor
-                .Enumerate(folderPath);
+        _logger.LogInformation(
+            "Building manifest");
 
-        var files =
-            await _parallelScanProcessor
-                .ProcessAsync(
-                    paths,
-                    progress);
+        var manifest =
+            _manifestBuilder.Build(
+                context.WorkflowId,
+                state);
 
-        _duplicateService.AllFiles =
-            files;
+        state.Manifest = manifest;
 
-        _duplicateService
-            .BuildDuplicateGroups();
-
-        var resultFiles =
-            _duplicateService
-                .AllFiles;
-
-        var cleanup =
-            _cleanupPipeline
-                .Run(resultFiles);
-
-        return new Package1ScanResult
-        {
-            Files =
-                resultFiles,
-
-            Cleanup =
-                cleanup,
-
-            TotalFiles =
-                cleanup.TotalFiles,
-
-            KeepCount =
-                cleanup.KeepCount,
-
-            DeleteCount =
-                cleanup.DeleteCount,
-
-            DuplicateGroups =
-                _duplicateService
-                    .DuplicateGroups
-                    .Count,
-
-            TotalBytes =
-                cleanup.TotalBytes,
-
-            BytesToDelete =
-                cleanup.BytesToDelete,
-
-            BytesToKeep =
-                cleanup.BytesToKeep
-        };
+        await _manifestStore.SaveAsync(
+            manifest,
+            cancellationToken);
     }
 }

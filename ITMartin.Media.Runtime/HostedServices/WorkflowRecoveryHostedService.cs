@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Application.Abstractions.Orchestration;
+﻿using System.Text.Json;
+using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
@@ -61,20 +62,44 @@ public sealed class WorkflowRecoveryHostedService
                 _logger.LogInformation(
                     "Recovering workflow {WorkflowId}",
                     workflowId);
+                var checkpointStore =
+                    scope.ServiceProvider
+                        .GetRequiredService<
+                            IWorkflowCheckpointStore>();
+                
+                var checkpoint =
+                    await checkpointStore.GetLatestCheckpointAsync(
+                        workflowId,
+                        stoppingToken);
+
+                Package1WorkflowState state;
+
+                if (checkpoint is null)
+                {
+                    state =
+                        new Package1WorkflowState
+                        {
+                            RootPath = string.Empty
+                        };
+                }
+                else
+                {
+                    state =
+                        JsonSerializer.Deserialize<
+                            Package1WorkflowState>(
+                            checkpoint.StateJson)!;
+                }
 
                 var context =
                     new WorkflowExecutionContext<
                         Package1WorkflowState>
                     {
                         WorkflowId = workflowId,
+
                         WorkflowName =
                             workflowDefinition.Name,
 
-                        State =
-                            new Package1WorkflowState
-                            {
-                                RootPath = string.Empty
-                            },
+                        State = state,
 
                         CancellationToken =
                             stoppingToken

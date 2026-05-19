@@ -1,4 +1,6 @@
-﻿namespace ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
+
+namespace ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 
 public sealed class Package1WorkflowState
 {
@@ -9,4 +11,5 @@ public sealed class Package1WorkflowState
     public List<string> HashedFiles { get; set; } = [];
 
     public List<string> MetadataFiles { get; set; } = [];
+    public Package1Manifest? Manifest { get; set; }
 }

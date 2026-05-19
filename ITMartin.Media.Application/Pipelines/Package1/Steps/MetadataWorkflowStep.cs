@@ -24,17 +24,36 @@ private readonly ILogger<MetadataWorkflowStep> _logger;
         CancellationToken cancellationToken = default)
         where TState : class
     {
-            var state =
-                context.State as Package1WorkflowState
-                ?? throw new InvalidOperationException(
-                    "Invalid workflow state");
-            cancellationToken.ThrowIfCancellationRequested();
+        var state =
+            context.State as Package1WorkflowState
+            ?? throw new InvalidOperationException(
+                "Invalid workflow state");
 
-            var files = state.Files;
-            state.MetadataFiles = files.ToList();
-            
-            await _processor.ProcessAsync(
-                cancellationToken);
-            
+        cancellationToken.ThrowIfCancellationRequested();
+
+        foreach (var file in state.Files)
+        {
+            if (state.MetadataFiles.Contains(file))
+            {
+                continue;
+            }
+
+            _logger.LogInformation(
+                "Extracting metadata for {File}",
+                file);
+
+            // TODO:
+            // real metadata extraction later
+
+            state.MetadataFiles.Add(file);
+
+            _logger.LogInformation(
+                "Metadata {Count}/{Total}",
+                state.MetadataFiles.Count,
+                state.Files.Count);
+        }
+
+        await _processor.ProcessAsync(
+            cancellationToken);
     }
 }

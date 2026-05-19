@@ -101,7 +101,8 @@ public static class DependencyInjection
 
         services.AddSingleton<IBackgroundJobQueue,
             InMemoryBackgroundJobQueue>();
-
+        services.AddScoped<
+            ManifestBuildWorkflowStep>();
         // =========================
         // WORKFLOWS
         // =========================

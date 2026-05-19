@@ -29,6 +29,11 @@ public sealed class FileDiscoveryWorkflowStep
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
 
+        if (state.Files.Count > 0)
+        {
+            return;
+        }
+
         var files =
             await _fileScanner.ScanAsync(
                 state.RootPath,
