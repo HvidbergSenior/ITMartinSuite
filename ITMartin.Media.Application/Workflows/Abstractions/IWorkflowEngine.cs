@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Application.Workflow.Models;
+﻿using ITMartin.Media.Application.Abstractions.Workflows;
+using ITMartin.Media.Application.Workflow.Models;
 
 namespace ITMartin.Media.Application.Workflow.Abstractions;
 

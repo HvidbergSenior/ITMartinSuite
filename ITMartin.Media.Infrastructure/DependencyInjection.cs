@@ -17,7 +17,8 @@ using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Workflows;
 using ITMartin.Media.Application.Workflow;
 using ITMartin.Media.Application.Workflow.Abstractions;
-using ITMartin.Media.Application.Workflow.Steps;
+using ITMartin.Media.Application.Workflows;
+using ITMartin.Media.Application.Workflows.Steps;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Infrastructure.BackgroundJobs;
@@ -41,6 +42,7 @@ using ITMartin.Media.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using WorkflowRecoveryService = ITMartin.Media.Infrastructure.Workflows.WorkflowRecoveryService;
 
 namespace ITMartin.Media.Infrastructure;
 
@@ -72,10 +74,13 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowCheckpointStore, EfWorkflowCheckpointStore>();
 
         services.AddScoped<IWorkflowResumeStore, EfWorkflowResumeStore>();
-
-        services.AddScoped<IWorkflowRecoveryStore, EfWorkflowRecoveryStore>();
-
         services.AddScoped<IScanSessionStore, EfScanSessionStore>();
+        services.AddScoped<
+            IWorkflowStepExecutionStore,
+            EfWorkflowStepExecutionStore>();
+        services.AddScoped<
+            IWorkflowRecoveryService,
+            WorkflowRecoveryService>();
 
         // =========================
         // DISTRIBUTED
@@ -104,9 +109,6 @@ public static class DependencyInjection
         // =========================
         // WORKFLOWS
         // =========================
-
-        services.AddScoped<IWorkflowEngine, WorkflowEngine>();
-
         services.AddScoped<IWorkflowExecutor, WorkflowExecutor>();
 
         services.AddScoped<IWorkflowRuntime, InMemoryWorkflowRuntime>();
@@ -116,11 +118,14 @@ public static class DependencyInjection
         services.AddScoped<WorkflowRecoveryService>();
 
         services.AddHostedService<WorkflowRecoveryHostedService>();
+        
+        services.AddScoped<IWorkflowDefinition,
+            Package1WorkflowDefinition>();
 
         // =========================
         // WORKFLOW STEPS
         // =========================
-
+        services.AddScoped<CrashWorkflowStep>();
         services.AddScoped<FileDiscoveryWorkflowStep>();
 
         services.AddScoped<HashWorkflowStep>();
@@ -133,9 +138,6 @@ public static class DependencyInjection
 
         services.AddScoped<IWorkflowDefinition,
             WorkflowDefinition>();
-
-        services.AddScoped<Package1WorkflowOrchestrator>();
-
         // =========================
         // RUNTIME
         // =========================

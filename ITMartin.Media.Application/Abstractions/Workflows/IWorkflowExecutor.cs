@@ -1,11 +1,10 @@
-﻿// File: ITMartin.Media.Application/Abstractions/Workflows/IWorkflowExecutor.cs
-
-namespace ITMartin.Media.Application.Abstractions.Workflows;
+﻿namespace ITMartin.Media.Application.Abstractions.Workflows;
 
 public interface IWorkflowExecutor
 {
-    Task ExecuteAsync(
+    Task ExecuteAsync<TState>(
         IWorkflowDefinition workflow,
-        WorkflowExecutionContext context,
-        CancellationToken cancellationToken = default);
+        WorkflowExecutionContext<TState> context,
+        CancellationToken cancellationToken = default)
+        where TState : class;
 }

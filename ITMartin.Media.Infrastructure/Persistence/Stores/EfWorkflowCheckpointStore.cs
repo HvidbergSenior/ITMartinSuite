@@ -97,12 +97,16 @@ public sealed class EfWorkflowCheckpointStore
         Guid workflowId,
         CancellationToken cancellationToken = default)
     {
-        var entity =
+        var entities =
             await _dbContext.WorkflowCheckpoints
                 .Where(x => x.WorkflowId == workflowId)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                .ToListAsync(cancellationToken);
 
+        var entity =
+            entities
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .FirstOrDefault();
+        
         if (entity is null)
         {
             return null;

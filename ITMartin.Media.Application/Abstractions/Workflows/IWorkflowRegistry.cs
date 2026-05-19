@@ -4,6 +4,5 @@ namespace ITMartin.Media.Application.Abstractions.Workflows;
 
 public interface IWorkflowRegistry
 {
-    IWorkflowDefinition Get(
-        string workflowName);
+    IWorkflowDefinition Resolve(string workflowName);
 }

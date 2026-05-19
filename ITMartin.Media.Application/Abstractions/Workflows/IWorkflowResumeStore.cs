@@ -15,4 +15,7 @@ public interface IWorkflowResumeStore
     Task MarkCompletedAsync(
         Guid workflowId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<Guid>> GetUnfinishedWorkflowIdsAsync(
+        CancellationToken cancellationToken = default);
 }

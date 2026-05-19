@@ -1,7 +1,8 @@
 ﻿using ITMartin.Media.Application.Abstractions.Workflows;
+using ITMartin.Media.Application.Workflows.Models;
 using ITMartin.Media.Domain.Interfaces;
 
-namespace ITMartin.Media.Application.Workflow.Steps;
+namespace ITMartin.Media.Application.Workflows.Steps;
 
 public sealed class FileDiscoveryWorkflowStep
     : IWorkflowStep
@@ -16,20 +17,22 @@ public sealed class FileDiscoveryWorkflowStep
 
     public string Name => "FileDiscovery";
 
-    public async Task ExecuteAsync(
-        WorkflowExecutionContext context,
+    public async Task ExecuteAsync<TState>(
+        WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
-        var rootPath =
-            context.Items["RootPath"]?.ToString()
+        var state =
+            context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
-                "RootPath missing");
+                "Invalid workflow state");
 
         var files =
             await _fileScanner.ScanAsync(
-                rootPath,
+                state.RootPath,
                 cancellationToken);
 
-        context.Items["files"] = files;
+        state.Files =
+            files.ToList();
     }
 }

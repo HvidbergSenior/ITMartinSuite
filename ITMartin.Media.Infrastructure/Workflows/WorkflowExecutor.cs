@@ -9,14 +9,16 @@ namespace ITMartin.Media.Infrastructure.Workflows;
 public sealed class WorkflowExecutor(
     IWorkflowCheckpointStore workflowCheckpointStore,
     IWorkflowResumeStore workflowResumeStore,
+    IWorkflowStepExecutionStore workflowStepExecutionStore,
     ILogger<WorkflowExecutor> logger)
     : IWorkflowExecutor
 {
 
-    public async Task ExecuteAsync(
+    public async Task ExecuteAsync<TState>(
         IWorkflowDefinition workflow,
-        WorkflowExecutionContext context,
+        WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         var workflowId = context.WorkflowId;
 
@@ -48,19 +50,44 @@ public sealed class WorkflowExecutor(
         {
             var step = steps[i];
 
+            var alreadyCompleted =
+                await workflowStepExecutionStore.IsCompletedAsync(
+                    workflowId,
+                    step.Name,
+                    cancellationToken);
+
+            if (alreadyCompleted)
+            {
+                logger.LogInformation(
+                    "Skipping already completed step {StepName}",
+                    step.Name);
+
+                continue;
+            }
+
             logger.LogInformation(
                 "Executing workflow step {StepName}",
                 step.Name);
+
+            await workflowStepExecutionStore.MarkStartedAsync(
+                workflowId,
+                step.Name,
+                cancellationToken);
 
             await step.ExecuteAsync(
                 context,
                 cancellationToken);
 
+            await workflowStepExecutionStore.MarkCompletedAsync(
+                workflowId,
+                step.Name,
+                cancellationToken);
+            
             await workflowCheckpointStore.SaveCheckpointAsync(
                 workflowId,
                 workflow.Name,
                 step.Name,
-                context.Items,
+                context.State,
                 cancellationToken);
             
             await workflowResumeStore.SaveAsync(

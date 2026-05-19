@@ -1,57 +1,56 @@
 using ITMartin.Media.Application.Abstractions.Workflows;
+using ITMartin.Media.Application.Workflows.Models;
 
 namespace ITMartin.FileSorter.Worker;
-
-public sealed class Worker : BackgroundService
-{
-    private readonly ILogger<Worker> _logger;
-    private readonly IServiceScopeFactory _scopeFactory;
-
-    public Worker(
-        ILogger<Worker> logger,
-        IServiceScopeFactory scopeFactory)
+    public sealed class Worker : BackgroundService
     {
-        _logger = logger;
-        _scopeFactory = scopeFactory;
-    }
+        private readonly ILogger<Worker> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-    protected override async Task ExecuteAsync(
-        CancellationToken stoppingToken)
-    {
-        _logger.LogInformation("Worker started");
-
-        while (!stoppingToken.IsCancellationRequested)
+        public Worker(
+            ILogger<Worker> logger,
+            IServiceScopeFactory scopeFactory)
         {
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
+            _logger = logger;
+            _scopeFactory = scopeFactory;
+        }
 
-                var checkpointStore =
-                    scope.ServiceProvider
-                        .GetRequiredService<IWorkflowCheckpointStore>();
+        protected override async Task ExecuteAsync(
+            CancellationToken stoppingToken)
+        {
+            _logger.LogInformation(
+                "Worker started");
 
-                await checkpointStore.SaveCheckpointAsync(
-                    Guid.NewGuid(),
-                    "WorkerLoop",
-                    "Heartbeat",
-                    new
-                    {
-                        Timestamp = DateTimeOffset.UtcNow
-                    },
-                    stoppingToken);
+            using var scope =
+                _scopeFactory.CreateScope();
 
-                _logger.LogInformation("Heartbeat checkpoint saved");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Failed to save heartbeat checkpoint");
-            }
+            var workflowRegistry =
+                scope.ServiceProvider
+                    .GetRequiredService<IWorkflowRegistry>();
 
+            var workflowExecutor =
+                scope.ServiceProvider
+                    .GetRequiredService<IWorkflowExecutor>();
+
+            var workflow =
+                workflowRegistry.Resolve(
+                    "Package1Workflow");
+
+            var context =
+                new WorkflowExecutionContext<Package1WorkflowState>
+                {
+                    WorkflowId = Guid.NewGuid(),
+                    WorkflowName = workflow.Name,
+                    State =
+                        new Package1WorkflowState
+                        {
+                            RootPath = @"C:\MediaTest"
+                        }
+                };
+            _logger.LogInformation(
+                "Worker startup complete");
             await Task.Delay(
-                TimeSpan.FromSeconds(10),
+                Timeout.Infinite,
                 stoppingToken);
         }
     }
-}

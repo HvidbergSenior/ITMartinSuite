@@ -1,4 +1,6 @@
-﻿namespace ITMartin.Media.Application.Abstractions.Workflows;
+﻿using ITMartin.Media.Application.Abstractions.Workflows;
+
+namespace ITMartin.Media.Application.Workflows.Abstractions;
 
 public interface IWorkflowStep
 {

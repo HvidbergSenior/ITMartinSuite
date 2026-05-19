@@ -7,16 +7,13 @@ using ITMartin.Media.Application.Services;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure;
-using ITMartin.Media.Infrastructure.Persistence;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using ITMartinFileSorter.Application.Services;
 using ITMartinFileSorter.Server;
-using ITMartinFileSorter.Server.Endpoints;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -162,8 +159,6 @@ var dbPath =
 // =========================
 
 var app = builder.Build();
-
-app.MapTestEndpoints();
 
 // =========================
 // ERROR HANDLING

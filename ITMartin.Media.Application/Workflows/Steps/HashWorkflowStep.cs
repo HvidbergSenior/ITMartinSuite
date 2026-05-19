@@ -1,9 +1,10 @@
 ﻿using System.Text.Json;
 using ITMartin.Media.Application.Abstractions.Workflows;
 using ITMartin.Media.Application.Processors;
+using ITMartin.Media.Application.Workflows.Models;
 using Microsoft.Extensions.Logging;
 
-namespace ITMartin.Media.Application.Workflow.Steps;
+namespace ITMartin.Media.Application.Workflows.Steps;
 
 public sealed class HashWorkflowStep : IWorkflowStep
 {
@@ -18,24 +19,21 @@ private readonly ILogger<HashWorkflowStep> _logger;
 
     public string Name => "Hashing";
 
-    public async Task ExecuteAsync(
-        WorkflowExecutionContext context,
+    public async Task ExecuteAsync<TState>(
+        WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var files =
-                context.Items["files"];
-            var json = JsonSerializer.Serialize(files);
-            _logger.LogInformation(
-                "Files serialized successfully: {Length}",
-                json.Length);
+            var state =
+                context.State as Package1WorkflowState
+                ?? throw new InvalidOperationException(
+                    "Invalid workflow state");
+            
+            var files = state.Files;
+            
+            state.HashedFiles = files.ToList();
+            
             await _processor.ProcessAsync(
                 cancellationToken);
-
-            context.Items["hashedFiles"] =
-                files;
         }
     }
-}

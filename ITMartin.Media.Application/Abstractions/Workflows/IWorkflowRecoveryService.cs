@@ -1,7 +1,8 @@
 ﻿namespace ITMartin.Media.Application.Abstractions.Workflows;
 
-public interface IWorkflowRecoveryStore
+public interface IWorkflowRecoveryService
 {
-    Task<IReadOnlyCollection<Guid>> GetUnfinishedWorkflowIdsAsync(
+    Task RecoverAsync(
+        Guid workflowId,
         CancellationToken cancellationToken = default);
 }

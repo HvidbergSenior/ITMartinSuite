@@ -19,13 +19,17 @@ public sealed class WorkflowRecoveryHostedService(
 
         using var scope = serviceScopeFactory.CreateScope();
 
-        var recoveryStore =
+        var resumeStore =
             scope.ServiceProvider
-                .GetRequiredService<IWorkflowRecoveryStore>();
+                .GetRequiredService<IWorkflowResumeStore>();
 
         var workflowIds =
-            await recoveryStore.GetUnfinishedWorkflowIdsAsync(
+            await resumeStore.GetUnfinishedWorkflowIdsAsync(
                 stoppingToken);
+        
+        var recoveryService =
+            scope.ServiceProvider
+                .GetRequiredService<IWorkflowRecoveryService>();
 
         foreach (var workflowId in workflowIds)
         {
@@ -33,7 +37,10 @@ public sealed class WorkflowRecoveryHostedService(
                 "Recovering workflow {WorkflowId}",
                 workflowId);
 
-            // temporary placeholder
+            
+            await recoveryService.RecoverAsync(
+                workflowId,
+                stoppingToken);
         }
     }
 }

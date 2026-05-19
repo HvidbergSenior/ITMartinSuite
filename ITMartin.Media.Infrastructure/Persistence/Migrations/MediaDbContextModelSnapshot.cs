@@ -127,6 +127,36 @@ namespace ITMartin.Media.Infrastructure.Persistence.Migrations
 
                     b.ToTable("WorkflowResumes");
                 });
+
+            modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.WorkflowStepExecutionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StepName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkflowId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkflowId", "StepName", "Status");
+
+                    b.ToTable("WorkflowStepExecutions");
+                });
 #pragma warning restore 612, 618
         }
     }

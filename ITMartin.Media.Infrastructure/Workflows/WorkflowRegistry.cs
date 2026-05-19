@@ -1,6 +1,4 @@
-﻿// File: ITMartin.Media.Infrastructure/Workflows/WorkflowRegistry.cs
-
-using ITMartin.Media.Application.Abstractions.Workflows;
+﻿using ITMartin.Media.Application.Abstractions.Workflows;
 
 namespace ITMartin.Media.Infrastructure.Workflows;
 
@@ -14,7 +12,7 @@ public sealed class WorkflowRegistry(
                 x => x.Name,
                 StringComparer.OrdinalIgnoreCase);
 
-    public IWorkflowDefinition Get(
+    public IWorkflowDefinition Resolve(
         string workflowName)
     {
         if (_workflows.TryGetValue(

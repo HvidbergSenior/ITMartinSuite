@@ -21,7 +21,8 @@ public sealed class MediaDbContext
 
     public DbSet<WorkflowCheckpointEntity> WorkflowCheckpoints
         => Set<WorkflowCheckpointEntity>();
-
+    public DbSet<WorkflowStepExecutionEntity> WorkflowStepExecutions
+        => Set<WorkflowStepExecutionEntity>();
     public DbSet<ScanSessionEntity> ScanSessions
         => Set<ScanSessionEntity>();
     
@@ -38,5 +39,16 @@ public sealed class MediaDbContext
 
         modelBuilder.Entity<ScanSessionEntity>()
             .HasKey(x => x.Id);
+        
+        modelBuilder.Entity<WorkflowStepExecutionEntity>()
+            .HasKey(x => x.Id);
+
+        modelBuilder.Entity<WorkflowStepExecutionEntity>()
+            .HasIndex(x => new
+            {
+                x.WorkflowId,
+                x.StepName,
+                x.Status
+            });
     }
 }

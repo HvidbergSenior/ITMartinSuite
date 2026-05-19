@@ -41,4 +41,13 @@ public sealed class InMemoryWorkflowResumeStore
 
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyCollection<Guid>> GetUnfinishedWorkflowIdsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyCollection<Guid> workflowIds =
+            States.Keys.ToList();
+
+        return Task.FromResult(workflowIds);
+    }
 }
