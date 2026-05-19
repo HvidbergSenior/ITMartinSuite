@@ -90,4 +90,24 @@ public sealed class EfWorkflowInstanceStore(
         await dbContext.SaveChangesAsync(
             cancellationToken);
     }
+    public async Task<bool> ExistsAsync(
+        Guid workflowId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.WorkflowInstances
+            .AnyAsync(
+                x => x.WorkflowId == workflowId,
+                cancellationToken);
+    }
+    public async Task<IReadOnlyCollection<Guid>>
+        GetRecoverableWorkflowIdsAsync(
+            CancellationToken cancellationToken = default)
+    {
+        return await dbContext.WorkflowInstances
+            .Where(x =>
+                x.Status == "Running"
+                || x.Status == "Failed")
+            .Select(x => x.WorkflowId)
+            .ToListAsync(cancellationToken);
+    }
 }

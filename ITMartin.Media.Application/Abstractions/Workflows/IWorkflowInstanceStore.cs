@@ -20,4 +20,9 @@ public interface IWorkflowInstanceStore
         Guid workflowId,
         string reason,
         CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(
+        Guid workflowId,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<Guid>> GetRecoverableWorkflowIdsAsync(
+        CancellationToken cancellationToken = default);
 }

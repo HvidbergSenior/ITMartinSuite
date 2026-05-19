@@ -1,14 +1,12 @@
 ﻿// File: ITMartin.Media.Infrastructure/Workflows/WorkflowExecutor.cs
 
 using ITMartin.Media.Application.Abstractions.Workflows;
-using ITMartin.Media.Application.Models.Workflows;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Infrastructure.Workflows;
 
 public sealed class WorkflowExecutor(
     IWorkflowCheckpointStore workflowCheckpointStore,
-    IWorkflowResumeStore workflowResumeStore,
     IWorkflowStepExecutionStore workflowStepExecutionStore,
     IWorkflowInstanceStore workflowInstanceStore,
     ILogger<WorkflowExecutor> logger)
@@ -16,109 +14,105 @@ public sealed class WorkflowExecutor(
 {
 
     public async Task ExecuteAsync<TState>(
-        IWorkflowDefinition workflow,
-        WorkflowExecutionContext<TState> context,
-        CancellationToken cancellationToken = default)
-        where TState : class
-    {
-        var workflowId = context.WorkflowId;
-        var existingResume =
-            await workflowResumeStore.GetAsync(
-                workflowId,
-                cancellationToken);
+    IWorkflowDefinition workflow,
+    WorkflowExecutionContext<TState> context,
+    CancellationToken cancellationToken = default)
+    where TState : class
+{
+    var workflowId = context.WorkflowId;
 
-        if (existingResume is null)
-        {
-            await workflowInstanceStore.CreateAsync(
-                workflowId,
-                workflow.Name,
-                cancellationToken);
-        }
-
-        var resumeState = await workflowResumeStore.GetAsync(
+    var existingInstance =
+        await workflowInstanceStore.ExistsAsync(
             workflowId,
             cancellationToken);
 
-        var steps = workflow.Steps.ToList();
+    if (!existingInstance)
+    {
+        await workflowInstanceStore.CreateAsync(
+            workflowId,
+            workflow.Name,
+            cancellationToken);
+    }
 
-        var startIndex = 0;
+    var steps = workflow.Steps.ToList();
 
-        if (resumeState?.LastCompletedStep is not null)
+    logger.LogInformation(
+        "Workflow {WorkflowId} starting execution",
+        workflowId);
+
+    for (var i = 0; i < steps.Count; i++)
+    {
+        var step = steps[i];
+
+        var alreadyCompleted =
+            await workflowStepExecutionStore.IsCompletedAsync(
+                workflowId,
+                step.Name,
+                cancellationToken);
+
+        if (alreadyCompleted)
         {
-            var completedIndex = steps.FindIndex(x => x.Name == resumeState.LastCompletedStep);
+            logger.LogInformation(
+                "Skipping already completed step {StepName}",
+                step.Name);
 
-            if (completedIndex >= 0)
-            {
-                startIndex = completedIndex + 1;
-            }
+            continue;
         }
 
         logger.LogInformation(
-            "Workflow {WorkflowId} resuming from index {StartIndex}",
+            "Executing workflow step {StepName}",
+            step.Name);
+
+        await workflowInstanceStore.SetRunningStepAsync(
             workflowId,
-            startIndex);
+            step.Name,
+            cancellationToken);
 
-        for (var i = startIndex; i < steps.Count; i++)
+        await workflowStepExecutionStore.MarkStartedAsync(
+            workflowId,
+            step.Name,
+            cancellationToken);
+
+        try
         {
-            var step = steps[i];
+            await step.ExecuteAsync(
+                context,
+                cancellationToken);
 
-            var alreadyCompleted =
-                await workflowStepExecutionStore.IsCompletedAsync(
-                    workflowId,
-                    step.Name,
-                    cancellationToken);
+            await workflowStepExecutionStore.MarkCompletedAsync(
+                workflowId,
+                step.Name,
+                cancellationToken);
 
-            if (alreadyCompleted)
-            {
-                logger.LogInformation(
-                    "Skipping already completed step {StepName}",
-                    step.Name);
+            await workflowCheckpointStore.SaveCheckpointAsync(
+                workflowId,
+                workflow.Name,
+                step.Name,
+                context.State,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            await workflowInstanceStore.MarkFailedAsync(
+                workflowId,
+                ex.Message,
+                cancellationToken);
 
-                continue;
-            }
-
-            logger.LogInformation(
-                "Executing workflow step {StepName}",
+            logger.LogError(
+                ex,
+                "Workflow step failed {StepName}",
                 step.Name);
 
-            await workflowInstanceStore.SetRunningStepAsync(
-                workflowId,
-                step.Name,
-                cancellationToken);
-
-            await workflowStepExecutionStore.MarkStartedAsync(
-                workflowId,
-                step.Name,
-                cancellationToken);
-
-            try
-            {
-                await step.ExecuteAsync(
-                    context,
-                    cancellationToken);
-
-                await workflowResumeStore.MarkCompletedAsync(
-                    workflowId,
-                    cancellationToken);
-
-                await workflowInstanceStore.MarkCompletedAsync(
-                    workflowId,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await workflowInstanceStore.MarkFailedAsync(
-                    workflowId,
-                    ex.Message,
-                    cancellationToken);
-
-                logger.LogError(
-                    ex,
-                    "Workflow step failed {StepName}",
-                    step.Name);
-
-                throw;
-            }
+            throw;
         }
     }
+
+    await workflowInstanceStore.MarkCompletedAsync(
+        workflowId,
+        cancellationToken);
+
+    logger.LogInformation(
+        "Workflow {WorkflowId} completed",
+        workflowId);
+}
 }

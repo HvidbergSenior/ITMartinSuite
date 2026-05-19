@@ -75,7 +75,6 @@ public static class DependencyInjection
 
         services.AddScoped<IWorkflowCheckpointStore, EfWorkflowCheckpointStore>();
 
-        services.AddScoped<IWorkflowResumeStore, EfWorkflowResumeStore>();
         services.AddScoped<IScanSessionStore, EfScanSessionStore>();
         services.AddScoped<
             IWorkflowStepExecutionStore,

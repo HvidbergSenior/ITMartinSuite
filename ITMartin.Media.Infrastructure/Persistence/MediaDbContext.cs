@@ -16,7 +16,6 @@ public sealed class MediaDbContext
         : base(options)
     {
     }
-    public DbSet<WorkflowResumeEntity> WorkflowResumes => Set<WorkflowResumeEntity>();
     public DbSet<AiCache> AiCache => Set<AiCache>();
     public DbSet<WorkflowInstanceEntity>
         WorkflowInstances
