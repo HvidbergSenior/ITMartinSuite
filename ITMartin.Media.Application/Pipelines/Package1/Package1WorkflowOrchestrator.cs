@@ -1,35 +1,39 @@
 ﻿using ITMartin.Media.Application.Abstractions.Events;
+using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Events.Scanning;
 using ITMartin.Media.Application.Models.Scan;
 using ITMartin.Media.Application.Models.Scanning;
-using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 
-namespace ITMartin.Media.Application.Abstractions.Orchestration;
+namespace ITMartin.Media.Application.Pipelines.Package1;
 
-public sealed class Package1WorkflowOrchestrator : IScanOrchestrator
+public sealed class Package1WorkflowOrchestrator
+    : IScanOrchestrator
 {
-    private readonly IWorkflowExecutor _workflowExecutor;
+    private readonly IWorkflowInstanceStore _workflowInstanceStore;
     private readonly Package1WorkflowDefinition _workflowDefinition;
-    private readonly IPackage1ManifestStore _manifestStore;
-    private readonly Package1ManifestBuilder _manifestBuilder;
     private readonly IScanSessionRepository _repository;
     private readonly IEventPublisher _eventPublisher;
 
     public Package1WorkflowOrchestrator(
-        IWorkflowExecutor workflowExecutor,
+        IWorkflowInstanceStore workflowInstanceStore,
         Package1WorkflowDefinition workflowDefinition,
-        IPackage1ManifestStore manifestStore,
-        Package1ManifestBuilder manifestBuilder, IScanSessionRepository repository, IEventPublisher eventPublisher)
+        IScanSessionRepository repository,
+        IEventPublisher eventPublisher)
     {
-        _workflowExecutor = workflowExecutor;
-        _workflowDefinition = workflowDefinition;
-        _manifestStore = manifestStore;
-        _manifestBuilder = manifestBuilder;
-        _repository = repository;
-        _eventPublisher = eventPublisher;
+        _workflowInstanceStore =
+            workflowInstanceStore;
+
+        _workflowDefinition =
+            workflowDefinition;
+
+        _repository =
+            repository;
+
+        _eventPublisher =
+            eventPublisher;
     }
 
     public async Task<Guid> StartAsync(
@@ -44,42 +48,28 @@ public sealed class Package1WorkflowOrchestrator : IScanOrchestrator
             StartedAtUtc = DateTimeOffset.UtcNow
         };
 
-        await _repository.CreateAsync(session, cancellationToken);
+        await _repository.CreateAsync(
+            session,
+            cancellationToken);
 
         await _eventPublisher.PublishAsync(
-            
             new ScanStartedEvent(
                 Guid.NewGuid(),
                 session.Id,
                 request.RootPath,
                 DateTimeOffset.UtcNow),
             cancellationToken);
-        var context =
-            new WorkflowExecutionContext<Package1WorkflowState>
-            {
-                WorkflowId = session.Id,
-                WorkflowName = _workflowDefinition.Name,
-                State =
-                    new Package1WorkflowState
-                    {
-                        RootPath = request.RootPath
-                    },
-                CancellationToken = cancellationToken
-            };
 
-        await _workflowExecutor.ExecuteAsync(
-            _workflowDefinition,
-            context,
+        await _workflowInstanceStore.CreateAsync(
+            session.Id,
+            _workflowDefinition.Name,
             cancellationToken);
 
-        var manifest =
-            _manifestBuilder.Build(
-                session.Id,
-                context.State);
-
-        await _manifestStore.SaveAsync(
-            manifest,
+        await _workflowInstanceStore.SetRunningStepAsync(
+            session.Id,
+            "FileDiscoveryWorkflowStep",
             cancellationToken);
+
         return session.Id;
     }
 
@@ -87,9 +77,10 @@ public sealed class Package1WorkflowOrchestrator : IScanOrchestrator
         Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var session = await _repository.GetAsync(
-            sessionId,
-            cancellationToken);
+        var session =
+            await _repository.GetAsync(
+                sessionId,
+                cancellationToken);
 
         if (session is null)
         {
@@ -107,9 +98,10 @@ public sealed class Package1WorkflowOrchestrator : IScanOrchestrator
         Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var session = await _repository.GetAsync(
-            sessionId,
-            cancellationToken);
+        var session =
+            await _repository.GetAsync(
+                sessionId,
+                cancellationToken);
 
         if (session is null)
         {
@@ -127,9 +119,10 @@ public sealed class Package1WorkflowOrchestrator : IScanOrchestrator
         Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var session = await _repository.GetAsync(
-            sessionId,
-            cancellationToken);
+        var session =
+            await _repository.GetAsync(
+                sessionId,
+                cancellationToken);
 
         if (session is null)
         {

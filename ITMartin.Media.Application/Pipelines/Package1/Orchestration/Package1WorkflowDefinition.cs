@@ -1,7 +1,7 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
-namespace ITMartin.Media.Application.Pipelines.Package1.Models;
+namespace ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 
 public sealed class Package1WorkflowDefinition
     : IWorkflowDefinition

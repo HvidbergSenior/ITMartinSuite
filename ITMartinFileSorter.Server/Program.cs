@@ -1,13 +1,18 @@
 // File: ITMartinFileSorter.Server/Program.cs
 
+using ITMartin.Media.Application.Abstractions.Events;
 using ITMartin.Media.Application.Abstractions.Runtime;
+using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
-using ITMartin.Media.Application.Pipelines;
 using ITMartin.Media.Application.Pipelines.Package1;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
 using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.Events;
+using ITMartin.Media.Infrastructure.Persistence.Repositories;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
@@ -50,15 +55,11 @@ builder.Services.AddMediaInfrastructure(
 // =========================
 // PIPELINES
 // =========================
-
 builder.Services.AddScoped<
-    Package1ScanPipeline>();
-
+    IScanSessionRepository,
+    ScanSessionRepository>();
 builder.Services.AddScoped<
-    Package1ExportPipeline>();
-
-builder.Services.AddScoped<
-    Package1Pipeline>();
+    ExportWorkflowStep>();
 
 // =========================
 // DUPLICATES
@@ -112,11 +113,24 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IAiCacheService,
     SqliteAiCacheService>();
-
+builder.Services.AddSingleton<
+    IEventPublisher,
+    NullEventPublisher>();
 builder.Services.AddScoped<
     IMediaOcrService,
     MediaOcrService>();
+builder.Services.AddScoped<
+    Package1WorkflowDefinition>();
+builder.Services.AddScoped<
+    Package1WorkflowOrchestrator>();
+builder.Services.AddScoped<
+    FileDiscoveryWorkflowStep>();
 
+builder.Services.AddScoped<
+    HashWorkflowStep>();
+
+builder.Services.AddScoped<
+    MetadataWorkflowStep>();
 // =========================
 // OCR
 // =========================

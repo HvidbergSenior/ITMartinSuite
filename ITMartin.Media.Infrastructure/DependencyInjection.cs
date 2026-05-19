@@ -9,6 +9,7 @@ using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Pipelines;
 using ITMartin.Media.Application.Pipelines.Package1;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Application.Services;

@@ -8,18 +8,18 @@ public class Package1Pipeline
     private readonly Package1ScanPipeline
         _scanPipeline;
 
-    private readonly Package1ExportPipeline
-        _exportPipeline;
+    private readonly ExportWorkflowStep
+        _exportWorkflowStep;
 
     public Package1Pipeline(
         Package1ScanPipeline scanPipeline,
-        Package1ExportPipeline exportPipeline)
+        ExportWorkflowStep exportWorkflowStep)
     {
         _scanPipeline =
             scanPipeline;
 
-        _exportPipeline =
-            exportPipeline;
+        _exportWorkflowStep =
+            exportWorkflowStep;
     }
 
     // ====================================
@@ -49,7 +49,7 @@ public class Package1Pipeline
             Func<int, int, string, string, Task>?
                 progress = null)
     {
-        return await _exportPipeline
+        return await _exportWorkflowStep
             .ExportAsync(
                 files,
                 exportRoot,

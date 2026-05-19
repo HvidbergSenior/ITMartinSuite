@@ -1,7 +1,10 @@
 ﻿@page "/"
 @page "/filesorter"
 
+@using ITMartin.Media.Application.Abstractions.Orchestration
 @using ITMartin.Media.Application.Models
+@using ITMartin.Media.Application.Models.Scan
+@using ITMartin.Media.Application.Models.Scanning
 @using ITMartin.Media.Application.Pipelines
 @using ITMartin.Media.Application.Pipelines.Package1
 @using ITMartin.Media.Domain.Entities
@@ -11,12 +14,11 @@
 
 @implements IDisposable
 
-@inject Package1Pipeline Package1Pipeline
 @inject ProgressService Progress
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject ILogger<Index> Logger
-
+@inject Package1WorkflowOrchestrator Orchestrator
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
     <div class="filesorter-app">
@@ -308,21 +310,17 @@
                 "Scanning files...",
                 paths);
 
-            ScanResult =
-                await Package1Pipeline
-                    .ScanAsync(
-                        FolderPath,
-                        (done,
-                         total,
-                         file) =>
-                        {
-                            CurrentFileName =
-                                file;
-
-                            Progress.Update(done);
-                        });
-
-            Progress.Complete();
+            await Orchestrator.StartAsync(
+                new StartScanRequest(
+                    FolderPath,
+                    true,
+                    false,
+                    false,
+                    "Package1"),
+                CancellationToken.None);
+            //Progress.Complete();
+            Logger.LogInformation(
+                "Workflow started");
 
             Logger.LogInformation(
                 "Package 1 scan completed");

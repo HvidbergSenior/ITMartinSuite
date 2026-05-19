@@ -1,11 +1,11 @@
-// File: ITMartin.FileSorter.Worker/Program.cs
-
-using ITMartin.FileSorter.Worker;
 using ITMartin.Media.Application.Abstractions.Runtime;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Infrastructure;
 using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.Queues;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
+using ITMartin.Media.Runtime.HostedServices;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -23,19 +23,26 @@ builder.Services.AddMediaInfrastructure(
 builder.Services.AddSingleton<
     IRuntimeEventPublisher,
     NullRuntimeEventPublisher>();
+
+builder.Services.AddHostedService<
+    WorkflowRecoveryHostedService>();
+
 // =========================
 // QUEUES
 // =========================
 
 builder.Services.AddInMemoryQueue<
     WorkflowExecutionMessage>();
+builder.Services.AddScoped<
+    Package1WorkflowDefinition>();
+builder.Services.AddScoped<
+    FileDiscoveryWorkflowStep>();
 
-// =========================
-// WORKERS
-// =========================
+builder.Services.AddScoped<
+    HashWorkflowStep>();
 
-builder.Services.AddHostedService<Worker>();
-
+builder.Services.AddScoped<
+    MetadataWorkflowStep>();
 // =========================
 // BUILD
 // =========================
