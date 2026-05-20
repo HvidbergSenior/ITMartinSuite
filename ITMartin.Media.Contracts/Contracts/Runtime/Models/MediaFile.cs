@@ -37,7 +37,7 @@ public class MediaFile
     public MediaType Type { get; }
     public CleanupDecision CleanupDecision { get; set; } =
         CleanupDecision.Keep;
-
+    public string? ExportSubFolder { get; set; }
     public MediaMainCategory MainCategory =>
         Type switch
         {

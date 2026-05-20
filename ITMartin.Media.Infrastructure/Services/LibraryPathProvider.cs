@@ -1,6 +1,4 @@
-﻿// File: LibraryPathProvider.cs
-
-using ITMartin.Media.Application.Interfaces;
+﻿
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using Microsoft.Extensions.Configuration;
 

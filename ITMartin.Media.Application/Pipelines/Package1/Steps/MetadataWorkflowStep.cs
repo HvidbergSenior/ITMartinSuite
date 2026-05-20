@@ -49,12 +49,12 @@ private readonly IGpsService  _gpsService;
                 "Extracting metadata for {File}",
                 file.FullPath);
 
-            if (file.CreatedAt is null)
-            {
-                var (date, reliable) =
-                    _mediaDateService.GetBestDate(
-                        file.FullPath);
+            var (date, reliable) =
+                _mediaDateService.GetBestDate(
+                    file.FullPath);
 
+            if (date is not null)
+            {
                 file.SetDate(
                     date,
                     reliable);

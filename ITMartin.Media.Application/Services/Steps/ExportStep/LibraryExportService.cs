@@ -73,11 +73,18 @@ public class LibraryExportService
                         .ToString("MMMM");
 
                 var targetDir =
-                    Path.Combine(
-                        root,
-                        category,
-                        safeYear.ToString(),
-                        monthName);
+                    file.ExportSubFolder == "Duplicates"
+                        ? Path.Combine(
+                            root,
+                            "Duplicates",
+                            category,
+                            safeYear.ToString(),
+                            monthName)
+                        : Path.Combine(
+                            root,
+                            category,
+                            safeYear.ToString(),
+                            monthName);
 
                 Directory.CreateDirectory(
                     targetDir);

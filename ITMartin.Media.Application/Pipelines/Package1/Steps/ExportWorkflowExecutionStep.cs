@@ -50,16 +50,8 @@ public sealed class ExportWorkflowExecutionStep
         _logger.LogInformation(
             "MediaFiles count: {Count}",
             state.MediaFiles.Count);
-        var now =
-            DateTime.UtcNow;
-
         var exportRoot =
-            Path.Combine(
-                _libraryPathProvider.LibraryRoot,
-                now.Year.ToString(),
-                now.Month.ToString("00"),
-                now.Day.ToString("00"));
-
+            _libraryPathProvider.LibraryRoot;
         Directory.CreateDirectory(
             exportRoot);
 

@@ -15,51 +15,14 @@ public sealed class MediaNamingService
                 file.NormalizedPath ??
                 file.FullPath);
 
-        var year =
-            file.Year > 0
-                ? file.Year.ToString()
-                : "Unknown";
+        var original =
+            Path.GetFileNameWithoutExtension(
+                file.FileName);
 
-        var category =
-            file.AiCategory ??
-            file.MainCategory.ToString();
+        original =
+            Sanitize(original);
 
-        var subCategory =
-            file.AiSubCategory;
-
-        var parts =
-            new List<string>
-            {
-                year,
-                category
-            };
-
-        if (!string.IsNullOrWhiteSpace(
-                subCategory))
-        {
-            parts.Add(subCategory);
-        }
-
-        // Fallback to original name
-
-        if (parts.Count <= 2)
-        {
-            var original =
-                Path.GetFileNameWithoutExtension(
-                    file.FileName);
-
-            parts.Add(original);
-        }
-
-        var fileName =
-            string.Join(
-                "_",
-                parts);
-
-        fileName =
-            Sanitize(fileName);
-
-        return $"{fileName}{extension}";
+        return $"{original}{extension}";
     }
 
     private static string Sanitize(
