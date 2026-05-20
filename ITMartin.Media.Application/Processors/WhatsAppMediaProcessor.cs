@@ -1,7 +1,7 @@
-﻿namespace ITMartin.Media.Application.Processors;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Interfaces;
+namespace ITMartin.Media.Application.Processors;
+
 using Microsoft.Extensions.Logging;
 
 public sealed class WhatsAppMediaProcessor

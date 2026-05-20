@@ -1,5 +1,5 @@
 ﻿
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 namespace ITMartin.Media.Infrastructure.FileSystem;
 

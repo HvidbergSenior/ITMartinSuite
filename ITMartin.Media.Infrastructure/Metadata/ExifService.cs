@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Jpeg;

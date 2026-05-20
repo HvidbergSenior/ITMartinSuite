@@ -1,4 +1,6 @@
-﻿namespace ITMartin.Media.Application.Pipelines.Package1.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+
+namespace ITMartin.Media.Application.Pipelines.Package1.Models;
 
 public interface IPackage1ManifestStore
 {

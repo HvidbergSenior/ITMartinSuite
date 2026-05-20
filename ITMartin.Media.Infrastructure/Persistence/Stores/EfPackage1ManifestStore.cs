@@ -1,9 +1,6 @@
-﻿// File:
-// ITMartin.Media.Infrastructure/Persistence/Stores/EfPackage1ManifestStore.cs
-
-using System.Text.Json;
+﻿using System.Text.Json;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,23 +14,51 @@ public sealed class EfPackage1ManifestStore(
         Package1Manifest manifest,
         CancellationToken cancellationToken = default)
     {
-        var entity =
-            new Package1ManifestEntity
-            {
-                WorkflowId = manifest.WorkflowId,
-                RootPath = manifest.RootPath,
-                FileCount = manifest.FileCount,
+        var existing =
+            await dbContext.Package1Manifests
+                .FirstOrDefaultAsync(
+                    x => x.WorkflowId ==
+                         manifest.WorkflowId,
+                    cancellationToken);
 
-                MediaFilesJson =
-                    JsonSerializer.Serialize(
-                        manifest.MediaFiles),
+        if (existing is null)
+        {
+            existing =
+                new Package1ManifestEntity
+                {
+                    WorkflowId =
+                        manifest.WorkflowId,
 
-                CreatedAtUtc =
-                    manifest.CreatedAtUtc
-            };
+                    RootPath =
+                        manifest.RootPath,
 
-        dbContext.Package1Manifests.Add(
-            entity);
+                    FileCount =
+                        manifest.FileCount,
+
+                    MediaFilesJson =
+                        JsonSerializer.Serialize(
+                            manifest.MediaFiles),
+
+                    CreatedAtUtc =
+                        manifest.CreatedAtUtc
+                };
+
+            dbContext.Package1Manifests.Add(
+                existing);
+        }
+
+        existing.RootPath =
+            manifest.RootPath;
+
+        existing.FileCount =
+            manifest.FileCount;
+
+        existing.MediaFilesJson =
+            JsonSerializer.Serialize(
+                manifest.MediaFiles);
+
+        existing.CreatedAtUtc =
+            manifest.CreatedAtUtc;
 
         await dbContext.SaveChangesAsync(
             cancellationToken);

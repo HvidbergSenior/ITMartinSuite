@@ -1,8 +1,7 @@
 ﻿using ITMartin.Media.Application.Abstractions.Strategies.Export;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Infrastructure.Strategies.Export;
-
-using ITMartin.Media.Domain.Entities;
 
 public sealed class FolderExportStrategy
     : IExportStrategy

@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Domain.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 
@@ -22,11 +22,8 @@ public class GpsService : IGpsService
 
         if (!supportedExtensions.Contains(ext))
         {
-            Console.WriteLine($"[GPS SKIPPED] Unsupported file: {path}");
             return null;
         }
-
-        Console.WriteLine($"[GPS CHECK] File: {path}");
 
         var directories = ImageMetadataReader.ReadMetadata(path);
 
@@ -51,8 +48,6 @@ public class GpsService : IGpsService
                 if (latRef != "N") latitude *= -1;
                 if (lngRef != "E") longitude *= -1;
 
-                Console.WriteLine($"[GPS PHOTO] {latitude}, {longitude}");
-
                 return (latitude, longitude);
             }
         }
@@ -66,18 +61,15 @@ public class GpsService : IGpsService
 
         if (locationTag != null)
         {
-            Console.WriteLine($"[GPS VIDEO RAW] {locationTag.Description}");
 
             var parsed = ParseIso6709(locationTag.Description);
 
             if (parsed != null)
             {
-                Console.WriteLine($"[GPS VIDEO] {parsed.Value.lat}, {parsed.Value.lng}");
                 return parsed;
             }
         }
 
-        Console.WriteLine("[GPS] No location found");
         return null;
     }
     catch (Exception ex)

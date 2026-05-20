@@ -1,11 +1,10 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Processors;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Steps.MetadataStep;
-using ITMartin.Media.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
@@ -36,6 +35,9 @@ private readonly IGpsService  _gpsService;
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(MetadataWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
@@ -45,28 +47,28 @@ private readonly IGpsService  _gpsService;
 
         foreach (var file in state.MediaFiles)
         {
-            if (file.CreatedAt is not null)
-            {
-                continue;
-            }
-
             _logger.LogInformation(
                 "Extracting metadata for {File}",
                 file.FullPath);
 
-            var (date, reliable) =
-                _mediaDateService.GetBestDate(
-                    file.FullPath);
+            if (file.CreatedAt is null)
+            {
+                var (date, reliable) =
+                    _mediaDateService.GetBestDate(
+                        file.FullPath);
 
-            file.SetDate(
-                date,
-                reliable);
+                file.SetDate(
+                    date,
+                    reliable);
+            }
+
             if (file.IsImage)
             {
                 var dimensions =
                     _imageMetadataService
                         .GetDimensions(
                             file.FullPath);
+
                 var coordinates =
                     _gpsService.GetCoordinates(
                         file.FullPath);
@@ -80,18 +82,20 @@ private readonly IGpsService  _gpsService;
                         coordinates.Value.lng;
                 }
 
-                file.Width =
-                    dimensions.Value.Width;
+                if (dimensions is not null)
+                {
+                    file.Width =
+                        dimensions.Value.Width;
 
-                file.Height =
-                    dimensions.Value.Height;
+                    file.Height =
+                        dimensions.Value.Height;
+                }
             }
+
             _logger.LogInformation(
                 "Metadata {Count}/{Total}",
-                state.MediaFiles.Count(x =>
-                    x.CreatedAt is not null),
+                state.MediaFiles.Count,
                 state.MediaFiles.Count);
         }
-
     }
 }

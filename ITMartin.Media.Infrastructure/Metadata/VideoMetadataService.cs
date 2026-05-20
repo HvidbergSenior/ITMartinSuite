@@ -105,19 +105,15 @@ public class VideoMetadataService : IVideoMetadataService
                     out var dt))
             {
                 var local = dt.ToLocalTime();
-                Console.WriteLine($"[VIDEO DATE] {local}");
-                Console.WriteLine("========== FFPROBE SUCCESS ==========");
                 return local;
             }
 
-            Console.WriteLine("[FFPROBE ERROR] Failed to parse date");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[FFPROBE EXCEPTION] {ex}");
         }
 
-        Console.WriteLine("========== FFPROBE END (NULL) ==========");
         return null;
     }
 

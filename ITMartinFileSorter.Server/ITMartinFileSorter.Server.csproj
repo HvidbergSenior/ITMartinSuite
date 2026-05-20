@@ -45,6 +45,7 @@
     <Folder Include="wwwroot\media_temp\" />
     <Folder Include="wwwroot\media_temp\thumbnails\" />
   </ItemGroup>
+  
 
   <ItemGroup>
     <None Update="ffmpeg\**\*">

@@ -1,7 +1,7 @@
-﻿namespace ITMartin.Media.Infrastructure.Storage;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 
-using ITMartin.Media.Application.Abstractions.Storage;
-using ITMartin.Media.Application.Models.Storage;
+namespace ITMartin.Media.Infrastructure.Storage;
 
 public sealed class InMemoryThumbnailIndexStore
     : IThumbnailIndexStore

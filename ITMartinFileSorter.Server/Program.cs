@@ -9,11 +9,11 @@ using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
+using ITMartin.Media.Application.Services.Steps.ExportStep;
 using ITMartin.Media.Application.Services.Steps.NormalizationStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Services;
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Domain.Models;
-using ITMartin.Media.Domain.Steps.NormalizationStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure;
 using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.Events;
@@ -27,7 +27,6 @@ using ITMartin.Media.Runtime.HostedServices;
 using ITMartin.Media.Runtime.Recovery;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
-using ITMartinFileSorter.Application.Services;
 using ITMartinFileSorter.Server;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
@@ -98,7 +97,17 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IWorkflowRecoveryService,
     WorkflowRecoveryService>();
+builder.Logging.ClearProviders();
 
+builder.Logging.AddConsole();
+
+builder.Logging.AddFilter(
+    "Microsoft.EntityFrameworkCore",
+    LogLevel.None);
+
+builder.Logging.AddFilter(
+    "Microsoft.EntityFrameworkCore.Database.Command",
+    LogLevel.None);
 // =========================
 // EVENTS
 // =========================
@@ -111,6 +120,9 @@ builder.Services.AddSingleton<
     IRuntimeEventPublisher,
     NullRuntimeEventPublisher>();
 
+builder.Services.AddScoped<
+    ILibraryPathProvider,
+    LibraryPathProvider>();
 // =========================
 // AI
 // =========================

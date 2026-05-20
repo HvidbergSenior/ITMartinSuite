@@ -15,7 +15,17 @@
         </PackageReference>
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.8" />
     </ItemGroup>
+    
+    <ItemGroup>
+        <Content Include="ffmpeg\ffmpeg.exe">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
 
+        <Content Include="ffmpeg\ffprobe.exe">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
       <ProjectReference Include="..\ITMartinFileSorter.Application\ITMartinFileSorter.Application.csproj" />

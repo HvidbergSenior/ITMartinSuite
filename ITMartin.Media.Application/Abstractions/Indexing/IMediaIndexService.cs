@@ -1,6 +1,7 @@
-﻿namespace ITMartin.Media.Application.Abstractions.Indexing;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
 
-using ITMartin.Media.Domain.Entities;
+namespace ITMartin.Media.Application.Abstractions.Indexing;
 
 public interface IMediaIndexService
 {

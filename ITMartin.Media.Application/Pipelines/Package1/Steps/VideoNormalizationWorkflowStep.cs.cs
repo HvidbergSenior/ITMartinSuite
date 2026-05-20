@@ -1,8 +1,6 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
-using ITMartin.Media.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-using ITMartin.Media.Domain.Steps.NormalizationStep;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
@@ -35,6 +33,9 @@ public sealed class VideoNormalizationWorkflowStep
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(VideoNormalizationWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(

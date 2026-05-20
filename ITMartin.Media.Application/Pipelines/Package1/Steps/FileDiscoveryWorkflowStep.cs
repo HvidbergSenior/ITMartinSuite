@@ -1,23 +1,26 @@
 ﻿using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
 public sealed class FileDiscoveryWorkflowStep
     : IWorkflowStep
 {
+    private readonly ILogger<FileDiscoveryWorkflowStep> _logger;
+    
     private readonly IFileScanner _fileScanner;
     private readonly IMediaTypeResolver
         _mediaTypeResolver;
     public FileDiscoveryWorkflowStep(
-        IFileScanner fileScanner, IMediaTypeResolver mediaTypeResolver)
+        IFileScanner fileScanner, IMediaTypeResolver mediaTypeResolver, ILogger<FileDiscoveryWorkflowStep> logger)
     {
         _fileScanner = fileScanner;
         _mediaTypeResolver = mediaTypeResolver;
+        _logger = logger;
     }
 
     public string Name => "FileDiscovery";
@@ -27,6 +30,9 @@ public sealed class FileDiscoveryWorkflowStep
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(FileDiscoveryWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(

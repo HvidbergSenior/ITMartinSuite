@@ -1,10 +1,6 @@
-﻿// File: ITMartin.Media.Infrastructure.Persistence/MediaDbContext.cs
-
-using ITMartin.Media.Application.Models.Scanning;
-using ITMartin.Media.Infrastructure.Entities;
+﻿using ITMartin.Media.Infrastructure.Entities;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
-using ScanSession = ITMartin.Media.Application.Models.Scanning.ScanSession;
 
 namespace ITMartin.Media.Infrastructure.Persistence;
 
@@ -29,6 +25,8 @@ public sealed class MediaDbContext
     public DbSet<Package1ManifestEntity>
         Package1Manifests
         => Set<Package1ManifestEntity>();
+    public DbSet<WorkflowStateSnapshot> WorkflowStateSnapshots
+        => Set<WorkflowStateSnapshot>();
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -57,5 +55,15 @@ public sealed class MediaDbContext
             .HasKey(x => x.WorkflowId);
         modelBuilder.Entity<Package1ManifestEntity>()
             .HasKey(x => x.WorkflowId);
+        modelBuilder.Entity<WorkflowStateSnapshot>()
+            .HasKey(x => x.WorkflowId);
+
+        modelBuilder.Entity<WorkflowStateSnapshot>()
+            .Property(x => x.SerializedContext)
+            .IsRequired();
+
+        modelBuilder.Entity<WorkflowStateSnapshot>()
+            .Property(x => x.UpdatedAt)
+            .IsRequired();
     }
 }

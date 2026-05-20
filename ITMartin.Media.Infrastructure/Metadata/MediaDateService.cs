@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Domain.Constants;
+﻿using ITMartin.Media.Contracts.Contracts.Constants;
 using ITMartin.Media.Domain.Steps.MetadataStep;
 
 namespace ITMartin.Media.Infrastructure.Metadata;

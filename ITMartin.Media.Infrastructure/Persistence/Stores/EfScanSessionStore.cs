@@ -1,4 +1,6 @@
 ﻿using ITMartin.Media.Application.Abstractions.Scanning;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +17,7 @@ public sealed class EfScanSessionStore
     }
 
     public async Task CreateAsync(
-        Application.Models.Scanning.ScanSession session,
+        ScanSession session,
         CancellationToken cancellationToken = default)
     {
         var entity = new ScanSessionEntity
@@ -35,7 +37,7 @@ public sealed class EfScanSessionStore
     }
 
     public async Task UpdateAsync(
-        Application.Models.Scanning.ScanSession session,
+        ScanSession session,
         CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.ScanSessions
@@ -49,7 +51,7 @@ public sealed class EfScanSessionStore
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<Application.Models.Scanning.ScanSession?> GetAsync(
+    public async Task<ScanSession?> GetAsync(
         Guid id,
         CancellationToken cancellationToken = default)
     {
@@ -62,7 +64,7 @@ public sealed class EfScanSessionStore
             return null;
         }
 
-        return new Application.Models.Scanning.ScanSession
+        return new ScanSession
         {
             Id = entity.Id,
             RootPath = entity.RootPath,

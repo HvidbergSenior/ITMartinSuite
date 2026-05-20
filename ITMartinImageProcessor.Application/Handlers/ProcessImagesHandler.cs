@@ -66,17 +66,12 @@ public class ProcessImagesHandler
 
                 // PROCESS
                 await _processor.ProcessAsync(file, outputPath);
-                Console.WriteLine("[IMAGE DONE]");
 
                 // UPLOAD
                 await _upload.UploadAsync(outputPath);
-                Console.WriteLine("[UPLOAD DONE]");
 
                 // ARCHIVE
                 _files.Move(file, archivePath);
-                Console.WriteLine("[ARCHIVED]");
-
-                Console.WriteLine("[DONE]");
             }
             catch (Exception ex)
             {

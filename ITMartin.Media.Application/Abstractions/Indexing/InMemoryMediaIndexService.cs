@@ -1,7 +1,9 @@
-﻿namespace ITMartin.Media.Infrastructure.Indexing;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
+
+namespace ITMartin.Media.Infrastructure.Indexing;
 
 using ITMartin.Media.Application.Abstractions.Indexing;
-using ITMartin.Media.Domain.Entities;
 
 public sealed class InMemoryMediaIndexService
     : IMediaIndexService

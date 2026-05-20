@@ -1,5 +1,5 @@
 ﻿using ITMartin.Media.Application.Models;
-using ITMartin.Media.Domain.Entities;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Application.Processors;
 

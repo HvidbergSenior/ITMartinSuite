@@ -1,8 +1,8 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Processors;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-using ITMartin.Media.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
@@ -24,6 +24,9 @@ private readonly IHashService _hashService;
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(HashWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(

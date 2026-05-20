@@ -5,6 +5,7 @@ using ITMartin.Media.Application.Events.Scanning;
 using ITMartin.Media.Application.Models.Scan;
 using ITMartin.Media.Application.Models.Scanning;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 
 namespace ITMartin.Media.Application.Pipelines.Package1;

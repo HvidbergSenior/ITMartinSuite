@@ -1,4 +1,8 @@
-﻿using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+﻿// File: ExportWorkflowExecutionStep.cs
+
+using ITMartin.Media.Application.Interfaces;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -11,15 +15,20 @@ public sealed class ExportWorkflowExecutionStep
     private readonly Package1ExportService
         _exportService;
 
+    private readonly ILibraryPathProvider
+        _libraryPathProvider;
+
     private readonly ILogger<
             ExportWorkflowExecutionStep>
         _logger;
 
     public ExportWorkflowExecutionStep(
         Package1ExportService exportService,
+        ILibraryPathProvider libraryPathProvider,
         ILogger<ExportWorkflowExecutionStep> logger)
     {
         _exportService = exportService;
+        _libraryPathProvider = libraryPathProvider;
         _logger = logger;
     }
 
@@ -30,18 +39,37 @@ public sealed class ExportWorkflowExecutionStep
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(ExportWorkflowExecutionStep));
+
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
-
         _logger.LogInformation(
-            "Starting export");
+            "MediaFiles count: {Count}",
+            state.MediaFiles.Count);
+        var now =
+            DateTime.UtcNow;
 
         var exportRoot =
             Path.Combine(
-                state.RootPath,
-                "_exports");
+                _libraryPathProvider.LibraryRoot,
+                now.Year.ToString(),
+                now.Month.ToString("00"),
+                now.Day.ToString("00"));
+
+        Directory.CreateDirectory(
+            exportRoot);
+
+        _logger.LogInformation(
+            "Export root: {ExportRoot}",
+            exportRoot);
+
+        _logger.LogInformation(
+            "Exporting {Count} files",
+            state.MediaFiles.Count);
 
         var result =
             await _exportService.ExportAsync(

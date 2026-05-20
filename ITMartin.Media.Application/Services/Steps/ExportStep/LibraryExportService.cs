@@ -1,9 +1,9 @@
 ﻿using ITMartin.Media.Application.Interfaces;
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Helpers;
+using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
-namespace ITMartin.Media.Application.Services;
+namespace ITMartin.Media.Application.Services.Steps.ExportStep;
 
 public class LibraryExportService
     : ILibraryExportService

@@ -34,11 +34,16 @@ public sealed class CleanupEvaluationWorkflowStep
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(CleanupEvaluationWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
-
+        _logger.LogInformation(
+            "MediaFiles count: {Count}",
+            state.MediaFiles.Count);
         cancellationToken
             .ThrowIfCancellationRequested();
 

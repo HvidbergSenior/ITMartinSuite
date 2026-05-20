@@ -55,11 +55,9 @@ public class ImageMetadataService : IImageMetadataService
 
             if (date != null)
             {
-                Console.WriteLine($"[IMAGE DATE] {Path.GetFileName(path)} -> {date}");
                 return date;
             }
 
-            Console.WriteLine($"[IMAGE DATE NOT FOUND] {Path.GetFileName(path)}");
         }
         catch (Exception ex)
         {

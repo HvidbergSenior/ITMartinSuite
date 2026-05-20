@@ -7,10 +7,10 @@ using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
+using ITMartin.Media.Application.Services.Steps.ExportStep;
 using ITMartin.Media.Application.Services.Steps.NormalizationStep;
-using ITMartin.Media.Contracts.Contracts.Runtime.Services;
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Domain.Steps.NormalizationStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure;
 using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.Events;
@@ -18,9 +18,13 @@ using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Persistence.Repositories;
 using ITMartin.Media.Infrastructure.Queues;
+using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using ITMartin.Media.Runtime.HostedServices;
 using ITMartin.Media.Runtime.Recovery;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -83,11 +87,30 @@ builder.Services.AddScoped<
     LibraryExportService>();
 builder.Services.AddHostedService<
     WorkflowRecoveryHostedService>();
+var libraryRoot =
+    builder.Configuration[
+        "MediaSettings:LibraryRoot"];
 
+Console.WriteLine(
+    $"LIBRARY ROOT: {libraryRoot}");
+
+builder.Services.AddScoped<
+    ILibraryPathProvider,
+    LibraryPathProvider>();
 // =========================
 // QUEUES
 // =========================
+builder.Logging.ClearProviders();
 
+builder.Logging.AddConsole();
+
+builder.Logging.AddFilter(
+    "Microsoft.EntityFrameworkCore",
+    LogLevel.None);
+
+builder.Logging.AddFilter(
+    "Microsoft.EntityFrameworkCore.Database.Command",
+    LogLevel.None);
 builder.Services.AddInMemoryQueue<
     WorkflowExecutionMessage>();
 

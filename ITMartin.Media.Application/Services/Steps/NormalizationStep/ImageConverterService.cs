@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-using ITMartin.Media.Domain.Steps.NormalizationStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
@@ -36,8 +36,7 @@ public class ImageConverterService : IImageConverterService
             _ffmpegPath = "ffmpeg";
         }
 
-        Console.WriteLine(
-            $"[IMAGE CONVERTER] FFmpeg: {_ffmpegPath}");
+       
     }
 
     public bool NeedsConversion(string path)
@@ -227,10 +226,7 @@ public class ImageConverterService : IImageConverterService
 
         var exitCode =
             await tcs.Task;
-
-        Console.WriteLine(
-            $"[IMAGE FFMPEG EXIT] {exitCode}");
-
+        
         if (exitCode != 0)
         {
             throw new Exception(

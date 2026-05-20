@@ -1,9 +1,6 @@
 ﻿using System.Text.Json;
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Domain.Models;
-using ITMartin.Media.Enums;
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
 

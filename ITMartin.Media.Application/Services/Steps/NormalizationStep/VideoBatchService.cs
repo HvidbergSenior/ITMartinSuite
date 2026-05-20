@@ -1,6 +1,6 @@
-﻿using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Steps.NormalizationStep;
-using ITMartin.Media.Enums;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 

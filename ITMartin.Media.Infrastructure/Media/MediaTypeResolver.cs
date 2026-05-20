@@ -1,6 +1,5 @@
 ﻿using ITMartin.Media.Application.Interfaces;
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 
 namespace ITMartin.Media.Infrastructure.Media;
 

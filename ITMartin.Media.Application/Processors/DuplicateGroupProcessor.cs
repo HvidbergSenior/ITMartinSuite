@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Domain.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Application.Processors;
 

@@ -1,8 +1,8 @@
 ﻿// File: ITMartin.Media.Infrastructure.Services/InMemoryAiCacheService.cs
 
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Domain.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
 
 namespace ITMartin.Media.Infrastructure.Ai;
 

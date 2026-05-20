@@ -3,6 +3,7 @@ using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Events.Scanning;
 using ITMartin.Media.Application.Models.Scan;
 using ITMartin.Media.Application.Models.Scanning;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Application.Abstractions.Orchestration;
 

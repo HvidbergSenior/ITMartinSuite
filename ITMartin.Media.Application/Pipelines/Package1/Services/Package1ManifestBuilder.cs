@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Services;
 

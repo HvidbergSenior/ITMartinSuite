@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using ITMartin.Media.Domain.Steps.NormalizationStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
@@ -36,12 +36,6 @@ public class VideoConverterService : IVideoConverterService
             _ffmpegPath = "ffmpeg";
             _ffprobePath = "ffprobe";
         }
-
-        Console.WriteLine(
-            $"[FFMPEG] {_ffmpegPath}");
-
-        Console.WriteLine(
-            $"[FFPROBE] {_ffprobePath}");
     }
 
     public async Task<string?> ConvertToUniversalMp4Async(
@@ -85,21 +79,9 @@ public class VideoConverterService : IVideoConverterService
                 tempRoot,
                 $"{uniqueName}.tmp.mp4");
 
-        Console.WriteLine(
-            $"[VIDEO INPUT] {inputPath}");
-
-        Console.WriteLine(
-            $"[VIDEO OUTPUT] {finalOutput}");
-
         var info =
             await GetCodecInfoAsync(
                 inputPath);
-
-        Console.WriteLine(
-            $"[VIDEO CODEC] {info.VideoCodec}");
-
-        Console.WriteLine(
-            $"[AUDIO CODEC] {info.AudioCodec}");
 
         try
         {
@@ -152,10 +134,7 @@ public class VideoConverterService : IVideoConverterService
                 tempOutput,
                 finalOutput,
                 true);
-
-            Console.WriteLine(
-                $"[VIDEO DONE] {finalOutput}");
-
+            
             return finalOutput;
         }
         catch (Exception ex)
@@ -292,9 +271,6 @@ public class VideoConverterService : IVideoConverterService
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
             {
-                Console.WriteLine(
-                    $"[FFMPEG] {e.Data}");
-
                 errorBuilder.AppendLine(e.Data);
             }
         };
@@ -346,6 +322,9 @@ public class VideoConverterService : IVideoConverterService
                     {
                         FileName = file,
                         Arguments = args,
+                        WorkingDirectory =
+                            Path.GetDirectoryName(file)
+                            ?? AppContext.BaseDirectory,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,

@@ -3,6 +3,7 @@
 
 using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -37,6 +38,9 @@ public sealed class DuplicateDetectionWorkflowStep
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(DuplicateDetectionWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(

@@ -1,5 +1,6 @@
-﻿using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Enums;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
 
 namespace ITMartin.Media.Application.Processors;
 

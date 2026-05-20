@@ -1,10 +1,10 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
 using ITMartin.Media.Application.Helpers;
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Enums;
-using ITMartin.Media.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
 
 namespace ITMartin.Media.Application.Services;
 

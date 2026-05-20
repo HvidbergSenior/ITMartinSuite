@@ -35,11 +35,16 @@ public sealed class ManifestBuildWorkflowStep
         CancellationToken cancellationToken = default)
         where TState : class
     {
+        _logger.LogInformation(
+            "Executing {Step}",
+            nameof(ManifestBuildWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
-
+        _logger.LogInformation(
+            "MediaFiles count: {Count}",
+            state.MediaFiles.Count);
         _logger.LogInformation(
             "Building manifest");
 

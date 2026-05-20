@@ -1,5 +1,5 @@
-﻿using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.OCR.Interfaces;
 
 namespace ITMartin.Media.Application.Services;
