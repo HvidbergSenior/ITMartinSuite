@@ -2,7 +2,7 @@
 
   filesorter-web:
     container_name: filesorter-web
-    build: ./filesorter
+    build: ./ITMartinFileSorter.Server
 
     ports:
       - "8080:8080"
@@ -22,7 +22,7 @@
 
   budget-web:
     container_name: budget-web
-    build: ./budget
+    build: ./ITMartinBudget.Server
 
     ports:
       - "8081:8080"
@@ -40,7 +40,7 @@
 
   image-processor:
     container_name: image-processor
-    build: ./imageprocessor
+    build: ./ITMartinImageProcessor.Worker
 
     volumes:
       - /volume1/docker/imageprocessor/input:/data
@@ -67,7 +67,7 @@
 
   r6assistant-web:
     container_name: r6assistant-web
-    build: ./r6assistant
+    build: ./ITMartinR6Assistant.Server
 
     ports:
       - "8082:8080"
@@ -101,6 +101,23 @@
       - /volume1/docker/plex/Tv:/tv
 
     restart: unless-stopped
+    
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
 
 networks:
   martinnet:

@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Application.Models.Scanning;
+﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Application.Models.Scanning;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
@@ -29,7 +30,10 @@ public sealed class ScanClient
             {
                 Id = workflowId,
                 Queue = "workflow",
-                Payload = workflowId.ToString()
+                Type = "StartScan",
+                Payload =
+                    System.Text.Json.JsonSerializer
+                        .Serialize(request)
             },
             cancellationToken);
 

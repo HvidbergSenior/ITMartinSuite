@@ -1,9 +1,13 @@
 
+using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
 using ITMartin.Media.Application.Abstractions.Events;
+using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
+using ITMartin.Media.Application.Pipelines.Package1;
+using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
@@ -12,6 +16,7 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.BackgroundJobs;
 using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.Events;
 using ITMartin.Media.Infrastructure.Images;
@@ -56,6 +61,7 @@ builder.Services.AddMediaSignalR();
 
 builder.Services.AddMediaInfrastructureCore(
     builder.Configuration);
+builder.Services.AddMediaInfrastructureCore(builder.Configuration);
 
 // =========================
 // CORE SERVICES
@@ -64,11 +70,9 @@ builder.Services.AddMediaInfrastructureCore(
 builder.Services.AddScoped<
     IMediaTypeResolver,
     MediaTypeResolver>();
-
 builder.Services.AddScoped<
     IScanClient,
     ScanClient>();
-
 builder.Services.AddScoped<
     IImageConverterService,
     ImageConverterService>();
@@ -168,16 +172,6 @@ builder.Services.AddScoped(sp =>
     };
 });
 
-// =========================
-// QUEUES
-// =========================
-
-builder.Services.AddInMemoryQueue<
-    WorkflowExecutionMessage>();
-
-// =========================
-// HOSTED SERVICES
-// =========================
 
 // =========================
 // CONTROLLERS
@@ -185,6 +179,9 @@ builder.Services.AddInMemoryQueue<
 
 builder.Services.AddControllers();
 
+builder.Services.AddSingleton<
+    IBackgroundJobQueue,
+    RabbitMqBackgroundJobQueue>();
 // =========================
 // BUILD
 // =========================

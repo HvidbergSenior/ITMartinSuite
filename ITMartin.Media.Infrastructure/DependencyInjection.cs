@@ -87,16 +87,10 @@ public static class DependencyInjection
             typeof(IQueueTransport<>),
             typeof(ChannelQueueTransport<>));
 
-        services.AddInMemoryQueue<WorkflowExecutionMessage>();
-
         services.AddSingleton<
             IMessageSerializer,
             SystemTextJsonMessageSerializer>();
-
-        services.AddSingleton<
-            IBackgroundJobQueue,
-            InMemoryBackgroundJobQueue>();
-
+        
         // =========================
         // FILE SYSTEM
         // =========================
@@ -231,9 +225,6 @@ public static class DependencyInjection
 
         services.AddHostedService<
             WorkflowRecoveryHostedService>();
-
-        services.AddHostedService<
-            ThumbnailWorker>();
 
         // =========================
         // WORKFLOWS
