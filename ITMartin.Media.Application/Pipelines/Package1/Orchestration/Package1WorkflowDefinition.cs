@@ -21,27 +21,38 @@ public sealed class Package1WorkflowDefinition
         ThumbnailWorkflowStep thumbnailWorkflowStep,
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
         CleanupEvaluationWorkflowStep cleanupEvaluationWorkflowStep,
-        ManifestBuildWorkflowStep manifestBuildWorkflowStep)
+        ManifestBuildWorkflowStep manifestBuildWorkflowStep,
+        ExportWorkflowExecutionStep exportWorkflowExecutionStep)
     {
         Steps =
         [
+            // Discover input files
             fileDiscoveryWorkflowStep,
 
+            // Create stable file identity
             hashWorkflowStep,
 
+            // Read original metadata
             metadataWorkflowStep,
 
+            // Normalize media
             imageNormalizationWorkflowStep,
-
             videoNormalizationWorkflowStep,
 
+            // Generate derived assets
             thumbnailWorkflowStep,
 
+            // Detect duplicates
             duplicateDetectionWorkflowStep,
 
+            // Decide retention / cleanup
             cleanupEvaluationWorkflowStep,
 
-            manifestBuildWorkflowStep
+            // Build internal manifest/package model
+            manifestBuildWorkflowStep,
+
+            // Write final exported structure
+            exportWorkflowExecutionStep
         ];
     }
 }
