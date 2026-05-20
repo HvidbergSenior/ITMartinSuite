@@ -9,12 +9,22 @@ using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
+using ITMartin.Media.Application.Services.Steps.NormalizationStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Services;
 using ITMartin.Media.Domain.Interfaces;
 using ITMartin.Media.Domain.Models;
+using ITMartin.Media.Domain.Steps.NormalizationStep;
 using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.Events;
+using ITMartin.Media.Infrastructure.Images;
+using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Persistence.Repositories;
+using ITMartin.Media.Infrastructure.Queues;
 using ITMartin.Media.Infrastructure.Services;
+using ITMartin.Media.Infrastructure.SignalR.Runtime;
+using ITMartin.Media.Runtime.HostedServices;
+using ITMartin.Media.Runtime.Recovery;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using ITMartinFileSorter.Application.Services;
@@ -54,32 +64,83 @@ builder.Services.AddMediaInfrastructure(
     builder.Configuration);
 
 // =========================
-// PIPELINES
+// CORE SERVICES
 // =========================
-builder.Services.AddScoped<
-    IScanSessionRepository,
-    ScanSessionRepository>();
-builder.Services.AddScoped<
-    ExportWorkflowExecutionStep>();
 
-// =========================
-// DUPLICATES
-// =========================
+builder.Services.AddScoped<
+    IMediaTypeResolver,
+    MediaTypeResolver>();
+
+builder.Services.AddScoped<
+    IImageConverterService,
+    ImageConverterService>();
+
+builder.Services.AddScoped<
+    IThumbnailService,
+    ThumbnailService>();
 
 builder.Services.AddScoped<
     IDuplicateService,
     DuplicateService>();
 
-// =========================
-// EXPORT
-// =========================
+builder.Services.AddScoped<
+    IMediaNamingService,
+    MediaNamingService>();
 
 builder.Services.AddScoped<
     ILibraryExportService,
     LibraryExportService>();
 
+builder.Services.AddScoped<
+    IScanSessionRepository,
+    ScanSessionRepository>();
+
+builder.Services.AddScoped<
+    IWorkflowRecoveryService,
+    WorkflowRecoveryService>();
+
 // =========================
-// UI / WORKFLOW
+// EVENTS
+// =========================
+
+builder.Services.AddSingleton<
+    IEventPublisher,
+    NullEventPublisher>();
+
+builder.Services.AddSingleton<
+    IRuntimeEventPublisher,
+    NullRuntimeEventPublisher>();
+
+// =========================
+// AI
+// =========================
+
+builder.Services.AddScoped<
+    IMediaVisionService,
+    MediaVisionService>();
+
+builder.Services.AddScoped<
+    IAiCollectionService,
+    AiCollectionService>();
+
+builder.Services.AddScoped<
+    IAiCacheService,
+    SqliteAiCacheService>();
+
+builder.Services.AddScoped<
+    IMediaOcrService,
+    MediaOcrService>();
+
+// =========================
+// OCR
+// =========================
+
+builder.Services.AddSingleton<
+    IOcrService,
+    OcrService>();
+
+// =========================
+// UI
 // =========================
 
 builder.Services.AddScoped<
@@ -100,30 +161,36 @@ builder.Services.AddScoped(sp =>
 });
 
 // =========================
-// AI
+// QUEUES
+// =========================
+
+builder.Services.AddInMemoryQueue<
+    WorkflowExecutionMessage>();
+
+// =========================
+// HOSTED SERVICES
+// =========================
+
+builder.Services.AddHostedService<
+    WorkflowRecoveryHostedService>();
+
+// =========================
+// WORKFLOW
 // =========================
 
 builder.Services.AddScoped<
-    IMediaVisionService,
-    MediaVisionService>();
-
-builder.Services.AddScoped<
-    IAiCollectionService,
-    AiCollectionService>();
-
-builder.Services.AddScoped<
-    IAiCacheService,
-    SqliteAiCacheService>();
-builder.Services.AddSingleton<
-    IEventPublisher,
-    NullEventPublisher>();
-builder.Services.AddScoped<
-    IMediaOcrService,
-    MediaOcrService>();
-builder.Services.AddScoped<
     Package1WorkflowDefinition>();
+
 builder.Services.AddScoped<
     Package1WorkflowOrchestrator>();
+
+builder.Services.AddScoped<
+    Package1ExportService>();
+
+// =========================
+// WORKFLOW STEPS
+// =========================
+
 builder.Services.AddScoped<
     FileDiscoveryWorkflowStep>();
 
@@ -132,43 +199,33 @@ builder.Services.AddScoped<
 
 builder.Services.AddScoped<
     MetadataWorkflowStep>();
-// =========================
-// OCR
-// =========================
-
-builder.Services.AddSingleton<
-    IOcrService,
-    OcrService>();
-
-// =========================
-// NAMING
-// =========================
 
 builder.Services.AddScoped<
-    IMediaNamingService,
-    MediaNamingService>();
+    ImageNormalizationWorkflowStep>();
+
+builder.Services.AddScoped<
+    VideoNormalizationWorkflowStep>();
+
+builder.Services.AddScoped<
+    ThumbnailWorkflowStep>();
+
+builder.Services.AddScoped<
+    DuplicateDetectionWorkflowStep>();
+
+builder.Services.AddScoped<
+    CleanupEvaluationWorkflowStep>();
+
+builder.Services.AddScoped<
+    ManifestBuildWorkflowStep>();
+
+builder.Services.AddScoped<
+    ExportWorkflowExecutionStep>();
 
 // =========================
 // CONTROLLERS
 // =========================
 
 builder.Services.AddControllers();
-
-// =========================
-// SQLITE
-// =========================
-
-var dataFolder =
-    @"C:\FileSorterData";
-
-Directory.CreateDirectory(
-    dataFolder);
-
-var dbPath =
-    Path.Combine(
-        dataFolder,
-        "media.db");
-
 
 // =========================
 // BUILD
@@ -203,31 +260,14 @@ var libraryPath =
 var provider =
     new FileExtensionContentTypeProvider();
 
-// =========================
-// VIDEO
-// =========================
-
 provider.Mappings[".mp4"] =
-    "video/mp4";
-
-provider.Mappings[".MP4"] =
     "video/mp4";
 
 provider.Mappings[".mov"] =
     "video/quicktime";
 
-provider.Mappings[".MOV"] =
-    "video/quicktime";
-
 provider.Mappings[".mkv"] =
     "video/x-matroska";
-
-provider.Mappings[".MKV"] =
-    "video/x-matroska";
-
-// =========================
-// IMAGES
-// =========================
 
 provider.Mappings[".jpg"] =
     "image/jpeg";
@@ -244,40 +284,11 @@ provider.Mappings[".webp"] =
 provider.Mappings[".gif"] =
     "image/gif";
 
-provider.Mappings[".JPG"] =
-    "image/jpeg";
-
-provider.Mappings[".JPEG"] =
-    "image/jpeg";
-
-provider.Mappings[".PNG"] =
-    "image/png";
-
-provider.Mappings[".WEBP"] =
-    "image/webp";
-
-provider.Mappings[".GIF"] =
-    "image/gif";
-
-// =========================
-// MODERN / IPHONE
-// =========================
-
 provider.Mappings[".heic"] =
-    "image/heic";
-
-provider.Mappings[".HEIC"] =
     "image/heic";
 
 provider.Mappings[".avif"] =
     "image/avif";
-
-provider.Mappings[".AVIF"] =
-    "image/avif";
-
-// =========================
-// STATIC LIBRARY FILES
-// =========================
 
 if (!string.IsNullOrWhiteSpace(
         libraryPath) &&
@@ -295,20 +306,7 @@ if (!string.IsNullOrWhiteSpace(
                 "/libraryfiles",
 
             ContentTypeProvider =
-                provider,
-
-            OnPrepareResponse = ctx =>
-            {
-                const int duration =
-                    60 * 60 * 24 * 30;
-
-                ctx.Context
-                    .Response
-                    .Headers
-                    .Append(
-                        "Cache-Control",
-                        $"public,max-age={duration}");
-            }
+                provider
         });
 }
 
@@ -324,90 +322,6 @@ app.MapMediaSignalRHubs();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-
-// =========================
-// TEST ENDPOINTS
-// =========================
-
-app.MapGet(
-    "/api/scan-preview",
-    (IFileScanner scanner) =>
-    {
-        var results =
-            scanner
-                .EnumerateFiles(
-                    @"C:\FileSorterTests\Test1_Source")
-                .Take(50)
-                .Select(path =>
-                    new AiScanResultViewModel
-                    {
-                        FullPath = path,
-
-                        FileName =
-                            Path.GetFileName(path)
-                    })
-                .ToList();
-
-        return Results.Ok(results);
-    });
-
-app.MapGet(
-    "/thumbnail",
-    (string path) =>
-{
-    if (!System.IO.File.Exists(path))
-    {
-        return Results.NotFound();
-    }
-
-    var ext =
-        Path.GetExtension(path);
-
-    var contentType =
-        ext.ToLower() switch
-        {
-            ".jpg" =>
-                "image/jpeg",
-
-            ".jpeg" =>
-                "image/jpeg",
-
-            ".png" =>
-                "image/png",
-
-            ".gif" =>
-                "image/gif",
-
-            ".webp" =>
-                "image/webp",
-
-            _ =>
-                "application/octet-stream"
-        };
-
-    return Results.File(
-        path,
-        contentType);
-});
-
-// =========================
-// RUNTIME TEST
-// =========================
-
-app.MapPost(
-    "/api/runtime/test-heartbeat",
-    async (
-        IWorkerHeartbeatService heartbeatService,
-        CancellationToken cancellationToken) =>
-    {
-        await heartbeatService.PublishHeartbeatAsync(
-            "FileSorter-Worker",
-            "Running",
-            1,
-            cancellationToken);
-
-        return Results.Ok();
-    });
 
 // =========================
 // RUN
