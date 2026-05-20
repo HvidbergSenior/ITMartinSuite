@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Application.Models.Scanning;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed record StartScanRequest(
     string RootPath,

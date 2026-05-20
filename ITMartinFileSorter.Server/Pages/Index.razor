@@ -8,6 +8,8 @@
 @using ITMartin.Media.Application.Pipelines
 @using ITMartin.Media.Application.Pipelines.Package1
 @using ITMartin.Media.Contracts.Contracts.Runtime.Helpers
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Contracts.Runtime.Models
 @using ITMartin.Media.Contracts.Contracts.Runtime.Services
 @using ITMartin.Media.Contracts.Entities
 
@@ -17,7 +19,7 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject ILogger<Index> Logger
-@inject Package1WorkflowOrchestrator Orchestrator
+@inject IScanClient ScanClient
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
     <div class="filesorter-app">
@@ -309,7 +311,7 @@
                 "Scanning files...",
                 paths);
 
-            await Orchestrator.StartAsync(
+            await ScanClient.StartAsync(
                 new StartScanRequest(
                     FolderPath,
                     true,

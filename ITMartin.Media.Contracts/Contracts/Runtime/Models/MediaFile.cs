@@ -35,6 +35,8 @@ public class MediaFile
     public bool AiProcessed { get; set; }
 
     public MediaType Type { get; }
+    public CleanupDecision CleanupDecision { get; set; } =
+        CleanupDecision.Keep;
 
     public MediaMainCategory MainCategory =>
         Type switch

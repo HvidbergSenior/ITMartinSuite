@@ -1,12 +1,9 @@
-// File: ITMartinFileSorter.Server/Program.cs
 
+using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
 using ITMartin.Media.Application.Abstractions.Events;
 using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
-using ITMartin.Media.Application.Pipelines.Package1;
-using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
-using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
@@ -23,8 +20,6 @@ using ITMartin.Media.Infrastructure.Persistence.Repositories;
 using ITMartin.Media.Infrastructure.Queues;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
-using ITMartin.Media.Runtime.HostedServices;
-using ITMartin.Media.Runtime.Recovery;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using ITMartinFileSorter.Server;
@@ -59,7 +54,7 @@ builder.Services.AddMediaSignalR();
 // MEDIA PLATFORM
 // =========================
 
-builder.Services.AddMediaInfrastructure(
+builder.Services.AddMediaInfrastructureCore(
     builder.Configuration);
 
 // =========================
@@ -69,6 +64,10 @@ builder.Services.AddMediaInfrastructure(
 builder.Services.AddScoped<
     IMediaTypeResolver,
     MediaTypeResolver>();
+
+builder.Services.AddScoped<
+    IScanClient,
+    ScanClient>();
 
 builder.Services.AddScoped<
     IImageConverterService,
@@ -94,9 +93,6 @@ builder.Services.AddScoped<
     IScanSessionRepository,
     ScanSessionRepository>();
 
-builder.Services.AddScoped<
-    IWorkflowRecoveryService,
-    WorkflowRecoveryService>();
 builder.Logging.ClearProviders();
 
 builder.Logging.AddConsole();
@@ -182,56 +178,6 @@ builder.Services.AddInMemoryQueue<
 // =========================
 // HOSTED SERVICES
 // =========================
-
-builder.Services.AddHostedService<
-    WorkflowRecoveryHostedService>();
-
-// =========================
-// WORKFLOW
-// =========================
-
-builder.Services.AddScoped<
-    Package1WorkflowDefinition>();
-
-builder.Services.AddScoped<
-    Package1WorkflowOrchestrator>();
-
-builder.Services.AddScoped<
-    Package1ExportService>();
-
-// =========================
-// WORKFLOW STEPS
-// =========================
-
-builder.Services.AddScoped<
-    FileDiscoveryWorkflowStep>();
-
-builder.Services.AddScoped<
-    HashWorkflowStep>();
-
-builder.Services.AddScoped<
-    MetadataWorkflowStep>();
-
-builder.Services.AddScoped<
-    ImageNormalizationWorkflowStep>();
-
-builder.Services.AddScoped<
-    VideoNormalizationWorkflowStep>();
-
-builder.Services.AddScoped<
-    ThumbnailWorkflowStep>();
-
-builder.Services.AddScoped<
-    DuplicateDetectionWorkflowStep>();
-
-builder.Services.AddScoped<
-    CleanupEvaluationWorkflowStep>();
-
-builder.Services.AddScoped<
-    ManifestBuildWorkflowStep>();
-
-builder.Services.AddScoped<
-    ExportWorkflowExecutionStep>();
 
 // =========================
 // CONTROLLERS

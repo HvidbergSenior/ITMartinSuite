@@ -1,12 +1,8 @@
-﻿// File: ITMartin.Media.Infrastructure/DependencyInjection.cs
-
-using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.Distributed;
 using ITMartin.Media.Application.Abstractions.Nodes;
+using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Queues;
-using ITMartin.Media.Application.Abstractions.Runtime;
-using ITMartin.Media.Application.Abstractions.Scanning;
-using ITMartin.Media.Application.Pipelines;
 using ITMartin.Media.Application.Pipelines.Package1;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
@@ -35,17 +31,17 @@ using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.Workers;
 using ITMartin.Media.Runtime.Execution;
 using ITMartin.Media.Runtime.HostedServices;
+using ITMartin.Media.Runtime.Recovery;
 using ITMartin.Media.Runtime.Registry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using WorkflowRecoveryService = ITMartin.Media.Runtime.Recovery.WorkflowRecoveryService;
 
 namespace ITMartin.Media.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddMediaInfrastructure(
+    public static IServiceCollection AddMediaInfrastructureCore(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -68,23 +64,37 @@ public static class DependencyInjection
         // PERSISTENCE
         // =========================
 
-        services.AddScoped<IWorkflowCheckpointStore, EfWorkflowCheckpointStore>();
+        services.AddScoped<
+            IWorkflowCheckpointStore,
+            EfWorkflowCheckpointStore>();
 
-        services.AddScoped<IScanSessionStore, EfScanSessionStore>();
+        services.AddScoped<
+            IWorkflowInstanceStore,
+            EfWorkflowInstanceStore>();
+
         services.AddScoped<
             IWorkflowStepExecutionStore,
             EfWorkflowStepExecutionStore>();
+
         services.AddScoped<
-            IWorkflowRecoveryService,
-            WorkflowRecoveryService>();
+            IScanSessionStore,
+            EfScanSessionStore>();
+
+        services.AddScoped<
+            IPackage1ManifestStore,
+            EfPackage1ManifestStore>();
 
         // =========================
         // DISTRIBUTED
         // =========================
 
-        services.AddSingleton<IDistributedCoordinator, InMemoryDistributedCoordinator>();
+        services.AddSingleton<
+            IDistributedCoordinator,
+            InMemoryDistributedCoordinator>();
 
-        services.AddSingleton<INodeRegistry, InMemoryNodeRegistry>();
+        services.AddSingleton<
+            INodeRegistry,
+            InMemoryNodeRegistry>();
 
         // =========================
         // QUEUES
@@ -96,64 +106,25 @@ public static class DependencyInjection
 
         services.AddInMemoryQueue<WorkflowExecutionMessage>();
 
-        services.AddSingleton<IMessageSerializer,
+        services.AddSingleton<
+            IMessageSerializer,
             SystemTextJsonMessageSerializer>();
 
-        services.AddSingleton<IBackgroundJobQueue,
+        services.AddSingleton<
+            IBackgroundJobQueue,
             InMemoryBackgroundJobQueue>();
-        services.AddScoped<
-            ManifestBuildWorkflowStep>();
-        // =========================
-        // WORKFLOWS
-        // =========================
-        services.AddScoped<IWorkflowExecutor, WorkflowExecutor>();
-
-        services.AddScoped<IWorkflowRegistry, WorkflowRegistry>();
-
-        services.AddScoped<WorkflowRecoveryService>();
-
-        services.AddHostedService<WorkflowRecoveryHostedService>();
-        
-        services.AddScoped<IWorkflowDefinition,
-            Package1WorkflowDefinition>();
-
-        // =========================
-        // WORKFLOW STEPS
-        // =========================
-        services.AddScoped<FileDiscoveryWorkflowStep>();
-        services.AddScoped<
-            IWorkflowInstanceStore,
-            EfWorkflowInstanceStore>();
-        services.AddScoped<HashWorkflowStep>();
-
-        services.AddScoped<MetadataWorkflowStep>();
-
-        // =========================
-        // WORKFLOW DEFINITIONS
-        // =========================
-
-        services.AddScoped<IWorkflowDefinition,
-            WorkflowDefinition>();
-        // =========================
-        // RUNTIME
-        // =========================
-
-        services.AddScoped<IWorkerHeartbeatService,
-            WorkerHeartbeatService>();
-
-        // =========================
-        // WORKERS
-        // =========================
-
-        services.AddHostedService<ThumbnailWorker>();
 
         // =========================
         // FILE SYSTEM
         // =========================
 
-        services.AddScoped<IFileSystem, FileSystemService>();
+        services.AddScoped<
+            IFileSystem,
+            FileSystemService>();
 
-        services.AddScoped<IFileScanner, FileScanner>();
+        services.AddScoped<
+            IFileScanner,
+            FileScanner>();
 
         // =========================
         // PROCESSORS
@@ -201,43 +172,54 @@ public static class DependencyInjection
         // CLASSIFICATION
         // =========================
 
-        services.AddScoped<IMediaClassificationService,
+        services.AddScoped<
+            IMediaClassificationService,
             MediaClassificationService>();
 
         // =========================
         // HASHING
         // =========================
 
-        services.AddScoped<IHashService, Sha256HashService>();
+        services.AddScoped<
+            IHashService,
+            Sha256HashService>();
 
         // =========================
         // METADATA
         // =========================
 
-        services.AddScoped<IExifService, ExifService>();
+        services.AddScoped<
+            IExifService,
+            ExifService>();
 
-        services.AddScoped<IGpsService, GpsService>();
+        services.AddScoped<
+            IGpsService,
+            GpsService>();
 
-        services.AddScoped<IMediaDateService, MediaDateService>();
+        services.AddScoped<
+            IMediaDateService,
+            MediaDateService>();
 
-        services.AddScoped<IImageMetadataService,
+        services.AddScoped<
+            IImageMetadataService,
             ImageMetadataService>();
 
-        services.AddScoped<IVideoMetadataService,
+        services.AddScoped<
+            IVideoMetadataService,
             VideoMetadataService>();
 
-        services.AddScoped<IDocumentMetadataService,
+        services.AddScoped<
+            IDocumentMetadataService,
             DocumentMetadataService>();
-        services.AddScoped<Package1ManifestBuilder>();
+
         // =========================
         // VIDEO
         // =========================
-        services.AddScoped<
-            IPackage1ManifestStore,
-            EfPackage1ManifestStore>();
+
         services.AddScoped<VideoConverterService>();
 
-        services.AddScoped<IVideoBatchService,
+        services.AddScoped<
+            IVideoBatchService,
             VideoBatchService>();
 
         services.AddScoped<SubtitleService>();
@@ -246,23 +228,24 @@ public static class DependencyInjection
         // IMAGE
         // =========================
 
-        services.AddScoped<IImageBatchService,
+        services.AddScoped<
+            IImageBatchService,
             ImageBatchService>();
 
         services.AddScoped<ImageConverterService>();
 
         services.AddScoped<ThumbnailService>();
 
-        services.AddScoped<Package1CleanupPipeline>();
-
         // =========================
         // AI
         // =========================
 
-        services.AddScoped<IAiEnrichmentService,
+        services.AddScoped<
+            IAiEnrichmentService,
             AiEnrichmentService>();
 
-        services.AddScoped<IImageAnalysisService,
+        services.AddScoped<
+            IImageAnalysisService,
             OpenAiImageAnalysisService>();
 
         // =========================
@@ -274,6 +257,106 @@ public static class DependencyInjection
 
         services.Configure<OpenAiOptions>(
             configuration.GetSection("OpenAI"));
+
+        return services;
+    }
+    public static IServiceCollection AddMediaWorkflowRuntime(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // =========================
+        // WORKFLOW RUNTIME
+        // =========================
+
+        services.AddScoped<
+            IWorkflowExecutor,
+            WorkflowExecutor>();
+
+        services.AddScoped<
+            IWorkflowRegistry,
+            WorkflowRegistry>();
+
+        services.AddScoped<
+            IWorkflowRecoveryService,
+            WorkflowRecoveryService>();
+
+        services.AddScoped<
+            IScanOrchestrator,
+            Package1WorkflowOrchestrator>();
+
+        // =========================
+        // HOSTED SERVICES
+        // =========================
+
+        services.AddHostedService<
+            WorkflowRecoveryHostedService>();
+
+        services.AddHostedService<
+            ThumbnailWorker>();
+
+        // =========================
+        // WORKFLOWS
+        // =========================
+
+        services.AddScoped<
+            Package1WorkflowDefinition>();
+
+        services.AddScoped<
+            IWorkflowDefinition,
+            Package1WorkflowDefinition>();
+
+        services.AddScoped<
+            Package1WorkflowOrchestrator>();
+
+        services.AddScoped<
+            Package1ExportService>();
+
+        services.AddScoped<
+            Package1ManifestBuilder>();
+
+        services.AddScoped<
+            Package1CleanupPipeline>();
+
+        // =========================
+        // STEPS
+        // =========================
+
+        services.AddScoped<
+            FileDiscoveryWorkflowStep>();
+
+        services.AddScoped<
+            HashWorkflowStep>();
+
+        services.AddScoped<
+            MetadataWorkflowStep>();
+
+        services.AddScoped<
+            ImageNormalizationWorkflowStep>();
+
+        services.AddScoped<
+            VideoNormalizationWorkflowStep>();
+
+        services.AddScoped<
+            ThumbnailWorkflowStep>();
+
+        services.AddScoped<
+            DuplicateDetectionWorkflowStep>();
+
+        services.AddScoped<
+            CleanupEvaluationWorkflowStep>();
+
+        services.AddScoped<
+            ManifestBuildWorkflowStep>();
+
+        services.AddScoped<
+            ExportWorkflowExecutionStep>();
+
+        // =========================
+        // CONFIG
+        // =========================
+
+        services.Configure<MediaSettingsOptions>(
+            configuration.GetSection("MediaSettings"));
 
         return services;
     }

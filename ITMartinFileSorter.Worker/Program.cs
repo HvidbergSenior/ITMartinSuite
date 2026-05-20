@@ -1,4 +1,5 @@
 using ITMartin.Media.Application.Abstractions.Events;
+using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
@@ -21,10 +22,6 @@ using ITMartin.Media.Infrastructure.Queues;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using ITMartin.Media.Runtime.HostedServices;
-using ITMartin.Media.Runtime.Recovery;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -32,9 +29,10 @@ var builder = Host.CreateApplicationBuilder(args);
 // MEDIA PLATFORM
 // =========================
 
-builder.Services.AddMediaInfrastructure(
+builder.Services.AddMediaInfrastructureCore(
     builder.Configuration);
-
+builder.Services.AddMediaWorkflowRuntime(
+    builder.Configuration);
 // =========================
 // CORE SERVICES
 // =========================
@@ -44,32 +42,28 @@ builder.Services.AddScoped<
     MediaTypeResolver>();
 
 builder.Services.AddScoped<
-    IImageConverterService,
-    ImageConverterService>();
-
-builder.Services.AddScoped<
     IThumbnailService,
     ThumbnailService>();
 
 builder.Services.AddScoped<
     IDuplicateService,
     DuplicateService>();
-
-builder.Services.AddScoped<
-    IWorkflowRecoveryService,
-    WorkflowRecoveryService>();
-
 // =========================
 // NORMALIZATION
 // =========================
-
+builder.Services.AddHostedService<
+    WorkflowQueueConsumerHostedService>();
 builder.Services.AddScoped<
-IWorkflowRecoveryService,
-WorkflowRecoveryService > ();
+    IImageConverterService,
+    ImageConverterService>();
+builder.Services.AddScoped<
+    IThumbnailService,
+    ThumbnailService>();
+builder.Services.AddScoped<
+    IDuplicateService,
+    DuplicateService>();
 // RUNTIME
 // =========================
-builder.Services.AddScoped<
-    Package1ExportService>();
 builder.Services.AddScoped<
     IMediaNamingService,
     MediaNamingService>();
@@ -85,8 +79,7 @@ builder.Services.AddSingleton<
 builder.Services.AddScoped<
     ILibraryExportService,
     LibraryExportService>();
-builder.Services.AddHostedService<
-    WorkflowRecoveryHostedService>();
+
 var libraryRoot =
     builder.Configuration[
         "MediaSettings:LibraryRoot"];
@@ -111,52 +104,6 @@ builder.Logging.AddFilter(
 builder.Logging.AddFilter(
     "Microsoft.EntityFrameworkCore.Database.Command",
     LogLevel.None);
-builder.Services.AddInMemoryQueue<
-    WorkflowExecutionMessage>();
-
-// =========================
-// WORKFLOW
-// =========================
-
-builder.Services.AddScoped<
-    Package1WorkflowDefinition>();
-
-builder.Services.AddScoped<
-    Package1WorkflowOrchestrator>();
-
-// =========================
-// STEPS
-// =========================
-
-builder.Services.AddScoped<
-    FileDiscoveryWorkflowStep>();
-
-builder.Services.AddScoped<
-    HashWorkflowStep>();
-
-builder.Services.AddScoped<
-    MetadataWorkflowStep>();
-
-builder.Services.AddScoped<
-    ImageNormalizationWorkflowStep>();
-
-builder.Services.AddScoped<
-    VideoNormalizationWorkflowStep>();
-
-builder.Services.AddScoped<
-    ThumbnailWorkflowStep>();
-
-builder.Services.AddScoped<
-    DuplicateDetectionWorkflowStep>();
-
-builder.Services.AddScoped<
-    CleanupEvaluationWorkflowStep>();
-
-builder.Services.AddScoped<
-    ManifestBuildWorkflowStep>();
-
-builder.Services.AddScoped<
-    ExportWorkflowExecutionStep>();
 
 // =========================
 // BUILD

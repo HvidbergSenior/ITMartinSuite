@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Application.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -55,13 +56,18 @@ public sealed class CleanupEvaluationWorkflowStep
         _logger.LogInformation(
             "Evaluating cleanup");
 
+        foreach (var mediaFile in state.MediaFiles)
+        {
+            mediaFile.CleanupDecision =
+                CleanupDecision.Keep;
+        }
+
         var result =
             _cleanupPipeline.Run(
                 state.MediaFiles);
 
         state.CleanupResult =
             result;
-
         _logger.LogInformation(
             "Cleanup completed. Keep: {Keep} Delete: {Delete}",
             result.KeepCount,
