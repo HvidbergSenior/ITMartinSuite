@@ -38,6 +38,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
+    <None Remove="appsettings.Development.json.disabled" />
   </ItemGroup>
   
   <!-- Media temp folder for thumbnails -->
@@ -52,6 +53,11 @@
     <None Update="ffmpeg\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  
+
+  <ItemGroup>
+    <Content Remove="wwwroot\media_temp\thumbnails\F5D76417A6F27F15EC3682BC00AD26A8FCA37BF5ADE9B3220A49D755021DA718.jpg" />
   </ItemGroup>
   
 </Project>
