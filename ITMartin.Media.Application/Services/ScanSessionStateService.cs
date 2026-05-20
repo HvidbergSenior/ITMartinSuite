@@ -1,6 +1,6 @@
-﻿namespace ITMartin.Media.Application.Services;
+﻿using ITMartin.Media.Application.Models.Scanning;
 
-using ITMartin.Media.Application.Models.Scan;
+namespace ITMartin.Media.Application.Services;
 
 public sealed class ScanSessionStateService
 {

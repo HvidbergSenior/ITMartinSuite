@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Domain.Steps.MetadataStep;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using SixLabors.ImageSharp;

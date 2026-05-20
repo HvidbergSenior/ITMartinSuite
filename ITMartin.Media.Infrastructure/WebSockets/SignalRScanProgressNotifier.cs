@@ -1,5 +1,5 @@
 ﻿using ITMartin.Media.Application.Abstractions.WebSockets;
-using ITMartin.Media.Application.Models.Scan;
+using ITMartin.Media.Application.Models.Scanning;
 using Microsoft.AspNetCore.SignalR;
 
 namespace ITMartin.Media.Infrastructure.WebSockets;

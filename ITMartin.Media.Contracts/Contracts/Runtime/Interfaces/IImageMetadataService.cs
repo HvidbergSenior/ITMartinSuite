@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Domain.Steps.MetadataStep;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 public interface IImageMetadataService
 {

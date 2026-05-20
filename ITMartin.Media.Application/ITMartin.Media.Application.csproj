@@ -17,13 +17,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Abstractions\Packages\" />
-      <Folder Include="Abstractions\Storage\" />
-      <Folder Include="Abstractions\Stores\" />
-      <Folder Include="Interfaces\" />
-      <Folder Include="Models\Storage\" />
-      <Folder Include="Pipelines\Package1\Models\" />
-      <Folder Include="Pipelines\Package1\Operations\" />
       <Folder Include="Services\Steps\FileDiscoveryStep\" />
       <Folder Include="Services\Steps\HashStep\" />
       <Folder Include="Services\Steps\ManifestBuildStep\" />

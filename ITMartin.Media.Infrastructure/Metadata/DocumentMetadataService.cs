@@ -1,6 +1,6 @@
 ﻿using System.IO.Compression;
 using System.Xml.Linq;
-using ITMartin.Media.Domain.Steps.MetadataStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 namespace ITMartin.Media.Infrastructure.Metadata;
 

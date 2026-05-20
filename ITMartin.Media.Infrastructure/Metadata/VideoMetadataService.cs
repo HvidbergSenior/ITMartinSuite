@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.Text;
-using ITMartin.Media.Domain.Steps.MetadataStep;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Infrastructure.Metadata;

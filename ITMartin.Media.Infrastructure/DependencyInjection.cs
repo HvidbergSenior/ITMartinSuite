@@ -1,6 +1,4 @@
 ﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
-using ITMartin.Media.Application.Abstractions.Distributed;
-using ITMartin.Media.Application.Abstractions.Nodes;
 using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Queues;
 using ITMartin.Media.Application.Pipelines.Package1;
@@ -8,17 +6,14 @@ using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
-using ITMartin.Media.Application.Processors;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.NormalizationStep;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-using ITMartin.Media.Domain.Steps.MetadataStep;
 using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Infrastructure.BackgroundJobs;
 using ITMartin.Media.Infrastructure.Contracts.Messages;
-using ITMartin.Media.Infrastructure.Distributed;
 using ITMartin.Media.Infrastructure.FileSystem;
 using ITMartin.Media.Infrastructure.Hashing;
 using ITMartin.Media.Infrastructure.Images;
@@ -85,18 +80,6 @@ public static class DependencyInjection
             EfPackage1ManifestStore>();
 
         // =========================
-        // DISTRIBUTED
-        // =========================
-
-        services.AddSingleton<
-            IDistributedCoordinator,
-            InMemoryDistributedCoordinator>();
-
-        services.AddSingleton<
-            INodeRegistry,
-            InMemoryNodeRegistry>();
-
-        // =========================
         // QUEUES
         // =========================
 
@@ -125,48 +108,6 @@ public static class DependencyInjection
         services.AddScoped<
             IFileScanner,
             FileScanner>();
-
-        // =========================
-        // PROCESSORS
-        // =========================
-
-        services.AddScoped<MediaSupportProcessor>();
-
-        services.AddScoped<FileCreationProcessor>();
-
-        services.AddScoped<MetadataProcessor>();
-
-        services.AddScoped<HashProcessor>();
-
-        services.AddScoped<ClassificationProcessor>();
-
-        services.AddScoped<DuplicateProcessor>();
-
-        services.AddScoped<ParallelScanProcessor>();
-
-        services.AddScoped<FileEnumerationProcessor>();
-
-        services.AddScoped<ExportStatisticsProcessor>();
-
-        services.AddScoped<KeepFileProcessor>();
-
-        services.AddScoped<DeleteFileProcessor>();
-
-        services.AddScoped<FileSizeProcessor>();
-
-        services.AddScoped<DuplicateGroupProcessor>();
-
-        services.AddScoped<MediaCategoryProcessor>();
-
-        services.AddScoped<ReviewProcessor>();
-
-        services.AddScoped<OcrSupportProcessor>();
-
-        services.AddScoped<MediaTypeProcessor>();
-
-        services.AddScoped<NormalizationProcessor>();
-
-        services.AddScoped<ExportPathProcessor>();
 
         // =========================
         // CLASSIFICATION
