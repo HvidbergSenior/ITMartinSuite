@@ -22,7 +22,8 @@ publish/
 
 # FFmpeg executables
 ITMartinFileSorter.Server/ffmpeg/*.exe
-
+# ffmpeg binaries
+ITMartinFileSorter.Worker/ffmpeg/*.exe
 # App settings / secrets
 appsettings.json
 appsettings.Development.json
