@@ -1,6 +1,6 @@
 ﻿namespace ITMartin.Magic.Application.Interfaces;
 
-public interface IBorderDetectionService
+public interface ICardBoundaryDetectionService
 {
     bool IsOldBorder(
         string imagePath);

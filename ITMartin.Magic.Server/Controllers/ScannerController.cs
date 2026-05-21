@@ -7,12 +7,14 @@ namespace ITMartin.Magic.Server.Controllers;
 [IgnoreAntiforgeryToken]
 public class ScannerController : ControllerBase
 {
-    private readonly IWebHostEnvironment _environment;
+    private readonly IWebHostEnvironment
+        _environment;
 
     public ScannerController(
         IWebHostEnvironment environment)
     {
-        _environment = environment;
+        _environment =
+            environment;
     }
 
     [HttpPost("frame")]
@@ -26,46 +28,76 @@ public class ScannerController : ControllerBase
                     "");
 
         var bytes =
-            Convert.FromBase64String(base64);
+            Convert.FromBase64String(
+                base64);
 
-        var folder =
+        // =====================================
+        // RAW CAPTURE STORAGE
+        // =====================================
+
+        var rawFolder =
             Path.Combine(
                 _environment.ContentRootPath,
                 "data",
-                "frames");
+                "raw-captures");
 
-        Directory.CreateDirectory(folder);
+        Directory.CreateDirectory(
+            rawFolder);
 
         var fileName =
             $"{Guid.NewGuid()}.jpg";
 
-        var path =
+        var rawPath =
             Path.Combine(
-                folder,
+                rawFolder,
                 fileName);
 
-        Console.WriteLine(
-            $"SAVING FRAME: {path}");
+        await System.IO.File
+            .WriteAllBytesAsync(
+                rawPath,
+                bytes);
 
-        await System.IO.File.WriteAllBytesAsync(
-            path,
-            bytes);
+        Console.WriteLine(
+            $"RAW FRAME SAVED: {rawPath}");
+
+        // =====================================
+        // PIPELINE WORKSPACE
+        // =====================================
+
+        var pipelineFolder =
+            Path.Combine(
+                _environment.ContentRootPath,
+                "data",
+                "pipeline",
+                Path.GetFileNameWithoutExtension(
+                    fileName));
+
+        Directory.CreateDirectory(
+            pipelineFolder);
 
         return Ok(
             new CaptureFrameResponse
             {
                 ImagePath =
-                    $"/frames/{fileName}"
+                    rawPath,
+
+                PipelineFolder =
+                    pipelineFolder
             });
     }
 
     public class CaptureFrameRequest
     {
-        public string Base64Image { get; set; } = "";
+        public string Base64Image { get; set; } =
+            "";
     }
 
     public class CaptureFrameResponse
     {
-        public string ImagePath { get; set; } = "";
+        public string ImagePath { get; set; } =
+            "";
+
+        public string PipelineFolder { get; set; } =
+            "";
     }
 }

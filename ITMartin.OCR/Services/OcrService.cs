@@ -1,38 +1,152 @@
 ﻿using ITMartin.OCR.Interfaces;
+using ITMartin.OCR.Models;
 using Tesseract;
 
 namespace ITMartin.OCR.Services;
 
-public class OcrService : IOcrService
+public sealed class OcrService
+    : IOcrService
 {
-    public async Task<string?> ExtractTextAsync(string path)
+    public async Task<OcrResult?> ExtractTextAsync(
+        OcrRegionResult regions)
     {
         return await Task.Run(() =>
         {
             try
             {
-                using var engine = new TesseractEngine(
-                    Path.Combine(
-                        AppContext.BaseDirectory,
-                        "tessdata"),
-                    "eng",
-                    EngineMode.Default);
-                
-                using var img = Pix.LoadFromFile(path);
+                using var engine =
+                    new TesseractEngine(
+                        Path.Combine(
+                            AppContext.BaseDirectory,
+                            "tessdata"),
+                        "eng",
+                        EngineMode.Default);
 
-                using var page = engine.Process(img);
-                var text = page.GetText();
+                var title =
+                    ReadRegion(
+                        engine,
+                        regions.TitleImagePath);
 
-                Console.WriteLine($"OCR RESULT: [{text}]");
+                var setCode =
+                    ReadRegion(
+                        engine,
+                        regions.SetCodeImagePath);
 
-                return text;
+                var artist =
+                    ReadRegion(
+                        engine,
+                        regions.ArtistImagePath);
+
+                var bottom =
+                    ReadRegion(
+                        engine,
+                        regions.BottomInfoImagePath);
+
+                Console.WriteLine(
+                    $"OCR TITLE: [{title}]");
+
+                Console.WriteLine(
+                    $"OCR SET: [{setCode}]");
+
+                Console.WriteLine(
+                    $"OCR ARTIST: [{artist}]");
+
+                Console.WriteLine(
+                    $"OCR BOTTOM: [{bottom}]");
+
+                return new OcrResult
+                {
+                    Regions =
+                    [
+                        new OcrTextRegionResult
+                        {
+                            RegionName =
+                                "title",
+
+                            Text =
+                                Clean(title),
+
+                            Confidence =
+                                1.0
+                        },
+
+                        new OcrTextRegionResult
+                        {
+                            RegionName =
+                                "set",
+
+                            Text =
+                                Clean(setCode),
+
+                            Confidence =
+                                1.0
+                        },
+
+                        new OcrTextRegionResult
+                        {
+                            RegionName =
+                                "artist",
+
+                            Text =
+                                Clean(artist),
+
+                            Confidence =
+                                1.0
+                        },
+
+                        new OcrTextRegionResult
+                        {
+                            RegionName =
+                                "bottom",
+
+                            Text =
+                                Clean(bottom),
+
+                            Confidence =
+                                1.0
+                        }
+                    ]
+                };
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                Console.WriteLine(ex);
+                Console.WriteLine(
+                    exception);
 
                 return null;
             }
         });
+    }
+
+    private static string? ReadRegion(
+        TesseractEngine engine,
+        string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        using var image =
+            Pix.LoadFromFile(path);
+
+        using var page =
+            engine.Process(image);
+
+        return page
+            .GetText();
+    }
+
+    private static string? Clean(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 }

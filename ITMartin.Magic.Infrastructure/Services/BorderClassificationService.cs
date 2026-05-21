@@ -3,8 +3,8 @@ using OpenCvSharp;
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
-public class BorderDetectionService
-    : IBorderDetectionService
+public class BorderClassificationService
+    : IBorderClassificationService
 {
     public bool IsOldBorder(
         string imagePath)

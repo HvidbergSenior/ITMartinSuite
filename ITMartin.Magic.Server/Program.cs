@@ -6,9 +6,7 @@ using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Infrastructure.OCR;
 using ITMartin.Magic.Infrastructure.Scryfall;
 using ITMartin.Magic.Infrastructure.Services;
-
-using ITMartin.Media.Domain.Interfaces;
-using ITMartin.Media.Infrastructure.Ai;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
@@ -66,8 +64,8 @@ builder.Services.AddScoped<
     IMagicCardAnalysisService,
     OpenAiMagicCardAnalysisService>();
 builder.Services.AddScoped<
-    IBorderDetectionService,
-    BorderDetectionService>();
+    IBorderClassificationService,
+    BorderClassificationService>();
 // =========================
 // OPENCV PIPELINE
 // =========================

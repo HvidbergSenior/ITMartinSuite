@@ -12,7 +12,7 @@
 @inject ICardBoundaryDetectionService CardBoundaryDetectionService
 @inject IPerspectiveCorrectionService PerspectiveCorrectionService
 @inject IOcrRegionExtractor OcrRegionExtractor
-@inject IBorderDetectionService BorderDetectionService
+@inject IBorderClassificationService BorderClassificationService
 
 @implements IAsyncDisposable
 
@@ -667,12 +667,12 @@
             }
 
             detection.IsOldBorder =
-                BorderDetectionService
+                BorderClassificationService
                     .IsOldBorder(
                         normalizedPath);
 
             detection.IsWhiteBorder =
-                BorderDetectionService
+                BorderClassificationService
                     .IsWhiteBorder(
                         normalizedPath);
 

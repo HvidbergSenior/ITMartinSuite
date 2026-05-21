@@ -1,6 +1,9 @@
-﻿namespace ITMartin.OCR.Interfaces;
+﻿using ITMartin.OCR.Models;
+
+namespace ITMartin.OCR.Interfaces;
 
 public interface IOcrService
 {
-    Task<string?> ExtractTextAsync(string path);
+    Task<OcrResult?> ExtractTextAsync(
+        OcrRegionResult regions);
 }

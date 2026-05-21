@@ -3,8 +3,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
 

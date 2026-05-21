@@ -2,6 +2,7 @@
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
 using ITMartin.OCR.Interfaces;
+using ITMartin.OCR.Models;
 
 namespace ITMartin.Magic.Infrastructure.OCR;
 

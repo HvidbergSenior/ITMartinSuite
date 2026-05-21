@@ -2,7 +2,7 @@
 
 namespace ITMartin.Magic.Application.Interfaces;
 
-public interface ICardBoundaryDetectionService
+public interface ICardCornerDetectionService
 {
     Task<CardCornerDetectionResult?> DetectAsync(
         string imagePath);

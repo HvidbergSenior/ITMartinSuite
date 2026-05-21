@@ -1,6 +1,6 @@
 ﻿using ITMartin.Magic.Application.Models;
-using ITMartin.Media.Domain.Entities;
-using ITMartin.Media.Domain.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
 
 namespace ITMartin.Magic.Application.Interfaces;
 

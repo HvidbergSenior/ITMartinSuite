@@ -7,12 +7,22 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Services\" />
+      <Folder Include="Jobs\" />
+      <Folder Include="Orchestration\" />
+      <Folder Include="Recognition\" />
+      <Folder Include="Runtime\" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\ITMartin.Magic.Domain\ITMartin.Magic.Domain.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
       <ProjectReference Include="..\ITMartin.Media.Domain\ITMartin.Media.Domain.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Runtime\ITMartin.Media.Runtime.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     </ItemGroup>
 
 </Project>

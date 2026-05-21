@@ -220,14 +220,26 @@ public class VideoConverterService : IVideoConverterService
 
             foreach (var stream in streams.EnumerateArray())
             {
+                if (!stream.TryGetProperty(
+                        "codec_type",
+                        out var codecTypeProperty))
+                {
+                    continue;
+                }
+
+                if (!stream.TryGetProperty(
+                        "codec_name",
+                        out var codecNameProperty))
+                {
+                    continue;
+                }
+
                 var type =
-                    stream.GetProperty("codec_type")
-                        .GetString();
+                    codecTypeProperty.GetString();
 
                 var codec =
-                    stream.GetProperty("codec_name")
-                        .GetString();
-
+                    codecNameProperty.GetString();
+                
                 if (type == "video" &&
                     video == null)
                 {
