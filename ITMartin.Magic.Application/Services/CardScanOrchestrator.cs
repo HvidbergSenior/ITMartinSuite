@@ -23,8 +23,6 @@ public sealed class CardScanOrchestrator
         var context =
             new CardScanContext
             {
-                SessionId = Guid.NewGuid(),
-                JobId = Guid.NewGuid(),
                 ImagePath = imagePath
             };
 

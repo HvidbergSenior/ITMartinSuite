@@ -1,5 +1,4 @@
 ﻿using ITMartin.Magic.Application.Workflows.Steps;
-using ITMartin.Media.Application.Pipelines.MagicScan.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Magic.Application.Workflows;
@@ -20,17 +19,30 @@ public sealed class CardScanWorkflowDefinition
         BlurDetectionWorkflowStep blurDetectionWorkflowStep,
         OcrWorkflowStep ocrWorkflowStep,
         RecognitionWorkflowStep recognitionWorkflowStep,
-        ScryfallMatchWorkflowStep scryfallMatchWorkflowStep)
+        OpenAiRecognitionWorkflowStep openAiRecognitionWorkflowStep,
+        ScryfallMatchWorkflowStep scryfallMatchWorkflowStep,
+        ResultMappingWorkflowStep resultMappingWorkflowStep)
     {
         Steps =
         [
+            // Computer Vision
             detectCardWorkflowStep,
             detectCardCornersWorkflowStep,
             perspectiveCorrectionWorkflowStep,
             blurDetectionWorkflowStep,
+
+            // Text Extraction
             ocrWorkflowStep,
+
+            // Semantic Interpretation
             recognitionWorkflowStep,
-            scryfallMatchWorkflowStep
+            openAiRecognitionWorkflowStep,
+
+            // Domain Resolution
+            scryfallMatchWorkflowStep,
+
+            // Final Projection
+            resultMappingWorkflowStep
         ];
     }
 }

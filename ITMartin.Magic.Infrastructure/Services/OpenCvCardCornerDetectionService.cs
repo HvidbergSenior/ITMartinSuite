@@ -4,34 +4,43 @@ using OpenCvSharp;
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
-public class OpenCvCardBoundaryDetectionService
-    : ICardBoundaryDetectionService
+public sealed class OpenCvCardCornerDetectionService
+    : ICardCornerDetectionService
 {
-    public async Task<CardCornerDetectionResult?> DetectAsync(
+    private const int MaxResizeWidth = 1600;
+
+    private const int MinimumContourArea = 50000;
+
+    private const int CannyThreshold1 = 40;
+
+    private const int CannyThreshold2 = 120;
+
+    public Task<CardCornerDetectionResult?> DetectAsync(
         string imagePath)
     {
-        return await Task.Run(() =>
-        {
-            // =====================================
-            // LOAD
-            // =====================================
+        var result =
+            Detect(imagePath);
 
+        return Task.FromResult(result);
+    }
+
+    private static CardCornerDetectionResult? Detect(
+        string imagePath)
+    {
+        try
+        {
             using var original =
-                Cv2.ImRead(imagePath);
+                Cv2.ImRead(
+                    imagePath,
+                    ImreadModes.Color);
 
             if (original.Empty())
             {
                 return null;
             }
 
-            // =====================================
-            // RESIZE
-            // =====================================
-
-            const int maxWidth = 1600;
-
             var scale =
-                (double)maxWidth /
+                (double)MaxResizeWidth /
                 original.Width;
 
             var resizedHeight =
@@ -40,12 +49,8 @@ public class OpenCvCardBoundaryDetectionService
             using var resized =
                 original.Resize(
                     new OpenCvSharp.Size(
-                        maxWidth,
+                        MaxResizeWidth,
                         resizedHeight));
-
-            // =====================================
-            // GRAYSCALE
-            // =====================================
 
             using var gray =
                 new Mat();
@@ -55,20 +60,12 @@ public class OpenCvCardBoundaryDetectionService
                 gray,
                 ColorConversionCodes.BGR2GRAY);
 
-            // =====================================
-            // STRONGER CONTRAST
-            // =====================================
-
             using var enhanced =
                 new Mat();
 
             Cv2.EqualizeHist(
                 gray,
                 enhanced);
-
-            // =====================================
-            // BLUR
-            // =====================================
 
             using var blurred =
                 new Mat();
@@ -79,23 +76,14 @@ public class OpenCvCardBoundaryDetectionService
                 new OpenCvSharp.Size(7, 7),
                 0);
 
-            // =====================================
-            // EDGE DETECTION
-            // =====================================
-
             using var edges =
                 new Mat();
 
             Cv2.Canny(
                 blurred,
                 edges,
-                40,
-                120);
-
-            // =====================================
-            // DILATE
-            // closes contour gaps
-            // =====================================
+                CannyThreshold1,
+                CannyThreshold2);
 
             using var kernel =
                 Cv2.GetStructuringElement(
@@ -107,20 +95,12 @@ public class OpenCvCardBoundaryDetectionService
                 edges,
                 kernel);
 
-            // =====================================
-            // FIND CONTOURS
-            // =====================================
-
             Cv2.FindContours(
                 edges,
                 out var contours,
                 out _,
                 RetrievalModes.List,
                 ContourApproximationModes.ApproxSimple);
-
-            // =====================================
-            // FIND BEST RECTANGLE
-            // =====================================
 
             OpenCvSharp.Point[]? bestQuad = null;
 
@@ -139,39 +119,23 @@ public class OpenCvCardBoundaryDetectionService
                         0.02 * perimeter,
                         true);
 
-                // =====================================
-                // MUST HAVE 4 SIDES
-                // =====================================
-
                 if (approx.Length != 4)
                 {
                     continue;
                 }
-
-                // =====================================
-                // MUST BE CONVEX
-                // =====================================
 
                 if (!Cv2.IsContourConvex(approx))
                 {
                     continue;
                 }
 
-                // =====================================
-                // AREA
-                // =====================================
-
                 var area =
                     Cv2.ContourArea(approx);
 
-                if (area < 50000)
+                if (area < MinimumContourArea)
                 {
                     continue;
                 }
-
-                // =====================================
-                // BEST MATCH
-                // =====================================
 
                 if (area > bestArea)
                 {
@@ -180,66 +144,13 @@ public class OpenCvCardBoundaryDetectionService
                 }
             }
 
-            // =====================================
-            // FAIL
-            // =====================================
-
-            if (bestQuad == null)
+            if (bestQuad is null)
             {
-                Console.WriteLine(
-                    "CARD DETECTION FAILED");
-
                 return null;
             }
 
-            // =====================================
-            // ORDER POINTS
-            // =====================================
-
             var ordered =
                 OrderPoints(bestQuad);
-
-            // =====================================
-            // DEBUG IMAGE
-            // =====================================
-
-            using var debug =
-                resized.Clone();
-
-            for (var i = 0; i < 4; i++)
-            {
-                Cv2.Line(
-                    debug,
-                    ordered[i],
-                    ordered[(i + 1) % 4],
-                    Scalar.Lime,
-                    8);
-            }
-
-            var debugFolder =
-                Path.Combine(
-                    Directory.GetCurrentDirectory(),
-                    "data",
-                    "debug");
-
-            Directory.CreateDirectory(
-                debugFolder);
-
-            var debugPath =
-                Path.Combine(
-                    debugFolder,
-                    $"{Guid.NewGuid()}.jpg");
-
-            Cv2.ImWrite(
-                debugPath,
-                debug);
-
-            Console.WriteLine(
-                $"BOUNDARY DEBUG: {debugPath}");
-
-            // =====================================
-            // SCALE BACK
-            // =====================================
 
             var reverseScale =
                 1.0 / scale;
@@ -266,17 +177,14 @@ public class OpenCvCardBoundaryDetectionService
                 BottomLeft =
                     ScalePoint(
                         ordered[3],
-                        reverseScale),
-
-                DebugImagePath =
-                    debugPath
+                        reverseScale)
             };
-        });
+        }
+        catch
+        {
+            return null;
+        }
     }
-
-    // =========================================
-    // ORDER POINTS
-    // =========================================
 
     private static OpenCvSharp.Point[] OrderPoints(
         OpenCvSharp.Point[] points)
@@ -298,10 +206,6 @@ public class OpenCvCardBoundaryDetectionService
 
         return ordered;
     }
-
-    // =========================================
-    // SCALE
-    // =========================================
 
     private static CardPoint ScalePoint(
         OpenCvSharp.Point point,

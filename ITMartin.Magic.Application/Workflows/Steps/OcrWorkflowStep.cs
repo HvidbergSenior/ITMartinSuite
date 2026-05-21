@@ -1,4 +1,5 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.OCR.Interfaces;
@@ -6,7 +7,7 @@ using ITMartin.OCR.Interfaces;
 namespace ITMartin.Magic.Application.Workflows.Steps;
 
 public sealed class OcrWorkflowStep
-    : IWorkflowStep
+    : WorkflowStep<CardScanContext>
 {
     private readonly
         IOcrRegionExtractor
@@ -16,7 +17,7 @@ public sealed class OcrWorkflowStep
         IOcrService
         _ocrService;
 
-    public string Name =>
+    public override string Name =>
         nameof(OcrWorkflowStep);
 
     public OcrWorkflowStep(
@@ -30,42 +31,42 @@ public sealed class OcrWorkflowStep
             ocrService;
     }
 
-    public async Task ExecuteAsync<TState>(
-        WorkflowExecutionContext<TState> context,
+    public override async Task ExecuteAsync(
+        WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
-        var state =
-            context.State as CardScanWorkflowState
-            ?? throw new InvalidOperationException(
-                "Invalid workflow state.");
+        if (context.State.PerspectiveCorrectedImagePath is null)
+        {
+            throw new InvalidOperationException(
+                "Perspective corrected image missing.");
+        }
 
-        var imagePath =
-            state.CorrectedImagePath
-            ?? state.ImagePath;
-
-        var region =
+        var regions =
             await _ocrRegionExtractor
-                .ExtractAsync(imagePath);
+                .ExtractAsync(
+                    context.State.PerspectiveCorrectedImagePath);
 
-        if (region is null)
+        if (regions is null)
         {
             throw new InvalidOperationException(
                 "OCR region extraction failed.");
         }
 
+        context.State.OcrRegionResult =
+            regions;
+
         var result =
             await _ocrService
                 .ExtractTextAsync(
-                    region.ImagePath);
+                    regions);
 
-        if (string.IsNullOrWhiteSpace(result))
+        if (result is null)
         {
             throw new InvalidOperationException(
                 "OCR failed.");
         }
 
-        state.OcrResult =
+        context.State.OcrResult =
             result;
     }
 }

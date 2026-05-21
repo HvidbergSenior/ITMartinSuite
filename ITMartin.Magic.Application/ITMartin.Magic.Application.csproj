@@ -14,6 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
       <ProjectReference Include="..\ITMartin.Magic.Domain\ITMartin.Magic.Domain.csproj" />
       <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
       <ProjectReference Include="..\ITMartin.Media.Domain\ITMartin.Media.Domain.csproj" />

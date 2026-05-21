@@ -1,17 +1,18 @@
-using ITMartin.Magic.Server;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.FileProviders;
-
+using ITMartin.Ai.Interfaces;
+using ITMartin.Ai.Services;
+using ITMartin.Magic.Application;
 using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Magic.Infrastructure.OCR;
-using ITMartin.Magic.Infrastructure.Scryfall;
 using ITMartin.Magic.Infrastructure.Services;
+using ITMartin.Magic.Server;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.FileProviders;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder =
+    WebApplication.CreateBuilder(args);
 
 // =========================
 // SERVICES
@@ -33,12 +34,11 @@ builder.Services.Configure<HubOptions>(
     });
 
 // =========================
-// HTTP
+// APPLICATION
 // =========================
 
-builder.Services.AddHttpClient<
-    IScryfallService,
-    ScryfallService>();
+builder.Services
+    .AddMagicApplication();
 
 // =========================
 // OCR
@@ -47,10 +47,6 @@ builder.Services.AddHttpClient<
 builder.Services.AddScoped<
     IOcrService,
     OcrService>();
-
-builder.Services.AddScoped<
-    ICardRecognitionService,
-    CardRecognitionService>();
 
 // =========================
 // AI
@@ -61,13 +57,11 @@ builder.Services.AddScoped<
     OpenAiImageAnalysisService>();
 
 builder.Services.AddScoped<
-    IMagicCardAnalysisService,
-    OpenAiMagicCardAnalysisService>();
-builder.Services.AddScoped<
-    IBorderClassificationService,
-    BorderClassificationService>();
+    IMagicCardRecognitionService,
+    OpenAiMagicCardRecognitionService>();
+
 // =========================
-// OPENCV PIPELINE
+// OPENCV
 // =========================
 
 builder.Services.AddScoped<
@@ -75,8 +69,8 @@ builder.Services.AddScoped<
     CardLayoutDetectionService>();
 
 builder.Services.AddScoped<
-    ICardBoundaryDetectionService,
-    OpenCvCardBoundaryDetectionService>();
+    ICardCornerDetectionService,
+    OpenCvCardCornerDetectionService>();
 
 builder.Services.AddScoped<
     IPerspectiveCorrectionService,
@@ -86,9 +80,6 @@ builder.Services.AddScoped<
     IBlurDetectionService,
     OpenCvBlurDetectionService>();
 
-builder.Services.AddScoped<
-    IOcrRegionExtractor,
-    OpenCvOcrRegionExtractor>();
 // =========================
 // URLS
 // =========================
@@ -104,9 +95,7 @@ var dataFolders =
     new[]
     {
         "data",
-        "data/frames",
         "data/debug",
-        "data/normalized",
         "data/ocr"
     };
 
@@ -119,7 +108,8 @@ foreach (var folder in dataFolders)
 // BUILD
 // =========================
 
-var app = builder.Build();
+var app =
+    builder.Build();
 
 // =========================
 // PIPELINE
@@ -153,7 +143,8 @@ app.UseStaticFiles(
         FileProvider =
             new PhysicalFileProvider(dataPath),
 
-        RequestPath = "/data"
+        RequestPath =
+            "/data"
     });
 
 // =========================

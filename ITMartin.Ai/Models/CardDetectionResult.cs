@@ -1,4 +1,6 @@
-﻿namespace ITMartin.Magic.Application.Models;
+﻿using ITMartin.OCR.Models;
+
+namespace ITMartin.Ai.Models;
 
 public class CardDetectionResult
 {
@@ -51,6 +53,7 @@ public class CardDetectionResult
     public string? Rarity { get; set; }
 
     public string? PowerToughness { get; set; }
+    public CardLayoutType LayoutType { get; set; }
 
     // =====================================
     // DEBUG / OCR

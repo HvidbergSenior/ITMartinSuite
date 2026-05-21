@@ -5,37 +5,36 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 namespace ITMartin.Magic.Application.Workflows.Steps;
 
 public sealed class DetectCardCornersWorkflowStep
-    : IWorkflowStep
+    : WorkflowStep<CardScanContext>
 {
     private readonly
         ICardCornerDetectionService
         _cardCornerDetectionService;
 
-    public string Name =>
+    public override string Name =>
         nameof(DetectCardCornersWorkflowStep);
 
     public DetectCardCornersWorkflowStep(
-        ICardCornerDetectionService
-            cardCornerDetectionService)
+        ICardCornerDetectionService cardCornerDetectionService)
     {
         _cardCornerDetectionService =
             cardCornerDetectionService;
     }
 
-    public async Task ExecuteAsync<TState>(
-        WorkflowExecutionContext<TState> context,
+    public override async Task ExecuteAsync(
+        WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
-        var state =
-            context.State as CardScanWorkflowState
-            ?? throw new InvalidOperationException(
-                "Invalid workflow state.");
+        if (context.State.DetectedCardImagePath is null)
+        {
+            throw new InvalidOperationException(
+                "Detected card image missing.");
+        }
 
         var result =
             await _cardCornerDetectionService
                 .DetectAsync(
-                    state.ImagePath);
+                    context.State.DetectedCardImagePath);
 
         if (result is null)
         {
@@ -43,7 +42,7 @@ public sealed class DetectCardCornersWorkflowStep
                 "Card corner detection failed.");
         }
 
-        state.CornerResult =
+        context.State.CardCornerResult =
             result;
     }
 }

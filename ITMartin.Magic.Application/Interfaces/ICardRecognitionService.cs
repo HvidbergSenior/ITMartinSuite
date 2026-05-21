@@ -5,6 +5,6 @@ namespace ITMartin.Magic.Application.Interfaces;
 
 public interface ICardRecognitionService
 {
-    Task<CardDetectionResult?> DetectAsync(
-        OcrRegionResult regions);
+    Task<RecognitionResult?> RecognizeAsync(
+        OcrResult result);
 }

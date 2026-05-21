@@ -1,58 +1,48 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Magic.Application.Workflows.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
-namespace ITMartin.Magic.Application.Workflows;
+namespace ITMartin.Magic.Application.Workflows.Steps;
 
 public sealed class RecognitionWorkflowStep
-    : IWorkflowStep
+    : WorkflowStep<CardScanContext>
 {
     private readonly
         ICardRecognitionService
         _cardRecognitionService;
-    public string Name =>
-        nameof(DetectCardWorkflowStep);
 
-    public Task ExecuteAsync<TState>(WorkflowExecutionContext<TState> context, CancellationToken cancellationToken = default) where TState : class
-    {
-        throw new NotImplementedException();
-    }
+    public override string Name =>
+        nameof(RecognitionWorkflowStep);
 
     public RecognitionWorkflowStep(
-        ICardRecognitionService
-            cardRecognitionService)
+        ICardRecognitionService cardRecognitionService)
     {
         _cardRecognitionService =
             cardRecognitionService;
     }
 
-    public async Task ExecuteAsync(
-        CardScanContext context,
-        CancellationToken cancellationToken)
+    public override async Task ExecuteAsync(
+        WorkflowExecutionContext<CardScanContext> context,
+        CancellationToken cancellationToken = default)
     {
-        if (context.OcrResult is null)
+        if (context.State.OcrResult is null)
         {
-            context.Fail(
+            throw new InvalidOperationException(
                 "OCR result missing.");
-
-            return;
         }
 
         var result =
             await _cardRecognitionService
                 .RecognizeAsync(
-                    context.OcrResult);
+                    context.State.OcrResult);
 
         if (result is null)
         {
-            context.Fail(
+            throw new InvalidOperationException(
                 "Card recognition failed.");
-
-            return;
         }
 
-        context.CaptureResult =
+        context.State.RecognitionResult =
             result;
     }
 }

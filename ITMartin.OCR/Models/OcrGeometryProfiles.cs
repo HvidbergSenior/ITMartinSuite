@@ -1,8 +1,4 @@
-﻿using ITMartin.Magic.Application.Models;
-using ITMartin.Magic.Domain;
-using ITMartin.Magic.Infrastructure.Enums;
-
-namespace ITMartin.Magic.Infrastructure.Services;
+﻿namespace ITMartin.OCR.Models;
 
 public static class OcrGeometryProfiles
 {

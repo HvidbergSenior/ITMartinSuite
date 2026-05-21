@@ -1,12 +1,10 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Magic.Application.Models;
-using ITMartin.Magic.Domain;
-using ITMartin.Magic.Infrastructure.Enums;
+using ITMartin.OCR.Models;
 using OpenCvSharp;
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
-public class CardLayoutDetectionService
+public sealed class CardLayoutDetectionService
     : ICardLayoutDetectionService
 {
     public CardLayoutType Detect(
@@ -15,16 +13,14 @@ public class CardLayoutDetectionService
         try
         {
             using var image =
-                Cv2.ImRead(normalizedCardPath);
+                Cv2.ImRead(
+                    normalizedCardPath,
+                    ImreadModes.Color);
 
             if (image.Empty())
             {
                 return CardLayoutType.Unknown;
             }
-
-            // =====================================
-            // SAMPLE TITLE BAR
-            // =====================================
 
             var sampleX =
                 (int)(image.Width * 0.80);
@@ -42,26 +38,9 @@ public class CardLayoutDetectionService
                  pixel.Item1 +
                  pixel.Item2) / 3d;
 
-            Console.WriteLine(
-                $"LAYOUT BRIGHTNESS: {brightness}");
-
-            // =====================================
-            // OLD BORDER:
-            // brighter faded title bars
-            // =====================================
-
-            if (brightness > 120)
-            {
-                Console.WriteLine(
-                    "LAYOUT: OLD BORDER");
-
-                return CardLayoutType.OldBorder;
-            }
-
-            Console.WriteLine(
-                "LAYOUT: MODERN");
-
-            return CardLayoutType.Modern;
+            return brightness > 120
+                ? CardLayoutType.OldBorder
+                : CardLayoutType.Modern;
         }
         catch
         {

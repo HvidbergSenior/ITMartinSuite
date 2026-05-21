@@ -1,29 +1,44 @@
-﻿using ITMartin.Magic.Application.Models;
+﻿using ITMartin.Ai.Models;
+using ITMartin.Magic.Application.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.OCR.Models;
 
 namespace ITMartin.Magic.Application.Workflows;
 
 public sealed class CardScanContext
 {
-    public required Guid SessionId { get; init; }
-
-    public required Guid JobId { get; init; }
-
     public required string ImagePath { get; init; }
 
     // =========================
-    // PIPELINE STATE
+    // GENERATED IMAGES
     // =========================
+
+    public string? DetectedCardImagePath { get; set; }
+
+    public string? PerspectiveCorrectedImagePath { get; set; }
+
+    // =========================
+    // PIPELINE RESULTS
+    // =========================
+
+    public CardLayoutType LayoutType { get; set; } =
+        CardLayoutType.Unknown;
 
     public CardDetectionResult? DetectionResult { get; set; }
 
-    public CardCornerDetectionResult? CornerResult { get; set; }
+    public CardCornerDetectionResult? CardCornerResult { get; set; }
 
-    public string? CorrectedImagePath { get; set; }
+    public OcrRegionResult? OcrRegionResult { get; set; }
 
-    public OcrRegionResult? OcrResult { get; set; }
+    public OcrResult? OcrResult { get; set; }
 
-    public CaptureResult? CaptureResult { get; set; }
+    public RecognitionResult? RecognitionResult { get; set; }
+
+    public MagicCardAnalysisResult? OpenAiResult { get; set; }
+
+    public ScryfallMatchResult? ScryfallMatchResult { get; set; }
+
+    public CardScanResult? Result { get; set; }
 
     // =========================
     // EXECUTION

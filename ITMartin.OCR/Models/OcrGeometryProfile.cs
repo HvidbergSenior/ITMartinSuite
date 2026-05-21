@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Magic.Application.Models;
+﻿namespace ITMartin.OCR.Models;
 
 public class OcrGeometryProfile
 {

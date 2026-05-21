@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Magic.Domain;
+﻿namespace ITMartin.OCR.Models;
 
 public enum CardLayoutType
 {

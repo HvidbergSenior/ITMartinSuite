@@ -32,14 +32,14 @@ public sealed class CardScanWorkflowService
         CancellationToken cancellationToken = default)
     {
         var state =
-            new CardScanWorkflowState
+            new CardScanContext()
             {
                 ImagePath = imagePath
             };
 
         var context =
             new WorkflowExecutionContext<
-                CardScanWorkflowState>
+                CardScanContext>
             {
                 WorkflowId =
                     Guid.NewGuid(),

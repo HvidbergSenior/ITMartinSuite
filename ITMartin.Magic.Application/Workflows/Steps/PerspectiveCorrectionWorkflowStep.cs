@@ -1,54 +1,56 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Magic.Application.Workflows.Steps;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
-namespace ITMartin.Magic.Application.Workflows;
+namespace ITMartin.Magic.Application.Workflows.Steps;
 
 public sealed class PerspectiveCorrectionWorkflowStep
-    : IWorkflowStep
+    : WorkflowStep<CardScanContext>
 {
     private readonly
         IPerspectiveCorrectionService
         _perspectiveCorrectionService;
-    public string Name =>
-        nameof(DetectCardWorkflowStep);
+
+    public override string Name =>
+        nameof(PerspectiveCorrectionWorkflowStep);
 
     public PerspectiveCorrectionWorkflowStep(
-        IPerspectiveCorrectionService
-            perspectiveCorrectionService)
+        IPerspectiveCorrectionService perspectiveCorrectionService)
     {
         _perspectiveCorrectionService =
             perspectiveCorrectionService;
     }
 
-    public async Task ExecuteAsync(
-        CardScanContext context,
-        CancellationToken cancellationToken)
+    public override async Task ExecuteAsync(
+        WorkflowExecutionContext<CardScanContext> context,
+        CancellationToken cancellationToken = default)
     {
-        if (context.CornerResult is null)
+        if (context.State.DetectedCardImagePath is null)
         {
-            context.Fail(
-                "Card corners were not detected.");
+            throw new InvalidOperationException(
+                "Detected card image missing.");
+        }
 
-            return;
+        if (context.State.CardCornerResult is null)
+        {
+            throw new InvalidOperationException(
+                "Card corners were not detected.");
         }
 
         var correctedImagePath =
             await _perspectiveCorrectionService
-                .CorrectPerspectiveAsync(
-                    context.ImagePath,
-                    context.CornerResult);
+                .CorrectAsync(
+                    context.State.DetectedCardImagePath,
+                    context.State.CardCornerResult);
 
         if (string.IsNullOrWhiteSpace(
                 correctedImagePath))
         {
-            context.Fail(
+            throw new InvalidOperationException(
                 "Perspective correction failed.");
-
-            return;
         }
 
-        context.CorrectedImagePath =
+        context.State.PerspectiveCorrectedImagePath =
             correctedImagePath;
     }
 }

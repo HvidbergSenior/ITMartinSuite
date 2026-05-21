@@ -1,36 +1,66 @@
+# =========================================
 # Build output
+# =========================================
+
 bin/
 obj/
 publish/
 **/publish/
 
-# IDEs
+# =========================================
+# IDE
+# =========================================
+
 .idea/
 .vs/
 
-# User-specific files
+# =========================================
+# User files
+# =========================================
+
 *.user
 *.suo
 
-# Database files
+# =========================================
+# Databases
+# =========================================
+
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
 
+# =========================================
 # Logs
+# =========================================
+
 *.log
 
-# FFmpeg executables
-ITMartinFileSorter.Server/ffmpeg/*.exe
-# ffmpeg binaries
-ITMartinFileSorter.Worker/ffmpeg/*.exe
+# =========================================
 # App settings / secrets
+# =========================================
+
 appsettings.json
 appsettings.Development.json
 **/appsettings.json
 **/appsettings.Development.json
 secrets.json
 
-# Magic scanner generated frames
-ITMartin.Magic.Server/data/frames/
-ITMartin.Magic.Server/data/
+# =========================================
+# FFmpeg
+# =========================================
+
+**/ffmpeg/*.exe
+
+# =========================================
+# Runtime generated media data
+# =========================================
+
+**/data/
+**/frames/
+**/debug/
+**/ocr/
+**/normalized/
+**/exports/
+**/thumbnails/
+**/temp/

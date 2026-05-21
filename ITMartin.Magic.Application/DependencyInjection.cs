@@ -2,7 +2,6 @@
 using ITMartin.Magic.Application.Services;
 using ITMartin.Magic.Application.Workflows;
 using ITMartin.Magic.Application.Workflows.Steps;
-using ITMartin.Media.Application.Pipelines.MagicScan.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,48 +15,57 @@ public static class DependencyInjection
         // =========================
         // WORKFLOW
         // =========================
+
         services.AddScoped<
             ICardScanOrchestrator,
             CardScanOrchestrator>();
+
         services.AddScoped<
             CardScanWorkflow>();
+
         services.AddScoped<
             CardScanWorkflowDefinition>();
 
         services.AddScoped<
             IWorkflowDefinition,
             CardScanWorkflowDefinition>();
+
         // =========================
         // WORKFLOW STEPS
         // =========================
 
         services.AddScoped<
-            IWorkflowStep<CardScanContext>,
             DetectCardWorkflowStep>();
 
         services.AddScoped<
-            IWorkflowStep<CardScanContext>,
+            CropCardWorkflowStep>();
+
+        services.AddScoped<
             DetectCardCornersWorkflowStep>();
 
         services.AddScoped<
-            IWorkflowStep<CardScanContext>,
             PerspectiveCorrectionWorkflowStep>();
 
         services.AddScoped<
-            IWorkflowStep<CardScanContext>,
             BlurDetectionWorkflowStep>();
 
         services.AddScoped<
-            IWorkflowStep<CardScanContext>,
             OcrWorkflowStep>();
 
         services.AddScoped<
-            IWorkflowStep<CardScanContext>,
+            OpenAiInterpretationWorkflowStep>();
+
+        services.AddScoped<
             RecognitionWorkflowStep>();
 
         services.AddScoped<
-            IWorkflowStep<CardScanContext>,
             ScryfallMatchWorkflowStep>();
+
+        services.AddScoped<
+            ResultMappingWorkflowStep>();
+
+        services.AddScoped<
+            SaveDebugImagesWorkflowStep>();
 
         return services;
     }

@@ -5,13 +5,13 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 namespace ITMartin.Magic.Application.Workflows.Steps;
 
 public sealed class BlurDetectionWorkflowStep
-    : IWorkflowStep
+    : WorkflowStep<CardScanContext>
 {
     private readonly
         IBlurDetectionService
         _blurDetectionService;
 
-    public string Name =>
+    public override string Name =>
         nameof(BlurDetectionWorkflowStep);
 
     public BlurDetectionWorkflowStep(
@@ -21,19 +21,13 @@ public sealed class BlurDetectionWorkflowStep
             blurDetectionService;
     }
 
-    public async Task ExecuteAsync<TState>(
-        WorkflowExecutionContext<TState> context,
+    public override async Task ExecuteAsync(
+        WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
-        var state =
-            context.State as CardScanWorkflowState
-            ?? throw new InvalidOperationException(
-                "Invalid workflow state.");
-
         var imagePath =
-            state.CorrectedImagePath
-            ?? state.ImagePath;
+            context.State.PerspectiveCorrectedImagePath
+            ?? context.State.ImagePath;
 
         var isBlurry =
             await _blurDetectionService

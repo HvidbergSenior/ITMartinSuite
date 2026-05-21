@@ -4,14 +4,26 @@ using ITMartin.OCR.Interfaces;
 
 namespace ITMartin.Media.Application.Services;
 
-public class MediaOcrService : IMediaOcrService
+public class MediaOcrService
+    : IMediaOcrService
 {
-    private readonly IOcrService _ocrService;
+    private readonly
+        IOcrRegionExtractor
+        _ocrRegionExtractor;
+
+    private readonly
+        IOcrService
+        _ocrService;
 
     public MediaOcrService(
+        IOcrRegionExtractor ocrRegionExtractor,
         IOcrService ocrService)
     {
-        _ocrService = ocrService;
+        _ocrRegionExtractor =
+            ocrRegionExtractor;
+
+        _ocrService =
+            ocrService;
     }
 
     public async Task ProcessAsync(
@@ -23,9 +35,11 @@ public class MediaOcrService : IMediaOcrService
                 .Where(ShouldRunOcr)
                 .ToList();
 
-        int total = ocrFiles.Count;
+        int total =
+            ocrFiles.Count;
 
-        int done = 0;
+        int done =
+            0;
 
         foreach (var file in ocrFiles)
         {
@@ -38,13 +52,34 @@ public class MediaOcrService : IMediaOcrService
                 Console.WriteLine(
                     $"OCR PATH USED: {path}");
 
-                var text =
+                var regions =
+                    await _ocrRegionExtractor
+                        .ExtractAsync(
+                            path);
+
+                if (regions is null)
+                {
+                    Console.WriteLine(
+                        $"OCR REGION EXTRACTION FAILED: {path}");
+
+                    continue;
+                }
+
+                var result =
                     await _ocrService
-                        .ExtractTextAsync(path);
+                        .ExtractTextAsync(
+                            regions);
 
-                file.OcrText = text;
-
-                file.OcrProcessed = true;
+                file.OcrText =
+                    result is null
+                        ? null
+                        : string.Join(
+                            Environment.NewLine,
+                            result.Regions
+                                .Select(x => x.Text));
+                
+                file.OcrProcessed =
+                    true;
 
                 Console.WriteLine(
                     $"OCR DONE: {path}");

@@ -1,23 +1,41 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Magic.Application.Workflows;
 
 public sealed class CardScanWorkflow
 {
-    private readonly IReadOnlyCollection<
-        IWorkflowStep> _steps;
+    private readonly
+        IReadOnlyCollection<IWorkflowStep>
+        _steps;
 
     public CardScanWorkflow(
-        IReadOnlyCollection<
-            IWorkflowStep> steps)
+        IReadOnlyCollection<IWorkflowStep> steps)
     {
-        _steps = steps;
+        _steps =
+            steps;
     }
 
     public async Task ExecuteAsync(
         CardScanContext context,
         CancellationToken cancellationToken)
     {
+        var workflowContext =
+            new WorkflowExecutionContext<CardScanContext>
+            {
+                WorkflowId =
+                    Guid.NewGuid(),
+
+                WorkflowName =
+                    nameof(CardScanWorkflow),
+
+                State =
+                    context,
+
+                CancellationToken =
+                    cancellationToken
+            };
+
         foreach (var step in _steps)
         {
             var startedAt =
@@ -26,22 +44,21 @@ public sealed class CardScanWorkflow
             try
             {
                 await step.ExecuteAsync(
-                    context,
+                    workflowContext,
                     cancellationToken);
 
                 context.Steps.Add(
                     new WorkflowExecutionStep
                     {
-                        Name = step.GetType().Name,
-                        Success = true,
+                        Name =
+                            step.Name,
+
+                        Success =
+                            true,
+
                         Duration =
                             DateTime.UtcNow - startedAt
                     });
-
-                if (context.Failed)
-                {
-                    return;
-                }
             }
             catch (Exception exception)
             {
@@ -51,9 +68,15 @@ public sealed class CardScanWorkflow
                 context.Steps.Add(
                     new WorkflowExecutionStep
                     {
-                        Name = step.GetType().Name,
-                        Success = false,
-                        Error = exception.Message,
+                        Name =
+                            step.Name,
+
+                        Success =
+                            false,
+
+                        Error =
+                            exception.Message,
+
                         Duration =
                             DateTime.UtcNow - startedAt
                     });

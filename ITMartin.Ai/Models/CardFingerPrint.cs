@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Magic.Application.Models;
+﻿namespace ITMartin.Ai.Models;
 
 public class CardFingerprint
 {

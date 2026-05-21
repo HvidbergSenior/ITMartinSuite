@@ -1,10 +1,10 @@
-﻿using ITMartin.Magic.Application.Models;
-using ITMartin.Magic.Domain;
+﻿using ITMartin.Ai.Models;
+using ITMartin.OCR.Models;
 
 namespace ITMartin.Magic.Application.Interfaces;
 
 public interface ICardLayoutDetectionService
 {
-    Task<CardDetectionResult?> DetectAsync(
+    CardLayoutType Detect(
         string imagePath);
 }

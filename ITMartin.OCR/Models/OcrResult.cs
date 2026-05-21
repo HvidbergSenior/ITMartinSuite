@@ -7,4 +7,8 @@ public sealed class OcrResult
         Regions { get; init; }
         =
         [];
+    public string FullText =>
+        string.Join(
+            Environment.NewLine,
+            Regions.Select(x => x.Text));
 }

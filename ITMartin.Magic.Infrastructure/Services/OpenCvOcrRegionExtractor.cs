@@ -1,6 +1,5 @@
-﻿using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Magic.Application.Models;
-using ITMartin.Magic.Domain;
+﻿using ITMartin.Ai.Interfaces;
+using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Models;
 using OpenCvSharp;
 
@@ -19,187 +18,184 @@ public class OpenCvOcrRegionExtractor
         _layoutDetectionService =
             layoutDetectionService;
     }
+
     public async Task<OcrRegionResult?> ExtractAsync(
         string normalizedCardPath)
     {
-        return await Task.Run(() =>
+        using var image =
+            Cv2.ImRead(normalizedCardPath);
+
+        if (image.Empty())
         {
-            using var image =
-                Cv2.ImRead(normalizedCardPath);
+            return null;
+        }
 
-            if (image.Empty())
-            {
-                return null;
-            }
+        var width =
+            image.Width;
 
-            var width =
-                image.Width;
+        var height =
+            image.Height;
 
-            var height =
-                image.Height;
+        Console.WriteLine(
+            $"NORMALIZED SIZE: {width}x{height}");
 
-            Console.WriteLine(
-                $"NORMALIZED SIZE: {width}x{height}");
+        var detection =
+            await _layoutDetectionService
+                .DetectAsync(normalizedCardPath);
 
-            // =====================================
-// LAYOUT DETECTION
-// =====================================
+        if (detection is null)
+        {
+            return null;
+        }
 
-            var layout =
-                _layoutDetectionService
-                    .Detect(normalizedCardPath);
+        Console.WriteLine(
+            $"DETECTED LAYOUT: {detection.LayoutType}");
 
-            Console.WriteLine(
-                $"DETECTED LAYOUT: {layout}");
+        var profile =
+            OcrGeometryProfiles
+                .Get(detection.LayoutType);
 
-// =====================================
-// OCR PROFILE
-// =====================================
+        // =====================================
+        // OCR GEOMETRY
+        // =====================================
 
-            var profile =
-                OcrGeometryProfiles
-                    .Get(layout);
+        var titleRect =
+            CreateRect(
+                width,
+                height,
+                profile.TitleX,
+                profile.TitleY,
+                profile.TitleWidth,
+                profile.TitleHeight);
 
-// =====================================
-// OCR GEOMETRY
-// =====================================
+        var bottomRect =
+            CreateRect(
+                width,
+                height,
+                profile.BottomX,
+                profile.BottomY,
+                profile.BottomWidth,
+                profile.BottomHeight);
 
-            var titleRect =
+        var artistRect =
+            CreateRect(
+                width,
+                height,
+                profile.ArtistX,
+                profile.ArtistY,
+                profile.ArtistWidth,
+                profile.ArtistHeight);
+
+        // =====================================
+        // OLD BORDER:
+        // NO SET SYMBOL
+        // =====================================
+
+        Rect setRect;
+
+        if (detection.LayoutType ==
+            CardLayoutType.OldBorder)
+        {
+            setRect =
+                new Rect(0, 0, 1, 1);
+        }
+        else
+        {
+            setRect =
                 CreateRect(
                     width,
                     height,
-                    profile.TitleX,
-                    profile.TitleY,
-                    profile.TitleWidth,
-                    profile.TitleHeight);
+                    profile.SetX,
+                    profile.SetY,
+                    profile.SetWidth,
+                    profile.SetHeight);
+        }
 
-            var bottomRect =
-                CreateRect(
-                    width,
-                    height,
-                    profile.BottomX,
-                    profile.BottomY,
-                    profile.BottomWidth,
-                    profile.BottomHeight);
+        // =====================================
+        // DEBUG OVERLAY
+        // =====================================
 
-            var artistRect =
-                CreateRect(
-                    width,
-                    height,
-                    profile.ArtistX,
-                    profile.ArtistY,
-                    profile.ArtistWidth,
-                    profile.ArtistHeight);
+        using var debug =
+            image.Clone();
 
-// =====================================
-// OLD BORDER:
-// NO SET SYMBOL
-// =====================================
+        Cv2.Rectangle(
+            debug,
+            titleRect,
+            Scalar.Red,
+            4);
 
-            Rect setRect;
+        Cv2.Rectangle(
+            debug,
+            bottomRect,
+            Scalar.Green,
+            4);
 
-            if (layout == CardLayoutType.OldBorder)
-            {
-                setRect =
-                    new Rect(0, 0, 1, 1);
-            }
-            else
-            {
-                setRect =
-                    CreateRect(
-                        width,
-                        height,
-                        profile.SetX,
-                        profile.SetY,
-                        profile.SetWidth,
-                        profile.SetHeight);
-            }
-            // =====================================
-            // DEBUG OVERLAY
-            // =====================================
+        Cv2.Rectangle(
+            debug,
+            artistRect,
+            Scalar.Magenta,
+            4);
 
-            using var debug =
-                image.Clone();
+        Cv2.Rectangle(
+            debug,
+            setRect,
+            Scalar.Yellow,
+            4);
 
-            Cv2.Rectangle(
-                debug,
-                titleRect,
-                Scalar.Red,
-                4);
+        var folder =
+            Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "data",
+                "ocr");
 
-            Cv2.Rectangle(
-                debug,
-                bottomRect,
-                Scalar.Green,
-                4);
+        Directory.CreateDirectory(
+            folder);
 
-            Cv2.Rectangle(
-                debug,
-                artistRect,
-                Scalar.Magenta,
-                4);
+        var debugPath =
+            Path.Combine(
+                folder,
+                $"debug_{Guid.NewGuid()}.jpg");
 
-            Cv2.Rectangle(
-                debug,
-                setRect,
-                Scalar.Yellow,
-                4);
+        Cv2.ImWrite(
+            debugPath,
+            debug);
 
-            var folder =
-                Path.Combine(
-                    Directory.GetCurrentDirectory(),
-                    "data",
-                    "ocr");
+        Console.WriteLine(
+            $"OCR DEBUG: {debugPath}");
 
-            Directory.CreateDirectory(
-                folder);
-
-            var debugPath =
-                Path.Combine(
+        return new OcrRegionResult
+        {
+            TitleImagePath =
+                SaveCrop(
+                    image,
+                    titleRect,
                     folder,
-                    $"debug_{Guid.NewGuid()}.jpg");
+                    "title"),
 
-            Cv2.ImWrite(
-                debugPath,
-                debug);
+            BottomInfoImagePath =
+                SaveCrop(
+                    image,
+                    bottomRect,
+                    folder,
+                    "bottom"),
 
-            Console.WriteLine(
-                $"OCR DEBUG: {debugPath}");
+            ArtistImagePath =
+                SaveCrop(
+                    image,
+                    artistRect,
+                    folder,
+                    "artist"),
 
-            return new OcrRegionResult
-            {
-                TitleImagePath =
-                    SaveCrop(
-                        image,
-                        titleRect,
-                        folder,
-                        "title"),
+            SetCodeImagePath =
+                SaveCrop(
+                    image,
+                    setRect,
+                    folder,
+                    "set"),
 
-                BottomInfoImagePath =
-                    SaveCrop(
-                        image,
-                        bottomRect,
-                        folder,
-                        "bottom"),
-
-                ArtistImagePath =
-                    SaveCrop(
-                        image,
-                        artistRect,
-                        folder,
-                        "artist"),
-
-                SetCodeImagePath =
-                    SaveCrop(
-                        image,
-                        setRect,
-                        folder,
-                        "set"),
-
-                FullCardImagePath =
-                    normalizedCardPath
-            };
-        });
+            FullCardImagePath =
+                normalizedCardPath
+        };
     }
 
     // =========================================
@@ -232,14 +228,14 @@ public class OpenCvOcrRegionExtractor
         string name)
     {
         using var crop =
-                new Mat(source, rect);
+            new Mat(source, rect);
 
         using var resized =
             new Mat();
 
-// =====================================
-// UPSCALE
-// =====================================
+        // =====================================
+        // UPSCALE
+        // =====================================
 
         Cv2.Resize(
             crop,
@@ -259,9 +255,9 @@ public class OpenCvOcrRegionExtractor
             gray,
             ColorConversionCodes.BGR2GRAY);
 
-// =====================================
-// LIGHT DENOISE
-// =====================================
+        // =====================================
+        // LIGHT DENOISE
+        // =====================================
 
         using var denoised =
             new Mat();
@@ -271,9 +267,9 @@ public class OpenCvOcrRegionExtractor
             denoised,
             10);
 
-// =====================================
-// LIGHT CONTRAST
-// =====================================
+        // =====================================
+        // LIGHT CONTRAST
+        // =====================================
 
         using var contrasted =
             new Mat();
@@ -284,9 +280,9 @@ public class OpenCvOcrRegionExtractor
             1.4,
             10);
 
-// =====================================
-// LIGHT SHARPEN
-// =====================================
+        // =====================================
+        // LIGHT SHARPEN
+        // =====================================
 
         using var processed =
             new Mat();
@@ -305,6 +301,7 @@ public class OpenCvOcrRegionExtractor
             processed,
             -1,
             kernel);
+
         if (name == "bottom" || name == "artist")
         {
             Cv2.Threshold(
@@ -315,9 +312,9 @@ public class OpenCvOcrRegionExtractor
                 ThresholdTypes.Binary);
         }
 
-// =====================================
-// SAVE
-// =====================================
+        // =====================================
+        // SAVE
+        // =====================================
 
         var output =
             Path.Combine(
@@ -332,7 +329,5 @@ public class OpenCvOcrRegionExtractor
             $"OCR CROP [{name}]: {output}");
 
         return output;
-
     }
-
 }
