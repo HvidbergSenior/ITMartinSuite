@@ -53,7 +53,7 @@ public class CardDetectionResult
     public string? Rarity { get; set; }
 
     public string? PowerToughness { get; set; }
-    public CardLayoutType LayoutType { get; set; }
+    public string? LayoutType { get; set; }
 
     // =====================================
     // DEBUG / OCR

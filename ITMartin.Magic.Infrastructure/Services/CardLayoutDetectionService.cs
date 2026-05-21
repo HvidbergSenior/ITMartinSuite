@@ -1,4 +1,5 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Application.Models;
 using ITMartin.OCR.Models;
 using OpenCvSharp;
 

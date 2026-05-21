@@ -1,29 +1,41 @@
-﻿using ITMartin.Ai.Interfaces;
+﻿using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Application.Models;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Models;
 using OpenCvSharp;
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
-public class OpenCvOcrRegionExtractor
+public sealed class OpenCvMagicCardOcrRegionExtractor
     : IOcrRegionExtractor
 {
     private readonly
         ICardLayoutDetectionService
         _layoutDetectionService;
 
-    public OpenCvOcrRegionExtractor(
+    public OpenCvMagicCardOcrRegionExtractor(
         ICardLayoutDetectionService layoutDetectionService)
     {
         _layoutDetectionService =
             layoutDetectionService;
     }
 
-    public async Task<OcrRegionResult?> ExtractAsync(
+    public Task<OcrRegionResult?> ExtractAsync(
+        string normalizedCardPath)
+    {
+        var result =
+            Extract(normalizedCardPath);
+
+        return Task.FromResult(result);
+    }
+
+    private OcrRegionResult? Extract(
         string normalizedCardPath)
     {
         using var image =
-            Cv2.ImRead(normalizedCardPath);
+            Cv2.ImRead(
+                normalizedCardPath,
+                ImreadModes.Color);
 
         if (image.Empty())
         {
@@ -36,28 +48,13 @@ public class OpenCvOcrRegionExtractor
         var height =
             image.Height;
 
-        Console.WriteLine(
-            $"NORMALIZED SIZE: {width}x{height}");
-
-        var detection =
-            await _layoutDetectionService
-                .DetectAsync(normalizedCardPath);
-
-        if (detection is null)
-        {
-            return null;
-        }
-
-        Console.WriteLine(
-            $"DETECTED LAYOUT: {detection.LayoutType}");
+        var layoutType =
+            _layoutDetectionService
+                .Detect(normalizedCardPath);
 
         var profile =
             OcrGeometryProfiles
-                .Get(detection.LayoutType);
-
-        // =====================================
-        // OCR GEOMETRY
-        // =====================================
+                .Get(layoutType);
 
         var titleRect =
             CreateRect(
@@ -86,14 +83,9 @@ public class OpenCvOcrRegionExtractor
                 profile.ArtistWidth,
                 profile.ArtistHeight);
 
-        // =====================================
-        // OLD BORDER:
-        // NO SET SYMBOL
-        // =====================================
-
         Rect setRect;
 
-        if (detection.LayoutType ==
+        if (layoutType ==
             CardLayoutType.OldBorder)
         {
             setRect =
@@ -111,37 +103,6 @@ public class OpenCvOcrRegionExtractor
                     profile.SetHeight);
         }
 
-        // =====================================
-        // DEBUG OVERLAY
-        // =====================================
-
-        using var debug =
-            image.Clone();
-
-        Cv2.Rectangle(
-            debug,
-            titleRect,
-            Scalar.Red,
-            4);
-
-        Cv2.Rectangle(
-            debug,
-            bottomRect,
-            Scalar.Green,
-            4);
-
-        Cv2.Rectangle(
-            debug,
-            artistRect,
-            Scalar.Magenta,
-            4);
-
-        Cv2.Rectangle(
-            debug,
-            setRect,
-            Scalar.Yellow,
-            4);
-
         var folder =
             Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -150,18 +111,6 @@ public class OpenCvOcrRegionExtractor
 
         Directory.CreateDirectory(
             folder);
-
-        var debugPath =
-            Path.Combine(
-                folder,
-                $"debug_{Guid.NewGuid()}.jpg");
-
-        Cv2.ImWrite(
-            debugPath,
-            debug);
-
-        Console.WriteLine(
-            $"OCR DEBUG: {debugPath}");
 
         return new OcrRegionResult
         {
@@ -198,10 +147,6 @@ public class OpenCvOcrRegionExtractor
         };
     }
 
-    // =========================================
-    // CREATE RECT
-    // =========================================
-
     private static Rect CreateRect(
         int width,
         int height,
@@ -217,10 +162,6 @@ public class OpenCvOcrRegionExtractor
             (int)(height * h));
     }
 
-    // =========================================
-    // SAVE CROP
-    // =========================================
-
     private static string SaveCrop(
         Mat source,
         Rect rect,
@@ -232,10 +173,6 @@ public class OpenCvOcrRegionExtractor
 
         using var resized =
             new Mat();
-
-        // =====================================
-        // UPSCALE
-        // =====================================
 
         Cv2.Resize(
             crop,
@@ -255,10 +192,6 @@ public class OpenCvOcrRegionExtractor
             gray,
             ColorConversionCodes.BGR2GRAY);
 
-        // =====================================
-        // LIGHT DENOISE
-        // =====================================
-
         using var denoised =
             new Mat();
 
@@ -266,10 +199,6 @@ public class OpenCvOcrRegionExtractor
             gray,
             denoised,
             10);
-
-        // =====================================
-        // LIGHT CONTRAST
-        // =====================================
 
         using var contrasted =
             new Mat();
@@ -279,10 +208,6 @@ public class OpenCvOcrRegionExtractor
             -1,
             1.4,
             10);
-
-        // =====================================
-        // LIGHT SHARPEN
-        // =====================================
 
         using var processed =
             new Mat();
@@ -312,10 +237,6 @@ public class OpenCvOcrRegionExtractor
                 ThresholdTypes.Binary);
         }
 
-        // =====================================
-        // SAVE
-        // =====================================
-
         var output =
             Path.Combine(
                 folder,
@@ -324,9 +245,6 @@ public class OpenCvOcrRegionExtractor
         Cv2.ImWrite(
             output,
             processed);
-
-        Console.WriteLine(
-            $"OCR CROP [{name}]: {output}");
 
         return output;
     }
