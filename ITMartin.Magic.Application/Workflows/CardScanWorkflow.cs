@@ -10,10 +10,10 @@ public sealed class CardScanWorkflow
         _steps;
 
     public CardScanWorkflow(
-        IReadOnlyCollection<IWorkflowStep> steps)
+        CardScanWorkflowDefinition workflowDefinition)
     {
         _steps =
-            steps;
+            workflowDefinition.Steps;
     }
 
     public async Task ExecuteAsync(
@@ -43,6 +43,9 @@ public sealed class CardScanWorkflow
 
             try
             {
+                Console.WriteLine(
+                    $"Executing workflow step: {step.Name}");
+
                 await step.ExecuteAsync(
                     workflowContext,
                     cancellationToken);

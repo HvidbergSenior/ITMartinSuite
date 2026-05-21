@@ -80,6 +80,10 @@ builder.Services.AddScoped<
     IBlurDetectionService,
     OpenCvBlurDetectionService>();
 
+builder.Services.AddScoped<
+    IOcrRegionExtractor,
+    OpenCvMagicCardOcrRegionExtractor>();
+
 // =========================
 // URLS
 // =========================

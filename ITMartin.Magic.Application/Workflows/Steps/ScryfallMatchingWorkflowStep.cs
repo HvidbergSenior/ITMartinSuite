@@ -35,7 +35,7 @@ public sealed class ScryfallMatchWorkflowStep
         var match =
             await _scryfallService
                 .SearchAsync(
-                    context.State.RecognitionResult);
+                    context.State.OpenAiResult);
 
         if (match?.BestMatch is null)
         {

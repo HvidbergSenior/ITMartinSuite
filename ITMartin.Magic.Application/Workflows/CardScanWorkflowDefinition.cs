@@ -18,10 +18,7 @@ public sealed class CardScanWorkflowDefinition
         PerspectiveCorrectionWorkflowStep perspectiveCorrectionWorkflowStep,
         BlurDetectionWorkflowStep blurDetectionWorkflowStep,
         OcrWorkflowStep ocrWorkflowStep,
-        RecognitionWorkflowStep recognitionWorkflowStep,
-        OpenAiRecognitionWorkflowStep openAiRecognitionWorkflowStep,
-        ScryfallMatchWorkflowStep scryfallMatchWorkflowStep,
-        ResultMappingWorkflowStep resultMappingWorkflowStep)
+        OpenAiRecognitionWorkflowStep openAiRecognitionWorkflowStep)
     {
         Steps =
         [
@@ -35,14 +32,7 @@ public sealed class CardScanWorkflowDefinition
             ocrWorkflowStep,
 
             // Semantic Interpretation
-            recognitionWorkflowStep,
             openAiRecognitionWorkflowStep,
-
-            // Domain Resolution
-            scryfallMatchWorkflowStep,
-
-            // Final Projection
-            resultMappingWorkflowStep
         ];
     }
 }
