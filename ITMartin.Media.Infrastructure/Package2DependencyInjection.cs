@@ -1,6 +1,11 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package2.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Infrastructure.Media;
+using ITMartin.Media.Infrastructure.Persistence.Stores;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +27,35 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IWorkflowDefinition,
             Package2WorkflowDefinition>();
+        // =========================
+// SERVICES
+// =========================
+
+        services.AddScoped<
+            IVideoEnhancementService,
+            FfmpegVideoProcessingService>();
+
+        services.AddScoped<
+            IAudioEnhancementService,
+            FfmpegAudioProcessingService>();
+
+        services.AddScoped<
+            IImageEnhancementService,
+            ImageProcessingService>();
+
+        services.AddScoped<
+            IEnhancedFileNamingService,
+            EnhancedFileNamingService>();
+
+        services.AddScoped<
+            Package2ManifestBuilder>();
+
+        services.AddScoped<
+            IPackage2ManifestStore,
+            EfPackage2ManifestStore>();
+
+        services.AddScoped<
+            Package2WorkflowOrchestrator>();
 
         // =========================
         // STEPS

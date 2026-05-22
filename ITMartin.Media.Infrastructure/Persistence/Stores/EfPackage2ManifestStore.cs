@@ -6,56 +6,65 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ITMartin.Media.Infrastructure.Persistence.Stores;
 
-public sealed class EfPackage1ManifestStore(
+public sealed class EfPackage2ManifestStore(
     MediaDbContext dbContext)
-    : IPackage1ManifestStore
+    : IPackage2ManifestStore
 {
     public async Task SaveAsync(
-        Package1Manifest manifest,
+        Package2Manifest manifest,
         CancellationToken cancellationToken = default)
     {
         var existing =
-            await dbContext.Package1Manifests
+            await dbContext.Package2Manifests
                 .FirstOrDefaultAsync(
-                    x => x.WorkflowId ==
-                         manifest.WorkflowId,
+                    x => x.PackageId ==
+                         manifest.PackageId,
                     cancellationToken);
 
         if (existing is null)
         {
             existing =
-                new Package1ManifestEntity
+                new Package2ManifestEntity
                 {
                     WorkflowId =
                         manifest.WorkflowId,
 
-                    RootPath =
-                        manifest.RootPath,
+                    PackageId =
+                        manifest.PackageId,
 
                     FileCount =
                         manifest.FileCount,
 
-                    MediaFilesJson =
+                    Profile =
+                        manifest.Profile.ToString(),
+
+                    ItemsJson =
                         JsonSerializer.Serialize(
-                            manifest.MediaFiles),
+                            manifest.Items),
 
                     CreatedAtUtc =
                         manifest.CreatedAtUtc
                 };
 
-            dbContext.Package1Manifests.Add(
+            dbContext.Package2Manifests.Add(
                 existing);
         }
 
-        existing.RootPath =
-            manifest.RootPath;
+        existing.WorkflowId =
+            manifest.WorkflowId;
+
+        existing.PackageId =
+            manifest.PackageId;
 
         existing.FileCount =
             manifest.FileCount;
 
-        existing.MediaFilesJson =
+        existing.Profile =
+            manifest.Profile.ToString();
+
+        existing.ItemsJson =
             JsonSerializer.Serialize(
-                manifest.MediaFiles);
+                manifest.Items);
 
         existing.CreatedAtUtc =
             manifest.CreatedAtUtc;
@@ -64,15 +73,15 @@ public sealed class EfPackage1ManifestStore(
             cancellationToken);
     }
 
-    public async Task<Package1Manifest?> GetAsync(
-        Guid workflowId,
+    public async Task<Package2Manifest?> GetAsync(
+        string packageId,
         CancellationToken cancellationToken = default)
     {
         var entity =
-            await dbContext.Package1Manifests
+            await dbContext.Package2Manifests
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
-                    x => x.WorkflowId == workflowId,
+                    x => x.PackageId == packageId,
                     cancellationToken);
 
         if (entity is null)
@@ -80,25 +89,29 @@ public sealed class EfPackage1ManifestStore(
             return null;
         }
 
-        var mediaFiles =
+        var items =
             JsonSerializer.Deserialize<
-                List<MediaFile>>(
-                    entity.MediaFilesJson)
+                List<EnhancedMediaManifestItem>>(
+                entity.ItemsJson)
             ?? [];
 
-        return new Package1Manifest
+        return new Package2Manifest
         {
             WorkflowId =
                 entity.WorkflowId,
 
-            RootPath =
-                entity.RootPath,
+            PackageId =
+                entity.PackageId,
 
             FileCount =
                 entity.FileCount,
 
-            MediaFiles =
-                mediaFiles,
+            Profile =
+                Enum.Parse<EnhancementProfile>(
+                    entity.Profile),
+
+            Items =
+                items,
 
             CreatedAtUtc =
                 entity.CreatedAtUtc

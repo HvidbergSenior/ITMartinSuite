@@ -17,6 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Pipelines\Package1\Persistence\" />
       <Folder Include="Pipelines\Package2\Enhanced\" />
       <Folder Include="Pipelines\Package2\Manifests\" />
       <Folder Include="Pipelines\Package2\Models\" />

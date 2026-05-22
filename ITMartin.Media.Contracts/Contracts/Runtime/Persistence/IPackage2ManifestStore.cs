@@ -1,15 +1,14 @@
-﻿
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 
-public interface IPackageManifestStore
+public interface IPackage2ManifestStore
 {
     Task SaveAsync(
-        Package1Manifest manifest,
+        Package2Manifest manifest,
         CancellationToken cancellationToken = default);
 
-    Task<Package1Manifest?> GetAsync(
-        Guid workflowId,
+    Task<Package2Manifest?> GetAsync(
+        string packageId,
         CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Infrastructure.Entities;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Infrastructure.Entities;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,11 +23,14 @@ public sealed class MediaDbContext
         => Set<WorkflowStepExecutionEntity>();
     public DbSet<ScanSessionEntity> ScanSessions
         => Set<ScanSessionEntity>();
+    public DbSet<WorkflowStateSnapshot> WorkflowStateSnapshots
+        => Set<WorkflowStateSnapshot>();
     public DbSet<Package1ManifestEntity>
         Package1Manifests
         => Set<Package1ManifestEntity>();
-    public DbSet<WorkflowStateSnapshot> WorkflowStateSnapshots
-        => Set<WorkflowStateSnapshot>();
+    public DbSet<Package2ManifestEntity>
+        Package2Manifests
+        => Set<Package2ManifestEntity>();
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -65,5 +69,7 @@ public sealed class MediaDbContext
         modelBuilder.Entity<WorkflowStateSnapshot>()
             .Property(x => x.UpdatedAt)
             .IsRequired();
+        modelBuilder.Entity<Package2ManifestEntity>()
+            .HasKey(x => x.WorkflowId);
     }
 }

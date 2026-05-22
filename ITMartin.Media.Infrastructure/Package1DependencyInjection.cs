@@ -1,7 +1,5 @@
 ﻿using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Queues;
-using ITMartin.Media.Application.Pipelines.Package1;
-using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
