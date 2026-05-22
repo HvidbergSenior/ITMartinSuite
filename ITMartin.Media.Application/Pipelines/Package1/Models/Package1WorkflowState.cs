@@ -1,8 +1,6 @@
-﻿using ITMartin.Media.Application.Models;
-using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
-namespace ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+namespace ITMartin.Media.Application.Pipelines.Package1.Models;
 
 public sealed class Package1WorkflowState
 {

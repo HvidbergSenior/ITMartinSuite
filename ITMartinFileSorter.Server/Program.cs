@@ -61,8 +61,13 @@ builder.Services.AddMediaSignalR();
 
 builder.Services.AddMediaInfrastructureCore(
     builder.Configuration);
-builder.Services.AddMediaInfrastructureCore(builder.Configuration);
 
+builder.Services.AddPackage2Pipeline(
+    builder.Configuration);
+
+builder.Services.AddMediaInfrastructureCore(builder.Configuration);
+builder.Services.AddPackage2Pipeline(
+    builder.Configuration);
 // =========================
 // CORE SERVICES
 // =========================

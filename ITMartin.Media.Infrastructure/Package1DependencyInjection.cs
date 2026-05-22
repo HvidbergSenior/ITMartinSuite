@@ -1,5 +1,4 @@
-﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
-using ITMartin.Media.Application.Abstractions.Orchestration;
+﻿using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Abstractions.Queues;
 using ITMartin.Media.Application.Pipelines.Package1;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
@@ -12,18 +11,14 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure.Ai;
-using ITMartin.Media.Infrastructure.BackgroundJobs;
-using ITMartin.Media.Infrastructure.Contracts.Messages;
 using ITMartin.Media.Infrastructure.FileSystem;
 using ITMartin.Media.Infrastructure.Hashing;
 using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Metadata;
-using ITMartin.Media.Infrastructure.Notifications;
 using ITMartin.Media.Infrastructure.Options;
 using ITMartin.Media.Infrastructure.Persistence.Stores;
 using ITMartin.Media.Infrastructure.Queues;
 using ITMartin.Media.Infrastructure.Services;
-using ITMartin.Media.Infrastructure.Workers;
 using ITMartin.Media.Runtime.Execution;
 using ITMartin.Media.Runtime.HostedServices;
 using ITMartin.Media.Runtime.Recovery;
@@ -35,7 +30,7 @@ using ManifestBuildWorkflowStep = ITMartin.Media.Application.Pipelines.Package2.
 
 namespace ITMartin.Media.Infrastructure;
 
-public static class DependencyInjection
+public static class Package1DependencyInjection
 {
     public static IServiceCollection AddMediaInfrastructureCore(
         this IServiceCollection services,
@@ -228,16 +223,14 @@ public static class DependencyInjection
             WorkflowRecoveryHostedService>();
 
         // =========================
-        // WORKFLOWS
-        // =========================
+// WORKFLOWS
+// =========================
+
+        services.AddPackage2Pipeline(configuration);
 
         services.AddScoped<
             Package1WorkflowDefinition>();
-
-        services.AddScoped<
-            IWorkflowDefinition,
-            Package1WorkflowDefinition>();
-
+        
         services.AddScoped<
             Package1WorkflowOrchestrator>();
 

@@ -1,6 +1,7 @@
-﻿namespace ITMartin.Media.Application.Pipelines.Package2.Models;
+﻿
+namespace ITMartin.Media.Application.Pipelines.Package2.Models;
 
-public sealed class Package2State
+public sealed class Package2WorkflowState
 {
     public required string PackageId { get; init; }
 

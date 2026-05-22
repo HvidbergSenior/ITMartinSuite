@@ -1,6 +1,7 @@
 ﻿// File: ExportWorkflowExecutionStep.cs
 
 using ITMartin.Media.Application.Interfaces;
+using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
