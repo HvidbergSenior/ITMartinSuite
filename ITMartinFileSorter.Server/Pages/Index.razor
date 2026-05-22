@@ -7,7 +7,7 @@
 @using ITMartin.Media.Contracts.Contracts.Runtime.Models
 @using ITMartin.Media.Contracts.Contracts.Runtime.Services
 @using ITMartin.Media.Contracts.Entities
-
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests
 @implements IDisposable
 
 @inject ProgressService Progress
@@ -15,6 +15,7 @@
 @inject IConfiguration Configuration
 @inject ILogger<Index> Logger
 @inject IScanClient ScanClient
+@inject IPackage2Client Package2Client
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
     <div class="filesorter-app">
@@ -179,6 +180,11 @@
                 <button class="btn btn-success btn-lg"
                         @onclick="GoToExport">
                     📦 Export Files
+                </button>
+
+                <button class="btn btn-primary btn-lg"
+                        @onclick="ContinueToEnhancement">
+                    ✨ Continue To Enhancement
                 </button>
 
             </ActionButtonBar>
@@ -396,4 +402,42 @@
 
             _ => ""
         };
+    private async Task ContinueToEnhancement()
+    {
+        try
+        {
+            var exportPath =
+                Configuration[
+                    "MediaSettings:LibraryRoot"];
+
+            await Package2Client.StartAsync(
+                new StartPackage2Request
+                {
+                    SourceLibraryPath =
+                        exportPath!,
+
+                    EnableAiEnhancement = true,
+
+                    EnableUpscaling = true,
+
+                    EnableFrameInterpolation = false,
+
+                    Profile =
+                        EnhancementProfile.Archival
+                },
+                CancellationToken.None);
+
+            Logger.LogInformation(
+                "Package2 started");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Failed to start Package2");
+
+            ErrorMessage =
+                ex.Message;
+        }
+    }
 }

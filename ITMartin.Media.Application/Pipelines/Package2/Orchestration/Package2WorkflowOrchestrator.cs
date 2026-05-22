@@ -1,41 +1,74 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+﻿using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Requests;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Orchestration;
 
 public sealed class Package2WorkflowOrchestrator
 {
-    private readonly IWorkflowExecutor
-        _workflowExecutor;
+    private readonly Package2WorkflowFactory
+        _factory;
 
     private readonly Package2WorkflowDefinition
         _workflowDefinition;
 
+    private readonly ILogger<
+            Package2WorkflowOrchestrator>
+        _logger;
+    private readonly Package1ManifestLoader
+        _manifestLoader;
+
     public Package2WorkflowOrchestrator(
-        IWorkflowExecutor workflowExecutor,
-        Package2WorkflowDefinition workflowDefinition)
+        Package2WorkflowFactory factory,
+        Package2WorkflowDefinition workflowDefinition,
+        ILogger<Package2WorkflowOrchestrator> logger, Package1ManifestLoader manifestLoader)
     {
-        _workflowExecutor = workflowExecutor;
+        _factory = factory;
+
         _workflowDefinition = workflowDefinition;
+
+        _logger = logger;
+        _manifestLoader = manifestLoader;
     }
 
-    public async Task ExecuteAsync(
-        Package2WorkflowState workflowState,
-        CancellationToken cancellationToken = default)
+    public async Task RunAsync(
+        StartPackage2Request request,
+        CancellationToken cancellationToken)
     {
-        var context =
-            new WorkflowExecutionContext<Package2WorkflowState>
-            {
-                WorkflowName =
-                    _workflowDefinition.Name,
+        var manifest =
+            await _manifestLoader.LoadAsync(
+                request.SourceLibraryPath,
+                cancellationToken);
 
-                State =
-                    workflowState
-            };
+        var state =
+            _factory.Create(
+                manifest,
+                request);
+        
+        foreach (var step in _workflowDefinition.Steps)
+        {
+            _logger.LogInformation(
+                "Executing Package2 step {StepName}",
+                step.Name);
 
-        await _workflowExecutor.ExecuteAsync(
-            _workflowDefinition,
-            context,
-            cancellationToken);
+            var context =
+                new WorkflowExecutionContext<
+                    Package2WorkflowState>
+                {
+                    WorkflowId = Guid.NewGuid(),
+
+                    WorkflowName = "Package2",
+
+                    State = state
+                };
+
+            await step.ExecuteAsync(
+                context,
+                cancellationToken);
+        }
+
+        _logger.LogInformation(
+            "Package2 completed");
     }
 }
