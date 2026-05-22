@@ -1,5 +1,4 @@
-﻿using ITMartin.Media.Application.Models.Scanning;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Application.Abstractions.Scanning;
 

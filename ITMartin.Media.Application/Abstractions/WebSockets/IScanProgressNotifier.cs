@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Application.Models.Scanning;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models.Scanning;
 
 namespace ITMartin.Media.Application.Abstractions.WebSockets;
 

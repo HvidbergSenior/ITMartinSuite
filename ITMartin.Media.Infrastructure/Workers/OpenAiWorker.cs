@@ -1,8 +1,9 @@
-﻿namespace ITMartin.Media.Infrastructure.Workers;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models.Workers;
+
+namespace ITMartin.Media.Infrastructure.Workers;
 
 using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.Workers;
-using ITMartin.Media.Application.Models.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

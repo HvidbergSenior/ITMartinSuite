@@ -31,6 +31,7 @@ using ITMartin.Media.Runtime.Registry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ManifestBuildWorkflowStep = ITMartin.Media.Application.Pipelines.Package2.Steps.ManifestBuildWorkflowStep;
 
 namespace ITMartin.Media.Infrastructure;
 

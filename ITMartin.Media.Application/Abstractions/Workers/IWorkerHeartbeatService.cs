@@ -1,6 +1,6 @@
-﻿namespace ITMartin.Media.Application.Abstractions.Workers;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models.Workers;
 
-using ITMartin.Media.Application.Models.Workers;
+namespace ITMartin.Media.Application.Abstractions.Workers;
 
 public interface IWorkerHeartbeatService
 {

@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Application.Models.Scanning;
+﻿namespace ITMartin.Media.Application.Pipelines.Package1.Models.Scanning;
 
 public sealed class ScanProgressModel
 {

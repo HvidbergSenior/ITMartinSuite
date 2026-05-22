@@ -1,6 +1,6 @@
-﻿namespace ITMartin.Media.Application.Services;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models.Scanning;
 
-using ITMartin.Media.Application.Models.Scanning;
+namespace ITMartin.Media.Application.Services;
 
 public sealed class ScanBatchingService
 {

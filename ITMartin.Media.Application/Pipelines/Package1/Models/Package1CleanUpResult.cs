@@ -1,15 +1,9 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
-namespace ITMartin.Media.Application.Models;
+namespace ITMartin.Media.Application.Pipelines.Package1.Models;
 
-public class Package1ScanResult
+public class Package1CleanupResult
 {
-    public List<MediaFile> Files
-    {
-        get;
-        set;
-    } = [];
-
     public int TotalFiles
     {
         get;
@@ -28,19 +22,7 @@ public class Package1ScanResult
         set;
     }
 
-    public int DuplicateGroups
-    {
-        get;
-        set;
-    }
-
     public long TotalBytes
-    {
-        get;
-        set;
-    }
-
-    public long BytesToDelete
     {
         get;
         set;
@@ -52,13 +34,21 @@ public class Package1ScanResult
         set;
     }
 
-    // ====================================
-    // CLEANUP
-    // ====================================
-
-    public Package1CleanupResult Cleanup
+    public long BytesToDelete
     {
         get;
         set;
-    } = new();
+    }
+
+    public List<MediaFile> KeepFiles
+    {
+        get;
+        set;
+    } = [];
+
+    public List<MediaFile> DeleteFiles
+    {
+        get;
+        set;
+    } = [];
 }

@@ -1,5 +1,4 @@
 ﻿using ITMartin.Media.Application.Abstractions.Orchestration;
-using ITMartin.Media.Application.Models.Scanning;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Application.CQRS.Commands.StartScan;

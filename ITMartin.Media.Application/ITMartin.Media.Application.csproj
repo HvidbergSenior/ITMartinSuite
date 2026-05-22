@@ -17,6 +17,12 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Models\" />
+      <Folder Include="Pipelines\Package2\Enhanced\" />
+      <Folder Include="Pipelines\Package2\Manifests\" />
+      <Folder Include="Pipelines\Package2\Temp\" />
+      <Folder Include="Pipelines\Package2\Thumbnails\" />
+      <Folder Include="Pipelines\Package2\Working\" />
       <Folder Include="Services\Steps\FileDiscoveryStep\" />
       <Folder Include="Services\Steps\HashStep\" />
       <Folder Include="Services\Steps\ManifestBuildStep\" />

@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Application.Models.Workers;
+﻿namespace ITMartin.Media.Application.Pipelines.Package1.Models.Workers;
 
 public sealed class WorkerHeartbeat
 {

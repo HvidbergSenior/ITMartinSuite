@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Application.Models;
+﻿namespace ITMartin.Media.Application.Pipelines.Package1.Models;
 
 public class Package1ExportResult
 {

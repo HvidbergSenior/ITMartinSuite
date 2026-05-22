@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ManifestBuildWorkflowStep = ITMartin.Media.Application.Pipelines.Package2.Steps.ManifestBuildWorkflowStep;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 
