@@ -49,10 +49,6 @@ public static class Package1DependencyInjection
                 });
         });
 
-        // =========================
-        // PERSISTENCE
-        // =========================
-
         services.AddScoped<
             IWorkflowCheckpointStore,
             EfWorkflowCheckpointStore>();
@@ -73,10 +69,6 @@ public static class Package1DependencyInjection
             IPackage1ManifestStore,
             EfPackage1ManifestStore>();
 
-        // =========================
-        // QUEUES
-        // =========================
-
         services.AddSingleton(
             typeof(IQueueTransport<>),
             typeof(ChannelQueueTransport<>));
@@ -84,10 +76,6 @@ public static class Package1DependencyInjection
         services.AddSingleton<
             IMessageSerializer,
             SystemTextJsonMessageSerializer>();
-        
-        // =========================
-        // FILE SYSTEM
-        // =========================
 
         services.AddScoped<
             IFileSystem,
@@ -97,25 +85,13 @@ public static class Package1DependencyInjection
             IFileScanner,
             FileScanner>();
 
-        // =========================
-        // CLASSIFICATION
-        // =========================
-
         services.AddScoped<
             IMediaClassificationService,
             MediaClassificationService>();
 
-        // =========================
-        // HASHING
-        // =========================
-
         services.AddScoped<
             IHashService,
             Sha256HashService>();
-
-        // =========================
-        // METADATA
-        // =========================
 
         services.AddScoped<
             IExifService,
@@ -141,33 +117,25 @@ public static class Package1DependencyInjection
             IDocumentMetadataService,
             DocumentMetadataService>();
 
-        // =========================
-        // VIDEO
-        // =========================
-
-        services.AddScoped<VideoConverterService>();
+        services.AddScoped<
+            VideoConverterService>();
 
         services.AddScoped<
             IVideoBatchService,
             VideoBatchService>();
 
-        services.AddScoped<SubtitleService>();
-
-        // =========================
-        // IMAGE
-        // =========================
+        services.AddScoped<
+            SubtitleService>();
 
         services.AddScoped<
             IImageBatchService,
             ImageBatchService>();
 
-        services.AddScoped<ImageConverterService>();
+        services.AddScoped<
+            ImageConverterService>();
 
-        services.AddScoped<ThumbnailService>();
-
-        // =========================
-        // AI
-        // =========================
+        services.AddScoped<
+            ThumbnailService>();
 
         services.AddScoped<
             IAiEnrichmentService,
@@ -177,10 +145,6 @@ public static class Package1DependencyInjection
             IImageAnalysisService,
             OpenAiImageAnalysisService>();
 
-        // =========================
-        // CONFIG
-        // =========================
-
         services.Configure<MediaSettingsOptions>(
             configuration.GetSection("MediaSettings"));
 
@@ -189,14 +153,11 @@ public static class Package1DependencyInjection
 
         return services;
     }
+
     public static IServiceCollection AddMediaWorkflowRuntime(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // =========================
-        // WORKFLOW RUNTIME
-        // =========================
-
         services.AddScoped<
             IWorkflowExecutor,
             WorkflowExecutor>();
@@ -213,22 +174,15 @@ public static class Package1DependencyInjection
             IScanOrchestrator,
             Package1WorkflowOrchestrator>();
 
-        // =========================
-        // HOSTED SERVICES
-        // =========================
-
         services.AddHostedService<
             WorkflowRecoveryHostedService>();
 
-        // =========================
-// WORKFLOWS
-// =========================
-
-        services.AddPackage2Pipeline(configuration);
+        services.AddPackage2Pipeline(
+            configuration);
 
         services.AddScoped<
             Package1WorkflowDefinition>();
-        
+
         services.AddScoped<
             Package1WorkflowOrchestrator>();
 
@@ -240,10 +194,6 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             Package1CleanupPipeline>();
-
-        // =========================
-        // STEPS
-        // =========================
 
         services.AddScoped<
             FileDiscoveryWorkflowStep>();
@@ -274,10 +224,6 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             ExportWorkflowExecutionStep>();
-
-        // =========================
-        // CONFIG
-        // =========================
 
         services.Configure<MediaSettingsOptions>(
             configuration.GetSection("MediaSettings"));

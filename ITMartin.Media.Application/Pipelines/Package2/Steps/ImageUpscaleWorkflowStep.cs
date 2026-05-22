@@ -5,12 +5,12 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class ImageUpscaleWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly IImageEnhancementService
         _imageEnhancementService;
 
-    public string Name =>
+    public override string Name =>
         nameof(ImageUpscaleWorkflowStep);
 
     public ImageUpscaleWorkflowStep(
@@ -20,10 +20,9 @@ public sealed class ImageUpscaleWorkflowStep
             imageEnhancementService;
     }
 
-    public async Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -41,41 +40,17 @@ public sealed class ImageUpscaleWorkflowStep
                          x.MediaKind == MediaKind.Image &&
                          x.CurrentWorkingPath is not null))
         {
-            var operation =
-                new EnhancementOperation
+            await ExecuteOperationAsync(
+                item,
+                Name,
+                async () =>
                 {
-                    Name = Name,
-                    StartedAt = DateTimeOffset.UtcNow
-                };
-
-            try
-            {
-                item.CurrentWorkingPath =
-                    await _imageEnhancementService
-                        .UpscaleAsync(
-                            item.CurrentWorkingPath!,
-                            cancellationToken);
-
-                operation.Success = true;
-            }
-            catch (Exception ex)
-            {
-                item.Failed = true;
-
-                item.FailureReason =
-                    ex.Message;
-
-                operation.Success = false;
-
-                operation.Metadata =
-                    ex.ToString();
-            }
-
-            operation.CompletedAt =
-                DateTimeOffset.UtcNow;
-
-            item.Operations.Add(
-                operation);
+                    item.CurrentWorkingPath =
+                        await _imageEnhancementService
+                            .UpscaleAsync(
+                                item.CurrentWorkingPath!,
+                                cancellationToken);
+                });
         }
     }
 }

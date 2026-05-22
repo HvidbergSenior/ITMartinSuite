@@ -1,16 +1,17 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
+namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
+
 public sealed class BorderRemovalWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
-    public string Name =>
+    public override string Name =>
         nameof(BorderRemovalWorkflowStep);
 
-    public async Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -20,16 +21,13 @@ public sealed class BorderRemovalWorkflowStep
         foreach (var item in state.Items
                      .Where(x => !x.Failed))
         {
-            item.Operations.Add(
-                new EnhancementOperation
+            await ExecuteOperationAsync(
+                item,
+                Name,
+                async () =>
                 {
-                    Name = Name,
-                    StartedAt = DateTimeOffset.UtcNow,
-                    CompletedAt = DateTimeOffset.UtcNow,
-                    Success = true
+                    await Task.CompletedTask;
                 });
         }
-
-        await Task.CompletedTask;
     }
 }

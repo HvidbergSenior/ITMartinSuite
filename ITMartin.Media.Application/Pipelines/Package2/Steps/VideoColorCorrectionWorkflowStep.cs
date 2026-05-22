@@ -5,12 +5,12 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class VideoColorCorrectionWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly IVideoEnhancementService
         _videoEnhancementService;
 
-    public string Name =>
+    public override string Name =>
         nameof(VideoColorCorrectionWorkflowStep);
 
     public VideoColorCorrectionWorkflowStep(
@@ -20,10 +20,9 @@ public sealed class VideoColorCorrectionWorkflowStep
             videoEnhancementService;
     }
 
-    public async Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -36,41 +35,17 @@ public sealed class VideoColorCorrectionWorkflowStep
                          x.MediaKind == MediaKind.Video &&
                          x.CurrentWorkingPath is not null))
         {
-            var operation =
-                new EnhancementOperation
+            await ExecuteOperationAsync(
+                item,
+                Name,
+                async () =>
                 {
-                    Name = Name,
-                    StartedAt = DateTimeOffset.UtcNow
-                };
-
-            try
-            {
-                item.CurrentWorkingPath =
-                    await _videoEnhancementService
-                        .ColorCorrectAsync(
-                            item.CurrentWorkingPath!,
-                            cancellationToken);
-
-                operation.Success = true;
-            }
-            catch (Exception ex)
-            {
-                item.Failed = true;
-
-                item.FailureReason =
-                    ex.Message;
-
-                operation.Success = false;
-
-                operation.Metadata =
-                    ex.ToString();
-            }
-
-            operation.CompletedAt =
-                DateTimeOffset.UtcNow;
-
-            item.Operations.Add(
-                operation);
+                    item.CurrentWorkingPath =
+                        await _videoEnhancementService
+                            .ColorCorrectAsync(
+                                item.CurrentWorkingPath!,
+                                cancellationToken);
+                });
         }
     }
 }

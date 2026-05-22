@@ -54,7 +54,6 @@ builder.Services
 // =========================
 
 builder.Services.AddMediaSignalR();
-
 // =========================
 // MEDIA PLATFORM
 // =========================
@@ -62,13 +61,16 @@ builder.Services.AddMediaSignalR();
 builder.Services.AddMediaInfrastructureCore(
     builder.Configuration);
 
-builder.Services.AddPackage2Pipeline(
-    builder.Configuration);
-
-builder.Services.AddMediaInfrastructureCore(builder.Configuration);
-builder.Services.AddPackage2Pipeline(
+builder.Services.AddMediaWorkflowRuntime(
     builder.Configuration);
 // =========================
+// OCR
+// =========================
+
+builder.Services.AddSingleton<
+    IOcrService,
+    OcrService>();
+
 // CORE SERVICES
 // =========================
 
@@ -143,18 +145,6 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IAiCacheService,
     SqliteAiCacheService>();
-
-builder.Services.AddScoped<
-    IMediaOcrService,
-    MediaOcrService>();
-
-// =========================
-// OCR
-// =========================
-
-builder.Services.AddSingleton<
-    IOcrService,
-    OcrService>();
 
 // =========================
 // UI

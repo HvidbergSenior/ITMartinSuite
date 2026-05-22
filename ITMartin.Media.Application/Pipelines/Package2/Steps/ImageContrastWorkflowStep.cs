@@ -1,16 +1,28 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
+namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
+
 public sealed class ImageContrastWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
-    public string Name =>
+    private readonly IImageEnhancementService
+        _imageEnhancementService;
+
+    public override string Name =>
         nameof(ImageContrastWorkflowStep);
 
-    public async Task ExecuteAsync<TState>(
+    public ImageContrastWorkflowStep(
+        IImageEnhancementService imageEnhancementService)
+    {
+        _imageEnhancementService =
+            imageEnhancementService;
+    }
+
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -20,18 +32,20 @@ public sealed class ImageContrastWorkflowStep
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
-                         x.MediaKind == MediaKind.Image))
+                         x.MediaKind == MediaKind.Image &&
+                         x.CurrentWorkingPath is not null))
         {
-            item.Operations.Add(
-                new EnhancementOperation
+            await ExecuteOperationAsync(
+                item,
+                Name,
+                async () =>
                 {
-                    Name = Name,
-                    StartedAt = DateTimeOffset.UtcNow,
-                    CompletedAt = DateTimeOffset.UtcNow,
-                    Success = true
+                    item.CurrentWorkingPath =
+                        await _imageEnhancementService
+                            .AdjustContrastAsync(
+                                item.CurrentWorkingPath!,
+                                cancellationToken);
                 });
         }
-
-        await Task.CompletedTask;
     }
 }

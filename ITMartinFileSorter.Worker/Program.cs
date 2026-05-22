@@ -55,25 +55,14 @@ builder.Services.AddHostedService<
 builder.Services.AddScoped<
     IImageConverterService,
     ImageConverterService>();
-builder.Services.AddScoped<
-    IThumbnailService,
-    ThumbnailService>();
-builder.Services.AddScoped<
-    IDuplicateService,
-    DuplicateService>();
 // RUNTIME
 // =========================
 builder.Services.AddScoped<
     IMediaNamingService,
     MediaNamingService>();
 builder.Services.AddScoped<
-    IScanOrchestrator,
-    Package1WorkflowOrchestrator>();
-builder.Services.AddScoped<
     IScanSessionRepository,
     ScanSessionRepository>();
-builder.Services.AddScoped<
-    Package1WorkflowDefinition>();
 builder.Services.AddSingleton<
     IEventPublisher,
     NullEventPublisher>();
