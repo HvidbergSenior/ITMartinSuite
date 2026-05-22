@@ -2,6 +2,7 @@
 @page "/filesorter"
 
 @using ITMartin.Media.Application.Pipelines.Package1.Models
+@using ITMartin.Media.Application.Pipelines.Package1.Services
 @using ITMartin.Media.Contracts.Contracts.Runtime.Helpers
 @using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
 @using ITMartin.Media.Contracts.Contracts.Runtime.Models
@@ -16,6 +17,7 @@
 @inject ILogger<Index> Logger
 @inject IScanClient ScanClient
 @inject IPackage2Client Package2Client
+@inject Package1ManifestSummaryService ManifestSummaryService
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
     <div class="filesorter-app">
@@ -326,6 +328,36 @@
 
             Logger.LogInformation(
                 "Package 1 scan completed");
+
+            var exportRoot =
+                Configuration[
+                    "MediaSettings:LibraryRoot"];
+
+            for (var i = 0; i < 30; i++)
+            {
+                var manifestPath =
+                    Path.Combine(
+                        exportRoot!,
+                        "manifest.json");
+
+                if (File.Exists(manifestPath))
+                {
+                    ScanResult =
+                        await ManifestSummaryService
+                            .LoadAsync(
+                                exportRoot,
+                                CancellationToken.None);
+
+                    IsScanning = false;
+
+                    await InvokeAsync(
+                        StateHasChanged);
+
+                    break;
+                }
+
+                await Task.Delay(1000);
+            }
         }
         catch (Exception ex)
         {
@@ -338,8 +370,6 @@
         }
         finally
         {
-            IsScanning = false;
-
             await InvokeAsync(
                 StateHasChanged);
         }

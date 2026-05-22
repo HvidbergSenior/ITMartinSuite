@@ -8,6 +8,10 @@ using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package1.Services;
+using ITMartin.Media.Application.Pipelines.Package2.Clients;
+using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package2.Services;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
@@ -87,7 +91,19 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IThumbnailService,
     ThumbnailService>();
-
+builder.Services.AddScoped<
+    Package2WorkflowFactory>();
+builder.Services.AddScoped<
+    Package1ManifestWriter>();
+builder.Services.AddScoped<
+    Package1ManifestSummaryService>();
+builder.Services.AddScoped<
+    Package1ManifestLoader>();
+builder.Services.AddScoped<
+    IPackage2Client,
+    Package2Client>();
+builder.Services.AddScoped<
+    Package2WorkflowOrchestrator>();
 builder.Services.AddScoped<
     IDuplicateService,
     DuplicateService>();

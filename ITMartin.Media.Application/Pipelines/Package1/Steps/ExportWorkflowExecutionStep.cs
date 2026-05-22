@@ -3,6 +3,7 @@
 using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -22,15 +23,18 @@ public sealed class ExportWorkflowExecutionStep
     private readonly ILogger<
             ExportWorkflowExecutionStep>
         _logger;
+    private readonly Package1ManifestWriter
+        _manifestWriter;
 
     public ExportWorkflowExecutionStep(
         Package1ExportService exportService,
         ILibraryPathProvider libraryPathProvider,
-        ILogger<ExportWorkflowExecutionStep> logger)
+        ILogger<ExportWorkflowExecutionStep> logger, Package1ManifestWriter manifestWriter)
     {
         _exportService = exportService;
         _libraryPathProvider = libraryPathProvider;
         _logger = logger;
+        _manifestWriter = manifestWriter;
     }
 
     public string Name => "Export";
@@ -73,5 +77,28 @@ public sealed class ExportWorkflowExecutionStep
 
         _logger.LogInformation(
             "Export completed");
+        var manifest =
+            new Package1Manifest
+            {
+                WorkflowId =
+                    context.WorkflowId,
+
+                RootPath =
+                    exportRoot,
+
+                MediaFiles =
+                    state.MediaFiles.ToList(),
+
+                FileCount =
+                    state.MediaFiles.Count,
+
+                CreatedAtUtc =
+                    DateTimeOffset.UtcNow
+            };
+
+        await _manifestWriter.WriteAsync(
+            exportRoot,
+            manifest,
+            cancellationToken);
     }
 }
