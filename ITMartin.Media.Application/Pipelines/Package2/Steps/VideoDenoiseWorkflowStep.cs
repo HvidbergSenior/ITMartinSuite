@@ -1,12 +1,24 @@
-﻿using ITMartin.Media.Application.Pipelines.Package2.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+
+namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class VideoDenoiseWorkflowStep
     : IWorkflowStep
 {
+    private readonly IVideoEnhancementService
+        _videoEnhancementService;
+
     public string Name =>
         nameof(VideoDenoiseWorkflowStep);
+
+    public VideoDenoiseWorkflowStep(
+        IVideoEnhancementService videoEnhancementService)
+    {
+        _videoEnhancementService =
+            videoEnhancementService;
+    }
 
     public async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
@@ -21,18 +33,44 @@ public sealed class VideoDenoiseWorkflowStep
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
-                         x.MediaKind == MediaKind.Video))
+                         x.MediaKind == MediaKind.Video &&
+                         x.CurrentWorkingPath is not null))
         {
-            item.Operations.Add(
+            var operation =
                 new EnhancementOperation
                 {
                     Name = Name,
-                    StartedAt = DateTimeOffset.UtcNow,
-                    CompletedAt = DateTimeOffset.UtcNow,
-                    Success = true
-                });
-        }
+                    StartedAt = DateTimeOffset.UtcNow
+                };
 
-        await Task.CompletedTask;
+            try
+            {
+                item.CurrentWorkingPath =
+                    await _videoEnhancementService
+                        .DenoiseAsync(
+                            item.CurrentWorkingPath!,
+                            cancellationToken);
+
+                operation.Success = true;
+            }
+            catch (Exception ex)
+            {
+                item.Failed = true;
+
+                item.FailureReason =
+                    ex.Message;
+
+                operation.Success = false;
+
+                operation.Metadata =
+                    ex.ToString();
+            }
+
+            operation.CompletedAt =
+                DateTimeOffset.UtcNow;
+
+            item.Operations.Add(
+                operation);
+        }
     }
 }

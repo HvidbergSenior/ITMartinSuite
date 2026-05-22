@@ -1,5 +1,5 @@
 ﻿
-namespace ITMartin.Media.Application.Pipelines.Package2.Models;
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed class Package2WorkflowState
 {

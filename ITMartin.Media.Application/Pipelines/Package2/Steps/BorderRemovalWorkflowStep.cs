@@ -1,5 +1,4 @@
-﻿using ITMartin.Media.Application.Pipelines.Package2.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 public sealed class BorderRemovalWorkflowStep
