@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Requests;
+using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Services;
 
@@ -45,15 +46,12 @@ public sealed class Package2WorkflowFactory
         return new Package2WorkflowState
         {
             PackageId =
-                Guid.NewGuid().ToString(),
+                Guid.NewGuid(),
 
             WorkingDirectory =
                 Path.Combine(
                     request.SourceLibraryPath,
                     ".package2"),
-
-            Profile =
-                request.Profile,
 
             EnableAiEnhancement =
                 request.EnableAiEnhancement,

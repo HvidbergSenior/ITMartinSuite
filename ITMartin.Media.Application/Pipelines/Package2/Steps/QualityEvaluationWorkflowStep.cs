@@ -18,13 +18,29 @@ public sealed class QualityEvaluationWorkflowStep
             return;
         }
 
-        foreach (var item in state.Items)
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed &&
+                         x.CurrentWorkingPath is not null &&
+                         !x.Operations.Any(o =>
+                             o.Name == Name &&
+                             o.Success)))
         {
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
+                    var fileInfo =
+                        new FileInfo(
+                            item.CurrentWorkingPath!);
+
+                    if (!fileInfo.Exists)
+                    {
+                        throw new InvalidOperationException(
+                            "Enhanced file missing.");
+                    }
+
                     await Task.CompletedTask;
                 });
         }

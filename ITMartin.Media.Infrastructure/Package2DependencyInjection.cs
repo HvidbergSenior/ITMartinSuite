@@ -4,6 +4,7 @@ using ITMartin.Media.Application.Pipelines.Package2.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Persistence.Stores;
 using Microsoft.Extensions.Configuration;
@@ -27,9 +28,16 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IWorkflowDefinition,
             Package2WorkflowDefinition>();
+
+        services.AddScoped<
+            Package2WorkflowFactory>();
+
+        services.AddScoped<
+            Package2WorkflowOrchestrator>();
+
         // =========================
-// SERVICES
-// =========================
+        // SERVICES
+        // =========================
 
         services.AddScoped<
             IVideoEnhancementService,
@@ -40,12 +48,23 @@ public static class Package2DependencyInjection
             FfmpegAudioProcessingService>();
 
         services.AddScoped<
+            IAudioExtractionService,
+            FfmpegAudioExtractionService>();
+
+        services.AddScoped<
             IImageEnhancementService,
             ImageProcessingService>();
 
         services.AddScoped<
+            IThumbnailService,
+            ThumbnailService>();
+
+        services.AddScoped<
             IEnhancedFileNamingService,
             EnhancedFileNamingService>();
+
+        services.AddScoped<
+            Package1ManifestLoader>();
 
         services.AddScoped<
             Package2ManifestBuilder>();
@@ -53,9 +72,6 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IPackage2ManifestStore,
             EfPackage2ManifestStore>();
-
-        services.AddScoped<
-            Package2WorkflowOrchestrator>();
 
         // =========================
         // STEPS
@@ -98,6 +114,9 @@ public static class Package2DependencyInjection
             VideoUpscaleWorkflowStep>();
 
         services.AddScoped<
+            AudioExtractionWorkflowStep>();
+
+        services.AddScoped<
             AudioNoiseReductionWorkflowStep>();
 
         services.AddScoped<
@@ -108,6 +127,9 @@ public static class Package2DependencyInjection
 
         services.AddScoped<
             AudioSpeechEnhancementWorkflowStep>();
+
+        services.AddScoped<
+            AudioMuxWorkflowStep>();
 
         services.AddScoped<
             CropDetectionWorkflowStep>();

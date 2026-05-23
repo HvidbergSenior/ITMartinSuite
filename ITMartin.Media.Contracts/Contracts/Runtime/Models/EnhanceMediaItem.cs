@@ -18,4 +18,7 @@ public sealed class EnhancedMediaItem
     public bool Failed { get; set; }
 
     public string? FailureReason { get; set; }
+    public string? EnhancedOutputPath { get; set; }
+
+    public string? ThumbnailOutputPath { get; set; }
 }

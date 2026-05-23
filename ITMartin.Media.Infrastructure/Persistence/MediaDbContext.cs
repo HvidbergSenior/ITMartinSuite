@@ -71,5 +71,31 @@ public sealed class MediaDbContext
             .IsRequired();
         modelBuilder.Entity<Package2ManifestEntity>()
             .HasKey(x => x.WorkflowId);
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .HasIndex(x => new
+            {
+                x.WorkflowId,
+                x.IsLatest
+            });
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .HasIndex(x => new
+            {
+                x.WorkflowId,
+                x.StepName
+            });
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .HasIndex(x => x.CreatedAtUtc);
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .Property(x => x.StateJson)
+            .IsRequired();
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .Property(x => x.WorkflowName)
+            .IsRequired();
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .Property(x => x.StepName)
+            .IsRequired();
+        modelBuilder.Entity<WorkflowCheckpointEntity>()
+            .Property(x => x.Status)
+            .IsRequired();
     }
 }

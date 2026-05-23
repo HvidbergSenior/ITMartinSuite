@@ -74,7 +74,7 @@ public sealed class EfPackage2ManifestStore(
     }
 
     public async Task<Package2Manifest?> GetAsync(
-        string packageId,
+        Guid packageId,
         CancellationToken cancellationToken = default)
     {
         var entity =

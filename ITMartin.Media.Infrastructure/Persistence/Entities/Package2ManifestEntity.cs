@@ -4,7 +4,7 @@ public sealed class Package2ManifestEntity
 {
     public Guid WorkflowId { get; set; }
 
-    public required string PackageId { get; set; }
+    public required Guid PackageId { get; set; }
 
     public int FileCount { get; set; }
 

@@ -1,21 +1,55 @@
-﻿
-namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed class Package2WorkflowState
 {
-    public required string PackageId { get; init; }
+    public Guid PackageId { get; init; }
 
-    public required string WorkingDirectory { get; init; }
+    public required string WorkingDirectory
+    {
+        get;
+        init;
+    }
 
-    public IList<EnhancedMediaItem> Items { get; init; }
-        = [];
+    public required IList<EnhancedMediaItem>
+        Items { get; init; }
 
-    public EnhancementProfile Profile { get; init; }
-        = EnhancementProfile.Archival;
+    public EnhancementProfile Profile
+    {
+        get;
+        init;
+    } = EnhancementProfile.Initial;
 
-    public bool EnableAiEnhancement { get; init; }
+    public bool EnableUpscaling
+    {
+        get;
+        set;
+    }
+    public bool EnableFrameInterpolation
+    {
+        get;
+        set;
+    }
+    
+    public bool EnableAudioEnhancement
+    {
+        get;
+        set;
+    }
 
-    public bool EnableUpscaling { get; init; }
+    public bool EnableVideoEnhancement
+    {
+        get;
+        set;
+    }
 
-    public bool EnableFrameInterpolation { get; init; }
+    public bool EnableImageEnhancement
+    {
+        get;
+        set;
+    }
+    public bool EnableAiEnhancement
+    {
+        get;
+        set;
+    }
 }

@@ -2,6 +2,9 @@
 
 public enum MediaKind
 {
-    Image = 0,
-    Video = 1
+    Unknown = 0,
+    Image = 1,
+    Video = 2,
+    Audio = 3,
+    Document = 4
 }

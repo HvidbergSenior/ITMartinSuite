@@ -1,6 +1,7 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -10,14 +11,21 @@ public sealed class ImageDenoiseWorkflowStep
     private readonly IImageEnhancementService
         _imageEnhancementService;
 
+    private readonly ILogger<
+            ImageDenoiseWorkflowStep>
+        _logger;
+
     public override string Name =>
         nameof(ImageDenoiseWorkflowStep);
 
     public ImageDenoiseWorkflowStep(
-        IImageEnhancementService imageEnhancementService)
+        IImageEnhancementService imageEnhancementService,
+        ILogger<ImageDenoiseWorkflowStep> logger)
     {
         _imageEnhancementService =
             imageEnhancementService;
+
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -33,18 +41,37 @@ public sealed class ImageDenoiseWorkflowStep
                      .Where(x =>
                          !x.Failed &&
                          x.MediaKind == MediaKind.Image &&
-                         x.CurrentWorkingPath is not null))
+                         x.CurrentWorkingPath is not null &&
+                         !x.Operations.Any(o =>
+                             o.Name == Name &&
+                             o.Success)))
         {
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
+                    _logger.LogInformation(
+                        "START ImageDenoise {File}",
+                        item.CurrentWorkingPath);
+
+                    using var cts =
+                        CancellationTokenSource
+                            .CreateLinkedTokenSource(
+                                cancellationToken);
+
+                    cts.CancelAfter(
+                        TimeSpan.FromMinutes(5));
+
                     item.CurrentWorkingPath =
                         await _imageEnhancementService
                             .DenoiseAsync(
                                 item.CurrentWorkingPath!,
-                                cancellationToken);
+                                cts.Token);
+
+                    _logger.LogInformation(
+                        "END ImageDenoise {File}",
+                        item.CurrentWorkingPath);
                 });
         }
     }

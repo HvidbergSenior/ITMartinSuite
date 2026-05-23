@@ -9,15 +9,18 @@
 @using ITMartin.Media.Contracts.Contracts.Runtime.Services
 @using ITMartin.Media.Contracts.Entities
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
 @implements IDisposable
 
 @inject ProgressService Progress
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject ILogger<Index> Logger
-@inject IScanClient ScanClient
+@inject IPackage1Client Package1Client
 @inject IPackage2Client Package2Client
 @inject Package1ManifestSummaryService ManifestSummaryService
+
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
     <div class="filesorter-app">
@@ -314,20 +317,32 @@
                 "Scanning files...",
                 paths);
 
-            await ScanClient.StartAsync(
-                new StartScanRequest(
-                    FolderPath,
-                    true,
-                    false,
-                    false,
-                    "Package1"),
-                CancellationToken.None);
-            //Progress.Complete();
-            Logger.LogInformation(
-                "Workflow started");
+        await Package1Client.StartAsync(
+        new StartPackage1Request
+        {
+        SourceLibraryPath =
+        FolderPath,
 
+        WorkingDirectory =
+        Path.Combine(
+        FolderPath,
+        ".package1"),
+
+        EnableDeduplication =
+        true,
+
+        EnableAiClassification =
+        false,
+
+        EnableOcr =
+        false,
+
+        Profile =
+        "Package1"
+        },
+        CancellationToken.None);
             Logger.LogInformation(
-                "Package 1 scan completed");
+                "Workflow enqueued");
 
             var exportRoot =
                 Configuration[
@@ -432,6 +447,7 @@
 
             _ => ""
         };
+
     private async Task ContinueToEnhancement()
     {
         try
@@ -446,19 +462,33 @@
                     SourceLibraryPath =
                         exportPath!,
 
-                    EnableAiEnhancement = true,
+                    WorkingDirectory =
+                        Path.Combine(
+                            exportPath!,
+                            ".package2"),
 
-                    EnableUpscaling = true,
+                    EnableAiEnhancement =
+                        true,
 
-                    EnableFrameInterpolation = false,
+                    EnableUpscaling =
+                        true,
 
-                    Profile =
-                        EnhancementProfile.Archival
+                    EnableFrameInterpolation =
+                        false,
+
+                    EnableAudioEnhancement =
+                        true,
+
+                    EnableVideoEnhancement =
+                        true,
+
+                    EnableImageEnhancement =
+                        true
                 },
                 CancellationToken.None);
 
             Logger.LogInformation(
-                "Package2 started");
+                "Package2 enqueued");
         }
         catch (Exception ex)
         {

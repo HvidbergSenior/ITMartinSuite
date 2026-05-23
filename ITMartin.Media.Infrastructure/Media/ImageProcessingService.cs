@@ -50,6 +50,33 @@ public sealed class ImageProcessingService
             "upscale");
     }
 
+    public async Task<string> CorrectAspectRatioAsync(
+        string inputPath,
+        CancellationToken cancellationToken = default)
+    {
+        return await CopyAsync(
+            inputPath,
+            "aspect");
+    }
+
+    public async Task<string> RemoveBordersAsync(
+        string inputPath,
+        CancellationToken cancellationToken = default)
+    {
+        return await CopyAsync(
+            inputPath,
+            "borderremove");
+    }
+
+    public async Task<string> AutoCropAsync(
+        string inputPath,
+        CancellationToken cancellationToken = default)
+    {
+        return await CopyAsync(
+            inputPath,
+            "crop");
+    }
+
     private static async Task<string> CopyAsync(
         string inputPath,
         string suffix)

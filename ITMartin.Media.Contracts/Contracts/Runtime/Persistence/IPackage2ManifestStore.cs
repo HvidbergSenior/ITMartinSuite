@@ -9,6 +9,6 @@ public interface IPackage2ManifestStore
         CancellationToken cancellationToken = default);
 
     Task<Package2Manifest?> GetAsync(
-        string packageId,
+        Guid packageId,
         CancellationToken cancellationToken = default);
 }

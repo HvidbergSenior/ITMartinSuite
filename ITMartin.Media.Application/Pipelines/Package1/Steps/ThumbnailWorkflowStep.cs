@@ -1,8 +1,4 @@
-﻿// ThumbnailWorkflowStep.cs
-
-using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -16,7 +12,7 @@ public sealed class ThumbnailWorkflowStep
         _thumbnailService;
 
     private readonly ILogger<
-        ThumbnailWorkflowStep>
+            ThumbnailWorkflowStep>
         _logger;
 
     public ThumbnailWorkflowStep(
@@ -30,9 +26,10 @@ public sealed class ThumbnailWorkflowStep
             logger;
     }
 
-    public string Name => "Thumbnails";
+    public string Name =>
+        "Thumbnails";
 
-    public Task ExecuteAsync<TState>(
+    public async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
         where TState : class
@@ -53,6 +50,9 @@ public sealed class ThumbnailWorkflowStep
 
         foreach (var file in state.MediaFiles)
         {
+            cancellationToken
+                .ThrowIfCancellationRequested();
+
             if (file.IsVideo)
             {
                 _logger.LogInformation(
@@ -62,13 +62,34 @@ public sealed class ThumbnailWorkflowStep
                 continue;
             }
 
+            var thumbnailSource =
+                file.NormalizedPath
+                ?? file.FullPath;
+
             _logger.LogInformation(
                 "Generating thumbnail for {File}",
-                file.FullPath);
+                thumbnailSource);
+
+            var thumbnailDirectory =
+                Path.Combine(
+                    Path.GetDirectoryName(
+                        thumbnailSource)!,
+                    "thumbnails");
+
+            Directory.CreateDirectory(
+                thumbnailDirectory);
+
+            var thumbnailPath =
+                Path.Combine(
+                    thumbnailDirectory,
+                    $"{Path.GetFileNameWithoutExtension(thumbnailSource)}.jpg");
 
             file.ThumbnailPath =
-                _thumbnailService
-                    .GenerateThumbnail(file);
+                await _thumbnailService
+                    .GenerateAsync(
+                        thumbnailSource,
+                        thumbnailPath,
+                        cancellationToken);
 
             processed++;
 
@@ -77,7 +98,5 @@ public sealed class ThumbnailWorkflowStep
                 processed,
                 total);
         }
-
-        return Task.CompletedTask;
     }
 }

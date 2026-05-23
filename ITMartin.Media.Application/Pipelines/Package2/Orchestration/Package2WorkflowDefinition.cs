@@ -14,24 +14,31 @@ public sealed class Package2WorkflowDefinition
 
     public Package2WorkflowDefinition(
         RestorationPreparationWorkflowStep restorationPreparationWorkflowStep,
+
         ImageColorCorrectionWorkflowStep imageColorCorrectionWorkflowStep,
         ImageContrastWorkflowStep imageContrastWorkflowStep,
         ImageDenoiseWorkflowStep imageDenoiseWorkflowStep,
         ImageDeblurWorkflowStep imageDeblurWorkflowStep,
         ImageUpscaleWorkflowStep imageUpscaleWorkflowStep,
+
         VideoDeinterlaceWorkflowStep videoDeinterlaceWorkflowStep,
         VideoStabilizationWorkflowStep videoStabilizationWorkflowStep,
         VideoDenoiseWorkflowStep videoDenoiseWorkflowStep,
         VideoSharpenWorkflowStep videoSharpenWorkflowStep,
         VideoColorCorrectionWorkflowStep videoColorCorrectionWorkflowStep,
         VideoUpscaleWorkflowStep videoUpscaleWorkflowStep,
+
+        AudioExtractionWorkflowStep audioExtractionWorkflowStep,
         AudioNoiseReductionWorkflowStep audioNoiseReductionWorkflowStep,
         AudioHumRemovalWorkflowStep audioHumRemovalWorkflowStep,
         AudioLevelingWorkflowStep audioLevelingWorkflowStep,
         AudioSpeechEnhancementWorkflowStep audioSpeechEnhancementWorkflowStep,
+        AudioMuxWorkflowStep audioMuxWorkflowStep,
+
         CropDetectionWorkflowStep cropDetectionWorkflowStep,
         BorderRemovalWorkflowStep borderRemovalWorkflowStep,
         AspectRatioCorrectionWorkflowStep aspectRatioCorrectionWorkflowStep,
+
         QualityEvaluationWorkflowStep qualityEvaluationWorkflowStep,
         EnhancedThumbnailWorkflowStep enhancedThumbnailWorkflowStep,
         ManifestBuildWorkflowStep manifestBuildWorkflowStep,
@@ -54,10 +61,12 @@ public sealed class Package2WorkflowDefinition
             videoColorCorrectionWorkflowStep,
             videoUpscaleWorkflowStep,
 
+            audioExtractionWorkflowStep,
             audioNoiseReductionWorkflowStep,
             audioHumRemovalWorkflowStep,
             audioLevelingWorkflowStep,
             audioSpeechEnhancementWorkflowStep,
+            audioMuxWorkflowStep,
 
             cropDetectionWorkflowStep,
             borderRemovalWorkflowStep,

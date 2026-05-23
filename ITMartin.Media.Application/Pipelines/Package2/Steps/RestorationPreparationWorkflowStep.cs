@@ -65,11 +65,14 @@ public sealed class RestorationPreparationWorkflowStep
 
         foreach (var item in state.Items)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            cancellationToken
+                .ThrowIfCancellationRequested();
 
-            if (!File.Exists(item.NormalizedPath))
+            if (!File.Exists(
+                    item.NormalizedPath))
             {
                 item.Failed = true;
+
                 item.FailureReason =
                     "Normalized file does not exist.";
 
@@ -77,13 +80,15 @@ public sealed class RestorationPreparationWorkflowStep
             }
 
             var extension =
-                Path.GetExtension(item.NormalizedPath)
+                Path.GetExtension(
+                        item.NormalizedPath)
                     .ToLowerInvariant();
 
             if (extension is not ".jpg"
                 && extension is not ".mp4")
             {
                 item.Failed = true;
+
                 item.FailureReason =
                     "Unsupported normalized format.";
 
@@ -91,12 +96,23 @@ public sealed class RestorationPreparationWorkflowStep
             }
 
             var fileName =
-                Path.GetFileName(item.NormalizedPath);
+                Path.GetFileName(
+                    item.NormalizedPath);
 
             var workingPath =
                 Path.Combine(
                     workingDirectory,
                     fileName);
+
+            var enhancedOutputPath =
+                Path.Combine(
+                    enhancedDirectory,
+                    fileName);
+
+            var thumbnailOutputPath =
+                Path.Combine(
+                    thumbnailDirectory,
+                    $"{Path.GetFileNameWithoutExtension(fileName)}.jpg");
 
             File.Copy(
                 item.NormalizedPath,
@@ -106,12 +122,22 @@ public sealed class RestorationPreparationWorkflowStep
             item.CurrentWorkingPath =
                 workingPath;
 
+            item.EnhancedOutputPath =
+                enhancedOutputPath;
+
+            item.ThumbnailOutputPath =
+                thumbnailOutputPath;
+
             item.Operations.Add(
                 new EnhancementOperation
                 {
                     Name = Name,
-                    StartedAt = DateTimeOffset.UtcNow,
-                    CompletedAt = DateTimeOffset.UtcNow,
+                    StartedAt =
+                        DateTimeOffset.UtcNow,
+
+                    CompletedAt =
+                        DateTimeOffset.UtcNow,
+
                     Success = true
                 });
         }

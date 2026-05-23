@@ -59,9 +59,14 @@ public sealed class Package1WorkflowOrchestrator
     }
 
     public async Task<Guid> StartAsync(
-        StartScanRequest request,
+        Package1WorkflowState request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.RootPath))
+        {
+            throw new InvalidOperationException(
+                "RootPath is required.");
+        }
         var session =
             new ScanSession
             {
@@ -92,12 +97,9 @@ public sealed class Package1WorkflowOrchestrator
             session.Id,
             _workflowDefinition.Name,
             "Initial",
-            new Package1WorkflowState
-            {
-                RootPath = request.RootPath
-            },
+            request,
             cancellationToken);
-
+        
         await _workflowInstanceStore.SetRunningStepAsync(
             session.Id,
             "FileDiscoveryWorkflowStep",
@@ -138,9 +140,9 @@ public sealed class Package1WorkflowOrchestrator
 
         var state =
             await _workflowCheckpointStore
-                .LoadCheckpointAsync<Package1WorkflowState>(
+                .LoadLatestCheckpointAsync<
+                    Package1WorkflowState>(
                     sessionId,
-                    "Initial",
                     cancellationToken);
         
         if (state is null)

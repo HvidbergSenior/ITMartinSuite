@@ -50,9 +50,13 @@ public sealed class ExportEnhancedAssetsWorkflowStep
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
-                         x.CurrentWorkingPath is not null))
+                         x.CurrentWorkingPath is not null &&
+                         !x.Operations.Any(o =>
+                             o.Name == Name &&
+                             o.Success)))
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            cancellationToken
+                .ThrowIfCancellationRequested();
 
             var fileName =
                 _enhancedFileNamingService
@@ -75,13 +79,21 @@ public sealed class ExportEnhancedAssetsWorkflowStep
             item.CurrentWorkingPath =
                 finalPath;
 
+            item.EnhancedOutputPath =
+                finalPath;
+
             item.Operations.Add(
                 new EnhancementOperation
                 {
                     Name = Name,
-                    StartedAt = DateTimeOffset.UtcNow,
-                    CompletedAt = DateTimeOffset.UtcNow,
+                    StartedAt =
+                        DateTimeOffset.UtcNow,
+
+                    CompletedAt =
+                        DateTimeOffset.UtcNow,
+
                     Success = true,
+
                     Metadata = finalPath
                 });
         }
@@ -110,10 +122,12 @@ public sealed class ExportEnhancedAssetsWorkflowStep
         string destinationPath)
     {
         var created =
-            File.GetCreationTime(sourcePath);
+            File.GetCreationTime(
+                sourcePath);
 
         var modified =
-            File.GetLastWriteTime(sourcePath);
+            File.GetLastWriteTime(
+                sourcePath);
 
         File.SetCreationTime(
             destinationPath,

@@ -1,27 +1,48 @@
-﻿using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
+﻿using System.Text.Json;
+using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Requests;
+using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Clients;
 
 public sealed class Package2Client
     : IPackage2Client
 {
-    private readonly Package2WorkflowOrchestrator
-        _orchestrator;
+    private readonly IBackgroundJobQueue
+        _backgroundJobQueue;
 
     public Package2Client(
-        Package2WorkflowOrchestrator orchestrator)
+        IBackgroundJobQueue backgroundJobQueue)
     {
-        _orchestrator = orchestrator;
+        _backgroundJobQueue =
+            backgroundJobQueue;
     }
 
-    public async Task StartAsync(
+    public async Task<Guid> StartAsync(
         StartPackage2Request request,
         CancellationToken cancellationToken)
     {
-        await _orchestrator.RunAsync(
-            request,
-            cancellationToken);
+        var workflowId =
+            Guid.NewGuid();
+
+        await _backgroundJobQueue
+            .EnqueueAsync(
+                new BackgroundJob
+                {
+                    Id = workflowId,
+
+                    Queue = "workflow",
+
+                    Type = "StartPackage2",
+
+                    Payload =
+                        JsonSerializer
+                            .Serialize(request)
+                },
+                cancellationToken);
+
+        return workflowId;
     }
 }

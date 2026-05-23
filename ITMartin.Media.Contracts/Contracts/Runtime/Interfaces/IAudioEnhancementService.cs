@@ -3,18 +3,18 @@
 public interface IAudioEnhancementService
 {
     Task<string> ReduceNoiseAsync(
-        string inputPath,
+        string audioPath,
         CancellationToken cancellationToken = default);
 
     Task<string> RemoveHumAsync(
-        string inputPath,
+        string audioPath,
         CancellationToken cancellationToken = default);
 
     Task<string> NormalizeAudioAsync(
-        string inputPath,
+        string audioPath,
         CancellationToken cancellationToken = default);
 
     Task<string> EnhanceSpeechAsync(
-        string inputPath,
+        string audioPath,
         CancellationToken cancellationToken = default);
 }

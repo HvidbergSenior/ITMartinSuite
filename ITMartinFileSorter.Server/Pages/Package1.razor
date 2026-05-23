@@ -1,0 +1,93 @@
+﻿@page "/package1"
+
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1
+
+@inject IPackage1Client Package1Client
+@inject IConfiguration Configuration
+@inject ILogger<Package1> Logger
+
+<PageTitle>Package 1</PageTitle>
+
+<h3>📦 Package 1</h3>
+
+<div class="mb-3">
+    <label>Source Folder</label>
+
+    <input class="form-control"
+           @bind="FolderPath" />
+</div>
+
+<button class="btn btn-success"
+        @onclick="StartPackage1">
+    Start Package1
+</button>
+
+@if (!string.IsNullOrWhiteSpace(Status))
+{
+    <div class="mt-3">
+        @Status
+    </div>
+}
+
+@code {
+
+    private string FolderPath = "";
+
+    private string Status = "";
+
+    protected override void OnInitialized()
+    {
+        var source =
+            Configuration[
+                "MediaSettings:SourceRoot"];
+
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            FolderPath = source;
+        }
+    }
+
+    private async Task StartPackage1()
+    {
+        try
+        {
+            Status = "Starting Package1...";
+
+            await Package1Client.StartAsync(
+                new StartPackage1Request
+                {
+                    SourceLibraryPath =
+                        FolderPath,
+
+                    WorkingDirectory =
+                        Path.Combine(
+                            FolderPath,
+                            ".package1"),
+
+                    EnableDeduplication =
+                        true,
+
+                    EnableAiClassification =
+                        false,
+
+                    EnableOcr =
+                        false,
+
+                    Profile =
+                        "Package1"
+                },
+                CancellationToken.None);
+
+            Status = "Package1 started";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Failed to start Package1");
+
+            Status = ex.Message;
+        }
+    }
+}

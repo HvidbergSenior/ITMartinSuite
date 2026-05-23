@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using ITMartin.Media.Application.Pipelines.Package1.Models;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
@@ -17,33 +16,35 @@ public sealed class WorkflowRecoveryService(
         Guid workflowId,
         CancellationToken cancellationToken = default)
     {
-        var checkpoint =
-            await checkpointStore.GetLatestCheckpointAsync(
-                workflowId,
-                cancellationToken);
+        var state =
+            await checkpointStore
+                .LoadLatestCheckpointAsync<
+                    Package1WorkflowState>(
+                    workflowId,
+                    cancellationToken);
 
-        if (checkpoint is null)
+        if (state is null)
         {
             return;
         }
 
         var workflow =
             workflowRegistry.Resolve(
-                checkpoint.WorkflowName);
-
-        var state =
-            JsonSerializer.Deserialize<Package1WorkflowState>(
-                checkpoint.StateJson)
-            ?? throw new InvalidOperationException(
-                "Failed to deserialize workflow state");
+                "Package1Workflow");
 
         var context =
-            new WorkflowExecutionContext<Package1WorkflowState>
+            new WorkflowExecutionContext<
+                Package1WorkflowState>
             {
                 WorkflowId = workflowId,
-                WorkflowName = checkpoint.WorkflowName,
+
+                WorkflowName =
+                    "Package1Workflow",
+
                 State = state,
-                CancellationToken = cancellationToken
+
+                CancellationToken =
+                    cancellationToken
             };
 
         await workflowExecutor.ExecuteAsync(

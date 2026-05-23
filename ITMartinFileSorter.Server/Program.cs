@@ -7,6 +7,7 @@ using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1;
+using ITMartin.Media.Application.Pipelines.Package1.Clients;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Clients;
@@ -65,8 +66,6 @@ builder.Services.AddMediaSignalR();
 builder.Services.AddMediaInfrastructureCore(
     builder.Configuration);
 
-builder.Services.AddMediaWorkflowRuntime(
-    builder.Configuration);
 // =========================
 // OCR
 // =========================
@@ -81,9 +80,7 @@ builder.Services.AddSingleton<
 builder.Services.AddScoped<
     IMediaTypeResolver,
     MediaTypeResolver>();
-builder.Services.AddScoped<
-    IScanClient,
-    ScanClient>();
+
 builder.Services.AddScoped<
     IImageConverterService,
     ImageConverterService>();
@@ -91,8 +88,6 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IThumbnailService,
     ThumbnailService>();
-builder.Services.AddScoped<
-    Package2WorkflowFactory>();
 builder.Services.AddScoped<
     Package1ManifestWriter>();
 builder.Services.AddScoped<
@@ -103,7 +98,8 @@ builder.Services.AddScoped<
     IPackage2Client,
     Package2Client>();
 builder.Services.AddScoped<
-    Package2WorkflowOrchestrator>();
+    IPackage1Client,
+    Package1Client>();
 builder.Services.AddScoped<
     IDuplicateService,
     DuplicateService>();

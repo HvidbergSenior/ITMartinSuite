@@ -33,17 +33,20 @@ public sealed class AudioSpeechEnhancementWorkflowStep
                      .Where(x =>
                          !x.Failed &&
                          x.MediaKind == MediaKind.Video &&
-                         x.CurrentWorkingPath is not null))
+                         x.AudioWorkingPath is not null &&
+                         !x.Operations.Any(o =>
+                             o.Name == Name &&
+                             o.Success)))
         {
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
-                    item.CurrentWorkingPath =
+                    item.AudioWorkingPath =
                         await _audioEnhancementService
                             .EnhanceSpeechAsync(
-                                item.CurrentWorkingPath!,
+                                item.AudioWorkingPath!,
                                 cancellationToken);
                 });
         }

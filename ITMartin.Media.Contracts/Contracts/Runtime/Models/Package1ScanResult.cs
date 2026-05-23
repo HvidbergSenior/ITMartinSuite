@@ -1,6 +1,4 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-
-namespace ITMartin.Media.Application.Pipelines.Package1.Models;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public class Package1ScanResult
 {

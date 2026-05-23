@@ -1,0 +1,100 @@
+﻿@page "/package2"
+
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
+
+@inject IPackage2Client Package2Client
+@inject IConfiguration Configuration
+@inject ILogger<Package2> Logger
+
+<PageTitle>Package 2</PageTitle>
+
+<h3>✨ Package 2</h3>
+
+<div class="mb-3">
+    <label>Library Folder</label>
+
+    <input class="form-control"
+           @bind="FolderPath" />
+</div>
+
+<button class="btn btn-primary"
+        @onclick="StartPackage2">
+    Start Package2
+</button>
+
+@if (!string.IsNullOrWhiteSpace(Status))
+{
+    <div class="mt-3">
+        @Status
+    </div>
+}
+
+@code {
+
+    private string FolderPath = "";
+
+    private string Status = "";
+
+    protected override void OnInitialized()
+    {
+        var libraryRoot =
+            Configuration[
+                "MediaSettings:LibraryRoot"];
+
+        if (!string.IsNullOrWhiteSpace(
+                libraryRoot))
+        {
+            FolderPath = libraryRoot;
+        }
+    }
+
+    private async Task StartPackage2()
+    {
+        try
+        {
+            Status = "Starting Package2...";
+
+            await Package2Client.StartAsync(
+                new StartPackage2Request
+                {
+                    SourceLibraryPath =
+                        FolderPath,
+
+                    WorkingDirectory =
+                        Path.Combine(
+                            FolderPath,
+                            ".package2"),
+
+                    EnableAiEnhancement =
+                        true,
+
+                    EnableUpscaling =
+                        true,
+
+                    EnableFrameInterpolation =
+                        false,
+
+                    EnableAudioEnhancement =
+                        true,
+
+                    EnableVideoEnhancement =
+                        true,
+
+                    EnableImageEnhancement =
+                        true
+                },
+                CancellationToken.None);
+
+            Status = "Package2 started";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Failed to start Package2");
+
+            Status = ex.Message;
+        }
+    }
+}

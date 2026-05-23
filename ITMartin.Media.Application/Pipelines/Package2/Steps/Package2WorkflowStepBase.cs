@@ -22,14 +22,16 @@ public abstract class Package2WorkflowStepBase
             new EnhancementOperation
             {
                 Name = operationName,
-                StartedAt = DateTimeOffset.UtcNow
+                StartedAt =
+                    DateTimeOffset.UtcNow
             };
 
         try
         {
             await operation();
 
-            enhancementOperation.Success = true;
+            enhancementOperation.Success =
+                true;
         }
         catch (Exception ex)
         {
@@ -38,7 +40,8 @@ public abstract class Package2WorkflowStepBase
             item.FailureReason =
                 ex.Message;
 
-            enhancementOperation.Success = false;
+            enhancementOperation.Success =
+                false;
 
             enhancementOperation.Metadata =
                 ex.ToString();
@@ -49,5 +52,14 @@ public abstract class Package2WorkflowStepBase
 
         item.Operations.Add(
             enhancementOperation);
+    }
+
+    protected static bool AlreadyExecuted(
+        EnhancedMediaItem item,
+        string operationName)
+    {
+        return item.Operations.Any(o =>
+            o.Name == operationName &&
+            o.Success);
     }
 }

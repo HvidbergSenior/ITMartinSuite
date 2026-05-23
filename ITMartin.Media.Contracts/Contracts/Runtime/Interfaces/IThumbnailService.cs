@@ -1,8 +1,9 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-
-namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 public interface IThumbnailService
 {
-    string? GenerateThumbnail(MediaFile file);
+    Task<string> GenerateAsync(
+        string sourcePath,
+        string outputPath,
+        CancellationToken cancellationToken = default);
 }

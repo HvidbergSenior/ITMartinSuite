@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using ITMartin.Media.Application.Abstractions.Orchestration;
+﻿using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
@@ -16,7 +15,8 @@ public sealed class WorkflowRecoveryHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
 
-    private readonly ILogger<WorkflowRecoveryHostedService>
+    private readonly ILogger<
+            WorkflowRecoveryHostedService>
         _logger;
 
     public WorkflowRecoveryHostedService(
@@ -63,32 +63,26 @@ public sealed class WorkflowRecoveryHostedService
                 _logger.LogInformation(
                     "Recovering workflow {WorkflowId}",
                     workflowId);
+
                 var checkpointStore =
                     scope.ServiceProvider
                         .GetRequiredService<
                             IWorkflowCheckpointStore>();
-                
-                var checkpoint =
-                    await checkpointStore.GetLatestCheckpointAsync(
-                        workflowId,
-                        stoppingToken);
 
-                Package1WorkflowState state;
-
-                if (checkpoint is null)
-                {
-                    state =
-                        new Package1WorkflowState
-                        {
-                            RootPath = string.Empty
-                        };
-                }
-                else
-                {
-                    state =
-                        JsonSerializer.Deserialize<
+                var state =
+                    await checkpointStore
+                        .LoadLatestCheckpointAsync<
                             Package1WorkflowState>(
-                            checkpoint.StateJson)!;
+                                workflowId,
+                                stoppingToken);
+
+                if (state is null)
+                {
+                    _logger.LogWarning(
+                        "No checkpoint found for workflow {WorkflowId}",
+                        workflowId);
+
+                    continue;
                 }
 
                 var context =

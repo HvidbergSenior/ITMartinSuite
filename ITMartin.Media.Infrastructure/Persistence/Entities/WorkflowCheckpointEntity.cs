@@ -12,7 +12,15 @@ public sealed class WorkflowCheckpointEntity
 
     public string StateJson { get; set; } = string.Empty;
 
-    public bool IsCompleted { get; set; }
+    public string Status { get; set; } = "Pending";
+
+    public int Attempt { get; set; }
+
+    public bool IsLatest { get; set; }
+
+    public string? ErrorMessage { get; set; }
+
+    public string? ErrorDetails { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 

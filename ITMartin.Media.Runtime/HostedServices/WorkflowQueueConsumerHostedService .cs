@@ -1,6 +1,10 @@
-﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+﻿using System.Text.Json;
+using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Requests;
+using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -39,7 +43,8 @@ public sealed class WorkflowQueueConsumerHostedService
             try
             {
                 using var scope =
-                    _serviceScopeFactory.CreateScope();
+                    _serviceScopeFactory
+                        .CreateScope();
 
                 var queue =
                     scope.ServiceProvider
@@ -60,27 +65,73 @@ public sealed class WorkflowQueueConsumerHostedService
                     continue;
                 }
 
-                var orchestrator =
-                    scope.ServiceProvider
-                        .GetRequiredService<
-                            IScanOrchestrator>();
-                
                 _logger.LogInformation(
-                    "Dequeued workflow job");
+                    "Dequeued workflow job {Type}",
+                    job.Type);
 
-                var request =
-                    System.Text.Json.JsonSerializer
-                        .Deserialize<StartScanRequest>(
-                            job.Payload);
-
-                if (request is null)
+                switch (job.Type)
                 {
-                    continue;
-                }
+                    case "StartPackage1":
+                    {
+                        var orchestrator =
+                            scope.ServiceProvider
+                                .GetRequiredService<
+                                    IScanOrchestrator>();
 
-                await orchestrator.StartAsync(
-                    request,
-                    stoppingToken);
+                        var request =
+                            JsonSerializer
+                                .Deserialize<
+                                    Package1WorkflowState>(
+                                        job.Payload);
+
+                        if (request is null)
+                        {
+                            break;
+                        }
+
+                        await orchestrator
+                            .StartAsync(
+                                request,
+                                stoppingToken);
+
+                        break;
+                    }
+
+                    case "StartPackage2":
+                    {
+                        var orchestrator =
+                            scope.ServiceProvider
+                                .GetRequiredService<
+                                    Package2WorkflowOrchestrator>();
+
+                        var request =
+                            JsonSerializer
+                                .Deserialize<
+                                    StartPackage2Request>(
+                                        job.Payload);
+
+                        if (request is null)
+                        {
+                            break;
+                        }
+
+                        await orchestrator
+                            .RunAsync(
+                                request,
+                                stoppingToken);
+
+                        break;
+                    }
+
+                    default:
+                    {
+                        _logger.LogWarning(
+                            "Unknown workflow job type {Type}",
+                            job.Type);
+
+                        break;
+                    }
+                }
             }
             catch (OperationCanceledException)
             {

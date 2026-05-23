@@ -1,6 +1,7 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -10,14 +11,21 @@ public sealed class ImageUpscaleWorkflowStep
     private readonly IImageEnhancementService
         _imageEnhancementService;
 
+    private readonly ILogger<
+            ImageUpscaleWorkflowStep>
+        _logger;
+
     public override string Name =>
         nameof(ImageUpscaleWorkflowStep);
 
     public ImageUpscaleWorkflowStep(
-        IImageEnhancementService imageEnhancementService)
+        IImageEnhancementService imageEnhancementService,
+        ILogger<ImageUpscaleWorkflowStep> logger)
     {
         _imageEnhancementService =
             imageEnhancementService;
+
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -29,27 +37,41 @@ public sealed class ImageUpscaleWorkflowStep
             return;
         }
 
-        if (!state.EnableUpscaling)
-        {
-            return;
-        }
-
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
                          x.MediaKind == MediaKind.Image &&
-                         x.CurrentWorkingPath is not null))
+                         x.CurrentWorkingPath is not null &&
+                         !x.Operations.Any(o =>
+                             o.Name == Name &&
+                             o.Success)))
         {
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
+                    _logger.LogInformation(
+                        "START ImageUpscale {File}",
+                        item.CurrentWorkingPath);
+
+                    using var cts =
+                        CancellationTokenSource
+                            .CreateLinkedTokenSource(
+                                cancellationToken);
+
+                    cts.CancelAfter(
+                        TimeSpan.FromMinutes(10));
+
                     item.CurrentWorkingPath =
                         await _imageEnhancementService
                             .UpscaleAsync(
                                 item.CurrentWorkingPath!,
-                                cancellationToken);
+                                cts.Token);
+
+                    _logger.LogInformation(
+                        "END ImageUpscale {File}",
+                        item.CurrentWorkingPath);
                 });
         }
     }

@@ -3,22 +3,34 @@
 public interface IImageEnhancementService
 {
     Task<string> ColorCorrectAsync(
-        string inputPath,
+        string imagePath,
         CancellationToken cancellationToken = default);
 
     Task<string> AdjustContrastAsync(
-        string inputPath,
+        string imagePath,
         CancellationToken cancellationToken = default);
 
     Task<string> DenoiseAsync(
-        string inputPath,
+        string imagePath,
         CancellationToken cancellationToken = default);
 
     Task<string> DeblurAsync(
-        string inputPath,
+        string imagePath,
         CancellationToken cancellationToken = default);
 
     Task<string> UpscaleAsync(
-        string inputPath,
+        string imagePath,
+        CancellationToken cancellationToken = default);
+
+    Task<string> CorrectAspectRatioAsync(
+        string imagePath,
+        CancellationToken cancellationToken = default);
+
+    Task<string> RemoveBordersAsync(
+        string imagePath,
+        CancellationToken cancellationToken = default);
+
+    Task<string> AutoCropAsync(
+        string imagePath,
         CancellationToken cancellationToken = default);
 }
