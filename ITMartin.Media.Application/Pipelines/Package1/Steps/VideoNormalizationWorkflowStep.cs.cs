@@ -37,6 +37,7 @@ public sealed class VideoNormalizationWorkflowStep
         _logger.LogInformation(
             "Executing {Step}",
             nameof(VideoNormalizationWorkflowStep));
+
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
@@ -55,7 +56,8 @@ public sealed class VideoNormalizationWorkflowStep
                         current,
                         total,
                         message);
-                });
+                },
+                cancellationToken);
 
         _logger.LogInformation(
             "Video normalization completed");

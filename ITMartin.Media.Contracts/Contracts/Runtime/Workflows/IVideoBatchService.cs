@@ -6,5 +6,6 @@ public interface IVideoBatchService
 {
     Task ConvertAllVideosAsync(
         IEnumerable<MediaFile> files,
-        Action<int, int, string>? progress = null);
+        Action<int, int, string>? progress = null,
+        CancellationToken cancellationToken = default);
 }

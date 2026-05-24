@@ -19,13 +19,18 @@ public sealed class Package2WorkflowDefinition
         ImageDenoiseWorkflowStep imageDenoiseWorkflowStep,
         ImageDeblurWorkflowStep imageDeblurWorkflowStep,
         ImageUpscaleWorkflowStep imageUpscaleWorkflowStep,
+
         VideoDeinterlaceWorkflowStep videoDeinterlaceWorkflowStep,
         VideoCropWorkflowStep videoCropWorkflowStep,
-        
+
+        CropDetectionWorkflowStep cropDetectionWorkflowStep,
+        BorderRemovalWorkflowStep borderRemovalWorkflowStep,
+        AspectRatioCorrectionWorkflowStep aspectRatioCorrectionWorkflowStep,
+
         VideoStabilizationWorkflowStep videoStabilizationWorkflowStep,
         VideoDenoiseWorkflowStep videoDenoiseWorkflowStep,
-        VideoSharpenWorkflowStep videoSharpenWorkflowStep,
         VideoColorCorrectionWorkflowStep videoColorCorrectionWorkflowStep,
+        VideoSharpenWorkflowStep videoSharpenWorkflowStep,
         VideoUpscaleWorkflowStep videoUpscaleWorkflowStep,
 
         AudioExtractionWorkflowStep audioExtractionWorkflowStep,
@@ -34,10 +39,6 @@ public sealed class Package2WorkflowDefinition
         AudioLevelingWorkflowStep audioLevelingWorkflowStep,
         AudioSpeechEnhancementWorkflowStep audioSpeechEnhancementWorkflowStep,
         AudioMuxWorkflowStep audioMuxWorkflowStep,
-
-        CropDetectionWorkflowStep cropDetectionWorkflowStep,
-        BorderRemovalWorkflowStep borderRemovalWorkflowStep,
-        AspectRatioCorrectionWorkflowStep aspectRatioCorrectionWorkflowStep,
 
         QualityEvaluationWorkflowStep qualityEvaluationWorkflowStep,
         EnhancedThumbnailWorkflowStep enhancedThumbnailWorkflowStep,
@@ -56,22 +57,23 @@ public sealed class Package2WorkflowDefinition
 
             videoDeinterlaceWorkflowStep,
             videoCropWorkflowStep,
+
+            cropDetectionWorkflowStep,
+            borderRemovalWorkflowStep,
+            aspectRatioCorrectionWorkflowStep,
+
             videoStabilizationWorkflowStep,
             videoDenoiseWorkflowStep,
-            videoSharpenWorkflowStep,
             videoColorCorrectionWorkflowStep,
+            videoSharpenWorkflowStep,
             videoUpscaleWorkflowStep,
-            
+
             audioExtractionWorkflowStep,
             audioNoiseReductionWorkflowStep,
             audioHumRemovalWorkflowStep,
             audioLevelingWorkflowStep,
             audioSpeechEnhancementWorkflowStep,
             audioMuxWorkflowStep,
-
-            cropDetectionWorkflowStep,
-            borderRemovalWorkflowStep,
-            aspectRatioCorrectionWorkflowStep,
 
             qualityEvaluationWorkflowStep,
             enhancedThumbnailWorkflowStep,

@@ -29,17 +29,24 @@ public sealed class VideoCropWorkflowStep
         {
             return;
         }
-        Console.WriteLine($"RESTORATION PROFILE: {state.RestorationProfile}");
-        if (state.RestorationProfile !=
-            RestorationProfile.VHSAggressive)
-        {
-            return;
-        }
 
-        const string filter =
-            "crop=in_w:in_h-32:0:0";
-        Console.WriteLine("VIDEO CROP STEP RUNNING");
-        
+        Console.WriteLine(
+            $"RESTORATION PROFILE: {state.RestorationProfile}");
+
+        var cropAmount =
+            state.RestorationProfile switch
+            {
+                RestorationProfile.VHSAggressive => 80,
+                RestorationProfile.FamilyArchive => 48,
+                _ => 32
+            };
+
+        var filter =
+            $"crop=in_w:in_h-{cropAmount}:0:0";
+
+        Console.WriteLine(
+            $"VIDEO CROP STEP RUNNING ({cropAmount}px)");
+
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
