@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
@@ -29,6 +30,18 @@ public sealed class VideoDenoiseWorkflowStep
             return;
         }
 
+        string filter =
+            state.RestorationProfile switch
+            {
+                RestorationProfile.VHSAggressive
+                    => "hqdn3d=8:8:6:6",
+
+                RestorationProfile.FamilyArchive
+                    => "hqdn3d=1.5:1.5:1:1",
+
+                _ => "hqdn3d=3:3:2:2"
+            };
+
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
@@ -47,6 +60,7 @@ public sealed class VideoDenoiseWorkflowStep
                         await _videoEnhancementService
                             .DenoiseAsync(
                                 item.CurrentWorkingPath!,
+                                filter,
                                 cancellationToken);
                 });
         }

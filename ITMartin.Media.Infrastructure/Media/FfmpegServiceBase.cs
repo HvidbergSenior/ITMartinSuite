@@ -30,6 +30,9 @@ public abstract class FfmpegServiceBase
         string arguments,
         CancellationToken cancellationToken = default)
     {
+        Console.WriteLine("========== FFMPEG START ==========");
+        Console.WriteLine(arguments);
+
         using var process =
             new Process
             {
@@ -38,26 +41,56 @@ public abstract class FfmpegServiceBase
                     {
                         FileName = FfmpegPath,
                         Arguments = arguments,
+
                         RedirectStandardError = true,
                         RedirectStandardOutput = true,
+
                         UseShellExecute = false,
                         CreateNoWindow = true
-                    }
+                    },
+
+                EnableRaisingEvents = true
             };
 
         process.Start();
 
-        var error =
-            await process.StandardError
+        // IMPORTANT:
+        // Read BOTH streams to avoid FFmpeg deadlocks.
+        var outputTask =
+            process.StandardOutput
                 .ReadToEndAsync(cancellationToken);
 
-        await process.WaitForExitAsync(
-            cancellationToken);
+        var errorTask =
+            process.StandardError
+                .ReadToEndAsync(cancellationToken);
+
+        await Task.WhenAll(
+            outputTask,
+            errorTask,
+            process.WaitForExitAsync(cancellationToken));
+
+        var output =
+            await outputTask;
+
+        var error =
+            await errorTask;
+
+        Console.WriteLine("========== FFMPEG COMPLETE ==========");
+
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            Console.WriteLine(output);
+        }
+
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            Console.WriteLine(error);
+        }
 
         if (process.ExitCode != 0)
         {
             throw new InvalidOperationException(
-                error);
+                $"FFmpeg failed with exit code {process.ExitCode}{Environment.NewLine}{error}");
         }
     }
 

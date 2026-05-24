@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -36,7 +37,11 @@ public sealed class VideoUpscaleWorkflowStep
         {
             return;
         }
-
+        if (state.RestorationProfile ==
+            RestorationProfile.VHSAggressive)
+        {
+            return;
+        }
         if (!state.EnableUpscaling)
         {
             return;

@@ -14,14 +14,14 @@ public sealed class Package2WorkflowDefinition
 
     public Package2WorkflowDefinition(
         RestorationPreparationWorkflowStep restorationPreparationWorkflowStep,
-
         ImageColorCorrectionWorkflowStep imageColorCorrectionWorkflowStep,
         ImageContrastWorkflowStep imageContrastWorkflowStep,
         ImageDenoiseWorkflowStep imageDenoiseWorkflowStep,
         ImageDeblurWorkflowStep imageDeblurWorkflowStep,
         ImageUpscaleWorkflowStep imageUpscaleWorkflowStep,
-
         VideoDeinterlaceWorkflowStep videoDeinterlaceWorkflowStep,
+        VideoCropWorkflowStep videoCropWorkflowStep,
+        
         VideoStabilizationWorkflowStep videoStabilizationWorkflowStep,
         VideoDenoiseWorkflowStep videoDenoiseWorkflowStep,
         VideoSharpenWorkflowStep videoSharpenWorkflowStep,
@@ -55,12 +55,13 @@ public sealed class Package2WorkflowDefinition
             imageUpscaleWorkflowStep,
 
             videoDeinterlaceWorkflowStep,
+            videoCropWorkflowStep,
             videoStabilizationWorkflowStep,
             videoDenoiseWorkflowStep,
             videoSharpenWorkflowStep,
             videoColorCorrectionWorkflowStep,
             videoUpscaleWorkflowStep,
-
+            
             audioExtractionWorkflowStep,
             audioNoiseReductionWorkflowStep,
             audioHumRemovalWorkflowStep,

@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
@@ -25,6 +26,13 @@ public sealed class VideoStabilizationWorkflowStep
         CancellationToken cancellationToken = default)
     {
         if (context.State is not Package2WorkflowState state)
+        {
+            return;
+        }
+
+        // VHS usually does not need stabilization
+        if (state.RestorationProfile !=
+            RestorationProfile.HandheldCamera)
         {
             return;
         }

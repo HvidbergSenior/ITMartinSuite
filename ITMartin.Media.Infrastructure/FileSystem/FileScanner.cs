@@ -1,6 +1,7 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Infrastructure.Media;
 
 namespace ITMartin.Media.Infrastructure.FileSystem;
 
@@ -40,10 +41,13 @@ public sealed class FileScanner : IFileScanner
         var fileInfo =
             new FileInfo(path);
 
+        var mediaType =
+            MediaTypeHelper.GetMediaType(path);
+
         return new MediaFile(
             path,
             fileInfo.CreationTimeUtc,
-            MediaType.Image,
+            mediaType,
             fileInfo.Length);
     }
 }

@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Requests;
 using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2;
 
@@ -28,7 +29,7 @@ public sealed class Package2WorkflowFactory
                             x.ExportedPath!,
 
                         MediaKind =
-                            x.IsVideo
+                            MediaTypeHelper.IsVideo(x.ExportedPath)
                                 ? MediaKind.Video
                                 : MediaKind.Image,
 
@@ -61,7 +62,8 @@ public sealed class Package2WorkflowFactory
 
             EnableFrameInterpolation =
                 request.EnableFrameInterpolation,
-
+            RestorationProfile =
+                request.RestorationProfile,
             Items = items
         };
     }

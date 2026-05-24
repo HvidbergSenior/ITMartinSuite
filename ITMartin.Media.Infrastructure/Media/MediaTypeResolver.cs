@@ -9,25 +9,7 @@ public sealed class MediaTypeResolver
     public MediaType Resolve(
         string path)
     {
-        var extension =
-            Path.GetExtension(path)
-                .ToLowerInvariant();
-
-        return extension switch
-        {
-            ".jpg" or ".jpeg" or ".png" or ".gif"
-                => MediaType.Image,
-
-            ".mp4" or ".mov" or ".avi"
-                => MediaType.Video,
-
-            ".mp3" or ".wav"
-                => MediaType.Audio,
-
-            ".pdf" or ".docx"
-                => MediaType.Document,
-
-            _ => MediaType.Image
-        };
+        return MediaTypeHelper
+            .GetMediaType(path);
     }
 }

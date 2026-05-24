@@ -85,6 +85,8 @@ public static class Package2DependencyInjection
 
         services.AddScoped<
             ImageContrastWorkflowStep>();
+        services.AddScoped<
+            VideoCropWorkflowStep>();
 
         services.AddScoped<
             ImageDenoiseWorkflowStep>();

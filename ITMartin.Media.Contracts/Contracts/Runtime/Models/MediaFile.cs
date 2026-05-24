@@ -138,7 +138,8 @@ public class MediaFile
         string fullPath,
         DateTime? createdAt,
         MediaType type,
-        long sizeBytes)
+        long sizeBytes,
+        bool isDateReliable = false)
     {
         FullPath = fullPath;
 
@@ -177,7 +178,7 @@ public class MediaFile
         {
             SetDate(
                 createdAt.Value,
-                true);
+                isDateReliable);
         }
     }
 

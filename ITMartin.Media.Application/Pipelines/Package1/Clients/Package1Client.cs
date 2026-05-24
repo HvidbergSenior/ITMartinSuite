@@ -31,7 +31,8 @@ public sealed class Package1Client
             new Package1WorkflowState
             {
                 RootPath =
-                    request.SourceLibraryPath
+                    request.SourceLibraryPath,
+                OverrideYear = request.OverrideYear
             };
 
         await _backgroundJobQueue

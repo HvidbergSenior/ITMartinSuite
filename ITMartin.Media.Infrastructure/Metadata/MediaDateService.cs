@@ -1,5 +1,7 @@
-﻿using ITMartin.Media.Contracts.Contracts.Constants;
+﻿using System.Text.RegularExpressions;
+using ITMartin.Media.Contracts.Contracts.Constants;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Infrastructure.Metadata;
 
@@ -8,23 +10,41 @@ public class MediaDateService : IMediaDateService
     private readonly IImageMetadataService _imageMetadataService;
     private readonly IVideoMetadataService _videoMetadataService;
     private readonly IDocumentMetadataService _documentMetadataService;
-        
 
-    public MediaDateService(IImageMetadataService imageMetadataService, IVideoMetadataService videoMetadataService, IDocumentMetadataService documentMetadataService)
+    public MediaDateService(
+        IImageMetadataService imageMetadataService,
+        IVideoMetadataService videoMetadataService,
+        IDocumentMetadataService documentMetadataService)
     {
         _imageMetadataService = imageMetadataService;
         _videoMetadataService = videoMetadataService;
         _documentMetadataService = documentMetadataService;
     }
 
-    public (DateTime? date, bool isReliable) GetBestDate(string path)
+    public MediaDateResult GetBestDate(MediaDateRequest request)
     {
+        // ✅ MANUAL OVERRIDE
+        if (request.OverrideYear is not null)
+        {
+            return new MediaDateResult(
+                new DateTime(request.OverrideYear.Value, 1, 1),
+                false,
+                "ManualOverride");
+        }
+
+        var path = request.Path;
+
         // ✅ 1. Filename (HIGH TRUST)
         var fileNameDate = TryParseDateFromFileName(path);
+
         if (fileNameDate != null)
         {
             Console.WriteLine($"[FILENAME DATE] {Path.GetFileName(path)} -> {fileNameDate}");
-            return (fileNameDate, true);
+
+            return new MediaDateResult(
+                fileNameDate,
+                true,
+                "Filename");
         }
 
         var ext = Path.GetExtension(path).ToLowerInvariant();
@@ -35,24 +55,42 @@ public class MediaDateService : IMediaDateService
             if (MediaExtensions.ImageExtensions.Contains(ext))
             {
                 var date = _imageMetadataService.GetCreationTime(path);
+
                 if (date != null)
-                    return (date, true);
+                {
+                    return new MediaDateResult(
+                        date,
+                        true,
+                        "ImageMetadata");
+                }
             }
 
             // Videos
             if (MediaExtensions.VideoExtensions.Contains(ext))
             {
                 var date = _videoMetadataService.GetCreationTime(path);
+
                 if (date != null)
-                    return (date, true);
+                {
+                    return new MediaDateResult(
+                        date,
+                        true,
+                        "VideoMetadata");
+                }
             }
 
             // Documents
             if (MediaExtensions.DocumentExtensions.Contains(ext))
             {
                 var date = _documentMetadataService.GetCreationTime(path);
+
                 if (date != null)
-                    return (date, true);
+                {
+                    return new MediaDateResult(
+                        date,
+                        true,
+                        "DocumentMetadata");
+                }
             }
         }
         catch (Exception ex)
@@ -60,22 +98,28 @@ public class MediaDateService : IMediaDateService
             Console.WriteLine($"[MEDIA DATE ERROR] {ex.Message}");
         }
 
-        // ⚠️ LOW TRUST // ⚠️ LOW TRUST FALLBACK
+        // ⚠️ LOW TRUST FALLBACK
         var fallback = GetSafeFileDate(path);
 
-        if (fallback != null && fallback > DateTime.Now.AddDays(-30))
+        if (fallback != null)
         {
-            return (fallback, false);
+            return new MediaDateResult(
+                fallback,
+                false,
+                "Filesystem");
         }
 
-        return (null, false);
+        return new MediaDateResult(
+            null,
+            false,
+            "None");
     }
 
     private static DateTime? TryParseDateFromFileName(string path)
     {
         var fileName = Path.GetFileNameWithoutExtension(path);
 
-        var match = System.Text.RegularExpressions.Regex.Match(
+        var match = Regex.Match(
             fileName,
             @"(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})[_ ](?<hour>\d{2})-(?<min>\d{2})-(?<sec>\d{2})"
         );
@@ -92,7 +136,7 @@ public class MediaDateService : IMediaDateService
             );
         }
 
-        match = System.Text.RegularExpressions.Regex.Match(
+        match = Regex.Match(
             fileName,
             @"(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})"
         );
@@ -109,7 +153,6 @@ public class MediaDateService : IMediaDateService
         return null;
     }
 
-    // ✅ FIXED fallback
     private DateTime? GetSafeFileDate(string path)
     {
         try

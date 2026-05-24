@@ -12,15 +12,22 @@ public sealed class FileDiscoveryWorkflowStep
     : IWorkflowStep
 {
     private readonly ILogger<FileDiscoveryWorkflowStep> _logger;
-    
+
     private readonly IFileScanner _fileScanner;
-    private readonly IMediaTypeResolver
-        _mediaTypeResolver;
+
+    private readonly IMediaTypeResolver _mediaTypeResolver;
+
+    private readonly IMediaDateService _mediaDateService;
+
     public FileDiscoveryWorkflowStep(
-        IFileScanner fileScanner, IMediaTypeResolver mediaTypeResolver, ILogger<FileDiscoveryWorkflowStep> logger)
+        IFileScanner fileScanner,
+        IMediaTypeResolver mediaTypeResolver,
+        IMediaDateService mediaDateService,
+        ILogger<FileDiscoveryWorkflowStep> logger)
     {
         _fileScanner = fileScanner;
         _mediaTypeResolver = mediaTypeResolver;
+        _mediaDateService = mediaDateService;
         _logger = logger;
     }
 
@@ -34,11 +41,14 @@ public sealed class FileDiscoveryWorkflowStep
         _logger.LogInformation(
             "Executing {Step}",
             nameof(FileDiscoveryWorkflowStep));
+
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
-
+        _logger.LogWarning(
+            "OVERRIDE YEAR IN DISCOVERY: {Year}",
+            state.OverrideYear);
         if (state.MediaFiles.Count > 0)
         {
             return;
@@ -52,11 +62,27 @@ public sealed class FileDiscoveryWorkflowStep
         state.MediaFiles =
             files
                 .Select(path =>
-                    new MediaFile(
+                {
+                    var dateResult =
+                        _mediaDateService.GetBestDate(
+                            new MediaDateRequest(
+                                path,
+                                state.OverrideYear));
+
+                    _logger.LogInformation(
+                        "[DATE] {Path} -> {Date} ({Source}) Reliable={Reliable}",
                         path,
-                        File.GetCreationTimeUtc(path),
+                        dateResult.Date,
+                        dateResult.Source,
+                        dateResult.IsReliable);
+
+                    return new MediaFile(
+                        path,
+                        dateResult.Date,
                         _mediaTypeResolver.Resolve(path),
-                        new FileInfo(path).Length))
+                        new FileInfo(path).Length,
+                        dateResult.IsReliable);
+                })
                 .ToList();
     }
 }

@@ -1,30 +1,36 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-
-namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 public interface IVideoEnhancementService
 {
     Task<string> DeinterlaceAsync(
-        string videoPath,
+        string inputPath,
+        string filter,
         CancellationToken cancellationToken = default);
 
     Task<string> StabilizeAsync(
-        string videoPath,
+        string inputPath,
         CancellationToken cancellationToken = default);
 
     Task<string> DenoiseAsync(
-        string videoPath,
+        string inputPath,
+        string filter,
         CancellationToken cancellationToken = default);
 
     Task<string> SharpenAsync(
-        string videoPath,
+        string inputPath,
+        string filter,
         CancellationToken cancellationToken = default);
 
     Task<string> ColorCorrectAsync(
-        string videoPath,
+        string inputPath,
+        string filter,
         CancellationToken cancellationToken = default);
 
     Task<string> UpscaleAsync(
-        string videoPath,
+        string inputPath,
+        CancellationToken cancellationToken = default);
+    Task<string> CropAsync(
+        string inputPath,
+        string filter,
         CancellationToken cancellationToken = default);
 }

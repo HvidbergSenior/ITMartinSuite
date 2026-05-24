@@ -1,6 +1,5 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -47,6 +46,7 @@ public sealed class AudioNoiseReductionWorkflowStep
                         await _audioEnhancementService
                             .ReduceNoiseAsync(
                                 item.AudioWorkingPath!,
+                                state.RestorationProfile,
                                 cancellationToken);
                 });
         }

@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -53,7 +54,7 @@ public sealed class ThumbnailWorkflowStep
             cancellationToken
                 .ThrowIfCancellationRequested();
 
-            if (file.IsVideo)
+            if (MediaTypeHelper.IsVideo(file.FullPath))
             {
                 _logger.LogInformation(
                     "Skipping video thumbnail for {File}",

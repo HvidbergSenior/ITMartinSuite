@@ -24,11 +24,6 @@
       <Folder Include="Pipelines\Package2\Temp\" />
       <Folder Include="Pipelines\Package2\Thumbnails\" />
       <Folder Include="Pipelines\Package2\Working\" />
-      <Folder Include="Services\Steps\FileDiscoveryStep\" />
-      <Folder Include="Services\Steps\HashStep\" />
-      <Folder Include="Services\Steps\ManifestBuildStep\" />
-      <Folder Include="Services\Steps\MetaDataStep\" />
-      <Folder Include="Services\Steps\ThumbnailStep\" />
     </ItemGroup>
 
 </Project>

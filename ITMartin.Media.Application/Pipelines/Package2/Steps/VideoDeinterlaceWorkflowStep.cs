@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
@@ -29,6 +30,15 @@ public sealed class VideoDeinterlaceWorkflowStep
             return;
         }
 
+        string filter =
+            state.RestorationProfile switch
+            {
+                RestorationProfile.VHSAggressive
+                    => "bwdif",
+
+                _ => "yadif=0"
+            };
+
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
@@ -47,6 +57,7 @@ public sealed class VideoDeinterlaceWorkflowStep
                         await _videoEnhancementService
                             .DeinterlaceAsync(
                                 item.CurrentWorkingPath!,
+                                filter,
                                 cancellationToken);
                 });
         }

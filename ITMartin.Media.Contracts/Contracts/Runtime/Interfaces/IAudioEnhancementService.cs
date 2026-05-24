@@ -1,11 +1,14 @@
-﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 public interface IAudioEnhancementService
 {
     Task<string> ReduceNoiseAsync(
-        string audioPath,
+        string inputPath,
+        RestorationProfile profile,
         CancellationToken cancellationToken = default);
-
+    
     Task<string> RemoveHumAsync(
         string audioPath,
         CancellationToken cancellationToken = default);

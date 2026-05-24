@@ -61,7 +61,16 @@ public sealed class ThumbnailService
                 outputPath,
                 cancellationToken);
         }
-        else if (extension is ".mp4")
+        else if (extension is
+                 ".mp4"
+                 or ".mkv"
+                 or ".avi"
+                 or ".mov"
+                 or ".mpg"
+                 or ".mpeg"
+                 or ".mts"
+                 or ".m2ts"
+                 or ".wmv")
         {
             await GenerateVideoThumbnailAsync(
                 sourcePath,

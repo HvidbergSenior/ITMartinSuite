@@ -15,4 +15,9 @@ public sealed class Package1WorkflowState
     public Package1ExportResult? ExportResult { get; set; }
     public int Version { get; set; } = 1;
     public string CurrentStep { get; set; } = string.Empty;
+    public int? OverrideYear
+    {
+        get;
+        init;
+    }
 }

@@ -1,6 +1,8 @@
-﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 public interface IMediaDateService
 {
-    (DateTime? date, bool isReliable) GetBestDate(string path);
+    MediaDateResult GetBestDate(MediaDateRequest request);
 }

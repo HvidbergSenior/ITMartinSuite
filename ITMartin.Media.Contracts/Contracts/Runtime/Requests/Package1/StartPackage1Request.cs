@@ -13,7 +13,11 @@ public sealed class StartPackage1Request
         get;
         init;
     }
-
+    public int? OverrideYear
+    {
+        get;
+        init;
+    }
     public bool EnableDeduplication
     {
         get;

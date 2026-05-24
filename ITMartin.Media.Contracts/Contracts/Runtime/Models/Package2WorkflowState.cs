@@ -1,15 +1,22 @@
-﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed class Package2WorkflowState
 {
     public Guid PackageId { get; init; }
-
     public required string WorkingDirectory
     {
         get;
         init;
     }
-
+    public RestorationProfile
+        RestorationProfile
+    {
+        get;
+        set;
+    }
+        = RestorationProfile.Default;
     public required IList<EnhancedMediaItem>
         Items { get; init; }
 

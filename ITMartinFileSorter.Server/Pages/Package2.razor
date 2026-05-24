@@ -1,5 +1,7 @@
 ﻿@page "/package2"
 
+@using ITMartin.Media.Contracts.Contracts.Runtime.Enums
+@using ITMartin.Media.Contracts.Contracts.Runtime.Models
 @using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
 
@@ -18,6 +20,83 @@
            @bind="FolderPath" />
 </div>
 
+<div class="mb-3">
+    <label>Restoration Profile</label>
+
+    <select class="form-select"
+            @bind="SelectedProfile">
+
+        <option value="FamilyArchive">
+            Family Archive
+        </option>
+
+        <option value="VHSAggressive">
+            VHS Aggressive
+        </option>
+
+    </select>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableAiEnhancement" />
+
+    <label class="form-check-label">
+        AI Enhancement
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableUpscaling" />
+
+    <label class="form-check-label">
+        Upscaling
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableFrameInterpolation" />
+
+    <label class="form-check-label">
+        Frame Interpolation
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableAudioEnhancement" />
+
+    <label class="form-check-label">
+        Audio Enhancement
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableVideoEnhancement" />
+
+    <label class="form-check-label">
+        Video Enhancement
+    </label>
+</div>
+
+<div class="form-check mb-4">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableImageEnhancement" />
+
+    <label class="form-check-label">
+        Image Enhancement
+    </label>
+</div>
+
 <button class="btn btn-primary"
         @onclick="StartPackage2">
     Start Package2
@@ -25,7 +104,7 @@
 
 @if (!string.IsNullOrWhiteSpace(Status))
 {
-    <div class="mt-3">
+    <div class="mt-3 alert alert-info">
         @Status
     </div>
 }
@@ -35,6 +114,22 @@
     private string FolderPath = "";
 
     private string Status = "";
+
+    private RestorationProfile
+        SelectedProfile =
+            RestorationProfile.VHSAggressive;
+
+    private bool EnableAiEnhancement = true;
+
+    private bool EnableUpscaling = false;
+
+    private bool EnableFrameInterpolation = false;
+
+    private bool EnableAudioEnhancement = true;
+
+    private bool EnableVideoEnhancement = true;
+
+    private bool EnableImageEnhancement = true;
 
     protected override void OnInitialized()
     {
@@ -66,27 +161,31 @@
                             FolderPath,
                             ".package2"),
 
+                    RestorationProfile =
+                        SelectedProfile,
+
                     EnableAiEnhancement =
-                        true,
+                        EnableAiEnhancement,
 
                     EnableUpscaling =
-                        true,
+                        EnableUpscaling,
 
                     EnableFrameInterpolation =
-                        false,
+                        EnableFrameInterpolation,
 
                     EnableAudioEnhancement =
-                        true,
+                        EnableAudioEnhancement,
 
                     EnableVideoEnhancement =
-                        true,
+                        EnableVideoEnhancement,
 
                     EnableImageEnhancement =
-                        true
+                        EnableImageEnhancement
                 },
                 CancellationToken.None);
 
-            Status = "Package2 started";
+            Status =
+                $"Package2 started using {SelectedProfile}";
         }
         catch (Exception ex)
         {

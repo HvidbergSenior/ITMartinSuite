@@ -8,6 +8,7 @@ public sealed class FfmpegVideoProcessingService
 {
     public async Task<string> DeinterlaceAsync(
         string inputPath,
+        string filter,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -16,7 +17,7 @@ public sealed class FfmpegVideoProcessingService
                 "deinterlaced");
 
         await ExecuteAsync(
-            $"-y -i \"{inputPath}\" -vf yadif \"{outputPath}\"",
+            $"-y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
             cancellationToken);
 
         CopyDates(
@@ -30,11 +31,6 @@ public sealed class FfmpegVideoProcessingService
         string inputPath,
         CancellationToken cancellationToken = default)
     {
-        var transformPath =
-            BuildOutputPath(
-                inputPath,
-                "transforms");
-
         var outputPath =
             BuildOutputPath(
                 inputPath,
@@ -42,13 +38,7 @@ public sealed class FfmpegVideoProcessingService
 
         await ExecuteAsync(
             $"-y -i \"{inputPath}\" " +
-            "-vf vidstabdetect=shakiness=5:accuracy=15 " +
-            "-f null -",
-            cancellationToken);
-
-        await ExecuteAsync(
-            $"-y -i \"{inputPath}\" " +
-            $"-vf vidstabtransform=smoothing=30 " +
+            "-vf vidstabtransform=smoothing=30 " +
             $"\"{outputPath}\"",
             cancellationToken);
 
@@ -61,6 +51,7 @@ public sealed class FfmpegVideoProcessingService
 
     public async Task<string> DenoiseAsync(
         string inputPath,
+        string filter,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -69,7 +60,7 @@ public sealed class FfmpegVideoProcessingService
                 "denoised");
 
         await ExecuteAsync(
-            $"-y -i \"{inputPath}\" -vf hqdn3d \"{outputPath}\"",
+            $"-y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
             cancellationToken);
 
         CopyDates(
@@ -81,6 +72,7 @@ public sealed class FfmpegVideoProcessingService
 
     public async Task<string> SharpenAsync(
         string inputPath,
+        string filter,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -89,7 +81,7 @@ public sealed class FfmpegVideoProcessingService
                 "sharpened");
 
         await ExecuteAsync(
-            $"-y -i \"{inputPath}\" -vf unsharp=5:5:1.0:5:5:0.0 \"{outputPath}\"",
+            $"-y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
             cancellationToken);
 
         CopyDates(
@@ -101,6 +93,7 @@ public sealed class FfmpegVideoProcessingService
 
     public async Task<string> ColorCorrectAsync(
         string inputPath,
+        string filter,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -109,7 +102,7 @@ public sealed class FfmpegVideoProcessingService
                 "color");
 
         await ExecuteAsync(
-            $"-y -i \"{inputPath}\" -vf eq=contrast=1.05:saturation=1.1 \"{outputPath}\"",
+            $"-y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
             cancellationToken);
 
         CopyDates(
@@ -130,6 +123,26 @@ public sealed class FfmpegVideoProcessingService
 
         await ExecuteAsync(
             $"-y -i \"{inputPath}\" -vf scale=iw*2:ih*2 \"{outputPath}\"",
+            cancellationToken);
+
+        CopyDates(
+            inputPath,
+            outputPath);
+
+        return outputPath;
+    }
+    public async Task<string> CropAsync(
+        string inputPath,
+        string filter,
+        CancellationToken cancellationToken = default)
+    {
+        var outputPath =
+            BuildOutputPath(
+                inputPath,
+                "cropped");
+
+        await ExecuteAsync(
+            $"-y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
             cancellationToken);
 
         CopyDates(

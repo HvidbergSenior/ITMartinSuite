@@ -5,16 +5,16 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
-public sealed class VideoColorCorrectionWorkflowStep
+public sealed class VideoCropWorkflowStep
     : Package2WorkflowStepBase
 {
     private readonly IVideoEnhancementService
         _videoEnhancementService;
 
     public override string Name =>
-        nameof(VideoColorCorrectionWorkflowStep);
+        nameof(VideoCropWorkflowStep);
 
-    public VideoColorCorrectionWorkflowStep(
+    public VideoCropWorkflowStep(
         IVideoEnhancementService videoEnhancementService)
     {
         _videoEnhancementService =
@@ -29,16 +29,17 @@ public sealed class VideoColorCorrectionWorkflowStep
         {
             return;
         }
+        Console.WriteLine($"RESTORATION PROFILE: {state.RestorationProfile}");
+        if (state.RestorationProfile !=
+            RestorationProfile.VHSAggressive)
+        {
+            return;
+        }
 
-        string filter =
-            state.RestorationProfile switch
-            {
-                RestorationProfile.VHSAggressive
-                    => "eq=contrast=1.3:saturation=1.4:brightness=0.03",
-
-                _ => "eq=contrast=1.1:saturation=1.1"
-            };
-
+        const string filter =
+            "crop=in_w:in_h-32:0:0";
+        Console.WriteLine("VIDEO CROP STEP RUNNING");
+        
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
@@ -55,7 +56,7 @@ public sealed class VideoColorCorrectionWorkflowStep
                 {
                     item.CurrentWorkingPath =
                         await _videoEnhancementService
-                            .ColorCorrectAsync(
+                            .CropAsync(
                                 item.CurrentWorkingPath!,
                                 filter,
                                 cancellationToken);
