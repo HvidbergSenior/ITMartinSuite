@@ -17,19 +17,22 @@ public sealed class Package2WorkflowOrchestrator
     private readonly ILogger<
             Package2WorkflowOrchestrator>
         _logger;
+
     private readonly Package1ManifestLoader
         _manifestLoader;
 
     public Package2WorkflowOrchestrator(
         Package2WorkflowFactory factory,
         Package2WorkflowDefinition workflowDefinition,
-        ILogger<Package2WorkflowOrchestrator> logger, Package1ManifestLoader manifestLoader)
+        ILogger<Package2WorkflowOrchestrator> logger,
+        Package1ManifestLoader manifestLoader)
     {
         _factory = factory;
 
         _workflowDefinition = workflowDefinition;
 
         _logger = logger;
+
         _manifestLoader = manifestLoader;
     }
 
@@ -46,9 +49,12 @@ public sealed class Package2WorkflowOrchestrator
             _factory.Create(
                 manifest,
                 request);
-        
+
         foreach (var step in _workflowDefinition.Steps)
         {
+            cancellationToken
+                .ThrowIfCancellationRequested();
+
             _logger.LogInformation(
                 "Executing Package2 step {StepName}",
                 step.Name);
@@ -67,6 +73,9 @@ public sealed class Package2WorkflowOrchestrator
             await step.ExecuteAsync(
                 context,
                 cancellationToken);
+
+            cancellationToken
+                .ThrowIfCancellationRequested();
         }
 
         _logger.LogInformation(

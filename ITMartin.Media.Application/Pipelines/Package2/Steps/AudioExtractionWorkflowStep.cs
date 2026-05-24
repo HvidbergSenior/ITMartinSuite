@@ -1,6 +1,7 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -10,14 +11,20 @@ public sealed class AudioExtractionWorkflowStep
     private readonly IAudioExtractionService
         _audioExtractionService;
 
+    private readonly ILogger<AudioExtractionWorkflowStep>
+        _logger;
+
     public override string Name =>
         nameof(AudioExtractionWorkflowStep);
 
     public AudioExtractionWorkflowStep(
-        IAudioExtractionService audioExtractionService)
+        IAudioExtractionService audioExtractionService,
+        ILogger<AudioExtractionWorkflowStep> logger)
     {
         _audioExtractionService =
             audioExtractionService;
+
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -38,6 +45,10 @@ public sealed class AudioExtractionWorkflowStep
                              o.Name == Name &&
                              o.Success)))
         {
+            var fileName =
+                Path.GetFileName(
+                    item.CurrentWorkingPath);
+
             await ExecuteOperationAsync(
                 item,
                 Name,
@@ -47,6 +58,13 @@ public sealed class AudioExtractionWorkflowStep
                         await _audioExtractionService
                             .ExtractAsync(
                                 item.CurrentWorkingPath!,
+                                progressValue =>
+                                {
+                                    _logger.LogInformation(
+                                        "Audio extraction progress {File}: {Progress:P0}",
+                                        fileName,
+                                        progressValue);
+                                },
                                 cancellationToken);
                 });
         }

@@ -7,17 +7,21 @@ public interface IAudioEnhancementService
     Task<string> ReduceNoiseAsync(
         string inputPath,
         RestorationProfile profile,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default);
-    
+
     Task<string> RemoveHumAsync(
-        string audioPath,
+        string inputPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default);
 
     Task<string> NormalizeAudioAsync(
-        string audioPath,
+        string inputPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default);
 
     Task<string> EnhanceSpeechAsync(
-        string audioPath,
+        string inputPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default);
 }

@@ -2,6 +2,7 @@
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -11,14 +12,21 @@ public sealed class VideoColorCorrectionWorkflowStep
     private readonly IVideoEnhancementService
         _videoEnhancementService;
 
+    private readonly ILogger<
+            VideoColorCorrectionWorkflowStep>
+        _logger;
+
     public override string Name =>
         nameof(VideoColorCorrectionWorkflowStep);
 
     public VideoColorCorrectionWorkflowStep(
-        IVideoEnhancementService videoEnhancementService)
+        IVideoEnhancementService videoEnhancementService,
+        ILogger<VideoColorCorrectionWorkflowStep> logger)
     {
         _videoEnhancementService =
             videoEnhancementService;
+
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -53,12 +61,41 @@ public sealed class VideoColorCorrectionWorkflowStep
                 Name,
                 async () =>
                 {
-                    item.CurrentWorkingPath =
+                    var fileName =
+                        Path.GetFileName(
+                            item.CurrentWorkingPath);
+
+                    _logger.LogInformation(
+                        "Starting video color correction for {File}",
+                        fileName);
+
+                    var correctedPath =
                         await _videoEnhancementService
                             .ColorCorrectAsync(
                                 item.CurrentWorkingPath!,
                                 filter,
+                                progressValue =>
+                                {
+                                    _logger.LogInformation(
+                                        "Video color correction progress {File}: {Progress:P0}",
+                                        fileName,
+                                        progressValue);
+                                },
                                 cancellationToken);
+
+                    if (string.IsNullOrWhiteSpace(
+                            correctedPath))
+                    {
+                        throw new InvalidOperationException(
+                            "Video color correction returned no output path.");
+                    }
+
+                    item.CurrentWorkingPath =
+                        correctedPath;
+
+                    _logger.LogInformation(
+                        "Completed video color correction for {File}",
+                        fileName);
                 });
         }
     }

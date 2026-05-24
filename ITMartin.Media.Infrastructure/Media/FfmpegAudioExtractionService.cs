@@ -8,6 +8,7 @@ public sealed class FfmpegAudioExtractionService
 {
     public async Task<string> ExtractAsync(
         string videoPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -21,10 +22,12 @@ public sealed class FfmpegAudioExtractionService
                 ".wav");
 
         var arguments =
-            $"-y -i \"{videoPath}\" -vn -acodec pcm_s16le \"{outputPath}\"";
+            $"-hide_banner -y -i \"{videoPath}\" " +
+            $"-vn -acodec pcm_s16le \"{outputPath}\"";
 
         await ExecuteAsync(
             arguments,
+            onProgress,
             cancellationToken);
 
         CopyDates(
@@ -37,6 +40,7 @@ public sealed class FfmpegAudioExtractionService
     public async Task<string> MuxAsync(
         string videoPath,
         string audioPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -45,10 +49,17 @@ public sealed class FfmpegAudioExtractionService
                 "muxed");
 
         var arguments =
-            $"-y -i \"{videoPath}\" -i \"{audioPath}\" -c:v copy -map 0:v:0 -map 1:a:0 \"{outputPath}\"";
+            $"-hide_banner -y " +
+            $"-i \"{videoPath}\" " +
+            $"-i \"{audioPath}\" " +
+            "-c:v copy " +
+            "-map 0:v:0 " +
+            "-map 1:a:0 " +
+            $"\"{outputPath}\"";
 
         await ExecuteAsync(
             arguments,
+            onProgress,
             cancellationToken);
 
         CopyDates(

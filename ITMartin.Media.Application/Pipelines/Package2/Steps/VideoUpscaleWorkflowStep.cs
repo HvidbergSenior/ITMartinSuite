@@ -37,13 +37,22 @@ public sealed class VideoUpscaleWorkflowStep
         {
             return;
         }
+
         if (state.RestorationProfile ==
             RestorationProfile.VHSAggressive)
         {
+            _logger.LogInformation(
+                "Skipping video upscale because restoration profile is {Profile}",
+                state.RestorationProfile);
+
             return;
         }
+
         if (!state.EnableUpscaling)
         {
+            _logger.LogInformation(
+                "Skipping video upscale because upscaling is disabled");
+
             return;
         }
 
@@ -61,9 +70,13 @@ public sealed class VideoUpscaleWorkflowStep
                 Name,
                 async () =>
                 {
+                    var fileName =
+                        Path.GetFileName(
+                            item.CurrentWorkingPath);
+
                     _logger.LogInformation(
-                        "START VideoUpscale {File}",
-                        item.CurrentWorkingPath);
+                        "Starting video upscale for {File}",
+                        fileName);
 
                     using var cts =
                         CancellationTokenSource
@@ -73,15 +86,32 @@ public sealed class VideoUpscaleWorkflowStep
                     cts.CancelAfter(
                         TimeSpan.FromMinutes(30));
 
-                    item.CurrentWorkingPath =
+                    var upscaledPath =
                         await _videoEnhancementService
                             .UpscaleAsync(
                                 item.CurrentWorkingPath!,
+                                progressValue =>
+                                {
+                                    _logger.LogInformation(
+                                        "Video upscale progress {File}: {Progress:P0}",
+                                        fileName,
+                                        progressValue);
+                                },
                                 cts.Token);
 
+                    if (string.IsNullOrWhiteSpace(
+                            upscaledPath))
+                    {
+                        throw new InvalidOperationException(
+                            "Video upscale returned no output path.");
+                    }
+
+                    item.CurrentWorkingPath =
+                        upscaledPath;
+
                     _logger.LogInformation(
-                        "END VideoUpscale {File}",
-                        item.CurrentWorkingPath);
+                        "Completed video upscale for {File}",
+                        fileName);
                 });
         }
     }

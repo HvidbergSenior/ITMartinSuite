@@ -52,9 +52,13 @@ public sealed class AudioMuxWorkflowStep
                 Name,
                 async () =>
                 {
+                    var fileName =
+                        Path.GetFileName(
+                            item.CurrentWorkingPath);
+
                     _logger.LogInformation(
-                        "START AudioMux {Video}",
-                        item.CurrentWorkingPath);
+                        "Starting audio mux for {File}",
+                        fileName);
 
                     using var cts =
                         CancellationTokenSource
@@ -64,16 +68,33 @@ public sealed class AudioMuxWorkflowStep
                     cts.CancelAfter(
                         TimeSpan.FromMinutes(10));
 
-                    item.CurrentWorkingPath =
+                    var muxedPath =
                         await _audioExtractionService
                             .MuxAsync(
                                 item.CurrentWorkingPath!,
                                 item.AudioWorkingPath!,
+                                progressValue =>
+                                {
+                                    _logger.LogInformation(
+                                        "Audio mux progress {File}: {Progress:P0}",
+                                        fileName,
+                                        progressValue);
+                                },
                                 cts.Token);
 
+                    if (string.IsNullOrWhiteSpace(
+                            muxedPath))
+                    {
+                        throw new InvalidOperationException(
+                            "Audio mux returned no output path.");
+                    }
+
+                    item.CurrentWorkingPath =
+                        muxedPath;
+
                     _logger.LogInformation(
-                        "END AudioMux {Video}",
-                        item.CurrentWorkingPath);
+                        "Completed audio mux for {File}",
+                        fileName);
                 });
         }
     }

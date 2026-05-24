@@ -6,6 +6,10 @@ public class VideoConverterService
 {
     private readonly string _ffmpegPath;
 
+    private TimeSpan? _totalDuration;
+
+    private DateTime _lastProgressUpdateUtc;
+
     public VideoConverterService()
     {
         if (OperatingSystem.IsWindows())
@@ -29,6 +33,7 @@ public class VideoConverterService
     public async Task<string> ConvertToUniversalMp4Async(
         string inputPath,
         string outputDirectory,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(outputDirectory);
@@ -39,15 +44,17 @@ public class VideoConverterService
                 $"{Path.GetFileNameWithoutExtension(inputPath)}.mp4");
 
         var ffmpegArgs =
-            $"-y -i \"{inputPath}\" " +
+            $"-hide_banner -y -i \"{inputPath}\" " +
             "-c:v libx264 " +
-            "-preset medium " +
-            "-crf 18 " +
+            "-preset veryfast " +
+            "-crf 22 " +
             "-c:a aac " +
+            "-stats " +
             $"\"{outputPath}\"";
 
         await RunFfmpegAsync(
             ffmpegArgs,
+            onProgress,
             cancellationToken);
 
         return outputPath;
@@ -55,6 +62,7 @@ public class VideoConverterService
 
     private async Task RunFfmpegAsync(
         string args,
+        Action<double>? onProgress,
         CancellationToken cancellationToken)
     {
         Console.WriteLine("========== FFMPEG START ==========");
@@ -73,24 +81,39 @@ public class VideoConverterService
                 CreateNoWindow = true
             };
 
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(e.Data))
+            {
+                return;
+            }
+
+            ParseProgress(
+                e.Data,
+                onProgress);
+        };
+
         process.Start();
 
-        var stdOutTask =
-            process.StandardOutput.ReadToEndAsync(
+        process.BeginErrorReadLine();
+
+        try
+        {
+            await process.WaitForExitAsync(
                 cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine(
+                "FFMPEG CANCELLATION REQUESTED");
 
-        var stdErrTask =
-            process.StandardError.ReadToEndAsync(
-                cancellationToken);
+            if (!process.HasExited)
+            {
+                process.Kill(true);
+            }
 
-        await process.WaitForExitAsync(
-            cancellationToken);
-
-        var stdout = await stdOutTask;
-        var stderr = await stdErrTask;
-
-        Console.WriteLine(stdout);
-        Console.WriteLine(stderr);
+            throw;
+        }
 
         Console.WriteLine("========== FFMPEG COMPLETE ==========");
 
@@ -99,5 +122,70 @@ public class VideoConverterService
             throw new Exception(
                 $"FFmpeg failed with exit code {process.ExitCode}");
         }
+    }
+
+    private void ParseProgress(
+        string line,
+        Action<double>? onProgress)
+    {
+        if (line.Contains("Duration:"))
+        {
+            var durationText =
+                line.Split("Duration:")[1]
+                    .Split(",")[0]
+                    .Trim();
+
+            if (TimeSpan.TryParse(
+                    durationText,
+                    out var duration))
+            {
+                _totalDuration = duration;
+            }
+
+            return;
+        }
+
+        if (!line.Contains("time=") ||
+            !_totalDuration.HasValue)
+        {
+            return;
+        }
+
+        var timeText =
+            line.Split("time=")[1]
+                .Split(" ")[0]
+                .Trim();
+
+        if (!TimeSpan.TryParse(
+                timeText,
+                out var current))
+        {
+            return;
+        }
+
+        var progress =
+            current.TotalSeconds /
+            _totalDuration.Value.TotalSeconds;
+
+        progress =
+            Math.Clamp(
+                progress,
+                0,
+                1);
+
+        if (DateTime.UtcNow -
+            _lastProgressUpdateUtc <
+            TimeSpan.FromSeconds(1))
+        {
+            return;
+        }
+
+        _lastProgressUpdateUtc =
+            DateTime.UtcNow;
+
+        onProgress?.Invoke(progress);
+
+        Console.WriteLine(
+            $"Progress: {progress:P1}");
     }
 }

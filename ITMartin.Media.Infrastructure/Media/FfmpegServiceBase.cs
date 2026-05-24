@@ -6,6 +6,10 @@ public abstract class FfmpegServiceBase
 {
     protected readonly string FfmpegPath;
 
+    private TimeSpan? _totalDuration;
+
+    private DateTime _lastProgressUpdateUtc;
+
     protected FfmpegServiceBase()
     {
         if (OperatingSystem.IsWindows())
@@ -28,10 +32,13 @@ public abstract class FfmpegServiceBase
 
     protected async Task ExecuteAsync(
         string arguments,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         Console.WriteLine("========== FFMPEG START ==========");
         Console.WriteLine(arguments);
+
+        _totalDuration = null;
 
         using var process =
             new Process
@@ -52,46 +59,112 @@ public abstract class FfmpegServiceBase
                 EnableRaisingEvents = true
             };
 
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(e.Data))
+            {
+                return;
+            }
+
+            ParseProgress(
+                e.Data,
+                onProgress);
+        };
+
         process.Start();
 
-        // IMPORTANT:
-        // Read BOTH streams to avoid FFmpeg deadlocks.
-        var outputTask =
-            process.StandardOutput
-                .ReadToEndAsync(cancellationToken);
+        process.BeginErrorReadLine();
 
-        var errorTask =
-            process.StandardError
-                .ReadToEndAsync(cancellationToken);
+        try
+        {
+            await process.WaitForExitAsync(
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine(
+                "FFMPEG CANCELLATION REQUESTED");
 
-        await Task.WhenAll(
-            outputTask,
-            errorTask,
-            process.WaitForExitAsync(cancellationToken));
+            if (!process.HasExited)
+            {
+                process.Kill(true);
+            }
 
-        var output =
-            await outputTask;
-
-        var error =
-            await errorTask;
+            throw;
+        }
 
         Console.WriteLine("========== FFMPEG COMPLETE ==========");
-
-        if (!string.IsNullOrWhiteSpace(output))
-        {
-            Console.WriteLine(output);
-        }
-
-        if (!string.IsNullOrWhiteSpace(error))
-        {
-            Console.WriteLine(error);
-        }
 
         if (process.ExitCode != 0)
         {
             throw new InvalidOperationException(
-                $"FFmpeg failed with exit code {process.ExitCode}{Environment.NewLine}{error}");
+                $"FFmpeg failed with exit code {process.ExitCode}");
         }
+    }
+
+    private void ParseProgress(
+        string line,
+        Action<double>? onProgress)
+    {
+        if (line.Contains("Duration:"))
+        {
+            var durationText =
+                line.Split("Duration:")[1]
+                    .Split(",")[0]
+                    .Trim();
+
+            if (TimeSpan.TryParse(
+                    durationText,
+                    out var duration))
+            {
+                _totalDuration = duration;
+            }
+
+            return;
+        }
+
+        if (!line.Contains("time=") ||
+            !_totalDuration.HasValue)
+        {
+            return;
+        }
+
+        var timeText =
+            line.Split("time=")[1]
+                .Split(" ")[0]
+                .Trim();
+
+        if (!TimeSpan.TryParse(
+                timeText,
+                out var current))
+        {
+            return;
+        }
+
+        var progress =
+            current.TotalSeconds /
+            _totalDuration.Value.TotalSeconds;
+
+        progress =
+            Math.Clamp(
+                progress,
+                0,
+                1);
+
+        if (DateTime.UtcNow -
+            _lastProgressUpdateUtc <
+            TimeSpan.FromSeconds(1))
+        {
+            return;
+        }
+
+        _lastProgressUpdateUtc =
+            DateTime.UtcNow;
+
+        onProgress?.Invoke(progress);
+
+        Console.WriteLine(
+            $"Progress: {progress:P0}");
     }
 
     protected static string BuildOutputPath(

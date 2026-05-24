@@ -2,6 +2,7 @@
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -11,14 +12,21 @@ public sealed class VideoStabilizationWorkflowStep
     private readonly IVideoEnhancementService
         _videoEnhancementService;
 
+    private readonly ILogger<
+            VideoStabilizationWorkflowStep>
+        _logger;
+
     public override string Name =>
         nameof(VideoStabilizationWorkflowStep);
 
     public VideoStabilizationWorkflowStep(
-        IVideoEnhancementService videoEnhancementService)
+        IVideoEnhancementService videoEnhancementService,
+        ILogger<VideoStabilizationWorkflowStep> logger)
     {
         _videoEnhancementService =
             videoEnhancementService;
+
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -34,6 +42,10 @@ public sealed class VideoStabilizationWorkflowStep
         if (state.RestorationProfile !=
             RestorationProfile.HandheldCamera)
         {
+            _logger.LogInformation(
+                "Skipping video stabilization because restoration profile is {Profile}",
+                state.RestorationProfile);
+
             return;
         }
 
@@ -51,11 +63,40 @@ public sealed class VideoStabilizationWorkflowStep
                 Name,
                 async () =>
                 {
-                    item.CurrentWorkingPath =
+                    var fileName =
+                        Path.GetFileName(
+                            item.CurrentWorkingPath);
+
+                    _logger.LogInformation(
+                        "Starting video stabilization for {File}",
+                        fileName);
+
+                    var stabilizedPath =
                         await _videoEnhancementService
                             .StabilizeAsync(
                                 item.CurrentWorkingPath!,
+                                progressValue =>
+                                {
+                                    _logger.LogInformation(
+                                        "Video stabilization progress {File}: {Progress:P0}",
+                                        fileName,
+                                        progressValue);
+                                },
                                 cancellationToken);
+
+                    if (string.IsNullOrWhiteSpace(
+                            stabilizedPath))
+                    {
+                        throw new InvalidOperationException(
+                            "Video stabilization returned no output path.");
+                    }
+
+                    item.CurrentWorkingPath =
+                        stabilizedPath;
+
+                    _logger.LogInformation(
+                        "Completed video stabilization for {File}",
+                        fileName);
                 });
         }
     }

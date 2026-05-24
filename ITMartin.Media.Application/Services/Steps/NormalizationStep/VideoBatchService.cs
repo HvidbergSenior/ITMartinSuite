@@ -63,8 +63,15 @@ public class VideoBatchService : IVideoBatchService
                             file.NormalizedPath ??
                             file.FullPath,
                             tempRoot,
+                            progressValue =>
+                            {
+                                _logger.LogInformation(
+                                    "Video progress {File}: {Progress:P0}",
+                                    file.FileName,
+                                    progressValue);
+                            },
                             cancellationToken);
-
+                
                 if (!string.IsNullOrWhiteSpace(output))
                 {
                     file.NormalizedPath = output;

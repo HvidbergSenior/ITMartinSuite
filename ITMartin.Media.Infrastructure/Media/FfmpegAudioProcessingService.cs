@@ -5,11 +5,12 @@ namespace ITMartin.Media.Infrastructure.Media;
 
 public sealed class FfmpegAudioProcessingService
     : FfmpegServiceBase,
-        IAudioEnhancementService
+      IAudioEnhancementService
 {
     public async Task<string> ReduceNoiseAsync(
         string inputPath,
         RestorationProfile profile,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -30,7 +31,8 @@ public sealed class FfmpegAudioProcessingService
             };
 
         await ExecuteAsync(
-            $"-y -i \"{inputPath}\" -af \"{filter}\" \"{outputPath}\"",
+            $"-hide_banner -y -i \"{inputPath}\" -af \"{filter}\" \"{outputPath}\"",
+            onProgress,
             cancellationToken);
 
         CopyDates(
@@ -42,6 +44,7 @@ public sealed class FfmpegAudioProcessingService
 
     public async Task<string> RemoveHumAsync(
         string inputPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -54,12 +57,15 @@ public sealed class FfmpegAudioProcessingService
             outputPath,
             overwrite: true);
 
+        onProgress?.Invoke(1);
+
         return await Task.FromResult(
             outputPath);
     }
 
     public async Task<string> NormalizeAudioAsync(
         string inputPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -68,7 +74,8 @@ public sealed class FfmpegAudioProcessingService
                 "normalized");
 
         await ExecuteAsync(
-            $"-y -i \"{inputPath}\" -af loudnorm \"{outputPath}\"",
+            $"-hide_banner -y -i \"{inputPath}\" -af loudnorm \"{outputPath}\"",
+            onProgress,
             cancellationToken);
 
         CopyDates(
@@ -80,6 +87,7 @@ public sealed class FfmpegAudioProcessingService
 
     public async Task<string> EnhanceSpeechAsync(
         string inputPath,
+        Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
@@ -91,6 +99,8 @@ public sealed class FfmpegAudioProcessingService
             inputPath,
             outputPath,
             overwrite: true);
+
+        onProgress?.Invoke(1);
 
         return await Task.FromResult(
             outputPath);

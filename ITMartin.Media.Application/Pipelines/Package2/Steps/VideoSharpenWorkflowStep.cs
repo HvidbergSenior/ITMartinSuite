@@ -2,6 +2,7 @@
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -11,14 +12,21 @@ public sealed class VideoSharpenWorkflowStep
     private readonly IVideoEnhancementService
         _videoEnhancementService;
 
+    private readonly ILogger<
+            VideoSharpenWorkflowStep>
+        _logger;
+
     public override string Name =>
         nameof(VideoSharpenWorkflowStep);
 
     public VideoSharpenWorkflowStep(
-        IVideoEnhancementService videoEnhancementService)
+        IVideoEnhancementService videoEnhancementService,
+        ILogger<VideoSharpenWorkflowStep> logger)
     {
         _videoEnhancementService =
             videoEnhancementService;
+
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -39,6 +47,10 @@ public sealed class VideoSharpenWorkflowStep
                 _ => "unsharp=5:5:1.0"
             };
 
+        _logger.LogInformation(
+            "Video sharpen step running with filter {Filter}",
+            filter);
+
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
@@ -53,12 +65,41 @@ public sealed class VideoSharpenWorkflowStep
                 Name,
                 async () =>
                 {
-                    item.CurrentWorkingPath =
+                    var fileName =
+                        Path.GetFileName(
+                            item.CurrentWorkingPath);
+
+                    _logger.LogInformation(
+                        "Starting video sharpen for {File}",
+                        fileName);
+
+                    var sharpenedPath =
                         await _videoEnhancementService
                             .SharpenAsync(
                                 item.CurrentWorkingPath!,
                                 filter,
+                                progressValue =>
+                                {
+                                    _logger.LogInformation(
+                                        "Video sharpen progress {File}: {Progress:P0}",
+                                        fileName,
+                                        progressValue);
+                                },
                                 cancellationToken);
+
+                    if (string.IsNullOrWhiteSpace(
+                            sharpenedPath))
+                    {
+                        throw new InvalidOperationException(
+                            "Video sharpen returned no output path.");
+                    }
+
+                    item.CurrentWorkingPath =
+                        sharpenedPath;
+
+                    _logger.LogInformation(
+                        "Completed video sharpen for {File}",
+                        fileName);
                 });
         }
     }

@@ -24,6 +24,7 @@ using ITMartin.Media.Runtime.Registry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using ManifestBuildWorkflowStep = ITMartin.Media.Application.Pipelines.Package2.Steps.ManifestBuildWorkflowStep;
 
 namespace ITMartin.Media.Infrastructure;
@@ -227,7 +228,12 @@ public static class Package1DependencyInjection
 
         services.Configure<MediaSettingsOptions>(
             configuration.GetSection("MediaSettings"));
-
+        services.Configure<HostOptions>(
+            options =>
+            {
+                options.ShutdownTimeout =
+                    TimeSpan.FromHours(3);
+            });
         return services;
     }
 }

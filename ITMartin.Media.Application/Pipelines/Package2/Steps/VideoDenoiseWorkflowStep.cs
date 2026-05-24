@@ -2,6 +2,7 @@
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
@@ -11,14 +12,21 @@ public sealed class VideoDenoiseWorkflowStep
     private readonly IVideoEnhancementService
         _videoEnhancementService;
 
+    private readonly ILogger<
+            VideoDenoiseWorkflowStep>
+        _logger;
+
     public override string Name =>
         nameof(VideoDenoiseWorkflowStep);
 
     public VideoDenoiseWorkflowStep(
-        IVideoEnhancementService videoEnhancementService)
+        IVideoEnhancementService videoEnhancementService,
+        ILogger<VideoDenoiseWorkflowStep> logger)
     {
         _videoEnhancementService =
             videoEnhancementService;
+
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -42,6 +50,10 @@ public sealed class VideoDenoiseWorkflowStep
                 _ => "hqdn3d=3:3:2:2"
             };
 
+        _logger.LogInformation(
+            "Video denoise step running with filter {Filter}",
+            filter);
+
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
@@ -56,12 +68,41 @@ public sealed class VideoDenoiseWorkflowStep
                 Name,
                 async () =>
                 {
-                    item.CurrentWorkingPath =
+                    var fileName =
+                        Path.GetFileName(
+                            item.CurrentWorkingPath);
+
+                    _logger.LogInformation(
+                        "Starting video denoise for {File}",
+                        fileName);
+
+                    var denoisedPath =
                         await _videoEnhancementService
                             .DenoiseAsync(
                                 item.CurrentWorkingPath!,
                                 filter,
+                                progressValue =>
+                                {
+                                    _logger.LogInformation(
+                                        "Video denoise progress {File}: {Progress:P0}",
+                                        fileName,
+                                        progressValue);
+                                },
                                 cancellationToken);
+
+                    if (string.IsNullOrWhiteSpace(
+                            denoisedPath))
+                    {
+                        throw new InvalidOperationException(
+                            "Video denoise returned no output path.");
+                    }
+
+                    item.CurrentWorkingPath =
+                        denoisedPath;
+
+                    _logger.LogInformation(
+                        "Completed video denoise for {File}",
+                        fileName);
                 });
         }
     }
