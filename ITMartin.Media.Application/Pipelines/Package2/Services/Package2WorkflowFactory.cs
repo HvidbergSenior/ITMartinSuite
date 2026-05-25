@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Requests;
 using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2;
@@ -29,7 +30,8 @@ public sealed class Package2WorkflowFactory
                             x.ExportedPath!,
 
                         MediaKind =
-                            MediaTypeHelper.IsVideo(x.ExportedPath)
+                            MediaTypeHelper.IsVideo(
+                                x.ExportedPath)
                                 ? MediaKind.Video
                                 : MediaKind.Image,
 
@@ -38,7 +40,8 @@ public sealed class Package2WorkflowFactory
                             new EnhancementOperation
                             {
                                 Name = "Imported",
-                                StartedAt = DateTimeOffset.UtcNow
+                                StartedAt =
+                                    DateTimeOffset.UtcNow
                             }
                         ]
                     })
@@ -54,17 +57,62 @@ public sealed class Package2WorkflowFactory
                     request.SourceLibraryPath,
                     ".package2"),
 
-            EnableAiEnhancement =
-                request.EnableAiEnhancement,
+            RestorationProfile =
+                RestorationProfile.FamilyArchive,
+
+            Items =
+                items,
+
+            // VIDEO
+
+            EnableVideoEnhancement =
+                true,
+
+            EnableDeinterlace =
+                true,
+
+            EnableCrop =
+                true,
+
+            EnableDenoise =
+                false,
+
+            EnableColorCorrection =
+                false,
+
+            EnableSharpen =
+                false,
+
+            EnableStabilization =
+                false,
 
             EnableUpscaling =
-                request.EnableUpscaling,
+                false,
 
             EnableFrameInterpolation =
-                request.EnableFrameInterpolation,
-            RestorationProfile =
-                request.RestorationProfile,
-            Items = items
+                false,
+
+            // AUDIO
+
+            EnableAudioEnhancement =
+                true,
+
+            EnableAudioNormalize =
+                true,
+
+            EnableAudioNoiseReduction =
+                false,
+
+            EnableHumRemoval =
+                false,
+
+            EnableAiEnhancement =
+                false,
+
+            // IMAGE
+
+            EnableImageEnhancement =
+                false
         };
     }
 }

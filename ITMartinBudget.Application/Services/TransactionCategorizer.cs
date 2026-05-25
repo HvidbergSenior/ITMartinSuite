@@ -28,7 +28,8 @@ public class TransactionCategorizer
                 .FirstOrDefault(x =>
 
                     tx.NormalizedDescription
-                        .Contains(x.Pattern)
+                        .Contains(
+                            Normalize(x.Pattern))
 
                     &&
 

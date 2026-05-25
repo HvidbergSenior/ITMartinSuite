@@ -5,5 +5,6 @@ public enum RestorationProfile
     Default,
     FamilyArchive,
     VHSAggressive,
-    HandheldCamera
+    HandheldCamera,
+    Hi8
 }

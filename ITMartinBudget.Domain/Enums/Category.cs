@@ -14,6 +14,7 @@ public enum Category
 
     Savings,
     Transfer,
+    Northside,
 
     Other
 }

@@ -1,103 +1,59 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class VideoStabilizationWorkflowStep
-    : Package2WorkflowStepBase
+    : IWorkflowStep
 {
-    private readonly IVideoEnhancementService
-        _videoEnhancementService;
-
     private readonly ILogger<
             VideoStabilizationWorkflowStep>
         _logger;
 
-    public override string Name =>
+    public string Name =>
         nameof(VideoStabilizationWorkflowStep);
 
     public VideoStabilizationWorkflowStep(
-        IVideoEnhancementService videoEnhancementService,
         ILogger<VideoStabilizationWorkflowStep> logger)
     {
-        _videoEnhancementService =
-            videoEnhancementService;
-
         _logger = logger;
     }
 
-    public override async Task ExecuteAsync<TState>(
+    public Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        // VHS usually does not need stabilization
-        if (state.RestorationProfile !=
-            RestorationProfile.HandheldCamera)
+        if (!state.EnableStabilization)
         {
             _logger.LogInformation(
-                "Skipping video stabilization because restoration profile is {Profile}",
-                state.RestorationProfile);
+                "Skipping stabilization");
 
-            return;
+            return Task.CompletedTask;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.CurrentWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
-        {
-            await ExecuteOperationAsync(
-                item,
-                Name,
-                async () =>
-                {
-                    var fileName =
-                        Path.GetFileName(
-                            item.CurrentWorkingPath);
+        var filter =
+            BuildFilter(state);
 
-                    _logger.LogInformation(
-                        "Starting video stabilization for {File}",
-                        fileName);
+        state.VideoPipeline.Add(filter);
 
-                    var stabilizedPath =
-                        await _videoEnhancementService
-                            .StabilizeAsync(
-                                item.CurrentWorkingPath!,
-                                progressValue =>
-                                {
-                                    _logger.LogInformation(
-                                        "Video stabilization progress {File}: {Progress:P0}",
-                                        fileName,
-                                        progressValue);
-                                },
-                                cancellationToken);
+        _logger.LogInformation(
+            "Added stabilization filter: {Filter}",
+            filter);
 
-                    if (string.IsNullOrWhiteSpace(
-                            stabilizedPath))
-                    {
-                        throw new InvalidOperationException(
-                            "Video stabilization returned no output path.");
-                    }
+        return Task.CompletedTask;
+    }
 
-                    item.CurrentWorkingPath =
-                        stabilizedPath;
-
-                    _logger.LogInformation(
-                        "Completed video stabilization for {File}",
-                        fileName);
-                });
-        }
+    private static string BuildFilter(
+        Package2WorkflowState state)
+    {
+        return
+            "vidstabtransform=smoothing=5";
     }
 }

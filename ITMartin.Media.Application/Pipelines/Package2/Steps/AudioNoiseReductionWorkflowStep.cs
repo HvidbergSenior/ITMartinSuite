@@ -1,92 +1,52 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class AudioNoiseReductionWorkflowStep
-    : Package2WorkflowStepBase
+    : IWorkflowStep
 {
-    private readonly IAudioEnhancementService
-        _audioEnhancementService;
-
     private readonly ILogger<
             AudioNoiseReductionWorkflowStep>
         _logger;
 
-    public override string Name =>
+    public string Name =>
         nameof(AudioNoiseReductionWorkflowStep);
 
     public AudioNoiseReductionWorkflowStep(
-        IAudioEnhancementService audioEnhancementService,
         ILogger<AudioNoiseReductionWorkflowStep> logger)
     {
-        _audioEnhancementService =
-            audioEnhancementService;
-
         _logger = logger;
     }
 
-    public override async Task ExecuteAsync<TState>(
+    public Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.AudioWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        if (!state.EnableAudioNoiseReduction)
         {
-            await ExecuteOperationAsync(
-                item,
-                Name,
-                async () =>
-                {
-                    var fileName =
-                        Path.GetFileName(
-                            item.AudioWorkingPath);
+            _logger.LogInformation(
+                "Skipping audio noise reduction");
 
-                    _logger.LogInformation(
-                        "Starting audio noise reduction for {File}",
-                        fileName);
-
-                    var reducedNoisePath =
-                        await _audioEnhancementService
-                            .ReduceNoiseAsync(
-                                item.AudioWorkingPath!,
-                                state.RestorationProfile,
-                                progressValue =>
-                                {
-                                    _logger.LogInformation(
-                                        "Audio noise reduction progress {File}: {Progress:P0}",
-                                        fileName,
-                                        progressValue);
-                                },
-                                cancellationToken);
-
-                    if (string.IsNullOrWhiteSpace(
-                            reducedNoisePath))
-                    {
-                        throw new InvalidOperationException(
-                            "Audio noise reduction returned no output path.");
-                    }
-
-                    item.AudioWorkingPath =
-                        reducedNoisePath;
-
-                    _logger.LogInformation(
-                        "Completed audio noise reduction for {File}",
-                        fileName);
-                });
+            return Task.CompletedTask;
         }
+
+        const string filter =
+            "afftdn=nr=12:nf=-25";
+
+        state.AudioPipeline.Add(filter);
+
+        _logger.LogInformation(
+            "Added audio noise reduction filter: {Filter}",
+            filter);
+
+        return Task.CompletedTask;
     }
 }

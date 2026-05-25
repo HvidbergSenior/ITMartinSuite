@@ -1,6 +1,7 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Contracts.Configuration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -18,6 +19,13 @@ public static class Package2DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // =========================
+        // CONFIGURATION
+        // =========================
+
+        services.Configure<Hi8PipelineOptions>(
+            configuration.GetSection("Hi8Pipeline"));
+
         // =========================
         // WORKFLOW
         // =========================
@@ -38,6 +46,9 @@ public static class Package2DependencyInjection
         // =========================
         // SERVICES
         // =========================
+
+        services.AddScoped<
+            Hi8PipelineRunner>();
 
         services.AddScoped<
             IVideoEnhancementService,
@@ -74,31 +85,20 @@ public static class Package2DependencyInjection
             EfPackage2ManifestStore>();
 
         // =========================
-        // STEPS
+        // VIDEO STEPS
         // =========================
 
         services.AddScoped<
             RestorationPreparationWorkflowStep>();
 
         services.AddScoped<
-            ImageColorCorrectionWorkflowStep>();
-
-        services.AddScoped<
-            ImageContrastWorkflowStep>();
-        services.AddScoped<
-            VideoCropWorkflowStep>();
-
-        services.AddScoped<
-            ImageDenoiseWorkflowStep>();
-
-        services.AddScoped<
-            ImageDeblurWorkflowStep>();
-
-        services.AddScoped<
-            ImageUpscaleWorkflowStep>();
+            VideoRenderWorkflowStep>();
 
         services.AddScoped<
             VideoDeinterlaceWorkflowStep>();
+
+        services.AddScoped<
+            VideoCropWorkflowStep>();
 
         services.AddScoped<
             VideoStabilizationWorkflowStep>();
@@ -107,13 +107,17 @@ public static class Package2DependencyInjection
             VideoDenoiseWorkflowStep>();
 
         services.AddScoped<
-            VideoSharpenWorkflowStep>();
-
-        services.AddScoped<
             VideoColorCorrectionWorkflowStep>();
 
         services.AddScoped<
+            VideoSharpenWorkflowStep>();
+
+        services.AddScoped<
             VideoUpscaleWorkflowStep>();
+
+        // =========================
+        // AUDIO STEPS
+        // =========================
 
         services.AddScoped<
             AudioExtractionWorkflowStep>();
@@ -133,6 +137,29 @@ public static class Package2DependencyInjection
         services.AddScoped<
             AudioMuxWorkflowStep>();
 
+        // =========================
+        // OPTIONAL IMAGE STEPS
+        // =========================
+
+        services.AddScoped<
+            ImageColorCorrectionWorkflowStep>();
+
+        services.AddScoped<
+            ImageContrastWorkflowStep>();
+
+        services.AddScoped<
+            ImageDenoiseWorkflowStep>();
+
+        services.AddScoped<
+            ImageDeblurWorkflowStep>();
+
+        services.AddScoped<
+            ImageUpscaleWorkflowStep>();
+
+        // =========================
+        // ANALYSIS / FIXUP
+        // =========================
+
         services.AddScoped<
             CropDetectionWorkflowStep>();
 
@@ -144,6 +171,10 @@ public static class Package2DependencyInjection
 
         services.AddScoped<
             QualityEvaluationWorkflowStep>();
+
+        // =========================
+        // OUTPUT
+        // =========================
 
         services.AddScoped<
             EnhancedThumbnailWorkflowStep>();

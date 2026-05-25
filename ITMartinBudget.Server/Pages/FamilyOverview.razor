@@ -1,0 +1,162 @@
+﻿@page "/family"
+
+@layout BudgetMainLayout
+
+@using ITMartinBudget.Application.Interfaces
+@using ITMartinBudget.Application.Models
+@using ITMartinBudget.Infrastructure
+@using ITMartinBudget.Server.Budget
+@using Microsoft.AspNetCore.Components.Rendering
+@using Microsoft.EntityFrameworkCore
+
+@inject BudgetDbContext Db
+@inject IFamilyBudgetOverviewService OverviewService
+
+<div class="budget-container">
+
+    <h1>
+        👨‍👩‍👧‍👦 Family Budget Overview
+    </h1>
+
+    @if (_loading)
+    {
+        <div>
+            Loading...
+        </div>
+    }
+    else
+    {
+        @Card(_overview2025)
+
+        @Card(_overview2026FirstHalf)
+
+        @Card(_overview2026SecondHalf)
+    }
+
+</div>
+
+@code {
+
+    private bool _loading = true;
+
+    private FamilyBudgetOverview?
+        _overview2025;
+
+    private FamilyBudgetOverview?
+        _overview2026FirstHalf;
+
+    private FamilyBudgetOverview?
+        _overview2026SecondHalf;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var transactions =
+            await Db.Transactions
+                .AsNoTracking()
+                .ToListAsync();
+
+        _overview2025 =
+            OverviewService
+                .Build2025Overview(
+                    transactions);
+
+        _overview2026FirstHalf =
+            OverviewService
+                .Build2026FirstHalfOverview(
+                    transactions);
+
+        _overview2026SecondHalf =
+            OverviewService
+                .Build2026SecondHalfOverview(
+                    transactions);
+
+        _loading = false;
+    }
+
+    private RenderFragment Card(
+        FamilyBudgetOverview? overview)
+        => builder =>
+        {
+            if (overview is null)
+            {
+                return;
+            }
+
+            var seq = 0;
+
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(
+                seq++,
+                "class",
+                "summary-card");
+
+            builder.OpenElement(seq++, "h2");
+            builder.AddContent(
+                seq++,
+                overview.Title);
+            builder.CloseElement();
+
+            Row(
+                builder,
+                ref seq,
+                "Monthly Income",
+                overview.MonthlyIncome);
+
+            Row(
+                builder,
+                ref seq,
+                "Fixed Expenses",
+                -overview.MonthlyFixedExpenses);
+
+            Row(
+                builder,
+                ref seq,
+                "Variable Expenses",
+                -overview.MonthlyVariableExpenses);
+
+            Row(
+                builder,
+                ref seq,
+                "Monthly Remaining",
+                overview.MonthlyRemaining);
+
+            if (overview.MonthsRemaining > 0)
+            {
+                Row(
+                    builder,
+                    ref seq,
+                    "Expected Remaining Period",
+                    overview.ExpectedRemainingPeriod);
+            }
+
+            builder.CloseElement();
+        };
+
+    private void Row(
+        RenderTreeBuilder builder,
+        ref int seq,
+        string label,
+        decimal amount)
+    {
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(
+            seq++,
+            "class",
+            "transaction-row");
+
+        builder.OpenElement(seq++, "div");
+        builder.AddContent(seq++, label);
+        builder.CloseElement();
+
+        builder.OpenElement(seq++, "div");
+        builder.AddContent(
+            seq++,
+            Format(amount));
+        builder.CloseElement();
+
+        builder.CloseElement();
+    }
+
+    private string Format(decimal value)
+        => value.ToString("N2") + " kr.";
+}

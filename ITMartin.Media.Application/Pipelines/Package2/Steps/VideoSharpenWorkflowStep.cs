@@ -1,5 +1,4 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -7,100 +6,67 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class VideoSharpenWorkflowStep
-    : Package2WorkflowStepBase
+    : IWorkflowStep
 {
-    private readonly IVideoEnhancementService
-        _videoEnhancementService;
-
     private readonly ILogger<
             VideoSharpenWorkflowStep>
         _logger;
 
-    public override string Name =>
+    public string Name =>
         nameof(VideoSharpenWorkflowStep);
 
     public VideoSharpenWorkflowStep(
-        IVideoEnhancementService videoEnhancementService,
         ILogger<VideoSharpenWorkflowStep> logger)
     {
-        _videoEnhancementService =
-            videoEnhancementService;
-
         _logger = logger;
     }
 
-    public override async Task ExecuteAsync<TState>(
+    public Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        string filter =
-            state.RestorationProfile switch
-            {
-                RestorationProfile.VHSAggressive
-                    => "unsharp=7:7:2.5",
+        if (!state.EnableSharpen)
+        {
+            _logger.LogInformation(
+                "Skipping sharpen");
 
-                _ => "unsharp=5:5:1.0"
-            };
+            return Task.CompletedTask;
+        }
+
+        var filter =
+            BuildFilter(state);
+
+        state.VideoPipeline.Add(filter);
 
         _logger.LogInformation(
-            "Video sharpen step running with filter {Filter}",
+            "Added sharpen filter: {Filter}",
             filter);
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.CurrentWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        return Task.CompletedTask;
+    }
+
+    private static string BuildFilter(
+        Package2WorkflowState state)
+    {
+        return state.RestorationProfile switch
         {
-            await ExecuteOperationAsync(
-                item,
-                Name,
-                async () =>
-                {
-                    var fileName =
-                        Path.GetFileName(
-                            item.CurrentWorkingPath);
+            RestorationProfile.VHSAggressive =>
+                "unsharp=5:5:0.8",
 
-                    _logger.LogInformation(
-                        "Starting video sharpen for {File}",
-                        fileName);
+            RestorationProfile.FamilyArchive =>
+                "unsharp=3:3:0.3",
 
-                    var sharpenedPath =
-                        await _videoEnhancementService
-                            .SharpenAsync(
-                                item.CurrentWorkingPath!,
-                                filter,
-                                progressValue =>
-                                {
-                                    _logger.LogInformation(
-                                        "Video sharpen progress {File}: {Progress:P0}",
-                                        fileName,
-                                        progressValue);
-                                },
-                                cancellationToken);
+            RestorationProfile.Hi8 =>
+                "unsharp=3:3:0.2",
 
-                    if (string.IsNullOrWhiteSpace(
-                            sharpenedPath))
-                    {
-                        throw new InvalidOperationException(
-                            "Video sharpen returned no output path.");
-                    }
-
-                    item.CurrentWorkingPath =
-                        sharpenedPath;
-
-                    _logger.LogInformation(
-                        "Completed video sharpen for {File}",
-                        fileName);
-                });
-        }
+            _ =>
+                "unsharp=3:3:0.3"
+        };
     }
 }

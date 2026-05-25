@@ -42,15 +42,16 @@ public sealed class ImageUpscaleWorkflowStep
                          !x.Failed &&
                          x.MediaKind == MediaKind.Image &&
                          x.CurrentWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+                         !AlreadyExecuted(x, Name)))
         {
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
+                    cancellationToken
+                        .ThrowIfCancellationRequested();
+
                     _logger.LogInformation(
                         "START ImageUpscale {File}",
                         item.CurrentWorkingPath);
@@ -68,6 +69,9 @@ public sealed class ImageUpscaleWorkflowStep
                             .UpscaleAsync(
                                 item.CurrentWorkingPath!,
                                 cts.Token);
+
+                    cancellationToken
+                        .ThrowIfCancellationRequested();
 
                     _logger.LogInformation(
                         "END ImageUpscale {File}",

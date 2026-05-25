@@ -36,6 +36,8 @@
         builder.Configuration);
     builder.Services.AddMediaWorkflowRuntime(
         builder.Configuration);
+    builder.Services.AddPackage2Pipeline(
+        builder.Configuration);
     // =========================
     // CORE SERVICES
     // =========================
@@ -100,6 +102,7 @@
     builder.Services.AddScoped<
         ILibraryPathProvider,
         LibraryPathProvider>();
+    
     // =========================
     // QUEUES
     // =========================

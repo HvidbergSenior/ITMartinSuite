@@ -1,91 +1,52 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class AudioSpeechEnhancementWorkflowStep
-    : Package2WorkflowStepBase
+    : IWorkflowStep
 {
-    private readonly IAudioEnhancementService
-        _audioEnhancementService;
-
     private readonly ILogger<
             AudioSpeechEnhancementWorkflowStep>
         _logger;
 
-    public override string Name =>
+    public string Name =>
         nameof(AudioSpeechEnhancementWorkflowStep);
 
     public AudioSpeechEnhancementWorkflowStep(
-        IAudioEnhancementService audioEnhancementService,
         ILogger<AudioSpeechEnhancementWorkflowStep> logger)
     {
-        _audioEnhancementService =
-            audioEnhancementService;
-
         _logger = logger;
     }
 
-    public override async Task ExecuteAsync<TState>(
+    public Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.AudioWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        if (!state.EnableAiEnhancement)
         {
-            await ExecuteOperationAsync(
-                item,
-                Name,
-                async () =>
-                {
-                    var fileName =
-                        Path.GetFileName(
-                            item.AudioWorkingPath);
+            _logger.LogInformation(
+                "Skipping speech enhancement");
 
-                    _logger.LogInformation(
-                        "Starting audio speech enhancement for {File}",
-                        fileName);
-
-                    var enhancedSpeechPath =
-                        await _audioEnhancementService
-                            .EnhanceSpeechAsync(
-                                item.AudioWorkingPath!,
-                                progressValue =>
-                                {
-                                    _logger.LogInformation(
-                                        "Audio speech enhancement progress {File}: {Progress:P0}",
-                                        fileName,
-                                        progressValue);
-                                },
-                                cancellationToken);
-
-                    if (string.IsNullOrWhiteSpace(
-                            enhancedSpeechPath))
-                    {
-                        throw new InvalidOperationException(
-                            "Audio speech enhancement returned no output path.");
-                    }
-
-                    item.AudioWorkingPath =
-                        enhancedSpeechPath;
-
-                    _logger.LogInformation(
-                        "Completed audio speech enhancement for {File}",
-                        fileName);
-                });
+            return Task.CompletedTask;
         }
+
+        const string filter =
+            "arnndn=m=std.rnnn";
+
+        state.AudioPipeline.Add(filter);
+
+        _logger.LogInformation(
+            "Added speech enhancement filter: {Filter}",
+            filter);
+
+        return Task.CompletedTask;
     }
 }

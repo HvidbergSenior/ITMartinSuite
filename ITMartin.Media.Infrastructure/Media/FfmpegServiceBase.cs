@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 
 namespace ITMartin.Media.Infrastructure.Media;
 
@@ -39,6 +40,7 @@ public abstract class FfmpegServiceBase
         Console.WriteLine(arguments);
 
         _totalDuration = null;
+        _lastProgressUpdateUtc = DateTime.MinValue;
 
         using var process =
             new Process
@@ -61,7 +63,8 @@ public abstract class FfmpegServiceBase
 
         process.ErrorDataReceived += (_, e) =>
         {
-            if (string.IsNullOrWhiteSpace(e.Data))
+            if (string.IsNullOrWhiteSpace(
+                    e.Data))
             {
                 return;
             }
@@ -71,9 +74,22 @@ public abstract class FfmpegServiceBase
                 onProgress);
         };
 
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (string.IsNullOrWhiteSpace(
+                    e.Data))
+            {
+                return;
+            }
+
+            Console.WriteLine(
+                e.Data);
+        };
+
         process.Start();
 
         process.BeginErrorReadLine();
+        process.BeginOutputReadLine();
 
         try
         {
@@ -106,65 +122,76 @@ public abstract class FfmpegServiceBase
         string line,
         Action<double>? onProgress)
     {
-        if (line.Contains("Duration:"))
+        try
         {
-            var durationText =
-                line.Split("Duration:")[1]
-                    .Split(",")[0]
-                    .Trim();
-
-            if (TimeSpan.TryParse(
-                    durationText,
-                    out var duration))
+            if (line.Contains("Duration:"))
             {
-                _totalDuration = duration;
+                var durationText =
+                    line.Split("Duration:")[1]
+                        .Split(",")[0]
+                        .Trim();
+
+                if (TimeSpan.TryParse(
+                        durationText,
+                        CultureInfo.InvariantCulture,
+                        out var duration))
+                {
+                    _totalDuration =
+                        duration;
+                }
+
+                return;
             }
 
-            return;
-        }
+            if (!line.Contains("time=") ||
+                !_totalDuration.HasValue)
+            {
+                return;
+            }
 
-        if (!line.Contains("time=") ||
-            !_totalDuration.HasValue)
+            var timeText =
+                line.Split("time=")[1]
+                    .Split(" ")[0]
+                    .Trim();
+
+            if (!TimeSpan.TryParse(
+                    timeText,
+                    CultureInfo.InvariantCulture,
+                    out var current))
+            {
+                return;
+            }
+
+            var progress =
+                current.TotalSeconds /
+                _totalDuration.Value.TotalSeconds;
+
+            progress =
+                Math.Clamp(
+                    progress,
+                    0,
+                    1);
+
+            if (DateTime.UtcNow -
+                _lastProgressUpdateUtc <
+                TimeSpan.FromSeconds(1))
+            {
+                return;
+            }
+
+            _lastProgressUpdateUtc =
+                DateTime.UtcNow;
+
+            onProgress?.Invoke(
+                progress);
+
+            Console.WriteLine(
+                $"Progress: {progress:P0}");
+        }
+        catch
         {
-            return;
+            // Ignore malformed FFmpeg output
         }
-
-        var timeText =
-            line.Split("time=")[1]
-                .Split(" ")[0]
-                .Trim();
-
-        if (!TimeSpan.TryParse(
-                timeText,
-                out var current))
-        {
-            return;
-        }
-
-        var progress =
-            current.TotalSeconds /
-            _totalDuration.Value.TotalSeconds;
-
-        progress =
-            Math.Clamp(
-                progress,
-                0,
-                1);
-
-        if (DateTime.UtcNow -
-            _lastProgressUpdateUtc <
-            TimeSpan.FromSeconds(1))
-        {
-            return;
-        }
-
-        _lastProgressUpdateUtc =
-            DateTime.UtcNow;
-
-        onProgress?.Invoke(progress);
-
-        Console.WriteLine(
-            $"Progress: {progress:P0}");
     }
 
     protected static string BuildOutputPath(
@@ -172,13 +199,16 @@ public abstract class FfmpegServiceBase
         string suffix)
     {
         var directory =
-            Path.GetDirectoryName(inputPath)!;
+            Path.GetDirectoryName(
+                inputPath)!;
 
         var fileName =
-            Path.GetFileNameWithoutExtension(inputPath);
+            Path.GetFileNameWithoutExtension(
+                inputPath);
 
         var extension =
-            Path.GetExtension(inputPath);
+            Path.GetExtension(
+                inputPath);
 
         return Path.Combine(
             directory,
@@ -190,16 +220,18 @@ public abstract class FfmpegServiceBase
         string outputPath)
     {
         var created =
-            File.GetCreationTime(inputPath);
+            File.GetCreationTimeUtc(
+                inputPath);
 
         var modified =
-            File.GetLastWriteTime(inputPath);
+            File.GetLastWriteTimeUtc(
+                inputPath);
 
-        File.SetCreationTime(
+        File.SetCreationTimeUtc(
             outputPath,
             created);
 
-        File.SetLastWriteTime(
+        File.SetLastWriteTimeUtc(
             outputPath,
             modified);
     }

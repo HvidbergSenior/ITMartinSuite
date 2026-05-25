@@ -37,21 +37,33 @@ public sealed class AudioMuxWorkflowStep
             return;
         }
 
+        if (!state.EnableAudioEnhancement)
+        {
+            _logger.LogInformation(
+                "Skipping audio mux because audio enhancement is disabled.");
+
+            return;
+        }
+
         foreach (var item in state.Items
                      .Where(x =>
                          !x.Failed &&
                          x.MediaKind == MediaKind.Video &&
                          x.CurrentWorkingPath is not null &&
-                         x.AudioWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+                         !string.IsNullOrWhiteSpace(
+                             x.AudioWorkingPath) &&
+                         File.Exists(
+                             x.AudioWorkingPath) &&
+                         !AlreadyExecuted(x, Name)))
         {
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
+                    cancellationToken
+                        .ThrowIfCancellationRequested();
+
                     var fileName =
                         Path.GetFileName(
                             item.CurrentWorkingPath);

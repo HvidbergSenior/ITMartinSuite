@@ -15,86 +15,145 @@
 <div class="budget-container">
 
     <ContentCard>
+
         <div class="stack">
 
             <div>
-                <h2>📁 Upload</h2>
-                <div class="meta">Upload your bank CSV</div>
+
+                <h2>
+                    📁 Upload Budget CSV
+                </h2>
+
+                <div class="meta">
+                    Upload your bank export file
+                </div>
+
+            </div>
+
+            <div class="header-actions">
+
+                <button class="btn"
+                        @onclick="GoToDashboard">
+
+                    Open Dashboard
+
+                </button>
+
             </div>
 
             @if (_hasExistingData)
             {
                 <div class="alert warning">
+
                     ⚠ Existing data detected
 
-                    <button class="btn btn-danger" @onclick="ConfirmReset">
-                        Delete all
+                    <button class="btn btn-danger"
+                            @onclick="ConfirmReset">
+
+                        Delete all data
+
                     </button>
+
                 </div>
             }
 
             <div class="upload-box">
-                <InputFile OnChange="HandleBankCsvUpload" disabled="@_isUploading" />
+
+                <InputFile OnChange="HandleBankCsvUpload"
+                           disabled="@_isUploading" />
+
             </div>
 
             @if (_isUploading)
             {
-                <div class="meta">Uploading...</div>
+                <div class="meta">
+                    Uploading CSV...
+                </div>
             }
 
             @if (!string.IsNullOrWhiteSpace(_message))
             {
-                <div class="alert success">@_message</div>
+                <div class="alert success">
+                    @_message
+                </div>
             }
 
             @if (!string.IsNullOrWhiteSpace(_error))
             {
-                <div class="alert error">@_error</div>
+                <div class="alert error">
+                    @_error
+                </div>
             }
 
         </div>
+
     </ContentCard>
 
 </div>
 
 @code {
+
     private bool _hasExistingData;
+
     private bool _isUploading;
+
     private string? _message;
+
     private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
-        _hasExistingData = await Db.Transactions.AnyAsync();
+        _hasExistingData =
+            await Db.Transactions.AnyAsync();
     }
 
-    private async Task HandleBankCsvUpload(InputFileChangeEventArgs e)
+    private async Task HandleBankCsvUpload(
+        InputFileChangeEventArgs e)
     {
-        if (_isUploading) return;
+        if (_isUploading)
+        {
+            return;
+        }
 
         try
         {
             _isUploading = true;
+
             _error = null;
+
             _message = null;
 
             var file = e.File;
 
             if (file == null)
-                throw new Exception("No file selected");
+            {
+                throw new Exception(
+                    "No file selected");
+            }
 
-            if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Only CSV files allowed");
+            if (!file.Name.EndsWith(
+                    ".csv",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new Exception(
+                    "Only CSV files allowed");
+            }
 
-            using var stream = file.OpenReadStream(long.MaxValue);
+            using var stream =
+                file.OpenReadStream(long.MaxValue);
 
-            var newTransactions = await CsvService.ImportAsync(stream);
+            var newTransactions =
+                await CsvService.ImportAsync(stream);
 
-            _message = newTransactions.Any()
-                ? $"✔ Imported {newTransactions.Count} transactions"
-                : "No new transactions (duplicates skipped)";
+            _message =
+                newTransactions.Any()
 
-            await Task.Delay(300);
+                    ? $"✔ Imported {newTransactions.Count} transactions"
+
+                    : "No new transactions (duplicates skipped)";
+
+            await Task.Delay(500);
+
             Nav.NavigateTo("/budget", true);
         }
         catch (Exception ex)
@@ -107,10 +166,19 @@
         }
     }
 
+    private void GoToDashboard()
+    {
+        Nav.NavigateTo("/budget");
+    }
+
     private async Task ConfirmReset()
     {
-        if (await Js.InvokeAsync<bool>("confirm", "Delete ALL data?"))
+        if (await Js.InvokeAsync<bool>(
+                "confirm",
+                "Delete ALL budget data?"))
+        {
             await FullReset();
+        }
     }
 
     private async Task FullReset()

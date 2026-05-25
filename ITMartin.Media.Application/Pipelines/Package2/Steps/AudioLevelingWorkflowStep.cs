@@ -1,86 +1,52 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class AudioLevelingWorkflowStep
-    : Package2WorkflowStepBase
+    : IWorkflowStep
 {
-    private readonly IAudioEnhancementService
-        _audioEnhancementService;
-
-    private readonly ILogger<AudioLevelingWorkflowStep>
+    private readonly ILogger<
+            AudioLevelingWorkflowStep>
         _logger;
 
-    public override string Name =>
+    public string Name =>
         nameof(AudioLevelingWorkflowStep);
 
     public AudioLevelingWorkflowStep(
-        IAudioEnhancementService audioEnhancementService,
         ILogger<AudioLevelingWorkflowStep> logger)
     {
-        _audioEnhancementService =
-            audioEnhancementService;
-
         _logger = logger;
     }
 
-    public override async Task ExecuteAsync<TState>(
+    public Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         !string.IsNullOrWhiteSpace(
-                             x.AudioWorkingPath) &&
-                         File.Exists(
-                             x.AudioWorkingPath) &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        if (!state.EnableAudioNormalize)
         {
-            var fileName =
-                Path.GetFileName(
-                    item.AudioWorkingPath);
+            _logger.LogInformation(
+                "Skipping audio leveling");
 
-            await ExecuteOperationAsync(
-                item,
-                Name,
-                async () =>
-                {
-                    var normalizedPath =
-                        await _audioEnhancementService
-                            .NormalizeAudioAsync(
-                                item.AudioWorkingPath!,
-                                progressValue =>
-                                {
-                                    _logger.LogInformation(
-                                        "Audio leveling progress {File}: {Progress:P0}",
-                                        fileName,
-                                        progressValue);
-                                },
-                                cancellationToken);
-
-                    if (string.IsNullOrWhiteSpace(
-                            normalizedPath))
-                    {
-                        throw new InvalidOperationException(
-                            "Audio leveling returned no output path.");
-                    }
-
-                    item.AudioWorkingPath =
-                        normalizedPath;
-                });
+            return Task.CompletedTask;
         }
+
+        const string filter =
+            "loudnorm=I=-16:TP=-1.5:LRA=11";
+
+        state.AudioPipeline.Add(filter);
+
+        _logger.LogInformation(
+            "Added audio leveling filter: {Filter}",
+            filter);
+
+        return Task.CompletedTask;
     }
 }

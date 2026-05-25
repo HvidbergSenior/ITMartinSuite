@@ -6,19 +6,33 @@ public sealed class FfmpegVideoProcessingService
     : FfmpegServiceBase,
       IVideoEnhancementService
 {
-    public async Task<string> DeinterlaceAsync(
+    public async Task<string> ApplyFiltersAsync(
         string inputPath,
-        string filter,
+        string videoFilterChain,
+        string audioFilterChain,
         Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
         var outputPath =
             BuildOutputPath(
                 inputPath,
-                "deinterlaced");
+                "restored");
+
+        var encoder =
+            OperatingSystem.IsWindows()
+                ? "h264_qsv"
+                : "libx264";
+
+        var arguments =
+            BuildArguments(
+                inputPath,
+                outputPath,
+                videoFilterChain,
+                audioFilterChain,
+                encoder);
 
         await ExecuteAsync(
-            $"-hide_banner -y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
+            arguments,
             onProgress,
             cancellationToken);
 
@@ -29,28 +43,66 @@ public sealed class FfmpegVideoProcessingService
         return outputPath;
     }
 
+    private static string BuildArguments(
+        string inputPath,
+        string outputPath,
+        string videoFilterChain,
+        string audioFilterChain,
+        string encoder)
+    {
+        var arguments =
+            $"-hide_banner -y -i \"{inputPath}\" ";
+
+        if (!string.IsNullOrWhiteSpace(
+                videoFilterChain))
+        {
+            arguments +=
+                $"-vf \"{videoFilterChain}\" ";
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                audioFilterChain))
+        {
+            arguments +=
+                $"-af \"{audioFilterChain}\" ";
+        }
+
+        arguments +=
+            $"-c:v {encoder} " +
+            "-preset veryfast " +
+            "-pix_fmt yuv420p " +
+            "-movflags +faststart " +
+            "-c:a aac " +
+            $"\"{outputPath}\"";
+
+        return arguments;
+    }
+
+    public async Task<string> DeinterlaceAsync(
+        string inputPath,
+        string filter,
+        Action<double>? onProgress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await ApplyFiltersAsync(
+            inputPath,
+            filter,
+            string.Empty,
+            onProgress,
+            cancellationToken);
+    }
+
     public async Task<string> StabilizeAsync(
         string inputPath,
         Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        var outputPath =
-            BuildOutputPath(
-                inputPath,
-                "stabilized");
-
-        await ExecuteAsync(
-            $"-hide_banner -y -i \"{inputPath}\" " +
-            "-vf vidstabtransform=smoothing=30 " +
-            $"\"{outputPath}\"",
+        return await ApplyFiltersAsync(
+            inputPath,
+            "vidstabtransform=smoothing=10",
+            string.Empty,
             onProgress,
             cancellationToken);
-
-        CopyDates(
-            inputPath,
-            outputPath);
-
-        return outputPath;
     }
 
     public async Task<string> DenoiseAsync(
@@ -59,21 +111,12 @@ public sealed class FfmpegVideoProcessingService
         Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        var outputPath =
-            BuildOutputPath(
-                inputPath,
-                "denoised");
-
-        await ExecuteAsync(
-            $"-hide_banner -y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
+        return await ApplyFiltersAsync(
+            inputPath,
+            filter,
+            string.Empty,
             onProgress,
             cancellationToken);
-
-        CopyDates(
-            inputPath,
-            outputPath);
-
-        return outputPath;
     }
 
     public async Task<string> SharpenAsync(
@@ -82,21 +125,12 @@ public sealed class FfmpegVideoProcessingService
         Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        var outputPath =
-            BuildOutputPath(
-                inputPath,
-                "sharpened");
-
-        await ExecuteAsync(
-            $"-hide_banner -y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
+        return await ApplyFiltersAsync(
+            inputPath,
+            filter,
+            string.Empty,
             onProgress,
             cancellationToken);
-
-        CopyDates(
-            inputPath,
-            outputPath);
-
-        return outputPath;
     }
 
     public async Task<string> ColorCorrectAsync(
@@ -105,21 +139,12 @@ public sealed class FfmpegVideoProcessingService
         Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        var outputPath =
-            BuildOutputPath(
-                inputPath,
-                "color");
-
-        await ExecuteAsync(
-            $"-hide_banner -y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
+        return await ApplyFiltersAsync(
+            inputPath,
+            filter,
+            string.Empty,
             onProgress,
             cancellationToken);
-
-        CopyDates(
-            inputPath,
-            outputPath);
-
-        return outputPath;
     }
 
     public async Task<string> UpscaleAsync(
@@ -127,21 +152,12 @@ public sealed class FfmpegVideoProcessingService
         Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        var outputPath =
-            BuildOutputPath(
-                inputPath,
-                "upscaled");
-
-        await ExecuteAsync(
-            $"-hide_banner -y -i \"{inputPath}\" -vf scale=iw*2:ih*2 \"{outputPath}\"",
+        return await ApplyFiltersAsync(
+            inputPath,
+            "scale=-2:1080",
+            string.Empty,
             onProgress,
             cancellationToken);
-
-        CopyDates(
-            inputPath,
-            outputPath);
-
-        return outputPath;
     }
 
     public async Task<string> CropAsync(
@@ -150,20 +166,11 @@ public sealed class FfmpegVideoProcessingService
         Action<double>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        var outputPath =
-            BuildOutputPath(
-                inputPath,
-                "cropped");
-
-        await ExecuteAsync(
-            $"-hide_banner -y -i \"{inputPath}\" -vf \"{filter}\" \"{outputPath}\"",
+        return await ApplyFiltersAsync(
+            inputPath,
+            filter,
+            string.Empty,
             onProgress,
             cancellationToken);
-
-        CopyDates(
-            inputPath,
-            outputPath);
-
-        return outputPath;
     }
 }

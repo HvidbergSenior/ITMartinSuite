@@ -1,17 +1,26 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="app-shell">
-    <header class="app-header">
-        <div class="header-title">
-            💰 ITMartin Budget
-        </div>
-    </header>
+<div class="budget-container">
 
-    <main class="app-main">
-        @Body
-    </main>
+    <nav class="budget-nav">
 
-    <footer class="app-footer">
-        &copy; @DateTime.Now.Year Budget
-    </footer>
+        <NavLink href="/family"
+                 class="budget-nav-link">
+            👨‍👩‍👧‍👦 Family
+        </NavLink>
+
+        <NavLink href="/budget"
+                 class="budget-nav-link">
+            📊 Admin
+        </NavLink>
+
+        <NavLink href="/budget/upload"
+                 class="budget-nav-link">
+            📁 Upload
+        </NavLink>
+
+    </nav>
+
+    @Body
+
 </div>

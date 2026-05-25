@@ -1,0 +1,67 @@
+﻿{
+  "pipeline": {
+    "name": "Hi8 MP4 Cleanup",
+    "description": "Cleanup pipeline for captured Hi8 MP4 files",
+    "enabled": true
+  },
+
+  "input": {
+    "source": "capture.mp4",
+    "type": "hi8",
+    "container": "mp4",
+    "preserveOriginal": true
+  },
+
+  "video": {
+    "enabled": true,
+
+    "deinterlace": {
+      "enabled": true,
+      "method": "bwdif",
+      "mode": "send_frame"
+    },
+
+    "crop": {
+      "enabled": true,
+      "bottom": 120,
+      "top": 0,
+      "left": 0,
+      "right": 0
+    },
+
+    "stabilization": {
+      "enabled": false,
+      "method": "vidstab",
+      "shakiness": 4,
+      "accuracy": 8
+    },
+
+    "denoise": {
+      "enabled": false,
+      "method": "hqdn3d",
+      "strength": "light"
+    }
+  },
+
+  "audio": {
+    "enabled": true,
+
+    "normalize": {
+      "enabled": true,
+      "targetLufs": -16
+    },
+
+    "humRemoval": {
+      "enabled": false,
+      "frequency": 50
+    }
+  },
+
+  "output": {
+    "container": "mp4",
+    "videoCodec": "libx264",
+    "audioCodec": "aac",
+    "crf": 18,
+    "preset": "medium"
+  }
+}

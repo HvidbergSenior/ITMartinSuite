@@ -38,6 +38,9 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     ITransactionCategorizer,
     TransactionCategorizer>();
+builder.Services.AddScoped<
+    IFamilyBudgetOverviewService,
+    FamilyBudgetOverviewService>();
 // =========================
 // IMPORT / RULES
 // =========================

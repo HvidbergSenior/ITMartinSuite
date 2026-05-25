@@ -1,5 +1,4 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -7,104 +6,63 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class VideoDeinterlaceWorkflowStep
-    : Package2WorkflowStepBase
+    : IWorkflowStep
 {
-    private readonly IVideoEnhancementService
-        _videoEnhancementService;
+    private readonly ILogger<
+        VideoDeinterlaceWorkflowStep> _logger;
 
-    private readonly ILogger<VideoDeinterlaceWorkflowStep>
-        _logger;
-
-    public override string Name =>
+    public string Name =>
         nameof(VideoDeinterlaceWorkflowStep);
 
     public VideoDeinterlaceWorkflowStep(
-        IVideoEnhancementService videoEnhancementService,
         ILogger<VideoDeinterlaceWorkflowStep> logger)
     {
-        _videoEnhancementService =
-            videoEnhancementService;
-
         _logger = logger;
     }
 
-    public override async Task ExecuteAsync<TState>(
+    public Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        string filter =
-            state.RestorationProfile switch
-            {
-                RestorationProfile.VHSAggressive
-                    => "bwdif",
-
-                _ => "yadif=0"
-            };
-
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.CurrentWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        if (!state.EnableDeinterlace)
         {
-            var fileName =
-                Path.GetFileName(
-                    item.CurrentWorkingPath);
+            _logger.LogInformation(
+                "Skipping deinterlace step");
 
-            await ExecuteOperationAsync(
-                item,
-                Name,
-                async () =>
-                {
-                    cancellationToken
-                        .ThrowIfCancellationRequested();
-
-                    _logger.LogInformation(
-                        "Starting deinterlace for {File}",
-                        fileName);
-
-                    var deinterlacedPath =
-                        await _videoEnhancementService
-                            .DeinterlaceAsync(
-                                item.CurrentWorkingPath!,
-                                filter,
-                                progressValue =>
-                                {
-                                    cancellationToken
-                                        .ThrowIfCancellationRequested();
-
-                                    _logger.LogInformation(
-                                        "Deinterlace progress {File}: {Progress:P0}",
-                                        fileName,
-                                        progressValue);
-                                },
-                                cancellationToken);
-
-                    cancellationToken
-                        .ThrowIfCancellationRequested();
-
-                    if (string.IsNullOrWhiteSpace(
-                            deinterlacedPath))
-                    {
-                        throw new InvalidOperationException(
-                            "Video deinterlace returned no output path.");
-                    }
-
-                    item.CurrentWorkingPath =
-                        deinterlacedPath;
-
-                    _logger.LogInformation(
-                        "Completed deinterlace for {File}",
-                        fileName);
-                });
+            return Task.CompletedTask;
         }
+
+        var filter =
+            BuildFilter(state);
+
+        state.VideoPipeline.Add(filter);
+
+        _logger.LogInformation(
+            "Added deinterlace filter: {Filter}",
+            filter);
+
+        return Task.CompletedTask;
+    }
+
+    private static string BuildFilter(
+        Package2WorkflowState state)
+    {
+        return state.DeinterlaceMethod switch
+        {
+            DeinterlaceMethod.Bwdif =>
+                "bwdif=mode=send_frame",
+
+            DeinterlaceMethod.Yadif =>
+                "yadif=0:-1:0",
+
+            _ =>
+                "bwdif=mode=send_frame"
+        };
     }
 }

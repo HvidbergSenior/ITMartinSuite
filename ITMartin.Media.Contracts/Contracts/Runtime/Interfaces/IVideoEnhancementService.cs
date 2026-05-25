@@ -2,6 +2,13 @@
 
 public interface IVideoEnhancementService
 {
+    Task<string> ApplyFiltersAsync(
+        string inputPath,
+        string videoFilterChain,
+        string audioFilterChain,
+        Action<double>? onProgress = null,
+        CancellationToken cancellationToken = default);
+
     Task<string> DeinterlaceAsync(
         string inputPath,
         string filter,

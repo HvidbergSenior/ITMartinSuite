@@ -1,72 +1,52 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class AudioHumRemovalWorkflowStep
-    : Package2WorkflowStepBase
+    : IWorkflowStep
 {
-    private readonly IAudioEnhancementService
-        _audioEnhancementService;
-
-    private readonly ILogger<AudioHumRemovalWorkflowStep>
+    private readonly ILogger<
+            AudioHumRemovalWorkflowStep>
         _logger;
 
-    public override string Name =>
+    public string Name =>
         nameof(AudioHumRemovalWorkflowStep);
 
     public AudioHumRemovalWorkflowStep(
-        IAudioEnhancementService audioEnhancementService,
         ILogger<AudioHumRemovalWorkflowStep> logger)
     {
-        _audioEnhancementService =
-            audioEnhancementService;
-
         _logger = logger;
     }
 
-    public override async Task ExecuteAsync<TState>(
+    public Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.AudioWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        if (!state.EnableHumRemoval)
         {
-            var fileName =
-                Path.GetFileName(
-                    item.AudioWorkingPath);
+            _logger.LogInformation(
+                "Skipping hum removal");
 
-            await ExecuteOperationAsync(
-                item,
-                Name,
-                async () =>
-                {
-                    item.AudioWorkingPath =
-                        await _audioEnhancementService
-                            .RemoveHumAsync(
-                                item.AudioWorkingPath!,
-                                progressValue =>
-                                {
-                                    _logger.LogInformation(
-                                        "Audio hum removal progress {File}: {Progress:P0}",
-                                        fileName,
-                                        progressValue);
-                                },
-                                cancellationToken);
-                });
+            return Task.CompletedTask;
         }
+
+        const string filter =
+            "highpass=f=50,lowpass=f=10000";
+
+        state.AudioPipeline.Add(filter);
+
+        _logger.LogInformation(
+            "Added hum removal filter: {Filter}",
+            filter);
+
+        return Task.CompletedTask;
     }
 }

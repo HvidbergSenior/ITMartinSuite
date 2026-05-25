@@ -1,7 +1,6 @@
 ﻿@page "/package2"
 
 @using ITMartin.Media.Contracts.Contracts.Runtime.Enums
-@using ITMartin.Media.Contracts.Contracts.Runtime.Models
 @using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
 
@@ -14,36 +13,84 @@
 <h3>✨ Package 2</h3>
 
 <div class="mb-3">
-    <label>Library Folder</label>
+    <label class="form-label">
+        Library Folder
+    </label>
 
     <input class="form-control"
            @bind="FolderPath" />
 </div>
 
-<div class="mb-3">
-    <label>Restoration Profile</label>
+<div class="mb-4">
+    <label class="form-label">
+        Restoration Profile
+    </label>
 
     <select class="form-select"
             @bind="SelectedProfile">
 
-        <option value="FamilyArchive">
-            Family Archive
+        <option value="@RestorationProfile.FamilyArchive">
+            Family Archive (Recommended)
         </option>
 
-        <option value="VHSAggressive">
+        <option value="@RestorationProfile.VHSAggressive">
             VHS Aggressive
         </option>
 
     </select>
 </div>
 
+<h5 class="mt-4">
+    Video
+</h5>
+
 <div class="form-check mb-2">
     <input class="form-check-input"
            type="checkbox"
-           @bind="EnableAiEnhancement" />
+           @bind="EnableVideoEnhancement" />
 
     <label class="form-check-label">
-        AI Enhancement
+        Enable Video Enhancement
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableDeinterlace" />
+
+    <label class="form-check-label">
+        Enable Deinterlace
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableCrop" />
+
+    <label class="form-check-label">
+        Enable Crop Bottom Noise
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableDenoise" />
+
+    <label class="form-check-label">
+        Enable Video Denoise
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableSharpen" />
+
+    <label class="form-check-label">
+        Enable Sharpen
     </label>
 </div>
 
@@ -53,19 +100,23 @@
            @bind="EnableUpscaling" />
 
     <label class="form-check-label">
-        Upscaling
+        Enable Upscaling (Slow)
     </label>
 </div>
 
-<div class="form-check mb-2">
+<div class="form-check mb-4">
     <input class="form-check-input"
            type="checkbox"
            @bind="EnableFrameInterpolation" />
 
     <label class="form-check-label">
-        Frame Interpolation
+        Enable Frame Interpolation (Very Slow)
     </label>
 </div>
+
+<h5>
+    Audio
+</h5>
 
 <div class="form-check mb-2">
     <input class="form-check-input"
@@ -73,19 +124,53 @@
            @bind="EnableAudioEnhancement" />
 
     <label class="form-check-label">
-        Audio Enhancement
+        Enable Audio Enhancement
     </label>
 </div>
 
 <div class="form-check mb-2">
     <input class="form-check-input"
            type="checkbox"
-           @bind="EnableVideoEnhancement" />
+           @bind="EnableAudioNormalize" />
 
     <label class="form-check-label">
-        Video Enhancement
+        Enable Audio Normalize
     </label>
 </div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableHumRemoval" />
+
+    <label class="form-check-label">
+        Enable Hum Removal
+    </label>
+</div>
+
+<div class="form-check mb-2">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableAudioNoiseReduction" />
+
+    <label class="form-check-label">
+        Enable Audio Noise Reduction
+    </label>
+</div>
+
+<div class="form-check mb-4">
+    <input class="form-check-input"
+           type="checkbox"
+           @bind="EnableAiEnhancement" />
+
+    <label class="form-check-label">
+        Enable AI Speech Enhancement
+    </label>
+</div>
+
+<h5>
+    Images
+</h5>
 
 <div class="form-check mb-4">
     <input class="form-check-input"
@@ -93,7 +178,7 @@
            @bind="EnableImageEnhancement" />
 
     <label class="form-check-label">
-        Image Enhancement
+        Enable Image Enhancement
     </label>
 </div>
 
@@ -104,7 +189,7 @@
 
 @if (!string.IsNullOrWhiteSpace(Status))
 {
-    <div class="mt-3 alert alert-info">
+    <div class="mt-4 alert alert-info">
         @Status
     </div>
 }
@@ -117,19 +202,39 @@
 
     private RestorationProfile
         SelectedProfile =
-            RestorationProfile.VHSAggressive;
+            RestorationProfile.FamilyArchive;
 
-    private bool EnableAiEnhancement = true;
+    // VIDEO
+
+    private bool EnableVideoEnhancement = true;
+
+    private bool EnableDeinterlace = true;
+
+    private bool EnableCrop = true;
+
+    private bool EnableDenoise = false;
+
+    private bool EnableSharpen = false;
 
     private bool EnableUpscaling = false;
 
     private bool EnableFrameInterpolation = false;
 
+    // AUDIO
+
     private bool EnableAudioEnhancement = true;
 
-    private bool EnableVideoEnhancement = true;
+    private bool EnableAudioNormalize = true;
 
-    private bool EnableImageEnhancement = true;
+    private bool EnableHumRemoval = false;
+
+    private bool EnableAudioNoiseReduction = false;
+
+    private bool EnableAiEnhancement = false;
+
+    // IMAGE
+
+    private bool EnableImageEnhancement = false;
 
     protected override void OnInitialized()
     {
@@ -164,8 +269,20 @@
                     RestorationProfile =
                         SelectedProfile,
 
-                    EnableAiEnhancement =
-                        EnableAiEnhancement,
+                    EnableVideoEnhancement =
+                        EnableVideoEnhancement,
+
+                    EnableDeinterlace =
+                        EnableDeinterlace,
+
+                    EnableCrop =
+                        EnableCrop,
+
+                    EnableDenoise =
+                        EnableDenoise,
+
+                    EnableSharpen =
+                        EnableSharpen,
 
                     EnableUpscaling =
                         EnableUpscaling,
@@ -176,8 +293,17 @@
                     EnableAudioEnhancement =
                         EnableAudioEnhancement,
 
-                    EnableVideoEnhancement =
-                        EnableVideoEnhancement,
+                    EnableAudioNormalize =
+                        EnableAudioNormalize,
+
+                    EnableHumRemoval =
+                        EnableHumRemoval,
+
+                    EnableAudioNoiseReduction =
+                        EnableAudioNoiseReduction,
+
+                    EnableAiEnhancement =
+                        EnableAiEnhancement,
 
                     EnableImageEnhancement =
                         EnableImageEnhancement
