@@ -5,25 +5,25 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class VideoStabilizationWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly ILogger<
             VideoStabilizationWorkflowStep>
         _logger;
 
-    public string Name =>
+    public override string Name =>
         nameof(VideoStabilizationWorkflowStep);
 
     public VideoStabilizationWorkflowStep(
         ILogger<VideoStabilizationWorkflowStep> logger)
     {
-        _logger = logger;
+        _logger =
+            logger;
     }
 
-    public Task ExecuteAsync<TState>(
+    public override Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -38,22 +38,27 @@ public sealed class VideoStabilizationWorkflowStep
             return Task.CompletedTask;
         }
 
-        var filter =
-            BuildFilter(state);
+        const string filter =
+            "vidstabtransform=smoothing=10";
 
-        state.VideoPipeline.Add(filter);
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed &&
+                         x.MediaKind == MediaKind.Video))
+        {
+            item.VideoFilters.Add(
+                filter);
 
-        _logger.LogInformation(
-            "Added stabilization filter: {Filter}",
-            filter);
+            _logger.LogInformation(
+                """
+                Added stabilization filter
+                Item: {Item}
+                Filter: {Filter}
+                """,
+                item.CurrentWorkingPath,
+                filter);
+        }
 
         return Task.CompletedTask;
-    }
-
-    private static string BuildFilter(
-        Package2WorkflowState state)
-    {
-        return
-            "vidstabtransform=smoothing=5";
     }
 }

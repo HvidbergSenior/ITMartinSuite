@@ -53,7 +53,10 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IVideoEnhancementService,
             FfmpegVideoProcessingService>();
-
+        services.AddScoped<
+            IVideoSampleService,
+            FfmpegVideoSampleService>();
+        
         services.AddScoped<
             IAudioEnhancementService,
             FfmpegAudioProcessingService>();
@@ -90,10 +93,12 @@ public static class Package2DependencyInjection
 
         services.AddScoped<
             RestorationPreparationWorkflowStep>();
-
+        services.AddScoped<
+            VideoSplitWorkflowStep>();
         services.AddScoped<
             VideoRenderWorkflowStep>();
-
+        services.AddScoped<
+            VideoSampleGenerationWorkflowStep>();
         services.AddScoped<
             VideoDeinterlaceWorkflowStep>();
 
@@ -180,7 +185,7 @@ public static class Package2DependencyInjection
             EnhancedThumbnailWorkflowStep>();
 
         services.AddScoped<
-            ManifestBuildWorkflowStep>();
+            Manifest2BuildWorkflowStep>();
 
         services.AddScoped<
             ExportEnhancedAssetsWorkflowStep>();

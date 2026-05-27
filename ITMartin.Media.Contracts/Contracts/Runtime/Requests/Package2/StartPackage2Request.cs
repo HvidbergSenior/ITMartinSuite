@@ -121,7 +121,15 @@ public sealed class StartPackage2Request
         init;
     }
         = RestorationProfile.Default;
-
+    
+    public EnhancementProfile
+        EnhancementProfile
+    {
+        get;
+        init;
+    }
+        = EnhancementProfile.Standard;
+    
     public DeinterlaceMethod
         DeinterlaceMethod
     {

@@ -43,11 +43,23 @@ public sealed class VideoCropWorkflowStep
         var filter =
             $"crop=in_w:in_h-{bottomCrop}:0:0";
 
-        state.VideoPipeline.Add(filter);
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed &&
+                         x.MediaKind == MediaKind.Video))
+        {
+            item.VideoFilters.Add(
+                filter);
 
-        _logger.LogInformation(
-            "Added crop filter: {Filter}",
-            filter);
+            _logger.LogInformation(
+                """
+                Added crop filter
+                Item: {Item}
+                Filter: {Filter}
+                """,
+                item.CurrentWorkingPath,
+                filter);
+        }
 
         return Task.CompletedTask;
     }

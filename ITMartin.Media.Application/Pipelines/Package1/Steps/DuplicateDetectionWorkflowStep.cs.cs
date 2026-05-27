@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
 public sealed class DuplicateDetectionWorkflowStep
-    : IWorkflowStep
+    : Package1WorkflowStepBase
 {
     private readonly IDuplicateService
         _duplicateService;
@@ -28,38 +28,68 @@ public sealed class DuplicateDetectionWorkflowStep
             logger;
     }
 
-    public string Name => "Duplicates";
+    public override string Name =>
+        "Duplicates";
 
-    public Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
-        _logger.LogInformation(
-            "Executing {Step}",
-            nameof(DuplicateDetectionWorkflowStep));
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
 
+        cancellationToken
+            .ThrowIfCancellationRequested();
+
         if (state.DuplicateGroups.Count > 0)
         {
-            return Task.CompletedTask;
+            _logger.LogInformation(
+                "Duplicate groups already built");
+
+            return;
         }
 
-        _logger.LogInformation(
-            "Building duplicate groups");
+        await ExecuteOperationAsync(
+            "DuplicateDetection",
+            $"Files={state.MediaFiles.Count}",
+            async () =>
+            {
+                var total =
+                    state.MediaFiles.Count;
 
-        state.DuplicateGroups =
-            _duplicateService
-                .BuildDuplicateGroups(
-                    state.MediaFiles);
+                var current = 0;
 
-        _logger.LogInformation(
-            "Detected {Count} duplicate groups",
-            state.DuplicateGroups.Count);
+                foreach (var file in state.MediaFiles)
+                {
+                    current++;
 
-        return Task.CompletedTask;
+                    LogStepProgress(
+                        _logger,
+                        Name,
+                        current,
+                        total,
+                        file.FileName);
+                }
+
+                state.DuplicateGroups =
+                    _duplicateService
+                        .BuildDuplicateGroups(
+                            state.MediaFiles);
+
+                _logger.LogInformation(
+                    """
+                    Duplicate detection completed
+                    Groups: {Groups}
+                    Duplicate Files: {Duplicates}
+                    """,
+                    state.DuplicateGroups.Count,
+                    state.DuplicateGroups.Sum(x =>
+                        x.Files.Count - 1));
+
+                await Task.CompletedTask;
+            },
+            _logger);
     }
 }

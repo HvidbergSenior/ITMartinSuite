@@ -5,29 +5,29 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class AudioHumRemovalWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly ILogger<
             AudioHumRemovalWorkflowStep>
         _logger;
 
-    public string Name =>
+    public override string Name =>
         nameof(AudioHumRemovalWorkflowStep);
 
     public AudioHumRemovalWorkflowStep(
         ILogger<AudioHumRemovalWorkflowStep> logger)
     {
-        _logger = logger;
+        _logger =
+            logger;
     }
 
-    public Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         if (!state.EnableHumRemoval)
@@ -35,18 +35,30 @@ public sealed class AudioHumRemovalWorkflowStep
             _logger.LogInformation(
                 "Skipping hum removal");
 
-            return Task.CompletedTask;
+            return;
         }
 
-        const string filter =
-            "highpass=f=50,lowpass=f=10000";
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed))
+        {
+            await ExecuteOperationAsync(
+                item,
+                Name,
+                async () =>
+                {
+                    const string filter =
+                        "highpass=f=50,lowpass=f=10000";
 
-        state.AudioPipeline.Add(filter);
+                    item.VideoFilters.Add(filter);
 
-        _logger.LogInformation(
-            "Added hum removal filter: {Filter}",
-            filter);
+                    _logger.LogInformation(
+                        "Added hum removal filter: {Filter}",
+                        filter);
 
-        return Task.CompletedTask;
+                    await Task.CompletedTask;
+                },
+                _logger);
+        }
     }
 }

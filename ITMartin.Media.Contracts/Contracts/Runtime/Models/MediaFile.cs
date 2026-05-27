@@ -35,9 +35,18 @@
         public bool AiProcessed { get; set; }
 
         public MediaType Type { get; }
+        public bool RequiresNormalization { get; set; }
+
+        public bool RequiresEnhancement { get; set; }
+
+        public bool IsNormalized { get; set; }
+
+        public bool IsEnhanced { get; set; }
         public CleanupDecision CleanupDecision { get; set; } =
             CleanupDecision.Keep;
         public string? ExportSubFolder { get; set; }
+        public List<MediaSegment> Segments { get; set; } = [];
+        
         public MediaMainCategory MainCategory =>
             Type switch
             {

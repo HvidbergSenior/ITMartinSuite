@@ -88,6 +88,8 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     Package1ManifestLoader>();
 builder.Services.AddScoped<
+    Package2ProfileBuilder>();
+builder.Services.AddScoped<
     IPackage2Client,
     Package2Client>();
 builder.Services.AddScoped<

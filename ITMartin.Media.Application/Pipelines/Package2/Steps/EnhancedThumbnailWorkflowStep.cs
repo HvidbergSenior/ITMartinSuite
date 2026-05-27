@@ -25,7 +25,8 @@ public sealed class EnhancedThumbnailWorkflowStep
         _thumbnailService =
             thumbnailService;
 
-        _logger = logger;
+        _logger =
+            logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -37,22 +38,36 @@ public sealed class EnhancedThumbnailWorkflowStep
             return;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.CurrentWorkingPath is not null &&
-                         x.ThumbnailOutputPath is not null &&
-                         !AlreadyExecuted(x, Name)))
+        var items =
+            state.Items
+                .Where(x =>
+                    !x.Failed &&
+                    x.CurrentWorkingPath is not null &&
+                    x.ThumbnailOutputPath is not null &&
+                    !AlreadyExecuted(x, Name))
+                .ToList();
+
+        var total =
+            items.Count;
+
+        var current = 0;
+
+        foreach (var item in items)
         {
+            current++;
+
+            _logger.LogInformation(
+                "[{Step}] {Current}/{Total} {File}",
+                Name,
+                current,
+                total,
+                item.CurrentWorkingPath);
+
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
-                    _logger.LogInformation(
-                        "START EnhancedThumbnail {File}",
-                        item.CurrentWorkingPath);
-
                     using var cts =
                         CancellationTokenSource
                             .CreateLinkedTokenSource(
@@ -66,11 +81,8 @@ public sealed class EnhancedThumbnailWorkflowStep
                             item.CurrentWorkingPath!,
                             item.ThumbnailOutputPath!,
                             cts.Token);
-
-                    _logger.LogInformation(
-                        "END EnhancedThumbnail {File}",
-                        item.CurrentWorkingPath);
-                });
+                },
+                _logger);
         }
     }
 }

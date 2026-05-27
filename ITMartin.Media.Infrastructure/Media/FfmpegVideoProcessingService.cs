@@ -18,10 +18,8 @@ public sealed class FfmpegVideoProcessingService
                 inputPath,
                 "restored");
 
-        var encoder =
-            OperatingSystem.IsWindows()
-                ? "h264_qsv"
-                : "libx264";
+        const string encoder =
+            "libx264";
 
         var arguments =
             BuildArguments(

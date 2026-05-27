@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
 public sealed class ThumbnailWorkflowStep
-    : IWorkflowStep
+    : Package1WorkflowStepBase
 {
     private readonly IThumbnailService
         _thumbnailService;
@@ -27,18 +27,13 @@ public sealed class ThumbnailWorkflowStep
             logger;
     }
 
-    public string Name =>
+    public override string Name =>
         "Thumbnails";
 
-    public async Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
-        _logger.LogInformation(
-            "Executing {Step}",
-            nameof(ThumbnailWorkflowStep));
-
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
@@ -56,20 +51,21 @@ public sealed class ThumbnailWorkflowStep
 
             if (MediaTypeHelper.IsVideo(file.FullPath))
             {
-                _logger.LogInformation(
-                    "Skipping video thumbnail for {File}",
-                    file.FullPath);
-
                 continue;
             }
+
+            processed++;
+
+            LogStepProgress(
+                _logger,
+                Name,
+                processed,
+                total,
+                file.FileName);
 
             var thumbnailSource =
                 file.NormalizedPath
                 ?? file.FullPath;
-
-            _logger.LogInformation(
-                "Generating thumbnail for {File}",
-                thumbnailSource);
 
             var thumbnailDirectory =
                 Path.Combine(
@@ -85,19 +81,19 @@ public sealed class ThumbnailWorkflowStep
                     thumbnailDirectory,
                     $"{Path.GetFileNameWithoutExtension(thumbnailSource)}.jpg");
 
-            file.ThumbnailPath =
-                await _thumbnailService
-                    .GenerateAsync(
-                        thumbnailSource,
-                        thumbnailPath,
-                        cancellationToken);
-
-            processed++;
-
-            _logger.LogInformation(
-                "Generated thumbnails {Processed}/{Total}",
-                processed,
-                total);
+            await ExecuteOperationAsync(
+                "GenerateThumbnail",
+                file.FileName,
+                async () =>
+                {
+                    file.ThumbnailPath =
+                        await _thumbnailService
+                            .GenerateAsync(
+                                thumbnailSource,
+                                thumbnailPath,
+                                cancellationToken);
+                },
+                _logger);
         }
     }
 }

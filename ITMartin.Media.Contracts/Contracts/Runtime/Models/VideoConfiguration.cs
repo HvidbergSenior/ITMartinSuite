@@ -46,6 +46,36 @@ public sealed class VideoConfiguration
         set;
     }
 
+    public bool EnableFrameInterpolation
+    {
+        get;
+        set;
+    }
+
+    public int TargetHeight
+    {
+        get;
+        set;
+    } = 1080;
+
+    public int Crf
+    {
+        get;
+        set;
+    } = 18;
+
+    public string Preset
+    {
+        get;
+        set;
+    } = "slow";
+
+    public string Codec
+    {
+        get;
+        set;
+    } = "libx264";
+
     public DeinterlaceMethod
         DeinterlaceMethod
     {

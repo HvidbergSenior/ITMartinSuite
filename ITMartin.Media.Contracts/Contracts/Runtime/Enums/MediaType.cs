@@ -1,13 +1,10 @@
-﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Enums
+﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+
+public enum MediaType
 {
-    // =========================
-    // FILE TYPE
-    // =========================
-    public enum MediaType
-    {
-        Audio,
-        Video,
-        Document,
-        Image
-    }
+    Unknown = 0,
+    Image = 1,
+    Video = 2,
+    Audio = 3,
+    Document = 4
 }

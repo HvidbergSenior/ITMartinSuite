@@ -2,15 +2,45 @@
 
 public sealed class Package2ManifestEntity
 {
-    public Guid WorkflowId { get; set; }
+    public Guid WorkflowId
+    {
+        get;
+        set;
+    }
 
-    public required Guid PackageId { get; set; }
+    public required Guid PackageId
+    {
+        get;
+        set;
+    }
 
-    public int FileCount { get; set; }
+    public int FileCount
+    {
+        get;
+        set;
+    }
 
-    public required string Profile { get; set; }
+    public required string EnhancementProfile
+    {
+        get;
+        set;
+    }
 
-    public required string ItemsJson { get; set; }
+    public required string RestorationProfile
+    {
+        get;
+        set;
+    }
 
-    public DateTimeOffset CreatedAtUtc { get; set; }
+    public required string ItemsJson
+    {
+        get;
+        set;
+    }
+
+    public DateTimeOffset CreatedAtUtc
+    {
+        get;
+        set;
+    }
 }

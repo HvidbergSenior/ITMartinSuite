@@ -25,7 +25,8 @@ public sealed class ImageDeblurWorkflowStep
         _imageEnhancementService =
             imageEnhancementService;
 
-        _logger = logger;
+        _logger =
+            logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -37,24 +38,36 @@ public sealed class ImageDeblurWorkflowStep
             return;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Image &&
-                         x.CurrentWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        var items =
+            state.Items
+                .Where(x =>
+                    !x.Failed &&
+                    x.MediaKind == MediaKind.Image &&
+                    x.CurrentWorkingPath is not null &&
+                    !AlreadyExecuted(x, Name))
+                .ToList();
+
+        var total =
+            items.Count;
+
+        var current = 0;
+
+        foreach (var item in items)
         {
+            current++;
+
+            _logger.LogInformation(
+                "[{Step}] {Current}/{Total} {File}",
+                Name,
+                current,
+                total,
+                item.CurrentWorkingPath);
+
             await ExecuteOperationAsync(
                 item,
                 Name,
                 async () =>
                 {
-                    _logger.LogInformation(
-                        "START ImageDeblur {File}",
-                        item.CurrentWorkingPath);
-
                     using var cts =
                         CancellationTokenSource
                             .CreateLinkedTokenSource(
@@ -68,11 +81,8 @@ public sealed class ImageDeblurWorkflowStep
                             .DeblurAsync(
                                 item.CurrentWorkingPath!,
                                 cts.Token);
-
-                    _logger.LogInformation(
-                        "END ImageDeblur {File}",
-                        item.CurrentWorkingPath);
-                });
+                },
+                _logger);
         }
     }
 }

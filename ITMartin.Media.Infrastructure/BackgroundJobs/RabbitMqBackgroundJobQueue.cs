@@ -22,6 +22,7 @@ public sealed class RabbitMqBackgroundJobQueue
             {
                 HostName = "localhost"
             };
+
         _connection =
             factory.CreateConnection();
 
@@ -34,6 +35,11 @@ public sealed class RabbitMqBackgroundJobQueue
             exclusive: false,
             autoDelete: false,
             arguments: null);
+
+        _channel.BasicQos(
+            0,
+            1,
+            false);
     }
 
     public Task EnqueueAsync(
@@ -46,49 +52,70 @@ public sealed class RabbitMqBackgroundJobQueue
         var body =
             Encoding.UTF8.GetBytes(json);
 
+        var properties =
+            _channel.CreateBasicProperties();
+
+        properties.Persistent =
+            true;
+
         _channel.BasicPublish(
             exchange: string.Empty,
             routingKey: job.Queue,
-            basicProperties: null,
+            basicProperties: properties,
             body: body);
 
         return Task.CompletedTask;
     }
 
-    public async Task<BackgroundJob?> DequeueAsync(
+    public void Subscribe(
         string queue,
-        CancellationToken cancellationToken)
+        Func<BackgroundJob, Task> handler)
     {
         var consumer =
             new EventingBasicConsumer(
                 _channel);
 
-        var completionSource =
-            new TaskCompletionSource<BackgroundJob?>();
-
-        consumer.Received += (_, eventArgs) =>
+        consumer.Received += async (_, eventArgs) =>
         {
-            var json =
-                Encoding.UTF8.GetString(
-                    eventArgs.Body.ToArray());
+            try
+            {
+                var json =
+                    Encoding.UTF8.GetString(
+                        eventArgs.Body.ToArray());
 
-            var job =
-                JsonSerializer.Deserialize<BackgroundJob>(
-                    json);
+                var job =
+                    JsonSerializer.Deserialize<
+                        BackgroundJob>(json);
 
-            _channel.BasicAck(
-                eventArgs.DeliveryTag,
-                false);
+                if (job is null)
+                {
+                    _channel.BasicNack(
+                        eventArgs.DeliveryTag,
+                        false,
+                        false);
 
-            completionSource.SetResult(job);
+                    return;
+                }
+
+                await handler(job);
+
+                _channel.BasicAck(
+                    eventArgs.DeliveryTag,
+                    false);
+            }
+            catch
+            {
+                _channel.BasicNack(
+                    eventArgs.DeliveryTag,
+                    false,
+                    true);
+            }
         };
 
         _channel.BasicConsume(
             queue: queue,
             autoAck: false,
             consumer: consumer);
-
-        return await completionSource.Task;
     }
 
     public void Dispose()

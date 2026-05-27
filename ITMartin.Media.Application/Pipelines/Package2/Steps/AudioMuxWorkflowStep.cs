@@ -25,7 +25,8 @@ public sealed class AudioMuxWorkflowStep
         _audioExtractionService =
             audioExtractionService;
 
-        _logger = logger;
+        _logger =
+            logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -45,17 +46,40 @@ public sealed class AudioMuxWorkflowStep
             return;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.CurrentWorkingPath is not null &&
-                         !string.IsNullOrWhiteSpace(
-                             x.AudioWorkingPath) &&
-                         File.Exists(
-                             x.AudioWorkingPath) &&
-                         !AlreadyExecuted(x, Name)))
+        var items =
+            state.Items
+                .Where(x =>
+                    !x.Failed &&
+                    x.MediaKind == MediaKind.Video &&
+                    x.CurrentWorkingPath is not null &&
+                    !string.IsNullOrWhiteSpace(
+                        x.AudioWorkingPath) &&
+                    File.Exists(
+                        x.AudioWorkingPath) &&
+                    !AlreadyExecuted(
+                        x,
+                        Name))
+                .ToList();
+
+        var total =
+            items.Count;
+
+        var current = 0;
+
+        foreach (var item in items)
         {
+            cancellationToken
+                .ThrowIfCancellationRequested();
+
+            current++;
+
+            _logger.LogInformation(
+                "[{Step}] {Current}/{Total} {File}",
+                Name,
+                current,
+                total,
+                item.CurrentWorkingPath);
+
             await ExecuteOperationAsync(
                 item,
                 Name,
@@ -94,6 +118,9 @@ public sealed class AudioMuxWorkflowStep
                                 },
                                 cts.Token);
 
+                    cancellationToken
+                        .ThrowIfCancellationRequested();
+
                     if (string.IsNullOrWhiteSpace(
                             muxedPath))
                     {
@@ -105,9 +132,15 @@ public sealed class AudioMuxWorkflowStep
                         muxedPath;
 
                     _logger.LogInformation(
-                        "Completed audio mux for {File}",
-                        fileName);
-                });
+                        """
+                        Audio mux completed
+                        File: {File}
+                        Output: {Output}
+                        """,
+                        fileName,
+                        muxedPath);
+                },
+                _logger);
         }
     }
 }

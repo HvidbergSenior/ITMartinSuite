@@ -1,7 +1,5 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-using ManifestBuildWorkflowStep =
-    ITMartin.Media.Application.Pipelines.Package2.Steps.ManifestBuildWorkflowStep;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 
@@ -16,49 +14,45 @@ public sealed class Package1WorkflowDefinition
 
     public Package1WorkflowDefinition(
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
+        MediaClassificationWorkflowStep mediaClassificationWorkflowStep,
         HashWorkflowStep hashWorkflowStep,
         MetadataWorkflowStep metadataWorkflowStep,
-
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
-
         ImageNormalizationWorkflowStep imageNormalizationWorkflowStep,
         VideoNormalizationWorkflowStep videoNormalizationWorkflowStep,
-
+        VideoSegmentationWorkflowStep videoSegmentationWorkflowStep,
+        SegmentThumbnailWorkflowStep segmentThumbnailWorkflowStep,
         CleanupEvaluationWorkflowStep cleanupEvaluationWorkflowStep,
-
-        ManifestBuildWorkflowStep manifestBuildWorkflowStep,
+        Manifest1BuildWorkflowStep manifest1BuildWorkflowStep,
         ExportWorkflowExecutionStep exportWorkflowExecutionStep,
-
         ThumbnailWorkflowStep thumbnailWorkflowStep)
     {
         Steps =
         [
-            // Discover input files
             fileDiscoveryWorkflowStep,
 
-            // Create stable file identity
+            mediaClassificationWorkflowStep,
+
             hashWorkflowStep,
 
-            // Read original metadata
             metadataWorkflowStep,
 
-            // Detect duplicates BEFORE expensive normalization
             duplicateDetectionWorkflowStep,
 
-            // Normalize media
             imageNormalizationWorkflowStep,
+
             videoNormalizationWorkflowStep,
 
-            // Decide retention / cleanup
+            videoSegmentationWorkflowStep,
+
+            segmentThumbnailWorkflowStep,
+
             cleanupEvaluationWorkflowStep,
 
-            // Build internal manifest/package model
-            manifestBuildWorkflowStep,
+            manifest1BuildWorkflowStep,
 
-            // Write final exported structure
             exportWorkflowExecutionStep,
 
-            // Generate thumbnails from final exported assets
             thumbnailWorkflowStep
         ];
     }

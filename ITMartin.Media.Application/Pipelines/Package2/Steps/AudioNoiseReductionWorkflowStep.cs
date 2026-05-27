@@ -5,25 +5,25 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class AudioNoiseReductionWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly ILogger<
             AudioNoiseReductionWorkflowStep>
         _logger;
 
-    public string Name =>
+    public override string Name =>
         nameof(AudioNoiseReductionWorkflowStep);
 
     public AudioNoiseReductionWorkflowStep(
         ILogger<AudioNoiseReductionWorkflowStep> logger)
     {
-        _logger = logger;
+        _logger =
+            logger;
     }
 
-    public Task ExecuteAsync<TState>(
+    public override Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -41,11 +41,23 @@ public sealed class AudioNoiseReductionWorkflowStep
         const string filter =
             "afftdn=nr=12:nf=-25";
 
-        state.AudioPipeline.Add(filter);
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed &&
+                         x.MediaKind == MediaKind.Video))
+        {
+            item.AudioFilters.Add(
+                filter);
 
-        _logger.LogInformation(
-            "Added audio noise reduction filter: {Filter}",
-            filter);
+            _logger.LogInformation(
+                """
+                Added audio noise reduction filter
+                Item: {Item}
+                Filter: {Filter}
+                """,
+                item.CurrentWorkingPath,
+                filter);
+        }
 
         return Task.CompletedTask;
     }

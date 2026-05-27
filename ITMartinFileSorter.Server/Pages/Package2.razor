@@ -1,195 +1,234 @@
 ﻿@page "/package2"
 
+@using ITMartin.Media.Application.Pipelines.Package2.Services
 @using ITMartin.Media.Contracts.Contracts.Runtime.Enums
 @using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Contracts.Runtime.Models
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
 
 @inject IPackage2Client Package2Client
-@inject IConfiguration Configuration
 @inject ILogger<Package2> Logger
-
+@inject Package2ProfileBuilder ProfileBuilder
 <PageTitle>Package 2</PageTitle>
 
 <h3>✨ Package 2</h3>
 
-<div class="mb-3">
-    <label class="form-label">
-        Library Folder
-    </label>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
 
-    <input class="form-control"
-           @bind="FolderPath" />
+        <div class="mb-3">
+            <label class="form-label">
+                Library Folder
+            </label>
+
+            <input class="form-control"
+                   @bind="FolderPath" />
+        </div>
+
+        <div class="row">
+
+            <div class="col-md-6 mb-4">
+
+                <label class="form-label">
+                    Restoration Profile
+                </label>
+
+                <select class="form-select"
+                        @bind="SelectedRestorationProfile">
+
+                    <option value="@RestorationProfile.FamilyArchive">
+                        Family Archive
+                    </option>
+
+                    <option value="@RestorationProfile.Hi8">
+                        Hi8
+                    </option>
+
+                    <option value="@RestorationProfile.VHS">
+                        VHS
+                    </option>
+
+                    <option value="@RestorationProfile.VHSAggressive">
+                        VHS Aggressive
+                    </option>
+
+                    <option value="@RestorationProfile.HandheldCamera">
+                        Handheld Camera
+                    </option>
+
+                    <option value="@RestorationProfile.CleanDigitalCapture">
+                        Clean Digital Capture
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="col-md-6 mb-4">
+
+                <label class="form-label">
+                    Enhancement Profile
+                </label>
+
+                <select class="form-select"
+                        @bind="SelectedEnhancementProfile">
+
+                    <option value="@EnhancementProfile.FastPreview">
+                        Fast Preview
+                    </option>
+
+                    <option value="@EnhancementProfile.Standard">
+                        Standard
+                    </option>
+
+                    <option value="@EnhancementProfile.HighQuality">
+                        High Quality
+                    </option>
+
+                    <option value="@EnhancementProfile.Archival">
+                        Archival
+                    </option>
+
+                    <option value="@EnhancementProfile.WebOptimized">
+                        Web Optimized
+                    </option>
+
+                    <option value="@EnhancementProfile.AggressiveAi">
+                        Aggressive AI
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+        <button class="btn btn-primary"
+                @onclick="StartPackage2">
+            Start Package2
+        </button>
+
+    </div>
 </div>
 
-<div class="mb-4">
-    <label class="form-label">
-        Restoration Profile
-    </label>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
 
-    <select class="form-select"
-            @bind="SelectedProfile">
+        <h5>
+            Active Configuration
+        </h5>
 
-        <option value="@RestorationProfile.FamilyArchive">
-            Family Archive (Recommended)
-        </option>
+        <div class="row mt-4">
 
-        <option value="@RestorationProfile.VHSAggressive">
-            VHS Aggressive
-        </option>
+            <div class="col-md-6">
 
-    </select>
+                <h6>
+                    Video
+                </h6>
+
+                <ul class="list-group">
+
+                    <li class="list-group-item">
+                        Deinterlace:
+                        <strong>
+                            @Configuration.Video.EnableDeinterlace
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Crop:
+                        <strong>
+                            @Configuration.Video.EnableCrop
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Denoise:
+                        <strong>
+                            @Configuration.Video.EnableDenoise
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Sharpen:
+                        <strong>
+                            @Configuration.Video.EnableSharpen
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Stabilization:
+                        <strong>
+                            @Configuration.Video.EnableStabilization
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Color Correction:
+                        <strong>
+                            @Configuration.Video.EnableColorCorrection
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Upscaling:
+                        <strong>
+                            @Configuration.Video.EnableUpscaling
+                        </strong>
+                    </li>
+
+                </ul>
+
+            </div>
+
+            <div class="col-md-6">
+
+                <h6>
+                    Audio
+                </h6>
+
+                <ul class="list-group">
+
+                    <li class="list-group-item">
+                        Normalize:
+                        <strong>
+                            @Configuration.Audio.EnableNormalize
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Noise Reduction:
+                        <strong>
+                            @Configuration.Audio.EnableNoiseReduction
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        AI Enhancement:
+                        <strong>
+                            @Configuration.Audio.EnableAiEnhancement
+                        </strong>
+                    </li>
+
+                    <li class="list-group-item">
+                        Speech Enhancement:
+                        <strong>
+                            @Configuration.Audio.EnableSpeechEnhancement
+                        </strong>
+                    </li>
+
+                </ul>
+
+            </div>
+
+        </div>
+
+    </div>
 </div>
-
-<h5 class="mt-4">
-    Video
-</h5>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableVideoEnhancement" />
-
-    <label class="form-check-label">
-        Enable Video Enhancement
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableDeinterlace" />
-
-    <label class="form-check-label">
-        Enable Deinterlace
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableCrop" />
-
-    <label class="form-check-label">
-        Enable Crop Bottom Noise
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableDenoise" />
-
-    <label class="form-check-label">
-        Enable Video Denoise
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableSharpen" />
-
-    <label class="form-check-label">
-        Enable Sharpen
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableUpscaling" />
-
-    <label class="form-check-label">
-        Enable Upscaling (Slow)
-    </label>
-</div>
-
-<div class="form-check mb-4">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableFrameInterpolation" />
-
-    <label class="form-check-label">
-        Enable Frame Interpolation (Very Slow)
-    </label>
-</div>
-
-<h5>
-    Audio
-</h5>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableAudioEnhancement" />
-
-    <label class="form-check-label">
-        Enable Audio Enhancement
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableAudioNormalize" />
-
-    <label class="form-check-label">
-        Enable Audio Normalize
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableHumRemoval" />
-
-    <label class="form-check-label">
-        Enable Hum Removal
-    </label>
-</div>
-
-<div class="form-check mb-2">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableAudioNoiseReduction" />
-
-    <label class="form-check-label">
-        Enable Audio Noise Reduction
-    </label>
-</div>
-
-<div class="form-check mb-4">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableAiEnhancement" />
-
-    <label class="form-check-label">
-        Enable AI Speech Enhancement
-    </label>
-</div>
-
-<h5>
-    Images
-</h5>
-
-<div class="form-check mb-4">
-    <input class="form-check-input"
-           type="checkbox"
-           @bind="EnableImageEnhancement" />
-
-    <label class="form-check-label">
-        Enable Image Enhancement
-    </label>
-</div>
-
-<button class="btn btn-primary"
-        @onclick="StartPackage2">
-    Start Package2
-</button>
 
 @if (!string.IsNullOrWhiteSpace(Status))
 {
-    <div class="mt-4 alert alert-info">
+    <div class="alert alert-info">
         @Status
     </div>
 }
@@ -201,59 +240,57 @@
     private string Status = "";
 
     private RestorationProfile
-        SelectedProfile =
+        SelectedRestorationProfile =
             RestorationProfile.FamilyArchive;
 
-    // VIDEO
+    private EnhancementProfile
+        SelectedEnhancementProfile =
+            EnhancementProfile.Standard;
 
-    private bool EnableVideoEnhancement = true;
-
-    private bool EnableDeinterlace = true;
-
-    private bool EnableCrop = true;
-
-    private bool EnableDenoise = false;
-
-    private bool EnableSharpen = false;
-
-    private bool EnableUpscaling = false;
-
-    private bool EnableFrameInterpolation = false;
-
-    // AUDIO
-
-    private bool EnableAudioEnhancement = true;
-
-    private bool EnableAudioNormalize = true;
-
-    private bool EnableHumRemoval = false;
-
-    private bool EnableAudioNoiseReduction = false;
-
-    private bool EnableAiEnhancement = false;
-
-    // IMAGE
-
-    private bool EnableImageEnhancement = false;
+    private Package2Configuration
+        Configuration =
+            new();
 
     protected override void OnInitialized()
     {
         var libraryRoot =
-            Configuration[
+            ConfigurationManager[
                 "MediaSettings:LibraryRoot"];
 
         if (!string.IsNullOrWhiteSpace(
                 libraryRoot))
         {
-            FolderPath = libraryRoot;
+            FolderPath =
+                libraryRoot;
         }
+
+        RefreshConfiguration();
+    }
+
+    [Inject]
+    private IConfiguration
+        ConfigurationManager
+    {
+        get;
+        set;
+    } = default!;
+
+    private void RefreshConfiguration()
+    {
+        Configuration =
+            ProfileBuilder.Build(
+                SelectedRestorationProfile,
+                SelectedEnhancementProfile);
     }
 
     private async Task StartPackage2()
     {
         try
         {
-            Status = "Starting Package2...";
+            RefreshConfiguration();
+
+            Status =
+                "Starting Package2...";
 
             await Package2Client.StartAsync(
                 new StartPackage2Request
@@ -267,51 +304,15 @@
                             ".package2"),
 
                     RestorationProfile =
-                        SelectedProfile,
+                        SelectedRestorationProfile,
 
-                    EnableVideoEnhancement =
-                        EnableVideoEnhancement,
-
-                    EnableDeinterlace =
-                        EnableDeinterlace,
-
-                    EnableCrop =
-                        EnableCrop,
-
-                    EnableDenoise =
-                        EnableDenoise,
-
-                    EnableSharpen =
-                        EnableSharpen,
-
-                    EnableUpscaling =
-                        EnableUpscaling,
-
-                    EnableFrameInterpolation =
-                        EnableFrameInterpolation,
-
-                    EnableAudioEnhancement =
-                        EnableAudioEnhancement,
-
-                    EnableAudioNormalize =
-                        EnableAudioNormalize,
-
-                    EnableHumRemoval =
-                        EnableHumRemoval,
-
-                    EnableAudioNoiseReduction =
-                        EnableAudioNoiseReduction,
-
-                    EnableAiEnhancement =
-                        EnableAiEnhancement,
-
-                    EnableImageEnhancement =
-                        EnableImageEnhancement
+                    EnhancementProfile =
+                        SelectedEnhancementProfile
                 },
                 CancellationToken.None);
 
             Status =
-                $"Package2 started using {SelectedProfile}";
+                $"Package2 started using {SelectedRestorationProfile} + {SelectedEnhancementProfile}";
         }
         catch (Exception ex)
         {
@@ -319,7 +320,8 @@
                 ex,
                 "Failed to start Package2");
 
-            Status = ex.Message;
+            Status =
+                ex.Message;
         }
     }
 }

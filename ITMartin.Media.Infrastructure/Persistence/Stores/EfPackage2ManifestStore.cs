@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
@@ -26,24 +27,10 @@ public sealed class EfPackage2ManifestStore(
             existing =
                 new Package2ManifestEntity
                 {
-                    WorkflowId =
-                        manifest.WorkflowId,
-
-                    PackageId =
-                        manifest.PackageId,
-
-                    FileCount =
-                        manifest.FileCount,
-
-                    Profile =
-                        manifest.Profile.ToString(),
-
-                    ItemsJson =
-                        JsonSerializer.Serialize(
-                            manifest.Items),
-
-                    CreatedAtUtc =
-                        manifest.CreatedAtUtc
+                    PackageId = Guid.Empty,
+                    EnhancementProfile = "",
+                    RestorationProfile = "",
+                    ItemsJson = ""
                 };
 
             dbContext.Package2Manifests.Add(
@@ -59,8 +46,13 @@ public sealed class EfPackage2ManifestStore(
         existing.FileCount =
             manifest.FileCount;
 
-        existing.Profile =
-            manifest.Profile.ToString();
+        existing.EnhancementProfile =
+            manifest.EnhancementProfile
+                .ToString();
+
+        existing.RestorationProfile =
+            manifest.RestorationProfile
+                .ToString();
 
         existing.ItemsJson =
             JsonSerializer.Serialize(
@@ -106,9 +98,13 @@ public sealed class EfPackage2ManifestStore(
             FileCount =
                 entity.FileCount,
 
-            Profile =
+            EnhancementProfile =
                 Enum.Parse<EnhancementProfile>(
-                    entity.Profile),
+                    entity.EnhancementProfile),
+
+            RestorationProfile =
+                Enum.Parse<RestorationProfile>(
+                    entity.RestorationProfile),
 
             Items =
                 items,

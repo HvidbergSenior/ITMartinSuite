@@ -1,5 +1,4 @@
 ﻿using ITMartin.Media.Application.Abstractions.Orchestration;
-using ITMartin.Media.Application.Abstractions.Queues;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
@@ -12,6 +11,7 @@ using ITMartin.Media.Infrastructure.Ai;
 using ITMartin.Media.Infrastructure.FileSystem;
 using ITMartin.Media.Infrastructure.Hashing;
 using ITMartin.Media.Infrastructure.Images;
+using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Metadata;
 using ITMartin.Media.Infrastructure.Options;
 using ITMartin.Media.Infrastructure.Persistence.Stores;
@@ -24,7 +24,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using ManifestBuildWorkflowStep = ITMartin.Media.Application.Pipelines.Package2.Steps.ManifestBuildWorkflowStep;
 
 namespace ITMartin.Media.Infrastructure;
 
@@ -72,6 +71,9 @@ public static class Package1DependencyInjection
         services.AddScoped<
             IFileSystem,
             FileSystemService>();
+        services.AddScoped<
+            IVideoSegmentationService,
+            VideoSegmentationService>();
 
         services.AddScoped<
             IFileScanner,
@@ -115,7 +117,9 @@ public static class Package1DependencyInjection
         services.AddScoped<
             IVideoBatchService,
             VideoBatchService>();
-
+        services.AddScoped<
+            IVideoSegmentThumbnailService,
+            VideoSegmentThumbnailService>();
         services.AddScoped<
             SubtitleService>();
 
@@ -189,19 +193,23 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             FileDiscoveryWorkflowStep>();
-
+        services.AddScoped<
+            VideoSegmentationWorkflowStep>();
         services.AddScoped<
             HashWorkflowStep>();
-
+        services.AddScoped<
+            SegmentThumbnailWorkflowStep>();
         services.AddScoped<
             MetadataWorkflowStep>();
 
         services.AddScoped<
             ImageNormalizationWorkflowStep>();
-
+        services.AddScoped<
+            MediaClassificationWorkflowStep>();
+        
         services.AddScoped<
             VideoNormalizationWorkflowStep>();
-
+       
         services.AddScoped<
             ThumbnailWorkflowStep>();
 
@@ -212,7 +220,7 @@ public static class Package1DependencyInjection
             CleanupEvaluationWorkflowStep>();
 
         services.AddScoped<
-            ManifestBuildWorkflowStep>();
+            Manifest1BuildWorkflowStep>();
 
         services.AddScoped<
             ExportWorkflowExecutionStep>();

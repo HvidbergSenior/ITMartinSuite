@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
 public sealed class VideoNormalizationWorkflowStep
-    : IWorkflowStep
+    : Package1WorkflowStepBase
 {
     private readonly IVideoBatchService
         _videoBatchService;
@@ -27,39 +27,52 @@ public sealed class VideoNormalizationWorkflowStep
             logger;
     }
 
-    public string Name => "VideoNormalization";
+    public override string Name =>
+        "VideoNormalization";
 
-    public async Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
-        _logger.LogInformation(
-            "Executing {Step}",
-            nameof(VideoNormalizationWorkflowStep));
-
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
 
-        _logger.LogInformation(
-            "Starting video normalization");
+        var filesToNormalize =
+            state.MediaFiles
+                .Where(x =>
+                    x.IsVideo &&
+                    x.RequiresNormalization)
+                .ToList();
 
-        await _videoBatchService
-            .ConvertAllVideosAsync(
-                state.MediaFiles,
-                (current, total, message) =>
-                {
-                    _logger.LogInformation(
-                        "{Current}/{Total} {Message}",
-                        current,
-                        total,
-                        message);
-                },
-                cancellationToken);
+        if (filesToNormalize.Count == 0)
+        {
+            _logger.LogInformation(
+                "No videos require normalization");
 
-        _logger.LogInformation(
-            "Video normalization completed");
+            return;
+        }
+
+        await ExecuteOperationAsync(
+            "NormalizeVideos",
+            $"Videos={filesToNormalize.Count}",
+            async () =>
+            {
+                await _videoBatchService
+                    .ConvertAllVideosAsync(
+                        filesToNormalize,
+                        (current, total, message) =>
+                        {
+                            LogStepProgress(
+                                _logger,
+                                Name,
+                                current,
+                                total,
+                                message);
+                        },
+                        cancellationToken);
+            },
+            _logger);
     }
 }

@@ -25,4 +25,22 @@ public sealed class AudioConfiguration
         get;
         set;
     }
+
+    public bool EnableEnhancement
+    {
+        get;
+        set;
+    }
+
+    public bool EnableSpeechEnhancement
+    {
+        get;
+        set;
+    }
+
+    public string Codec
+    {
+        get;
+        set;
+    } = "aac";
 }

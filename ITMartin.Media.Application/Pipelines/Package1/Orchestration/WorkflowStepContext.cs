@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Application.Pipelines.Package1.Models;
+﻿namespace ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 
 public sealed class WorkflowStepContext
 {

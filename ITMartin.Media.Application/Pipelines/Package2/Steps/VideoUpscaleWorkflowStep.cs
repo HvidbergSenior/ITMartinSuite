@@ -8,7 +8,8 @@ public sealed class VideoUpscaleWorkflowStep
     : Package2WorkflowStepBase
 {
     private readonly ILogger<
-        VideoUpscaleWorkflowStep> _logger;
+            VideoUpscaleWorkflowStep>
+        _logger;
 
     public override string Name =>
         nameof(VideoUpscaleWorkflowStep);
@@ -16,7 +17,8 @@ public sealed class VideoUpscaleWorkflowStep
     public VideoUpscaleWorkflowStep(
         ILogger<VideoUpscaleWorkflowStep> logger)
     {
-        _logger = logger;
+        _logger =
+            logger;
     }
 
     public override Task ExecuteAsync<TState>(
@@ -31,33 +33,32 @@ public sealed class VideoUpscaleWorkflowStep
         if (!state.EnableUpscaling)
         {
             _logger.LogInformation(
-                "Skipping video upscale");
+                "Skipping upscale");
 
             return Task.CompletedTask;
         }
 
-        var filter =
-            BuildFilter(state);
+        const string filter =
+            "scale=-2:1080";
 
-        state.VideoPipeline.Add(filter);
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed &&
+                         x.MediaKind == MediaKind.Video))
+        {
+            item.VideoFilters.Add(
+                filter);
 
-        _logger.LogInformation(
-            "Added upscale filter: {Filter}",
-            filter);
+            _logger.LogInformation(
+                """
+                Added upscale filter
+                Item: {Item}
+                Filter: {Filter}
+                """,
+                item.CurrentWorkingPath,
+                filter);
+        }
 
         return Task.CompletedTask;
-    }
-
-    private static string BuildFilter(
-        Package2WorkflowState state)
-    {
-        return state.TargetHeight switch
-        {
-            720 => "scale=-2:720",
-            1080 => "scale=-2:1080",
-            1440 => "scale=-2:1440",
-            2160 => "scale=-2:2160",
-            _ => "scale=-2:1080"
-        };
     }
 }

@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed class Package2WorkflowState
 {
@@ -26,11 +27,11 @@ public sealed class Package2WorkflowState
         init;
     }
 
-    public EnhancementProfile Profile
+    public EnhancementProfile EnhancementProfile
     {
         get;
         init;
-    } = EnhancementProfile.Initial;
+    } = EnhancementProfile.Standard;
 
     // VIDEO
 
@@ -128,22 +129,6 @@ public sealed class Package2WorkflowState
         set;
     } = false;
 
-    // PIPELINES
-
-    public VideoFilterPipeline VideoPipeline
-    {
-        get;
-        set;
-    } = new();
-
-    public AudioFilterPipeline AudioPipeline
-    {
-        get;
-        set;
-    } = new();
-
-    // VIDEO SETTINGS
-
     public DeinterlaceMethod DeinterlaceMethod
     {
         get;
@@ -161,4 +146,29 @@ public sealed class Package2WorkflowState
         get;
         set;
     } = 10;
+    public required Package2Configuration
+        Configuration { get; init; }
+    public bool EnableSampleGeneration
+    {
+        get;
+        set;
+    }
+
+    public int SampleCount
+    {
+        get;
+        set;
+    } = 3;
+
+    public TimeSpan SampleDuration
+    {
+        get;
+        set;
+    } = TimeSpan.FromSeconds(30);
+    
+    public IList<ManualSegment> ManualSegments
+    {
+        get;
+        init;
+    } = [];
 }

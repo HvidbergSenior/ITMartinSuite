@@ -13,92 +13,99 @@ public sealed class Package2WorkflowDefinition
         Steps { get; }
 
     public Package2WorkflowDefinition(
-        RestorationPreparationWorkflowStep restorationPreparationWorkflowStep,
+    RestorationPreparationWorkflowStep restorationPreparationWorkflowStep,
+    VideoSplitWorkflowStep
+        videoSplitWorkflowStep,
+    // SAMPLE GENERATION
+    VideoSampleGenerationWorkflowStep videoSampleGenerationWorkflowStep,
 
-        // VIDEO
-        VideoDeinterlaceWorkflowStep videoDeinterlaceWorkflowStep,
-        VideoCropWorkflowStep videoCropWorkflowStep,
-        VideoStabilizationWorkflowStep videoStabilizationWorkflowStep,
-        VideoDenoiseWorkflowStep videoDenoiseWorkflowStep,
-        VideoColorCorrectionWorkflowStep videoColorCorrectionWorkflowStep,
-        VideoSharpenWorkflowStep videoSharpenWorkflowStep,
-        VideoUpscaleWorkflowStep videoUpscaleWorkflowStep,
+    // VIDEO
+    VideoDeinterlaceWorkflowStep videoDeinterlaceWorkflowStep,
+    VideoCropWorkflowStep videoCropWorkflowStep,
+    VideoStabilizationWorkflowStep videoStabilizationWorkflowStep,
+    VideoDenoiseWorkflowStep videoDenoiseWorkflowStep,
+    VideoColorCorrectionWorkflowStep videoColorCorrectionWorkflowStep,
+    VideoSharpenWorkflowStep videoSharpenWorkflowStep,
+    VideoUpscaleWorkflowStep videoUpscaleWorkflowStep,
 
-        // AUDIO
-        AudioExtractionWorkflowStep audioExtractionWorkflowStep,
-        AudioNoiseReductionWorkflowStep audioNoiseReductionWorkflowStep,
-        AudioHumRemovalWorkflowStep audioHumRemovalWorkflowStep,
-        AudioLevelingWorkflowStep audioLevelingWorkflowStep,
-        AudioSpeechEnhancementWorkflowStep audioSpeechEnhancementWorkflowStep,
+    // AUDIO
+    AudioExtractionWorkflowStep audioExtractionWorkflowStep,
+    AudioNoiseReductionWorkflowStep audioNoiseReductionWorkflowStep,
+    AudioHumRemovalWorkflowStep audioHumRemovalWorkflowStep,
+    AudioLevelingWorkflowStep audioLevelingWorkflowStep,
+    AudioSpeechEnhancementWorkflowStep audioSpeechEnhancementWorkflowStep,
 
-        // SINGLE RENDER
-        VideoRenderWorkflowStep videoRenderWorkflowStep,
+    // SINGLE RENDER
+    VideoRenderWorkflowStep videoRenderWorkflowStep,
+
+    // FINAL AUDIO MUX
+    AudioMuxWorkflowStep audioMuxWorkflowStep,
+
+    // OPTIONAL IMAGE
+    ImageColorCorrectionWorkflowStep imageColorCorrectionWorkflowStep,
+    ImageContrastWorkflowStep imageContrastWorkflowStep,
+    ImageDenoiseWorkflowStep imageDenoiseWorkflowStep,
+    ImageDeblurWorkflowStep imageDeblurWorkflowStep,
+    ImageUpscaleWorkflowStep imageUpscaleWorkflowStep,
+
+    // IMAGE CLEANUP
+    CropDetectionWorkflowStep cropDetectionWorkflowStep,
+    BorderRemovalWorkflowStep borderRemovalWorkflowStep,
+    AspectRatioCorrectionWorkflowStep aspectRatioCorrectionWorkflowStep,
+
+    // FINALIZATION
+    QualityEvaluationWorkflowStep qualityEvaluationWorkflowStep,
+    EnhancedThumbnailWorkflowStep enhancedThumbnailWorkflowStep,
+    Manifest2BuildWorkflowStep manifest2BuildWorkflowStep,
+    ExportEnhancedAssetsWorkflowStep exportEnhancedAssetsWorkflowStep)
+{
+    Steps =
+    [
+        // PREP
+        restorationPreparationWorkflowStep,
+        videoSplitWorkflowStep,
+        // SAMPLE GENERATION
+        videoSampleGenerationWorkflowStep,
+
+        // VIDEO FILTER REGISTRATION
+        videoDeinterlaceWorkflowStep,
+        videoCropWorkflowStep,
+        videoStabilizationWorkflowStep,
+        videoDenoiseWorkflowStep,
+        videoColorCorrectionWorkflowStep,
+        videoSharpenWorkflowStep,
+        videoUpscaleWorkflowStep,
+
+        // AUDIO FILTER REGISTRATION
+        audioExtractionWorkflowStep,
+        audioNoiseReductionWorkflowStep,
+        audioHumRemovalWorkflowStep,
+        audioLevelingWorkflowStep,
+        audioSpeechEnhancementWorkflowStep,
+
+        // SINGLE VIDEO/AUDIO RENDER
+        videoRenderWorkflowStep,
 
         // FINAL AUDIO MUX
-        AudioMuxWorkflowStep audioMuxWorkflowStep,
+        audioMuxWorkflowStep,
 
-        // OPTIONAL IMAGE
-        ImageColorCorrectionWorkflowStep imageColorCorrectionWorkflowStep,
-        ImageContrastWorkflowStep imageContrastWorkflowStep,
-        ImageDenoiseWorkflowStep imageDenoiseWorkflowStep,
-        ImageDeblurWorkflowStep imageDeblurWorkflowStep,
-        ImageUpscaleWorkflowStep imageUpscaleWorkflowStep,
+        // OPTIONAL IMAGE PROCESSING
+        imageColorCorrectionWorkflowStep,
+        imageContrastWorkflowStep,
+        imageDenoiseWorkflowStep,
+        imageDeblurWorkflowStep,
+        imageUpscaleWorkflowStep,
 
         // IMAGE CLEANUP
-        CropDetectionWorkflowStep cropDetectionWorkflowStep,
-        BorderRemovalWorkflowStep borderRemovalWorkflowStep,
-        AspectRatioCorrectionWorkflowStep aspectRatioCorrectionWorkflowStep,
+        cropDetectionWorkflowStep,
+        borderRemovalWorkflowStep,
+        aspectRatioCorrectionWorkflowStep,
 
         // FINALIZATION
-        QualityEvaluationWorkflowStep qualityEvaluationWorkflowStep,
-        EnhancedThumbnailWorkflowStep enhancedThumbnailWorkflowStep,
-        ManifestBuildWorkflowStep manifestBuildWorkflowStep,
-        ExportEnhancedAssetsWorkflowStep exportEnhancedAssetsWorkflowStep)
-    {
-        Steps =
-        [
-            // PREP
-            restorationPreparationWorkflowStep,
-
-            // VIDEO FILTER REGISTRATION
-            videoDeinterlaceWorkflowStep,
-            videoCropWorkflowStep,
-            videoStabilizationWorkflowStep,
-            videoDenoiseWorkflowStep,
-            videoColorCorrectionWorkflowStep,
-            videoSharpenWorkflowStep,
-            videoUpscaleWorkflowStep,
-
-            // AUDIO FILTER REGISTRATION
-            audioExtractionWorkflowStep,
-            audioNoiseReductionWorkflowStep,
-            audioHumRemovalWorkflowStep,
-            audioLevelingWorkflowStep,
-            audioSpeechEnhancementWorkflowStep,
-
-            // SINGLE VIDEO/AUDIO RENDER
-            videoRenderWorkflowStep,
-
-            // FINAL AUDIO MUX
-            audioMuxWorkflowStep,
-
-            // OPTIONAL IMAGE PROCESSING
-            imageColorCorrectionWorkflowStep,
-            imageContrastWorkflowStep,
-            imageDenoiseWorkflowStep,
-            imageDeblurWorkflowStep,
-            imageUpscaleWorkflowStep,
-
-            // IMAGE CLEANUP
-            cropDetectionWorkflowStep,
-            borderRemovalWorkflowStep,
-            aspectRatioCorrectionWorkflowStep,
-
-            // FINALIZATION
-            qualityEvaluationWorkflowStep,
-            enhancedThumbnailWorkflowStep,
-            manifestBuildWorkflowStep,
-            exportEnhancedAssetsWorkflowStep
-        ];
-    }
+        qualityEvaluationWorkflowStep,
+        enhancedThumbnailWorkflowStep,
+        manifest2BuildWorkflowStep,
+        exportEnhancedAssetsWorkflowStep
+    ];
+}
 }

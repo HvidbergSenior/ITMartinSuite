@@ -10,14 +10,21 @@ public sealed class Package2Configuration
         get;
         set;
     }
-
-    public VideoConfiguration Video
+    public EnhancementProfile
+        EnhancementProfile
+    {
+        get;
+        set;
+    }
+    public VideoConfiguration
+        Video
     {
         get;
         set;
     } = new();
 
-    public AudioConfiguration Audio
+    public AudioConfiguration
+        Audio
     {
         get;
         set;

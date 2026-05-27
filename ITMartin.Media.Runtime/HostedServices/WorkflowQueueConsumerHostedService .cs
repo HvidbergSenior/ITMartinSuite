@@ -3,7 +3,6 @@ using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Requests;
 using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,53 +16,41 @@ public sealed class WorkflowQueueConsumerHostedService
     private readonly IServiceScopeFactory
         _serviceScopeFactory;
 
+    private readonly IBackgroundJobQueue
+        _queue;
+
     private readonly ILogger<
             WorkflowQueueConsumerHostedService>
         _logger;
 
     public WorkflowQueueConsumerHostedService(
         IServiceScopeFactory serviceScopeFactory,
+        IBackgroundJobQueue queue,
         ILogger<WorkflowQueueConsumerHostedService> logger)
     {
         _serviceScopeFactory =
             serviceScopeFactory;
 
+        _queue =
+            queue;
+
         _logger =
             logger;
     }
 
-    protected override async Task ExecuteAsync(
+    protected override Task ExecuteAsync(
         CancellationToken stoppingToken)
     {
         _logger.LogInformation(
             "Workflow queue consumer started");
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
+        _queue.Subscribe(
+            "workflow",
+            async job =>
             {
                 using var scope =
                     _serviceScopeFactory
                         .CreateScope();
-
-                var queue =
-                    scope.ServiceProvider
-                        .GetRequiredService<
-                            IBackgroundJobQueue>();
-
-                var job =
-                    await queue.DequeueAsync(
-                        "workflow",
-                        stoppingToken);
-
-                if (job is null)
-                {
-                    await Task.Delay(
-                        1000,
-                        stoppingToken);
-
-                    continue;
-                }
 
                 _logger.LogInformation(
                     "Dequeued workflow job {Type}",
@@ -86,7 +73,7 @@ public sealed class WorkflowQueueConsumerHostedService
 
                         if (request is null)
                         {
-                            break;
+                            return;
                         }
 
                         await orchestrator
@@ -112,7 +99,7 @@ public sealed class WorkflowQueueConsumerHostedService
 
                         if (request is null)
                         {
-                            break;
+                            return;
                         }
 
                         await orchestrator
@@ -132,21 +119,8 @@ public sealed class WorkflowQueueConsumerHostedService
                         break;
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Workflow queue consumer error");
+            });
 
-                await Task.Delay(
-                    1000,
-                    stoppingToken);
-            }
-        }
+        return Task.CompletedTask;
     }
 }

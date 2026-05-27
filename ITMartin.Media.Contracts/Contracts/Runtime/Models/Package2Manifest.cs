@@ -1,4 +1,6 @@
-﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+
+namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 public sealed class Package2Manifest
 {
@@ -14,12 +16,16 @@ public sealed class Package2Manifest
         init;
     }
 
-    public required EnhancementProfile Profile
+    public required EnhancementProfile EnhancementProfile
     {
         get;
         init;
     }
-
+    public required RestorationProfile RestorationProfile
+    {
+        get;
+        init;
+    }
     public IList<EnhancedMediaManifestItem>
         Items { get; init; }
         = [];

@@ -8,7 +8,7 @@ public interface IBackgroundJobQueue
         BackgroundJob job,
         CancellationToken cancellationToken);
 
-    Task<BackgroundJob?> DequeueAsync(
+    void Subscribe(
         string queue,
-        CancellationToken cancellationToken);
+        Func<BackgroundJob, Task> handler);
 }

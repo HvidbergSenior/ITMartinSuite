@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Services;
 
@@ -19,8 +20,8 @@ public sealed class Package2ManifestBuilder
             CreatedAtUtc =
                 DateTimeOffset.UtcNow,
 
-            Profile =
-                state.Profile,
+            EnhancementProfile =
+                state.EnhancementProfile,
 
             FileCount =
                 state.Items.Count(x => !x.Failed),
@@ -48,7 +49,8 @@ public sealed class Package2ManifestBuilder
                             Operations =
                                 x.Operations.ToList()
                         })
-                    .ToList()
+                    .ToList(),
+            RestorationProfile = state.RestorationProfile
         };
     }
 }

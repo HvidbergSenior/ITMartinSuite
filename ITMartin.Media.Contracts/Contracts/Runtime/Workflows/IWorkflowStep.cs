@@ -11,12 +11,4 @@ public interface IWorkflowStep
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
         where TState : class;
-    public interface IPipelineStep
-    {
-        bool IsEnabled(
-            Hi8PipelineOptions options);
-
-        string BuildFilter(
-            Hi8PipelineOptions options);
-    }
 }

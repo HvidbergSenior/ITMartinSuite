@@ -24,7 +24,8 @@ public sealed class AudioExtractionWorkflowStep
         _audioExtractionService =
             audioExtractionService;
 
-        _logger = logger;
+        _logger =
+            logger;
     }
 
     public override async Task ExecuteAsync<TState>(
@@ -36,18 +37,31 @@ public sealed class AudioExtractionWorkflowStep
             return;
         }
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.MediaKind == MediaKind.Video &&
-                         x.CurrentWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        var items =
+            state.Items
+                .Where(x =>
+                    !x.Failed &&
+                    x.MediaKind == MediaKind.Video &&
+                    x.CurrentWorkingPath is not null &&
+                    !AlreadyExecuted(x, Name))
+                .ToList();
+
+        var total =
+            items.Count;
+
+        var current = 0;
+
+        foreach (var item in items)
         {
-            var fileName =
+            current++;
+
+            _logger.LogInformation(
+                "[{Step}] {Current}/{Total} {File}",
+                Name,
+                current,
+                total,
                 Path.GetFileName(
-                    item.CurrentWorkingPath);
+                    item.CurrentWorkingPath));
 
             await ExecuteOperationAsync(
                 item,
@@ -62,11 +76,12 @@ public sealed class AudioExtractionWorkflowStep
                                 {
                                     _logger.LogInformation(
                                         "Audio extraction progress {File}: {Progress:P0}",
-                                        fileName,
+                                        item.CurrentWorkingPath,
                                         progressValue);
                                 },
                                 cancellationToken);
-                });
+                },
+                _logger);
         }
     }
 }

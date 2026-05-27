@@ -2,29 +2,37 @@
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class ExportEnhancedAssetsWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly IEnhancedFileNamingService
         _enhancedFileNamingService;
 
-    public string Name =>
+    private readonly ILogger<
+            ExportEnhancedAssetsWorkflowStep>
+        _logger;
+
+    public override string Name =>
         nameof(ExportEnhancedAssetsWorkflowStep);
 
     public ExportEnhancedAssetsWorkflowStep(
-        IEnhancedFileNamingService enhancedFileNamingService)
+        IEnhancedFileNamingService enhancedFileNamingService,
+        ILogger<ExportEnhancedAssetsWorkflowStep> logger)
     {
         _enhancedFileNamingService =
             enhancedFileNamingService;
+
+        _logger =
+            logger;
     }
 
-    public async Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -47,55 +55,65 @@ public sealed class ExportEnhancedAssetsWorkflowStep
         Directory.CreateDirectory(
             manifestDirectory);
 
-        foreach (var item in state.Items
-                     .Where(x =>
-                         !x.Failed &&
-                         x.CurrentWorkingPath is not null &&
-                         !x.Operations.Any(o =>
-                             o.Name == Name &&
-                             o.Success)))
+        var items =
+            state.Items
+                .Where(x =>
+                    !x.Failed &&
+                    x.CurrentWorkingPath is not null &&
+                    !AlreadyExecuted(x, Name))
+                .ToList();
+
+        var total =
+            items.Count;
+
+        var current = 0;
+
+        foreach (var item in items)
         {
             cancellationToken
                 .ThrowIfCancellationRequested();
 
-            var fileName =
-                _enhancedFileNamingService
-                    .BuildFileName(item);
+            current++;
 
-            var finalPath =
-                Path.Combine(
-                    enhancedDirectory,
-                    fileName);
+            _logger.LogInformation(
+                "[{Step}] {Current}/{Total} {File}",
+                Name,
+                current,
+                total,
+                item.CurrentWorkingPath);
 
-            File.Copy(
-                item.CurrentWorkingPath!,
-                finalPath,
-                overwrite: true);
-
-            CopyDates(
-                item.NormalizedPath,
-                finalPath);
-
-            item.CurrentWorkingPath =
-                finalPath;
-
-            item.EnhancedOutputPath =
-                finalPath;
-
-            item.Operations.Add(
-                new EnhancementOperation
+            await ExecuteOperationAsync(
+                item,
+                Name,
+                async () =>
                 {
-                    Name = Name,
-                    StartedAt =
-                        DateTimeOffset.UtcNow,
+                    var fileName =
+                        _enhancedFileNamingService
+                            .BuildFileName(item);
 
-                    CompletedAt =
-                        DateTimeOffset.UtcNow,
+                    var finalPath =
+                        Path.Combine(
+                            enhancedDirectory,
+                            fileName);
 
-                    Success = true,
+                    File.Copy(
+                        item.CurrentWorkingPath!,
+                        finalPath,
+                        overwrite: true);
 
-                    Metadata = finalPath
-                });
+                    CopyDates(
+                        item.NormalizedPath,
+                        finalPath);
+
+                    item.CurrentWorkingPath =
+                        finalPath;
+
+                    item.EnhancedOutputPath =
+                        finalPath;
+
+                    await Task.CompletedTask;
+                },
+                _logger);
         }
 
         var manifestPath =

@@ -5,29 +5,29 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class AudioSpeechEnhancementWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly ILogger<
             AudioSpeechEnhancementWorkflowStep>
         _logger;
 
-    public string Name =>
+    public override string Name =>
         nameof(AudioSpeechEnhancementWorkflowStep);
 
     public AudioSpeechEnhancementWorkflowStep(
         ILogger<AudioSpeechEnhancementWorkflowStep> logger)
     {
-        _logger = logger;
+        _logger =
+            logger;
     }
 
-    public Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         if (!state.EnableAiEnhancement)
@@ -35,18 +35,31 @@ public sealed class AudioSpeechEnhancementWorkflowStep
             _logger.LogInformation(
                 "Skipping speech enhancement");
 
-            return Task.CompletedTask;
+            return;
         }
 
-        const string filter =
-            "arnndn=m=std.rnnn";
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed))
+        {
+            await ExecuteOperationAsync(
+                item,
+                Name,
+                async () =>
+                {
+                    const string filter =
+                        "arnndn=m=std.rnnn";
 
-        state.AudioPipeline.Add(filter);
+                    item.AudioFilters.Add(filter);
 
-        _logger.LogInformation(
-            "Added speech enhancement filter: {Filter}",
-            filter);
 
-        return Task.CompletedTask;
+                    _logger.LogInformation(
+                        "Added speech enhancement filter: {Filter}",
+                        filter);
+
+                    await Task.CompletedTask;
+                },
+                _logger);
+        }
     }
 }

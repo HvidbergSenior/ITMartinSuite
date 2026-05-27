@@ -26,7 +26,7 @@ public sealed class Package2Client
     {
         var workflowId =
             Guid.NewGuid();
-
+        Console.WriteLine("PACKAGE2 CLICKED");
         await _backgroundJobQueue
             .EnqueueAsync(
                 new BackgroundJob
@@ -42,7 +42,7 @@ public sealed class Package2Client
                             .Serialize(request)
                 },
                 cancellationToken);
-
+        Console.WriteLine("PACKAGE2 ENQUEUED");
         return workflowId;
     }
 }

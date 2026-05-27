@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 
 public sealed class CleanupEvaluationWorkflowStep
-    : IWorkflowStep
+    : Package1WorkflowStepBase
 {
     private readonly Package1CleanupPipeline
         _cleanupPipeline;
@@ -29,85 +29,102 @@ public sealed class CleanupEvaluationWorkflowStep
             logger;
     }
 
-    public string Name => "Cleanup";
+    public override string Name =>
+        "Cleanup";
 
-    public Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
-        _logger.LogInformation(
-            "Executing {Step}",
-            nameof(CleanupEvaluationWorkflowStep));
-
         var state =
             context.State as Package1WorkflowState
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
-
-        _logger.LogInformation(
-            "MediaFiles count: {Count}",
-            state.MediaFiles.Count);
 
         cancellationToken
             .ThrowIfCancellationRequested();
 
         if (state.CleanupResult is not null)
         {
-            return Task.CompletedTask;
+            _logger.LogInformation(
+                "Cleanup already completed");
+
+            return;
         }
 
-        _logger.LogInformation(
-            "Evaluating cleanup");
-
-        foreach (var mediaFile in state.MediaFiles)
-        {
-            mediaFile.Status =
-                MediaFileStatus.ToKeep;
-
-            mediaFile.CleanupDecision =
-                CleanupDecision.Keep;
-        }
-
-        foreach (var group in state.DuplicateGroups)
-        {
-            var keep =
-                group.Files
-                    .OrderByDescending(x => x.SizeBytes)
-                    .First();
-
-            keep.Status =
-                MediaFileStatus.ToKeep;
-
-            keep.CleanupDecision =
-                CleanupDecision.Keep;
-
-            foreach (var duplicate in group.Files
-                         .Where(x => x != keep))
+        await ExecuteOperationAsync(
+            "CleanupEvaluation",
+            $"Files={state.MediaFiles.Count}",
+            async () =>
             {
-                duplicate.Status =
-                    MediaFileStatus.ToDelete;
+                var total =
+                    state.MediaFiles.Count;
 
-                duplicate.CleanupDecision =
-                    CleanupDecision.Delete;
+                var current = 0;
 
-                duplicate.ExportSubFolder =
-                    "Duplicates";
-            }
-        }
+                foreach (var mediaFile in state.MediaFiles)
+                {
+                    current++;
 
-        var result =
-            _cleanupPipeline.Run(
-                state.MediaFiles);
+                    LogStepProgress(
+                        _logger,
+                        Name,
+                        current,
+                        total,
+                        mediaFile.FileName);
 
-        state.CleanupResult =
-            result;
+                    mediaFile.Status =
+                        MediaFileStatus.ToKeep;
 
-        _logger.LogInformation(
-            "Cleanup completed. Keep: {Keep} Delete: {Delete}",
-            result.KeepCount,
-            result.DeleteCount);
+                    mediaFile.CleanupDecision =
+                        CleanupDecision.Keep;
+                }
 
-        return Task.CompletedTask;
+                foreach (var group in state.DuplicateGroups)
+                {
+                    var keep =
+                        group.Files
+                            .OrderByDescending(x => x.SizeBytes)
+                            .First();
+
+                    keep.Status =
+                        MediaFileStatus.ToKeep;
+
+                    keep.CleanupDecision =
+                        CleanupDecision.Keep;
+
+                    foreach (var duplicate in group.Files
+                                 .Where(x => x != keep))
+                    {
+                        duplicate.Status =
+                            MediaFileStatus.ToDelete;
+
+                        duplicate.CleanupDecision =
+                            CleanupDecision.Delete;
+
+                        duplicate.ExportSubFolder =
+                            "Duplicates";
+                    }
+                }
+
+                var result =
+                    _cleanupPipeline.Run(
+                        state.MediaFiles);
+
+                state.CleanupResult =
+                    result;
+
+                _logger.LogInformation(
+                    """
+                    Cleanup completed
+                    Keep: {Keep}
+                    Delete: {Delete}
+                    """,
+                    result.KeepCount,
+                    result.DeleteCount);
+
+                await Task.CompletedTask;
+            },
+            _logger);
     }
 }

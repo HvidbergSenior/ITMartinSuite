@@ -6,24 +6,25 @@ using Microsoft.Extensions.Logging;
 namespace ITMartin.Media.Application.Pipelines.Package2.Steps;
 
 public sealed class VideoDeinterlaceWorkflowStep
-    : IWorkflowStep
+    : Package2WorkflowStepBase
 {
     private readonly ILogger<
-        VideoDeinterlaceWorkflowStep> _logger;
+            VideoDeinterlaceWorkflowStep>
+        _logger;
 
-    public string Name =>
+    public override string Name =>
         nameof(VideoDeinterlaceWorkflowStep);
 
     public VideoDeinterlaceWorkflowStep(
         ILogger<VideoDeinterlaceWorkflowStep> logger)
     {
-        _logger = logger;
+        _logger =
+            logger;
     }
 
-    public Task ExecuteAsync<TState>(
+    public override Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
-        where TState : class
     {
         if (context.State is not Package2WorkflowState state)
         {
@@ -41,11 +42,23 @@ public sealed class VideoDeinterlaceWorkflowStep
         var filter =
             BuildFilter(state);
 
-        state.VideoPipeline.Add(filter);
+        foreach (var item in state.Items
+                     .Where(x =>
+                         !x.Failed &&
+                         x.MediaKind == MediaKind.Video))
+        {
+            item.VideoFilters.Add(
+                filter);
 
-        _logger.LogInformation(
-            "Added deinterlace filter: {Filter}",
-            filter);
+            _logger.LogInformation(
+                """
+                Added deinterlace filter
+                Item: {Item}
+                Filter: {Filter}
+                """,
+                item.CurrentWorkingPath,
+                filter);
+        }
 
         return Task.CompletedTask;
     }
