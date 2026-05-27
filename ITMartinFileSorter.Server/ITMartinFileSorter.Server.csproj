@@ -43,12 +43,15 @@
   
   <!-- Media temp folder for thumbnails -->
   <ItemGroup>
-    <Folder Include="ffmpeg\" />
     <Folder Include="wwwroot\media_temp\" />
     <Folder Include="wwwroot\media_temp\thumbnails\" />
   </ItemGroup>
-  
 
+  <ItemGroup>
+    <Content Include="Data\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <ItemGroup>
     <None Update="ffmpeg\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

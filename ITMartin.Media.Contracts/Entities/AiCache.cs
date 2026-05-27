@@ -1,4 +1,4 @@
-﻿namespace ITMartin.Media.Infrastructure.Entities;
+﻿namespace ITMartin.Media.Contracts.Entities;
 
 public sealed class AiCache
 {

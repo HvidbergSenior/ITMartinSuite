@@ -11,8 +11,16 @@ public sealed class MediaDbContextFactory
         var optionsBuilder =
             new DbContextOptionsBuilder<MediaDbContext>();
 
+        const string connectionString =
+            "Data Source=C:\\ITMartin\\Data\\media.db";
+
         optionsBuilder.UseSqlite(
-            "Data Source=C:\\ITMartin\\Data\\media.db");
+            connectionString,
+            builder =>
+            {
+                builder.MigrationsAssembly(
+                    typeof(MediaDbContext).Assembly.FullName);
+            });
 
         return new MediaDbContext(optionsBuilder.Options);
     }

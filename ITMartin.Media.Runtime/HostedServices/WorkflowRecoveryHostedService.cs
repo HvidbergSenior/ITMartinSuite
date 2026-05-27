@@ -57,7 +57,9 @@ public sealed class WorkflowRecoveryHostedService
                 await workflowStore
                     .GetRecoverableWorkflowIdsAsync(
                         stoppingToken);
-
+            Console.WriteLine(
+                "Current dir: " +
+                Environment.CurrentDirectory);
             foreach (var workflowId in workflowIds)
             {
                 _logger.LogInformation(

@@ -4,7 +4,6 @@ using System.Text.Json;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
-using ITMartin.Media.Infrastructure.Entities;
 using ITMartin.Media.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 

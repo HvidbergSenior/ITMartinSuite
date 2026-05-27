@@ -15,7 +15,6 @@ using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Metadata;
 using ITMartin.Media.Infrastructure.Options;
 using ITMartin.Media.Infrastructure.Persistence.Stores;
-using ITMartin.Media.Infrastructure.Queues;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Runtime.Execution;
 using ITMartin.Media.Runtime.HostedServices;
@@ -69,14 +68,6 @@ public static class Package1DependencyInjection
         services.AddScoped<
             IPackage1ManifestStore,
             EfPackage1ManifestStore>();
-
-        services.AddSingleton(
-            typeof(IQueueTransport<>),
-            typeof(ChannelQueueTransport<>));
-
-        services.AddSingleton<
-            IMessageSerializer,
-            SystemTextJsonMessageSerializer>();
 
         services.AddScoped<
             IFileSystem,

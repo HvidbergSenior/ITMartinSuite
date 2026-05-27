@@ -1,5 +1,5 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-using ITMartin.Media.Infrastructure.Entities;
+using ITMartin.Media.Contracts.Entities;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 

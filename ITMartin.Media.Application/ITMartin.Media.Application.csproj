@@ -16,14 +16,4 @@
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Pipelines\Package1\Persistence\" />
-      <Folder Include="Pipelines\Package2\Enhanced\" />
-      <Folder Include="Pipelines\Package2\Manifests\" />
-      <Folder Include="Pipelines\Package2\Models\" />
-      <Folder Include="Pipelines\Package2\Temp\" />
-      <Folder Include="Pipelines\Package2\Thumbnails\" />
-      <Folder Include="Pipelines\Package2\Working\" />
-    </ItemGroup>
-
 </Project>

@@ -10,7 +10,11 @@ public class JsonRecommendationRepository : IRecommendationRepository
 
     public JsonRecommendationRepository()
     {
-        _dataPath = "/app/Data";
+        _dataPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "Data");
+
+        Directory.CreateDirectory(_dataPath);
     }
 
     public Task<List<string>> GetMaps()
