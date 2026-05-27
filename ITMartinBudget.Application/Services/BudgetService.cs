@@ -140,38 +140,55 @@ public class BudgetService : IBudgetService
     {
         return category switch
         {
-            Category.Income =>
-                "Income",
+            Category.Indkomst => "Indkomst",
 
-            Category.Food =>
-                "Food",
+            Category.Bolig => "Bolig",
+            Category.Regninger => "Regninger",
+            Category.Forsikring => "Forsikring",
+            Category.TelefonTvInternet => "Telefon / TV / Internet",
+            Category.Pension => "Pension",
 
-            Category.Transport =>
-                "Transport",
+            Category.Opsparing => "Opsparing",
 
-            Category.Shopping =>
-                "Shopping",
+            Category.Overfoersel => "Overførsel",
+            Category.OverfoerselTilBertil => "Overførsel til Bertil",
+            Category.OverfoerselTilEigil => "Overførsel til Eigil",
+            Category.OverfoerselTilJulius => "Overførsel til Julius",
 
-            Category.Health =>
-                "Health",
+            Category.FagforeningAKasse => "Fagforening / A-kasse",
 
-            Category.Housing =>
-                "Housing",
+            Category.Dagligvarer => "Dagligvarer",
+            Category.Takeaway => "Takeaway",
+            Category.Restaurant => "Restaurant",
+            Category.Cafe => "Cafe",
 
-            Category.Entertainment =>
-                "Entertainment",
+            Category.Streaming => "Streaming",
+            Category.Koncert => "Koncert",
+            Category.Gaming => "Gaming",
+            Category.Apps => "Apps",
+            Category.Northside => "NorthSide",
+            Category.Fritid => "Fritid",
 
-            Category.Bills =>
-                "Bills",
+            Category.Parkering => "Parkering",
+            Category.Braendstof => "Brændstof",
+            Category.OffentligTransport => "Offentlig transport",
+            Category.BilVedligehold => "Bil vedligehold",
 
-            Category.Transfer =>
-                "Transfers",
+            Category.Toej => "Tøj",
+            Category.Elektronik => "Elektronik",
+            Category.Hjem => "Hjem",
 
-            Category.Savings =>
-                "Savings",
+            Category.Sundhed => "Sundhed",
 
-            _ =>
-                "Other"
+            Category.Boern => "Børn",
+            Category.Kaeledyr => "Kæledyr",
+            Category.Gaver => "Gaver",
+
+            Category.Rejse => "Rejse",
+
+            Category.Andet => "Andet",
+
+            _ => "Andet"
         };
     }
 }

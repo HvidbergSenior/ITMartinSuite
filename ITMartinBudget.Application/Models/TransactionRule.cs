@@ -16,4 +16,5 @@ public class TransactionRule
 
     public bool IsRecurring { get; set; }
     public TransactionType? TransactionType { get; set; }
+    public int Priority { get; init; }
 }

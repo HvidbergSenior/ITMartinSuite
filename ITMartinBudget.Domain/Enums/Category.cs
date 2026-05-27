@@ -1,20 +1,59 @@
-﻿namespace ITMartinBudget.Domain.Enums;
-
-public enum Category
+﻿public enum Category
 {
-    Income,
+    // Income
+    Indkomst,
 
-    Food,
-    Transport,
-    Shopping,
-    Health,
-    Entertainment,
-    Housing,
-    Bills,
+    // Housing & fixed
+    Bolig,
+    Regninger,
+    Forsikring,
+TelefonTvInternet,
 
-    Savings,
-    Transfer,
+    // Savings & transfers
+    Opsparing,
+    Overfoersel,
+    OverfoerselTilBertil,
+    OverfoerselTilEigil,
+    OverfoerselTilJulius,
+    
+FagforeningAKasse,
+    // Food
+    Dagligvarer,
+    Takeaway,
+    Restaurant,
+    Cafe,
+
+    // Entertainment
+    Streaming,
+    Koncert,
+    Gaming,
+    Apps,
     Northside,
+    Fritid,
 
-    Other
+    // Transport
+    Parkering,
+    Braendstof,
+    OffentligTransport,
+    BilVedligehold,
+
+    // Shopping
+    Toej,
+    Elektronik,
+    Hjem,
+
+    // Health
+    Sundhed,
+
+    // Family
+    Boern,
+    Kaeledyr,
+    Gaver,
+
+    // Travel
+    Rejse,
+
+    // Fallback
+    Andet,
+    Pension
 }

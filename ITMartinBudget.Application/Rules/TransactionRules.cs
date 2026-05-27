@@ -1,49 +1,62 @@
 ﻿using ITMartinBudget.Application.Models;
-using ITMartinBudget.Application.Rules;
 using ITMartinBudget.Domain.Enums;
 
-namespace ITMartinBudget.Application;
+namespace ITMartinBudget.Application.Rules;
 
 public static class TransactionRules
 {
     public static readonly List<TransactionRule> Rules =
     [
-        ..IncomeRules.Items,
+        // Income
+        ..FixedIncomeRules.Items,
+        ..VariableIncomeRules.Items,
 
+        // Transfers
         ..TransferRules.Items,
 
-        ..FixedExpenseRules.Items,
+        // Housing / Fixed
+        ..HousingRules.Items,
+        ..InsuranceRules.Items,
+        ..UnionRules.Items,
+        ..TvInternetRules.Items,
 
-        ..FoodRules.Items,
+        // Food
+        ..GroceryRules.Items,
+        ..TakeAwayRules.Items,
+        ..RestaurantRules.Items,
+        ..CafeRules.Items,
 
-        ..TransportRules.Items,
+        // Transport
+        ..FuelRules.Items,
+        ..ParkingRules.Items,
+        ..PublicTransportRules.Items,
+        ..CarRules.Items,
 
-        ..ShoppingRules.Items,
+        // Shopping / Lifestyle
+        ..ClothingRules.Items,
+        ..ElectronicsRules.Items,
+        ..HomeRules.Items,
+        ..BeautyRules.Items,
 
+        // Entertainment / Leisure
+        ..StreamingRules.Items,
+        ..GamingRules.Items,
+        ..ConcertBioRules.Items,
+        ..SportsRules.Items,
+        ..NorthsideRules.Items,
+        ..HobbyRules.Items,
+        ..LeisureRules.Items,
+        ..SubscriptionRules.Items,
+
+        // Family
+        ..ChildrenRules.Items,
+        ..PetsRules.Items,
+        ..GiftRules.Items,
+
+        // Health
         ..HealthRules.Items,
 
-        ..EntertainmentRules.Items,
-
-        // =====================================
-        // FALLBACK MOBILEPAY
-        // =====================================
-
-        new()
-        {
-            Pattern = "mobilepay",
-            Title = "MobilePay Expense",
-            Category = Category.Other,
-            BudgetGroup = BudgetGroup.VariableExpense,
-            TransactionType = TransactionType.Udgift
-        },
-
-        new()
-        {
-            Pattern = "mobilepay",
-            Title = "MobilePay Income",
-            Category = Category.Income,
-            BudgetGroup = BudgetGroup.VariableIncome,
-            TransactionType = TransactionType.Indkomst
-        }
+        // Fallback
+        ..UnknownRules.Items,
     ];
 }

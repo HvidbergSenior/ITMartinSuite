@@ -24,10 +24,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="data\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <AdditionalFiles Include="Budget\BudgetCategoryCard.razor" />
       <AdditionalFiles Include="Budget\BudgetHeader.razor" />
       <AdditionalFiles Include="Budget\BudgetMainLayout.razor" />

@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using ITMartinBudget.Application.Interfaces;
+using ITMartinBudget.Application.Rules;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
 
@@ -57,7 +58,7 @@ public class TransactionCategorizer
         }
 
         tx.Category =
-            Category.Other;
+            Category.Andet;
 
         if (tx.TransactionType ==
             TransactionType.Indkomst)
@@ -80,22 +81,24 @@ public class TransactionCategorizer
         tx.IsRecurring = false;
     }
 
-    private string Normalize(
-        string input)
+    private string Normalize(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
             return string.Empty;
         }
 
-        input =
-            input.ToLowerInvariant();
+        input = input.ToLowerInvariant();
 
         input = input
-
             .Replace("æ", "ae")
             .Replace("ø", "oe")
             .Replace("å", "aa");
+
+        input = Regex.Replace(
+            input,
+            @"\d+",
+            " ");
 
         input = Regex.Replace(
             input,

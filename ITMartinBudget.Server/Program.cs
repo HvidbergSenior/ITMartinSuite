@@ -20,7 +20,7 @@ builder.Services.AddRazorComponents()
 var connectionString =
     builder.Environment.IsDevelopment()
         ? builder.Configuration
-            .GetConnectionString("Default")
+            .GetConnectionString("BudgetDb")
         : "Data Source=/app/data/budget.db";
 
 Console.WriteLine($"DB: {connectionString}");

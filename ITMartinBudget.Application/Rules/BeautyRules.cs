@@ -3,30 +3,22 @@ using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
-public static class HealthRules
+public static class BeautyRules
 {
     public static readonly List<TransactionRule> Items =
     [
         new()
         {
-            Pattern = "tandlaege",
-            Title = "Tandlæge",
+            Pattern = "piet",
+            Title = "Frisør Piet",
             Category = Category.Sundhed,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "apotek",
-            Title = "Apotek",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
-
-        new()
-        {
-            Pattern = "apot",
-            Title = "Apotek",
+            Pattern = "lyko",
+            Title = "Lyko",
             Category = Category.Sundhed,
             BudgetGroup = BudgetGroup.VariableExpense
         },
@@ -49,35 +41,34 @@ public static class HealthRules
 
         new()
         {
-            Pattern = "lyko",
-            Title = "Lyko",
+            Pattern = "magasin",
+            Title = "Magasin Beauty",
             Category = Category.Sundhed,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "synoptik",
-            Title = "Synoptik",
+            Pattern = "sephora",
+            Title = "Sephora",
             Category = Category.Sundhed,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "profil optik",
-            Title = "Profil Optik",
+            Pattern = "nicehair",
+            Title = "NiceHair",
             Category = Category.Sundhed,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "fitness",
-            Title = "Fitness",
+            Pattern = "frisoer",
+            Title = "Frisør",
             Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
+            BudgetGroup = BudgetGroup.VariableExpense
         }
     ];
 }

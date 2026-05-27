@@ -13,10 +13,11 @@ namespace ITMartinBudget.Infrastructure.Services;
 public class BankTransactionCsvService
 {
     private readonly BudgetDbContext _db;
-    private ITransactionCategorizer _categorizer;
+    private readonly ITransactionCategorizer _categorizer;
 
     public BankTransactionCsvService(
-        BudgetDbContext db, ITransactionCategorizer categorizer)
+        BudgetDbContext db,
+        ITransactionCategorizer categorizer)
     {
         _db = db;
         _categorizer = categorizer;
@@ -34,41 +35,47 @@ public class BankTransactionCsvService
             MissingFieldFound = null,
             BadDataFound = x =>
             {
-                Console.WriteLine($"BAD DATA: {x.RawRecord}");
+                Console.WriteLine(
+                    $"BAD DATA: {x.RawRecord}");
             }
         };
 
-        using var csv = new CsvReader(reader, config);
+        using var csv =
+            new CsvReader(reader, config);
 
         csv.Context.RegisterClassMap<BankTransactionMap>();
 
-        var records = new List<BankTransaction>();
+        var records =
+            new List<BankTransaction>();
 
-        await foreach (var record in csv.GetRecordsAsync<BankTransaction>())
+        await foreach (var record in
+                       csv.GetRecordsAsync<BankTransaction>())
         {
-            Console.WriteLine("-------------");
-            Console.WriteLine(record.Date);
-            Console.WriteLine(record.Description);
-            Console.WriteLine(record.Amount);
-            // KEEP RAW BANK DESCRIPTION
+            // Keep original description
             record.Description =
-                record.Description?.Trim() ??
-                string.Empty;
+                record.Description?.Trim()
+                ?? string.Empty;
 
-            // STORE NORMALIZED VERSION
+            // Normalized description
             record.NormalizedDescription =
                 Normalize(record.Description);
 
-            record.Category =
-                Category.Other;
-
-            // PURE MONEY FLOW
+            // Transaction type
             record.TransactionType =
                 record.Amount < 0
                     ? TransactionType.Udgift
                     : TransactionType.Indkomst;
 
+            // Default fallback
+            record.Category =
+                Category.Andet;
+
+            record.IsRecurring = false;
+
+            // Categorize
             _categorizer.Categorize(record);
+
+            // Safety fallback
             if (record.BudgetGroup == 0)
             {
                 record.BudgetGroup =
@@ -76,6 +83,7 @@ public class BankTransactionCsvService
                         ? BudgetGroup.VariableIncome
                         : BudgetGroup.VariableExpense;
             }
+
             records.Add(record);
         }
 
@@ -96,20 +104,25 @@ public class BankTransactionCsvService
         return newTransactions;
     }
 
-    private async Task<HashSet<string>> GetExistingKeys()
+    private async Task<HashSet<string>>
+        GetExistingKeys()
     {
         return (await _db.Transactions
+
                 .Select(x => new
                 {
                     x.Date,
                     x.Amount,
                     x.NormalizedDescription
                 })
+
                 .ToListAsync())
+
             .Select(x => CreateKey(
                 x.Date,
                 x.Amount,
                 x.NormalizedDescription))
+
             .ToHashSet();
     }
 
@@ -118,15 +131,17 @@ public class BankTransactionCsvService
         HashSet<string> existingKeys)
     {
         return records
-            .Where(t =>
+
+            .Where(x =>
                 !existingKeys.Contains(
                     CreateKey(
-                        t.Date,
-                        t.Amount,
-                        t.NormalizedDescription)))
+                        x.Date,
+                        x.Amount,
+                        x.NormalizedDescription)))
+
             .ToList();
     }
-    
+
     private string CreateKey(
         DateTime date,
         decimal amount,
@@ -136,19 +151,28 @@ public class BankTransactionCsvService
             $"{date:yyyyMMdd}-{amount:F2}-{description}";
     }
 
-    private string Normalize(string? input)
+    private string Normalize(
+        string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
             return string.Empty;
         }
 
-        input = input.ToLowerInvariant();
+        input =
+            input.ToLowerInvariant();
 
         input = input
+
             .Replace("æ", "ae")
             .Replace("ø", "oe")
             .Replace("å", "aa");
+
+        // remove numbers
+        input = Regex.Replace(
+            input,
+            @"\d+",
+            " ");
 
         // remove punctuation
         input = Regex.Replace(

@@ -3,7 +3,7 @@ using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
-public static class TransportRules
+public static class FuelRules
 {
     public static readonly List<TransactionRule> Items =
     [
@@ -11,7 +11,7 @@ public static class TransportRules
         {
             Pattern = "circle k",
             Title = "Circle K",
-            Category = Category.Transport,
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
@@ -19,62 +19,64 @@ public static class TransportRules
         {
             Pattern = "uno x",
             Title = "Uno-X",
-            Category = Category.Transport,
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
             Pattern = "ingo",
-            Title = "Fuel",
-            Category = Category.Transport,
+            Title = "Ingo",
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "easypark",
-            Title = "EasyPark",
-            Category = Category.Transport,
+            Pattern = "dk ok",
+            Title = "OK",
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "apcoa",
-            Title = "Parking",
-            Category = Category.Transport,
+            Pattern = "vdk q8",
+            Title = "Q8",
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "rejsekort",
-            Title = "Rejsekort",
-            Category = Category.Transport,
+            Pattern = "shell",
+            Title = "Shell",
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "brobizz",
-            Title = "BroBizz",
-            Category = Category.Transport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },new()
-        {
-            Pattern = "train",
-            Title = "Train",
-            Category = Category.Transport,
+            Pattern = "go on",
+            Title = "Go'on",
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
 
         new()
         {
-            Pattern = "den store cykelsmed",
-            Title = "Bike",
-            Category = Category.Transport,
+            Pattern = "f24",
+            Title = "F24",
+            Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.VariableExpense
         },
+
+        new()
+        {
+            Pattern = "tankstation",
+            Title = "Tankstation",
+            Category = Category.Braendstof,
+            BudgetGroup = BudgetGroup.VariableExpense
+        }
     ];
 }
