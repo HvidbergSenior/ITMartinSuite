@@ -55,6 +55,11 @@ public static class InsuranceRules
             "if skadeforsikring",
             "If Forsikring",
             Category.Forsikring,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        FixedExpense(
+            "til alka",
+            "Alka",
+            Category.Forsikring,
+            ComparingType.Contains),
     ];
 }

@@ -91,6 +91,28 @@ public static class SubscriptionRules
             "adobe",
             "Adobe",
             Category.Subscription,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        Subscription(
+            "fitnessunited",
+            "Fitness United",
+            Category.Subscription,
+            ComparingType.Contains),
+        Subscription(
+            "suno inc",
+            "Suno",
+            Category.Subscription,
+            ComparingType.Contains),
+        Subscription(
+            "joytunes",
+            "JoyTunes",
+            Category.Subscription,
+            ComparingType.Contains),
+
+        Subscription(
+            "google play",
+            "Google Play",
+            Category.Subscription,
+            ComparingType.Contains),
+
     ];
 }

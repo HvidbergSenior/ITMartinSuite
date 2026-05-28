@@ -12,13 +12,13 @@ public static class SportsRules
         FixedExpense(
             "hog fodbold",
             "HOG Fodbold",
-            Category.Boern,
+            Category.Subscription,
             ComparingType.Contains),
 
         FixedExpense(
             "hog hinnerup",
             "HOG Hinnerup",
-            Category.Boern,
+            Category.Subscription,
             ComparingType.Contains)
     ];
 }

@@ -161,6 +161,17 @@ public static class ClothingRules
             "butler loftet",
             "Butler Loftet",
             Category.Toej,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RulesFactory.ClothesAndShoes(
+            "sikkerhedsudstyr",
+            "Sikkerhedsudstyr",
+            Category.Toej,
+            ComparingType.Contains),
+        RulesFactory.ClothesAndShoes(
+            "kirkens korshaer",
+            "Kirkens Korshær",
+            Category.Toej,
+            ComparingType.Contains),
+
     ];
 }

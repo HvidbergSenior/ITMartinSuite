@@ -1,5 +1,6 @@
 ﻿using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
+using static ITMartinBudget.Application.Rules.RulesFactory;
 
 namespace ITMartinBudget.Application.Rules;
 
@@ -7,57 +8,57 @@ public static class FromOutsideTransferRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay marianne hvidberg",
             "Marianne",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay dorthe moeller",
             "Dorthe",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay bent moeller",
             "Bent",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay sonja john",
             "Sonja",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideFromUs(
+        TransfersOutsideFromUs(
             "mobilepay marianne hvidberg",
             "Marianne",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay mike ea basho",
             "Mike",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay inge kjaerulff",
             "Inge",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay jan isoe kjaer",
             "Jan",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay laura fogdal",
             "Laura",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideToUs(
+        TransfersOutsideToUs(
             "mobilepay anne bro friis",
             "Anne Bro Friis",
             ComparingType.Contains),
 
-        RulesFactory.TransfersOutsideFromUs(
+        TransfersOutsideFromUs(
             "mobilepay sonja johnsen",
             "Sonja",
             ComparingType.Contains),
@@ -164,21 +165,10 @@ public static class FromOutsideTransferRules
             Category.Toej,
             ComparingType.Contains),
 
-        RulesFactory.Refund(
-            "danmark",
-            "Danmark Refund",
-            ComparingType.Word),
-
         RulesFactory.GeneralShopping(
             "reenberg groent",
             "Reenberg Grønt",
             Category.Dagligvarer,
-            ComparingType.Contains),
-
-        RulesFactory.Entertainment(
-            "hog fodbold",
-            "HOG Fodbold",
-            Category.Fritid,
             ComparingType.Contains),
 
         RulesFactory.TransfersOutsideToUs(
@@ -200,11 +190,6 @@ public static class FromOutsideTransferRules
         RulesFactory.TransfersOutsideFromUs(
             "bla kors genbrug",
             "Blå Kors Genbrug",
-            ComparingType.Contains),
-
-        RulesFactory.TransfersOutsideToUs(
-            "dorthe mol",
-            "Dorthe",
             ComparingType.Contains),
 
         RulesFactory.Entertainment(
@@ -250,6 +235,233 @@ public static class FromOutsideTransferRules
         RulesFactory.TransfersOutsideFromUs(
             "aarhus kommune anke",
             "Aarhus Kommune",
-            ComparingType.Contains)
+            ComparingType.Contains),
+          TransfersOutsideToUs(
+            "jan isoe",
+            "Jan Isøe",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "jan isoe",
+            "Jan Isøe",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "mille ea bastholm",
+            "Mille Ea Bastholm",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "mille ea bastholm",
+            "Mille Ea Bastholm",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "mathilde rask",
+            "Mathilde Rask",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "mathilde rask",
+            "Mathilde Rask",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "mathias olin hvidber",
+            "Mathias Olin Hvidberg",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "mathias olin hvidber",
+            "Mathias Olin Hvidberg",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "ida koester",
+            "Ida Køster",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "ida koester",
+            "Ida Køster",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "sarah lahn",
+            "Sarah Lahn",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "sarah lahn",
+            "Sarah Lahn",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "michael guldham",
+            "Michael Guldham",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "michael guldham",
+            "Michael Guldham",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "maja olesen",
+            "Maja Olesen",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "maja olesen",
+            "Maja Olesen",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "julie rose rahb",
+            "Julie Rose Rahb",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "julie rose rahb",
+            "Julie Rose Rahb",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "emma stoehr",
+            "Emma Støhr",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "emma stoehr",
+            "Emma Støhr",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "karsten juel bu",
+            "Karsten Juel Bunch",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "karsten juel bu",
+            "Karsten Juel Bunch",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "dorthe donbaek ebbese",
+            "Dorthe Donbæk Ebbese",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "dorthe donbaek ebbese",
+            "Dorthe Donbæk Ebbese",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "christian birkefeldt",
+            "Christian Birkefeldt",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "christian birkefeldt",
+            "Christian Birkefeldt",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "alexander kure",
+            "Alexander Kure",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "alexander kure",
+            "Alexander Kure",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "claus michael",
+            "Claus Michael",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "claus michael",
+            "Claus Michael",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "charlotte frimuth",
+            "Charlotte Frimuth",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "charlotte frimuth",
+            "Charlotte Frimuth",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "anne marie dahl",
+            "Anne-Marie Dahl",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "anne marie dahl",
+            "Anne-Marie Dahl",
+            ComparingType.Contains),
+
+        TransfersOutsideToUs(
+            "mobilepay bent moeller",
+            "Bent Møller",
+            ComparingType.Contains),
+        TransfersOutsideFromUs(
+            "mobilepay alex snaer gunnarsson",
+            "Alex Snær Gunnarsson",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "mobilepay mathilde caroline",
+            "Mathilde-Caroline",
+            ComparingType.Contains),
+
+   
+        TransfersOutsideToUs(
+            "mobilepay thomas fug",
+            "Thomas Fug",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "mobilepay trine marie vinkler",
+            "Trine Marie Vinkler",
+            ComparingType.Contains),
+
+        TransfersOutsideFromUs(
+            "mobilepay malene hvidberg",
+            "Malene Hvidberg",
+            ComparingType.Contains),
+        
+        TransfersOutsideToUs(
+            "mobilepay tobias norman jensen",
+            "Tobias Norman Jensen",
+            ComparingType.Contains),
+        TransfersOutsideToUs(
+            "mobilepay bent moeller johnsen",
+            "Bent Møller Johnsen",
+            ComparingType.Contains),
+        RulesFactory.TransfersOutsideFromUs(
+            "mobilepay bent moeller johnsen",
+            "Bent Møller",
+            ComparingType.Contains),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay dorthe moel",
+            "Dorthe Møller",
+            ComparingType.Contains),
+
+        RulesFactory.TransfersOutsideFromUs(
+            "mobilepay dorthe moeller johnse",
+            "Dorthe Møller",
+            ComparingType.Contains),
+
+        RulesFactory.TransfersOutsideFromUs(
+            "mobilepay tobias norman jensen",
+            "Tobias Norman Jensen",
+            ComparingType.Contains),
     ];
 }

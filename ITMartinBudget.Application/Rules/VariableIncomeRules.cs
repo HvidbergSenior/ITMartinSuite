@@ -47,6 +47,11 @@ public static class VariableIncomeRules
         InterestsAndStock(
             "udbytte",
             "Dividend",
-            ComparingType.Word)
+            ComparingType.Word),
+        FromKommuneAndStat(
+        "velliv foreningen",
+        "Velliv Foreningen",
+        Category.KommuneAndStat,
+        ComparingType.Contains),
     ];
 }

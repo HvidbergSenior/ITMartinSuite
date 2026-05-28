@@ -61,6 +61,18 @@ public static class TakeAwayRules
             "sushi",
             "Sushi",
             Category.Takeaway,
-            ComparingType.Word)
+            ComparingType.Word),
+        RestaurantCafe(
+            "mackies",
+            "Mackies",
+            Category.Takeaway,
+            ComparingType.Contains),
+
+        RestaurantCafe(
+            "wok shop",
+            "Wok Shop",
+            Category.Takeaway,
+            ComparingType.Contains),
+
     ];
 }

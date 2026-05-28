@@ -30,9 +30,9 @@ public static class GroceryRules
             ComparingType.Word),
 
         EverydayGrocery(
-            "lidl",
+            "vdk lidl",
             "Lidl",
-            ComparingType.Word),
+            ComparingType.Contains),
 
         EverydayGrocery(
             "kvickly",
@@ -110,13 +110,22 @@ public static class GroceryRules
             ComparingType.Contains),
 
         EverydayGrocery(
-            "mib madmarked",
+            "mibmadmarked",
             "MIB Madmarked",
             ComparingType.Contains),
 
         EverydayGrocery(
             "daglibrugsen",
             "DagliBrugsen",
-            ComparingType.Contains)
+            ComparingType.Contains),
+        EverydayGrocery(
+            "mbmadmarked",
+            "MB Madmarked",
+            ComparingType.Contains),
+
+        EverydayGrocery(
+            "reenberg groent",
+            "Reenberg Grønt",
+            ComparingType.Contains),
     ];
 }

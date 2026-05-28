@@ -49,6 +49,34 @@ public static class RestaurantRules
             "rasses skovpoelser",
             "Rasses Skovpølser",
             Category.Restaurant,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RestaurantCafe(
+            "ruth co",
+            "Ruth & Co",
+            Category.Restaurant,
+            ComparingType.Contains),
+
+        RestaurantCafe(
+            "ruth",
+            "Ruth & Co",
+            Category.Restaurant,
+            ComparingType.Word),
+
+        RestaurantCafe(
+            "viva italy",
+            "Viva Italy",
+            Category.Restaurant,
+            ComparingType.Contains),
+
+        RestaurantCafe(
+            "viva italy brunch",
+            "Viva Italy",
+            Category.Restaurant,
+            ComparingType.Contains),
+        RestaurantCafe(
+            "lunch",
+            "Lunch",
+            Category.Restaurant,
+            ComparingType.Word),
     ];
 }

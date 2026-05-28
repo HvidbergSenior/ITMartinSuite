@@ -53,6 +53,11 @@ public static class ConcertBioRules
             "tivoli friheden",
             "Tivoli Friheden",
             Category.KoncertBio,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RulesFactory.Entertainment(
+        "myticket",
+        "MyTicket",
+        Category.KoncertBio,
+        ComparingType.Contains),
     ];
 }

@@ -82,15 +82,19 @@ public static class CafeRules
             ComparingType.Contains),
 
         RestaurantCafe(
-            "umashi",
-            "Umashi",
-            Category.Restaurant,
-            ComparingType.Contains),
-
-        RestaurantCafe(
             "taxas",
             "Taxas",
             Category.Restaurant,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RestaurantCafe(
+            "bagergaarden hinnerup",
+            "Bagergaarden",
+            Category.Cafe,
+            ComparingType.Contains), 
+        RestaurantCafe(
+            "walthers musikcafe",
+            "Walthers",
+            Category.Cafe,
+            ComparingType.Contains),
     ];
 }

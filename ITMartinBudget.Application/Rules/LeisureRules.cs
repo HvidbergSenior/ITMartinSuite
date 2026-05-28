@@ -73,6 +73,62 @@ public static class LeisureRules
             "fastelavnsbazar",
             "Fastelavnsbazar",
             Category.Fritid,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        Entertainment(
+        "zettle escapist",
+        "Escapist",
+        Category.Fritid,
+        ComparingType.Contains),
+        GeneralShopping(
+            "stofshop abyhoj",
+            "Stofshop",
+            Category.Bolig,
+            ComparingType.Contains),
+
+        GeneralShopping(
+            "skive tek",
+            "Skive Tek",
+            Category.Fritid,
+            ComparingType.Contains),
+
+        GeneralShopping(
+            "noddebutikken",
+            "Nøddebutikken",
+            Category.Hjem,
+            ComparingType.Contains),
+
+      
+
+        GeneralShopping(
+            "kjaer sommerfeldt",
+            "Kjær Sommerfeldt",
+            Category.Hjem,
+            ComparingType.Contains),
+
+        GeneralShopping(
+            "the way ahead group",
+            "The Way Ahead Group",
+            Category.Hjem,
+            ComparingType.Contains),
+
+        GeneralShopping(
+            "drandersvej",
+            "Drandersvej",
+            Category.Hjem,
+            ComparingType.Contains),
+        Entertainment(
+            "gallafest",
+            "Gallafest",
+            Category.Fritid,
+            ComparingType.Contains),
+      
+
+        Entertainment(
+            "fastelavsbazar",
+            "Fastelavsbazar",
+            Category.Fritid,
+            ComparingType.Contains),
+
+
     ];
 }

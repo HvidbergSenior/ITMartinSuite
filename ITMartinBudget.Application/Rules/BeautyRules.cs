@@ -56,6 +56,11 @@ public static class BeautyRules
             "frisoer",
             "Frisør",
             Category.Sundhed,
-            ComparingType.Word)
+            ComparingType.Word),
+        PersonalCare(
+            "norregades apot",
+            "Apotek",
+            Category.Sundhed,
+            ComparingType.Contains),
     ];
 }
