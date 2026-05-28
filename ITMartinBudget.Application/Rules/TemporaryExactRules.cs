@@ -230,5 +230,345 @@ public static class TemporaryExactTransferRules
             "mobilepay dorthe don",
             "Dorthe Donbæk",
             ComparingType.Exact),
+          // =====================================
+        // FAMILY / MOBILEPAY
+        // =====================================
+
+        RulesFactory.TransfersFamilyToUs(
+            "vdk mob pay eigil hvidberg jo",
+            "Eigil",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersFamilyToUs(
+            "vdk mob pay julius hvidberg j",
+            "Julius",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay mona olin hvidberg",
+            "Mona",
+            ComparingType.Contains),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay mona olin hvidb",
+            "Mona",
+            ComparingType.Contains),
+
+        // =====================================
+        // SUBSCRIPTIONS
+        // =====================================
+
+        RulesFactory.Subscription(
+            "vdk one com",
+            "One.com",
+            Category.TelefonTvInternet,
+            ComparingType.Exact),
+
+        RulesFactory.Subscription(
+            "vdk jetbrains",
+            "JetBrains",
+            Category.Subscription,
+            ComparingType.Exact),
+
+        RulesFactory.Subscription(
+            "dk story house egmont a s",
+            "Story House Egmont",
+            Category.Fritid,
+            ComparingType.Exact),
+
+        // =====================================
+        // TRANSPORT
+        // =====================================
+
+        RulesFactory.Parking(
+            "vdk epass24 com",
+            "Epass24",
+            ComparingType.Exact),
+
+        RulesFactory.Fuel(
+            "vdk best romedal 0624",
+            "Best",
+            ComparingType.Exact),
+
+        // =====================================
+        // GROCERIES
+        // =====================================
+
+        RulesFactory.EverydayGrocery(
+            "dk spar skejby",
+            "Spar",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk kiwi 025 romedal",
+            "Kiwi",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "dk coop kv vericentret",
+            "Coop",
+            ComparingType.Exact),
+
+        // =====================================
+        // CLOTHES
+        // =====================================
+
+        RulesFactory.ClothesAndShoes(
+            "dk hennes mauritz 844",
+            "H&M",
+            Category.Toej,
+            ComparingType.Exact),
+
+        // =====================================
+        // UNION / TAX
+        // =====================================
+
+        RulesFactory.UnionAndAKasse(
+            "bs fagligt faelles forbund",
+            "3F",
+            Category.FagforeningAKasse,
+            ComparingType.Exact),
+
+        RulesFactory.Taxes(
+            "dk sktst personskatter",
+            "SKAT",
+            Category.Skat,
+            ComparingType.Exact),
+
+        // =====================================
+        // CAR
+        // =====================================
+
+        RulesFactory.CarRepair(
+            "mekaniker",
+            "Mekaniker",
+            Category.BilVedligehold,
+            ComparingType.Exact),
+
+        // =====================================
+        // SHOPPING
+        // =====================================
+
+        RulesFactory.GeneralShopping(
+            "kattemad",
+            "Kattemad",
+            Category.Kaeledyr,
+            ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "tm materialer",
+            "TM Materialer",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+
+        // =====================================
+        // INCOME
+        // =====================================
+
+        RulesFactory.UnionAndAKasse(
+            "101 udbet fra 3fa",
+            "3F",
+            Category.KommuneAndStat,
+            ComparingType.Exact),
+        RulesFactory.Fuel(
+            "vdk superspeed 1 c",
+            "Superspeed",
+            ComparingType.Exact),
+
+        RulesFactory.Subscription(
+            "mobilepay bedre psykiatri",
+            "Donation",
+            Category.Subscription,
+            ComparingType.Exact),
+
+        RulesFactory.RestaurantCafe(
+            "vdk restaurant storm",
+            "Restaurant Storm",
+            Category.Restaurant,
+            ComparingType.Exact),
+
+        RulesFactory.RestaurantCafe(
+            "vdk cafe vestergade 42 aps",
+            "Cafe Vestergade",
+            Category.Cafe,
+            ComparingType.Exact),
+
+        RulesFactory.Subscription(
+            "teleno32107104134621",
+            "Telenor",
+            Category.TelefonTvInternet,
+            ComparingType.Contains),
+
+        RulesFactory.Entertainment(
+            "vdk sp royalcdkeys",
+            "RoyalCDKeys",
+            Category.Gaming,
+            ComparingType.Exact),
+        RulesFactory.TransfersOutsideToUs(
+    "mobilepay mathias olin hv",
+    "Mathias Olin",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay dorte rindom jeppese",
+    "Dorte Rindom",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "vdk mob pay sonja johnsen",
+    "Sonja Johnsen",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "vdk mob pay bent moller johns",
+    "Bent Møller",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay andreas benjamin gjoe",
+    "Andreas Benjamin",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideFromUs(
+    "vdk mob pay christian birkefe",
+    "Christian",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay clara rindom hoe",
+    "Clara",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay lisbeth krogshe",
+    "Lisbeth",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay peter lau torst niel",
+    "Peter Nielsen",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay allan carl erik",
+    "Allan",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay per nielsen",
+    "Per Nielsen",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay dorte rindom je",
+    "Dorte Rindom",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "mobilepay eik nysom boeg j",
+    "Eik",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideFromUs(
+    "vdk mob pay christina aitken",
+    "Christina",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideFromUs(
+    "vdk mob pay mette norgaard ki",
+    "Mette Nørgaard",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideFromUs(
+    "vdk mob pay lone leth byriel",
+    "Lone Leth",
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideFromUs(
+    "vdk mob pay dorthe moller joh",
+    "Dorthe Møller",
+    ComparingType.Exact),
+
+RulesFactory.Subscription(
+    "dk surfline aps",
+    "Surfline",
+    Category.TelefonTvInternet,
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "vdk dfp193453411",
+    "DFP",
+    Category.OtherThanGroceries,
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "vdk iexpert aps",
+    "IExpert",
+    Category.OtherThanGroceries,
+    ComparingType.Exact),
+
+RulesFactory.ClothesAndShoes(
+    "dk km mode risskov",
+    "KM Mode",
+    Category.Toej,
+    ComparingType.Exact),
+
+RulesFactory.TransfersOutsideToUs(
+    "vdk squaretradecopay",
+    "SquareTrade",
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "vdk bogshoppen",
+    "Bogshoppen",
+    Category.OtherThanGroceries,
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "dk isager",
+    "Isager",
+    Category.OtherThanGroceries,
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "vdk kontoret",
+    "Kontoret",
+    Category.OtherThanGroceries,
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "vdk inntq ab",
+    "INNTQ",
+    Category.OtherThanGroceries,
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "mobilepay tattoo fashion skive",
+    "Tattoo Fashion",
+    Category.OtherThanGroceries,
+    ComparingType.Exact),
+
+RulesFactory.GeneralShopping(
+    "mobilepay old boys45",
+    "Old Boys",
+    Category.Fritid,
+    ComparingType.Exact),
+
+RulesFactory.InternalAccountTransfer(
+    "overfoersel",
+    "Overførsel",
+    Category.Overfoersel,
+    ComparingType.Exact),
+        RulesFactory.GeneralShopping(
+            "vdk stiftelsen idre",
+            "Idre",
+            Category.Ferie,
+            ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "vdk idre fja ll 18",
+            "Idre Fjäll",
+            Category.Ferie,
+            ComparingType.Exact),
     ];
 }

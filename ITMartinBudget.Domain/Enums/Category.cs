@@ -89,5 +89,6 @@ public enum Category
 
     // Fallback
 
-    Andet = 999
+    Andet = 999,
+    Ferie
 }
