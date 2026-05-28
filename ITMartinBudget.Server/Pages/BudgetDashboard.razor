@@ -384,7 +384,8 @@
         UncategorizedTransactions =>
         Transactions
             .Where(x =>
-                x.Category == Category.Andet)
+                x.BudgetGroup ==
+                BudgetGroup.Uncategorized)
             .OrderByDescending(x => x.Date)
             .ToList();
 
@@ -498,7 +499,8 @@
             Transactions
 
                 .Where(x =>
-                    x.Category != Category.Andet)
+                    x.BudgetGroup !=
+                    BudgetGroup.Uncategorized)
 
                 .GroupBy(x => x.Category)
 

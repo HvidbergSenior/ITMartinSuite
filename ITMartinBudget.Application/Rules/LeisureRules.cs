@@ -27,7 +27,7 @@ public static class LeisureRules
         ThingsOtherThanClothes(
             "radisson blu",
             "Radisson Blu",
-            Category.Andet),
+            Category.Cafe),
 
         ThingsOtherThanClothes(
             "malerfirma tidens farver",

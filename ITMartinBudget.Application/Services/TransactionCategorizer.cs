@@ -3,7 +3,7 @@ using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Application.Rules;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
-
+using ITMartinBudget.Application.Helpers;
 namespace ITMartinBudget.Application.Services;
 
 public class TransactionCategorizer
@@ -13,13 +13,15 @@ public class TransactionCategorizer
         BankTransaction tx)
     {
         tx.NormalizedDescription =
-            Normalize(tx.Description);
+            TransactionNormalizer.Normalize(
+                tx.Description);
 
         tx.TransactionType =
             tx.Amount >= 0
                 ? TransactionType.Indkomst
                 : TransactionType.Udgift;
-
+        Console.WriteLine(
+            $"NORMALIZED: {tx.NormalizedDescription}");
         var rule =
             TransactionRules.Rules
 
@@ -85,42 +87,14 @@ public class TransactionCategorizer
         tx.IsRecurring = false;
     }
 
-    private string Normalize(
-        string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return string.Empty;
-        }
-
-        input =
-            input.ToLowerInvariant();
-
-        input = input
-            .Replace("æ", "ae")
-            .Replace("ø", "oe")
-            .Replace("å", "aa");
-
-        input = Regex.Replace(
-            input,
-            @"[^\w\s]",
-            " ");
-
-        input = Regex.Replace(
-            input,
-            @"\s+",
-            " ");
-
-        return input.Trim();
-    }
-
     private bool Matches(
         string input,
         string pattern,
         ComparingType comparingType)
     {
         pattern =
-            Normalize(pattern);
+            TransactionNormalizer.Normalize(
+                pattern);
 
         return comparingType switch
         {

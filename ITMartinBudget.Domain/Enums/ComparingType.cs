@@ -2,7 +2,7 @@
 
 public enum ComparingType
 {
-    Contains,
-    Exact,
-    Word
+    Contains = 1,
+    Exact = 2,
+    Word = 3
 }

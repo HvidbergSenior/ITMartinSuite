@@ -1,7 +1,6 @@
 ﻿using static ITMartinBudget.Application.Rules.RulesFactory;
 
 using ITMartinBudget.Application.Models;
-using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
@@ -50,11 +49,19 @@ public static class GroceryRules
             "SuperBrugsen"),
 
         EverydayGrocery(
+            "superbrugs",
+            "SuperBrugsen"),
+
+        EverydayGrocery(
+            "coop sb",
+            "Coop SuperBrugsen"),
+
+        EverydayGrocery(
             "meny",
             "Meny"),
 
         EverydayGrocery(
-            "vdk spar",
+            "spar",
             "SPAR"),
 
         EverydayGrocery(
@@ -75,37 +82,6 @@ public static class GroceryRules
 
         EverydayGrocery(
             "too good to go",
-            "Too Good To Go"),
-
-        EverydayGrocery(
-            "superbrugs",
-            "SuperBrugsen"),
-
-        EverydayGrocery(
-            "coop sb",
-            "Coop SuperBrugsen"),
-        EverydayGrocery(
-        "lidlvericenter",
-        "Lidl"),
-
-        EverydayGrocery(
-            "lidl221arhusskejby",
-            "Lidl"),
-
-        EverydayGrocery(
-            "lidl158skive",
-            "Lidl"),
-
-        EverydayGrocery(
-            "lidl210arhusrisskov",
-            "Lidl"),
-
-        EverydayGrocery(
-            "rema1000 risskov",
-            "Rema 1000"),
-
-        EverydayGrocery(
-            "rema1000 aarhus troejbor",
-            "Rema 1000"),
+            "Too Good To Go")
     ];
 }

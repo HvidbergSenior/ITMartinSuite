@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using CsvHelper;
 using CsvHelper.Configuration;
+using ITMartinBudget.Application.Helpers;
 using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Application.Services;
 using ITMartinBudget.Domain.Entities;
@@ -63,8 +64,8 @@ public class BankTransactionCsvService
 
             // Normalized description
             record.NormalizedDescription =
-                Normalize(record.Description);
-
+                TransactionNormalizer.Normalize(
+                    record.Description);
             // Transaction type
             record.TransactionType =
                 record.Amount < 0
@@ -208,41 +209,5 @@ public class BankTransactionCsvService
             $"{date:yyyyMMdd}-{amount:F2}-{description}";
     }
 
-    private string Normalize(
-        string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return string.Empty;
-        }
-
-        input =
-            input.ToLowerInvariant();
-
-        input = input
-
-            .Replace("æ", "ae")
-            .Replace("ø", "oe")
-            .Replace("å", "aa");
-
-        // Remove numbers
-        input = Regex.Replace(
-            input,
-            @"\d+",
-            " ");
-
-        // Remove punctuation
-        input = Regex.Replace(
-            input,
-            @"[^\w\s]",
-            " ");
-
-        // Collapse spaces
-        input = Regex.Replace(
-            input,
-            @"\s+",
-            " ");
-
-        return input.Trim();
-    }
+    
 }

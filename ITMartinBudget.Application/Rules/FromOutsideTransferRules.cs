@@ -91,5 +91,35 @@ public static class FromOutsideTransferRules
         RulesFactory.TransfersToOutsideGiven(
             "anne bro friis",
             "Anne Bro Friis"),
+        RulesFactory.TransfersFromOutsideReceived(
+            "mille ea bastho",
+            "Mille Ea Bastho"),
+
+        RulesFactory.TransfersFromOutsideReceived(
+            "emma staehr",
+            "Emma Stæhr"),
+
+        RulesFactory.TransfersFromOutsideReceived(
+            "michael guldham",
+            "Michael Guldham"),
+
+        RulesFactory.TransfersFromOutsideReceived(
+            "mathias olin hvidber",
+            "Mathias Olin"),
+
+        RulesFactory.TransfersFromOutsideReceived(
+            "dorthe donbaek ebbese",
+            "Dorthe Donbæk"),
+
+        RulesFactory.TransfersFromOutsideReceived(
+            "siri alice birkefeld",
+            "Siri Alice"),
+
+        RulesFactory.TransfersFromOutsideReceived(
+            "mette clemmensen",
+            "Mette Clemmensen"),
+        RulesFactory.TransfersFromOutsideReceived(
+            "kongsvingervej",
+            "Kongsvingervej"),
     ];
 }

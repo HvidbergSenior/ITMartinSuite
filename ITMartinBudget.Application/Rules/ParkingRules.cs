@@ -1,7 +1,6 @@
 ﻿using static ITMartinBudget.Application.Rules.RulesFactory;
 
 using ITMartinBudget.Application.Models;
-using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
@@ -35,28 +34,14 @@ public static class ParkingRules
 
         Parking(
             "parkman",
-            "ParkMan"
-            ),
+            "ParkMan"),
 
         Parking(
             "onepark",
-            "OnePark"
-            ),
+            "OnePark"),
 
         Parking(
             "parkering aarhus",
-            "Aarhus Parkering"),
-        
-        Parking(
-        "easypark",
-        "EasyPark"),
-
-        Parking(
-            "apcoa",
-            "APCOA"),
-
-        Parking(
-            "q park",
-            "Q-Park"),
+            "Aarhus Parkering")
     ];
 }

@@ -37,12 +37,12 @@ TransfersToOutsideGiven(
     "Jan Isøe"),
 
 TransfersFromOutsideReceived(
-    "mile ea bastho",
-    "Mile Ea Bastho"),
+    "mille ea bastholm",
+    "Mille Ea Bastholm"),
 
 TransfersToOutsideGiven(
-    "mile ea bastho",
-    "Mile Ea Bastho"),
+    "mille ea bastholm",
+    "Mille Ea Bastholm"),
 
 TransfersFromOutsideReceived(
     "mathilde rask",
@@ -51,7 +51,13 @@ TransfersFromOutsideReceived(
 TransfersToOutsideGiven(
     "mathilde rask",
     "Mathilde Rask"),
+TransfersFromOutsideReceived(
+    "mathias olin hvidber",
+    "Mathias Olin Hvidberg"),
 
+TransfersToOutsideGiven(
+    "mathias olin hvidber",
+    "Mathias Olin Hvidberg"),
 TransfersFromOutsideReceived(
     "ida koester",
     "Ida Køster"),
@@ -69,12 +75,12 @@ TransfersToOutsideGiven(
     "Sarah Lahn"),
 
 TransfersFromOutsideReceived(
-    "michael gudham",
-    "Michael Gudham"),
+    "michael guldham",
+    "Michael Guldham"),
 
 TransfersToOutsideGiven(
-    "michael gudham",
-    "Michael Gudham"),
+    "michael guldham",
+    "Michael Guldham"),
 
 TransfersFromOutsideReceived(
     "maja olesen",
@@ -95,11 +101,23 @@ TransfersToOutsideGiven(
 TransfersFromOutsideReceived(
     "emma stoehr",
     "Emma Støhr"),
+TransfersFromOutsideReceived(
+    "karsten juel bu",
+    "Karsten Juel Bunch"),
 
+TransfersToOutsideGiven(
+    "karsten juel bu",
+    "Karsten Juel Bunch"),
 TransfersToOutsideGiven(
     "emma stoehr",
     "Emma Støhr"),
+TransfersFromOutsideReceived(
+    "dorthe donbaek ebbese",
+    "Dorthe Donbæk Ebbese"),
 
+TransfersToOutsideGiven(
+    "dorthe donbaek ebbese",
+    "Dorthe Donbæk Ebbese"),
 TransfersFromOutsideReceived(
     "christian birkefeldt",
     "Christian Birkefeldt"),
@@ -167,6 +185,48 @@ RestaurantCafe(
 ThingsOtherThanClothes(
     "skive tek",
     "Skive Tek",
-    Category.Fritid)
+    Category.Fritid),
+       
+
+
+ThingsOtherThanClothes(
+    "ruth co",
+    "Ruth & Co", Category.OtherThanGroceries),
+
+ThingsOtherThanClothes(
+    "noddebutikken",
+    "Nøddebutikken", Category.OtherThanGroceries),
+
+ThingsOtherThanClothes(
+    "sikkerhedsudstyr",
+    "Sikkerhedsudstyr", Category.OtherThanGroceries),
+
+ThingsOtherThanClothes(
+    "kjaer sommerfeldt",
+    "Kjær Sommerfeldt", Category.OtherThanGroceries),
+Refund(
+    "danmark",
+    "Danmark Refund"),
+
+RestaurantCafe(
+    "ruth",
+    "Ruth & Co",
+    Category.Restaurant),
+
+TransfersFromOutsideReceived(
+    "siri alice birkefeld",
+    "Siri Alice Birkefeld"),
+
+TransfersToOutsideGiven(
+    "siri alice birkefeld",
+    "Siri Alice Birkefeld"),
+
+TransfersFromOutsideReceived(
+    "mette clemmensen",
+    "Mette Clemmensen"),
+
+TransfersToOutsideGiven(
+    "mette clemmensen",
+    "Mette Clemmensen"),
     ];
 }

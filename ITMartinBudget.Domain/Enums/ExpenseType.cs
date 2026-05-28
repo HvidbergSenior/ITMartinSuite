@@ -1,6 +1,8 @@
-﻿public enum ExpenseType
+﻿namespace ITMartinBudget.Domain.Enums;
+
+public enum ExpenseType
 {
-    Fixed,      // rent, insurance, subscriptions
-    Variable,   // food, fuel
-    Optional    // fun, luxury
+    Fixed = 1,
+    Variable = 2,
+    Optional = 3
 }

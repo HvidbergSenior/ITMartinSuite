@@ -2,6 +2,6 @@
 
 public enum TransactionType
 {
-    Indkomst,
-    Udgift,
+    Indkomst = 1,
+    Udgift = 2
 }

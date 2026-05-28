@@ -13,8 +13,8 @@ public static class CategorizationAnalysisService
             transactions
 
                 .Where(x =>
-                    x.Category ==
-                    Category.Andet)
+                    x.BudgetGroup ==
+                    BudgetGroup.Uncategorized)
 
                 .GroupBy(x =>
                     x.NormalizedDescription)
@@ -42,20 +42,20 @@ public static class CategorizationAnalysisService
 
             Categorized =
                 transactions.Count(x =>
-                    x.Category !=
-                    Category.Andet),
+                    x.BudgetGroup !=
+                    BudgetGroup.Uncategorized),
 
             Uncategorized =
                 transactions.Count(x =>
-                    x.Category ==
-                    Category.Andet),
+                    x.BudgetGroup ==
+                    BudgetGroup.Uncategorized),
 
             UncategorizedAmount =
                 transactions
 
                     .Where(x =>
-                        x.Category ==
-                        Category.Andet)
+                        x.BudgetGroup ==
+                        BudgetGroup.Uncategorized)
 
                     .Sum(x =>
                         Math.Abs(x.Amount)),

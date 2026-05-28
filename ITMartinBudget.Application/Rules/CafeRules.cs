@@ -31,7 +31,7 @@ public static class CafeRules
 
         RestaurantCafe(
             "ejvinds stormgade",
-            "Ejvinds Stormgade",
+            "Ejvinds",
             Category.Cafe),
 
         RestaurantCafe(
@@ -61,7 +61,22 @@ public static class CafeRules
 
         RestaurantCafe(
             "peter gift",
-            "Gift",
-            Category.Cafe)
+            "Peter Gift",
+            Category.Cafe),
+
+        RestaurantCafe(
+            "hanzo",
+            "Hanzo",
+            Category.Restaurant),
+
+        RestaurantCafe(
+            "umashi",
+            "Umashi",
+            Category.Restaurant),
+
+        RestaurantCafe(
+            "taxas",
+            "Taxas",
+            Category.Restaurant)
     ];
 }
