@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using CsvHelper;
 using CsvHelper.Configuration;
 using ITMartinBudget.Application.Interfaces;
+using ITMartinBudget.Application.Services;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
 using ITMartinBudget.Infrastructure.Csv;
@@ -26,24 +27,28 @@ public class BankTransactionCsvService
     public async Task<List<BankTransaction>> ImportAsync(
         Stream stream)
     {
-        using var reader = new StreamReader(stream);
+        using var reader =
+            new StreamReader(stream);
 
-        var config = new CsvConfiguration(
-            new CultureInfo("da-DK"))
-        {
-            Delimiter = ";",
-            MissingFieldFound = null,
-            BadDataFound = x =>
+        var config =
+            new CsvConfiguration(
+                new CultureInfo("da-DK"))
             {
-                Console.WriteLine(
-                    $"BAD DATA: {x.RawRecord}");
-            }
-        };
+                Delimiter = ";",
+                MissingFieldFound = null,
+
+                BadDataFound = x =>
+                {
+                    Console.WriteLine(
+                        $"BAD DATA: {x.RawRecord}");
+                }
+            };
 
         using var csv =
             new CsvReader(reader, config);
 
-        csv.Context.RegisterClassMap<BankTransactionMap>();
+        csv.Context.RegisterClassMap<
+            BankTransactionMap>();
 
         var records =
             new List<BankTransaction>();
@@ -51,7 +56,7 @@ public class BankTransactionCsvService
         await foreach (var record in
                        csv.GetRecordsAsync<BankTransaction>())
         {
-            // Keep original description
+            // Original description
             record.Description =
                 record.Description?.Trim()
                 ?? string.Empty;
@@ -66,32 +71,80 @@ public class BankTransactionCsvService
                     ? TransactionType.Udgift
                     : TransactionType.Indkomst;
 
-            // Default fallback
+            // Defaults
             record.Category =
                 Category.Andet;
+
+            record.BudgetGroup =
+                BudgetGroup.Unknown;
 
             record.IsRecurring = false;
 
             // Categorize
             _categorizer.Categorize(record);
 
-            // Safety fallback
-            if (record.BudgetGroup == 0)
+            // Final fallback
+            if (record.BudgetGroup ==
+                BudgetGroup.Unknown)
             {
                 record.BudgetGroup =
+                    BudgetGroup.Uncategorized;
+
+                record.Title =
                     record.Amount >= 0
-                        ? BudgetGroup.VariableIncome
-                        : BudgetGroup.VariableExpense;
+                        ? "Ukategoriseret Indkomst"
+                        : "Ukategoriseret";
+
+                record.Category =
+                    Category.Andet;
             }
 
             records.Add(record);
+        }
+
+        // Analysis BEFORE deduplication
+        var analysis =
+            CategorizationAnalysisService
+                .Analyze(records);
+
+        Console.WriteLine("");
+        Console.WriteLine("=================================");
+        Console.WriteLine("CATEGORIZATION ANALYSIS");
+        Console.WriteLine("=================================");
+
+        Console.WriteLine(
+            $"Total: {analysis.Total}");
+
+        Console.WriteLine(
+            $"Categorized: {analysis.Categorized}");
+
+        Console.WriteLine(
+            $"Uncategorized: {analysis.Uncategorized}");
+
+        Console.WriteLine(
+            $"Uncategorized Amount: {analysis.UncategorizedAmount:N2} kr");
+
+        Console.WriteLine("");
+        Console.WriteLine(
+            "TOP UNCATEGORIZED:");
+
+        foreach (var item in
+                 analysis.UncategorizedTransactions
+                     .Take(50))
+        {
+            Console.WriteLine(
+                $"{item.Count}x | " +
+                $"{item.TotalAmount:N2} kr | " +
+                $"{item.Description}");
         }
 
         var existingKeys =
             await GetExistingKeys();
 
         var newTransactions =
-            Deduplicate(records, existingKeys);
+            Deduplicate(
+                records,
+                existingKeys);
 
         if (newTransactions.Any())
         {
@@ -100,6 +153,10 @@ public class BankTransactionCsvService
         }
 
         await _db.SaveChangesAsync();
+
+        Console.WriteLine("");
+        Console.WriteLine(
+            $"Imported {newTransactions.Count} new transactions");
 
         return newTransactions;
     }
@@ -168,19 +225,19 @@ public class BankTransactionCsvService
             .Replace("ø", "oe")
             .Replace("å", "aa");
 
-        // remove numbers
+        // Remove numbers
         input = Regex.Replace(
             input,
             @"\d+",
             " ");
 
-        // remove punctuation
+        // Remove punctuation
         input = Regex.Replace(
             input,
             @"[^\w\s]",
             " ");
 
-        // collapse spaces
+        // Collapse spaces
         input = Regex.Replace(
             input,
             @"\s+",

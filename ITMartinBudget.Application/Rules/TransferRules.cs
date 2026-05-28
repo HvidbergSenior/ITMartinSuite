@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,82 +9,56 @@ public static class TransferRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "til 7633 8119308",
-            Title = "Aldersopsparing",
-            Category = Category.Opsparing,
-            BudgetGroup = BudgetGroup.InternalTransfer,
-            IsRecurring = true
-        },
+        SavingsAndPension(
+            "til 7633 8119308",
+            "Aldersopsparing",
+            Category.Opsparing,
+            ComparingType.Exact),
 
-        new()
-        {
-            Pattern = "til 7633 0008318157",
-            Title = "Ratepension",
-            Category = Category.Pension,
-            BudgetGroup = BudgetGroup.InternalTransfer,
-            IsRecurring = true
-        },
+        SavingsAndPension(
+            "til 7633 0008318157",
+            "Ratepension",
+            Category.Pension,
+            ComparingType.Exact),
 
-        new()
-        {
-            Pattern = "opsparingskonto",
-            Title = "Savings Transfer",
-            Category = Category.Opsparing,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },
+        SavingsAndPension(
+            "opsparingskonto",
+            "Savings Transfer",
+            Category.Opsparing),
 
-        new()
-        {
-            Pattern = "boerneopsparing",
-            Title = "Child Savings",
-            Category = Category.Opsparing,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },
+        SavingsAndPension(
+            "boerneopsparing",
+            "Child Savings",
+            Category.Opsparing),
 
-        new()
-        {
-            Pattern = "9490 71557243",
-            Title = "Internal Transfer",
-            Category = Category.Overfoersel,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },
+        InternalAccountTransfer(
+            "9490 71557243",
+            "Internal Transfer",
+            Category.Overfoersel,
+            ComparingType.Exact),
 
-        new()
-        {
-            Pattern = "7633 8318157",
-            Title = "Internal Transfer",
-            Category = Category.Overfoersel,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },
+        InternalAccountTransfer(
+            "7633 8318157",
+            "Internal Transfer",
+            Category.Overfoersel,
+            ComparingType.Exact),
 
-        new()
-        {
-            Pattern = "til 7633",
-            Title = "Internal Bank Transfer",
-            Category = Category.Overfoersel,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },new()
-        {
-            Pattern = "7264 1259824",
-            Title = "Internal Transfer",
-            Category = Category.Overfoersel,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },
-        new()
-        {
-            Pattern = "3627 11254691",
-            Title = "Internal Transfer",
-            Category = Category.Overfoersel,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },
-        new()
-        {
-            Pattern = "6180 17682091",
-            Title = "Internal Transfer",
-            Category = Category.Overfoersel,
-            BudgetGroup = BudgetGroup.InternalTransfer
-        },
+        InternalAccountTransfer(
+            "7264 1259824",
+            "Internal Transfer",
+            Category.Overfoersel,
+            ComparingType.Exact),
+
+        InternalAccountTransfer(
+            "3627 11254691",
+            "Internal Transfer",
+            Category.Overfoersel,
+            ComparingType.Exact),
+
+        InternalAccountTransfer(
+            "6180 17682091",
+            "Internal Transfer",
+            Category.Overfoersel,
+            ComparingType.Exact)
     ];
 }

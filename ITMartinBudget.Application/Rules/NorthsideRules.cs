@@ -7,36 +7,20 @@ public static class NorthsideRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "dtd group",
-            Title = "NorthSide",
-            Category = Category.Northside,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.Northside(
+            "dtd group",
+            "NorthSide"),
 
-        new()
-        {
-            Pattern = "northside",
-            Title = "NorthSide",
-            Category = Category.Northside,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.Northside(
+            "northside",
+            "NorthSide"),
 
-        new()
-        {
-            Pattern = "ticketmaster northside",
-            Title = "NorthSide Ticket",
-            Category = Category.Northside,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.Northside(
+            "ticketmaster northside",
+            "NorthSide Ticket"),
 
-        new()
-        {
-            Pattern = "north side",
-            Title = "NorthSide",
-            Category = Category.Northside,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        RulesFactory.Northside(
+            "north side",
+            "NorthSide")
     ];
 }

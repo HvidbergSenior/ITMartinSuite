@@ -7,204 +7,111 @@ public static class ClothingRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "hm",
-            Title = "H&M",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "h m",
+            "H&M",
+            comparingType: ComparingType.Word),
 
-        new()
-        {
-            Pattern = "about you",
-            Title = "About You",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "about you",
+            "About You"),
 
-        new()
-        {
-            Pattern = "only stores",
-            Title = "Only",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "only stores",
+            "Only"),
 
-        new()
-        {
-            Pattern = "skechers",
-            Title = "Skechers",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "skechers",
+            "Skechers"),
 
-        new()
-        {
-            Pattern = "stm sport",
-            Title = "STM Sport",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "stm sport",
+            "STM Sport"),
 
-        new()
-        {
-            Pattern = "paw sko",
-            Title = "Paw Sko",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "paw sko",
+            "Paw Sko"),
 
-        new()
-        {
-            Pattern = "shopping4net",
-            Title = "Shopping4Net",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "shopping4net",
+            "Shopping4Net"),
 
-        new()
-        {
-            Pattern = "ecco",
-            Title = "Ecco",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "ecco",
+            "Ecco",
+            comparingType: ComparingType.Word),
 
-        new()
-        {
-            Pattern = "2nddeluxe",
-            Title = "2ndDeluxe",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "2nddeluxe",
+            "2ndDeluxe"),
 
-        new()
-        {
-            Pattern = "blue tomato",
-            Title = "Blue Tomato",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "blue tomato",
+            "Blue Tomato"),
 
-        new()
-        {
-            Pattern = "klarna",
-            Title = "Klarna",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "klarna",
+            "Klarna",
+            comparingType: ComparingType.Word),
 
-        new()
-        {
-            Pattern = "trendhim",
-            Title = "Trendhim",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "trendhim",
+            "Trendhim"),
 
-        new()
-        {
-            Pattern = "rivalxt",
-            Title = "RivalXT",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "rivalxt",
+            "RivalXT"),
 
-        new()
-        {
-            Pattern = "reshopit",
-            Title = "Reshopit",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "reshopit",
+            "Reshopit"),
 
-        new()
-        {
-            Pattern = "julie sandlau",
-            Title = "Julie Sandlau",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "julie sandlau",
+            "Julie Sandlau"),
 
-        new()
-        {
-            Pattern = "sportmaster",
-            Title = "Sportmaster",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "sportmaster",
+            "Sportmaster"),
 
-        new()
-        {
-            Pattern = "modekompagniet",
-            Title = "Modekompagniet",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "modekompagniet",
+            "Modekompagniet"),
 
-        new()
-        {
-            Pattern = "mft knitwear",
-            Title = "MFT Knitwear",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "mft knitwear",
+            "MFT Knitwear"),
 
-        new()
-        {
-            Pattern = "reshoppit",
-            Title = "Reshoppit",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "reshoppit",
+            "Reshoppit"),
 
-        new()
-        {
-            Pattern = "bruuns galleri",
-            Title = "Bruuns Galleri",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "bruuns galleri",
+            "Bruuns Galleri"),
 
-        new()
-        {
-            Pattern = "hyldedeluxe",
-            Title = "HyldeDeluxe",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "hyldedeluxe",
+            "HyldeDeluxe"),
 
-        new()
-        {
-            Pattern = "ideal of sweden",
-            Title = "Ideal of Sweden",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "ideal of sweden",
+            "Ideal of Sweden"),
 
-        new()
-        {
-            Pattern = "zalando",
-            Title = "Zalando",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "zalando",
+            "Zalando"),
 
-        new()
-        {
-            Pattern = "vero moda",
-            Title = "Vero Moda",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RulesFactory.ClothesAndShoes(
+            "vero moda",
+            "Vero Moda"),
 
-        new()
-        {
-            Pattern = "jack and jones",
-            Title = "Jack & Jones",
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        RulesFactory.ClothesAndShoes(
+            "jack and jones",
+            "Jack & Jones"),
+
+        RulesFactory.ClothesAndShoes(
+            "butler loftet",
+            "Butler Loftet")
     ];
 }

@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,76 +9,44 @@ public static class GamingRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "playstation",
-            Title = "PlayStation",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "playstation",
+            "PlayStation"),
 
-        new()
-        {
-            Pattern = "spilforsyningen",
-            Title = "Spilforsyningen",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "spilforsyningen",
+            "Spilforsyningen"),
 
-        new()
-        {
-            Pattern = "ubisoft",
-            Title = "Ubisoft",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "ubisoft",
+            "Ubisoft"),
 
-        new()
-        {
-            Pattern = "steam",
-            Title = "Steam",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "steam",
+            "Steam"),
 
-        new()
-        {
-            Pattern = "epic games",
-            Title = "Epic Games",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "epic games",
+            "Epic Games"),
 
-        new()
-        {
-            Pattern = "nintendo",
-            Title = "Nintendo",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "nintendo",
+            "Nintendo"),
 
-        new()
-        {
-            Pattern = "xbox",
-            Title = "Xbox",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "xbox",
+            "Xbox"),
 
-        new()
-        {
-            Pattern = "riot games",
-            Title = "Riot Games",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EntertainmentExpense(
+            "riot games",
+            "Riot Games"),
 
-        new()
-        {
-            Pattern = "tsg platforms",
-            Title = "TSG Platforms",
-            Category = Category.Gaming,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        EntertainmentExpense(
+            "tsg platforms",
+            "TSG Platforms"),
+
+        EntertainmentExpense(
+            "apple com bill",
+            "Apple Services")
     ];
 }

@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,76 +9,40 @@ public static class PublicTransportRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "rejsekort",
-            Title = "Rejsekort",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "rejsekort",
+            "Rejsekort"),
 
-        new()
-        {
-            Pattern = "brobizz",
-            Title = "BroBizz",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "brobizz",
+            "BroBizz"),
 
-        new()
-        {
-            Pattern = "dsb",
-            Title = "DSB",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "dsb",
+            "DSB"),
 
-        new()
-        {
-            Pattern = "midttrafik",
-            Title = "Midttrafik",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "midttrafik",
+            "Midttrafik"),
 
-        new()
-        {
-            Pattern = "letbane",
-            Title = "Letbane",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "letbane",
+            "Letbane"),
 
-        new()
-        {
-            Pattern = "molslinjen",
-            Title = "Molslinjen",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "molslinjen",
+            "Molslinjen"),
 
-        new()
-        {
-            Pattern = "go collect",
-            Title = "GoCollective",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "go collect",
+            "GoCollective"),
 
-        new()
-        {
-            Pattern = "flixbus",
-            Title = "FlixBus",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PublicTransport(
+            "flixbus",
+            "FlixBus"),
 
-        new()
-        {
-            Pattern = "kombardo",
-            Title = "Kombardo",
-            Category = Category.OffentligTransport,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        PublicTransport(
+            "kombardo",
+            "Kombardo")
     ];
 }

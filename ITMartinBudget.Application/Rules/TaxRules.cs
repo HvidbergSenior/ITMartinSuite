@@ -5,13 +5,13 @@ using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
-public static class SportsRules
+public static class TaxRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        FixedExpense(
-            "hog hinnerup",
-            "HOG Hinnerup",
-            Category.Boern)
+        Taxes(
+            "sktst motor",
+            "Motorafgift",
+            Category.BilVedligehold),
     ];
 }

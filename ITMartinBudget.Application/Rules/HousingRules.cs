@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -9,89 +11,59 @@ public static class HousingRules
     [
         // Mortgage / Housing
 
-        new()
-        {
-            Pattern = "termin jyske realkredit",
-            Title = "Jyske Realkredit",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "termin jyske realkredit",
+            "Jyske Realkredit",
+            Category.Bolig),
 
-        new()
-        {
-            Pattern = "aarhus kommune ejendomsskat",
-            Title = "Ejendomsskat",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "aarhus kommune ejendomsskat",
+            "Ejendomsskat",
+            Category.Bolig),
 
-        new()
-        {
-            Pattern = "parcelforeningen",
-            Title = "Parcelforening",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "parcelforeningen",
+            "Parcelforening",
+            Category.Bolig),
 
-        new()
-        {
-            Pattern = "skattestyrelsen",
-            Title = "Skattestyrelsen",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "skattestyrelsen",
+            "Skattestyrelsen",
+            Category.Bolig),
 
         // Utilities
 
-        new()
-        {
-            Pattern = "aarhus vand",
-            Title = "Aarhus Vand",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "aarhus vand",
+            "Aarhus Vand",
+            Category.Bolig),
 
-        new()
-        {
-            Pattern = "kredsloeb",
-            Title = "Kredsløb",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "kredsloeb",
+            "Kredsløb",
+            Category.Bolig,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "norlys energi",
-            Title = "Norlys Energi",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "norlys energi",
+            "Norlys Energi",
+            Category.Bolig),
 
-        new()
-        {
-            Pattern = "ewii",
-            Title = "EWII",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "ewii",
+            "EWII",
+            Category.Bolig,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "andel energi",
-            Title = "Andel Energi",
-            Category = Category.Bolig,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "andel energi",
+            "Andel Energi",
+            Category.Bolig),
 
-       
+        FixedExpense(
+            "nrgi",
+            "NRGi Elhandel A/S",
+            Category.Bolig,
+            ComparingType.Word)
     ];
 }

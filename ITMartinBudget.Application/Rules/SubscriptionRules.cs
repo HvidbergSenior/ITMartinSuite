@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,139 +9,77 @@ public static class SubscriptionRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "netflix",
-            Title = "Netflix",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "netflix",
+            "Netflix",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "spotify",
-            Title = "Spotify",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "spotify",
+            "Spotify",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "google one",
-            Title = "Google One",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "google one",
+            "Google One",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "apple com bill",
-            Title = "Apple Services",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "youtube premium",
+            "YouTube Premium",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "youtube premium",
-            Title = "YouTube Premium",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "hbo",
+            "HBO",
+            Category.Subscription,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "hbo",
-            Title = "HBO",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "disney",
+            "Disney+",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "disney",
-            Title = "Disney+",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "viaplay",
+            "Viaplay",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "viaplay",
-            Title = "Viaplay",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "tv2 play",
+            "TV2 Play",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "tv2",
-            Title = "TV2 Play",
-            Category = Category.Streaming,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "allente",
+            "Allente",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "allente",
-            Title = "Allente",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "chatgpt",
+            "ChatGPT",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "chatgpt",
-            Title = "ChatGPT",
-            Category = Category.Apps,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "openai",
+            "OpenAI",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "openai",
-            Title = "OpenAI",
-            Category = Category.Apps,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "dropbox",
+            "Dropbox",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "dropbox",
-            Title = "Dropbox",
-            Category = Category.Apps,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "microsoft",
+            "Microsoft",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "microsoft",
-            Title = "Microsoft",
-            Category = Category.Apps,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "adobe",
+            "Adobe",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "adobe",
-            Title = "Adobe",
-            Category = Category.Apps,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        }
+      
     ];
 }

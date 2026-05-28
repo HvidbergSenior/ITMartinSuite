@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,116 +9,103 @@ public static class GroceryRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "netto",
-            Title = "Netto",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "netto",
+            "Netto"),
 
-        new()
-        {
-            Pattern = "rema",
-            Title = "Rema 1000",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "rema",
+            "Rema 1000"),
 
-        new()
-        {
-            Pattern = "foetex",
-            Title = "Føtex",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "foetex",
+            "Føtex"),
 
-        new()
-        {
-            Pattern = "bilka",
-            Title = "Bilka",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "bilka",
+            "Bilka"),
 
-        new()
-        {
-            Pattern = "lidl",
-            Title = "Lidl",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "lidl",
+            "Lidl"),
 
-        new()
-        {
-            Pattern = "kvickly",
-            Title = "Kvickly",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "kvickly",
+            "Kvickly"),
 
-        new()
-        {
-            Pattern = "365discount",
-            Title = "365discount",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "365discount",
+            "365discount"),
 
-        new()
-        {
-            Pattern = "coop365",
-            Title = "Coop 365",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "coop365",
+            "Coop 365"),
 
-        new()
-        {
-            Pattern = "dagli brugsen",
-            Title = "Dagli'Brugsen",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "dagli brugsen",
+            "Dagli'Brugsen"),
 
-        new()
-        {
-            Pattern = "superbrugsen",
-            Title = "SuperBrugsen",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "superbrugsen",
+            "SuperBrugsen"),
 
-        new()
-        {
-            Pattern = "meny",
-            Title = "Meny",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "meny",
+            "Meny"),
 
-        new()
-        {
-            Pattern = "spar",
-            Title = "SPAR",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "vdk spar",
+            "SPAR"),
 
-        new()
-        {
-            Pattern = "min koebmand",
-            Title = "Min Købmand",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        EverydayGrocery(
+            "min koebmand",
+            "Min Købmand"),
 
-        new()
-        {
-            Pattern = "reenberg groent",
-            Title = "Reenberg Grønt",
-            Category = Category.Dagligvarer,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        EverydayGrocery(
+            "reenberg groent",
+            "Reenberg Grønt"),
+
+        EverydayGrocery(
+            "loevbjerg",
+            "Løvbjerg"),
+
+        EverydayGrocery(
+            "tgtg",
+            "Too Good To Go"),
+
+        EverydayGrocery(
+            "too good to go",
+            "Too Good To Go"),
+
+        EverydayGrocery(
+            "superbrugs",
+            "SuperBrugsen"),
+
+        EverydayGrocery(
+            "coop sb",
+            "Coop SuperBrugsen"),
+        EverydayGrocery(
+        "lidlvericenter",
+        "Lidl"),
+
+        EverydayGrocery(
+            "lidl221arhusskejby",
+            "Lidl"),
+
+        EverydayGrocery(
+            "lidl158skive",
+            "Lidl"),
+
+        EverydayGrocery(
+            "lidl210arhusrisskov",
+            "Lidl"),
+
+        EverydayGrocery(
+            "rema1000 risskov",
+            "Rema 1000"),
+
+        EverydayGrocery(
+            "rema1000 aarhus troejbor",
+            "Rema 1000"),
     ];
 }

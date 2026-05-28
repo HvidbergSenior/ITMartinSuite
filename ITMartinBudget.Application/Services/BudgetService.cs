@@ -163,7 +163,7 @@ public class BudgetService : IBudgetService
             Category.Cafe => "Cafe",
 
             Category.Streaming => "Streaming",
-            Category.Koncert => "Koncert",
+            Category.KoncertBio => "Koncert",
             Category.Gaming => "Gaming",
             Category.Apps => "Apps",
             Category.Northside => "NorthSide",

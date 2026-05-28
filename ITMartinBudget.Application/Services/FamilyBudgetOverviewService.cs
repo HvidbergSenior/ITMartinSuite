@@ -87,8 +87,18 @@ public class FamilyBudgetOverviewService
         var monthlyIncome =
             filtered
                 .Where(x =>
-                    x.BudgetGroup ==
-                    BudgetGroup.FixedIncome)
+                    x.TransactionType ==
+                    TransactionType.Indkomst
+
+                    &&
+
+                    x.BudgetGroup !=
+                    BudgetGroup.InternalTransfer
+
+                    &&
+
+                    x.BudgetGroup !=
+                    BudgetGroup.Refund)
                 .Sum(x => x.Amount)
             / months;
 
@@ -96,8 +106,19 @@ public class FamilyBudgetOverviewService
             Math.Abs(
                 filtered
                     .Where(x =>
-                        x.BudgetGroup ==
-                        BudgetGroup.FixedExpense)
+                        x.TransactionType ==
+                        TransactionType.Udgift
+
+                        &&
+
+                        (
+                            x.BudgetGroup ==
+                            BudgetGroup.FixedExpense
+
+                            ||
+
+                            x.IsRecurring
+                        ))
                     .Sum(x => x.Amount)
             ) / months;
 
@@ -105,8 +126,22 @@ public class FamilyBudgetOverviewService
             Math.Abs(
                 filtered
                     .Where(x =>
-                        x.BudgetGroup ==
-                        BudgetGroup.VariableExpense)
+                        x.TransactionType ==
+                        TransactionType.Udgift
+
+                        &&
+
+                        x.BudgetGroup !=
+                        BudgetGroup.FixedExpense
+
+                        &&
+
+                        !x.IsRecurring
+
+                        &&
+
+                        x.BudgetGroup !=
+                        BudgetGroup.InternalTransfer)
                     .Sum(x => x.Amount)
             ) / months;
 

@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,68 +9,49 @@ public static class BeautyRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "piet",
-            Title = "Frisør Piet",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "piet",
+            "Frisør Piet",
+            Category.Sundhed,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "lyko",
-            Title = "Lyko",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "lyko",
+            "Lyko",
+            Category.Sundhed),
 
-        new()
-        {
-            Pattern = "matas",
-            Title = "Matas",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "matas",
+            "Matas",
+            Category.Sundhed,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "normal",
-            Title = "Normal",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "normal",
+            "Normal",
+            Category.Sundhed,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "magasin",
-            Title = "Magasin Beauty",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "magasin",
+            "Magasin Beauty",
+            Category.Sundhed,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "sephora",
-            Title = "Sephora",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "sephora",
+            "Sephora",
+            Category.Sundhed),
 
-        new()
-        {
-            Pattern = "nicehair",
-            Title = "NiceHair",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "nicehair",
+            "NiceHair",
+            Category.Sundhed),
 
-        new()
-        {
-            Pattern = "frisoer",
-            Title = "Frisør",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        PersonalCare(
+            "frisoer",
+            "Frisør",
+            Category.Sundhed,
+            ComparingType.Word)
     ];
 }

@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,76 +9,46 @@ public static class InsuranceRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "alka forsikring",
-            Title = "Alka Forsikring",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "alka forsikring",
+            "Alka Forsikring",
+            Category.Forsikring),
 
-        new()
-        {
-            Pattern = "sygeforsikringen danmark",
-            Title = "Sygeforsikringen Danmark",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "sygeforsikringen danmark",
+            "Sygeforsikringen Danmark",
+            Category.Forsikring),
 
-        new()
-        {
-            Pattern = "depotsikring",
-            Title = "Depotsikring",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "depotsikring",
+            "Depotsikring",
+            Category.Forsikring),
 
-        new()
-        {
-            Pattern = "tryg",
-            Title = "Tryg",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "tryg",
+            "Tryg",
+            Category.Forsikring,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "topdanmark",
-            Title = "Topdanmark",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "topdanmark",
+            "Topdanmark",
+            Category.Forsikring),
 
-        new()
-        {
-            Pattern = "gjensidige",
-            Title = "Gjensidige",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "gjensidige",
+            "Gjensidige",
+            Category.Forsikring),
 
-        new()
-        {
-            Pattern = "codan",
-            Title = "Codan",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "codan",
+            "Codan",
+            Category.Forsikring,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "if skadeforsikring",
-            Title = "If Forsikring",
-            Category = Category.Forsikring,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        }
+        FixedExpense(
+            "if skadeforsikring",
+            "If Forsikring",
+            Category.Forsikring)
     ];
 }

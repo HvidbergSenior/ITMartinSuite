@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,76 +9,43 @@ public static class TvInternetRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "allente",
-            Title = "Allente",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "telenor",
+            "Telenor",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "telenor",
-            Title = "Telenor",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "yousee",
+            "YouSee",
+            Category.Subscription),
 
-        new()
-        {
-            Pattern = "yousee",
-            Title = "YouSee",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "norlys",
+            "Norlys",
+            Category.Subscription,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "norlys",
-            Title = "Norlys",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "waoo",
+            "Waoo",
+            Category.Subscription,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "waoo",
-            Title = "Waoo",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "hiper",
+            "Hiper",
+            Category.Subscription,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "hiper",
-            Title = "Hiper",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        FixedExpense(
+            "eesy",
+            "eesy",
+            Category.Subscription,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "eesy",
-            Title = "eesy",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
-
-        new()
-        {
-            Pattern = "oister",
-            Title = "Oister",
-            Category = Category.TelefonTvInternet,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        }
+        FixedExpense(
+            "oister",
+            "Oister",
+            Category.Subscription)
     ];
 }

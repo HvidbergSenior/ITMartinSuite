@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,40 +9,26 @@ public static class FixedIncomeRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "loenoverfoersel",
-            Title = "Salary",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.FixedIncome,
-            IsRecurring = true
-        },
+        FixedIncome(
+            "loenoverfoersel",
+            "Salary"),
 
-        new()
-        {
-            Pattern = "maanedsloen",
-            Title = "Salary",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.FixedIncome,
-            IsRecurring = true
-        },
+        FixedIncome(
+            "maanedsloen",
+            "Salary"),
 
-        new()
-        {
-            Pattern = "plusloen",
-            Title = "Salary",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.FixedIncome,
-            IsRecurring = true
-        },
+        FixedIncome(
+            "plusloen",
+            "Salary"),
 
-        new()
-        {
-            Pattern = "su",
-            Title = "SU",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.FixedIncome,
-            IsRecurring = true
-        }
+        FixedIncome(
+            "loen",
+            "Salary",
+            ComparingType.Word),
+        
+        RulesFactory.FixedIncome(
+        "su",
+        "SU",
+        ComparingType.Exact)
     ];
 }

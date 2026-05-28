@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,76 +9,53 @@ public static class TakeAwayRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "wolt",
-            Title = "Wolt",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "wolt",
+            "Wolt",
+            Category.Takeaway),
 
-        new()
-        {
-            Pattern = "justeat",
-            Title = "Just Eat",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "justeat",
+            "Just Eat",
+            Category.Takeaway),
 
-        new()
-        {
-            Pattern = "mcdonald",
-            Title = "McDonalds",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "mcdonald",
+            "McDonalds",
+            Category.Takeaway),
 
-        new()
-        {
-            Pattern = "burger king",
-            Title = "Burger King",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "burger king",
+            "Burger King",
+            Category.Takeaway),
 
-        new()
-        {
-            Pattern = "sunset",
-            Title = "Sunset Boulevard",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "sunset",
+            "Sunset Boulevard",
+            Category.Takeaway,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "kfc",
-            Title = "KFC",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "kfc",
+            "KFC",
+            Category.Takeaway,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "dominos",
-            Title = "Domino's",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "dominos",
+            "Domino's",
+            Category.Takeaway),
 
-        new()
-        {
-            Pattern = "pizza",
-            Title = "Pizza",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "pizza",
+            "Pizza",
+            Category.Takeaway,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "sushi",
-            Title = "Sushi",
-            Category = Category.Takeaway,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        RestaurantCafe(
+            "sushi",
+            "Sushi",
+            Category.Takeaway,
+            ComparingType.Word)
     ];
 }

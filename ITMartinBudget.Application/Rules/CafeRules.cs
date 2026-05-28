@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,92 +9,59 @@ public static class CafeRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "starbucks",
-            Title = "Starbucks",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "starbucks",
+            "Starbucks",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "lagkagehuset",
-            Title = "Lagkagehuset",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "lagkagehuset",
+            "Lagkagehuset",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "ibens kaffehus",
-            Title = "Ibens Kaffehus",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "ibens kaffehus",
+            "Ibens Kaffehus",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "casino bar",
-            Title = "Casino Bar",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "casino bar",
+            "Casino Bar",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "ejvinds stormgade",
-            Title = "Ejvinds Stormgade",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "ejvinds stormgade",
+            "Ejvinds Stormgade",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "butler loftet",
-            Title = "Butler Loftet",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "sams pita",
+            "Sams Pita",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "sams pita",
-            Title = "Sams Pita",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "espresso house",
+            "Espresso House",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "espresso house",
-            Title = "Espresso House",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "joe and the juice",
+            "Joe & The Juice",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "joe and the juice",
-            Title = "Joe & The Juice",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "emmerys",
+            "Emmerys",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "emmerys",
-            Title = "Emmerys",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        RestaurantCafe(
+            "baresso",
+            "Baresso",
+            Category.Cafe),
 
-        new()
-        {
-            Pattern = "baresso",
-            Title = "Baresso",
-            Category = Category.Cafe,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        RestaurantCafe(
+            "peter gift",
+            "Gift",
+            Category.Cafe)
     ];
 }

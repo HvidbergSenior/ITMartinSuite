@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,76 +9,54 @@ public static class ParkingRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "easypark",
-            Title = "EasyPark",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "easypark",
+            "EasyPark"),
 
-        new()
-        {
-            Pattern = "apcoa",
-            Title = "APCOA",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "apcoa",
+            "APCOA"),
 
-        new()
-        {
-            Pattern = "parkzone",
-            Title = "ParkZone",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "parkzone",
+            "ParkZone"),
 
-        new()
-        {
-            Pattern = "q park",
-            Title = "Q-Park",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "q park",
+            "Q-Park"),
 
-        new()
-        {
-            Pattern = "city p hus",
-            Title = "City P-Hus",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "city p hus",
+            "City P-Hus"),
 
-        new()
-        {
-            Pattern = "parkeringskompagniet",
-            Title = "Parkeringskompagniet",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "parkeringskompagniet",
+            "Parkeringskompagniet"),
 
-        new()
-        {
-            Pattern = "parkman",
-            Title = "ParkMan",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "parkman",
+            "ParkMan"
+            ),
 
-        new()
-        {
-            Pattern = "onepark",
-            Title = "OnePark",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Parking(
+            "onepark",
+            "OnePark"
+            ),
 
-        new()
-        {
-            Pattern = "parkering aarhus",
-            Title = "Aarhus Parkering",
-            Category = Category.Parkering,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        Parking(
+            "parkering aarhus",
+            "Aarhus Parkering"),
+        
+        Parking(
+        "easypark",
+        "EasyPark"),
+
+        Parking(
+            "apcoa",
+            "APCOA"),
+
+        Parking(
+            "q park",
+            "Q-Park"),
     ];
 }

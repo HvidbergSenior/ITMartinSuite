@@ -1,5 +1,4 @@
 ﻿using ITMartinBudget.Application.Models;
-using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
@@ -11,20 +10,30 @@ public static class TransactionRules
         ..FixedIncomeRules.Items,
         ..VariableIncomeRules.Items,
 
-        // Transfers
-        ..TransferRules.Items,
-
-        // Housing / Fixed
+        // Housing / Fixed expenses
         ..HousingRules.Items,
         ..InsuranceRules.Items,
         ..UnionRules.Items,
         ..TvInternetRules.Items,
+        ..TaxRules.Items,
 
-        // Food
+        // Transfers / Refunds
+        // IMPORTANT:
+        // Keep AFTER income rules
+        // to avoid false positives.
+        ..TransferRules.Items,
+        ..FamilyTransferRules.Items,
+        ..FromOutsideTransferRules.Items,
+        ..RefundsRules.Items,
+
+        // Food & drinks
         ..GroceryRules.Items,
         ..TakeAwayRules.Items,
         ..RestaurantRules.Items,
         ..CafeRules.Items,
+
+        // MobilePay
+        ..MobilePayRules.Items,
 
         // Transport
         ..FuelRules.Items,
@@ -39,7 +48,6 @@ public static class TransactionRules
         ..BeautyRules.Items,
 
         // Entertainment / Leisure
-        ..StreamingRules.Items,
         ..GamingRules.Items,
         ..ConcertBioRules.Items,
         ..SportsRules.Items,
@@ -48,13 +56,14 @@ public static class TransactionRules
         ..LeisureRules.Items,
         ..SubscriptionRules.Items,
 
-        // Family
+        // Family / Kids / Pets
         ..ChildrenRules.Items,
         ..PetsRules.Items,
         ..GiftRules.Items,
 
         // Health
         ..HealthRules.Items,
+        ..ReparationsRules.Items,
 
         // Fallback
         ..UnknownRules.Items,

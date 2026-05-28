@@ -28,9 +28,10 @@ public class TransactionCategorizer
 
                 .FirstOrDefault(x =>
 
-                    tx.NormalizedDescription
-                        .Contains(
-                            Normalize(x.Pattern))
+                    Matches(
+                        tx.NormalizedDescription,
+                        x.Pattern,
+                        x.ComparingType)
 
                     &&
 
@@ -42,6 +43,9 @@ public class TransactionCategorizer
 
         if (rule is not null)
         {
+            Console.WriteLine(
+                $"{tx.Description} matched {rule.Pattern} => {rule.BudgetGroup}");
+
             tx.Category =
                 rule.Category;
 
@@ -64,41 +68,38 @@ public class TransactionCategorizer
             TransactionType.Indkomst)
         {
             tx.BudgetGroup =
-                BudgetGroup.VariableIncome;
+                BudgetGroup.Uncategorized;
 
             tx.Title =
-                "Variable Income";
+                "Ukategoriseret Indkomst";
         }
         else
         {
             tx.BudgetGroup =
-                BudgetGroup.VariableExpense;
+                BudgetGroup.Uncategorized;
 
             tx.Title =
-                "Variable Expense";
+                "Ukategoriseret";
         }
 
         tx.IsRecurring = false;
     }
 
-    private string Normalize(string input)
+    private string Normalize(
+        string input)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
             return string.Empty;
         }
 
-        input = input.ToLowerInvariant();
+        input =
+            input.ToLowerInvariant();
 
         input = input
             .Replace("æ", "ae")
             .Replace("ø", "oe")
             .Replace("å", "aa");
-
-        input = Regex.Replace(
-            input,
-            @"\d+",
-            " ");
 
         input = Regex.Replace(
             input,
@@ -111,5 +112,31 @@ public class TransactionCategorizer
             " ");
 
         return input.Trim();
+    }
+
+    private bool Matches(
+        string input,
+        string pattern,
+        ComparingType comparingType)
+    {
+        pattern =
+            Normalize(pattern);
+
+        return comparingType switch
+        {
+            ComparingType.Exact =>
+
+                input == pattern,
+
+            ComparingType.Word =>
+
+                Regex.IsMatch(
+                    input,
+                    $@"\b{Regex.Escape(pattern)}\b"),
+
+            _ =>
+
+                input.Contains(pattern)
+        };
     }
 }

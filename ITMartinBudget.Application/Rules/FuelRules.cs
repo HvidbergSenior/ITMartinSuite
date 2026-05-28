@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,76 +9,40 @@ public static class FuelRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "circle k",
-            Title = "Circle K",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "circle k",
+            "Circle K"),
 
-        new()
-        {
-            Pattern = "uno x",
-            Title = "Uno-X",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "uno x",
+            "Uno-X"),
 
-        new()
-        {
-            Pattern = "ingo",
-            Title = "Ingo",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "ingo",
+            "Ingo"),
 
-        new()
-        {
-            Pattern = "dk ok",
-            Title = "OK",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "dk ok",
+            "OK"),
 
-        new()
-        {
-            Pattern = "vdk q8",
-            Title = "Q8",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "vdk q8",
+            "Q8"),
 
-        new()
-        {
-            Pattern = "shell",
-            Title = "Shell",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "shell",
+            "Shell"),
 
-        new()
-        {
-            Pattern = "go on",
-            Title = "Go'on",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "go on",
+            "Go'on"),
 
-        new()
-        {
-            Pattern = "f24",
-            Title = "F24",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Fuel(
+            "f24",
+            "F24"),
 
-        new()
-        {
-            Pattern = "tankstation",
-            Title = "Tankstation",
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        Fuel(
+            "tankstation",
+            "Tankstation")
     ];
 }

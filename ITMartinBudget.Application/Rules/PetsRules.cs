@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,44 +9,24 @@ public static class PetsRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "zooplus",
-            Title = "Zooplus",
-            Category = Category.Kaeledyr,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Pets(
+            "zooplus",
+            "Zooplus"),
 
-        new()
-        {
-            Pattern = "anicura",
-            Title = "AniCura",
-            Category = Category.Kaeledyr,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Pets(
+            "anicura",
+            "AniCura"),
 
-        new()
-        {
-            Pattern = "dyrlaege",
-            Title = "Dyrlæge",
-            Category = Category.Kaeledyr,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Pets(
+            "dyrlaege",
+            "Dyrlæge"),
 
-        new()
-        {
-            Pattern = "maxizoo",
-            Title = "Maxi Zoo",
-            Category = Category.Kaeledyr,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        Pets(
+            "maxizoo",
+            "Maxi Zoo"),
 
-        new()
-        {
-            Pattern = "petworld",
-            Title = "Petworld",
-            Category = Category.Kaeledyr,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        Pets(
+            "petworld",
+            "Petworld")
     ];
 }

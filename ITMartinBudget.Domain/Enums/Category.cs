@@ -7,7 +7,7 @@
     Bolig,
     Regninger,
     Forsikring,
-TelefonTvInternet,
+    TelefonTvInternet,
 
     // Savings & transfers
     Opsparing,
@@ -15,8 +15,8 @@ TelefonTvInternet,
     OverfoerselTilBertil,
     OverfoerselTilEigil,
     OverfoerselTilJulius,
-    
-FagforeningAKasse,
+    FagforeningAKasse,
+
     // Food
     Dagligvarer,
     Takeaway,
@@ -25,7 +25,7 @@ FagforeningAKasse,
 
     // Entertainment
     Streaming,
-    Koncert,
+    KoncertBio,
     Gaming,
     Apps,
     Northside,
@@ -53,7 +53,20 @@ FagforeningAKasse,
     // Travel
     Rejse,
 
+    // Misc
+    Pension,
+    Refund,
+    Skat,
+    Gebyrer,
+
     // Fallback
     Andet,
-    Pension
+    OverfoerselFraFamilie,
+    OverfoerselFraIkkeFamilie,
+    OverfoerselTilFamilie,
+    OverfoerselTilIkkeFamilie,
+    OtherRepairThanCar,
+    Subscription,
+    Renter,
+    KommuneAndStat
 }

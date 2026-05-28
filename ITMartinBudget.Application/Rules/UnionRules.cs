@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,58 +9,34 @@ public static class UnionRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "akademikernes a kasse",
-            Title = "Akademikernes A-Kasse",
-            Category = Category.FagforeningAKasse,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        UnionAndAKasse(
+            "akademikernes a kasse",
+            "Akademikernes A-Kasse",
+            Category.FagforeningAKasse),
 
-        new()
-        {
-            Pattern = "socialpaedagogernes landsforbund",
-            Title = "Socialpædagogernes Landsforbund",
-            Category = Category.FagforeningAKasse,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        UnionAndAKasse(
+            "socialpaedagogernes landsforbund",
+            "Socialpædagogernes Landsforbund",
+            Category.FagforeningAKasse),
 
-        new()
-        {
-            Pattern = "foa",
-            Title = "FOA",
-            Category = Category.FagforeningAKasse,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        UnionAndAKasse(
+            "3f",
+            "3F",
+            Category.FagforeningAKasse,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "3f",
-            Title = "3F",
-            Category = Category.FagforeningAKasse,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
+        UnionAndAKasse(
+            "hk",
+            "HK",
+            Category.FagforeningAKasse,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "hk",
-            Title = "HK",
-            Category = Category.FagforeningAKasse,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        },
-
-        new()
-        {
-            Pattern = "dlf",
-            Title = "Danmarks Lærerforening",
-            Category = Category.FagforeningAKasse,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        }
+        UnionAndAKasse(
+            "dlf",
+            "Danmarks Lærerforening",
+            Category.FagforeningAKasse,
+            ComparingType.Word)
+        
+        
     ];
 }

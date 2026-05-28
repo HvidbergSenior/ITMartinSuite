@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -9,70 +11,45 @@ public static class ConcertBioRules
     [
         // Cinema
 
-        new()
-        {
-            Pattern = "cinemaxx",
-            Title = "CinemaxX",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ConcertsBio(
+            "cinemaxx",
+            "CinemaxX",
+            Category.KoncertBio),
 
-        new()
-        {
-            Pattern = "paradisbio",
-            Title = "Paradis Bio",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ConcertsBio(
+            "paradisbio",
+            "Paradis Bio",
+            Category.KoncertBio),
 
-        new()
-        {
-            Pattern = "oest for paradis",
-            Title = "Øst for Paradis",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ConcertsBio(
+            "oest for paradis",
+            "Øst for Paradis",
+            Category.KoncertBio),
 
-        // Concerts / Tickets
+        ConcertsBio(
+            "ticketmaster",
+            "Ticketmaster",
+            Category.KoncertBio),
 
-        new()
-        {
-            Pattern = "ticketmaster",
-            Title = "Ticketmaster",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ConcertsBio(
+            "musikhuset",
+            "Musikhuset",
+            Category.KoncertBio),
 
-        new()
-        {
-            Pattern = "musikhuset",
-            Title = "Musikhuset",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ConcertsBio(
+            "train",
+            "Train",
+            Category.KoncertBio,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "train",
-            Title = "Train",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ConcertsBio(
+            "voxhall",
+            "VoxHall",
+            Category.KoncertBio),
 
-        new()
-        {
-            Pattern = "voxhall",
-            Title = "VoxHall",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
-
-        new()
-        {
-            Pattern = "tivoli friheden",
-            Title = "Tivoli Friheden",
-            Category = Category.Koncert,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        ConcertsBio(
+            "tivoli friheden",
+            "Tivoli Friheden",
+            Category.KoncertBio)
     ];
 }

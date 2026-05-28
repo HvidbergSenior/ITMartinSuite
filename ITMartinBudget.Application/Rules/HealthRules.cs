@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,77 +9,29 @@ public static class HealthRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "tandlaege",
-            Title = "Tandlæge",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "tandlaege",
+            "Tandlæge",
+            Category.Sundhed),
 
-        new()
-        {
-            Pattern = "apotek",
-            Title = "Apotek",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "apotek",
+            "Apotek",
+            Category.Sundhed),
 
-        new()
-        {
-            Pattern = "apot",
-            Title = "Apotek",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "synoptik",
+            "Synoptik",
+            Category.Sundhed),
 
-        new()
-        {
-            Pattern = "matas",
-            Title = "Matas",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        PersonalCare(
+            "profil optik",
+            "Profil Optik",
+            Category.Sundhed),
 
-        new()
-        {
-            Pattern = "normal",
-            Title = "Normal",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
-
-        new()
-        {
-            Pattern = "lyko",
-            Title = "Lyko",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
-
-        new()
-        {
-            Pattern = "synoptik",
-            Title = "Synoptik",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
-
-        new()
-        {
-            Pattern = "profil optik",
-            Title = "Profil Optik",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
-
-        new()
-        {
-            Pattern = "fitness",
-            Title = "Fitness",
-            Category = Category.Sundhed,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            IsRecurring = true
-        }
+        PersonalCare(
+            "aarhus tandcenter",
+            "Aarhus Tandcenter",
+            Category.Sundhed)
     ];
 }

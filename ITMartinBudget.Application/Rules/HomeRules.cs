@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,92 +9,86 @@ public static class HomeRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "ikea",
-            Title = "IKEA",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "ikea",
+            "IKEA",
+            Category.Hjem,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "ilva",
-            Title = "ILVA",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "ilva",
+            "ILVA",
+            Category.Hjem,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "silvan",
-            Title = "Silvan",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "silvan",
+            "Silvan",
+            Category.Hjem,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "vvs eksperten",
-            Title = "VVS Eksperten",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "vvs eksperten",
+            "VVS Eksperten",
+            Category.Hjem),
 
-        new()
-        {
-            Pattern = "kop og kande",
-            Title = "Kop & Kande",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "kop og kande",
+            "Kop & Kande",
+            Category.Hjem),
 
-        new()
-        {
-            Pattern = "jem og fix",
-            Title = "Jem & Fix",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "jem og fix",
+            "Jem & Fix",
+            Category.Hjem),
 
-        new()
-        {
-            Pattern = "bauhaus",
-            Title = "Bauhaus",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "bauhaus",
+            "Bauhaus",
+            Category.Hjem,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "harald nyborg",
-            Title = "Harald Nyborg",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "harald nyborg",
+            "Harald Nyborg",
+            Category.Hjem),
 
-        new()
-        {
-            Pattern = "biltema",
-            Title = "Biltema",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "biltema",
+            "Biltema",
+            Category.Hjem,
+            ComparingType.Word),
 
-        new()
-        {
-            Pattern = "plantorama",
-            Title = "Plantorama",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        },
+        ThingsOtherThanClothes(
+            "plantorama",
+            "Plantorama",
+            Category.Hjem),
 
-        new()
-        {
-            Pattern = "jysk",
-            Title = "JYSK",
-            Category = Category.Hjem,
-            BudgetGroup = BudgetGroup.VariableExpense
-        }
+        ThingsOtherThanClothes(
+            "jysk",
+            "JYSK",
+            Category.Hjem,
+            ComparingType.Word),
+
+        ThingsOtherThanClothes(
+            "imerco",
+            "Imerco",
+            Category.Hjem,
+            ComparingType.Word),
+
+        ThingsOtherThanClothes(
+            "soestrene grene",
+            "Søstrene Grene",
+            Category.Hjem),
+
+        ThingsOtherThanClothes(
+            "hyldedeluxe",
+            "HyldeDeluxe",
+            Category.Hjem),
+
+        ThingsOtherThanClothes(
+            "boligmontering",
+            "Boligmontering",
+            Category.Hjem)
     ];
 }

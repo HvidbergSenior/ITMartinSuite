@@ -1,20 +1,16 @@
-﻿@page "/budget"
-@layout BudgetMainLayout
-@rendermode InteractiveServer
+﻿@page "/"
 
-@using ITMartinBudget.Application.Rules
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
-@using ITMartinBudget.Server.Budget
 @using Microsoft.EntityFrameworkCore
-
 @inject BudgetDbContext Db
-@inject NavigationManager Nav
+
+<PageTitle>Familieøkonomi</PageTitle>
 
 <div class="budget-container">
 
-    <div class="budget-header">
+    <div class="stack">
 
         <div>
 
@@ -22,118 +18,350 @@
                 Familieøkonomi
             </h1>
 
-            <div class="page-subtitle">
-                Overblik over økonomien
+            <div class="meta">
+                Live overblik over familiens økonomi
             </div>
 
         </div>
 
-        <div class="header-actions">
+        <div class="kpi-grid">
 
-            <button class="btn"
-                    @onclick="GoToUpload">
+            <div class="kpi-card kpi-income">
 
-                Upload CSV
+                <div class="kpi-title">
+                    Indkomst
+                </div>
 
-            </button>
+                <div class="kpi-value">
+                    @TotalIncome.ToString("N0") kr.
+                </div>
 
-        </div>
-
-    </div>
-
-    <!-- KPI -->
-    <div class="kpi-grid">
-
-        <KpiCard Title="Indkomst"
-                 Value="@Format(TotalIncome)"
-                 Type="success" />
-
-        <KpiCard Title="Udgifter"
-                 Value="@Format(TotalExpenses)"
-                 Type="danger" />
-
-        <KpiCard Title="Netto"
-                 Value="@Format(Net)" />
-
-        <KpiCard Title="Faste udgifter"
-                 Value="@Format(FixedExpenses)" />
-
-        <KpiCard Title="Fast indkomst"
-                 Value="@Format(FixedIncome)" />
-
-        <KpiCard Title="Rådighedsbeløb"
-                 Value="@Format(FreeMoney)" />
-
-    </div>
-
-    <!-- DEBUG -->
-    <div class="debug-section">
-
-        <div class="debug-card">
-
-            <div class="debug-title">
-                ⚠️ Ikke kategoriseret
             </div>
 
-            <div class="debug-number">
-                @_uncategorized.Count
+            <div class="kpi-card kpi-expense">
+
+                <div class="kpi-title">
+                    Udgifter
+                </div>
+
+                <div class="kpi-value">
+                    @TotalExpenses.ToString("N0") kr.
+                </div>
+
             </div>
 
-        </div>
+            <div class="kpi-card kpi-net clickable-card"
+                 @onclick="() => ToggleFixedExpensesTransactions()">
 
-        <div class="debug-card">
+                <div class="kpi-title">
+                    Faste udgifter
+                </div>
 
-            <div class="debug-title">
-                ⚠️ Mulige dubletter
+                <div class="kpi-value">
+                    @FixedExpenses.ToString("N0") kr.
+                </div>
+
             </div>
 
-            <div class="debug-number">
-                @_duplicateRules.Count
+            <div class="kpi-card kpi-net clickable-card"
+                 @onclick="() => ToggleFixedIncomeTransactions()">
+
+                <div class="kpi-title">
+                    Fast indkomst
+                </div>
+
+                <div class="kpi-value">
+                    @FixedIncome.ToString("N0") kr.
+                </div>
+
             </div>
 
         </div>
 
-    </div>
-
-    <!-- CATEGORY GRID -->
-    <div class="category-summary-row">
-
-        @foreach (var category in _categoryCards)
+        @if (ExpandedCard == "fixed-expenses")
         {
-            <BudgetCategoryCard
-                Title="@category.Category"
-                Subtitle="@($"{Format(category.MonthlyAverage)} / måned")"
-                Value="@Format(category.Total)"
-                OnClick="() => SelectCategory(category.Category)" />
+            <div class="transaction-section">
+
+                <h2 class="transaction-section-title">
+                    Faste udgifter
+                </h2>
+
+                <div class="transaction-list">
+
+                    @foreach (var tx in FixedExpenseTransactions
+                        .OrderByDescending(x => Math.Abs(x.Amount)))
+                    {
+                        <div class="transaction-row expense">
+
+                            <div class="transaction-date">
+                                @tx.Date.ToString("dd/MM/yyyy")
+                            </div>
+
+                            <div class="transaction-description">
+
+                                <div class="transaction-title">
+                                    @tx.Title
+                                </div>
+
+                                <div class="transaction-category">
+                                    @tx.Description
+                                </div>
+
+                            </div>
+
+                            <div class="transaction-amount negative">
+                                @Math.Abs(tx.Amount).ToString("N0") kr.
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
         }
 
-    </div>
+        @if (ExpandedCard == "fixed-income")
+        {
+            <div class="transaction-section">
 
-    <!-- CATEGORY DETAILS -->
-    @if (_selectedTransactions.Any())
-    {
+                <h2 class="transaction-section-title">
+                    Fast indkomst
+                </h2>
+
+                <div class="transaction-list">
+
+                    @foreach (var tx in FixedIncomeTransactions
+                        .OrderByDescending(x => x.Amount))
+                    {
+                        <div class="transaction-row income">
+
+                            <div class="transaction-date">
+                                @tx.Date.ToString("dd/MM/yyyy")
+                            </div>
+
+                            <div class="transaction-description">
+
+                                <div class="transaction-title">
+                                    @tx.Title
+                                </div>
+
+                                <div class="transaction-category">
+                                    @tx.Description
+                                </div>
+
+                            </div>
+
+                            <div class="transaction-amount positive">
+                                @tx.Amount.ToString("N0") kr.
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        }
+        @if (UncategorizedTransactions.Any())
+        {
+            <div class="transaction-section">
+
+                <h2 class="transaction-section-title">
+                    Ukategoriserede transaktioner
+                </h2>
+
+                <div class="transaction-list">
+
+                    @foreach (var tx in UncategorizedTransactions.Take(50))
+                    {
+                        <div class="transaction-row">
+
+                            <div class="transaction-date">
+                                @tx.Date.ToString("dd/MM/yyyy")
+                            </div>
+
+                            <div class="transaction-description">
+
+                                <div class="transaction-title">
+                                    @tx.Title
+                                </div>
+
+                                <div class="transaction-category">
+                                    @tx.Description
+                                </div>
+
+                            </div>
+
+                            <div class="transaction-amount @(tx.Amount >= 0 ? "positive" : "negative")">
+
+                                @tx.Amount.ToString("N0") kr.
+
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        }
+        <div class="category-summary-row">
+
+            @foreach (var category in CategorySummaries)
+            {
+                var transactions =
+                    Transactions
+                        .Where(x => x.Category == category.Category)
+                        .OrderByDescending(x => x.Date)
+                        .Take(5)
+                        .ToList();
+
+                <div class="category-summary-card clickable-card"
+                     @onclick="() => ToggleCategory(category.Category)">
+
+                    <div class="category-summary-top">
+
+                        <div>
+
+                            <div class="category-summary-title">
+                                @category.Category
+                            </div>
+
+                            <div class="meta">
+                                @category.TransactionCount transaktioner
+                            </div>
+
+                        </div>
+
+                        <div class="category-summary-count">
+
+                            @((category.Total / MonthsLoaded).ToString("N0")) kr/md
+
+                        </div>
+
+                    </div>
+
+                    <div class="category-summary-amount">
+
+                        @category.Total.ToString("N0") kr.
+
+                    </div>
+
+                    <div class="category-summary-transactions">
+
+                        @foreach (var tx in transactions)
+                        {
+                            <div class="category-transaction">
+
+                                <div class="category-transaction-left">
+
+                                    <div class="category-transaction-title">
+                                        @tx.Title
+                                    </div>
+
+                                    <div class="category-transaction-date">
+                                        @tx.Date.ToString("dd MMM")
+                                    </div>
+
+                                </div>
+
+                                <div class="category-transaction-right">
+
+                                    <div class="category-transaction-amount @(tx.Amount >= 0 ? "positive" : "negative")">
+
+                                        @Math.Abs(tx.Amount).ToString("N0") kr.
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                    @if (ExpandedCategory == category.Category)
+                    {
+                        <div class="expanded-category-transactions">
+
+                            @foreach (var tx in Transactions
+                                          .Where(x => x.Category == category.Category)
+                                          .OrderByDescending(x => x.Date))
+                            {
+                                <div class="transaction-row @(tx.Amount >= 0 ? "income" : "expense")">
+
+                                    <div class="transaction-date">
+                                        @tx.Date.ToString("dd/MM/yyyy")
+                                    </div>
+
+                                    <div class="transaction-description">
+
+                                        <div class="transaction-title">
+                                            @tx.Title
+                                        </div>
+
+                                        <div class="transaction-category">
+                                            @tx.Description
+                                        </div>
+
+                                    </div>
+
+                                    <div class="transaction-amount @(tx.Amount >= 0 ? "positive" : "negative")">
+
+                                        @tx.Amount.ToString("N0") kr.
+
+                                    </div>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+                </div>
+            }
+
+        </div>
+
         <div class="transaction-section">
 
-            <div class="transaction-section-title">
-                @_selectedCategory
-            </div>
+            <h2 class="transaction-section-title">
+                Seneste bevægelser
+            </h2>
 
             <div class="transaction-list">
 
-                @foreach (var tx in _selectedTransactions)
+                @foreach (var tx in Transactions
+                    .OrderByDescending(x => x.Date)
+                    .Take(25))
                 {
-                    <div class="transaction-row">
+                    <div class="transaction-row @(tx.Amount >= 0 ? "income" : "expense")">
 
                         <div class="transaction-date">
-                            @tx.Date.ToShortDateString()
+
+                            @tx.Date.ToString("dd/MM/yyyy")
+
                         </div>
 
                         <div class="transaction-description">
-                            @tx.Description
+
+                            <div class="transaction-title">
+
+                                @tx.Title
+
+                            </div>
+
+                            <div class="transaction-category">
+
+                                @tx.Description
+
+                            </div>
+
                         </div>
 
                         <div class="transaction-amount @(tx.Amount >= 0 ? "positive" : "negative")">
-                            @Format(tx.Amount)
+
+                            @tx.Amount.ToString("N0") kr.
+
                         </div>
 
                     </div>
@@ -142,284 +370,156 @@
             </div>
 
         </div>
-    }
 
-    <!-- UNMATCHED -->
-    @if (_uncategorized.Any())
-    {
-        <div class="transaction-section">
-
-            <div class="transaction-section-title">
-                ⚠️ Ikke kategoriserede
-            </div>
-
-            <div class="transaction-list">
-
-                @foreach (var tx in _uncategorized)
-                {
-                    <div class="transaction-row">
-
-                        <div class="transaction-date">
-                            @tx.Date.ToShortDateString()
-                        </div>
-
-                        <div class="transaction-description">
-                            @tx.Description
-                        </div>
-
-                        <div class="transaction-amount negative">
-                            @Format(tx.Amount)
-                        </div>
-
-                    </div>
-                }
-
-            </div>
-
-        </div>
-    }
-
-    @if (_duplicateRules.Any())
-    {
-        <div class="transaction-section">
-
-            <div class="transaction-section-title">
-                ⚠️ Dublet regler
-            </div>
-
-            <div class="transaction-list">
-
-                @foreach (var rule in _duplicateRules)
-                {
-                    <div class="transaction-row">
-
-                        <div class="transaction-description">
-                            @rule
-                        </div>
-
-                    </div>
-                }
-
-            </div>
-
-        </div>
-    }
-
-    @if (_conflictingRules.Any())
-    {
-        <div class="transaction-section">
-
-            <div class="transaction-section-title">
-                ⚠️ Konflikt kategorier
-            </div>
-
-            <div class="transaction-list">
-
-                @foreach (var rule in _conflictingRules)
-                {
-                    <div class="transaction-row">
-
-                        <div class="transaction-description">
-                            @rule
-                        </div>
-
-                    </div>
-                }
-
-            </div>
-
-        </div>
-    }
-    }
+    </div>
 
 </div>
 
 @code {
 
-    private List<BankTransaction> _transactions = [];
+    private List<BankTransaction> Transactions = [];
 
-    private List<BankTransaction> _selectedTransactions = [];
+    private List<CategorySummaryModel> CategorySummaries = [];
+    private List<BankTransaction>
+        UncategorizedTransactions =>
+        Transactions
+            .Where(x =>
+                x.Category == Category.Andet)
+            .OrderByDescending(x => x.Date)
+            .ToList();
 
-    private string _selectedCategory = "";
-
+    private decimal UncategorizedTotal =>
+        Math.Abs(
+            UncategorizedTransactions
+                .Sum(x => x.Amount));
+    private string? ExpandedCard;
+    private Category? ExpandedCategory;
     private decimal TotalIncome;
-
     private decimal TotalExpenses;
-
-    private decimal Net;
-
+    private decimal NetAmount;
     private decimal FixedExpenses;
-
     private decimal FixedIncome;
+    private decimal DisposableAmount;
 
-    private decimal FreeMoney;
+    private int MonthsLoaded = 1;
 
-    private List<BankTransaction> _uncategorized = [];
+    private void ToggleFixedExpensesTransactions()
+    {
+        ExpandedCard =
+            ExpandedCard == "fixed-expenses"
+                ? null
+                : "fixed-expenses";
+    }
+    
+    private void ToggleFixedIncomeTransactions()
+    {
+        ExpandedCard =
+            ExpandedCard == "fixed-income"
+                ? null
+                : "fixed-income";
+    }
+    private void ToggleCategory(
+        Category category)
+    {
+        ExpandedCategory =
+            ExpandedCategory == category
+                ? null
+                : category;
+    }
+    private List<BankTransaction>
+        FixedExpenseTransactions =>
+        Transactions
+            .Where(x =>
+                x.BudgetGroup ==
+                BudgetGroup.FixedExpense)
+            .ToList();
 
-    private List<string> _duplicateRules = [];
-
-    private List<CategoryCard> _categoryCards = [];
+    private List<BankTransaction>
+        FixedIncomeTransactions =>
+        Transactions
+            .Where(x =>
+                x.BudgetGroup ==
+                BudgetGroup.FixedIncome)
+            .ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        _transactions =
-            await Db.Transactions
-                .OrderByDescending(x => x.Date)
-                .ToListAsync();
+        Transactions = await Db.Transactions
+            .OrderByDescending(x => x.Date)
+            .ToListAsync();
+
+        var firstDate = Transactions.MinBy(x => x.Date)?.Date;
+        var lastDate = Transactions.MaxBy(x => x.Date)?.Date;
+
+        if (firstDate.HasValue && lastDate.HasValue)
+        {
+            MonthsLoaded =
+                Math.Max(
+                    1,
+                    ((lastDate.Value.Year - firstDate.Value.Year) * 12)
+                    + lastDate.Value.Month
+                    - firstDate.Value.Month
+                    + 1);
+        }
 
         TotalIncome =
-            _transactions
-                .Where(x => x.Amount > 0)
+            Transactions
+                .Where(x =>
+                    x.Amount > 0 &&
+                    x.BudgetGroup != BudgetGroup.InternalTransfer)
                 .Sum(x => x.Amount);
 
         TotalExpenses =
-            _transactions
-                .Where(x => x.Amount < 0)
-                .Sum(x => Math.Abs(x.Amount));
-
-        Net =
+            Math.Abs(
+                Transactions
+                    .Where(x =>
+                        x.Amount < 0 &&
+                        x.BudgetGroup != BudgetGroup.InternalTransfer)
+                    .Sum(x => x.Amount));
+        
+        NetAmount =
             TotalIncome - TotalExpenses;
-
+        
         FixedExpenses =
-            _transactions
-                .Where(x =>
-                    x.Amount < 0 &&
-                    x.BudgetGroup ==
-                    BudgetGroup.FixedExpense)
-                .Sum(x => Math.Abs(x.Amount));
+            Math.Abs(
+                Transactions
+                    .Where(x => x.BudgetGroup == BudgetGroup.FixedExpense)
+                    .Sum(x => x.Amount));
 
         FixedIncome =
-            _transactions
-                .Where(x =>
-                    x.Amount > 0 &&
-                    x.BudgetGroup ==
-                    BudgetGroup.FixedIncome)
+            Transactions
+                .Where(x => x.BudgetGroup == BudgetGroup.FixedIncome)
                 .Sum(x => x.Amount);
 
-        FreeMoney =
-            Net;
+        DisposableAmount =
+            NetAmount;
 
-        _uncategorized =
-            _transactions
+        CategorySummaries =
+            Transactions
+
                 .Where(x =>
-                    x.Category ==
-                    Category.Andet)
-                .ToList();
-
-        _categoryCards =
-            _transactions
-
-                .Where(x => x.Amount < 0)
+                    x.Category != Category.Andet)
 
                 .GroupBy(x => x.Category)
 
-                .Select(group => new CategoryCard
+                .Select(x => new CategorySummaryModel
                 {
-                    Category =
-                        group.Key.ToString(),
-
-                    Total =
-                        Math.Abs(group.Sum(x => x.Amount)),
-
-                    MonthlyAverage =
-                        Math.Abs(group.Sum(x => x.Amount)) / 12,
-
-                    TransactionCount =
-                        group.Count()
+                    Category = x.Key,
+                    Total = Math.Abs(x.Sum(y => y.Amount)),
+                    TransactionCount = x.Count()
                 })
 
                 .OrderByDescending(x => x.Total)
 
                 .ToList();
-
-        FindDuplicateRules();
     }
 
-    private void SelectCategory(
-        string category)
+    public class CategorySummaryModel
     {
-        _selectedCategory = category;
-
-        _selectedTransactions =
-            _transactions
-
-                .Where(x =>
-                    x.Category.ToString() ==
-                    category)
-
-                .OrderByDescending(x => x.Date)
-
-                .ToList();
-    }
-
-    private List<string> _conflictingRules = [];
-
-
-    private void FindDuplicateRules()
-    {
-        _duplicateRules =
-            TransactionRules.Rules
-
-                .GroupBy(x =>
-                    Normalize(x.Pattern))
-
-                .Where(x => x.Count() > 1)
-
-                .Select(x =>
-                    $"{x.Key} ({x.Count()})")
-
-                .OrderBy(x => x)
-
-                .ToList();
-
-        _conflictingRules =
-            TransactionRules.Rules
-
-                .GroupBy(x =>
-                    Normalize(x.Pattern))
-
-                .Where(x =>
-                    x.Select(r => r.Category)
-                        .Distinct()
-                        .Count() > 1)
-
-                .Select(x =>
-                    $"{x.Key} => " +
-                    string.Join(
-                        ", ",
-                        x.Select(y => y.Category)
-                            .Distinct()))
-
-                .OrderBy(x => x)
-
-                .ToList();
-    }
-    private void GoToUpload()
-    {
-        Nav.NavigateTo("/budget/upload");
-    }
-
-    private string Format(
-        decimal amount)
-    {
-        return $"{Math.Abs(amount):N0} kr.";
-    }
-
-    public class CategoryCard
-    {
-        public string Category { get; set; } = "";
+        public Category Category { get; set; }
 
         public decimal Total { get; set; }
 
-        public decimal MonthlyAverage { get; set; }
-
         public int TransactionCount { get; set; }
-    }
-    private string Normalize(
-        string input)
-    {
-        return input
-            .Trim()
-            .ToLowerInvariant();
     }
 }

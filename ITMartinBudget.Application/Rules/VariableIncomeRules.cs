@@ -1,4 +1,6 @@
-﻿using ITMartinBudget.Application.Models;
+﻿using static ITMartinBudget.Application.Rules.RulesFactory;
+
+using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -7,51 +9,39 @@ public static class VariableIncomeRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        new()
-        {
-            Pattern = "feriepenge",
-            Title = "Feriepenge",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.VariableIncome
-        },
+        FromKommuneAndStat(
+            "feriepenge",
+            "Feriepenge",
+            Category.KommuneAndStat),
 
-        new()
-        {
-            Pattern = "bonus",
-            Title = "Bonus",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.VariableIncome
-        },
+        FromKommuneAndStat(
+            "bonus",
+            "Bonus",
+            Category.KommuneAndStat),
 
-        new()
-        {
-            Pattern = "overskydende skat",
-            Title = "Tax Return",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.VariableIncome
-        },
+        Taxes(
+            "overskydende skat",
+            "Tax Return",
+            Category.Skat),
 
-        new()
-        {
-            Pattern = "foedevarecheck",
-            Title = "Government Support",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.VariableIncome
-        },new()
-        {
-            Pattern = "aarhus kommune",
-            Title = "Government Income",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.VariableIncome,
-            TransactionType = TransactionType.Indkomst
-        },
-        new()
-        {
-            Pattern = "rente",
-            Title = "Interest",
-            Category = Category.Indkomst,
-            BudgetGroup = BudgetGroup.VariableIncome,
-            TransactionType = TransactionType.Indkomst
-        },
+        FromKommuneAndStat(
+            "foedevarecheck",
+            "Government Support",
+            Category.KommuneAndStat),
+
+        FromKommuneAndStat(
+            "aarhus kommune",
+            "Government Income",
+            Category.KommuneAndStat),
+
+        InterestsAndStock(
+            "rente",
+            "Interest",
+            ComparingType.Word),
+
+        InterestsAndStock(
+            "udbytte",
+            "Dividend",
+            ComparingType.Word)
     ];
 }
