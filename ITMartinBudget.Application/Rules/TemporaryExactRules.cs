@@ -132,6 +132,103 @@ public static class TemporaryExactTransferRules
         TransfersOutsideToUs(
             "mobilepay mathilde caroline fo",
             "Mathilde-Caroline",
-            ComparingType.Exact)
+            ComparingType.Exact),
+        EverydayGrocery(
+            "dk lidl",
+            "Lidl",
+            ComparingType.Exact),
+
+        TransfersFamilyToUs(
+            "mobilepay eigil hvid",
+            "Eigil",
+            ComparingType.Exact),
+
+        TransfersOutsideToUs(
+            "mobilepay bent moelle",
+            "Bent Møller",
+            ComparingType.Exact),
+
+        TransfersOutsideFromUs(
+            "mobilepay malene hvi",
+            "Malene Hvidberg",
+            ComparingType.Exact),
+
+        ClothesAndShoes(
+            "vdk hm dk0844",
+            "H&M",
+            Category.Toej,
+            ComparingType.Exact),
+
+        Entertainment(
+            "vdk steamgames com 4259522985",
+            "Steam",
+            Category.Gaming,
+            ComparingType.Exact),
+
+        FixedExpense(
+            "parcelforening",
+            "Parcelforening",
+            Category.Bolig,
+            ComparingType.Exact),
+
+        GeneralShopping(
+            "dk kop kande web aps",
+            "Kop & Kande",
+            Category.Hjem,
+            ComparingType.Exact),
+
+        EverydayGrocery(
+            "vdk reenberg gront",
+            "Reenberg Grønt",
+            ComparingType.Exact),
+
+        GiftFromUs(
+            "mobilepay 1 000 tak for din hj",
+            "Donation",
+            ComparingType.Exact),
+
+        GiftFromUs(
+            "mobilepay blaa kors genbrug a",
+            "Blå Kors",
+            ComparingType.Exact),
+
+        Refund(
+            "danmark",
+            "Danmark Refund",
+            ComparingType.Exact),
+        TransfersOutsideToUs(
+            "mobilepay mette clemmense",
+            "Mette Clemmense",
+            ComparingType.Exact),
+
+        TransfersOutsideToUs(
+            "mobilepay jesper mahler clemme",
+            "Jesper Mahler Clemmensen",
+            ComparingType.Exact),
+
+        TransfersOutsideToUs(
+            "mobilepay rikke visby bunch",
+            "Rikke Visby Bunch",
+            ComparingType.Exact),
+
+        TransfersOutsideToUs(
+            "mobilepay lisbeth krogshede",
+            "Lisbeth Krogshede",
+            ComparingType.Exact),
+
+        TransfersOutsideToUs(
+            "mobilepay mads gjellerod",
+            "Mads Gjellerod",
+            ComparingType.Exact),
+
+        TransfersOutsideToUs(
+            "mobilepay lisbeth kr",
+            "Lisbeth",
+            ComparingType.Exact),
+
+        TransfersOutsideToUs(
+            "mobilepay dorthe don",
+            "Dorthe Donbæk",
+            ComparingType.Exact),
     ];
 }
