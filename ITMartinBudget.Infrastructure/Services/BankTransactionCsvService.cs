@@ -108,36 +108,8 @@ public class BankTransactionCsvService
             CategorizationAnalysisService
                 .Analyze(records);
 
-        Console.WriteLine("");
-        Console.WriteLine("=================================");
-        Console.WriteLine("CATEGORIZATION ANALYSIS");
-        Console.WriteLine("=================================");
-
-        Console.WriteLine(
-            $"Total: {analysis.Total}");
-
-        Console.WriteLine(
-            $"Categorized: {analysis.Categorized}");
-
-        Console.WriteLine(
-            $"Uncategorized: {analysis.Uncategorized}");
-
-        Console.WriteLine(
-            $"Uncategorized Amount: {analysis.UncategorizedAmount:N2} kr");
-
-        Console.WriteLine("");
-        Console.WriteLine(
-            "TOP UNCATEGORIZED:");
-
-        foreach (var item in
-                 analysis.UncategorizedTransactions
-                     .Take(50))
-        {
-            Console.WriteLine(
-                $"{item.Count}x | " +
-                $"{item.TotalAmount:N2} kr | " +
-                $"{item.Description}");
-        }
+        CategorizationAnalysisService
+            .PrintToConsole(analysis);
 
         var existingKeys =
             await GetExistingKeys();

@@ -9,26 +9,29 @@ public static class FixedIncomeRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        FixedIncome(
+        Salary(
             "loenoverfoersel",
-            "Salary"),
+            "Salary",
+            ComparingType.Contains),
 
-        FixedIncome(
+        Salary(
             "maanedsloen",
-            "Salary"),
+            "Salary",
+            ComparingType.Contains),
 
-        FixedIncome(
+        Salary(
             "plusloen",
-            "Salary"),
+            "Salary",
+            ComparingType.Contains),
 
-        FixedIncome(
+        Salary(
             "loen",
             "Salary",
             ComparingType.Word),
-        
-        RulesFactory.FixedIncome(
-        "su",
-        "SU",
-        ComparingType.Exact)
+
+        Su(
+            "su",
+            "SU",
+            ComparingType.Exact)
     ];
 }

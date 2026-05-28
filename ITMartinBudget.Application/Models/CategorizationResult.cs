@@ -8,19 +8,27 @@ public sealed class CategorizationResult
 
     public int Uncategorized { get; set; }
 
+    public decimal CoveragePercentage { get; set; }
+
     public decimal UncategorizedAmount { get; set; }
 
     public List<UncategorizedTransaction>
-        UncategorizedTransactions { get; set; }
-        = [];
+        UncategorizedTransactions
+    {
+        get;
+        set;
+    } = [];
 }
 
 public sealed class UncategorizedTransaction
 {
-    public string Description { get; set; }
-        = string.Empty;
+    public string Description { get; set; } =
+        string.Empty;
 
     public int Count { get; set; }
 
     public decimal TotalAmount { get; set; }
+
+    public List<string> Examples { get; set; } =
+        [];
 }

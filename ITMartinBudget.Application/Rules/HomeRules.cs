@@ -9,86 +9,94 @@ public static class HomeRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "ikea",
             "IKEA",
             Category.Hjem,
             ComparingType.Word),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "ilva",
             "ILVA",
             Category.Hjem,
             ComparingType.Word),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "silvan",
             "Silvan",
             Category.Hjem,
             ComparingType.Word),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "vvs eksperten",
             "VVS Eksperten",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "kop og kande",
             "Kop & Kande",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "jem og fix",
             "Jem & Fix",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "bauhaus",
             "Bauhaus",
             Category.Hjem,
             ComparingType.Word),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "harald nyborg",
             "Harald Nyborg",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "biltema",
             "Biltema",
             Category.Hjem,
             ComparingType.Word),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "plantorama",
             "Plantorama",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "jysk",
             "JYSK",
             Category.Hjem,
             ComparingType.Word),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "imerco",
             "Imerco",
             Category.Hjem,
             ComparingType.Word),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "soestrene grene",
             "Søstrene Grene",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "hyldedeluxe",
             "HyldeDeluxe",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "boligmontering",
             "Boligmontering",
-            Category.Hjem)
+            Category.Hjem,
+            ComparingType.Contains)
     ];
 }

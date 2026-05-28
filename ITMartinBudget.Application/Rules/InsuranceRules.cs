@@ -12,17 +12,20 @@ public static class InsuranceRules
         FixedExpense(
             "alka forsikring",
             "Alka Forsikring",
-            Category.Forsikring),
+            Category.Forsikring,
+            ComparingType.Contains),
 
         FixedExpense(
             "sygeforsikringen danmark",
             "Sygeforsikringen Danmark",
-            Category.Forsikring),
+            Category.Forsikring,
+            ComparingType.Contains),
 
         FixedExpense(
             "depotsikring",
             "Depotsikring",
-            Category.Forsikring),
+            Category.Forsikring,
+            ComparingType.Contains),
 
         FixedExpense(
             "tryg",
@@ -33,12 +36,14 @@ public static class InsuranceRules
         FixedExpense(
             "topdanmark",
             "Topdanmark",
-            Category.Forsikring),
+            Category.Forsikring,
+            ComparingType.Contains),
 
         FixedExpense(
             "gjensidige",
             "Gjensidige",
-            Category.Forsikring),
+            Category.Forsikring,
+            ComparingType.Contains),
 
         FixedExpense(
             "codan",
@@ -49,6 +54,7 @@ public static class InsuranceRules
         FixedExpense(
             "if skadeforsikring",
             "If Forsikring",
-            Category.Forsikring)
+            Category.Forsikring,
+            ComparingType.Contains)
     ];
 }

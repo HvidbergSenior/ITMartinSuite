@@ -11,38 +11,47 @@ public static class PublicTransportRules
     [
         PublicTransport(
             "rejsekort",
-            "Rejsekort"),
+            "Rejsekort",
+            ComparingType.Contains),
 
         PublicTransport(
             "brobizz",
-            "BroBizz"),
+            "BroBizz",
+            ComparingType.Contains),
 
         PublicTransport(
             "dsb",
-            "DSB"),
+            "DSB",
+            ComparingType.Word),
 
         PublicTransport(
             "midttrafik",
-            "Midttrafik"),
+            "Midttrafik",
+            ComparingType.Contains),
 
         PublicTransport(
             "letbane",
-            "Letbane"),
+            "Letbane",
+            ComparingType.Contains),
 
         PublicTransport(
             "molslinjen",
-            "Molslinjen"),
+            "Molslinjen",
+            ComparingType.Contains),
 
         PublicTransport(
             "go collect",
-            "GoCollective"),
+            "GoCollective",
+            ComparingType.Contains),
 
         PublicTransport(
             "flixbus",
-            "FlixBus"),
+            "FlixBus",
+            ComparingType.Contains),
 
         PublicTransport(
             "kombardo",
-            "Kombardo")
+            "Kombardo",
+            ComparingType.Contains)
     ];
 }

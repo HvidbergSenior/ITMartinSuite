@@ -12,26 +12,31 @@ public static class HealthRules
         PersonalCare(
             "tandlaege",
             "Tandlæge",
-            Category.Sundhed),
+            Category.Sundhed,
+            ComparingType.Contains),
 
         PersonalCare(
             "apotek",
             "Apotek",
-            Category.Sundhed),
+            Category.Sundhed,
+            ComparingType.Contains),
 
         PersonalCare(
             "synoptik",
             "Synoptik",
-            Category.Sundhed),
+            Category.Sundhed,
+            ComparingType.Contains),
 
         PersonalCare(
             "profil optik",
             "Profil Optik",
-            Category.Sundhed),
+            Category.Sundhed,
+            ComparingType.Contains),
 
         PersonalCare(
             "aarhus tandcenter",
             "Aarhus Tandcenter",
-            Category.Sundhed)
+            Category.Sundhed,
+            ComparingType.Contains)
     ];
 }

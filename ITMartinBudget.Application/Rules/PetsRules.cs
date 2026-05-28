@@ -9,24 +9,34 @@ public static class PetsRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        Pets(
+        GeneralShopping(
             "zooplus",
-            "Zooplus"),
+            "Zooplus",
+            Category.Kaeledyr,
+            ComparingType.Contains),
 
-        Pets(
+        GeneralShopping(
             "anicura",
-            "AniCura"),
+            "AniCura",
+            Category.Kaeledyr,
+            ComparingType.Contains),
 
-        Pets(
+        GeneralShopping(
             "dyrlaege",
-            "Dyrlæge"),
+            "Dyrlæge",
+            Category.Kaeledyr,
+            ComparingType.Contains),
 
-        Pets(
+        GeneralShopping(
             "maxizoo",
-            "Maxi Zoo"),
+            "Maxi Zoo",
+            Category.Kaeledyr,
+            ComparingType.Contains),
 
-        Pets(
+        GeneralShopping(
             "petworld",
-            "Petworld")
+            "Petworld",
+            Category.Kaeledyr,
+            ComparingType.Contains)
     ];
 }

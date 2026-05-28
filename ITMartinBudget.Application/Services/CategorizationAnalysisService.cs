@@ -9,12 +9,19 @@ public static class CategorizationAnalysisService
     public static CategorizationResult Analyze(
         List<BankTransaction> transactions)
     {
-        var uncategorized =
+        var uncategorizedTransactions =
+
             transactions
 
                 .Where(x =>
                     x.BudgetGroup ==
                     BudgetGroup.Uncategorized)
+
+                .ToList();
+
+        var uncategorized =
+
+            uncategorizedTransactions
 
                 .GroupBy(x =>
                     x.NormalizedDescription)
@@ -22,46 +29,129 @@ public static class CategorizationAnalysisService
                 .Select(x =>
                     new UncategorizedTransaction
                     {
-                        Description = x.Key,
+                        Description =
+                            x.Key,
 
-                        Count = x.Count(),
+                        Count =
+                            x.Count(),
 
                         TotalAmount =
                             x.Sum(t =>
-                                Math.Abs(t.Amount))
+                                Math.Abs(
+                                    t.Amount)),
+
+                        Examples =
+                            x.Take(5)
+
+                                .Select(t =>
+                                    t.Description)
+
+                                .Distinct()
+
+                                .ToList()
                     })
 
                 .OrderByDescending(x =>
                     x.Count)
 
+                .ThenByDescending(x =>
+                    x.TotalAmount)
+
                 .ToList();
+
+        var categorizedCount =
+            transactions.Count -
+            uncategorizedTransactions.Count;
+
+        var coverage =
+            transactions.Count == 0
+                ? 0
+                : Math.Round(
+                    (
+                        decimal)categorizedCount
+                        / transactions.Count
+                        * 100m,
+                    2);
 
         return new()
         {
-            Total = transactions.Count,
+            Total =
+                transactions.Count,
 
             Categorized =
-                transactions.Count(x =>
-                    x.BudgetGroup !=
-                    BudgetGroup.Uncategorized),
+                categorizedCount,
 
             Uncategorized =
-                transactions.Count(x =>
-                    x.BudgetGroup ==
-                    BudgetGroup.Uncategorized),
+                uncategorizedTransactions.Count,
+
+            CoveragePercentage =
+                coverage,
 
             UncategorizedAmount =
-                transactions
 
-                    .Where(x =>
-                        x.BudgetGroup ==
-                        BudgetGroup.Uncategorized)
+                uncategorizedTransactions
 
                     .Sum(x =>
-                        Math.Abs(x.Amount)),
+                        Math.Abs(
+                            x.Amount)),
 
             UncategorizedTransactions =
                 uncategorized
         };
+    }
+
+    public static void PrintToConsole(
+        CategorizationResult analysis)
+    {
+        Console.WriteLine("");
+        Console.WriteLine(
+            "=================================");
+
+        Console.WriteLine(
+            "CATEGORIZATION ANALYSIS");
+
+        Console.WriteLine(
+            "=================================");
+
+        Console.WriteLine(
+            $"Coverage: {analysis.CoveragePercentage}%");
+
+        Console.WriteLine(
+            $"Categorized: {analysis.Categorized}");
+
+        Console.WriteLine(
+            $"Uncategorized: {analysis.Uncategorized}");
+
+        Console.WriteLine(
+            $"Uncategorized Amount: {analysis.UncategorizedAmount}");
+
+        Console.WriteLine("");
+
+        foreach (var item in
+                 analysis.UncategorizedTransactions)
+        {
+            Console.WriteLine(
+                "---------------------------------");
+
+            Console.WriteLine(
+                $"Normalized: {item.Description}");
+
+            Console.WriteLine(
+                $"Count: {item.Count}");
+
+            Console.WriteLine(
+                $"Total: {item.TotalAmount}");
+
+            foreach (var example in
+                     item.Examples)
+            {
+                Console.WriteLine(
+                    $"Example: {example}");
+            }
+        }
+
+        Console.WriteLine("");
+        Console.WriteLine(
+            "=================================");
     }
 }

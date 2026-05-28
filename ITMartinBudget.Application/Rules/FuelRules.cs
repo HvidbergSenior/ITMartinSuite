@@ -1,6 +1,7 @@
 ﻿using static ITMartinBudget.Application.Rules.RulesFactory;
 
 using ITMartinBudget.Application.Models;
+using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
@@ -10,38 +11,47 @@ public static class FuelRules
     [
         Fuel(
             "circle k",
-            "Circle K"),
+            "Circle K",
+            ComparingType.Contains),
 
         Fuel(
             "uno x",
-            "Uno-X"),
+            "Uno-X",
+            ComparingType.Contains),
 
         Fuel(
             "ingo",
-            "Ingo"),
+            "Ingo",
+            ComparingType.Word),
 
         Fuel(
             "dk ok",
-            "OK"),
+            "OK",
+            ComparingType.Contains),
 
         Fuel(
             "vdk q8",
-            "Q8"),
+            "Q8",
+            ComparingType.Contains),
 
         Fuel(
             "shell",
-            "Shell"),
+            "Shell",
+            ComparingType.Word),
 
         Fuel(
             "go on",
-            "Go'on"),
+            "Go'on",
+            ComparingType.Contains),
 
         Fuel(
             "f24",
-            "F24"),
+            "F24",
+            ComparingType.Word),
 
         Fuel(
             "tankstation",
-            "Tankstation")
+            "Tankstation",
+            ComparingType.Contains)
     ];
 }

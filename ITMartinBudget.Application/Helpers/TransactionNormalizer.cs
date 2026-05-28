@@ -24,7 +24,7 @@ public static class TransactionNormalizer
         // Remove punctuation
         input = Regex.Replace(
             input,
-            @"[^\w\s]",
+            @"[^a-z0-9\s]",
             " ");
 
         // Collapse spaces

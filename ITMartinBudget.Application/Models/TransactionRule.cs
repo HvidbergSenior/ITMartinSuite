@@ -19,4 +19,5 @@ public class TransactionRule
     public int Priority { get; init; }
     public ComparingType ComparingType { get; set; }
         = ComparingType.Contains;
+    public List<string> Examples { get; set; } = [];
 }

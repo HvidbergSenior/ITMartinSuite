@@ -9,44 +9,64 @@ public static class GamingRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        EntertainmentExpense(
+        Entertainment(
             "playstation",
-            "PlayStation"),
+            "PlayStation",
+            Category.Gaming,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "spilforsyningen",
-            "Spilforsyningen"),
+            "Spilforsyningen",
+            Category.Gaming,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "ubisoft",
-            "Ubisoft"),
+            "Ubisoft",
+            Category.Gaming,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "steam",
-            "Steam"),
+            "Steam",
+            Category.Gaming,
+            ComparingType.Word),
 
-        EntertainmentExpense(
+        Entertainment(
             "epic games",
-            "Epic Games"),
+            "Epic Games",
+            Category.Gaming,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "nintendo",
-            "Nintendo"),
+            "Nintendo",
+            Category.Gaming,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "xbox",
-            "Xbox"),
+            "Xbox",
+            Category.Gaming,
+            ComparingType.Word),
 
-        EntertainmentExpense(
+        Entertainment(
             "riot games",
-            "Riot Games"),
+            "Riot Games",
+            Category.Gaming,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "tsg platforms",
-            "TSG Platforms"),
+            "TSG Platforms",
+            Category.Gaming,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "apple com bill",
-            "Apple Services")
+            "Apple Services",
+            Category.Gaming,
+            ComparingType.Contains)
     ];
 }

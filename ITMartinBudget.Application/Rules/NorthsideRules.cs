@@ -7,20 +7,28 @@ public static class NorthsideRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        RulesFactory.Northside(
+        RulesFactory.Entertainment(
             "dtd group",
-            "NorthSide"),
+            "NorthSide",
+            Category.Northside,
+            ComparingType.Contains),
 
-        RulesFactory.Northside(
+        RulesFactory.Entertainment(
             "northside",
-            "NorthSide"),
+            "NorthSide",
+            Category.Northside,
+            ComparingType.Contains),
 
-        RulesFactory.Northside(
+        RulesFactory.Entertainment(
             "ticketmaster northside",
-            "NorthSide Ticket"),
+            "NorthSide Ticket",
+            Category.Northside,
+            ComparingType.Contains),
 
-        RulesFactory.Northside(
+        RulesFactory.Entertainment(
             "north side",
-            "NorthSide")
+            "NorthSide",
+            Category.Northside,
+            ComparingType.Contains)
     ];
 }

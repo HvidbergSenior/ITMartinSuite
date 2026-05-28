@@ -9,29 +9,31 @@ public static class HobbyRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        EntertainmentExpense(
+        Entertainment(
             "danguitar",
             "DanGuitar",
-            Category.Fritid),
+            Category.Fritid,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "rito",
             "Rito",
             Category.Fritid,
             ComparingType.Word),
 
-        EntertainmentExpense(
+        Entertainment(
             "kreativ kerami",
             "Kreativ Keramik",
-            Category.Fritid),
+            Category.Fritid,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "saxo",
             "Saxo",
             Category.Fritid,
             ComparingType.Word),
 
-        EntertainmentExpense(
+        Entertainment(
             "holdet",
             "Holdet",
             Category.Fritid,

@@ -9,44 +9,52 @@ public static class ElectronicsRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        ElectronicsBought(
+        WorkExpense(
             "proshop",
             "Proshop",
-            Category.Elektronik),
+            Category.Elektronik,
+            ComparingType.Contains),
 
-        ElectronicsBought(
+        WorkExpense(
             "elgiganten",
             "Elgiganten",
-            Category.Elektronik),
+            Category.Elektronik,
+            ComparingType.Contains),
 
-        ElectronicsBought(
+        GeneralShopping(
             "power",
             "Power",
-            Category.Elektronik),
+            Category.Elektronik,
+            ComparingType.Word),
 
-        ElectronicsBought(
+        GeneralShopping(
             "humac",
             "Humac",
-            Category.Elektronik),
+            Category.Elektronik,
+            ComparingType.Contains),
 
-        ElectronicsBought(
+        GeneralShopping(
             "fonik",
             "Fonik",
-            Category.Elektronik),
+            Category.Elektronik,
+            ComparingType.Contains),
 
-        ElectronicsBought(
+        WorkExpense(
             "av cable",
             "AV-Cables",
-            Category.Elektronik),
+            Category.Elektronik,
+            ComparingType.Contains),
 
-        ElectronicsBought(
+        WorkExpense(
             "computersalg",
             "ComputerSalg",
-            Category.Elektronik),
+            Category.Elektronik,
+            ComparingType.Contains),
 
-        ElectronicsBought(
+        WorkExpense(
             "komplett",
             "Komplett",
-            Category.Elektronik)
+            Category.Elektronik,
+            ComparingType.Contains)
     ];
 }

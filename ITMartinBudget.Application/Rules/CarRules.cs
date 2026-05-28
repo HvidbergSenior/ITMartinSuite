@@ -9,8 +9,6 @@ public static class CarRules
 {
     public static readonly List<TransactionRule> Items =
     [
-      
-
         FixedExpense(
             "dmr",
             "Motorregister",

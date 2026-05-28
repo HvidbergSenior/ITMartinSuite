@@ -10,8 +10,15 @@ public static class SportsRules
     public static readonly List<TransactionRule> Items =
     [
         FixedExpense(
+            "hog fodbold",
+            "HOG Fodbold",
+            Category.Boern,
+            ComparingType.Contains),
+
+        FixedExpense(
             "hog hinnerup",
             "HOG Hinnerup",
-            Category.Boern)
+            Category.Boern,
+            ComparingType.Contains)
     ];
 }

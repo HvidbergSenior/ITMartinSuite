@@ -24,12 +24,14 @@ public static class TransferRules
         SavingsAndPension(
             "opsparingskonto",
             "Savings Transfer",
-            Category.Opsparing),
+            Category.Opsparing,
+            ComparingType.Contains),
 
         SavingsAndPension(
             "boerneopsparing",
             "Child Savings",
-            Category.Opsparing),
+            Category.Opsparing,
+            ComparingType.Contains),
 
         InternalAccountTransfer(
             "9490 71557243",

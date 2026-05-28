@@ -9,104 +9,133 @@ public static class MobilePayRules
     [
         // Family
 
-        RulesFactory.TransfersToFamily(
+        RulesFactory.TransfersFamilyFromUs(
             "mobilepay bertil hvidberg john",
-            "Bertil"),
+            "Bertil",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToFamily(
+        RulesFactory.TransfersFamilyFromUs(
             "mobilepay julius hvidberg john",
-            "Julius"),
+            "Julius",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay sonja johnsen",
-            "Sonja"),
+            "Sonja",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay marianne hvidbe",
-            "Marianne"),
+            "Marianne",
+            ComparingType.Contains),
 
         // Friends / External
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "jan isoe kjaer",
-            "Jan Isøe Kjær"),
+            "Jan Isøe Kjær",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay bert moeller joh",
-            "Bert Møller"),
+            "Bert Møller",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay mike ea basho",
-            "Mike"),
+            "Mike",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay ida koster hei",
-            "Ida Koster"),
+            "Ida Koster",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay anne bro friis",
-            "Anne Bro Friis"),
+            "Anne Bro Friis",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay mathilde rass k",
-            "Mathilde"),
+            "Mathilde",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay laura fogdal li",
-            "Laura Fogdal"),
+            "Laura Fogdal",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay frida kjedsmark",
-            "Frida Kjedsmark"),
+            "Frida Kjedsmark",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromOutsideReceived(
+        RulesFactory.TransfersOutsideToUs(
             "mobilepay inge kjaerulf t",
-            "Inge Kjærulf"),
+            "Inge Kjærulf",
+            ComparingType.Contains),
 
         // External outgoing
 
-        RulesFactory.TransfersToOutsideGiven(
+        RulesFactory.TransfersOutsideFromUs(
             "mobilepay inge kjaerulf torp",
-            "Inge Kjærulf Torp"),
+            "Inge Kjærulf Torp",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToOutsideGiven(
+        RulesFactory.TransfersOutsideFromUs(
             "mobilepay karl jon nielsen",
-            "Karl Jon Nielsen"),
+            "Karl Jon Nielsen",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToOutsideGiven(
+        RulesFactory.TransfersOutsideFromUs(
             "mobilepay mette toft vestbjerg",
-            "Mette Toft Vestbjerg"),
+            "Mette Toft Vestbjerg",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToOutsideGiven(
+        RulesFactory.TransfersOutsideFromUs(
             "mobilepay karsten juel bunch",
-            "Karsten Juel Bunch"),
+            "Karsten Juel Bunch",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToOutsideGiven(
+        RulesFactory.TransfersOutsideFromUs(
             "mobilepay arne bro friis jense",
-            "Arne Bro Friis"),
+            "Arne Bro Friis",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToOutsideGiven(
+        RulesFactory.TransfersOutsideFromUs(
             "mobilepay ida koster hebos",
-            "Ida Koster"),
+            "Ida Koster",
+            ComparingType.Contains),
 
         // Stores / fallback shopping
 
         RulesFactory.ClothesAndShoes(
             "salling",
-            "Salling"),
+            "Salling",
+            Category.Toej,
+            ComparingType.Contains),
 
-        RulesFactory.ThingsOtherThanClothes(
+        RulesFactory.GeneralShopping(
             "sp alpex",
             "SP Alpex",
-            Category.Boern),
+            Category.Boern,
+            ComparingType.Contains),
 
         RulesFactory.EverydayGrocery(
             "rema1000 trige",
-            "Rema 1000"),
+            "Rema 1000",
+            ComparingType.Contains),
 
-        RulesFactory.EntertainmentExpense(
+        RulesFactory.Entertainment(
             "united tickets",
-            "United Tickets"),
-        
+            "United Tickets",
+            Category.KoncertBio,
+            ComparingType.Contains),
+
+        RulesFactory.TransfersOutsideFromUs(
+            "marie elizabeth",
+            "Marie Elizabeth",
+            ComparingType.Contains)
     ];
 }

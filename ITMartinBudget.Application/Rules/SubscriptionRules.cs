@@ -9,77 +9,88 @@ public static class SubscriptionRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        FixedExpense(
+        Subscription(
             "netflix",
             "Netflix",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "spotify",
             "Spotify",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "google one",
             "Google One",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "youtube premium",
             "YouTube Premium",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "hbo",
             "HBO",
             Category.Subscription,
             ComparingType.Word),
 
-        FixedExpense(
+        Subscription(
             "disney",
             "Disney+",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "viaplay",
             "Viaplay",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "tv2 play",
             "TV2 Play",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "allente",
             "Allente",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "chatgpt",
             "ChatGPT",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "openai",
             "OpenAI",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "dropbox",
             "Dropbox",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "microsoft",
             "Microsoft",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "adobe",
             "Adobe",
-            Category.Subscription),
-
-      
+            Category.Subscription,
+            ComparingType.Contains)
     ];
 }

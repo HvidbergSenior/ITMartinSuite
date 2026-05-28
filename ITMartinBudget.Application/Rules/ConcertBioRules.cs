@@ -1,6 +1,4 @@
-﻿using static ITMartinBudget.Application.Rules.RulesFactory;
-
-using ITMartinBudget.Application.Models;
+﻿using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -9,47 +7,52 @@ public static class ConcertBioRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        // Cinema
-
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "cinemaxx",
             "CinemaxX",
-            Category.KoncertBio),
+            Category.KoncertBio,
+            ComparingType.Contains),
 
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "paradisbio",
             "Paradis Bio",
-            Category.KoncertBio),
+            Category.KoncertBio,
+            ComparingType.Contains),
 
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "oest for paradis",
             "Øst for Paradis",
-            Category.KoncertBio),
+            Category.KoncertBio,
+            ComparingType.Contains),
 
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "ticketmaster",
             "Ticketmaster",
-            Category.KoncertBio),
+            Category.KoncertBio,
+            ComparingType.Contains),
 
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "musikhuset",
             "Musikhuset",
-            Category.KoncertBio),
+            Category.KoncertBio,
+            ComparingType.Contains),
 
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "train",
             "Train",
             Category.KoncertBio,
             ComparingType.Word),
 
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "voxhall",
             "VoxHall",
-            Category.KoncertBio),
+            Category.KoncertBio,
+            ComparingType.Contains),
 
-        ConcertsBio(
+        RulesFactory.Entertainment(
             "tivoli friheden",
             "Tivoli Friheden",
-            Category.KoncertBio)
+            Category.KoncertBio,
+            ComparingType.Contains)
     ];
 }

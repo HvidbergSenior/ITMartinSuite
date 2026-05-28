@@ -8,110 +8,159 @@ public static class ClothingRules
     public static readonly List<TransactionRule> Items =
     [
         RulesFactory.ClothesAndShoes(
-            "h m",
+            "h&m",
             "H&M",
-            comparingType: ComparingType.Word),
+            Category.Toej,
+            ComparingType.Word),
 
         RulesFactory.ClothesAndShoes(
             "about you",
-            "About You"),
+            "About You",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "only stores",
-            "Only"),
+            "Only",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "skechers",
-            "Skechers"),
+            "Skechers",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "stm sport",
-            "STM Sport"),
+            "STM Sport",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "paw sko",
-            "Paw Sko"),
+            "Paw Sko",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "shopping4net",
-            "Shopping4Net"),
+            "Shopping4Net",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "ecco",
             "Ecco",
-            comparingType: ComparingType.Word),
+            Category.Toej,
+            ComparingType.Word),
 
         RulesFactory.ClothesAndShoes(
             "2nddeluxe",
-            "2ndDeluxe"),
+            "2ndDeluxe",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "blue tomato",
-            "Blue Tomato"),
+            "Blue Tomato",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "klarna",
             "Klarna",
-            comparingType: ComparingType.Word),
+            Category.Toej,
+            ComparingType.Word),
 
         RulesFactory.ClothesAndShoes(
             "trendhim",
-            "Trendhim"),
+            "Trendhim",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "rivalxt",
-            "RivalXT"),
+            "RivalXT",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "reshopit",
-            "Reshopit"),
+            "Reshopit",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "julie sandlau",
-            "Julie Sandlau"),
+            "Julie Sandlau",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "sportmaster",
-            "Sportmaster"),
+            "Sportmaster",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "modekompagniet",
-            "Modekompagniet"),
+            "Modekompagniet",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "mft knitwear",
-            "MFT Knitwear"),
+            "MFT Knitwear",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "reshoppit",
-            "Reshoppit"),
+            "Reshoppit",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "bruuns galleri",
-            "Bruuns Galleri"),
+            "Bruuns Galleri",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "hyldedeluxe",
-            "HyldeDeluxe"),
+            "HyldeDeluxe",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "ideal of sweden",
-            "Ideal of Sweden"),
+            "Ideal of Sweden",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "zalando",
-            "Zalando"),
+            "Zalando",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "vero moda",
-            "Vero Moda"),
+            "Vero Moda",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "jack and jones",
-            "Jack & Jones"),
+            "Jack & Jones",
+            Category.Toej,
+            ComparingType.Contains),
 
         RulesFactory.ClothesAndShoes(
             "butler loftet",
-            "Butler Loftet")
+            "Butler Loftet",
+            Category.Toej,
+            ComparingType.Contains)
     ];
 }

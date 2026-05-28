@@ -1,6 +1,4 @@
 ﻿using ITMartinBudget.Application.Models;
-using ITMartinBudget.Application.Models;
-
 using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
@@ -9,32 +7,40 @@ public static class FamilyTransferRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        RulesFactory.TransfersFromFamily(
+        RulesFactory.TransfersFamilyToUs(
             "mobilepay eigil hvidberg",
-            "Eigil"),
+            "Eigil",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromFamily(
+        RulesFactory.TransfersFamilyToUs(
             "mobilepay bertil hvidberg",
-            "Bertil"),
+            "Bertil",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersFromFamily(
+        RulesFactory.TransfersFamilyToUs(
             "mobilepay julius hvidberg",
-            "Julius"),
+            "Julius",
+            ComparingType.Contains),
 
         // Family transfers
 
-        RulesFactory.TransfersToFamily(
+        RulesFactory.TransfersFamilyFromUs(
             "mobilepay bertil hvidberg",
-            "Bertil"),
+            "Bertil",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToFamily(
+        RulesFactory.TransfersFamilyFromUs(
             "mobilepay eigil hvidberg",
-            "Eigil"),
+            "Eigil",
+            ComparingType.Contains),
 
-        RulesFactory.TransfersToFamily(
+        RulesFactory.TransfersFamilyFromUs(
             "mobilepay julius hvidberg",
-            "Julius"),
-
-        
+            "Julius",
+            ComparingType.Contains),
+        RulesFactory.TransfersFamilyToUs(
+        "bertil hvi",
+        "Bertil",
+        ComparingType.Contains),
     ];
 }

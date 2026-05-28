@@ -18,7 +18,8 @@ public static class BeautyRules
         PersonalCare(
             "lyko",
             "Lyko",
-            Category.Sundhed),
+            Category.Sundhed,
+            ComparingType.Contains),
 
         PersonalCare(
             "matas",
@@ -41,12 +42,15 @@ public static class BeautyRules
         PersonalCare(
             "sephora",
             "Sephora",
-            Category.Sundhed),
+            Category.Sundhed,
+            ComparingType.Contains),
 
         PersonalCare(
             "nicehair",
-            "NiceHair",
-            Category.Sundhed),
+            "NiceHair"
+            ,
+            Category.Sundhed,
+            ComparingType.Contains),
 
         PersonalCare(
             "frisoer",

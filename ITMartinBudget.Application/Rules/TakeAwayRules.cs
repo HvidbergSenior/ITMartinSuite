@@ -12,22 +12,26 @@ public static class TakeAwayRules
         RestaurantCafe(
             "wolt",
             "Wolt",
-            Category.Takeaway),
+            Category.Takeaway,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "justeat",
             "Just Eat",
-            Category.Takeaway),
+            Category.Takeaway,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "mcdonald",
             "McDonalds",
-            Category.Takeaway),
+            Category.Takeaway,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "burger king",
             "Burger King",
-            Category.Takeaway),
+            Category.Takeaway,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "sunset",
@@ -44,7 +48,8 @@ public static class TakeAwayRules
         RestaurantCafe(
             "dominos",
             "Domino's",
-            Category.Takeaway),
+            Category.Takeaway,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "pizza",

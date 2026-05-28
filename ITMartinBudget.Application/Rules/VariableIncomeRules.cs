@@ -12,27 +12,32 @@ public static class VariableIncomeRules
         FromKommuneAndStat(
             "feriepenge",
             "Feriepenge",
-            Category.KommuneAndStat),
+            Category.KommuneAndStat,
+            ComparingType.Contains),
 
         FromKommuneAndStat(
             "bonus",
             "Bonus",
-            Category.KommuneAndStat),
+            Category.KommuneAndStat,
+            ComparingType.Contains),
 
         Taxes(
             "overskydende skat",
             "Tax Return",
-            Category.Skat),
+            Category.Skat,
+            ComparingType.Contains),
 
         FromKommuneAndStat(
             "foedevarecheck",
             "Government Support",
-            Category.KommuneAndStat),
+            Category.KommuneAndStat,
+            ComparingType.Contains),
 
         FromKommuneAndStat(
             "aarhus kommune",
             "Government Income",
-            Category.KommuneAndStat),
+            Category.KommuneAndStat,
+            ComparingType.Contains),
 
         InterestsAndStock(
             "rente",

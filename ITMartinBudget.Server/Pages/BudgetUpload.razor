@@ -154,7 +154,7 @@
 
             await Task.Delay(500);
 
-            Nav.NavigateTo("/budget", true);
+            Nav.NavigateTo("/", true);
         }
         catch (Exception ex)
         {
@@ -168,7 +168,7 @@
 
     private void GoToDashboard()
     {
-        Nav.NavigateTo("/budget");
+        Nav.NavigateTo("/");
     }
 
     private async Task ConfirmReset()

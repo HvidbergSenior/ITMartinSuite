@@ -12,12 +12,14 @@ public static class UnionRules
         UnionAndAKasse(
             "akademikernes a kasse",
             "Akademikernes A-Kasse",
-            Category.FagforeningAKasse),
+            Category.FagforeningAKasse,
+            ComparingType.Contains),
 
         UnionAndAKasse(
             "socialpaedagogernes landsforbund",
             "Socialpædagogernes Landsforbund",
-            Category.FagforeningAKasse),
+            Category.FagforeningAKasse,
+            ComparingType.Contains),
 
         UnionAndAKasse(
             "3f",
@@ -36,7 +38,5 @@ public static class UnionRules
             "Danmarks Lærerforening",
             Category.FagforeningAKasse,
             ComparingType.Word)
-        
-        
     ];
 }

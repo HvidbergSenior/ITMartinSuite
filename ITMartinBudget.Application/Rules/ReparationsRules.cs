@@ -9,49 +9,58 @@ public static class ReparationsRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        OtherRepairThanCar(
+        GeneralShopping(
             "den store cykelsmed",
-            "Den Store Cykelsmed"),
+            "Den Store Cykelsmed",
+            Category.Bolig,
+            ComparingType.Contains),
 
         CarRepair(
             "sejer",
-            "Sejer"),
+            "Sejer",
+            Category.BilVedligehold,
+            ComparingType.Word),
 
         CarRepair(
             "p christensen",
-            "P. Christensen"),
-        
+            "P. Christensen",
+            Category.BilVedligehold,
+            ComparingType.Contains),
+
         CarRepair(
-        "thansen",
-        "thansen"),
+            "thansen",
+            "thansen",
+            Category.BilVedligehold,
+            ComparingType.Contains),
 
         CarRepair(
             "sejr jensen auto",
             "Sejr Jensen Auto",
-            Category.BilVedligehold),
+            Category.BilVedligehold,
+            ComparingType.Contains),
 
         CarRepair(
             "quickpot",
             "QuickPot",
-            Category.BilVedligehold),
+            Category.BilVedligehold,
+            ComparingType.Contains),
 
         CarRepair(
             "euromaster",
             "Euromaster",
-            Category.BilVedligehold),
+            Category.BilVedligehold,
+            ComparingType.Contains),
 
         CarRepair(
             "autobutler",
             "AutoButler",
-            Category.BilVedligehold),
+            Category.BilVedligehold,
+            ComparingType.Contains),
 
         CarRepair(
             "skorstensgaard",
             "Skorstensgaard",
-            Category.BilVedligehold),
-
-        // Vehicle Tax
-
-        
+            Category.BilVedligehold,
+            ComparingType.Contains)
     ];
 }

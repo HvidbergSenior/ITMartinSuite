@@ -43,14 +43,12 @@ public enum BudgetGroup
 
     // Lifestyle / Shopping
 
-    ExpensesBesidesGroceries = 17,
-    ElectronicDevices = 18,
+    GeneralShopping = 17,
     PersonalCare = 19,
 
     // Entertainment / Leisure
 
-    EntertainmentExpense = 20,
-    Hobbies = 21,
+    Entertainment = 20,
 
     // Financial
 
@@ -59,6 +57,7 @@ public enum BudgetGroup
 
     // Misc
 
-    CompanyExpense = 24,
-    Uncategorized = 25
+    WorkExpense = 24,
+    Subscriptions = 25,
+    Uncategorized = 26
 }

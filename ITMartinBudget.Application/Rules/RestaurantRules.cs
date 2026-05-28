@@ -12,36 +12,43 @@ public static class RestaurantRules
         RestaurantCafe(
             "hanzo",
             "Hanzo",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "umashi",
             "Umashi",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "thaiplus",
             "ThaiPlus",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "taxas",
             "Taxas",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "aeblehaven",
             "Æblehaven",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "kasses skovpoelser",
             "Kasses Skovpølser",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "rasses skovpoelser",
             "Rasses Skovpølser",
-            Category.Restaurant)
+            Category.Restaurant,
+            ComparingType.Contains)
     ];
 }

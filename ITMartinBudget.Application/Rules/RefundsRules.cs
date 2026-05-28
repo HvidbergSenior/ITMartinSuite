@@ -11,10 +11,12 @@ public static class RefundsRules
     [
         Refund(
             "returns",
-            "Refund"),
+            "Refund",
+            ComparingType.Contains),
 
         Refund(
             "refund",
-            "Refund")
+            "Refund",
+            ComparingType.Contains)
     ];
 }

@@ -5,11 +5,14 @@ namespace ITMartinBudget.Application.Rules;
 
 public static class RulesFactory
 {
+    // =====================================
+    // FOOD
+    // =====================================
+
     public static TransactionRule EverydayGrocery(
         string pattern,
         string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
@@ -21,109 +24,118 @@ public static class RulesFactory
         };
     }
 
+    public static TransactionRule RestaurantCafe(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.RestaurantCafe,
+            ComparingType = comparingType
+        };
+    }
+
+    // =====================================
+    // SHOPPING
+    // =====================================
+
     public static TransactionRule ClothesAndShoes(
         string pattern,
         string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = Category.Toej,
-            BudgetGroup = BudgetGroup.ExpensesBesidesGroceries,
-            ComparingType = comparingType
-        };
-    }
-
-    public static TransactionRule InterestsAndStock(
-        string pattern,
-        string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = Category.Renter,
-            BudgetGroup = BudgetGroup.InterestsAndStock,
-            ComparingType = comparingType
-        };
-    }
-
-    public static TransactionRule ThingsOtherThanClothes(
-        string pattern,
-        string title,
         Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.ExpensesBesidesGroceries,
+            BudgetGroup = BudgetGroup.GeneralShopping,
             ComparingType = comparingType
         };
     }
 
-    public static TransactionRule ConcertsBio(
+    public static TransactionRule GeneralShopping(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.EntertainmentExpense,
+            BudgetGroup = BudgetGroup.GeneralShopping,
             ComparingType = comparingType
         };
     }
-
-    public static TransactionRule Pets(
+    public static TransactionRule WorkExpense(
         string pattern,
         string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        Category category,
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.Kaeledyr,
-            BudgetGroup = BudgetGroup.ExpensesBesidesGroceries,
+            Category = category,
+            BudgetGroup = BudgetGroup.WorkExpense,
             ComparingType = comparingType
         };
     }
 
-    public static TransactionRule Northside(
+    // =====================================
+    // ENTERTAINMENT
+    // =====================================
+
+    public static TransactionRule Entertainment(
         string pattern,
         string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        Category category,
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.Northside,
-            BudgetGroup = BudgetGroup.EntertainmentExpense,
-            ComparingType = comparingType
+            Category = category,
+            BudgetGroup = BudgetGroup.Entertainment,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Udgift
+        };
+    }
+
+    // =====================================
+    // TRANSPORT
+    // =====================================
+
+    public static TransactionRule Fuel(
+        string pattern,
+        string title,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = Category.Braendstof,
+            BudgetGroup = BudgetGroup.Fuel,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Udgift
         };
     }
 
     public static TransactionRule Parking(
         string pattern,
         string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
@@ -138,8 +150,7 @@ public static class RulesFactory
     public static TransactionRule PublicTransport(
         string pattern,
         string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
@@ -151,66 +162,32 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule UnionAndAKasse(
+    public static TransactionRule CarRepair(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.FixedExpense,
+            BudgetGroup = BudgetGroup.CarRepair,
             ComparingType = comparingType,
-            IsRecurring = true
+            TransactionType = TransactionType.Udgift
         };
     }
 
-    public static TransactionRule FromKommuneAndStat(
-        string pattern,
-        string title,
-        Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.IncomeFromKommuneAndStat,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
-        };
-    }
-
-    public static TransactionRule FixedExpense(
-        string pattern,
-        string title,
-        Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.FixedExpense,
-            ComparingType = comparingType,
-            IsRecurring = true
-        };
-    }
+    // =====================================
+    // HEALTH / PERSONAL
+    // =====================================
 
     public static TransactionRule PersonalCare(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
@@ -222,12 +199,49 @@ public static class RulesFactory
         };
     }
 
+    // =====================================
+    // FIXED EXPENSES
+    // =====================================
+
+    public static TransactionRule FixedExpense(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.FixedExpense,
+            ComparingType = comparingType,
+            IsRecurring = true
+        };
+    }
+
+    public static TransactionRule UnionAndAKasse(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.FixedExpense,
+            ComparingType = comparingType,
+            IsRecurring = true
+        };
+    }
+
     public static TransactionRule Taxes(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
@@ -240,45 +254,47 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule RestaurantCafe(
+    public static TransactionRule Subscription(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.RestaurantCafe,
-            ComparingType = comparingType
+            BudgetGroup = BudgetGroup.Subscriptions,
+            ComparingType = comparingType,
+            IsRecurring = true
         };
     }
 
-    public static TransactionRule Hobbies(
+    // =====================================
+    // INCOME
+    // =====================================
+
+    public static TransactionRule Salary(
         string pattern,
         string title,
-        Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.Hobbies,
-            ComparingType = comparingType
+            Category = Category.Indkomst,
+            BudgetGroup = BudgetGroup.FixedIncome,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Indkomst,
+            IsRecurring = true
         };
     }
-
-    public static TransactionRule FixedIncome(
+    public static TransactionRule Su(
         string pattern,
         string title,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
@@ -292,30 +308,32 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule SavingsAndPension(
+    public static TransactionRule FromKommuneAndStat(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.InternalTransfer,
-            ComparingType = comparingType
+            BudgetGroup = BudgetGroup.IncomeFromKommuneAndStat,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Indkomst
         };
     }
+
+    // =====================================
+    // TRANSFERS
+    // =====================================
 
     public static TransactionRule InternalAccountTransfer(
         string pattern,
         string title,
-        Category category =
-            Category.Overfoersel,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        Category category,
+        ComparingType comparingType)
     {
         return new()
         {
@@ -327,62 +345,26 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule Refund(
+    public static TransactionRule SavingsAndPension(
         string pattern,
-        string title = "Refund",
-        ComparingType comparingType =
-            ComparingType.Contains)
+        string title,
+        Category category,
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.Refund,
-            BudgetGroup = BudgetGroup.Refund,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
+            Category = category,
+            BudgetGroup = BudgetGroup.Savings,
+            ComparingType = comparingType
         };
     }
 
-    public static TransactionRule Fuel(
+    public static TransactionRule TransfersOutsideFromUs(
         string pattern,
-        string title = "Fuel",
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = Category.Braendstof,
-            BudgetGroup = BudgetGroup.Fuel,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
-        };
-    }
-
-    public static TransactionRule TransfersFromOutsideReceived(
-        string pattern,
-        string title = "Transfers From Outside",
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = Category.OverfoerselFraIkkeFamilie,
-            BudgetGroup = BudgetGroup.GiftIncome,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
-        };
-    }
-
-    public static TransactionRule TransfersToOutsideGiven(
-        string pattern,
-        string title = "Transfer To Outside",
-        ComparingType comparingType =
-            ComparingType.Contains)
+        string title,
+        ComparingType comparingType)
     {
         return new()
         {
@@ -395,28 +377,26 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule TransfersFromFamily(
+    public static TransactionRule TransfersOutsideToUs(
         string pattern,
-        string title = "Transfer From Family",
-        ComparingType comparingType =
-            ComparingType.Contains)
+        string title,
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.OverfoerselFraFamilie,
-            BudgetGroup = BudgetGroup.InternalTransfer,
+            Category = Category.OverfoerselFraIkkeFamilie,
+            BudgetGroup = BudgetGroup.ExternalTransfer,
             ComparingType = comparingType,
             TransactionType = TransactionType.Indkomst
         };
     }
 
-    public static TransactionRule TransfersToFamily(
+    public static TransactionRule TransfersFamilyFromUs(
         string pattern,
-        string title = "Transfer To Family",
-        ComparingType comparingType =
-            ComparingType.Contains)
+        string title,
+        ComparingType comparingType)
     {
         return new()
         {
@@ -429,11 +409,30 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule GiftExpense(
+    public static TransactionRule TransfersFamilyToUs(
         string pattern,
-        string title = "Gift",
-        ComparingType comparingType =
-            ComparingType.Contains)
+        string title,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = Category.OverfoerselFraFamilie,
+            BudgetGroup = BudgetGroup.InternalTransfer,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Indkomst
+        };
+    }
+
+    // =====================================
+    // GIFTS / REFUNDS
+    // =====================================
+
+    public static TransactionRule GiftFromUs(
+        string pattern,
+        string title,
+        ComparingType comparingType)
     {
         return new()
         {
@@ -446,11 +445,10 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule GiftIncome(
+    public static TransactionRule GiftToUs(
         string pattern,
-        string title = "Gift Received",
-        ComparingType comparingType =
-            ComparingType.Contains)
+        string title,
+        ComparingType comparingType)
     {
         return new()
         {
@@ -463,73 +461,37 @@ public static class RulesFactory
         };
     }
 
-    public static TransactionRule EntertainmentExpense(
-        string pattern,
-        string title = "Entertainment",
-        Category category = Category.Gaming,
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.EntertainmentExpense,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
-        };
-    }
-
-    public static TransactionRule CarRepair(
-        string pattern,
-        string title = "CarMechanic",
-        Category category = Category.BilVedligehold,
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.CarRepair,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
-        };
-    }
-
-    public static TransactionRule OtherRepairThanCar(
-        string pattern,
-        string title = "OtherRepairThanCar",
-        Category category = Category.OtherRepairThanCar,
-        ComparingType comparingType =
-            ComparingType.Contains)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.HomeRepair,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
-        };
-    }
-
-    public static TransactionRule ElectronicsBought(
+    public static TransactionRule Refund(
         string pattern,
         string title,
-        Category category,
-        ComparingType comparingType =
-            ComparingType.Contains)
+        ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.ElectronicDevices,
+            Category = Category.Refund,
+            BudgetGroup = BudgetGroup.Refund,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Indkomst
+        };
+    }
+
+    // =====================================
+    // FINANCIAL
+    // =====================================
+
+    public static TransactionRule InterestsAndStock(
+        string pattern,
+        string title,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = Category.Renter,
+            BudgetGroup = BudgetGroup.InterestsAndStock,
             ComparingType = comparingType
         };
     }

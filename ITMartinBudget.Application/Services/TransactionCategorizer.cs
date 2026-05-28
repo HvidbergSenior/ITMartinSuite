@@ -1,9 +1,10 @@
 ﻿using System.Text.RegularExpressions;
+using ITMartinBudget.Application.Helpers;
 using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Application.Rules;
 using ITMartinBudget.Domain.Entities;
 using ITMartinBudget.Domain.Enums;
-using ITMartinBudget.Application.Helpers;
+
 namespace ITMartinBudget.Application.Services;
 
 public class TransactionCategorizer
@@ -20,33 +21,96 @@ public class TransactionCategorizer
             tx.Amount >= 0
                 ? TransactionType.Indkomst
                 : TransactionType.Udgift;
-        Console.WriteLine(
-            $"NORMALIZED: {tx.NormalizedDescription}");
-        var rule =
+
+        var matchingRules =
             TransactionRules.Rules
 
-                .OrderByDescending(x =>
-                    x.Pattern.Length)
+                .Where(x =>
+                    x.TransactionType == null
+                    || x.TransactionType ==
+                    tx.TransactionType)
 
-                .FirstOrDefault(x =>
-
+                .Where(x =>
                     Matches(
                         tx.NormalizedDescription,
                         x.Pattern,
-                        x.ComparingType)
+                        x.ComparingType))
 
-                    &&
+                .OrderByDescending(x =>
+                    x.ComparingType ==
+                    ComparingType.Exact)
 
-                    (
-                        x.TransactionType == null
-                        || x.TransactionType ==
-                        tx.TransactionType
-                    ));
+                .ThenByDescending(x =>
+                    TransactionNormalizer.Normalize(
+                        x.Pattern).Length)
+
+                .ToList();
+
+        // =====================================
+        // DEBUG
+        // =====================================
+
+        if (matchingRules.Count > 1)
+        {
+            Console.ForegroundColor =
+                ConsoleColor.Yellow;
+
+            Console.WriteLine(
+                "=================================");
+
+            Console.WriteLine(
+                $"MULTIPLE MATCHES: {tx.Description}");
+
+            Console.WriteLine(
+                $"NORMALIZED: {tx.NormalizedDescription}");
+
+            foreach (var item in matchingRules)
+            {
+                Console.WriteLine(
+                    $"MATCH: {item.Pattern} => {item.Title}");
+            }
+
+            Console.WriteLine(
+                "=================================");
+
+            Console.ResetColor();
+        }
+
+        var rule =
+            matchingRules
+                .FirstOrDefault();
+
+        // =====================================
+        // MATCHED
+        // =====================================
 
         if (rule is not null)
         {
+            Console.ForegroundColor =
+                ConsoleColor.Green;
+
             Console.WriteLine(
-                $"{tx.Description} matched {rule.Pattern} => {rule.BudgetGroup}");
+                $"MATCHED: {tx.Description}");
+
+            Console.WriteLine(
+                $"NORMALIZED: {tx.NormalizedDescription}");
+
+            Console.WriteLine(
+                $"RULE: {rule.Pattern}");
+
+            Console.WriteLine(
+                $"TITLE: {rule.Title}");
+
+            Console.WriteLine(
+                $"CATEGORY: {rule.Category}");
+
+            Console.WriteLine(
+                $"BUDGET GROUP: {rule.BudgetGroup}");
+
+            Console.WriteLine(
+                "---------------------------------");
+
+            Console.ResetColor();
 
             tx.Category =
                 rule.Category;
@@ -63,26 +127,44 @@ public class TransactionCategorizer
             return;
         }
 
+        // =====================================
+        // UNCATEGORIZED
+        // =====================================
+
+        Console.ForegroundColor =
+            ConsoleColor.Red;
+
+        Console.WriteLine(
+            "#################################");
+
+        Console.WriteLine(
+            $"UNCATEGORIZED: {tx.Description}");
+
+        Console.WriteLine(
+            $"NORMALIZED: {tx.NormalizedDescription}");
+
+        Console.WriteLine(
+            $"AMOUNT: {tx.Amount}");
+
+        Console.WriteLine(
+            $"TYPE: {tx.TransactionType}");
+
+        Console.WriteLine(
+            "#################################");
+
+        Console.ResetColor();
+
         tx.Category =
             Category.Andet;
 
-        if (tx.TransactionType ==
-            TransactionType.Indkomst)
-        {
-            tx.BudgetGroup =
-                BudgetGroup.Uncategorized;
+        tx.BudgetGroup =
+            BudgetGroup.Uncategorized;
 
-            tx.Title =
-                "Ukategoriseret Indkomst";
-        }
-        else
-        {
-            tx.BudgetGroup =
-                BudgetGroup.Uncategorized;
-
-            tx.Title =
-                "Ukategoriseret";
-        }
+        tx.Title =
+            tx.TransactionType ==
+            TransactionType.Indkomst
+                ? "Ukategoriseret Indkomst"
+                : "Ukategoriseret";
 
         tx.IsRecurring = false;
     }

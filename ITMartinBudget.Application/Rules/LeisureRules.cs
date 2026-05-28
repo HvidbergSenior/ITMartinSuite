@@ -9,54 +9,70 @@ public static class LeisureRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        EntertainmentExpense(
+        Entertainment(
             "universal music",
             "Universal Music",
-            Category.Fritid),
+            Category.Fritid,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "fof aarhus",
             "FOF Aarhus",
-            Category.Fritid),
+            Category.Fritid,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "klitmoeller",
             "Klitmøller",
-            Category.Rejse),
+            Category.Rejse,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "radisson blu",
             "Radisson Blu",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "malerfirma tidens farver",
             "Tidens Farver",
-            Category.Hjem),
+            Category.Hjem,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "skumhuset",
             "Skumhuset",
-            Category.Fritid),
+            Category.Fritid,
+            ComparingType.Contains),
 
-        EntertainmentExpense(
+        Entertainment(
             "chokolet",
             "Chokolade",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "noeddebutikken",
             "Nøddebutikken",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "roede kors butik",
             "Røde Kors Butik",
-            Category.Toej),
+            Category.Toej,
+            ComparingType.Contains),
 
-        ThingsOtherThanClothes(
+        GeneralShopping(
             "vesterlund efterskol",
             "Vesterlund Efterskole",
-            Category.Boern)
+            Category.Boern,
+            ComparingType.Contains),
+
+        Entertainment(
+            "fastelavnsbazar",
+            "Fastelavnsbazar",
+            Category.Fritid,
+            ComparingType.Contains)
     ];
 }

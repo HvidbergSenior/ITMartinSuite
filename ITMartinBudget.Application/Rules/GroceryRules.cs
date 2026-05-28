@@ -1,6 +1,7 @@
 ﻿using static ITMartinBudget.Application.Rules.RulesFactory;
 
 using ITMartinBudget.Application.Models;
+using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Rules;
 
@@ -10,78 +11,112 @@ public static class GroceryRules
     [
         EverydayGrocery(
             "netto",
-            "Netto"),
+            "Netto",
+            ComparingType.Word),
 
         EverydayGrocery(
             "rema",
-            "Rema 1000"),
+            "Rema 1000",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "foetex",
-            "Føtex"),
+            "Føtex",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "bilka",
-            "Bilka"),
+            "Bilka",
+            ComparingType.Word),
 
         EverydayGrocery(
             "lidl",
-            "Lidl"),
+            "Lidl",
+            ComparingType.Word),
 
         EverydayGrocery(
             "kvickly",
-            "Kvickly"),
+            "Kvickly",
+            ComparingType.Word),
 
         EverydayGrocery(
             "365discount",
-            "365discount"),
+            "365discount",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "coop365",
-            "Coop 365"),
+            "Coop 365",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "dagli brugsen",
-            "Dagli'Brugsen"),
+            "Dagli'Brugsen",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "superbrugsen",
-            "SuperBrugsen"),
+            "SuperBrugsen",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "superbrugs",
-            "SuperBrugsen"),
+            "SuperBrugsen",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "coop sb",
-            "Coop SuperBrugsen"),
+            "Coop SuperBrugsen",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "meny",
-            "Meny"),
+            "Meny",
+            ComparingType.Word),
 
         EverydayGrocery(
-            "spar",
-            "SPAR"),
+            "vdk spar",
+            "SPAR",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "min koebmand",
-            "Min Købmand"),
+            "Min Købmand",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "reenberg groent",
-            "Reenberg Grønt"),
+            "Reenberg Grønt",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "loevbjerg",
-            "Løvbjerg"),
+            "Løvbjerg",
+            ComparingType.Contains),
 
         EverydayGrocery(
             "tgtg",
-            "Too Good To Go"),
+            "Too Good To Go",
+            ComparingType.Word),
 
         EverydayGrocery(
             "too good to go",
-            "Too Good To Go")
+            "Too Good To Go",
+            ComparingType.Contains),
+
+        EverydayGrocery(
+            "bla kors genbrug",
+            "Blå Kors Genbrug",
+            ComparingType.Contains),
+
+        EverydayGrocery(
+            "mib madmarked",
+            "MIB Madmarked",
+            ComparingType.Contains),
+
+        EverydayGrocery(
+            "daglibrugsen",
+            "DagliBrugsen",
+            ComparingType.Contains)
     ];
 }

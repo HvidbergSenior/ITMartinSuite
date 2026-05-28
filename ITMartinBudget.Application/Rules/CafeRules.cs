@@ -12,71 +12,85 @@ public static class CafeRules
         RestaurantCafe(
             "starbucks",
             "Starbucks",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "lagkagehuset",
             "Lagkagehuset",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "ibens kaffehus",
             "Ibens Kaffehus",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "casino bar",
             "Casino Bar",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "ejvinds stormgade",
             "Ejvinds",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "sams pita",
             "Sams Pita",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "espresso house",
             "Espresso House",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "joe and the juice",
             "Joe & The Juice",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "emmerys",
             "Emmerys",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "baresso",
             "Baresso",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "peter gift",
             "Peter Gift",
-            Category.Cafe),
+            Category.Cafe,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "hanzo",
             "Hanzo",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "umashi",
             "Umashi",
-            Category.Restaurant),
+            Category.Restaurant,
+            ComparingType.Contains),
 
         RestaurantCafe(
             "taxas",
             "Taxas",
-            Category.Restaurant)
+            Category.Restaurant,
+            ComparingType.Contains)
     ];
 }

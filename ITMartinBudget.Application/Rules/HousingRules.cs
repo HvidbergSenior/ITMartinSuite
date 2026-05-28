@@ -14,29 +14,34 @@ public static class HousingRules
         FixedExpense(
             "termin jyske realkredit",
             "Jyske Realkredit",
-            Category.Bolig),
+            Category.Bolig,
+            ComparingType.Contains),
 
         FixedExpense(
             "aarhus kommune ejendomsskat",
             "Ejendomsskat",
-            Category.Bolig),
+            Category.Bolig,
+            ComparingType.Contains),
 
         FixedExpense(
             "parcelforeningen",
             "Parcelforening",
-            Category.Bolig),
+            Category.Bolig,
+            ComparingType.Contains),
 
         FixedExpense(
             "skattestyrelsen",
             "Skattestyrelsen",
-            Category.Bolig),
+            Category.Bolig,
+            ComparingType.Contains),
 
         // Utilities
 
         FixedExpense(
             "aarhus vand",
             "Aarhus Vand",
-            Category.Bolig),
+            Category.Bolig,
+            ComparingType.Contains),
 
         FixedExpense(
             "kredsloeb",
@@ -47,7 +52,8 @@ public static class HousingRules
         FixedExpense(
             "norlys energi",
             "Norlys Energi",
-            Category.Bolig),
+            Category.Bolig,
+            ComparingType.Contains),
 
         FixedExpense(
             "ewii",
@@ -58,7 +64,8 @@ public static class HousingRules
         FixedExpense(
             "andel energi",
             "Andel Energi",
-            Category.Bolig),
+            Category.Bolig,
+            ComparingType.Contains),
 
         FixedExpense(
             "nrgi",

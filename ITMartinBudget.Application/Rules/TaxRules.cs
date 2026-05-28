@@ -12,6 +12,6 @@ public static class TaxRules
         Taxes(
             "sktst motor",
             "Motorafgift",
-            Category.BilVedligehold),
+            Category.BilVedligehold, ComparingType.Contains),
     ];
 }

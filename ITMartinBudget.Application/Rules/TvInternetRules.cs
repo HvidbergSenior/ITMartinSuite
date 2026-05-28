@@ -9,43 +9,46 @@ public static class TvInternetRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        FixedExpense(
+        Subscription(
             "telenor",
             "Telenor",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "yousee",
             "YouSee",
-            Category.Subscription),
+            Category.Subscription,
+            ComparingType.Contains),
 
-        FixedExpense(
+        Subscription(
             "norlys",
             "Norlys",
             Category.Subscription,
             ComparingType.Word),
 
-        FixedExpense(
+        Subscription(
             "waoo",
             "Waoo",
             Category.Subscription,
             ComparingType.Word),
 
-        FixedExpense(
+        Subscription(
             "hiper",
             "Hiper",
             Category.Subscription,
             ComparingType.Word),
 
-        FixedExpense(
+        Subscription(
             "eesy",
             "eesy",
             Category.Subscription,
             ComparingType.Word),
 
-        FixedExpense(
+        Subscription(
             "oister",
             "Oister",
-            Category.Subscription)
+            Category.Subscription,
+            ComparingType.Contains)
     ];
 }
