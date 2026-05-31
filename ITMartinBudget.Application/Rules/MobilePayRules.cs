@@ -12,12 +12,12 @@ public static class MobilePayRules
         RulesFactory.TransfersFamilyFromUs(
             "mobilepay bertil hvidberg john",
             "Bertil",
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         RulesFactory.TransfersFamilyFromUs(
             "mobilepay julius hvidberg john",
             "Julius",
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         RulesFactory.TransfersOutsideToUs(
             "mobilepay sonja johnsen",
@@ -27,7 +27,7 @@ public static class MobilePayRules
         RulesFactory.TransfersOutsideToUs(
             "mobilepay marianne hvidbe",
             "Marianne",
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         // Friends / External
 
@@ -50,11 +50,7 @@ public static class MobilePayRules
             "mobilepay ida koster hei",
             "Ida Koster",
             ComparingType.Contains),
-
-        RulesFactory.TransfersOutsideToUs(
-            "mobilepay anne bro friis",
-            "Anne Bro Friis",
-            ComparingType.Contains),
+        
 
         RulesFactory.TransfersOutsideToUs(
             "mobilepay mathilde rass k",
@@ -74,14 +70,7 @@ public static class MobilePayRules
         RulesFactory.TransfersOutsideToUs(
             "mobilepay inge kjaerulf t",
             "Inge Kjærulf",
-            ComparingType.Contains),
-
-        // External outgoing
-
-        RulesFactory.TransfersOutsideFromUs(
-            "mobilepay inge kjaerulf torp",
-            "Inge Kjærulf Torp",
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         RulesFactory.TransfersOutsideFromUs(
             "mobilepay karl jon nielsen",
@@ -96,7 +85,7 @@ public static class MobilePayRules
         RulesFactory.TransfersOutsideFromUs(
             "mobilepay karsten juel bunch",
             "Karsten Juel Bunch",
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         RulesFactory.TransfersOutsideFromUs(
             "mobilepay arne bro friis jense",

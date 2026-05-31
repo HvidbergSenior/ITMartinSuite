@@ -9,34 +9,7 @@ public static class FamilyTransferRules
         RulesFactory.TransfersFamilyToUs(
             "mobilepay eigil hvidberg",
             "Eigil",
-            ComparingType.Contains),
-
-        RulesFactory.TransfersFamilyToUs(
-            "mobilepay bertil hvidberg",
-            "Bertil",
-            ComparingType.Contains),
-
-        // Family transfers
-
-        RulesFactory.TransfersFamilyFromUs(
-            "mobilepay bertil hvidberg",
-            "Bertil",
-            ComparingType.Contains),
-
-        RulesFactory.TransfersFamilyFromUs(
-            "mobilepay eigil hvidberg",
-            "Eigil",
-            ComparingType.Contains),
-
-     
-        RulesFactory.TransfersFamilyToUs(
-        "bertil hvi",
-        "Bertil",
-        ComparingType.Contains),
-        RulesFactory.TransfersFamilyToUs(
-            "mobilepay julius hvi",
-            "Julius",
-            ComparingType.Contains),
+            ComparingType.Exact),
 
     ];
 }

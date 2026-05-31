@@ -17,10 +17,6 @@ public static class RefundsRules
         Refund(
             "refund",
             "Refund",
-            ComparingType.Contains),
-        Refund(
-            "sygeforsikringendanmark",
-            "Danmark Refund",
-            ComparingType.Contains),
+            ComparingType.Contains)
     ];
 }

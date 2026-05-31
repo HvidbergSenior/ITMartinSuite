@@ -10,56 +10,6 @@ public static class TemporaryExactTransferRules
     public static readonly List<TransactionRule> Items =
     [
         TransfersOutsideToUs(
-            "mobilepay anne bro friis",
-            "Anne Bro Friis",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay anne bro friis jense",
-            "Anne Bro Friis",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay bent moeller joh",
-            "Bent Møller",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay bent moeller johnsen",
-            "Bent Møller",
-            ComparingType.Exact),
-
-        TransfersFamilyToUs(
-            "mobilepay bertil hvidberg",
-            "Bertil",
-            ComparingType.Exact),
-
-        TransfersFamilyToUs(
-            "mobilepay bertil hvidberg john",
-            "Bertil",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay dorthe moeller j",
-            "Dorthe Møller",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay dorthe moeller johnse",
-            "Dorthe Møller",
-            ComparingType.Exact),
-
-        TransfersFamilyToUs(
-            "mobilepay eigil hvidberg",
-            "Eigil",
-            ComparingType.Exact),
-
-        TransfersFamilyToUs(
-            "mobilepay eigil hvidberg johns",
-            "Eigil",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
             "mobilepay ida koester heil",
             "Ida Køster",
             ComparingType.Exact),
@@ -68,36 +18,20 @@ public static class TemporaryExactTransferRules
             "mobilepay ida koester heilbo",
             "Ida Køster",
             ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay inge kjaerulff t",
-            "Inge Kjærulff Torp",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay inge kjaerulff torp",
-            "Inge Kjærulff Torp",
-            ComparingType.Exact),
+        
 
         TransfersFamilyToUs(
             "mobilepay julius hvidberg",
             "Julius",
             ComparingType.Exact),
 
-        TransfersFamilyToUs(
-            "mobilepay julius hvidberg john",
-            "Julius",
-            ComparingType.Exact),
+        
 
         TransfersOutsideToUs(
             "mobilepay karsten juel bu",
             "Karsten Juel Bunch",
             ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay karsten juel bunch",
-            "Karsten Juel Bunch",
-            ComparingType.Exact),
+        
 
         TransfersOutsideToUs(
             "mobilepay mille ea bastho",
@@ -108,35 +42,7 @@ public static class TemporaryExactTransferRules
             "mobilepay mille ea bastholm",
             "Mille Ea Bastholm",
             ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay thomas fug",
-            "Thomas Fug",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay tobias norman jensen",
-            "Tobias Norman Jensen",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay trine marie vinkler",
-            "Trine Marie Vinkler",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay alex snaer gunnarsson",
-            "Alex Snær Gunnarsson",
-            ComparingType.Exact),
-
-        TransfersOutsideToUs(
-            "mobilepay mathilde caroline fo",
-            "Mathilde-Caroline",
-            ComparingType.Exact),
-        EverydayGrocery(
-            "dk lidl",
-            "Lidl",
-            ComparingType.Exact),
+        
 
         TransfersFamilyToUs(
             "mobilepay eigil hvid",
@@ -178,7 +84,7 @@ public static class TemporaryExactTransferRules
             ComparingType.Exact),
 
         EverydayGrocery(
-            "vdk reenberg gront",
+            "vdk reop kand gront",
             "Reenberg Grønt",
             ComparingType.Exact),
 
@@ -197,7 +103,7 @@ public static class TemporaryExactTransferRules
             "Danmark Refund",
             ComparingType.Exact),
         TransfersOutsideToUs(
-            "mobilepay mette clemmense",
+            "mobblaa korsense",
             "Mette Clemmense",
             ComparingType.Exact),
 
@@ -212,7 +118,7 @@ public static class TemporaryExactTransferRules
             ComparingType.Exact),
 
         TransfersOutsideToUs(
-            "mobilepay lisbeth krogshede",
+            "mobilepay liikke visby bunede",
             "Lisbeth Krogshede",
             ComparingType.Exact),
 
@@ -397,7 +303,7 @@ public static class TemporaryExactTransferRules
             "teleno32107104134621",
             "Telenor",
             Category.TelefonTvInternet,
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         RulesFactory.Entertainment(
             "vdk sp royalcdkeys",
@@ -569,6 +475,154 @@ RulesFactory.InternalAccountTransfer(
             "vdk idre fja ll 18",
             "Idre Fjäll",
             Category.Ferie,
+            ComparingType.Exact),
+        // LIDL
+
+        RulesFactory.EverydayGrocery(
+            "dk lidl",
+            "Lidl",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidlvericenter",
+            "Lidl Veri Center",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl veri center",
+            "Lidl Veri Center",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl221arhusskejby",
+            "Lidl Skejby",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl arhus n",
+            "Lidl Aarhus N",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl158skive",
+            "Lidl Skive",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl210arhusrisskov",
+            "Lidl Risskov",
+            ComparingType.Exact),
+        // FAMILY / TRANSFERS
+
+        RulesFactory.TransfersFamilyToUs(
+            "mobilepay eigil hvidberg johns",
+            "Eigil",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay bent moeller joh",
+            "Bent Møller",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay bent moeller johnsen",
+            "Bent Møller",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay dorthe moeller j",
+            "Dorthe Møller",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay dorthe moeller johnse",
+            "Dorthe Møller",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay sonja john",
+            "Sonja",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersFamilyToUs(
+            "mobilepay bertil hvi",
+            "Bertil",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersFamilyToUs(
+            "mobilepay bertil hvidberg",
+            "Bertil",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersFamilyToUs(
+            "mobilepay julius hvi",
+            "Julius",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay anne marie dahl",
+            "Anne-Marie Dahl",
+            ComparingType.Exact),
+        // OTHER PEOPLE
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay claus michael l",
+            "Claus Michael",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay jan isoee kjaer",
+            "Jan Isøe Kjær",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay inge kjaerulff t",
+            "Inge Kjærulff",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay inge kjaerulff torp",
+            "Inge Kjærulff",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay mette clemmense",
+            "Mette Clemmensen",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay mette clemmensen",
+            "Mette Clemmensen",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay niels christen",
+            "Niels",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideToUs(
+            "mobilepay niels chri",
+            "Niels",
+            ComparingType.Exact),
+        // SPECIALS
+
+        RulesFactory.GeneralShopping(
+            "dk safeticket dk",
+            "Safeticket",
+            Category.Fritid,
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk reenberg gront",
+            "Reenberg Grønt",
+            ComparingType.Exact),
+        RulesFactory.TransfersFamilyToUs(
+            "vdk mob pay bertil hvidberg j",
+            "Bertil",
+            ComparingType.Exact),
+        RulesFactory.GiftFromUs(
+            "mobilepay tusind tak for din h",
+            "Donation",
             ComparingType.Exact),
     ];
 }

@@ -83,15 +83,19 @@ public sealed class VideoSplitWorkflowStep
                     Path.GetExtension(
                         item.CurrentWorkingPath);
 
-                var fileName =
-                    Path.GetFileNameWithoutExtension(
-                        item.CurrentWorkingPath);
-
-                var splitPath =
+                var comparisonDirectory =
                     Path.Combine(
                         Path.GetDirectoryName(
                             item.CurrentWorkingPath)!,
-                        $"{fileName}.segment_{index}{extension}");
+                        segment.Name);
+
+                Directory.CreateDirectory(
+                    comparisonDirectory);
+
+                var splitPath =
+                    Path.Combine(
+                        comparisonDirectory,
+                        $"original{extension}");
 
                 _logger.LogInformation(
                     "Generating split segment {Segment} for {File}",
@@ -119,14 +123,14 @@ public sealed class VideoSplitWorkflowStep
                             splitPath,
 
                         EnhancedOutputPath =
-                            splitPath.Replace(
-                                extension,
-                                $".restored{extension}"),
+                            Path.Combine(
+                                comparisonDirectory,
+                                $"restored{extension}"),
 
                         ThumbnailOutputPath =
-                            splitPath.Replace(
-                                extension,
-                                ".jpg"),
+                            Path.Combine(
+                                comparisonDirectory,
+                                "restored.jpg"),
 
                         MediaKind =
                             MediaKind.Video,

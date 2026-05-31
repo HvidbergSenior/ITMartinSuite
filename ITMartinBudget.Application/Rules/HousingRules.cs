@@ -27,7 +27,7 @@ public static class HousingRules
             "parcelforeningen",
             "Parcelforening",
             Category.Bolig,
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         FixedExpense(
             "skattestyrelsen",

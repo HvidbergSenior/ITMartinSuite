@@ -36,6 +36,9 @@ builder.Services.AddScoped<
     IBudgetService,
     BudgetService>();
 builder.Services.AddScoped<
+    IDashboardService,
+    DashboardService>();
+builder.Services.AddScoped<
     ITransactionCategorizer,
     TransactionCategorizer>();
 builder.Services.AddScoped<

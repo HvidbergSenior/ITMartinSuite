@@ -32,7 +32,7 @@ public static class GroceryRules
         EverydayGrocery(
             "vdk lidl",
             "Lidl",
-            ComparingType.Contains),
+            ComparingType.Exact),
 
         EverydayGrocery(
             "kvickly",
@@ -121,11 +121,6 @@ public static class GroceryRules
         EverydayGrocery(
             "mbmadmarked",
             "MB Madmarked",
-            ComparingType.Contains),
-
-        EverydayGrocery(
-            "reenberg groent",
-            "Reenberg Grønt",
-            ComparingType.Contains),
+            ComparingType.Contains)
     ];
 }

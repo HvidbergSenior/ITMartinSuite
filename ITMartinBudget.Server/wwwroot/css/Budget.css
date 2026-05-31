@@ -338,9 +338,9 @@ h3 {
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fit, minmax(340px, 1fr));
+        repeat(auto-fill, minmax(260px, 1fr));
 
-    gap: 20px;
+    gap: 16px;
 
     margin-top: 12px;
 }
@@ -437,161 +437,61 @@ h3 {
    CATEGORY GRID
 ========================================= */
 
-.category-summary-row {
-
+.category-summary-row
+{
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fill, minmax(360px, 1fr));
+        repeat(
+            auto-fill,
+            minmax(320px, 1fr));
 
-    gap: 22px;
+    gap: 20px;
 }
 
 /* =========================================
    CATEGORY CARD
 ========================================= */
 
-.category-summary-card {
-
+.category-summary-card
+{
     position: relative;
 
     overflow: hidden;
 
-    border-radius: 30px;
+    border-radius: 24px;
 
     background:
             linear-gradient(
                     180deg,
                     #171717,
-                    #0f0f0f);
+                    #101010);
 
     border:
             1px solid #2a2a2a;
 
     transition:
             transform .15s ease,
-            border-color .15s ease,
-            box-shadow .15s ease;
+            border-color .15s ease;
+
+    padding: 22px;
+
+    min-height: 180px;
 
     display: flex;
 
     flex-direction: column;
-    min-height: 560px;
-
-    padding: 24px;
-    gap: 6px;
-}
-.content-card {
-
-    max-width: 1700px;
-
-    margin: 0 auto;
-}
-.category-summary-card:hover {
-
-    transform: translateY(-4px);
-
-    border-color: #3b3b3b;
-
-    box-shadow:
-            0 18px 40px rgba(0,0,0,.35);
-}
-.clickable-card {
-
-    cursor: pointer;
 }
 
-.kpi-transactions {
+.category-summary-card:hover
+{
+    transform: translateY(-3px);
 
-    margin-top: 24px;
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 12px;
-
-    max-height: 420px;
-
-    overflow-y: auto;
-
-    padding-right: 6px;
+    border-color: #3a3a3a;
 }
 
-.kpi-transaction-row {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    gap: 12px;
-
-    padding: 12px 14px;
-
-    border-radius: 16px;
-
-    background:
-            rgba(255,255,255,.04);
-
-    border:
-            1px solid rgba(255,255,255,.05);
-}
-
-.kpi-transaction-title {
-
-    font-size: 15px;
-
-    font-weight: 800;
-}
-
-.kpi-transaction-description {
-
-    font-size: 13px;
-
-    color: #9ca3af;
-
-    margin-top: 2px;
-}
-
-.kpi-transaction-amount {
-
-    font-size: 15px;
-
-    font-weight: 900;
-
-    white-space: nowrap;
-}
-
-.kpi-transaction-amount.positive {
-
-    color: #22c55e;
-}
-
-.kpi-transaction-amount.negative {
-
-    color: #ef4444;
-}
-.category-summary-card::before {
-
-    content: "";
-
-    position: absolute;
-
-    inset: 0;
-
-    background:
-            radial-gradient(
-                    circle at top right,
-                    rgba(255,255,255,.04),
-                    transparent 45%);
-
-    pointer-events: none;
-}
-
-.category-summary-top {
-
+.category-summary-top
+{
     display: flex;
 
     justify-content: space-between;
@@ -601,62 +501,51 @@ h3 {
     gap: 12px;
 }
 
-.category-summary-title {
-
+.category-summary-title
+{
     font-size: 22px;
 
-    font-weight: 900;
-
-    margin-bottom: 4px;
+    font-weight: 800;
 }
 
-.category-summary-count {
+.category-summary-count
+{
+    padding: 4px 10px;
+
+    border-radius: 999px;
 
     background:
             rgba(255,255,255,.05);
 
-    border:
-            1px solid rgba(255,255,255,.08);
-
-
-    border-radius: 999px;
-
     color: var(--muted);
-    padding: 6px 12px;
 
-    font-size: 13px;
+    font-size: 12px;
 }
 
-.category-summary-amount {
+.category-summary-amount
+{
+    margin-top: 20px;
 
-    font-size: 42px;
+    font-size: 44px;
 
     font-weight: 900;
 
-    margin-top: 18px;
-
-    margin-bottom: 22;
+    line-height: 1;
 }
 
-/* =========================================
-   CATEGORY TRANSACTIONS
-========================================= */
-
-.category-summary-transactions {
+.expanded-category-transactions
+{
+    margin-top: 20px;
 
     display: flex;
 
     flex-direction: column;
 
-    gap: 12px;
+    gap: 10px;
 
-    margin-top: 20px;
+    max-height: 450px;
 
     overflow-y: auto;
-
-    max-height: 480px;
-
-    padding-right: 4px;
 }
 
 .category-summary-transactions::-webkit-scrollbar {
@@ -889,7 +778,22 @@ h3 {
 .transaction-amount.negative {
     color: var(--red);
 }
+.positive
+{
+    color: #22c55e;
+}
 
+.negative
+{
+    color: #ef4444;
+}
+.top-spending-badge
+{
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+}
 /* =========================================
    MOBILE
 ========================================= */

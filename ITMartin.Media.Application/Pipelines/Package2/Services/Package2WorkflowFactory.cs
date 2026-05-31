@@ -72,13 +72,109 @@ public sealed class Package2WorkflowFactory
         return new Package2WorkflowState
         {
             ManualSegments =
-            [
-                new()
-                {
-                    Name = "Segment_00",
-                    Start = new TimeSpan(0, 0, 0),
-                    End = new TimeSpan(0, 0, 37)
-                }
+[
+    new()
+    {
+        Name = "Jul_Mogens_Jonna",
+        Start = new TimeSpan(0, 0, 0),
+        End = new TimeSpan(0, 1, 50)
+    },
+    new()
+    {
+        Name = "Jesper_Julemand",
+        Start = new TimeSpan(0, 12, 32),
+        End = new TimeSpan(0, 16, 38)
+    },
+    new()
+    {
+        Name = "Morgenhygge_SDR_Vium",
+        Start = new TimeSpan(0, 16, 38),
+        End = new TimeSpan(0, 20, 19)
+    },
+    new()
+    {
+        Name = "Strudse",
+        Start = new TimeSpan(0, 20, 19),
+        End = new TimeSpan(0, 21, 06)
+    },
+    new()
+    {
+        Name = "Udenfor_I_Sne",
+        Start = new TimeSpan(0, 21, 06),
+        End = new TimeSpan(0, 23, 41)
+    },
+    new()
+    {
+        Name = "Fastelavn_Bhv",
+        Start = new TimeSpan(0, 23, 41),
+        End = new TimeSpan(0, 39, 04)
+    },
+    new()
+    {
+        Name = "Fodselsdag_Mads",
+        Start = new TimeSpan(0, 39, 04),
+        End = new TimeSpan(0, 40, 02)
+    },
+    new()
+    {
+        Name = "Jesper_Erik_Bad",
+        Start = new TimeSpan(0, 40, 02),
+        End = new TimeSpan(0, 41, 36)
+    },
+    new()
+    {
+        Name = "Lille_Erik",
+        Start = new TimeSpan(0, 41, 36),
+        End = new TimeSpan(0, 42, 10)
+    },
+    new()
+    {
+        Name = "Rulleskojter",
+        Start = new TimeSpan(0, 42, 10),
+        End = new TimeSpan(0, 44, 00)
+    },
+    new()
+    {
+        Name = "Bornegymnastik",
+        Start = new TimeSpan(0, 44, 00),
+        End = new TimeSpan(0, 52, 34)
+    },
+    new()
+    {
+        Name = "Skovtur",
+        Start = new TimeSpan(0, 52, 34),
+        End = new TimeSpan(1, 05, 05)
+    },
+    new()
+    {
+        Name = "SdrVium",
+        Start = new TimeSpan(1, 05, 05),
+        End = new TimeSpan(1, 15, 00)
+    },
+    new()
+    {
+        Name = "Strand",
+        Start = new TimeSpan(1, 15, 00),
+        End = new TimeSpan(1, 25, 32)
+    },
+    new()
+    {
+        Name = "Leg",
+        Start = new TimeSpan(1, 25, 32),
+        End = new TimeSpan(1, 26, 28)
+    },
+    new()
+    {
+        Name = "Mads_Erik_Bad",
+        Start = new TimeSpan(1, 26, 28),
+        End = new TimeSpan(1, 32, 25)
+    },
+    new()
+    {
+        Name = "Ferie",
+        Start = new TimeSpan(1, 32, 25),
+        End = new TimeSpan(1, 40, 00)
+    }
             ], 
             PackageId =
                 Guid.NewGuid(),
