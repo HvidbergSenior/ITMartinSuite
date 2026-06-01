@@ -13,14 +13,14 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         // =========================
-        // WORKFLOW
+        // ORCHESTRATION
         // =========================
-        services.AddScoped<
-            OpenAiRecognitionWorkflowStep>();
+
         services.AddScoped<
             ICardScanOrchestrator,
             CardScanOrchestrator>();
-
+        services.AddScoped<
+            CardScanWorkflowRunner>();
         services.AddScoped<
             CardScanWorkflow>();
 
@@ -54,7 +54,13 @@ public static class DependencyInjection
             OcrWorkflowStep>();
 
         services.AddScoped<
-            OpenAiInterpretationWorkflowStep>();
+            OpenAiRecognitionWorkflowStep>();
+
+       // services.AddScoped<
+         //   ScryfallMatchWorkflowStep>();
+
+        //services.AddScoped<
+          //  CardConditionWorkflowStep>();
 
         services.AddScoped<
             SaveDebugImagesWorkflowStep>();

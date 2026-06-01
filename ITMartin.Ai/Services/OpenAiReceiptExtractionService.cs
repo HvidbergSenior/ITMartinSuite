@@ -8,7 +8,7 @@ namespace ITMartin.Ai.Services;
 
 public sealed class OpenAiReceiptExtractionService
     : OpenAiServiceBase,
-      IReceiptExtractionService
+        IReceiptExtractionService
 {
     public OpenAiReceiptExtractionService(
         IConfiguration configuration)

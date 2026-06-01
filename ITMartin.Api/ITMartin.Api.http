@@ -1,0 +1,6 @@
+@ITMartin.Api_HostAddress = http://localhost:5110
+
+GET {{ITMartin.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

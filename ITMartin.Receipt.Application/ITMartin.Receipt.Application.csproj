@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>dotnet-ITMartin.Receipt.Application-f1b4dfb4-ae50-4af4-9182-4d116a544173</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Application\ITMartin.Media.Application.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
+      <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
+      <ProjectReference Include="..\ITMartin.OCR\ITMartin.OCR.csproj" />
+    </ItemGroup>
+</Project>

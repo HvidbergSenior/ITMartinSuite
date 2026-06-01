@@ -1,6 +1,6 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-using ITMartin.Receipt.Application.Interfaces;
+using ITMartin.Ai.Interfaces;
 
 namespace ITMartin.Receipt.Application.Workflows.Steps;
 
