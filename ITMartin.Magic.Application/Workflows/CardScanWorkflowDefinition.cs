@@ -11,14 +11,17 @@ public sealed class CardScanWorkflowDefinition
 
     public IReadOnlyCollection<IWorkflowStep>
         Steps { get; }
-
+    public WorkflowType WorkflowType =>
+        WorkflowType.MagicCardScan;
     public CardScanWorkflowDefinition(
         DetectCardWorkflowStep detectCardWorkflowStep,
         DetectCardCornersWorkflowStep detectCardCornersWorkflowStep,
         PerspectiveCorrectionWorkflowStep perspectiveCorrectionWorkflowStep,
         BlurDetectionWorkflowStep blurDetectionWorkflowStep,
         OcrWorkflowStep ocrWorkflowStep,
-        OpenAiRecognitionWorkflowStep openAiRecognitionWorkflowStep)
+        OpenAiRecognitionWorkflowStep openAiRecognitionWorkflowStep,
+        ScryfallMatchWorkflowStep scryfallMatchWorkflowStep,
+        CardConditionWorkflowStep cardConditionWorkflowStep)
     {
         Steps =
         [
@@ -33,6 +36,8 @@ public sealed class CardScanWorkflowDefinition
 
             // Semantic Interpretation
             openAiRecognitionWorkflowStep,
+            scryfallMatchWorkflowStep,
+            cardConditionWorkflowStep
         ];
     }
 }

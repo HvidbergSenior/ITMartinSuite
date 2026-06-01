@@ -30,7 +30,7 @@ public sealed class WorkflowRecoveryService(
 
         var workflow =
             workflowRegistry.Resolve(
-                "Package1Workflow");
+                WorkflowType.Package1);
 
         var context =
             new WorkflowExecutionContext<

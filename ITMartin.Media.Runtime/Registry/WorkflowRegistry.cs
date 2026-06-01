@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Runtime.Registry;
 
@@ -6,23 +7,22 @@ public sealed class WorkflowRegistry(
     IEnumerable<IWorkflowDefinition> workflows)
     : IWorkflowRegistry
 {
-    private readonly Dictionary<string, IWorkflowDefinition>
+    private readonly Dictionary<WorkflowType, IWorkflowDefinition>
         _workflows =
             workflows.ToDictionary(
-                x => x.Name,
-                StringComparer.OrdinalIgnoreCase);
+                x => x.WorkflowType);
 
     public IWorkflowDefinition Resolve(
-        string workflowName)
+        WorkflowType workflowType)
     {
         if (_workflows.TryGetValue(
-                workflowName,
+                workflowType,
                 out var workflow))
         {
             return workflow;
         }
 
         throw new InvalidOperationException(
-            $"Workflow '{workflowName}' was not registered.");
+            $"Workflow '{workflowType}' was not registered.");
     }
 }

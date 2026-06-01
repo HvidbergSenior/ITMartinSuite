@@ -7,13 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Jobs\" />
-      <Folder Include="Orchestration\" />
-      <Folder Include="Recognition\" />
-      <Folder Include="Runtime\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
       <ProjectReference Include="..\ITMartin.Magic.Domain\ITMartin.Magic.Domain.csproj" />
       <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />

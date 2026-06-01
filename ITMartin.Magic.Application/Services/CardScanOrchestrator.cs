@@ -7,11 +7,11 @@ public sealed class CardScanOrchestrator
     : ICardScanOrchestrator
 {
     private readonly
-        CardScanWorkflow
+        CardScanWorkflowRunner
         _workflow;
 
     public CardScanOrchestrator(
-        CardScanWorkflow workflow)
+        CardScanWorkflowRunner workflow)
     {
         _workflow = workflow;
     }

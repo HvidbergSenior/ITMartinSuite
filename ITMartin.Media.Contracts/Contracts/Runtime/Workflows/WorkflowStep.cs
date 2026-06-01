@@ -26,8 +26,10 @@ public abstract class WorkflowStep<TState>
         await ExecuteAsync(
             new WorkflowExecutionContext<TState>
             {
+                WorkflowId = context.WorkflowId,
+                WorkflowName = context.WorkflowName,
                 State = typedState,
-                WorkflowName = context.WorkflowName
+                CancellationToken = context.CancellationToken
             },
             cancellationToken);
     }

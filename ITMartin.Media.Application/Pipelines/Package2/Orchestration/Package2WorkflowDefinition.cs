@@ -8,7 +8,8 @@ public sealed class Package2WorkflowDefinition
 {
     public string Name =>
         "Package2Workflow";
-
+    public WorkflowType WorkflowType =>
+        WorkflowType.Package2;
     public IReadOnlyCollection<IWorkflowStep>
         Steps { get; }
 

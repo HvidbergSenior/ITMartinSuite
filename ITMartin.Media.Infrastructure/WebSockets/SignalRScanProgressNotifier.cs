@@ -19,9 +19,9 @@ public sealed class SignalRScanProgressNotifier
         ScanProgressModel progress,
         CancellationToken cancellationToken)
     {
-        return _hubContext.Clients.All.SendAsync(
+        return _hubContext.Clients.All.SendCoreAsync(
             "scan-progress",
-            progress,
+            new object?[] { progress },
             cancellationToken);
     }
 }

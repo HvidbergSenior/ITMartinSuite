@@ -1,6 +1,4 @@
-﻿// File: ITMartin.Media.Infrastructure.SignalR/Runtime/SignalRRuntimeEventPublisher.cs
-
-using ITMartin.Media.Application.Abstractions.Runtime;
+﻿using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Infrastructure.SignalR.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
@@ -15,12 +13,9 @@ public sealed class SignalRRuntimeEventPublisher(
         CancellationToken cancellationToken = default)
         where T : class
     {
-        await hubContext
-            .Clients
-            .All
-            .SendAsync(
-                typeof(T).Name,
-                message,
-                cancellationToken);
+        await hubContext.Clients.All.SendCoreAsync(
+            "runtime-event",
+            new object?[] { message },
+            cancellationToken);
     }
 }

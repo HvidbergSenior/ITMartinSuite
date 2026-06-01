@@ -2,5 +2,7 @@
 
 public interface IWorkflowRegistry
 {
-    IWorkflowDefinition Resolve(string workflowName);
+
+    IWorkflowDefinition Resolve(
+        WorkflowType workflowType);
 }

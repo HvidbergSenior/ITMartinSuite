@@ -1,4 +1,5 @@
 ﻿    using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+    using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
     using ITMartin.Media.Contracts.Entities;
 
     namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
@@ -140,6 +141,7 @@
         public string? Author { get; set; }
 
         public string? DocumentTitle { get; set; }
+        public WorkflowType? WorkflowType { get; set; }
         public bool Failed { get; set; }
 
         public List<string> AiTags { get; set; } = [];
