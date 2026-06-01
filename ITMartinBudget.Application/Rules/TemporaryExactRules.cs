@@ -164,13 +164,13 @@ public static class TemporaryExactTransferRules
         // SUBSCRIPTIONS
         // =====================================
 
-        RulesFactory.Subscription(
+        RulesFactory.WorkExpense(
             "vdk one com",
             "One.com",
             Category.TelefonTvInternet,
             ComparingType.Exact),
 
-        RulesFactory.Subscription(
+        RulesFactory.WorkExpense(
             "vdk jetbrains",
             "JetBrains",
             Category.Subscription,

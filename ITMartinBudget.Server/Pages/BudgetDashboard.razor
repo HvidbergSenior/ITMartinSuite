@@ -24,9 +24,91 @@
             </div>
 
         </div>
+        <div class="financial-overview-card">
+
+            <div class="financial-item income">
+
+                <div class="financial-label">
+                    Indkomst
+                </div>
+
+                <div class="financial-value">
+                    @Dashboard.TotalIncome.ToString("N0") kr.
+                </div>
+
+            </div>
+
+            <div class="financial-item expense">
+
+                <div class="financial-label">
+                    Udgifter
+                </div>
+
+                <div class="financial-value">
+                    @Dashboard.TotalExpenses.ToString("N0") kr.
+                </div>
+
+            </div>
+
+            <div class="financial-item result">
+
+                <div class="financial-label">
+                    @(Dashboard.NetAmount >= 0
+                        ? "Overskud"
+                        : "Underskud")
+                </div>
+
+                <div class="financial-value">
+                    @Dashboard.NetAmount.ToString("N0") kr.
+                </div>
+
+            </div>
+            @{
+                var expensePercentage =
+                    Dashboard.TotalIncome == 0
+                        ? 0
+                        : Dashboard.TotalExpenses /
+                        Dashboard.TotalIncome * 100;
+            }
+
+            <div class="financial-progress">
+
+                <div class="financial-progress-bar">
+
+                    <div class="financial-progress-expense"
+                         style="width:@expensePercentage%">
+                    </div>
+
+                    <div class="financial-progress-income"
+                         style="width:@(100-expensePercentage)%">
+                    </div>
+
+                </div>
+
+                <div class="financial-progress-labels">
+
+                    <span class="income-label">
+                        +@Dashboard.TotalIncome.ToString("N0") kr.
+                    </span>
+
+                    <span class="expense-label">
+                        -@Dashboard.TotalExpenses.ToString("N0") kr.
+                    </span>
+
+                </div>
+
+                <div class="financial-progress-summary">
+
+                    @expensePercentage.ToString("N1")%
+                    af indkomsten bruges
+
+                </div>
+
+            </div>
+        </div>
         <div class="kpi-grid">
 
-            <div class="kpi-card">
+            <div class="kpi-card period-card">
                 <div class="kpi-title">
                     Periode
                 </div>
@@ -35,14 +117,25 @@
                     @Dashboard.MonthsLoaded måneder
                 </div>
 
-                <div class="kpi-value">
-                    @Dashboard.FirstTransactionDate?.ToString("dd/MM/yyyy")
-                    -
-                    @Dashboard.LastTransactionDate?.ToString("dd/MM/yyyy")
+                <div class="period-value">
+
+                    <div>
+                        @Dashboard.FirstTransactionDate?.ToString("dd/MM/yyyy")
+                    </div>
+
+                    <div class="period-arrow">
+                        →
+                    </div>
+
+                    <div>
+                        @Dashboard.LastTransactionDate?.ToString("dd/MM/yyyy")
+                    </div>
+
                 </div>
             </div>
 
-            <div class="kpi-card">
+            <div class="kpi-card clickable-card"
+                 @onclick="ToggleInternalTransfers">
                 <div class="kpi-title">
                     Interne overførsler
                 </div>
@@ -61,62 +154,7 @@
                     @Dashboard.InternalTransferExpenses.ToString("N0") kr.
                 </div>
             </div>
-
-            <div class="kpi-card kpi-net">
-                <div class="kpi-title">
-                    Overskud
-                </div>
-
-                <div class="kpi-value">
-                    @Dashboard.NetAmount.ToString("N0") kr.
-                </div>
-            </div>
-
-            <div class="kpi-card kpi-income">
-                <div class="kpi-title">
-                    Indkomst
-                </div>
-
-                <div class="kpi-value">
-                    @Dashboard.TotalIncome.ToString("N0") kr.
-                </div>
-            </div>
-
-            <div class="kpi-card kpi-expense">
-                <div class="kpi-title">
-                    Udgifter
-                </div>
-
-                <div class="kpi-value">
-                    @Dashboard.TotalExpenses.ToString("N0") kr.
-                </div>
-            </div>
-
-            <div class="kpi-card clickable-card"
-                 @onclick="ToggleFixedIncomeTransactions">
-
-                <div class="kpi-title">
-                    Fast indkomst
-                </div>
-
-                <div class="kpi-value">
-                    @Dashboard.FixedIncome.ToString("N0") kr.
-                </div>
-
-            </div>
-
-            <div class="kpi-card clickable-card"
-                 @onclick="ToggleFixedExpensesTransactions">
-
-                <div class="kpi-title">
-                    Faste udgifter
-                </div>
-
-                <div class="kpi-value">
-                    @Dashboard.FixedExpenses.ToString("N0") kr.
-                </div>
-
-            </div>
+            
 
         </div>
       
@@ -206,6 +244,48 @@
 
             </div>
         }
+        @if (ExpandedCard == "internal-transfers")
+        {
+            <div class="transaction-section">
+
+                <h2 class="transaction-section-title">
+                    Interne overførsler
+                </h2>
+
+                <div class="transaction-list">
+
+                    @foreach (var tx in InternalTransferTransactions
+                                  .OrderByDescending(x => Math.Abs(x.Amount)))
+                    {
+                        <div class="transaction-row">
+
+                            <div class="transaction-date">
+                                @tx.Date.ToString("dd/MM/yyyy")
+                            </div>
+
+                            <div class="transaction-description">
+
+                                <div class="transaction-title">
+                                    @tx.Title
+                                </div>
+
+                                <div class="transaction-category">
+                                    @tx.Description
+                                </div>
+
+                            </div>
+
+                            <div class="transaction-amount @(tx.Amount >= 0 ? "positive" : "negative")">
+                                @tx.Amount.ToString("N0") kr.
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        }
         @if (UncategorizedTransactions.Any())
         {
             <div class="transaction-section">
@@ -250,100 +330,220 @@
             </div>
         }
       
-           <div class="category-summary-row">
+           <div class="budget-columns">
 
-    @foreach (var group in Dashboard.BudgetGroupSummaries)
-    {
-        <div class="category-summary-card clickable-card"
-             @onclick="() => ToggleBudgetGroup(group.BudgetGroup)">
+    <div class="budget-column">
 
-            @{
-                var percent =
-                    TotalSpending == 0
-                        ? 0
-                        : Math.Abs(group.Total)
-                          / TotalSpending
-                          * 100;
-            }
+        <div class="budget-column-header income">
+            💰 Indkomster
+        </div>
 
-            <div class="category-summary-top">
+        @foreach (var group in Dashboard.BudgetGroupSummaries
+                     .Where(x => x.Total > 0)
+                     .OrderByDescending(x => x.Total))
+        {
+            <div class="category-summary-card clickable-card"
+                 @onclick="() => ToggleBudgetGroup(group.BudgetGroup)">
 
-                <div>
+                @{
+                    var percent =
+                        Dashboard.TotalIncome == 0
+                            ? 0
+                            : group.Total / Dashboard.TotalIncome * 100;
+                }
 
-                    <div class="category-summary-title">
-                        @group.BudgetGroup.ToDisplayName()
+                <div class="category-summary-top">
+
+                    <div>
+
+                        <div class="category-summary-title">
+                            @group.BudgetGroup.ToDisplayName()
+                        </div>
+
+                        <div class="meta">
+                            @group.TransactionCount transaktioner
+                            •
+                            @percent.ToString("N1")%
+                        </div>
+
                     </div>
 
-                    <div class="meta">
-                        @group.TransactionCount transaktioner
-                        •
-                        @percent.ToString("N1")%
+                    <div class="category-summary-count">
+                        @((group.Total / Dashboard.MonthsLoaded).ToString("N0"))
+                        kr/md
                     </div>
 
                 </div>
 
-                <div class="category-summary-count">
-
-                    @((group.Total / Dashboard.MonthsLoaded).ToString("N0"))
-                    kr/md
-
+                <div class="category-summary-amount positive">
+                    @group.Total.ToString("N0") kr.
                 </div>
+                @if (ExpandedBudgetGroup == group.BudgetGroup)
+                {
+                    <div class="expanded-category-transactions">
 
-            </div>
+                        @foreach (var tx in Dashboard.Transactions
 
-            <div class="category-summary-amount
-                @(group.Total >= 0
-                    ? "positive"
-                    : "negative")">
+                                      .Where(x =>
+                                          x.BudgetGroup ==
+                                          group.BudgetGroup)
 
-                @group.Total.ToString("N0") kr.
+                                      .GroupBy(x => x.Title)
 
-            </div>
+                                      .Select(x => new
+                                      {
+                                          Title = x.Key,
+                                          Count = x.Count(),
+                                          Total = Math.Abs(
+                                              x.Sum(y => y.Amount))
+                                      })
 
-            @if (ExpandedBudgetGroup == group.BudgetGroup)
-            {
-                <div class="expanded-category-transactions">
+                                      .OrderByDescending(x => x.Total))
+                        {
+                            <div class="category-transaction">
 
-                    @foreach (var tx in Dashboard.Transactions
+                                <div class="category-transaction-text">
 
-                                  .Where(x =>
-                                      x.BudgetGroup ==
-                                      group.BudgetGroup)
+                                    <div class="category-transaction-title">
+                                        @tx.Title (@tx.Count)
+                                    </div>
 
-                                  .GroupBy(x => x.Title)
+                                </div>
 
-                                  .Select(x => new
-                                  {
-                                      Title = x.Key,
-                                      Count = x.Count(),
-                                      Total = Math.Abs(
-                                          x.Sum(y => y.Amount))
-                                  })
-
-                                  .OrderByDescending(x => x.Total))
-                    {
-                        <div class="category-transaction">
-
-                            <div class="category-transaction-text">
-
-                                <div class="category-transaction-title">
-                                    @tx.Title (@tx.Count)
+                                <div class="category-transaction-amount">
+                                    @tx.Total.ToString("N0") kr.
                                 </div>
 
                             </div>
+                        }
 
-                            <div class="category-transaction-amount">
-                                @tx.Total.ToString("N0") kr.
-                            </div>
+                    </div>
+                }
 
-                        </div>
-                    }
+            </div>
+        }
+
+    </div>
+
+    <div class="budget-column">
+
+        <div class="category-summary-card">
+
+            <div class="category-summary-title">
+                🔥 Største udgifter
+            </div>
+
+            @foreach (var item in Dashboard.BudgetGroupSummaries
+                          .Where(x => x.Total < 0)
+                          .OrderBy(x => x.Total)
+                          .Take(3))
+            {
+                <div class="category-transaction">
+
+                    <div class="category-transaction-title">
+                        @item.BudgetGroup.ToDisplayName()
+                    </div>
+
+                    <div class="category-transaction-amount negative">
+                        @Math.Abs(item.Total).ToString("N0") kr.
+                    </div>
 
                 </div>
             }
 
         </div>
-    }
+        <div class="budget-column-header expense">
+            💸 Udgifter
+        </div>
+
+        @foreach (var group in Dashboard.BudgetGroupSummaries
+                     .Where(x => x.Total < 0)
+                     .OrderByDescending(x => Math.Abs(x.Total)))
+        {
+            <div class="category-summary-card clickable-card"
+                 @onclick="() => ToggleBudgetGroup(group.BudgetGroup)">
+
+                @{
+                    var percent =
+                        TotalSpending == 0
+                            ? 0
+                            : Math.Abs(group.Total) /
+                              TotalSpending * 100;
+                }
+
+                <div class="category-summary-top">
+
+                    <div>
+
+                        <div class="category-summary-title">
+                            @group.BudgetGroup.ToDisplayName()
+                        </div>
+
+                        <div class="meta">
+                            @group.TransactionCount transaktioner
+                            •
+                            @percent.ToString("N1")%
+                        </div>
+
+                    </div>
+
+                    <div class="category-summary-count">
+                        @((Math.Abs(group.Total) / Dashboard.MonthsLoaded)
+                            .ToString("N0"))
+                        kr/md
+                    </div>
+
+                </div>
+
+                <div class="category-summary-amount negative">
+                    @group.Total.ToString("N0") kr.
+                </div>
+                @if (ExpandedBudgetGroup == group.BudgetGroup)
+                {
+                    <div class="expanded-category-transactions">
+
+                        @foreach (var tx in Dashboard.Transactions
+
+                                      .Where(x =>
+                                          x.BudgetGroup ==
+                                          group.BudgetGroup)
+
+                                      .GroupBy(x => x.Title)
+
+                                      .Select(x => new
+                                      {
+                                          Title = x.Key,
+                                          Count = x.Count(),
+                                          Total = Math.Abs(
+                                              x.Sum(y => y.Amount))
+                                      })
+
+                                      .OrderByDescending(x => x.Total))
+                        {
+                            <div class="category-transaction">
+
+                                <div class="category-transaction-text">
+
+                                    <div class="category-transaction-title">
+                                        @tx.Title (@tx.Count)
+                                    </div>
+
+                                </div>
+
+                                <div class="category-transaction-amount">
+                                    @tx.Total.ToString("N0") kr.
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+        }
+
+    </div>
 
 </div>
 
@@ -401,14 +601,26 @@
                 x.BudgetGroup ==
                 BudgetGroup.FixedIncome)
             .ToList();
-
+    private List<BankTransaction>
+        InternalTransferTransactions =>
+        Dashboard.Transactions
+            .Where(x =>
+                x.BudgetGroup ==
+                BudgetGroup.InternalTransfer)
+            .ToList();
     protected override async Task OnInitializedAsync()
     {
         Dashboard =
             await DashboardService
                 .BuildDashboardAsync();
     }
-
+    private void ToggleInternalTransfers()
+    {
+        ExpandedCard =
+            ExpandedCard == "internal-transfers"
+                ? null
+                : "internal-transfers";
+    }
     private void ToggleBudgetGroup(
         BudgetGroup budgetGroup)
     {

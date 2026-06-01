@@ -63,13 +63,13 @@ public static class SubscriptionRules
             Category.Subscription,
             ComparingType.Contains),
 
-        Subscription(
+        WorkExpense(
             "chatgpt",
             "ChatGPT",
             Category.Subscription,
             ComparingType.Contains),
 
-        Subscription(
+        WorkExpense(
             "openai",
             "OpenAI",
             Category.Subscription,
