@@ -13,5 +13,10 @@ public class BudgetGroupSummary
     public decimal Total =>
         Income - Expenses;
 
+    public decimal DisplayAmount =>
+        BudgetGroup == BudgetGroup.Savings
+            ? Expenses - Income
+            : Expenses;
+
     public int TransactionCount { get; set; }
 }

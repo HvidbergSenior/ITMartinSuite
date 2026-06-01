@@ -66,7 +66,36 @@ public sealed class DashboardService
                         BudgetGroup.InternalTransfer &&
                         x.Amount < 0)
                     .Sum(x => x.Amount));
+        var savingsTransactions =
+            transactions
+                .Where(x => x.BudgetGroup == BudgetGroup.Savings)
+                .ToList();
 
+        Console.WriteLine("===== OPSPARING =====");
+
+        Console.WriteLine(
+            $"Expenses: {savingsTransactions.Where(x => x.Amount < 0).Sum(x => Math.Abs(x.Amount)):N0}");
+
+        Console.WriteLine(
+            $"Income: {savingsTransactions.Where(x => x.Amount > 0).Sum(x => x.Amount):N0}");
+
+        Console.WriteLine(
+            $"Net: {savingsTransactions.Sum(x => x.Amount):N0}");
+        var savingsIncome =
+            transactions
+                .Where(x =>
+                    x.BudgetGroup == BudgetGroup.Savings &&
+                    x.Amount > 0)
+                .OrderByDescending(x => x.Amount)
+                .ToList();
+
+        Console.WriteLine("===== OPSPARING INCOME =====");
+
+        foreach (var tx in savingsIncome)
+        {
+            Console.WriteLine(
+                $"{tx.Date:dd-MM-yyyy} | {tx.Amount:N0} | {tx.Title} | {tx.Description}");
+        }
         return new DashboardViewModel
         {
             Transactions = transactions,

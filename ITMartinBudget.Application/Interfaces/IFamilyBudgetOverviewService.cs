@@ -5,12 +5,12 @@ namespace ITMartinBudget.Application.Interfaces;
 
 public interface IFamilyBudgetOverviewService
 {
-    FamilyBudgetOverview Build2025Overview(
+    FamilyPlanningViewModel Build2025Overview(
         List<BankTransaction> transactions);
 
-    FamilyBudgetOverview Build2026FirstHalfOverview(
+    FamilyPlanningViewModel Build2026FirstHalfOverview(
         List<BankTransaction> transactions);
 
-    FamilyBudgetOverview Build2026SecondHalfOverview(
+    FamilyPlanningViewModel Build2026SecondHalfOverview(
         List<BankTransaction> transactions);
 }

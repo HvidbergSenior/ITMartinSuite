@@ -1,162 +1,260 @@
 ﻿@page "/family"
-
-@layout BudgetMainLayout
-
 @using ITMartinBudget.Application.Interfaces
 @using ITMartinBudget.Application.Models
-@using ITMartinBudget.Infrastructure
-@using ITMartinBudget.Server.Budget
-@using Microsoft.AspNetCore.Components.Rendering
-@using Microsoft.EntityFrameworkCore
 
-@inject BudgetDbContext Db
-@inject IFamilyBudgetOverviewService OverviewService
+@inject IFamilyPlanningService FamilyPlanningService
 
-<div class="budget-container">
+<h1 class="page-title">
+    👨‍👩‍👧‍👦 Family Planning
+</h1>
 
-    <h1>
-        👨‍👩‍👧‍👦 Family Budget Overview
-    </h1>
+@if (_model is null)
+{
+    <div>Loading...</div>
+}
+else
+{
+    <div class="family-kpis">
 
-    @if (_loading)
+        <div class="family-kpi income">
+
+            <div class="label">
+                Current Income
+            </div>
+
+            <div class="value">
+                @_model.CurrentMonthlyIncome.ToString("N0") kr.
+            </div>
+
+        </div>
+
+        <div class="family-kpi future">
+
+            <div class="label">
+                Future Income
+            </div>
+
+            <InputNumber
+                class="future-income-input"
+                @bind-Value="_futureIncome" />
+
+        </div>
+
+        <div class="family-kpi gap">
+
+            <div class="label">
+                Required Reduction
+            </div>
+
+            <div class="value">
+                @IncomeGap.ToString("N0") kr.
+            </div>
+
+        </div>
+
+        <div class="family-kpi savings">
+
+            <div class="label">
+                Potential Savings
+            </div>
+
+            <div class="value">
+                @_model.PotentialSavings.ToString("N0") kr.
+            </div>
+
+        </div>
+
+    </div>
+
+    <h2>
+        Income Sources
+    </h2>
+
+    @foreach (var income in _model.IncomeCategories)
     {
-        <div>
-            Loading...
+        <div class="family-card clickable-card"
+             @onclick="() => ToggleIncome(income.Name)">
+
+            <div class="family-card-header">
+
+                <span>@income.Name</span>
+
+                <span>
+                    @income.MonthlyAmount.ToString("N0") kr/md
+                </span>
+
+            </div>
+
+            @if (_expandedIncome == income.Name)
+            {
+                <div class="transaction-list">
+
+                    @foreach (var tx in income.Transactions)
+                    {
+                        <div class="transaction-row">
+
+                            <span>
+                                @tx.Date.ToString("dd/MM/yyyy")
+                            </span>
+
+                            <span>
+                                @tx.Title
+                            </span>
+
+                            <span>
+                                @tx.Amount.ToString("N0")
+                            </span>
+
+                        </div>
+                    }
+
+                </div>
+                
+            }
+
         </div>
     }
-    else
+
+    <h2>
+        Budget Groups
+    </h2>
+
+    @foreach (var group in _model.BudgetGroups
+                 .OrderByDescending(x => x.MonthlyAmount))
     {
-        @Card(_overview2025)
+        <div class="family-card clickable-card"
+             @onclick="() => ToggleBudgetGroup(group.Name)">
 
-        @Card(_overview2026FirstHalf)
+            <div class="family-card-header">
 
-        @Card(_overview2026SecondHalf)
+                <div>
+
+                    <div class="group-name">
+                        @group.Name
+                    </div>
+
+                    <div class="group-meta">
+
+                        @group.PercentOfIncome.ToString("N1")%
+                        of income
+
+                    </div>
+
+                </div>
+
+                <div>
+                    @group.MonthlyAmount.ToString("N0")
+                    kr/md
+                </div>
+
+            </div>
+
+            @if (_expandedBudgetGroup == group.Name)
+            {
+                <div class="transaction-list">
+
+                    @foreach (var tx in group.Transactions
+                                 .OrderByDescending(x =>
+                                     Math.Abs(x.Amount)))
+                    {
+                        <div class="transaction-row">
+
+                            <span>
+                                @tx.Date.ToString("dd/MM/yyyy")
+                            </span>
+
+                            <span>
+                                @tx.Title
+                            </span>
+
+                            <span>
+                                @Math.Abs(tx.Amount)
+                                    .ToString("N0")
+                            </span>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
     }
 
-</div>
+    <h2>
+        Suggested Reductions
+    </h2>
+
+    @foreach (var group in _model.BudgetGroups
+                 .Where(x =>
+                     x.PotentialReduction > 0)
+                 .OrderByDescending(x =>
+                     x.PotentialReduction))
+    {
+        <div class="family-card">
+
+            <div class="family-card-header">
+
+                <span>
+                    @group.Name
+                </span>
+
+                <span>
+                    Save
+                    @group.PotentialReduction
+                        .ToString("N0")
+                    kr
+                </span>
+
+            </div>
+
+        </div>
+    }
+}
 
 @code {
 
-    private bool _loading = true;
+    private FamilyPlanningViewModel?
+        _model;
 
-    private FamilyBudgetOverview?
-        _overview2025;
+    private decimal _futureIncome;
 
-    private FamilyBudgetOverview?
-        _overview2026FirstHalf;
+    private string? _expandedIncome;
 
-    private FamilyBudgetOverview?
-        _overview2026SecondHalf;
+    private string? _expandedBudgetGroup;
 
-    protected override async Task OnInitializedAsync()
+    private decimal IncomeGap =>
+        Math.Max(
+            0,
+            _model!.CurrentMonthlyIncome -
+            _futureIncome);
+
+    protected override async Task
+        OnInitializedAsync()
     {
-        var transactions =
-            await Db.Transactions
-                .AsNoTracking()
-                .ToListAsync();
+        _model =
+            await FamilyPlanningService
+                .BuildAsync();
 
-        _overview2025 =
-            OverviewService
-                .Build2025Overview(
-                    transactions);
-
-        _overview2026FirstHalf =
-            OverviewService
-                .Build2026FirstHalfOverview(
-                    transactions);
-
-        _overview2026SecondHalf =
-            OverviewService
-                .Build2026SecondHalfOverview(
-                    transactions);
-
-        _loading = false;
+        _futureIncome =
+            _model.CurrentMonthlyIncome;
     }
 
-    private RenderFragment Card(
-        FamilyBudgetOverview? overview)
-        => builder =>
-        {
-            if (overview is null)
-            {
-                return;
-            }
-
-            var seq = 0;
-
-            builder.OpenElement(seq++, "div");
-            builder.AddAttribute(
-                seq++,
-                "class",
-                "summary-card");
-
-            builder.OpenElement(seq++, "h2");
-            builder.AddContent(
-                seq++,
-                overview.Title);
-            builder.CloseElement();
-
-            Row(
-                builder,
-                ref seq,
-                "Monthly Income",
-                overview.MonthlyIncome);
-
-            Row(
-                builder,
-                ref seq,
-                "Fixed Expenses",
-                -overview.MonthlyFixedExpenses);
-
-            Row(
-                builder,
-                ref seq,
-                "Variable Expenses",
-                -overview.MonthlyVariableExpenses);
-
-            Row(
-                builder,
-                ref seq,
-                "Monthly Remaining",
-                overview.MonthlyRemaining);
-
-            if (overview.MonthsRemaining > 0)
-            {
-                Row(
-                    builder,
-                    ref seq,
-                    "Expected Remaining Period",
-                    overview.ExpectedRemainingPeriod);
-            }
-
-            builder.CloseElement();
-        };
-
-    private void Row(
-        RenderTreeBuilder builder,
-        ref int seq,
-        string label,
-        decimal amount)
+    private void ToggleIncome(
+        string name)
     {
-        builder.OpenElement(seq++, "div");
-        builder.AddAttribute(
-            seq++,
-            "class",
-            "transaction-row");
-
-        builder.OpenElement(seq++, "div");
-        builder.AddContent(seq++, label);
-        builder.CloseElement();
-
-        builder.OpenElement(seq++, "div");
-        builder.AddContent(
-            seq++,
-            Format(amount));
-        builder.CloseElement();
-
-        builder.CloseElement();
+        _expandedIncome =
+            _expandedIncome == name
+                ? null
+                : name;
     }
 
-    private string Format(decimal value)
-        => value.ToString("N2") + " kr.";
+    private void ToggleBudgetGroup(
+        string name)
+    {
+        _expandedBudgetGroup =
+            _expandedBudgetGroup == name
+                ? null
+                : name;
+    }
 }
