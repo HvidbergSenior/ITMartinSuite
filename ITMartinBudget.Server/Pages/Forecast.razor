@@ -1,0 +1,84 @@
+﻿@page "/forecast"
+
+@using ITMartinBudget.Application.Models
+@using ITMartinBudget.Application.Interfaces
+
+@inject IForecastService ForecastService
+
+<h1 class="page-title">
+    Forecast
+</h1>
+
+@if (_model is null)
+{
+    <div>Loading...</div>
+}
+else
+{
+    <div class="family-kpis">
+
+        <div class="family-kpi income">
+            <div class="label">3 Months</div>
+            <div class="value">
+                @_model.Forecast3Months.ToString("N0") kr.
+            </div>
+        </div>
+
+        <div class="family-kpi income">
+            <div class="label">6 Months</div>
+            <div class="value">
+                @_model.Forecast6Months.ToString("N0") kr.
+            </div>
+        </div>
+
+        <div class="family-kpi income">
+            <div class="label">9 Months</div>
+            <div class="value">
+                @_model.Forecast9Months.ToString("N0") kr.
+            </div>
+        </div>
+
+        <div class="family-kpi income">
+            <div class="label">12 Months</div>
+            <div class="value">
+                @_model.Forecast12Months.ToString("N0") kr.
+            </div>
+        </div>
+
+    </div>
+
+    <h2>
+        Forecast Transactions
+    </h2>
+
+    <div class="category-summary-card">
+
+        <div class="category-summary-top">
+
+            <div>
+                <div class="category-summary-title">
+                    Salary
+                </div>
+            </div>
+
+            <div class="category-summary-count">
+                @_model.MonthlySalary.ToString("N0") kr.
+            </div>
+
+        </div>
+
+        
+    </div>
+}
+
+@code {
+
+    private ForecastViewModel? _model;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model =
+            await ForecastService.BuildAsync();
+    }
+
+}

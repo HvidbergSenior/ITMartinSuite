@@ -49,7 +49,9 @@ builder.Services.AddScoped<
 // =========================
 builder.Services.AddScoped<
     BankTransactionCsvService>();
-
+builder.Services.AddScoped<
+    IForecastService,
+    ForecastService>();
 // =========================
 // LOGGING
 // =========================
