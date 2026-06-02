@@ -1,4 +1,5 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Application.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ITMartin.Api.Controllers;
@@ -31,6 +32,43 @@ public sealed class MagicController
 
         await file.CopyToAsync(
             stream,
+            cancellationToken);
+
+        var result =
+            await _orchestrator.ExecuteAsync(
+                path,
+                cancellationToken);
+
+        return Ok(result);
+    }
+    [HttpPost("scan-capture")]
+    public async Task<IActionResult> ScanCapture(
+        [FromBody] ScanCaptureRequest request,
+        CancellationToken cancellationToken)
+    {
+        var base64 =
+            request.Image;
+
+        var comma =
+            base64.IndexOf(',');
+
+        if (comma >= 0)
+        {
+            base64 =
+                base64[(comma + 1)..];
+        }
+
+        var bytes =
+            Convert.FromBase64String(base64);
+
+        var path =
+            Path.Combine(
+                Path.GetTempPath(),
+                $"{Guid.NewGuid()}.jpg");
+
+        await System.IO.File.WriteAllBytesAsync(
+            path,
+            bytes,
             cancellationToken);
 
         var result =

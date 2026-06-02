@@ -5,5 +5,5 @@ namespace ITMartin.Magic.Application.Interfaces;
 public interface ICardCornerDetectionService
 {
     Task<CardCornerDetectionResult?> DetectAsync(
-        string imagePath);
+        string imagePath, CancellationToken cancellationToken);
 }

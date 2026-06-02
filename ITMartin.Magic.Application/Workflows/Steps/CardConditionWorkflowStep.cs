@@ -30,11 +30,16 @@ public sealed class CardConditionWorkflowStep
             ?? throw new InvalidOperationException(
                 "Missing Scryfall match.");
 
+        Console.WriteLine(
+            $"Analyzing condition for {match.Name}");
+
         var result =
-            await _conditionService.AnalyzeAsync(
-                context.State.ImagePath,
-                null,
-                null);
+            await _conditionService
+                .AnalyzeAsync(
+                    context.State.ImagePath,
+                    match.EurPrice,
+                    match.UsdPrice,
+                    cancellationToken);
 
         context.State.ConditionResult =
             result;

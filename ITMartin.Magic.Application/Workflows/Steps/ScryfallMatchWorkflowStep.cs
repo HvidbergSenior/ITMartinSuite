@@ -26,23 +26,28 @@ public sealed class ScryfallMatchWorkflowStep
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
-        if (context.State.RecognitionResult is null)
-        {
-            throw new InvalidOperationException(
-                "Recognition result missing.");
-        }
+        ArgumentNullException.ThrowIfNull(
+            context.State.OpenAiResult);
+        Console.WriteLine(
+            $"AI Name: [{context.State.OpenAiResult?.Name}]");
 
+        Console.WriteLine(
+            $"AI Set: [{context.State.OpenAiResult?.SetCode}]");
+
+        Console.WriteLine(
+            $"AI Collector: [{context.State.OpenAiResult?.CollectorNumber}]");
         var match =
             await _scryfallService
                 .SearchAsync(
-                    context.State.OpenAiResult);
+                    context.State.OpenAiResult,
+                    cancellationToken);
 
         if (match?.BestMatch is null)
         {
             throw new InvalidOperationException(
-                "Scryfall match failed.");
+                $"No Scryfall match found for '{context.State.OpenAiResult?.Name}'.");
         }
-
+        
         context.State.ScryfallMatchResult =
             new ScryfallMatchResult
             {
@@ -59,7 +64,33 @@ public sealed class ScryfallMatchWorkflowStep
                     match.BestMatch.Id,
 
                 ImageUrl =
-                    match.BestMatch.ImageUrl
+                    match.BestMatch.ImageUrl,
+
+                EurPrice =
+                    match.BestMatch.EurPrice,
+
+                EurFoilPrice =
+                    match.BestMatch.EurFoilPrice,
+
+                UsdPrice =
+                    match.BestMatch.UsdPrice,
+
+                UsdFoilPrice =
+                    match.BestMatch.UsdFoilPrice
             };
+        Console.WriteLine(
+            $"CARD: {match.BestMatch.Name}");
+
+        Console.WriteLine(
+            $"EUR: {match.BestMatch.EurPrice}");
+
+        Console.WriteLine(
+            $"USD: {match.BestMatch.UsdPrice}");
+
+        Console.WriteLine(
+            $"SET: {match.BestMatch.Set}");
+
+        Console.WriteLine(
+            $"COLLECTOR: {match.BestMatch.CollectorNumber}");
     }
 }

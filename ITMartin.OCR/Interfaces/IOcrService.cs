@@ -5,5 +5,5 @@ namespace ITMartin.OCR.Interfaces;
 public interface IOcrService
 {
     Task<OcrResult?> ExtractTextAsync(
-        OcrRegionResult regions);
+        OcrRegionResult regions, CancellationToken cancellationToken);
 }

@@ -11,4 +11,12 @@ public sealed record ScryfallMatchResult
     public string? ScryfallId { get; init; }
 
     public string? ImageUrl { get; init; }
+
+    public decimal? EurPrice { get; init; }
+
+    public decimal? EurFoilPrice { get; init; }
+
+    public decimal? UsdPrice { get; init; }
+
+    public decimal? UsdFoilPrice { get; init; }
 }

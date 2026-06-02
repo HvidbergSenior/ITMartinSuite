@@ -9,19 +9,18 @@ public sealed class OpenCvCardCornerDetectionService
 {
     private const int MaxResizeWidth = 1600;
 
-    private const int MinimumContourArea = 50000;
+    private const int MinimumContourArea = 1000;
 
     private const int CannyThreshold1 = 40;
 
     private const int CannyThreshold2 = 120;
 
     public Task<CardCornerDetectionResult?> DetectAsync(
-        string imagePath)
+        string imagePath,
+        CancellationToken cancellationToken)
     {
-        var result =
-            Detect(imagePath);
-
-        return Task.FromResult(result);
+        return Task.FromResult(
+            Detect(imagePath));
     }
 
     private static CardCornerDetectionResult? Detect(
@@ -29,6 +28,15 @@ public sealed class OpenCvCardCornerDetectionService
     {
         try
         {
+            var debugFolder =
+                Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "data",
+                    "debug");
+
+            Directory.CreateDirectory(
+                debugFolder);
+
             using var original =
                 Cv2.ImRead(
                     imagePath,
@@ -39,18 +47,22 @@ public sealed class OpenCvCardCornerDetectionService
                 return null;
             }
 
-            var scale =
-                (double)MaxResizeWidth /
-                original.Width;
+            Console.WriteLine(
+                $"Image size: {original.Width}x{original.Height}");
 
-            var resizedHeight =
-                (int)(original.Height * scale);
+            var scale =
+                original.Width > MaxResizeWidth
+                    ? (double)MaxResizeWidth /
+                      original.Width
+                    : 1.0;
 
             using var resized =
-                original.Resize(
-                    new OpenCvSharp.Size(
-                        MaxResizeWidth,
-                        resizedHeight));
+                scale == 1.0
+                    ? original.Clone()
+                    : original.Resize(
+                        new OpenCvSharp.Size(
+                            (int)(original.Width * scale),
+                            (int)(original.Height * scale)));
 
             using var gray =
                 new Mat();
@@ -95,12 +107,21 @@ public sealed class OpenCvCardCornerDetectionService
                 edges,
                 kernel);
 
+            Cv2.ImWrite(
+                Path.Combine(
+                    debugFolder,
+                    "edges.jpg"),
+                edges);
+
             Cv2.FindContours(
                 edges,
                 out var contours,
                 out _,
                 RetrievalModes.List,
                 ContourApproximationModes.ApproxSimple);
+
+            Console.WriteLine(
+                $"Contours found: {contours.Length}");
 
             OpenCvSharp.Point[]? bestQuad = null;
 
@@ -116,41 +137,121 @@ public sealed class OpenCvCardCornerDetectionService
                 var approx =
                     Cv2.ApproxPolyDP(
                         contour,
-                        0.02 * perimeter,
+                        0.03 * perimeter,
                         true);
 
-                if (approx.Length != 4)
+                if (approx.Length < 4 ||
+                    approx.Length > 10)
                 {
                     continue;
                 }
 
-                if (!Cv2.IsContourConvex(approx))
+                if (!Cv2.IsContourConvex(
+                        approx))
                 {
                     continue;
                 }
 
                 var area =
-                    Cv2.ContourArea(approx);
+                    Cv2.ContourArea(
+                        approx);
 
                 if (area < MinimumContourArea)
                 {
                     continue;
                 }
 
+                var rect =
+                    Cv2.BoundingRect(
+                        contour);
+
+                Console.WriteLine(
+                    $"Area={area} Width={rect.Width} Height={rect.Height}");
+
+                if (rect.Width < 80)
+                {
+                    continue;
+                }
+
+                if (rect.Height < 120)
+                {
+                    continue;
+                }
+
+                var ratio =
+                    (double)rect.Width /
+                    rect.Height;
+
+                Console.WriteLine(
+                    $"Ratio={ratio}");
+
+                // Magic card portrait ratio
+                if (ratio < 0.50 ||
+                    ratio > 0.90)
+                {
+                    continue;
+                }
+
+                using var candidate =
+                    resized.Clone();
+
+                Cv2.Rectangle(
+                    candidate,
+                    rect,
+                    Scalar.Lime,
+                    4);
+
+                Cv2.ImWrite(
+                    Path.Combine(
+                        debugFolder,
+                        $"candidate_{area}_{Guid.NewGuid()}.jpg"),
+                    candidate);
+
                 if (area > bestArea)
                 {
                     bestArea = area;
-                    bestQuad = approx;
+
+                    bestQuad =
+                        new[]
+                        {
+                            new OpenCvSharp.Point(rect.Left, rect.Top),
+                            new OpenCvSharp.Point(rect.Right, rect.Top),
+                            new OpenCvSharp.Point(rect.Right, rect.Bottom),
+                            new OpenCvSharp.Point(rect.Left, rect.Bottom)
+                        };
                 }
             }
 
             if (bestQuad is null)
             {
+                Console.WriteLine(
+                    "NO VALID CARD CONTOUR FOUND");
+
                 return null;
             }
 
+            using var debug =
+                resized.Clone();
+
+            Cv2.Polylines(
+                debug,
+                new[] { bestQuad },
+                true,
+                Scalar.Lime,
+                6);
+
+            Cv2.ImWrite(
+                Path.Combine(
+                    debugFolder,
+                    $"quad_{Guid.NewGuid()}.jpg"),
+                debug);
+
             var ordered =
-                OrderPoints(bestQuad);
+                OrderPoints(
+                    bestQuad);
+
+            Console.WriteLine(
+                $"Area: {bestArea}");
 
             var reverseScale =
                 1.0 / scale;
@@ -180,9 +281,14 @@ public sealed class OpenCvCardCornerDetectionService
                         reverseScale)
             };
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            Console.WriteLine(
+                "CORNER DETECTION FAILED");
+
+            Console.WriteLine(ex);
+
+            throw;
         }
     }
 
@@ -193,16 +299,20 @@ public sealed class OpenCvCardCornerDetectionService
             new OpenCvSharp.Point[4];
 
         ordered[0] =
-            points.OrderBy(p => p.X + p.Y).First();
+            points.OrderBy(
+                p => p.X + p.Y).First();
 
         ordered[2] =
-            points.OrderByDescending(p => p.X + p.Y).First();
+            points.OrderByDescending(
+                p => p.X + p.Y).First();
 
         ordered[1] =
-            points.OrderBy(p => p.Y - p.X).First();
+            points.OrderBy(
+                p => p.Y - p.X).First();
 
         ordered[3] =
-            points.OrderByDescending(p => p.Y - p.X).First();
+            points.OrderByDescending(
+                p => p.Y - p.X).First();
 
         return ordered;
     }

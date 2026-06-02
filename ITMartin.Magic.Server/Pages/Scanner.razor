@@ -203,11 +203,25 @@
 
         </div>
     }
+    @if (!string.IsNullOrWhiteSpace(_capturedImage))
+    {
+        <div class="mt-4">
 
+            <h5>
+                Captured Image
+            </h5>
+
+            <img src="@_capturedImage"
+                 style="max-width:400px;
+                    border-radius:12px;
+                    border:2px solid #444;" />
+
+        </div>
+    }
 </div>
 
 @code {
-
+    private string? _capturedImage;
     private string? _detectedText;
 
     private bool _isProcessing;
@@ -303,10 +317,13 @@
                 bytes);
 
             _detectedText =
-                "Scanning card...";
+                framePath;
+
+            _capturedImage =
+                $"data:image/jpeg;base64,{clean}";
 
             StateHasChanged();
-
+            
             _scanResult =
                 await CardScanOrchestrator
                     .ExecuteAsync(

@@ -6,6 +6,5 @@ namespace ITMartin.Magic.Application.Interfaces;
 
 public interface ICardLayoutDetectionService
 {
-    CardLayoutType Detect(
-        string imagePath);
+    Task<CardLayoutType> DetectAsync(string stateImagePath, CancellationToken cancellationToken);
 }

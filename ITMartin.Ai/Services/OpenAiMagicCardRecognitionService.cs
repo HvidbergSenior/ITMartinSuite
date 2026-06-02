@@ -25,13 +25,13 @@ public sealed class OpenAiMagicCardRecognitionService
     public async Task<MagicCardAnalysisResult?>
         AnalyzeAsync(
             string filePath,
-            CardDetectionResult detection)
+            CardDetectionResult detection, CancellationToken cancellationToken)
     {
         try
         {
             var bytes =
                 await File.ReadAllBytesAsync(
-                    filePath);
+                    filePath, cancellationToken);
 
             var cacheKey =
                 CreateHash(bytes);
@@ -70,7 +70,7 @@ public sealed class OpenAiMagicCardRecognitionService
             var response =
                 await Client.CompleteChatAsync(
                     messages,
-                    options);
+                    options, cancellationToken);
 
             var text =
                 response.Value.Content
@@ -100,9 +100,12 @@ public sealed class OpenAiMagicCardRecognitionService
 
             return result;
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            Console.WriteLine(
+                $"OpenAI recognition failed: {ex}");
+
+            throw;
         }
     }
 
@@ -110,41 +113,87 @@ public sealed class OpenAiMagicCardRecognitionService
         BuildSystemPrompt()
     {
         return new SystemChatMessage("""
-            You are an expert Magic The Gathering
-            printing identification system.
+                                     You are an expert Magic: The Gathering card identification system.
 
-            Return ONLY valid JSON.
-            """);
+                                     Set Symbol Rules:
+                                     
+                                     - Carefully inspect the set symbol.
+                                     - Determine the symbol shape, color, and visual characteristics.
+                                     - If the symbol is recognizable, return the official MTG set code.
+                                     - If the symbol is not recognizable, describe it in detail.
+                                     - The description should contain enough detail for a human to identify the set.
+                                     - Never invent a set code.
+                                     - Never leave SetSymbolDescription empty when a set symbol is visible.
+                                     
+                                     Collector Number Rules:
+                                     
+                                     - Only return CollectorNumber if it is directly visible and readable in the image.
+                                     - Never infer, estimate, guess, derive, or look up CollectorNumber.
+                                     - Do not use prior knowledge of Magic: The Gathering cards.
+                                     - Do not use card name, set code, artist, rarity, mana cost, card type, or artwork to determine CollectorNumber.
+                                     - CollectorNumber must come only from text physically visible in the image.
+                                     - If there is any uncertainty, return null.
+                                     
+                                     Return ONLY valid JSON matching this schema:
+
+                                     {
+                                       "name": "",
+                                       "artist": "",
+                                       "setCode": "",
+                                       "setSymbolDescription": "",
+                                       "collectorNumber": null,
+                                       "oldBorder": false,
+                                       "whiteBorder": false,
+                                       "powerToughness": "",
+                                       "manaCost": "",
+                                       "cardType": "",
+                                       "rarity": "",
+                                       "confidence": 0,
+                                       "exactPrintingCertain": false
+                                     }
+
+                                     Return JSON only.
+                                     """);
     }
+        private static UserChatMessage
+            BuildUserPrompt(
+                byte[] bytes,
+                string mime,
+                CardDetectionResult detection)
+        {
+            return new UserChatMessage(
+            [
+                ChatMessageContentPart
+                    .CreateTextPart(
+                        $"""
+                         OCR RESULTS:
 
-    private static UserChatMessage
-        BuildUserPrompt(
-            byte[] bytes,
-            string mime,
-            CardDetectionResult detection)
-    {
-        return new UserChatMessage(
-        [
-            ChatMessageContentPart
-                .CreateTextPart(
-                    $"""
-                    OCR RESULTS:
+                         Name:
+                         {detection.Name}
 
-                    Name:
-                    {detection.Name}
+                         Set:
+                         {detection.SetCode}
 
-                    Set:
-                    {detection.SetCode}
+                         Collector:
+                         {detection.CollectorNumber}
 
-                    Collector:
-                    {detection.CollectorNumber}
-                    """),
+                         IMPORTANT:
 
-            ChatMessageContentPart
-                .CreateImagePart(
-                    BinaryData.FromBytes(bytes),
-                    mime,
-                    ChatImageDetailLevel.High)
-        ]);
+                         Carefully inspect the set symbol.
+
+                         If you recognize the symbol,
+                         return the official MTG set code.
+
+                         If you do not recognize the symbol,
+                         return a detailed description in
+                         SetSymbolDescription.
+                         """),
+
+                ChatMessageContentPart
+                    .CreateImagePart(
+                        BinaryData.FromBytes(bytes),
+                        mime,
+                        ChatImageDetailLevel.High)
+            ]);
+        }
     }
-}

@@ -21,18 +21,20 @@ public sealed class DetectCardWorkflowStep
             cardLayoutDetectionService;
     }
 
-    public override Task ExecuteAsync(
+    public override async Task ExecuteAsync(
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
         var result =
-            _cardLayoutDetectionService
-                .Detect(
-                    context.State.ImagePath);
+            await _cardLayoutDetectionService
+                .DetectAsync(
+                    context.State.ImagePath,
+                    cancellationToken);
 
         context.State.LayoutType =
             result;
-
-        return Task.CompletedTask;
+        
+        context.State.DetectedCardImagePath =
+            context.State.ImagePath;
     }
 }

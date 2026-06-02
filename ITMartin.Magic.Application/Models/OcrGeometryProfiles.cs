@@ -21,9 +21,9 @@ public static class OcrGeometryProfiles
                     // TITLE
                     // =====================================
 
-                    TitleX = 0.030,
-                    TitleY = 0.018,
-                    TitleWidth = 0.68,
+                    TitleX = 0.040,
+                    TitleY = 0.025,
+                    TitleWidth = 0.42,
                     TitleHeight = 0.045,
 
                     // =====================================
@@ -31,19 +31,9 @@ public static class OcrGeometryProfiles
 // =====================================
 
                     BottomX = 0.030,
-                    BottomY = 0.930,
-                    BottomWidth = 0.52,
-                    BottomHeight = 0.045,
-
-// =====================================
-// ARTIST
-// =====================================
-
-                    ArtistX = 0.54,
-                    ArtistY = 0.930,
-                    ArtistWidth = 0.28,
-                    ArtistHeight = 0.045,
-
+                    BottomY = 0.935,
+                    BottomWidth = 0.40,
+                    BottomHeight = 0.030,
 
                     // =====================================
                     // UNUSED FOR OLD BORDER

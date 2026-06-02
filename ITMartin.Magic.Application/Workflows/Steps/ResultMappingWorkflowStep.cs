@@ -10,7 +10,7 @@ public sealed class ResultMappingWorkflowStep
     public override string Name =>
         nameof(ResultMappingWorkflowStep);
 
-    public override async Task ExecuteAsync(
+    public override Task ExecuteAsync(
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
@@ -24,9 +24,39 @@ public sealed class ResultMappingWorkflowStep
                     context.State.ScryfallMatchResult?.SetCode,
 
                 CollectorNumber =
-                    context.State.ScryfallMatchResult?.CollectorNumber
+                    context.State.ScryfallMatchResult?.CollectorNumber,
+
+                ScryfallId =
+                    context.State.ScryfallMatchResult?.ScryfallId,
+
+                ImageUrl =
+                    context.State.ScryfallMatchResult?.ImageUrl,
+
+                EurPrice =
+                    context.State.ScryfallMatchResult?.EurPrice,
+
+                UsdPrice =
+                    context.State.ScryfallMatchResult?.UsdPrice,
+
+                Condition =
+                    context.State.ConditionResult?.Condition,
+
+                AdjustedEurValue =
+                    context.State.ConditionResult?.AdjustedEurValue,
+
+                AdjustedUsdValue =
+                    context.State.ConditionResult?.AdjustedUsdValue,
+
+                Confidence =
+                    context.State.OpenAiResult?.Confidence ?? 0,
+
+                IsBlurry =
+                    context.State.IsBlurry,
+
+                NormalizedImagePath =
+                    context.State.PerspectiveCorrectedImagePath
             };
 
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }

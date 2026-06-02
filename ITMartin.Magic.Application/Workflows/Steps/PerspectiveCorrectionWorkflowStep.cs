@@ -25,32 +25,27 @@ public sealed class PerspectiveCorrectionWorkflowStep
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
-        if (context.State.DetectedCardImagePath is null)
-        {
-            throw new InvalidOperationException(
-                "Detected card image missing.");
-        }
+        ArgumentNullException.ThrowIfNull(
+            context.State.DetectedCardImagePath);
 
         if (context.State.CardCornerResult is null)
         {
-            throw new InvalidOperationException(
-                "Card corners were not detected.");
+            context.State.PerspectiveCorrectedImagePath =
+                context.State.DetectedCardImagePath;
+
+            return;
         }
 
         var correctedImagePath =
             await _perspectiveCorrectionService
                 .CorrectAsync(
                     context.State.DetectedCardImagePath,
-                    context.State.CardCornerResult);
-
-        if (string.IsNullOrWhiteSpace(
-                correctedImagePath))
-        {
-            throw new InvalidOperationException(
-                "Perspective correction failed.");
-        }
+                    context.State.CardCornerResult,
+                    cancellationToken);
 
         context.State.PerspectiveCorrectedImagePath =
-            correctedImagePath;
+            string.IsNullOrWhiteSpace(correctedImagePath)
+                ? context.State.DetectedCardImagePath
+                : correctedImagePath;
     }
 }

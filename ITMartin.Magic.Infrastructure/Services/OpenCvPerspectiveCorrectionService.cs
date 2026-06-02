@@ -9,13 +9,29 @@ public class OpenCvPerspectiveCorrectionService
 {
     public async Task<string?> CorrectAsync(
         string imagePath,
-        CardCornerDetectionResult corners)
+        CardCornerDetectionResult corners, CancellationToken cancellationToken)
     {
+        Console.WriteLine("CORRECTION SERVICE");
+
+        Console.WriteLine(
+            $"TL: {corners.TopLeft.X},{corners.TopLeft.Y}");
+        Console.WriteLine(
+            $"TL: {corners.TopLeft.X},{corners.TopLeft.Y}");
+
+        Console.WriteLine(
+            $"TR: {corners.TopRight.X},{corners.TopRight.Y}");
+
+        Console.WriteLine(
+            $"BR: {corners.BottomRight.X},{corners.BottomRight.Y}");
+
+        Console.WriteLine(
+            $"BL: {corners.BottomLeft.X},{corners.BottomLeft.Y}");
         return await Task.Run(() =>
         {
-            using var image =
-                Cv2.ImRead(imagePath);
+            var image = Cv2.ImRead(imagePath);
 
+            Console.WriteLine(
+                $"ORIGINAL IMAGE SIZE: {image.Width}x{image.Height}");
             if (image.Empty())
             {
                 return null;
@@ -25,9 +41,9 @@ public class OpenCvPerspectiveCorrectionService
             // MTG CARD SIZE
             // =====================================
 
-            const int outputWidth = 1200;
+            const int outputWidth = 2400;
 
-            const int outputHeight = 1680;
+            const int outputHeight = 3360;
 
             // =====================================
             // SOURCE
@@ -95,7 +111,7 @@ public class OpenCvPerspectiveCorrectionService
                     outputWidth,
                     outputHeight),
 
-                InterpolationFlags.Cubic,
+                InterpolationFlags.Lanczos4,
 
                 BorderTypes.Replicate);
 

@@ -8,8 +8,8 @@ namespace ITMartin.Magic.Infrastructure.Services;
 public sealed class CardLayoutDetectionService
     : ICardLayoutDetectionService
 {
-    public CardLayoutType Detect(
-        string normalizedCardPath)
+    public Task<CardLayoutType> DetectAsync(
+        string normalizedCardPath, CancellationToken  cancellationToken = default)
     {
         try
         {
@@ -20,7 +20,8 @@ public sealed class CardLayoutDetectionService
 
             if (image.Empty())
             {
-                return CardLayoutType.Unknown;
+                return Task.FromResult(
+                    CardLayoutType.Unknown);
             }
 
             var sampleX =
@@ -39,13 +40,15 @@ public sealed class CardLayoutDetectionService
                  pixel.Item1 +
                  pixel.Item2) / 3d;
 
-            return brightness > 120
-                ? CardLayoutType.OldBorder
-                : CardLayoutType.Modern;
+            return Task.FromResult(
+                brightness > 120
+                    ? CardLayoutType.OldBorder
+                    : CardLayoutType.Modern);
         }
         catch
         {
-            return CardLayoutType.Unknown;
+            return Task.FromResult(
+                CardLayoutType.Unknown);
         }
     }
 }

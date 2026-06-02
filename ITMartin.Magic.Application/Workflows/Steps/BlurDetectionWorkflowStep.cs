@@ -31,12 +31,12 @@ public sealed class BlurDetectionWorkflowStep
 
         var isBlurry =
             await _blurDetectionService
-                .IsBlurryAsync(imagePath);
-
-        if (isBlurry)
-        {
-            throw new InvalidOperationException(
-                "Image is too blurry.");
-        }
+                .IsBlurryAsync(
+                    imagePath,
+                    cancellationToken:
+                    cancellationToken);
+        
+        context.State.IsBlurry =
+            isBlurry;
     }
 }

@@ -28,7 +28,7 @@ public class MediaOcrService
 
     public async Task ProcessAsync(
         List<MediaFile> files,
-        Func<int, int, string, Task>? progress = null)
+        Func<int, int, string, Task>? progress = null, CancellationToken cancellationToken = default)
     {
         var ocrFiles =
             files
@@ -55,7 +55,7 @@ public class MediaOcrService
                 var regions =
                     await _ocrRegionExtractor
                         .ExtractAsync(
-                            path);
+                            path, cancellationToken);
 
                 if (regions is null)
                 {
@@ -68,7 +68,7 @@ public class MediaOcrService
                 var result =
                     await _ocrService
                         .ExtractTextAsync(
-                            regions);
+                            regions, cancellationToken);
 
                 file.OcrText =
                     result is null

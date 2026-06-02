@@ -8,7 +8,7 @@ public sealed class OcrService
     : IOcrService
 {
     public async Task<OcrResult?> ExtractTextAsync(
-        OcrRegionResult regions)
+        OcrRegionResult regions, CancellationToken cancellationToken)
     {
         return await Task.Run(() =>
         {
@@ -21,27 +21,40 @@ public sealed class OcrService
                             "tessdata"),
                         "eng",
                         EngineMode.Default);
+                Console.WriteLine(
+                    $"TITLE FILE: {regions.TitleImagePath}");
 
+                Console.WriteLine(
+                    $"SET FILE: {regions.SetCodeImagePath}");
+
+                Console.WriteLine(
+                    $"ARTIST FILE: {regions.ArtistImagePath}");
+
+                Console.WriteLine(
+                    $"BOTTOM FILE: {regions.BottomInfoImagePath}");
                 var title =
                     ReadRegion(
                         engine,
-                        regions.TitleImagePath);
-
-                var setCode =
-                    ReadRegion(
-                        engine,
-                        regions.SetCodeImagePath);
+                        regions.TitleImagePath,
+                        PageSegMode.SingleLine);
 
                 var artist =
                     ReadRegion(
                         engine,
-                        regions.ArtistImagePath);
+                        regions.ArtistImagePath,
+                        PageSegMode.SingleLine);
 
                 var bottom =
                     ReadRegion(
                         engine,
-                        regions.BottomInfoImagePath);
+                        regions.BottomInfoImagePath,
+                        PageSegMode.Auto);
 
+                var setCode =
+                    ReadRegion(
+                        engine,
+                        regions.SetCodeImagePath,
+                        PageSegMode.SingleWord);
                 Console.WriteLine(
                     $"OCR TITLE: [{title}]");
 
@@ -120,8 +133,10 @@ public sealed class OcrService
 
     private static string? ReadRegion(
         TesseractEngine engine,
-        string? path)
+        string? path,
+        PageSegMode mode)
     {
+        
         if (string.IsNullOrWhiteSpace(path))
         {
             return null;
@@ -135,9 +150,23 @@ public sealed class OcrService
         using var image =
             Pix.LoadFromFile(path);
 
-        using var page =
-            engine.Process(image);
+        Console.WriteLine(
+            $"OCR IMAGE: {path}");
 
+        Console.WriteLine(
+            $"WIDTH: {image.Width}");
+
+        Console.WriteLine(
+            $"HEIGHT: {image.Height}");
+        engine.SetVariable(
+            "tessedit_char_whitelist",
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-'");
+        using var page =
+            engine.Process(
+                image,
+                mode);
+        Console.WriteLine(
+            $"OCR CONFIDENCE: {page.GetMeanConfidence()}");
         return page
             .GetText();
     }

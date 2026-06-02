@@ -1,10 +1,10 @@
-﻿namespace ITMartin.Magic.Domain.Entities;
-
-public sealed class MagicCardScan
+﻿public sealed class MagicCardScan
 {
     public Guid Id { get; init; }
 
     public required string OriginalImagePath { get; init; }
+
+    public string? NormalizedImagePath { get; set; }
 
     public string? CardName { get; set; }
 

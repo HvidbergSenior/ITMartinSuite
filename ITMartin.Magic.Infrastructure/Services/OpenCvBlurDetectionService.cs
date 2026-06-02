@@ -7,7 +7,7 @@ public class OpenCvBlurDetectionService
     : IBlurDetectionService
 {
     public async Task<double> CalculateBlurScoreAsync(
-        string imagePath)
+        string imagePath, CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
         {
@@ -59,7 +59,7 @@ public class OpenCvBlurDetectionService
 
     public async Task<bool> IsBlurryAsync(
         string imagePath,
-        double threshold = 120)
+        double threshold = 120, CancellationToken cancellationToken = default)
     {
         var score =
             await CalculateBlurScoreAsync(

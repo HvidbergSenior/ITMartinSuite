@@ -5,5 +5,5 @@ namespace ITMartin.OCR.Interfaces;
 public interface IOcrRegionExtractor
 {
     Task<OcrRegionResult?> ExtractAsync(
-        string normalizedCardPath);
+        string normalizedCardPath, CancellationToken cancellationToken);
 }

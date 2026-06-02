@@ -21,42 +21,64 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
     }
 
     public Task<OcrRegionResult?> ExtractAsync(
-        string normalizedCardPath)
+        string normalizedCardPath, CancellationToken cancellationToken)
     {
         var result =
-            Extract(normalizedCardPath);
+            Extract(normalizedCardPath, cancellationToken);
 
         return Task.FromResult(result);
     }
 
     private OcrRegionResult? Extract(
-        string normalizedCardPath)
+    string normalizedCardPath,
+    CancellationToken cancellationToken)
+{
+    using var image =
+        Cv2.ImRead(
+            normalizedCardPath,
+            ImreadModes.Color);
+
+    if (image.Empty())
     {
-        using var image =
-            Cv2.ImRead(
+        return null;
+    }
+
+    var width =
+        image.Width;
+
+    var height =
+        image.Height;
+
+    var layoutType =
+        _layoutDetectionService
+            .DetectAsync(
                 normalizedCardPath,
-                ImreadModes.Color);
+                cancellationToken)
+            .Result;
 
-        if (image.Empty())
-        {
-            return null;
-        }
+    Rect titleRect;
+    Rect bottomRect;
+    Rect setRect;
 
-        var width =
-            image.Width;
+    if (layoutType ==
+        CardLayoutType.OldBorder)
+    {
+        titleRect =
+            OldBorderOcrRegions.Title;
 
-        var height =
-            image.Height;
-
-        var layoutType =
-            _layoutDetectionService
-                .Detect(normalizedCardPath);
-
+        bottomRect =
+            OldBorderOcrRegions.BottomInfo;
+        
+        setRect =
+            OldBorderOcrRegions.SetArea;
+    }
+    else
+    {
         var profile =
             OcrGeometryProfiles
                 .Get(layoutType);
 
-        var titleRect =
+        titleRect =
             CreateRect(
                 width,
                 height,
@@ -65,7 +87,7 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
                 profile.TitleWidth,
                 profile.TitleHeight);
 
-        var bottomRect =
+        bottomRect =
             CreateRect(
                 width,
                 height,
@@ -73,79 +95,96 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
                 profile.BottomY,
                 profile.BottomWidth,
                 profile.BottomHeight);
-
-        var artistRect =
+        
+        setRect =
             CreateRect(
                 width,
                 height,
-                profile.ArtistX,
-                profile.ArtistY,
-                profile.ArtistWidth,
-                profile.ArtistHeight);
-
-        Rect setRect;
-
-        if (layoutType ==
-            CardLayoutType.OldBorder)
-        {
-            setRect =
-                new Rect(0, 0, 1, 1);
-        }
-        else
-        {
-            setRect =
-                CreateRect(
-                    width,
-                    height,
-                    profile.SetX,
-                    profile.SetY,
-                    profile.SetWidth,
-                    profile.SetHeight);
-        }
-
-        var folder =
-            Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "data",
-                "ocr");
-
-        Directory.CreateDirectory(
-            folder);
-
-        return new OcrRegionResult
-        {
-            TitleImagePath =
-                SaveCrop(
-                    image,
-                    titleRect,
-                    folder,
-                    "title"),
-
-            BottomInfoImagePath =
-                SaveCrop(
-                    image,
-                    bottomRect,
-                    folder,
-                    "bottom"),
-
-            ArtistImagePath =
-                SaveCrop(
-                    image,
-                    artistRect,
-                    folder,
-                    "artist"),
-
-            SetCodeImagePath =
-                SaveCrop(
-                    image,
-                    setRect,
-                    folder,
-                    "set"),
-
-            FullCardImagePath =
-                normalizedCardPath
-        };
+                profile.SetX,
+                profile.SetY,
+                profile.SetWidth,
+                profile.SetHeight);
     }
+
+    var folder =
+        Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "data",
+            "ocr");
+
+    Directory.CreateDirectory(
+        folder);
+
+    Console.WriteLine(
+        $"Image: {width}x{height}");
+
+    Console.WriteLine(
+        $"TITLE RECT: {titleRect}");
+
+    Console.WriteLine(
+        $"BOTTOM RECT: {bottomRect}");
+
+    Console.WriteLine(
+        $"SET RECT: {setRect}");
+
+    using var debug =
+        image.Clone();
+
+    Cv2.Rectangle(
+        debug,
+        titleRect,
+        Scalar.Red,
+        6);
+
+    Cv2.Rectangle(
+        debug,
+        bottomRect,
+        Scalar.Blue,
+        6);
+
+    if (layoutType !=
+        CardLayoutType.OldBorder)
+    {
+        Cv2.Rectangle(
+            debug,
+            setRect,
+            Scalar.Yellow,
+            6);
+    }
+
+    Cv2.ImWrite(
+        Path.Combine(
+            folder,
+            "ocr_regions.jpg"),
+        debug);
+
+    return new OcrRegionResult
+    {
+        TitleImagePath =
+            SaveCrop(
+                image,
+                titleRect,
+                folder,
+                "title"),
+
+        BottomInfoImagePath =
+            SaveCrop(
+                image,
+                bottomRect,
+                folder,
+                "bottom"),
+
+        SetCodeImagePath =
+            SaveCrop(
+                image,
+                setRect,
+                folder,
+                "set"),
+
+        FullCardImagePath =
+            normalizedCardPath
+    };
+}
 
     private static Rect CreateRect(
         int width,
@@ -171,71 +210,13 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
         using var crop =
             new Mat(source, rect);
 
-        using var resized =
-            new Mat();
-
-        Cv2.Resize(
-            crop,
-            resized,
-            new OpenCvSharp.Size(
-                crop.Width * 4,
-                crop.Height * 4),
-            0,
-            0,
-            InterpolationFlags.Cubic);
-
         using var gray =
             new Mat();
 
         Cv2.CvtColor(
-            resized,
+            crop,
             gray,
             ColorConversionCodes.BGR2GRAY);
-
-        using var denoised =
-            new Mat();
-
-        Cv2.FastNlMeansDenoising(
-            gray,
-            denoised,
-            10);
-
-        using var contrasted =
-            new Mat();
-
-        denoised.ConvertTo(
-            contrasted,
-            -1,
-            1.4,
-            10);
-
-        using var processed =
-            new Mat();
-
-        var kernel =
-            InputArray.Create(
-                new float[,]
-                {
-                    { 0, -1, 0 },
-                    { -1, 5, -1 },
-                    { 0, -1, 0 }
-                });
-
-        Cv2.Filter2D(
-            contrasted,
-            processed,
-            -1,
-            kernel);
-
-        if (name == "bottom" || name == "artist")
-        {
-            Cv2.Threshold(
-                processed,
-                processed,
-                140,
-                255,
-                ThresholdTypes.Binary);
-        }
 
         var output =
             Path.Combine(
@@ -244,7 +225,7 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
 
         Cv2.ImWrite(
             output,
-            processed);
+            gray);
 
         return output;
     }

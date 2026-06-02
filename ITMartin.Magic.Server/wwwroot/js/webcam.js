@@ -14,7 +14,7 @@
 
             this.video =
                 document.getElementById("video");
-
+            
             if (!this.video) {
 
                 throw new Error(
@@ -35,6 +35,13 @@
 
                         audio: false
                     });
+            const track =
+                this.stream
+                    .getVideoTracks()[0];
+
+            console.log(
+                "TRACK SETTINGS",
+                track.getSettings());
 
             this.video.srcObject =
                 this.stream;
@@ -44,9 +51,13 @@
             this.video.playsInline = true;
 
             await this.video.play();
-
+            console.log(
+                "VIDEO SIZE",
+                this.video.videoWidth,
+                this.video.videoHeight);
             console.log(
                 "CAMERA READY");
+            
         }
         catch (err) {
 
@@ -64,6 +75,7 @@
 
     async capture() {
 
+       
         if (!this.video ||
             !this.stream) {
 
@@ -155,7 +167,10 @@
         // =====================================
         // RETURN JPEG
         // =====================================
-
+        console.log(
+            "VIDEO ELEMENT:",
+            this.video.videoWidth,
+            this.video.videoHeight);
         return {
 
             image:
@@ -192,5 +207,26 @@
                 "STOP CAMERA FAILED",
                 e);
         }
+    },
+    async scan() {
+
+        const capture =
+            await this.capture();
+
+        const response =
+            await fetch(
+                "/api/magic/scan-capture",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        image: capture.image
+                    })
+                });
+
+        return await response.json();
     }
 };

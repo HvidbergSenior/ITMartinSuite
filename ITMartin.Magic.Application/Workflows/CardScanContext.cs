@@ -1,5 +1,6 @@
 ﻿using ITMartin.Ai.Models;
 using ITMartin.Magic.Application.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.OCR.Models;
 
@@ -20,7 +21,8 @@ public sealed class CardScanContext
     // =========================
     // PIPELINE RESULTS
     // =========================
-
+    public MagicCardFrameType FrameType { get; set; } =
+        MagicCardFrameType.Unknown;
     public CardLayoutType LayoutType { get; set; } =
         CardLayoutType.Unknown;
 
@@ -48,6 +50,7 @@ public sealed class CardScanContext
         new List<WorkflowExecutionStep>();
 
     public bool Failed { get; private set; }
+    public bool IsBlurry { get; set; }
 
     public string? FailureReason { get; private set; }
     public CardConditionResult? ConditionResult { get; set; }

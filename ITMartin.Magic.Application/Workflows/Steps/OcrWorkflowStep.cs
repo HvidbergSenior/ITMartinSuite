@@ -1,5 +1,5 @@
-﻿using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using ITMartin.Magic.Application.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.OCR.Interfaces;
@@ -9,12 +9,10 @@ namespace ITMartin.Magic.Application.Workflows.Steps;
 public sealed class OcrWorkflowStep
     : WorkflowStep<CardScanContext>
 {
-    private readonly
-        IOcrRegionExtractor
+    private readonly IOcrRegionExtractor
         _ocrRegionExtractor;
 
-    private readonly
-        IOcrService
+    private readonly IOcrService
         _ocrService;
 
     public override string Name =>
@@ -35,38 +33,33 @@ public sealed class OcrWorkflowStep
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
-        if (context.State.PerspectiveCorrectedImagePath is null)
+        var imagePath =
+            context.State.PerspectiveCorrectedImagePath
+            ?? context.State.DetectedCardImagePath
+            ?? context.State.ImagePath;
+        if (context.State.FrameType ==
+            MagicCardFrameType.OldBorder)
         {
-            throw new InvalidOperationException(
-                "Perspective corrected image missing.");
-        }
+            Console.WriteLine(
+                "Skipping OCR for old border card");
 
-        var regions =
+            return;
+        }
+        Console.WriteLine(
+            $"INPUT IMAGE: {context.State.ImagePath}");
+        var ocrRegionResult =
             await _ocrRegionExtractor
                 .ExtractAsync(
-                    context.State.PerspectiveCorrectedImagePath);
-
-        if (regions is null)
-        {
-            throw new InvalidOperationException(
-                "OCR region extraction failed.");
-        }
+                    imagePath,
+                    cancellationToken);
 
         context.State.OcrRegionResult =
-            regions;
-
-        var result =
-            await _ocrService
-                .ExtractTextAsync(
-                    regions);
-
-        if (result is null)
-        {
-            throw new InvalidOperationException(
-                "OCR failed.");
-        }
+            ocrRegionResult;
 
         context.State.OcrResult =
-            result;
+            await _ocrService
+                .ExtractTextAsync(
+                    ocrRegionResult,
+                    cancellationToken);
     }
 }

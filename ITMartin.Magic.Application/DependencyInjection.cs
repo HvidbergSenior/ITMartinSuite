@@ -39,9 +39,6 @@ public static class DependencyInjection
             DetectCardWorkflowStep>();
 
         services.AddScoped<
-            CropCardWorkflowStep>();
-
-        services.AddScoped<
             DetectCardCornersWorkflowStep>();
 
         services.AddScoped<
@@ -52,19 +49,20 @@ public static class DependencyInjection
 
         services.AddScoped<
             OcrWorkflowStep>();
+        services.AddScoped<
+            ClassifyFrameWorkflowStep >();
 
         services.AddScoped<
-            OpenAiRecognitionWorkflowStep>();
+            AiCardRecognitionWorkflowStep>();
 
-       // services.AddScoped<
-         //   ScryfallMatchWorkflowStep>();
+       services.AddScoped<
+       ScryfallMatchWorkflowStep>();
 
-        //services.AddScoped<
-          //  CardConditionWorkflowStep>();
-
-        services.AddScoped<
-            SaveDebugImagesWorkflowStep>();
-
+       services.AddScoped<
+        CardConditionWorkflowStep>();
+       services.AddScoped<
+           ResultMappingWorkflowStep>();
+     
         return services;
     }
 }

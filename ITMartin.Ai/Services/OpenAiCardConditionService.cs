@@ -2,7 +2,6 @@
 using System.Text.Json;
 using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Models;
-using ITMartin.OCR.Interfaces;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
 
@@ -26,13 +25,15 @@ public sealed class OpenAiCardConditionService
         AnalyzeAsync(
             string filePath,
             decimal? eurPrice,
-            decimal? usdPrice)
+            decimal? usdPrice,
+            CancellationToken cancellationToken = default)
     {
         try
         {
             var bytes =
                 await File.ReadAllBytesAsync(
-                    filePath);
+                    filePath,
+                    cancellationToken);
 
             var cacheKey =
                 CreateHash(bytes);
@@ -81,7 +82,8 @@ public sealed class OpenAiCardConditionService
             var response =
                 await Client.CompleteChatAsync(
                     messages,
-                    options);
+                    options,
+                    cancellationToken);
 
             var text =
                 response.Value.Content
@@ -119,8 +121,10 @@ public sealed class OpenAiCardConditionService
 
             return result;
         }
-        catch
+        catch (Exception)
         {
+            // TODO: Log exception
+
             return null;
         }
     }
@@ -131,10 +135,21 @@ public sealed class OpenAiCardConditionService
             decimal? usdPrice)
     {
         return new SystemChatMessage($"""
-            Analyze the condition of this Magic card.
+            Analyze the physical condition of this Magic: The Gathering card.
 
             EUR={eurPrice}
             USD={usdPrice}
+
+            Estimate:
+            - ConditionGrade
+            - EstimatedValueMultiplier
+            - Confidence
+            - SurfaceWear
+            - EdgeWear
+            - CornerWear
+            - Creases
+            - Stains
+            - Notes
 
             Return ONLY valid JSON.
             """);

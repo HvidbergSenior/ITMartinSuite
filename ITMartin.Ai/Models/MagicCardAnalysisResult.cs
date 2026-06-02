@@ -25,4 +25,7 @@ public sealed class MagicCardAnalysisResult
     public decimal Confidence { get; set; }
 
     public bool ExactPrintingCertain { get; set; }
+
+    public string? SetSymbolDescription { get; set; }
+
 }

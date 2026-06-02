@@ -21,6 +21,25 @@ public static class DependencyInjection
         services.AddScoped<
             IPerspectiveCorrectionService,
             OpenCvPerspectiveCorrectionService>();
+        services.AddScoped<
+            IScryfallService, ScryfallService>();
+        services.AddHttpClient<
+            IScryfallService,
+            ScryfallService>(client =>
+        {
+            client.BaseAddress =
+                new Uri(
+                    "https://api.scryfall.com/");
+
+            client.DefaultRequestHeaders.Add(
+                "User-Agent",
+                "ITMartin-MagicScanner/1.0");
+
+            client.DefaultRequestHeaders.Add(
+                "Accept",
+                "application/json");
+        });
+      
 
         services.AddScoped<
             IBlurDetectionService,

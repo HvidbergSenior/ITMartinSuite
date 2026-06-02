@@ -18,26 +18,25 @@ public sealed class CardScanWorkflowDefinition
         DetectCardCornersWorkflowStep detectCardCornersWorkflowStep,
         PerspectiveCorrectionWorkflowStep perspectiveCorrectionWorkflowStep,
         BlurDetectionWorkflowStep blurDetectionWorkflowStep,
-        OcrWorkflowStep ocrWorkflowStep,
-        OpenAiRecognitionWorkflowStep openAiRecognitionWorkflowStep)
-        //ScryfallMatchWorkflowStep scryfallMatchWorkflowStep,
-        //CardConditionWorkflowStep cardConditionWorkflowStep)
+        ScryfallMatchWorkflowStep scryfallMatchWorkflowStep,
+        AiCardRecognitionWorkflowStep aiCardRecognitionWorkflowStep,
+        CardConditionWorkflowStep cardConditionWorkflowStep,
+        ResultMappingWorkflowStep resultMappingWorkflowStep)
     {
         Steps =
         [
-            // Computer Vision
             detectCardWorkflowStep,
             detectCardCornersWorkflowStep,
             perspectiveCorrectionWorkflowStep,
+
             blurDetectionWorkflowStep,
 
-            // Text Extraction
-            ocrWorkflowStep,
+            aiCardRecognitionWorkflowStep,
 
-            // Semantic Interpretation
-            openAiRecognitionWorkflowStep
-            //scryfallMatchWorkflowStep,
-            //cardConditionWorkflowStep
+            scryfallMatchWorkflowStep,
+
+            cardConditionWorkflowStep,
+            resultMappingWorkflowStep
         ];
     }
 }

@@ -6,5 +6,5 @@ public interface IPerspectiveCorrectionService
 {
     Task<string?> CorrectAsync(
         string originalImagePath,
-        CardCornerDetectionResult corners);
+        CardCornerDetectionResult corners, CancellationToken cancellationToken);
 }

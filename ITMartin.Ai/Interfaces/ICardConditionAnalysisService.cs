@@ -8,5 +8,5 @@ public interface ICardConditionAnalysisService
         AnalyzeAsync(
             string filePath,
             decimal? eurPrice,
-            decimal? usdPrice);
+            decimal? usdPrice, CancellationToken cancellationToken);
 }
