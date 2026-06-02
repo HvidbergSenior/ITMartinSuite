@@ -1,13 +1,11 @@
-using ITMartin.Ai.Interfaces;
-using ITMartin.Ai.Services;
+using ITMartin.Ai;
 using ITMartin.Magic.Application;
-using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Magic.Infrastructure.Services;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Infrastructure.Services;
-using ITMartin.OCR.Interfaces;
-using ITMartin.OCR.Services;
+using ITMartin.Magic.Infrastructure;
+using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.Persistence;
+using ITMartin.OCR;
 using ITMartin.Receipt.Application;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,68 +26,23 @@ builder.Services.AddSwaggerGen(
             });
     });
 
-// OCR
-builder.Services.AddScoped<
-    IGeneralOcrService,
-    GeneralOcrService>();
+builder.Services.AddAi();
+builder.Services.AddOcr();
+builder.Services.AddOpenCv();
+
+builder.Services.AddMedia(
+    builder.Configuration);
+
 builder.Services.AddMagicApplication();
-// =========================
-// OCR
-// =========================
 
-builder.Services.AddScoped<
-    IOcrService,
-    OcrService>();
-
-// =========================
-// AI
-// =========================
-
-builder.Services.AddScoped<
-    IImageAnalysisService,
-    OpenAiImageAnalysisService>();
-
-builder.Services.AddScoped<
-    ICardConditionAnalysisService,
-    OpenAiCardConditionService>();
-builder.Services.AddScoped<
-    IMagicCardRecognitionService,
-    OpenAiMagicCardRecognitionService>();
-
-// =========================
-// OPENCV
-// =========================
-
-builder.Services.AddScoped<
-    ICardLayoutDetectionService,
-    CardLayoutDetectionService>();
-
-builder.Services.AddScoped<
-    ICardCornerDetectionService,
-    OpenCvCardCornerDetectionService>();
-
-builder.Services.AddScoped<
-    IPerspectiveCorrectionService,
-    OpenCvPerspectiveCorrectionService>();
-
-builder.Services.AddScoped<
-    IBlurDetectionService,
-    OpenCvBlurDetectionService>();
-
-builder.Services.AddScoped<
-    IOcrRegionExtractor,
-    OpenCvMagicCardOcrRegionExtractor>();
-
-// AI
-builder.Services.AddScoped<
-    IReceiptExtractionService,
-    OpenAiReceiptExtractionService>();
-builder.Services.AddScoped<
-    IReceiptExtractionService,
-    OpenAiReceiptExtractionService>();
-// Receipt
 builder.Services.AddReceiptApplication();
 
+builder.Services.AddDbContext<MediaDbContext>(options =>
+{
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("MediaDb")
+        ?? "Data Source=media.db");
+});
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

@@ -673,7 +673,12 @@ h3 {
 
     line-height: 1;
 }
-
+.future-income-input
+{
+    width: 220px;
+    font-size: 28px;
+    font-weight: 700;
+}
 .expanded-category-transactions
 {
     margin-top: 20px;

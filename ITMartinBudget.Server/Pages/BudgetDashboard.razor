@@ -404,6 +404,39 @@
                 <div class="category-summary-amount positive">
                     @group.Total.ToString("N0") kr.
                 </div>
+                @if (ExpandedBudgetGroup == group.BudgetGroup)
+                {
+                    <div style="padding:20px;color:white">
+
+                        @foreach (var grouped in Dashboard.Transactions
+                                      .Where(x => x.BudgetGroup == group.BudgetGroup)
+                                      .GroupBy(x =>
+                                          !string.IsNullOrWhiteSpace(x.Title)
+                                              ? x.Title
+                                              : x.Description)
+                                      .OrderByDescending(x => Math.Abs(x.Sum(y => y.Amount))))
+                        {
+                            var totalAmount = grouped.Sum(x => x.Amount);
+
+                            <div class="transaction-detail-row">
+
+                                <div>
+                                    @grouped.Key
+                                </div>
+
+                                <div>
+                                    @grouped.Count() transaktioner
+                                </div>
+
+                                <div>
+                                    @Math.Abs(totalAmount).ToString("N0") kr.
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                }
             </div>
         }
 
@@ -459,70 +492,31 @@
                     @group.DisplayAmount.ToString("N0") kr.
                 </div>
                 @if (ExpandedBudgetGroup == group.BudgetGroup)
-{
-    <div class="expanded-category-transactions">
-
-        @foreach (var titleGroup in Dashboard.Transactions
-                      .Where(x => x.BudgetGroup == group.BudgetGroup)
-                      .GroupBy(x => x.Title)
-                      .OrderByDescending(x =>
-                          x.Sum(y => Math.Abs(y.Amount))))
-        {
-            var titleTotal =
-                Math.Abs(
-                    titleGroup.Sum(x =>
-                        x.Amount));
-            <div class="transaction-group">
-
-                <div class="transaction-group-header"
-                     @onclick="() => ToggleTransactionTitle(titleGroup.Key)"
-                     @onclick:stopPropagation="true">
-                    <div>
-
-                        <strong>
-                            @titleGroup.Key
-                        </strong>
-
-                        <span class="meta">
-                            (@titleGroup.Count())
-                        </span>
-
-                    </div>
-
-                    <div class="transaction-group-amount">
-
-                        @titleTotal.ToString("N0") kr.
-
-                        @(ExpandedTransactionTitles.Contains(titleGroup.Key)
-                        ? "▼"
-                        : "▶")
-
-                    </div>
-
-                </div>
-
-                    @if (ExpandedTransactionTitles.Contains(
-                             titleGroup.Key))
                 {
-                    <div class="transaction-group-details"
-                         @onclick:stopPropagation="true">
+                    <div style="padding:20px;color:white">
 
-                        @foreach (var tx in titleGroup
-                                      .OrderByDescending(x => x.Date))
+                        @foreach (var grouped in Dashboard.Transactions
+                                      .Where(x => x.BudgetGroup == group.BudgetGroup)
+                                      .GroupBy(x =>
+                                          !string.IsNullOrWhiteSpace(x.Title)
+                                              ? x.Title
+                                              : x.Description)
+                                      .OrderByDescending(x => Math.Abs(x.Sum(y => y.Amount))))
                         {
-                            <div class="transaction-detail-row"
-                                 @onclick:stopPropagation="true">
+                            var totalAmount = grouped.Sum(x => x.Amount);
+
+                            <div class="transaction-detail-row">
 
                                 <div>
-                                    @tx.Date.ToString("dd-MM-yyyy")
+                                    @grouped.Key
                                 </div>
 
                                 <div>
-                                    @tx.Description
+                                    @grouped.Count() transaktioner
                                 </div>
 
                                 <div>
-                                    @tx.Amount.ToString("N0")
+                                    @Math.Abs(totalAmount).ToString("N0") kr.
                                 </div>
 
                             </div>
@@ -530,34 +524,6 @@
 
                     </div>
                 }
-
-            </div>
-        }
-
-        @if (group.BudgetGroup == BudgetGroup.Savings)
-        {
-            <div class="category-summary-extra">
-
-                <div>
-                    💰 Indsat:
-                    @group.Expenses.ToString("N0") kr.
-                </div>
-
-                <div>
-                    ↩ Hævet:
-                    @group.Income.ToString("N0") kr.
-                </div>
-
-                <div>
-                    Netto:
-                    @group.DisplayAmount.ToString("N0") kr.
-                </div>
-
-            </div>
-        }
-
-    </div>
-}
 
             </div>
         }

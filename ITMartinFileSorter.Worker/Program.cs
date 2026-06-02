@@ -32,10 +32,12 @@
     // MEDIA PLATFORM
     // =========================
 
-    builder.Services.AddMediaInfrastructureCore(
+    builder.Services.AddMedia(
         builder.Configuration);
-    builder.Services.AddMediaWorkflowRuntime(
+
+    builder.Services.AddPackage1Pipeline(
         builder.Configuration);
+
     builder.Services.AddPackage2Pipeline(
         builder.Configuration);
     // =========================

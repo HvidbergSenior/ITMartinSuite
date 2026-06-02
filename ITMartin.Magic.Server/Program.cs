@@ -1,11 +1,14 @@
+using ITMartin.Ai;
 using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Services;
 using ITMartin.Magic.Application;
 using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Infrastructure;
 using ITMartin.Magic.Infrastructure.Services;
 using ITMartin.Magic.Server;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure.Services;
+using ITMartin.OCR;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using Microsoft.AspNetCore.SignalR;
@@ -13,7 +16,10 @@ using Microsoft.Extensions.FileProviders;
 
 var builder =
     WebApplication.CreateBuilder(args);
-
+builder.Services.AddMagicApplication();
+builder.Services.AddAi();
+builder.Services.AddOcr();
+builder.Services.AddOpenCv();
 // =========================
 // SERVICES
 // =========================

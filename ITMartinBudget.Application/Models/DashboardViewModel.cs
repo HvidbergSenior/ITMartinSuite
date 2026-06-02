@@ -1,5 +1,7 @@
 ﻿using ITMartinBudget.Domain.Entities;
 
+namespace ITMartinBudget.Application.Models;
+
 public sealed class DashboardViewModel
 {
     public List<BankTransaction>

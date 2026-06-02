@@ -52,12 +52,6 @@ builder.Services
 // =========================
 
 builder.Services.AddMediaSignalR();
-// =========================
-// MEDIA PLATFORM
-// =========================
-
-builder.Services.AddMediaInfrastructureCore(
-    builder.Configuration);
 
 // =========================
 // OCR

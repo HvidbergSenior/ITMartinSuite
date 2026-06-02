@@ -395,7 +395,7 @@ RulesFactory.TransfersOutsideFromUs(
     "Dorthe Møller",
     ComparingType.Exact),
 
-RulesFactory.Subscription(
+RulesFactory.GeneralShopping(
     "dk surfline aps",
     "Surfline",
     Category.TelefonTvInternet,

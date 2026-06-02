@@ -4,7 +4,8 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
-namespace ITMartin.Media.Infrastructure.Ai;
+
+namespace ITMartin.Ai.Services;
 
 public sealed class OpenOpenAiAnalysisService
     : IImageAnalysisService
