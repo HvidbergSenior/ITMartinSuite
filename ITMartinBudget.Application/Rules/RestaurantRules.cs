@@ -38,29 +38,7 @@ public static class RestaurantRules
             "Æblehaven",
             Category.Restaurant,
             ComparingType.Contains),
-
-        RestaurantCafe(
-            "kasses skovpoelser",
-            "Kasses Skovpølser",
-            Category.Restaurant,
-            ComparingType.Contains),
-
-        RestaurantCafe(
-            "rasses skovpoelser",
-            "Rasses Skovpølser",
-            Category.Restaurant,
-            ComparingType.Contains),
-        RestaurantCafe(
-            "ruth co",
-            "Ruth & Co",
-            Category.Restaurant,
-            ComparingType.Contains),
-
-        RestaurantCafe(
-            "ruth",
-            "Ruth & Co",
-            Category.Restaurant,
-            ComparingType.Word),
+        
 
         RestaurantCafe(
             "viva italy",

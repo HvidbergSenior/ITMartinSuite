@@ -27,11 +27,5 @@ public static class TvInternetRules
             Category.Subscription,
             ComparingType.Word),
 
-        Subscription(
-            "waoo",
-            "Waoo",
-            Category.Subscription,
-            ComparingType.Word),
-
     ];
 }

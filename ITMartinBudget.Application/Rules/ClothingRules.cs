@@ -126,13 +126,7 @@ public static class ClothingRules
             "Bruuns Galleri",
             Category.Toej,
             ComparingType.Contains),
-
-        RulesFactory.ClothesAndShoes(
-            "hyldedeluxe",
-            "HyldeDeluxe",
-            Category.Toej,
-            ComparingType.Contains),
-
+        
         RulesFactory.ClothesAndShoes(
             "ideal of sweden",
             "Ideal of Sweden",

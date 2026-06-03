@@ -11,7 +11,7 @@ public static class InsuranceRules
     [
         Forsikring(
             "alka forsikring",
-            "Alka Forsikring",
+            "Alka",
             Category.Forsikring,
             ComparingType.Contains),
 

@@ -315,6 +315,22 @@ public static class RulesFactory
             IsRecurring = true
         };
     }
+    public static TransactionRule CarMaintenance(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.CarMaintenance,
+            ComparingType = comparingType,
+            IsRecurring = true
+        };
+    }
 
     public static TransactionRule Subscription(
         string pattern,
@@ -340,13 +356,14 @@ public static class RulesFactory
     public static TransactionRule Salary(
         string pattern,
         string title,
+        Category category,
         ComparingType comparingType)
     {
         return new()
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.Indkomst,
+            Category = category,
             BudgetGroup = BudgetGroup.FixedIncome,
             ComparingType = comparingType,
             TransactionType = TransactionType.Indkomst,
@@ -362,7 +379,7 @@ public static class RulesFactory
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.Indkomst,
+            Category = Category.Løn,
             BudgetGroup = BudgetGroup.FixedIncome,
             ComparingType = comparingType,
             TransactionType = TransactionType.Indkomst,
@@ -453,7 +470,36 @@ public static class RulesFactory
             ComparingType = comparingType
         };
     }
-
+    public static TransactionRule ChildrenSavings(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.PaymentChildren,
+            ComparingType = comparingType
+        };
+    }
+    public static TransactionRule VibzSavingsPension(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.VibzSavings,
+            ComparingType = comparingType
+        };
+    }
     public static TransactionRule TransfersOutsideFromUs(
         string pattern,
         string title,
@@ -463,7 +509,7 @@ public static class RulesFactory
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.OverfoerselTilIkkeFamilie,
+            Category = Category.OverfoerselTilUdenfor,
             BudgetGroup = BudgetGroup.ExternalTransfer,
             ComparingType = comparingType,
             TransactionType = TransactionType.Udgift
@@ -479,14 +525,45 @@ public static class RulesFactory
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.OverfoerselFraIkkeFamilie,
+            Category = Category.OverfoerselFraUdenfor,
             BudgetGroup = BudgetGroup.ExternalTransfer,
             ComparingType = comparingType,
             TransactionType = TransactionType.Indkomst
         };
     }
-
-    public static TransactionRule TransfersFamilyFromUs(
+    public static TransactionRule BentOgSonjaInd(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.BentOgSonjaInd,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Indkomst
+        };
+    }
+    public static TransactionRule BentOgSonjaUd(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.BentOgSonjaUd,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Udgift
+        };
+    }
+    public static TransactionRule TransfersChildrenFromUs(
         string pattern,
         string title,
         ComparingType comparingType)
@@ -495,14 +572,14 @@ public static class RulesFactory
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.OverfoerselTilFamilie,
-            BudgetGroup = BudgetGroup.InternalTransfer,
+            Category = Category.OverfoerselTilBørn,
+            BudgetGroup = BudgetGroup.PaymentChildren,
             ComparingType = comparingType,
             TransactionType = TransactionType.Udgift
         };
     }
 
-    public static TransactionRule TransfersFamilyToUs(
+    public static TransactionRule TransfersChildrenToUs(
         string pattern,
         string title,
         ComparingType comparingType)
@@ -511,7 +588,7 @@ public static class RulesFactory
         {
             Pattern = pattern,
             Title = title,
-            Category = Category.OverfoerselFraFamilie,
+            Category = Category.OverfoerselFraBørn,
             BudgetGroup = BudgetGroup.InternalTransfer,
             ComparingType = comparingType,
             TransactionType = TransactionType.Indkomst

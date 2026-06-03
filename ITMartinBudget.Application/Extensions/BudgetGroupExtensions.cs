@@ -9,8 +9,15 @@ public static class BudgetGroupExtensions
     {
         return budgetGroup switch
         {
+            // Income
+
             BudgetGroup.FixedIncome =>
                 "Fast indkomst",
+
+            BudgetGroup.IncomeFromKommuneAndStat =>
+                "Offentlige ydelser",
+
+            // Expenses
 
             BudgetGroup.FixedExpense =>
                 "Faste udgifter",
@@ -21,56 +28,86 @@ public static class BudgetGroupExtensions
             BudgetGroup.GeneralShopping =>
                 "Shopping",
 
-            BudgetGroup.Savings =>
-                "Opsparing",
+            BudgetGroup.RestaurantCafe =>
+                "Restaurant & Café",
 
             BudgetGroup.Subscriptions =>
                 "Abonnementer",
 
-            BudgetGroup.ExternalTransfer =>
-                "Eksterne Overførsler",
-
-            BudgetGroup.InternalTransfer =>
-                "Interne Overførsler",
-
-            BudgetGroup.CarRepair =>
-                "Bilreparation",
-
-            BudgetGroup.Fuel =>
-                "Brændstof",
-
-            BudgetGroup.WorkExpense =>
-                "ITMartin",
-
             BudgetGroup.PersonalCare =>
-                "Personlig Pleje",
-
-            BudgetGroup.RestaurantCafe =>
-                "Restaurant & Café",
+                "Personlig pleje",
 
             BudgetGroup.Entertainment =>
                 "Underholdning",
 
-            BudgetGroup.OffentligTransport =>
-                "Offentlig transport",
+            BudgetGroup.Traveling =>
+                "Rejser",
 
-            BudgetGroup.GiftExpense =>
-                "Gaver udgift",
+            // Children
 
-            BudgetGroup.Tax =>
-                "Skat",
+            BudgetGroup.PaymentChildren =>
+                "BetaltBørn",
+
+            // Transport
+
+            BudgetGroup.Fuel =>
+                "Brændstof",
 
             BudgetGroup.Parking =>
                 "Parkering",
 
+            BudgetGroup.OffentligTransport =>
+                "Offentlig transport",
+
+            BudgetGroup.CarRepair =>
+                "Bilreparation",
+
+            // Home
+
+            BudgetGroup.HomeRepair =>
+                "Bolig & reparation",
+
+            // Financial
+
+            BudgetGroup.Savings =>
+                "Opsparing",
+
+            BudgetGroup.VibzSavings =>
+                "Vibz Opsparing Og Pension",
+
+            BudgetGroup.InterestsAndStock =>
+                "Aktier & renter",
+
+            BudgetGroup.Tax =>
+                "Skat",
+
+            // Transfers
+
+            BudgetGroup.ExternalTransfer =>
+                "Eksterne overførsler",
+
+            BudgetGroup.InternalTransfer =>
+                "Interne overførsler",
+
+            // Misc
+
+            BudgetGroup.WorkExpense =>
+                "ITMartin",
+
+            BudgetGroup.GiftIncome =>
+                "Gaver modtaget",
+
+            BudgetGroup.GiftExpense =>
+                "Gaver Givet",
+
             BudgetGroup.Refund =>
                 "Tilbagebetaling",
 
-            BudgetGroup.IncomeFromKommuneAndStat =>
-                "Offentlige Ydelser",
-
             BudgetGroup.Uncategorized =>
                 "Ukategoriseret",
+
+            BudgetGroup.Unknown =>
+                "Ukendt",
 
             _ =>
                 budgetGroup.ToString()

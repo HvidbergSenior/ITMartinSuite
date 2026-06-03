@@ -9,13 +9,13 @@ public static class TransferRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        SavingsAndPension(
+        VibzSavingsPension(
             "til 7633 8119308",
             "Aldersopsparing",
             Category.Opsparing,
             ComparingType.Exact),
 
-        SavingsAndPension(
+        VibzSavingsPension(
             "til 7633 0008318157",
             "Ratepension",
             Category.Pension,
@@ -23,13 +23,13 @@ public static class TransferRules
 
         SavingsAndPension(
             "opsparingskonto",
-            "Savings Transfer",
+            "Til Opsparingskonto",
             Category.Opsparing,
             ComparingType.Contains),
 
-        SavingsAndPension(
+        ChildrenSavings(
             "boerneopsparing",
-            "Child Savings",
+            "Til Børneopsparing",
             Category.Opsparing,
             ComparingType.Contains),
 
@@ -39,28 +39,10 @@ public static class TransferRules
             Category.Aktier,
             ComparingType.Exact),
 
-        InternalAccountTransfer(
+        VibzSavingsPension(
             "7633 8318157",
-            "Internal Transfer",
-            Category.Overfoersel,
+            "VibzFastOverførsel",
+            Category.Opsparing,
             ComparingType.Exact),
-
-        InternalAccountTransfer(
-            "7264 1259824",
-            "Internal Transfer",
-            Category.Overfoersel,
-            ComparingType.Exact),
-
-        InternalAccountTransfer(
-            "3627 11254691",
-            "Internal Transfer",
-            Category.Overfoersel,
-            ComparingType.Exact),
-
-        InternalAccountTransfer(
-            "6180 17682091",
-            "Internal Transfer",
-            Category.Overfoersel,
-            ComparingType.Exact)
     ];
 }

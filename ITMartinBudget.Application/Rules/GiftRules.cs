@@ -7,10 +7,10 @@ public static class GiftRules
 {
     public static readonly List<TransactionRule> Items =
     [
-       
-        RulesFactory.GiftFromUs(
+        RulesFactory.Subscription(
             "hjemmet",
             "Hjemmet",
+            Category.Gaver,
             ComparingType.Contains),
         RulesFactory.GiftFromUs(
             "boernecancerfonden",

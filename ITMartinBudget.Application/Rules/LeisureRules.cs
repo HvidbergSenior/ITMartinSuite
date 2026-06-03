@@ -47,7 +47,7 @@ public static class LeisureRules
 
         RestaurantCafe(
             "chokolet",
-            "Chokolade",
+            "Chokolet",
             Category.Cafe,
             ComparingType.Contains),
 

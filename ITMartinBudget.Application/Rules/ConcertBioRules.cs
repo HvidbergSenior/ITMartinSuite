@@ -59,6 +59,7 @@ public static class ConcertBioRules
         "MyTicket",
         Category.KoncertBio,
         ComparingType.Contains),
+        
         RulesFactory.Entertainment(
             "dk safeticket dk",
             "Safeticket",

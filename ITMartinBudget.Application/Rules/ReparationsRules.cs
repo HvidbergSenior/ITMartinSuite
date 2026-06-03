@@ -50,7 +50,7 @@ public static class ReparationsRules
 
         CarRepair(
             "sejr jensen auto",
-            "Sejr Jensen Auto",
+            "Sejer",
             Category.BilVedligehold,
             ComparingType.Contains),
 

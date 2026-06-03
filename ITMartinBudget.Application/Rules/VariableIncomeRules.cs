@@ -24,25 +24,21 @@ public static class VariableIncomeRules
         
         FromKommuneAndStat(
             "foedevarecheck",
-            "Government Support",
+            "Fødevarecheck",
             Category.KommuneAndStat,
             ComparingType.Contains),
 
         FromKommuneAndStat(
             "aarhus kommune",
-            "Government Income",
+            "Fra Århus kommune",
             Category.KommuneAndStat,
             ComparingType.Contains),
-
-        InterestsAndStock(
-            "rente",
-            "Interest",
-            ComparingType.Word),
-
+        
         InterestsAndStock(
             "udbytte",
-            "Dividend",
+            "Udbytte",
             ComparingType.Word),
+        
         FromKommuneAndStat(
         "velliv foreningen",
         "Velliv Foreningen",

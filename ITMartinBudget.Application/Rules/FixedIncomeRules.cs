@@ -11,30 +11,35 @@ public static class FixedIncomeRules
     [
         Salary(
             "loenoverfoersel",
-            "Salary",
+            "AutoproffLøn",
+            Category.Løn,
             ComparingType.Contains),
         Salary(
             "loenover 3009771645",
             "Dagpenge",
+            Category.Løn,
+            
             ComparingType.Exact),
         Salary(
-            "Loenover.",
-            "Dagpenge",
-            ComparingType.Contains),
-        Salary(
             "maanedsloen",
-            "Salary",
+            "Løn",
+            Category.Løn,
+            
             ComparingType.Contains),
 
         Salary(
             "plusloen",
-            "Salary",
+            "PlusLøn",
+            Category.Løn,
+            
             ComparingType.Contains),
 
         Salary(
             "loen",
-            "Salary",
-            ComparingType.Word),
+            "VibzLøn",
+            Category.Løn,
+            
+            ComparingType.Exact),
 
         Su(
             "su",

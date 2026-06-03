@@ -20,30 +20,20 @@ public static class UnionRules
             "Socialpædagogernes Landsforbund",
             Category.FagforeningAKasse,
             ComparingType.Contains),
-
-        UnionAndAKasse(
-            "3f",
-            "3F",
-            Category.FagforeningAKasse,
-            ComparingType.Word),
-
-        UnionAndAKasse(
-            "hk",
-            "HK",
-            Category.FagforeningAKasse,
-            ComparingType.Word),
-
-        UnionAndAKasse(
-            "dlf",
-            "Danmarks Lærerforening",
-            Category.FagforeningAKasse,
-            ComparingType.Word),
+        
+       
         RulesFactory.UnionAndAKasse(
             "101 udbet fra 3fa",
             "3F",
-            Category.KommuneAndStat,
+            Category.FagforeningAKasse,
             ComparingType.Exact),
-
+        
+        RulesFactory.UnionAndAKasse(
+            "til 3f kontingent",
+            "3F",
+            Category.FagforeningAKasse,
+            ComparingType.Exact),
+        
         RulesFactory.UnionAndAKasse(
             "bs fagligt faelles forbund",
             "3F",

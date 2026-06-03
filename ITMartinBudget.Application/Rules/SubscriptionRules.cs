@@ -9,13 +9,13 @@ public static class SubscriptionRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        Subscription(
+        PaymentForChildren(
             "netflix",
             "Netflix",
             Category.Subscription,
             ComparingType.Contains),
 
-        Subscription(
+        PaymentForChildren(
             "spotify",
             "Spotify",
             Category.Subscription,
@@ -26,40 +26,10 @@ public static class SubscriptionRules
             "Google One",
             Category.Subscription,
             ComparingType.Contains),
-
-        Subscription(
-            "youtube premium",
-            "YouTube Premium",
-            Category.Subscription,
-            ComparingType.Contains),
-
-        Subscription(
-            "hbo",
-            "HBO",
-            Category.Subscription,
-            ComparingType.Word),
-
-        Subscription(
-            "disney",
-            "Disney+",
-            Category.Subscription,
-            ComparingType.Contains),
-
-        Subscription(
+        
+        PaymentForChildren(
             "viaplay",
             "Viaplay",
-            Category.Subscription,
-            ComparingType.Contains),
-
-        Subscription(
-            "tv2 play",
-            "TV2 Play",
-            Category.Subscription,
-            ComparingType.Contains),
-
-        Subscription(
-            "allente",
-            "Allente",
             Category.Subscription,
             ComparingType.Contains),
 
@@ -98,6 +68,7 @@ public static class SubscriptionRules
             "Google Play",
             Category.Subscription,
             ComparingType.Contains),
+        
         RulesFactory.Subscription(
             "dk story house egmont a s",
             "Story House Egmont",

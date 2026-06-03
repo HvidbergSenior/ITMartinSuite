@@ -4,7 +4,7 @@ public enum Category
 {
     // Income
 
-    Indkomst = 1,
+    Løn = 1,
 
     // Housing & fixed
 
@@ -76,10 +76,10 @@ public enum Category
 
     // Transfers
 
-    OverfoerselFraFamilie = 110,
-    OverfoerselFraIkkeFamilie = 111,
-    OverfoerselTilFamilie = 112,
-    OverfoerselTilIkkeFamilie = 113,
+    OverfoerselFraBørn = 110,
+    OverfoerselFraUdenfor = 111,
+    OverfoerselTilBørn = 112,
+    OverfoerselTilUdenfor = 113,
 
     // Misc
 
@@ -92,5 +92,7 @@ public enum Category
     Andet = 999,
     Ferie,
     Husleje,
-    Aktier
+    Aktier,
+    Dagpenge,
+    OverfoerselFraSonjaBent
 }

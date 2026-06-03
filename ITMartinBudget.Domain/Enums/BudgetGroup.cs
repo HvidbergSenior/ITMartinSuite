@@ -61,5 +61,10 @@ public enum BudgetGroup
     Subscriptions = 25,
     Uncategorized = 26,
     Traveling,
-    PaymentChildren
+    PaymentChildren,
+    VibzSavings,
+    CarMaintenance,
+    BentOgSonja,
+    BentOgSonjaInd,
+    BentOgSonjaUd
 }

@@ -21,7 +21,7 @@ public static class NorthsideRules
 
         RulesFactory.Entertainment(
             "ticketmaster northside",
-            "NorthSide Ticket",
+            "NorthSide",
             Category.Northside,
             ComparingType.Contains),
 

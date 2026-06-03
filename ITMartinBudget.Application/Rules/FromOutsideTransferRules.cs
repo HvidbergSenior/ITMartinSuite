@@ -15,14 +15,13 @@ public static class FromOutsideTransferRules
 
         TransfersOutsideToUs(
             "mobilepay dorthe moeller",
-            "Dorthe",
+            "Dorthe Søster",
             ComparingType.Exact),
+        
         RulesFactory.TransfersOutsideToUs(
             "mobilepay marianne hvidbe",
             "Marianne",
             ComparingType.Exact),
-
-        // Friends / External
 
         RulesFactory.TransfersOutsideToUs(
             "jan isoe kjaer",
@@ -33,6 +32,7 @@ public static class FromOutsideTransferRules
             "mobilepay alex snaer gunnarsson",
             "Alex Snær Gunnarsson",
             ComparingType.Exact),
+        
         TransfersOutsideToUs(
             "mobilepay ida koester heil",
             "Ida Køster",
@@ -43,29 +43,25 @@ public static class FromOutsideTransferRules
             "Ida Køster",
             ComparingType.Exact),
 
-
         TransfersOutsideToUs(
             "mobilepay karsten juel bu",
-            "Karsten Juel Bunch",
+            "Karsten Bunch",
             ComparingType.Exact),
-        
 
         TransfersOutsideToUs(
             "mobilepay mille ea bastho",
-            "Mille Ea Bastholm",
+            "Mille Bastholm",
             ComparingType.Exact),
 
         TransfersOutsideToUs(
             "mobilepay mille ea bastholm",
-            "Mille Ea Bastholm",
+            "Mille Bastholm",
             ComparingType.Exact),
-
 
         TransfersOutsideFromUs(
             "mobilepay mathilde caroline",
-            "Mathilde-Caroline",
+            "Mathilde Caroline",
             ComparingType.Exact),
-
    
         TransfersOutsideToUs(
             "mobilepay thomas fug",
@@ -74,17 +70,17 @@ public static class FromOutsideTransferRules
 
         TransfersOutsideFromUs(
             "mobilepay trine marie vinkler",
-            "Trine Marie Vinkler",
+            "Trine Vinkler",
             ComparingType.Exact),
 
         TransfersOutsideFromUs(
             "mobilepay malene hvidberg",
-            "Malene Hvidberg",
+            "Malene",
             ComparingType.Exact),
         
         TransfersOutsideToUs(
             "mobilepay tobias norman jensen",
-            "Tobias Norman Jensen",
+            "Tobias Norman",
             ComparingType.Exact),
         RulesFactory.TransfersOutsideToUs(
             "mobilepay mike ea basho",
@@ -93,13 +89,12 @@ public static class FromOutsideTransferRules
 
         RulesFactory.TransfersOutsideToUs(
             "mobilepay ida koster hei",
-            "Ida Koster",
+            "Ida Køster",
             ComparingType.Contains),
-        
 
         RulesFactory.TransfersOutsideToUs(
             "mobilepay mathilde rass k",
-            "Mathilde",
+            "Mathild Rass",
             ComparingType.Contains),
 
         RulesFactory.TransfersOutsideToUs(
@@ -124,12 +119,12 @@ public static class FromOutsideTransferRules
 
         RulesFactory.TransfersOutsideFromUs(
             "mobilepay mette toft vestbjerg",
-            "Mette Toft Vestbjerg",
+            "Mette Vestbjerg",
             ComparingType.Contains),
 
         RulesFactory.TransfersOutsideFromUs(
             "mobilepay karsten juel bunch",
-            "Karsten Juel Bunch",
+            "Karsten Bunch",
             ComparingType.Exact),
 
         RulesFactory.TransfersOutsideFromUs(
@@ -139,7 +134,7 @@ public static class FromOutsideTransferRules
 
         RulesFactory.TransfersOutsideFromUs(
             "mobilepay ida koster hebos",
-            "Ida Koster",
+            "Ida Køster",
             ComparingType.Contains),
 
     
@@ -147,6 +142,7 @@ public static class FromOutsideTransferRules
             "marie elizabeth",
             "Marie Elizabeth",
             ComparingType.Contains),
+        
         RulesFactory.TransfersOutsideToUs(
     "mobilepay allan carl erik",
     "Allan",
@@ -162,20 +158,6 @@ RulesFactory.TransfersOutsideToUs(
     "Anne-Marie Dahl",
     ComparingType.Exact),
 
-RulesFactory.TransfersOutsideToUs(
-    "mobilepay bent moelle",
-    "Bent Møller",
-    ComparingType.Exact),
-
-RulesFactory.TransfersOutsideToUs(
-    "mobilepay bent moeller joh",
-    "Bent Møller",
-    ComparingType.Exact),
-
-RulesFactory.TransfersOutsideToUs(
-    "mobilepay bent moeller johnsen",
-    "Bent Møller",
-    ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay claus michael l",
@@ -184,7 +166,7 @@ RulesFactory.TransfersOutsideToUs(
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay clara rindom hoe",
-    "Clara",
+    "Clara Rindom",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
@@ -194,12 +176,12 @@ RulesFactory.TransfersOutsideToUs(
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay dorthe moeller j",
-    "Dorthe Møller",
+    "Dorthe Søster",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay dorthe moeller johnse",
-    "Dorthe Møller",
+    "Dorthe Søster",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
@@ -234,22 +216,22 @@ RulesFactory.TransfersOutsideToUs(
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay jesper mahler clemme",
-    "Jesper Mahler Clemmensen",
+    "Jesper Clemmensen",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay liikke visby bunede",
-    "Lisbeth Krogshede",
+    "Rikke Visby",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay lisbeth kr",
-    "Lisbeth",
+    "Lisbeth Krogshede",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay lisbeth krogshe",
-    "Lisbeth",
+    "Lisbeth Krogshede",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
@@ -259,7 +241,7 @@ RulesFactory.TransfersOutsideToUs(
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay mathias olin hv",
-    "Mathias Olin",
+    "Mathias",
     ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
@@ -304,23 +286,9 @@ RulesFactory.TransfersOutsideToUs(
 
 RulesFactory.TransfersOutsideToUs(
     "mobilepay rikke visby bunch",
-    "Rikke Visby Bunch",
+    "Rikke Visby",
     ComparingType.Exact),
 
-RulesFactory.TransfersOutsideToUs(
-    "mobilepay sonja john",
-    "Sonja",
-    ComparingType.Exact),
-
-RulesFactory.TransfersOutsideToUs(
-    "vdk mob pay bent moller johns",
-    "Bent Møller",
-    ComparingType.Exact),
-
-RulesFactory.TransfersOutsideToUs(
-    "vdk mob pay sonja johnsen",
-    "Sonja Johnsen",
-    ComparingType.Exact),
 
 RulesFactory.TransfersOutsideToUs(
     "vdk squaretradecopay",
@@ -333,7 +301,7 @@ TransfersOutsideToUs(
     ComparingType.Exact),
         RulesFactory.TransfersOutsideFromUs(
             "mobilepay malene hvi",
-            "Malene Hvidberg",
+            "Malene",
             ComparingType.Exact),
 
         RulesFactory.TransfersOutsideFromUs(
@@ -348,7 +316,7 @@ TransfersOutsideToUs(
 
         RulesFactory.TransfersOutsideFromUs(
             "vdk mob pay dorthe moller joh",
-            "Dorthe Møller",
+            "Dorthe Søster",
             ComparingType.Exact),
 
         RulesFactory.TransfersOutsideFromUs(

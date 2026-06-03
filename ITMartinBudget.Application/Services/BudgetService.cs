@@ -140,7 +140,7 @@ public class BudgetService : IBudgetService
     {
         return category switch
         {
-            Category.Indkomst => "Indkomst",
+            Category.Løn => "Indkomst",
 
             Category.BoligVedligehold => "Bolig",
             Category.Regninger => "Regninger",

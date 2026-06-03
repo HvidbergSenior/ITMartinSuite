@@ -74,13 +74,7 @@ public static class CafeRules
             "Peter Gift",
             Category.Cafe,
             ComparingType.Contains),
-
-        RestaurantCafe(
-            "hanzo",
-            "Hanzo",
-            Category.Restaurant,
-            ComparingType.Contains),
-
+        
         RestaurantCafe(
             "taxas",
             "Taxas",

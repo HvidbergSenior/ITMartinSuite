@@ -9,18 +9,19 @@ public static class TaxRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        Taxes(
-            "sktst motor",
+        CarMaintenance(
+            "BS SKATTESTYRELSEN MOTOR OPKRÆVNING",
             "Motorafgift",
             Category.BilVedligehold, ComparingType.Contains),
-        RulesFactory.Taxes(
+        
+        Taxes(
             "dk sktst personskatter",
-            "SKAT",
+            "Tilbagebetalt Skat",
             Category.Skat,
             ComparingType.Exact),
         Taxes(
             "overskydende skat",
-            "Tax Return",
+            "Overskydende Skat",
             Category.Skat,
             ComparingType.Contains),
 
