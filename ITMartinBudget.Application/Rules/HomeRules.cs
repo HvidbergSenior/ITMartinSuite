@@ -12,91 +12,91 @@ public static class HomeRules
         GeneralShopping(
             "ikea",
             "IKEA",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Word),
 
         GeneralShopping(
             "ilva",
             "ILVA",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Word),
 
         GeneralShopping(
             "silvan",
             "Silvan",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Word),
 
-        GeneralShopping(
+        HomeRepair(
             "vvs eksperten",
             "VVS Eksperten",
-            Category.Hjem,
+            Category.BoligVedligehold,
             ComparingType.Contains),
 
         GeneralShopping(
             "kop og kande",
             "Kop & Kande",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "jem og fix",
             "Jem & Fix",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "bauhaus",
             "Bauhaus",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Word),
 
         GeneralShopping(
             "harald nyborg",
             "Harald Nyborg",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "biltema",
             "Biltema",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Word),
 
         GeneralShopping(
             "plantorama",
             "Plantorama",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "jysk",
             "JYSK",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Word),
 
         GeneralShopping(
             "imerco",
             "Imerco",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Word),
 
         GeneralShopping(
             "soestrene grene",
             "Søstrene Grene",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "hyldedeluxe",
             "HyldeDeluxe",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "boligmontering",
             "Boligmontering",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains)
     ];
 }

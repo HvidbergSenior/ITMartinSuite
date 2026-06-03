@@ -52,6 +52,15 @@ public static class FuelRules
         Fuel(
             "tankstation",
             "Tankstation",
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RulesFactory.Fuel(
+            "vdk best romedal 0624",
+            "Best",
+            ComparingType.Exact),
+
+        RulesFactory.Fuel(
+            "vdk superspeed 1 c",
+            "Superspeed",
+            ComparingType.Exact),
     ];
 }

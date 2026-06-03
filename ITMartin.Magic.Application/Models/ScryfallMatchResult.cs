@@ -19,4 +19,6 @@ public sealed record ScryfallMatchResult
     public decimal? UsdPrice { get; init; }
 
     public decimal? UsdFoilPrice { get; init; }
+    public List<CardCandidateViewModel>
+        Candidates { get; set; } = [];
 }

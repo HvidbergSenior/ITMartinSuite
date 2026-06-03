@@ -67,6 +67,17 @@ public static class GamingRules
             "apple com bill",
             "Apple Services",
             Category.Gaming,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RulesFactory.Entertainment(
+            "vdk sp royalcdkeys",
+            "RoyalCDKeys",
+            Category.Gaming,
+            ComparingType.Exact),
+
+        Entertainment(
+            "vdk steamgames com 4259522985",
+            "Steam",
+            Category.Gaming,
+            ComparingType.Exact),
     ];
 }

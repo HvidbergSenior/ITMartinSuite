@@ -21,12 +21,7 @@ public static class VariableIncomeRules
             Category.KommuneAndStat,
             ComparingType.Contains),
 
-        Taxes(
-            "overskydende skat",
-            "Tax Return",
-            Category.Skat,
-            ComparingType.Contains),
-
+        
         FromKommuneAndStat(
             "foedevarecheck",
             "Government Support",

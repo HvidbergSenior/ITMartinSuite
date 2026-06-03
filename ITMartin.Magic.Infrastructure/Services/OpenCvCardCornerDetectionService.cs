@@ -28,6 +28,8 @@ public sealed class OpenCvCardCornerDetectionService
     {
         try
         {
+            Console.WriteLine(
+                $"Image Path: {imagePath}");
             var debugFolder =
                 Path.Combine(
                     Directory.GetCurrentDirectory(),
@@ -119,7 +121,24 @@ public sealed class OpenCvCardCornerDetectionService
                 out _,
                 RetrievalModes.List,
                 ContourApproximationModes.ApproxSimple);
+            using var contourDebug =
+                resized.Clone();
 
+            for (var i = 0; i < contours.Length; i++)
+            {
+                Cv2.DrawContours(
+                    contourDebug,
+                    contours,
+                    i,
+                    Scalar.Red,
+                    2);
+            }
+
+            Cv2.ImWrite(
+                Path.Combine(
+                    debugFolder,
+                    "all_contours.jpg"),
+                contourDebug);
             Console.WriteLine(
                 $"Contours found: {contours.Length}");
 
@@ -245,7 +264,11 @@ public sealed class OpenCvCardCornerDetectionService
                     debugFolder,
                     $"quad_{Guid.NewGuid()}.jpg"),
                 debug);
-
+            Cv2.ImWrite(
+                Path.Combine(
+                    debugFolder,
+                    "input.jpg"),
+                original);
             var ordered =
                 OrderPoints(
                     bestQuad);

@@ -1,4 +1,5 @@
 using ITMartin.Ai;
+using ITMartin.Ai.Configuration;
 using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Services;
 using ITMartin.Magic.Application;
@@ -96,7 +97,9 @@ builder.Services.AddScoped<
 // =========================
 // URLS
 // =========================
-
+builder.Services.Configure<MagicSetSymbolOptions>(
+    builder.Configuration.GetSection(
+        "MagicSetSymbols"));
 builder.WebHost.UseUrls(
     "https://0.0.0.0:5020");
 

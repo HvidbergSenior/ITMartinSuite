@@ -11,66 +11,60 @@ public static class HousingRules
     [
         // Mortgage / Housing
 
-        FixedExpense(
+        RealkreditSkatBolig(
             "termin jyske realkredit",
             "Jyske Realkredit",
-            Category.Bolig,
+            Category.Husleje,
             ComparingType.Contains),
 
-        FixedExpense(
+        RealkreditSkatBolig(
             "aarhus kommune ejendomsskat",
             "Ejendomsskat",
             Category.Bolig,
             ComparingType.Contains),
 
-        FixedExpense(
-            "parcelforeningen",
+        RealkreditSkatBolig(
+            "parcelforening",
             "Parcelforening",
             Category.Bolig,
             ComparingType.Exact),
 
-        FixedExpense(
+        RealkreditSkatBolig(
             "skattestyrelsen",
             "Skattestyrelsen",
-            Category.Bolig,
+            Category.Skat,
             ComparingType.Contains),
 
         // Utilities
 
-        FixedExpense(
+        RealkreditSkatBolig(
             "aarhus vand",
             "Aarhus Vand",
-            Category.Bolig,
+            Category.BoligVedligehold,
             ComparingType.Contains),
 
-        FixedExpense(
+        RealkreditSkatBolig(
             "kredsloeb",
             "Kredsløb",
-            Category.Bolig,
+            Category.BoligVedligehold,
             ComparingType.Word),
 
-        FixedExpense(
+        RealkreditSkatBolig(
             "norlys energi",
             "Norlys Energi",
-            Category.Bolig,
+            Category.BoligVedligehold,
             ComparingType.Contains),
-
-        FixedExpense(
-            "ewii",
-            "EWII",
-            Category.Bolig,
-            ComparingType.Word),
-
-        FixedExpense(
+        
+        RealkreditSkatBolig(
             "andel energi",
             "Andel Energi",
-            Category.Bolig,
+            Category.BoligVedligehold,
             ComparingType.Contains),
 
-        FixedExpense(
+        RealkreditSkatBolig(
             "nrgi",
             "NRGi Elhandel A/S",
-            Category.Bolig,
+            Category.BoligVedligehold,
             ComparingType.Word)
     ];
 }

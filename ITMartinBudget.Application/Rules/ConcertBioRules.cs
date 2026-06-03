@@ -59,5 +59,10 @@ public static class ConcertBioRules
         "MyTicket",
         Category.KoncertBio,
         ComparingType.Contains),
+        RulesFactory.Entertainment(
+            "dk safeticket dk",
+            "Safeticket",
+            Category.KoncertBio,
+            ComparingType.Exact),
     ];
 }

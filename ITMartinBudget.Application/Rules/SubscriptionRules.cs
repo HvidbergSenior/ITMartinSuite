@@ -75,33 +75,18 @@ public static class SubscriptionRules
             Category.Subscription,
             ComparingType.Contains),
 
-        Subscription(
-            "dropbox",
-            "Dropbox",
-            Category.Subscription,
-            ComparingType.Contains),
-
-        Subscription(
-            "microsoft",
-            "Microsoft",
-            Category.Subscription,
-            ComparingType.Contains),
-
-        Subscription(
-            "adobe",
-            "Adobe",
-            Category.Subscription,
-            ComparingType.Contains),
-        Subscription(
+        PaymentForChildren(
             "fitnessunited",
             "Fitness United",
             Category.Subscription,
             ComparingType.Contains),
+        
         Subscription(
             "suno inc",
             "Suno",
             Category.Subscription,
             ComparingType.Contains),
+        
         Subscription(
             "joytunes",
             "JoyTunes",
@@ -113,6 +98,22 @@ public static class SubscriptionRules
             "Google Play",
             Category.Subscription,
             ComparingType.Contains),
+        RulesFactory.Subscription(
+            "dk story house egmont a s",
+            "Story House Egmont",
+            Category.Fritid,
+            ComparingType.Exact),
 
+        RulesFactory.Subscription(
+            "mobilepay bedre psykiatri",
+            "Donation",
+            Category.Subscription,
+            ComparingType.Exact),
+
+        RulesFactory.Subscription(
+            "teleno32107104134621",
+            "Telenor",
+            Category.TelefonTvInternet,
+            ComparingType.Exact),
     ];
 }

@@ -784,7 +784,55 @@ START CAMERA
     box-shadow:
             0 14px 42px rgba(0,0,0,.45);
 }
+.candidate-panel
+{
+    margin-top: 2rem;
+    background: #1b1b1b;
+    border-radius: 12px;
+    padding: 1rem;
+}
 
+.candidate-row
+{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .75rem 0;
+    border-bottom: 1px solid #333;
+}
+
+.candidate-row:last-child
+{
+    border-bottom: none;
+}
+
+.candidate-image
+{
+    width: 60px;
+    border-radius: 6px;
+}
+
+.candidate-details
+{
+    flex: 1;
+}
+
+.candidate-name
+{
+    font-weight: 600;
+}
+
+.candidate-set
+{
+    opacity: .75;
+    font-size: .9rem;
+}
+
+.candidate-confidence
+{
+    font-weight: 700;
+    font-size: 1.1rem;
+}
 /* =========================================
 RESPONSIVE
 ========================================= */

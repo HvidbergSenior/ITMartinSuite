@@ -59,5 +59,7 @@ public enum BudgetGroup
 
     WorkExpense = 24,
     Subscriptions = 25,
-    Uncategorized = 26
+    Uncategorized = 26,
+    Traveling,
+    PaymentChildren
 }

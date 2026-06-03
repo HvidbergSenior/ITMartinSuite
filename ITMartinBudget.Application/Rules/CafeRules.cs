@@ -96,5 +96,21 @@ public static class CafeRules
             "Walthers",
             Category.Cafe,
             ComparingType.Contains),
+        RulesFactory.Entertainment(
+            "united tickets",
+            "United Tickets",
+            Category.KoncertBio,
+            ComparingType.Contains),
+        RulesFactory.RestaurantCafe(
+            "vdk cafe vestergade 42 aps",
+            "Cafe Vestergade",
+            Category.Cafe,
+            ComparingType.Exact),
+
+        RulesFactory.RestaurantCafe(
+            "vdk restaurant storm",
+            "Restaurant Storm",
+            Category.Restaurant,
+            ComparingType.Exact),
     ];
 }

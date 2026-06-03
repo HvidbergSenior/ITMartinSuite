@@ -8,7 +8,7 @@ public enum Category
 
     // Housing & fixed
 
-    Bolig = 10,
+    BoligVedligehold = 10,
     Regninger = 11,
     Forsikring = 12,
     TelefonTvInternet = 13,
@@ -49,7 +49,7 @@ public enum Category
 
     Toej = 60,
     Elektronik = 61,
-    Hjem = 62,
+    Bolig = 62,
 
     // Health
 
@@ -63,7 +63,7 @@ public enum Category
 
     // Travel
 
-    Rejse = 90,
+    RejserUdflugter = 90,
 
     // Financial
 
@@ -90,5 +90,7 @@ public enum Category
     // Fallback
 
     Andet = 999,
-    Ferie
+    Ferie,
+    Husleje,
+    Aktier
 }

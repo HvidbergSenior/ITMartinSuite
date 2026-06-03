@@ -21,22 +21,22 @@ public static class LeisureRules
             Category.Fritid,
             ComparingType.Contains),
 
-        Entertainment(
+        RejserUdflugter(
             "klitmoeller",
             "Klitmøller",
-            Category.Rejse,
+            Category.RejserUdflugter,
             ComparingType.Contains),
 
-        GeneralShopping(
+        RestaurantCafe(
             "radisson blu",
             "Radisson Blu",
             Category.Cafe,
             ComparingType.Contains),
 
-        GeneralShopping(
+        HomeRepair(
             "malerfirma tidens farver",
             "Tidens Farver",
-            Category.Hjem,
+            Category.BoligVedligehold,
             ComparingType.Contains),
 
         GeneralShopping(
@@ -45,13 +45,13 @@ public static class LeisureRules
             Category.Fritid,
             ComparingType.Contains),
 
-        Entertainment(
+        RestaurantCafe(
             "chokolet",
             "Chokolade",
             Category.Cafe,
             ComparingType.Contains),
 
-        GeneralShopping(
+        RestaurantCafe(
             "noeddebutikken",
             "Nøddebutikken",
             Category.Cafe,
@@ -63,7 +63,7 @@ public static class LeisureRules
             Category.Toej,
             ComparingType.Contains),
 
-        GeneralShopping(
+        PaymentForChildren(
             "vesterlund efterskol",
             "Vesterlund Efterskole",
             Category.Boern,
@@ -74,15 +74,17 @@ public static class LeisureRules
             "Fastelavnsbazar",
             Category.Fritid,
             ComparingType.Contains),
+        
         Entertainment(
         "zettle escapist",
         "Escapist",
         Category.Fritid,
         ComparingType.Contains),
+        
         GeneralShopping(
             "stofshop abyhoj",
             "Stofshop",
-            Category.Bolig,
+            Category.BoligVedligehold,
             ComparingType.Contains),
 
         GeneralShopping(
@@ -94,34 +96,32 @@ public static class LeisureRules
         GeneralShopping(
             "noddebutikken",
             "Nøddebutikken",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
-
-      
 
         GeneralShopping(
             "kjaer sommerfeldt",
             "Kjær Sommerfeldt",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "the way ahead group",
             "The Way Ahead Group",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
 
         GeneralShopping(
             "drandersvej",
             "Drandersvej",
-            Category.Hjem,
+            Category.Bolig,
             ComparingType.Contains),
-        Entertainment(
+        
+        PaymentForChildren(
             "gallafest",
             "Gallafest",
             Category.Fritid,
             ComparingType.Contains),
-      
 
         Entertainment(
             "fastelavsbazar",
@@ -130,5 +130,81 @@ public static class LeisureRules
             ComparingType.Contains),
 
 
+        RulesFactory.GeneralShopping(
+            "sp alpex",
+            "SP Alpex",
+            Category.Boern,
+            ComparingType.Contains),
+
+        RulesFactory.GeneralShopping(
+            "dk isager",
+            "Isager",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "dk kop kande web aps",
+            "Kop & Kande",
+            Category.Bolig,
+            ComparingType.Exact),
+        RulesFactory.PaymentForChildren(
+            "dk surfline aps",
+            "Surfline",
+            Category.RejserUdflugter,
+            ComparingType.Exact),
+        RulesFactory.GeneralShopping(
+            "mobilepay old boys45",
+            "Old Boys",
+            Category.Fritid,
+            ComparingType.Exact),
+        RulesFactory.GeneralShopping(
+            "mobilepay tattoo fashion skive",
+            "Tattoo Fashion",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "tm materialer",
+            "TM Materialer",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+        RulesFactory.GeneralShopping(
+            "vdk bogshoppen",
+            "Bogshoppen",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "vdk dfp193453411",
+            "DFP",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+        RulesFactory.RejserUdflugter(
+            "vdk idre fja ll 18",
+            "Idre Fjäll",
+            Category.Ferie,
+            ComparingType.Exact),
+        RulesFactory.GeneralShopping(
+            "vdk iexpert aps",
+            "IExpert",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "vdk inntq ab",
+            "INNTQ",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "vdk kontoret",
+            "Kontoret",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+        RulesFactory.RejserUdflugter(
+            "vdk stiftelsen idre",
+            "Idre",
+            Category.Ferie,
+            ComparingType.Exact),
     ];
 }

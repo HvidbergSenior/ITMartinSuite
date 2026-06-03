@@ -9,54 +9,31 @@ public static class InsuranceRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        FixedExpense(
+        Forsikring(
             "alka forsikring",
             "Alka Forsikring",
             Category.Forsikring,
             ComparingType.Contains),
 
-        FixedExpense(
+        Forsikring(
             "sygeforsikringen danmark",
             "Sygeforsikringen Danmark",
             Category.Forsikring,
             ComparingType.Contains),
 
-        FixedExpense(
+        Forsikring(
             "depotsikring",
             "Depotsikring",
             Category.Forsikring,
             ComparingType.Contains),
 
-        FixedExpense(
+        Forsikring(
             "tryg",
             "Tryg",
             Category.Forsikring,
             ComparingType.Word),
 
-        FixedExpense(
-            "topdanmark",
-            "Topdanmark",
-            Category.Forsikring,
-            ComparingType.Contains),
-
-        FixedExpense(
-            "gjensidige",
-            "Gjensidige",
-            Category.Forsikring,
-            ComparingType.Contains),
-
-        FixedExpense(
-            "codan",
-            "Codan",
-            Category.Forsikring,
-            ComparingType.Word),
-
-        FixedExpense(
-            "if skadeforsikring",
-            "If Forsikring",
-            Category.Forsikring,
-            ComparingType.Contains),
-        FixedExpense(
+        Forsikring(
             "til alka",
             "Alka",
             Category.Forsikring,

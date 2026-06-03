@@ -37,6 +37,17 @@ public static class UnionRules
             "dlf",
             "Danmarks Lærerforening",
             Category.FagforeningAKasse,
-            ComparingType.Word)
+            ComparingType.Word),
+        RulesFactory.UnionAndAKasse(
+            "101 udbet fra 3fa",
+            "3F",
+            Category.KommuneAndStat,
+            ComparingType.Exact),
+
+        RulesFactory.UnionAndAKasse(
+            "bs fagligt faelles forbund",
+            "3F",
+            Category.FagforeningAKasse,
+            ComparingType.Exact),
     ];
 }

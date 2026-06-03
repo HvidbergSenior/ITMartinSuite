@@ -37,7 +37,7 @@ public static class TransactionRules
         // Keep AFTER income rules
         // to avoid false positives.
         // =====================================
-
+        ..BentSonjaRules.Items,
         ..TransferRules.Items,
         ..FamilyTransferRules.Items,
         ..FromOutsideTransferRules.Items,
@@ -93,7 +93,7 @@ public static class TransactionRules
         // Family / Kids / Pets
         // =====================================
 
-        ..ChildrenRules.Items,
+        ..WorkExpenseRules.Items,
         ..PetsRules.Items,
         ..GiftRules.Items,
 
@@ -102,7 +102,7 @@ public static class TransactionRules
         // =====================================
 
         ..HealthRules.Items,
-
+        ..VacationRules.Items,
         // =====================================
         // Unknown fallback
         // MUST stay last

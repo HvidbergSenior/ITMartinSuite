@@ -39,9 +39,6 @@ public static class DependencyInjection
             DetectCardWorkflowStep>();
 
         services.AddScoped<
-            DetectCardCornersWorkflowStep>();
-
-        services.AddScoped<
             PerspectiveCorrectionWorkflowStep>();
 
         services.AddScoped<

@@ -33,10 +33,10 @@ public static class TransferRules
             Category.Opsparing,
             ComparingType.Contains),
 
-        InternalAccountTransfer(
+        Stocks(
             "9490 71557243",
-            "Internal Transfer",
-            Category.Overfoersel,
+            "NordNet",
+            Category.Aktier,
             ComparingType.Exact),
 
         InternalAccountTransfer(

@@ -142,7 +142,7 @@ public class BudgetService : IBudgetService
         {
             Category.Indkomst => "Indkomst",
 
-            Category.Bolig => "Bolig",
+            Category.BoligVedligehold => "Bolig",
             Category.Regninger => "Regninger",
             Category.Forsikring => "Forsikring",
             Category.TelefonTvInternet => "Telefon / TV / Internet",
@@ -176,7 +176,7 @@ public class BudgetService : IBudgetService
 
             Category.Toej => "Tøj",
             Category.Elektronik => "Elektronik",
-            Category.Hjem => "Hjem",
+            Category.Bolig => "Hjem",
 
             Category.Sundhed => "Sundhed",
 
@@ -184,7 +184,7 @@ public class BudgetService : IBudgetService
             Category.Kaeledyr => "Kæledyr",
             Category.Gaver => "Gaver",
 
-            Category.Rejse => "Rejse",
+            Category.RejserUdflugter => "Rejse",
 
             Category.Andet => "Andet",
 

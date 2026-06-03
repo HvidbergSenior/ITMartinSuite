@@ -46,12 +46,6 @@ public static class TakeAwayRules
             ComparingType.Word),
 
         RestaurantCafe(
-            "dominos",
-            "Domino's",
-            Category.Takeaway,
-            ComparingType.Contains),
-
-        RestaurantCafe(
             "pizza",
             "Pizza",
             Category.Takeaway,
@@ -62,6 +56,7 @@ public static class TakeAwayRules
             "Sushi",
             Category.Takeaway,
             ComparingType.Word),
+        
         RestaurantCafe(
             "mackies",
             "Mackies",

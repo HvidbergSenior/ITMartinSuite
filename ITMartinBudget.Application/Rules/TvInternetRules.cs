@@ -33,22 +33,5 @@ public static class TvInternetRules
             Category.Subscription,
             ComparingType.Word),
 
-        Subscription(
-            "hiper",
-            "Hiper",
-            Category.Subscription,
-            ComparingType.Word),
-
-        Subscription(
-            "eesy",
-            "eesy",
-            Category.Subscription,
-            ComparingType.Word),
-
-        Subscription(
-            "oister",
-            "Oister",
-            Category.Subscription,
-            ComparingType.Contains)
     ];
 }

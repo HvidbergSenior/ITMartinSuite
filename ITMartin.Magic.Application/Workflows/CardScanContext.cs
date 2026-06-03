@@ -61,4 +61,9 @@ public sealed class CardScanContext
 
         FailureReason = reason;
     }
+    public List<CardCandidateViewModel>
+        Candidates { get; set; } = [];
+    
+    public decimal AiConfidence =>
+        OpenAiResult?.Confidence ?? 0;
 }

@@ -47,7 +47,34 @@ public sealed class ScryfallMatchWorkflowStep
             throw new InvalidOperationException(
                 $"No Scryfall match found for '{context.State.OpenAiResult?.Name}'.");
         }
-        
+        context.State.Candidates =
+        [
+            new CardCandidateViewModel
+            {
+                Name =
+                    match.BestMatch.Name,
+
+                SetCode =
+                    match.BestMatch.Set,
+
+                CollectorNumber =
+                    match.BestMatch.CollectorNumber,
+
+                ImageUrl =
+                    match.BestMatch.ImageUrl,
+
+                EurPrice =
+                    match.BestMatch.EurPrice,
+
+                UsdPrice =
+                    match.BestMatch.UsdPrice,
+
+                Confidence =
+                    context.State
+                        .OpenAiResult?
+                        .Confidence ?? 0
+            }
+        ];
         context.State.ScryfallMatchResult =
             new ScryfallMatchResult
             {

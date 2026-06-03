@@ -121,6 +121,73 @@ public static class GroceryRules
         EverydayGrocery(
             "mbmadmarked",
             "MB Madmarked",
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RulesFactory.EverydayGrocery(
+            "rema1000 trige",
+            "Rema 1000",
+            ComparingType.Contains),
+        RulesFactory.EverydayGrocery(
+            "kattemad",
+            "Kattemad",
+            ComparingType.Exact),
+        RulesFactory.EverydayGrocery(
+            "dk coop kv vericentret",
+            "Coop",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "dk lidl",
+            "Lidl",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "dk spar skejby",
+            "Spar",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk kiwi 025 romedal",
+            "Kiwi",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl arhus n",
+            "Lidl Aarhus N",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl veri center",
+            "Lidl Veri Center",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl158skive",
+            "Lidl Skive",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl210arhusrisskov",
+            "Lidl Risskov",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidl221arhusskejby",
+            "Lidl Skejby",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk lidlvericenter",
+            "Lidl Veri Center",
+            ComparingType.Exact),
+
+        RulesFactory.EverydayGrocery(
+            "vdk reenberg gront",
+            "Reenberg Grønt",
+            ComparingType.Exact),
+
+        EverydayGrocery(
+            "vdk reop kand gront",
+            "Reenberg Grønt",
+            ComparingType.Exact),
     ];
 }

@@ -17,6 +17,10 @@ public static class RefundsRules
         Refund(
             "refund",
             "Refund",
-            ComparingType.Contains)
+            ComparingType.Contains),
+        Refund(
+        "danmark",
+        "Danmark Refund",
+        ComparingType.Exact),
     ];
 }

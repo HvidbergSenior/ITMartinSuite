@@ -9,13 +9,13 @@ public static class SportsRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        FixedExpense(
+        PaymentForChildren(
             "hog fodbold",
             "HOG Fodbold",
             Category.Subscription,
             ComparingType.Contains),
 
-        FixedExpense(
+        PaymentForChildren(
             "hog hinnerup",
             "HOG Hinnerup",
             Category.Subscription,

@@ -172,6 +172,28 @@ public static class ClothingRules
             "Kirkens Korshær",
             Category.Toej,
             ComparingType.Contains),
+        RulesFactory.ClothesAndShoes(
+            "salling",
+            "Salling",
+            Category.Toej,
+            ComparingType.Contains),
+        RulesFactory.ClothesAndShoes(
+            "dk hennes mauritz 844",
+            "H&M",
+            Category.Toej,
+            ComparingType.Exact),
+
+        RulesFactory.ClothesAndShoes(
+            "dk km mode risskov",
+            "KM Mode",
+            Category.Toej,
+            ComparingType.Exact),
+
+        RulesFactory.ClothesAndShoes(
+            "vdk hm dk0844",
+            "H&M",
+            Category.Toej,
+            ComparingType.Exact),
 
     ];
 }

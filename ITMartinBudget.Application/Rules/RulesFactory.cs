@@ -75,6 +75,21 @@ public static class RulesFactory
             ComparingType = comparingType
         };
     }
+    public static TransactionRule PaymentForChildren(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.PaymentChildren,
+            ComparingType = comparingType
+        };
+    }
     public static TransactionRule WorkExpense(
         string pattern,
         string title,
@@ -178,7 +193,22 @@ public static class RulesFactory
             TransactionType = TransactionType.Udgift
         };
     }
-
+    public static TransactionRule HomeRepair(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.HomeRepair,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Udgift
+        };
+    }
     // =====================================
     // HEALTH / PERSONAL
     // =====================================
@@ -204,6 +234,38 @@ public static class RulesFactory
     // =====================================
 
     public static TransactionRule FixedExpense(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.FixedExpense,
+            ComparingType = comparingType,
+            IsRecurring = true
+        };
+    }
+    public static TransactionRule Forsikring(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.FixedExpense,
+            ComparingType = comparingType,
+            IsRecurring = true
+        };
+    }
+    public static TransactionRule RealkreditSkatBolig(
         string pattern,
         string title,
         Category category,
@@ -324,6 +386,23 @@ public static class RulesFactory
             TransactionType = TransactionType.Indkomst
         };
     }
+    
+    public static TransactionRule RejserUdflugter(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.Traveling,
+            ComparingType = comparingType,
+            TransactionType = TransactionType.Udgift
+        };
+    }
 
     // =====================================
     // TRANSFERS
@@ -344,7 +423,21 @@ public static class RulesFactory
             ComparingType = comparingType
         };
     }
-
+    public static TransactionRule Stocks(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.InterestsAndStock,
+            ComparingType = comparingType
+        };
+    }
     public static TransactionRule SavingsAndPension(
         string pattern,
         string title,

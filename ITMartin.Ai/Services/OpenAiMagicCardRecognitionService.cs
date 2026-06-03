@@ -1,9 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
+using ITMartin.Ai.Configuration;
 using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
 namespace ITMartin.Ai.Services;
@@ -16,22 +18,30 @@ public sealed class OpenAiMagicCardRecognitionService
         ConcurrentDictionary<string, MagicCardAnalysisResult>
         Cache = new();
 
+    private readonly MagicSetSymbolOptions
+        _setOptions;
+
     public OpenAiMagicCardRecognitionService(
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IOptions<MagicSetSymbolOptions> setOptions)
         : base(configuration)
     {
+        _setOptions =
+            setOptions.Value;
     }
 
     public async Task<MagicCardAnalysisResult?>
         AnalyzeAsync(
             string filePath,
-            CardDetectionResult detection, CancellationToken cancellationToken)
+            CardDetectionResult detection,
+            CancellationToken cancellationToken)
     {
         try
         {
             var bytes =
                 await File.ReadAllBytesAsync(
-                    filePath, cancellationToken);
+                    filePath,
+                    cancellationToken);
 
             var cacheKey =
                 CreateHash(bytes);
@@ -70,7 +80,8 @@ public sealed class OpenAiMagicCardRecognitionService
             var response =
                 await Client.CompleteChatAsync(
                     messages,
-                    options, cancellationToken);
+                    options,
+                    cancellationToken);
 
             var text =
                 response.Value.Content
@@ -109,91 +120,142 @@ public sealed class OpenAiMagicCardRecognitionService
         }
     }
 
-    private static SystemChatMessage
+    private SystemChatMessage
         BuildSystemPrompt()
     {
-        return new SystemChatMessage("""
-                                     You are an expert Magic: The Gathering card identification system.
+        var supportedSets =
+            string.Join(
+                Environment.NewLine +
+                Environment.NewLine,
+                _setOptions.Symbols.Select(x =>
+                    $"{x.SetCode} = {x.SetName}{Environment.NewLine}- {x.Description}"));
 
-                                     Set Symbol Rules:
-                                     
-                                     - Carefully inspect the set symbol.
-                                     - Determine the symbol shape, color, and visual characteristics.
-                                     - If the symbol is recognizable, return the official MTG set code.
-                                     - If the symbol is not recognizable, describe it in detail.
-                                     - The description should contain enough detail for a human to identify the set.
-                                     - Never invent a set code.
-                                     - Never leave SetSymbolDescription empty when a set symbol is visible.
-                                     
-                                     Collector Number Rules:
-                                     
-                                     - Only return CollectorNumber if it is directly visible and readable in the image.
-                                     - Never infer, estimate, guess, derive, or look up CollectorNumber.
-                                     - Do not use prior knowledge of Magic: The Gathering cards.
-                                     - Do not use card name, set code, artist, rarity, mana cost, card type, or artwork to determine CollectorNumber.
-                                     - CollectorNumber must come only from text physically visible in the image.
-                                     - If there is any uncertainty, return null.
-                                     
-                                     Return ONLY valid JSON matching this schema:
+        var supportedSetCodes =
+            string.Join(
+                ", ",
+                _setOptions.Symbols.Select(x =>
+                    x.SetCode));
 
-                                     {
-                                       "name": "",
-                                       "artist": "",
-                                       "setCode": "",
-                                       "setSymbolDescription": "",
-                                       "collectorNumber": null,
-                                       "oldBorder": false,
-                                       "whiteBorder": false,
-                                       "powerToughness": "",
-                                       "manaCost": "",
-                                       "cardType": "",
-                                       "rarity": "",
-                                       "confidence": 0,
-                                       "exactPrintingCertain": false
-                                     }
+        return new SystemChatMessage(
+            $"""
+            You are an expert Magic: The Gathering card identification system.
 
-                                     Return JSON only.
-                                     """);
+            Set Symbol Rules
+
+            The card may belong to one of the following supported sets:
+
+            {supportedSets}
+
+            Instructions:
+
+            - Inspect the visible set symbol.
+            - Compare it against the supported symbols.
+            - Primary evidence is the visible set symbol.
+            - Secondary evidence may include card frame, OCR text, artist, copyright line and other visible card details.
+            - Never allow secondary evidence to override a clearly visible symbol.
+            - If a strong match exists, populate SetCode.
+            - If no strong match exists, leave SetCode empty.
+            - If SetCode is empty, populate SetSymbolDescription with a detailed description.
+            - Never invent a set code.
+            - Never guess.
+            - SetCode must be one of the supported set codes listed above.
+            - If no supported symbol matches, SetCode must be an empty string.
+
+            Supported Set Codes:
+
+            {supportedSetCodes}
+
+            Collector Number Rules
+
+            - Only return CollectorNumber if it is directly visible and readable.
+            - Never infer, estimate, guess, derive or look up CollectorNumber.
+            - CollectorNumber must come only from text physically visible in the image.
+            - If uncertain, return null.
+
+            Return ONLY valid JSON matching this schema:
+            Return ONLY valid JSON with these properties:
+            
+            name
+            artist
+            setCode
+            setSymbolDescription
+            collectorNumber
+            oldBorder
+            whiteBorder
+            powerToughness
+            manaCost
+            cardType
+            rarity
+            confidence
+            exactPrintingCertain
+            
+            Return JSON only.
+            """);
     }
-        private static UserChatMessage
-            BuildUserPrompt(
-                byte[] bytes,
-                string mime,
-                CardDetectionResult detection)
-        {
-            return new UserChatMessage(
-            [
-                ChatMessageContentPart
-                    .CreateTextPart(
-                        $"""
-                         OCR RESULTS:
 
-                         Name:
-                         {detection.Name}
+    private UserChatMessage
+        BuildUserPrompt(
+            byte[] bytes,
+            string mime,
+            CardDetectionResult detection)
+    {
+        var supportedSets =
+            string.Join(
+                Environment.NewLine,
+                _setOptions.Symbols.Select(x =>
+                    $"{x.SetCode} = {x.SetName}"));
 
-                         Set:
-                         {detection.SetCode}
+        return new UserChatMessage(
+        [
+            ChatMessageContentPart
+                .CreateTextPart(
+                    $"""
+                    OCR RESULTS
 
-                         Collector:
-                         {detection.CollectorNumber}
+                    Name:
+                    {detection.Name}
 
-                         IMPORTANT:
+                    Set:
+                    {detection.SetCode}
 
-                         Carefully inspect the set symbol.
+                    Collector:
+                    {detection.CollectorNumber}
 
-                         If you recognize the symbol,
-                         return the official MTG set code.
+                    OCR SET SYMBOL CANDIDATE
 
-                         If you do not recognize the symbol,
-                         return a detailed description in
-                         SetSymbolDescription.
-                         """),
+                    {detection.SetCode}
 
-                ChatMessageContentPart
-                    .CreateImagePart(
-                        BinaryData.FromBytes(bytes),
-                        mime,
-                        ChatImageDetailLevel.High)
-            ]);
-        }
+                    If the OCR candidate matches the visible symbol,
+                    prefer that value.
+
+                    If the visible symbol clearly disagrees,
+                    override it.
+
+                    IMPORTANT
+
+                    Carefully inspect the visible set symbol.
+
+                    Supported symbols:
+
+                    {supportedSets}
+
+                    If none match:
+
+                    - Leave SetCode empty.
+                    - Populate SetSymbolDescription.
+                    - Do not guess.
+
+                    Remember:
+
+                    Primary evidence is the visible set symbol.
+                    OCR is only a secondary hint.
+                    """),
+
+            ChatMessageContentPart
+                .CreateImagePart(
+                    BinaryData.FromBytes(bytes),
+                    mime,
+                    ChatImageDetailLevel.High)
+        ]);
     }
+}

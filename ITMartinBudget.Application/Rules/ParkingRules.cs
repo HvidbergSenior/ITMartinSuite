@@ -57,6 +57,10 @@ public static class ParkingRules
         Parking(
             "easy park",
             "EasyPark",
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RulesFactory.Parking(
+            "vdk epass24 com",
+            "Epass24",
+            ComparingType.Exact),
     ];
 }

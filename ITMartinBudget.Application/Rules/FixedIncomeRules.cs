@@ -13,7 +13,14 @@ public static class FixedIncomeRules
             "loenoverfoersel",
             "Salary",
             ComparingType.Contains),
-
+        Salary(
+            "loenover 3009771645",
+            "Dagpenge",
+            ComparingType.Exact),
+        Salary(
+            "Loenover.",
+            "Dagpenge",
+            ComparingType.Contains),
         Salary(
             "maanedsloen",
             "Salary",

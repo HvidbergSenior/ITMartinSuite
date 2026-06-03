@@ -12,9 +12,24 @@ public static class ReparationsRules
         GeneralShopping(
             "den store cykelsmed",
             "Den Store Cykelsmed",
-            Category.Bolig,
+            Category.BoligVedligehold,
             ComparingType.Contains),
 
+        HomeRepair(
+            "Hvidevarehjælpen",
+            "Hvidevarehjælpen",
+            Category.BoligVedligehold,
+            ComparingType.Contains),
+        HomeRepair(
+            "hvidevarehjaelpen rep vaskemaskin",
+            "Hvidevarehjælpen",
+            Category.BoligVedligehold,
+            ComparingType.Exact),
+        HomeRepair(
+            "Hvidevarehjælpen rep vaskemaskin",
+            "Hvidevarehjælpen",
+            Category.BoligVedligehold,
+            ComparingType.Exact),
         CarRepair(
             "sejer",
             "Sejer",
@@ -61,6 +76,13 @@ public static class ReparationsRules
             "skorstensgaard",
             "Skorstensgaard",
             Category.BilVedligehold,
-            ComparingType.Contains)
+            ComparingType.Contains),
+        RulesFactory.CarRepair(
+            "mekaniker",
+            "Mekaniker",
+            Category.BilVedligehold,
+            ComparingType.Exact),
+
+
     ];
 }

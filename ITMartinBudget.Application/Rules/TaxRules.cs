@@ -13,5 +13,16 @@ public static class TaxRules
             "sktst motor",
             "Motorafgift",
             Category.BilVedligehold, ComparingType.Contains),
+        RulesFactory.Taxes(
+            "dk sktst personskatter",
+            "SKAT",
+            Category.Skat,
+            ComparingType.Exact),
+        Taxes(
+            "overskydende skat",
+            "Tax Return",
+            Category.Skat,
+            ComparingType.Contains),
+
     ];
 }
