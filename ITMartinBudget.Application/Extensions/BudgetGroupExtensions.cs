@@ -109,12 +109,7 @@ public static class BudgetGroupExtensions
 
             BudgetGroup.BentOgSonjaUd =>
                 "Bent & Sonja ud",
-
-            // Work
-
-            BudgetGroup.WorkExpense =>
-                "ITMartin",
-
+            
             // Misc
 
             BudgetGroup.Subscriptions =>
@@ -128,55 +123,113 @@ public static class BudgetGroupExtensions
 
             BudgetGroup.FromChildren => 
                 "Fra Børn",
-            
+            BudgetGroup.OverførslerTilFraOpsparingsKonto =>
+                "Opsparingskonto",
             _ =>
                 budgetGroup.ToString()
         };
     }
-    public static bool IsAdjustable(
+    public static BudgetGroupType GetBudgetGroupType(
         this BudgetGroup budgetGroup)
     {
+        
         return budgetGroup switch
         {
-            BudgetGroup.EverydayGrocery => true,
-            BudgetGroup.RestaurantCafe => true,
-            BudgetGroup.GeneralShopping => true,
-            BudgetGroup.Entertainment => true,
-            BudgetGroup.Traveling => true,
+            BudgetGroup.FixedIncome =>
+                BudgetGroupType.FixedIncome,
 
-            _ => false
-        };
-    }
+            BudgetGroup.RealkreditBolig =>
+                BudgetGroupType.MandatoryExpense,
 
-    public static bool IsFixedIncome(
-        this BudgetGroup budgetGroup)
-    {
-        return budgetGroup ==
-               BudgetGroup.FixedIncome;
-    }
+            BudgetGroup.Forsikring =>
+                BudgetGroupType.MandatoryExpense,
 
-    public static bool IsMandatoryExpense(
-        this BudgetGroup budgetGroup)
-    {
-        return budgetGroup switch
-        {
-            BudgetGroup.RealkreditBolig => true,
-            BudgetGroup.Forsikring => true,
-            BudgetGroup.FagforeningAKasse => true,
+            BudgetGroup.FagforeningAKasse =>
+                BudgetGroupType.MandatoryExpense,
 
-            _ => false
-        };
-    }
+            BudgetGroup.VibzSavings =>
+                BudgetGroupType.MandatoryExpense,
 
-    public static bool IsRecurringAdjustable(
-        this BudgetGroup budgetGroup)
-    {
-        return budgetGroup switch
-        {
-            BudgetGroup.Subscriptions => true,
-            BudgetGroup.VibzSavings => true,
+            BudgetGroup.Subscriptions =>
+                BudgetGroupType.RecurringAdjustable,
 
-            _ => false
+            BudgetGroup.Fuel =>
+                BudgetGroupType.SemiAdjustable,
+
+            BudgetGroup.Parking =>
+                BudgetGroupType.SemiAdjustable,
+
+            BudgetGroup.OffentligTransport =>
+                BudgetGroupType.SemiAdjustable,
+
+            BudgetGroup.EverydayGrocery =>
+                BudgetGroupType.Adjustable,
+
+            BudgetGroup.RestaurantCafe =>
+                BudgetGroupType.Adjustable,
+
+            BudgetGroup.GeneralShopping =>
+                BudgetGroupType.Adjustable,
+
+            BudgetGroup.Entertainment =>
+                BudgetGroupType.Adjustable,
+
+            BudgetGroup.Traveling =>
+                BudgetGroupType.Adjustable,
+            BudgetGroup.IncomeFromKommuneAndStat
+                => BudgetGroupType.FixedIncome,
+
+            BudgetGroup.CarRepair
+                => BudgetGroupType.SemiAdjustable,
+
+            BudgetGroup.CarMaintenance
+                => BudgetGroupType.SemiAdjustable,
+
+            BudgetGroup.HomeRepair
+                => BudgetGroupType.SemiAdjustable,
+
+            BudgetGroup.PersonalCare
+                => BudgetGroupType.Adjustable,
+
+            BudgetGroup.PaymentChildren
+                => BudgetGroupType.SemiAdjustable,
+            
+            BudgetGroup.Tax
+                => BudgetGroupType.MandatoryExpense,
+            BudgetGroup.ExternalTransfer
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.OverførslerTilFraOpsparingsKonto
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.Refund
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.GiftIncome
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.GiftExpense
+                => BudgetGroupType.Ignore,
+            
+            BudgetGroup.BentOgSonjaInd
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.BentOgSonjaUd
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.InterestsAndStock
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.Uncategorized
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.FromChildren
+                => BudgetGroupType.Ignore,
+
+            BudgetGroup.Unknown
+                => BudgetGroupType.Ignore,
+            _ =>
+                BudgetGroupType.Ignore
         };
     }
 }

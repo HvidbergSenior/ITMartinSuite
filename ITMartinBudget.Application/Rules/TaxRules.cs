@@ -12,7 +12,7 @@ public static class TaxRules
         CarMaintenance(
             "BS SKATTESTYRELSEN MOTOR OPKRÆVNING",
             "Motorafgift",
-            Category.BilVedligehold, ComparingType.Contains),
+            Category.BilVedligehold, ComparingType.Contains, 6),
         
         Taxes(
             "dk sktst personskatter",

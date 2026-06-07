@@ -27,7 +27,7 @@ public static class HousingRules
             "parcelforening",
             "Parcelforening",
             Category.Bolig,
-            ComparingType.Exact),
+            ComparingType.Exact,12),
 
         RealkreditSkatBolig(
             "skattestyrelsen",
@@ -41,19 +41,18 @@ public static class HousingRules
             "aarhus vand",
             "Aarhus Vand",
             Category.BoligVedligehold,
-            ComparingType.Contains),
+            ComparingType.Contains, 4),
 
         RealkreditSkatBolig(
-            "kredsloeb",
+            "bs kredsloeb a/s",
             "Kredsløb",
             Category.BoligVedligehold,
-            ComparingType.Word),
-
+            ComparingType.Exact, 3),
         RealkreditSkatBolig(
-            "norlys energi",
-            "Norlys Energi",
+            "bs kredsloeb genbrug a/s",
+            "Kredsløb",
             Category.BoligVedligehold,
-            ComparingType.Contains),
+            ComparingType.Exact, 6),
         
         RealkreditSkatBolig(
             "andel energi",
@@ -65,6 +64,6 @@ public static class HousingRules
             "nrgi",
             "NRGi Elhandel A/S",
             Category.BoligVedligehold,
-            ComparingType.Word)
+            ComparingType.Word,1)
     ];
 }

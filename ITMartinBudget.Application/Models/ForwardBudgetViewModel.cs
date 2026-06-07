@@ -24,4 +24,16 @@ public sealed class ForwardBudgetViewModel
     public List<FixedExpenseViewModel> RecurringAdjustableExpenses { get; set; } = [];
 
     public List<AdjustableBudgetGroupViewModel> AdjustableGroups { get; set; } = [];
+    public List<AdjustableBudgetGroupViewModel>
+        SemiAdjustableGroups
+    {
+        get;
+        set;
+    } = [];
+    public List<AdjustableBudgetGroupViewModel>
+        IgnoredGroups
+    {
+        get;
+        set;
+    } = [];
 }

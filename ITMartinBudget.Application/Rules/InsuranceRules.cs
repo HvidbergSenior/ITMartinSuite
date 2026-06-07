@@ -13,25 +13,28 @@ public static class InsuranceRules
             "alka forsikring",
             "Alka",
             Category.Forsikring,
-            ComparingType.Contains),
+            ComparingType.Contains,
+            1
+            ),
 
         Forsikring(
             "sygeforsikringen danmark",
             "Sygeforsikringen Danmark",
             Category.Forsikring,
-            ComparingType.Contains),
+            ComparingType.Contains,
+            3),
 
         Forsikring(
             "depotsikring",
             "Depotsikring",
             Category.Forsikring,
-            ComparingType.Contains),
+            ComparingType.Contains, 1),
 
         Forsikring(
             "tryg",
             "Tryg",
             Category.Forsikring,
-            ComparingType.Word),
+            ComparingType.Word,1),
 
         Forsikring(
             "til alka",

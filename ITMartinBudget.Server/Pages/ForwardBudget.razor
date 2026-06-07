@@ -91,7 +91,6 @@ else
             </div>
 
         </div>
-
         <div class="transaction-section">
 
             <h2 class="transaction-section-title">
@@ -130,18 +129,10 @@ else
                             <div class="transaction-detail-row">
 
                                 <div>
-
-                                    <div class="transaction-title">
-                                        @income.Title
-                                    </div>
-
-                                    <div class="meta">
-                                        Laveste observerede beløb
-                                    </div>
-
+                                    @income.Title
                                 </div>
 
-                                <div class="transaction-amount">
+                                <div>
                                     @income.ExpectedAmount.ToString("N0") kr.
                                 </div>
 
@@ -154,129 +145,203 @@ else
             </div>
 
         </div>
+<div class="transaction-section">
 
-        <div class="transaction-section">
+    <h2 class="transaction-section-title">
+        Forventede Faste Månedlige Udgifter
+    </h2>
 
-            <h2 class="transaction-section-title">
-                Forventede Faste Månedlige Udgifter
-            </h2>
+    <div class="category-summary-card clickable-card"
+         @onclick='() => Toggle("expenses")'>
 
-            <div class="category-summary-card clickable-card"
-                 @onclick='() => Toggle("expenses")'>
-                 
-                <div class="category-summary-top">
+        <div class="category-summary-top">
 
-                    <div>
+            <div>
 
-                        <div class="category-summary-title">
-                            Forventede Faste Månedlige Udgifter
-                        </div>
-                        
-                        <div class="meta">
-                            @_model.FixedExpenses.Count faste udgifter
-                        </div>
-
-                    </div>
-
-                    <div class="category-summary-count">
-                        @_model.FixedMonthlyExpenses.ToString("N0") kr.
-                    </div>
-
+                <div class="category-summary-title">
+                    Forventede Faste Månedlige Udgifter
                 </div>
 
-                @if (_expanded == "expenses")
+                <div class="meta">
+                    @_model.FixedExpenses.Count faste udgifter
+                </div>
+
+            </div>
+
+            <div class="category-summary-count">
+                @_model.FixedMonthlyExpenses.ToString("N0") kr.
+            </div>
+
+        </div>
+
+        @if (_expanded == "expenses")
+        {
+            <div style="padding:20px;color:white">
+
+                @foreach (var expense in _model.FixedExpenses)
                 {
-                    <div style="padding:20px;color:white">
+                    <div class="transaction-detail-row">
 
-                        @foreach (var expense in _model.FixedExpenses)
-                        {
-                            <div class="transaction-detail-row">
+                        <div>
 
-                                <div>
-
-                                    <div class="transaction-title">
-                                        @expense.Title
-                                    </div>
-
-                                    <div class="meta">
-                                        @GetRecurringText(
-                                            expense.RecurringIntervalMonths)
-                                    </div>
-
-                                </div>
-
-                                <div class="transaction-amount">
-                                    @expense.MonthlyAmount.ToString("N0") kr.
-                                </div>
-
+                            <div class="transaction-title">
+                                @expense.Title
                             </div>
-                        }
+
+                            <div class="meta">
+                                @GetRecurringText(
+                                    expense.RecurringIntervalMonths)
+                            </div>
+
+                        </div>
+
+                        <div class="transaction-amount">
+                            @expense.MonthlyAmount.ToString("N0") kr.
+                        </div>
 
                     </div>
                 }
 
             </div>
+        }
 
-        </div>
-        <div class="transaction-section">
+    </div>
 
-            <h2 class="transaction-section-title">
-                Faste men Valgfrie Udgifter
-            </h2>
+</div>
 
-            <div class="category-summary-card clickable-card"
-                 @onclick='() => Toggle("recurring")'>
+<div class="transaction-section">
 
-                <div class="category-summary-top">
+    <h2 class="transaction-section-title">
+        Faste men Valgfrie Udgifter
+    </h2>
 
-                    <div>
+    <div class="category-summary-card clickable-card"
+         @onclick='() => Toggle("recurring")'>
 
-                        <div class="category-summary-title">
-                            Faste men Valgfrie Udgifter
-                        </div>
+        <div class="category-summary-top">
 
-                        <div class="meta">
-                            @_model.RecurringAdjustableExpenses.Count poster
-                        </div>
+            <div>
 
-                    </div>
-
+                <div class="category-summary-title">
+                    Faste men Valgfrie Udgifter
                 </div>
 
-                @if (_expanded == "recurring")
+                <div class="meta">
+                    @_model.RecurringAdjustableExpenses.Count poster
+                </div>
+
+            </div>
+
+            <div class="category-summary-count">
+                @($"{_model.RecurringAdjustableExpenses.Sum(x => x.MonthlyAmount):N0} kr.")
+            </div>
+
+        </div>
+
+        @if (_expanded == "recurring")
+        {
+            <div style="padding:20px;color:white">
+
+                @foreach (var expense in _model.RecurringAdjustableExpenses)
                 {
-                    <div style="padding:20px;color:white">
+                    <div class="transaction-detail-row">
 
-                        @foreach (var expense in _model.RecurringAdjustableExpenses)
-                        {
-                            <div class="transaction-detail-row">
+                        <div>
 
-                                <div>
-
-                                    <div class="transaction-title">
-                                        @expense.Title
-                                    </div>
-
-                                    <div class="meta">
-                                        @GetRecurringText(
-                                            expense.RecurringIntervalMonths)
-                                    </div>
-
-                                </div>
-
-                                <div class="transaction-amount">
-                                    @expense.MonthlyAmount.ToString("N0") kr.
-                                </div>
-
+                            <div class="transaction-title">
+                                @expense.Title
                             </div>
-                        }
+
+                            <div class="meta">
+                                @GetRecurringText(
+                                    expense.RecurringIntervalMonths)
+                            </div>
+
+                        </div>
+
+                        <div class="transaction-amount">
+                            @expense.MonthlyAmount.ToString("N0") kr.
+                        </div>
 
                     </div>
                 }
 
             </div>
+        }
+
+    </div>
+
+</div>
+<div class="transaction-section">
+
+    <h2 class="transaction-section-title">
+        Delvist Påvirkelige Udgifter
+    </h2>
+
+    @foreach (var group in _model.SemiAdjustableGroups)
+    {
+        <div class="category-summary-card clickable-card"
+             @onclick="() => Toggle(group.BudgetGroup.ToString())">
+
+            <div class="category-summary-top">
+
+                <div>
+
+                    <div class="category-summary-title">
+                        @group.BudgetGroup.ToDisplayName()
+                    </div>
+
+                    <div class="meta">
+                        @group.TransactionCount transaktioner
+                    </div>
+
+                </div>
+
+                <div class="category-summary-count">
+                    @group.Last3MonthsAverage.ToString("N0") kr/md
+                </div>
+
+            </div>
+
+            @if (_expanded == group.BudgetGroup.ToString())
+            {
+                <div style="padding:20px;color:white">
+
+                    <div class="meta"
+                         style="margin-bottom:10px">
+                        Seneste transaktioner
+                    </div>
+
+                    @foreach (var transaction in group.RecentTransactions)
+                    {
+                        <div class="transaction-detail-row">
+
+                            <div>
+
+                                <div>
+                                    @transaction.Title
+                                </div>
+
+                                <div class="meta">
+                                    @transaction.Date.ToString("dd-MM-yyyy")
+                                </div>
+
+                            </div>
+
+                            <div>
+                                @transaction.Amount.ToString("N0") kr.
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
 
         </div>
+    }
+
+</div>
         <div class="transaction-section">
 
             <h2 class="transaction-section-title">
@@ -303,66 +368,42 @@ else
                         </div>
 
                         <div class="category-summary-count">
-                            @group.CurrentYearTotal.ToString("N0") kr.
+                            @group.Last3MonthsAverage.ToString("N0") kr/md
                         </div>
 
-                    </div>
-
-                    <div class="category-summary-amount negative">
-                        @group.Last3MonthsAverage.ToString("N0") kr/md
                     </div>
 
                     @if (_expanded == group.BudgetGroup.ToString())
                     {
                         <div style="padding:20px;color:white">
 
-                            <div class="transaction-detail-row">
-
-                                <div>
-                                    Seneste måned
-                                </div>
-
-                                <div>
-                                    @group.LastMonthAmount.ToString("N0") kr.
-                                </div>
-
+                            <div class="meta"
+                                 style="margin-bottom:10px">
+                                Seneste transaktioner
                             </div>
 
-                            <div class="transaction-detail-row">
+                            @foreach (var transaction in group.RecentTransactions)
+                            {
+                                <div class="transaction-detail-row">
 
-                                <div>
-                                    3 måneders gennemsnit
+                                    <div>
+
+                                        <div>
+                                            @transaction.Title
+                                        </div>
+
+                                        <div class="meta">
+                                            @transaction.Date.ToString("dd-MM-yyyy")
+                                        </div>
+
+                                    </div>
+
+                                    <div>
+                                        @transaction.Amount.ToString("N0") kr.
+                                    </div>
+
                                 </div>
-
-                                <div>
-                                    @group.Last3MonthsAverage.ToString("N0") kr.
-                                </div>
-
-                            </div>
-
-                            <div class="transaction-detail-row">
-
-                                <div>
-                                    12 måneders gennemsnit
-                                </div>
-
-                                <div>
-                                    @group.Last12MonthsAverage.ToString("N0") kr.
-                                </div>
-
-                            </div>
-
-                            <div class="transaction-detail-row">
-
-                                <div>
-                                    Mulig reduktion
-                                </div>
-
-                                <div>
-                                    @group.SuggestedReduction.ToString("N0") kr.
-                                </div>
-
-                            </div>
+                            }
 
                         </div>
                     }
@@ -371,7 +412,71 @@ else
             }
 
         </div>
+        <div class="transaction-section">
 
+            <h2 class="transaction-section-title">
+                Ignorerede Transaktioner
+            </h2>
+
+            @foreach (var group in _model.IgnoredGroups)
+            {
+                <div class="category-summary-card clickable-card"
+                     @onclick="() => Toggle(group.BudgetGroup.ToString())">
+
+                    <div class="category-summary-top">
+
+                        <div>
+
+                            <div class="category-summary-title">
+                                @group.BudgetGroup.ToDisplayName()
+                            </div>
+
+                            <div class="meta">
+                                @group.TransactionCount transaktioner
+                            </div>
+
+                        </div>
+
+                        <div class="category-summary-count">
+                            @group.Last3MonthsAverage.ToString("N0") kr/md
+                        </div>
+
+                    </div>
+
+                    @if (_expanded == group.BudgetGroup.ToString())
+                    {
+                        <div style="padding:20px;color:white">
+
+                            @foreach (var transaction in group.RecentTransactions)
+                            {
+                                <div class="transaction-detail-row">
+
+                                    <div>
+
+                                        <div>
+                                            @transaction.Title
+                                        </div>
+
+                                        <div class="meta">
+                                            @transaction.Date.ToString("dd-MM-yyyy")
+                                        </div>
+
+                                    </div>
+
+                                    <div>
+                                        @transaction.Amount.ToString("N0") kr.
+                                    </div>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
     </div>
 }
 

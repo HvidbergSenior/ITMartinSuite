@@ -9,13 +9,13 @@ public static class SubscriptionRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        PaymentForChildren(
+        Subscription(
             "netflix",
             "Netflix",
             Category.Subscription,
             ComparingType.Contains),
 
-        PaymentForChildren(
+        Subscription(
             "spotify",
             "Spotify",
             Category.Subscription,
@@ -27,25 +27,25 @@ public static class SubscriptionRules
             Category.Subscription,
             ComparingType.Contains),
         
-        PaymentForChildren(
+        Subscription(
             "viaplay",
             "Viaplay",
             Category.Subscription,
             ComparingType.Contains),
 
-        WorkExpense(
+        Subscription(
             "chatgpt",
             "ChatGPT",
             Category.Subscription,
-            ComparingType.Contains),
+            ComparingType.Contains, 1),
 
-        WorkExpense(
+        Subscription(
             "openai",
             "OpenAI",
             Category.Subscription,
             ComparingType.Contains),
 
-        PaymentForChildren(
+        Subscription(
             "fitnessunited",
             "Fitness United",
             Category.Subscription,
@@ -55,7 +55,7 @@ public static class SubscriptionRules
             "suno inc",
             "Suno",
             Category.Subscription,
-            ComparingType.Contains),
+            ComparingType.Contains, 12),
         
         Subscription(
             "joytunes",
@@ -69,7 +69,7 @@ public static class SubscriptionRules
             Category.Subscription,
             ComparingType.Contains),
         
-        RulesFactory.Subscription(
+        RulesFactory.GeneralShopping(
             "dk story house egmont a s",
             "Story House Egmont",
             Category.Fritid,
@@ -86,5 +86,16 @@ public static class SubscriptionRules
             "Telenor",
             Category.TelefonTvInternet,
             ComparingType.Exact),
+        RulesFactory.Subscription(
+            "vdk jetbrains",
+            "JetBrains",
+            Category.Subscription,
+            ComparingType.Exact, 12),
+
+        RulesFactory.Subscription(
+            "vdk one com",
+            "One.com",
+            Category.TelefonTvInternet,
+            ComparingType.Exact, 12),
     ];
 }

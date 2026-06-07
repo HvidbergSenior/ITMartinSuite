@@ -21,4 +21,11 @@ public sealed class AdjustableBudgetGroupViewModel
             0,
             Last3MonthsAverage -
             Last12MonthsAverage);
+
+    public List<TransactionSummaryViewModel>
+        RecentTransactions
+    {
+        get;
+        set;
+    } = [];
 }
