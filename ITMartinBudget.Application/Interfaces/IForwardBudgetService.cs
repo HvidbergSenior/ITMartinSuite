@@ -2,8 +2,7 @@
 
 namespace ITMartinBudget.Application.Interfaces;
 
-public interface IFamilyPlanningService
+public interface IForwardBudgetService
 {
-    Task<FamilyPlanningViewModel>
-        BuildAsync();
+    Task<ForwardBudgetViewModel> BuildAsync();
 }

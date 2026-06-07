@@ -14,9 +14,13 @@ public class BudgetGroupSummary
         Income - Expenses;
 
     public decimal DisplayAmount =>
-        BudgetGroup == BudgetGroup.Savings
-            ? Expenses - Income
-            : Expenses;
+        BudgetGroup switch
+        {
+            BudgetGroup.OverførslerTilFraOpsparingsKonto =>
+                Expenses - Income,
 
+            _ =>
+                Expenses
+        };
     public int TransactionCount { get; set; }
 }

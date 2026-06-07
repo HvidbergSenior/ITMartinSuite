@@ -25,8 +25,9 @@ public class BankTransaction
     public string Title { get; set; } =
         string.Empty;
 
-    public bool IsRecurring { get; set; }
 
     public DateTime ImportedAt { get; set; } =
         DateTime.UtcNow;
+
+    public int RecurringIntervalMonths { get; set; }
 }

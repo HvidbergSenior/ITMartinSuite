@@ -4,6 +4,6 @@ namespace ITMartinBudget.Application.Interfaces;
 
 public interface IForecastService
 {
-    Task<ForecastViewModel>
+    Task<ForwardBudgetViewModel>
         BuildAsync();
 }

@@ -21,10 +21,10 @@ public static class TransferRules
             Category.Pension,
             ComparingType.Exact),
 
-        SavingsAndPension(
+        TransfersOpsparingsKonto(
             "opsparingskonto",
-            "Til Opsparingskonto",
-            Category.Opsparing,
+            "Frem og tilbage Opsparingskonto",
+            Category.OverfoerselOpsparingsKonto,
             ComparingType.Contains),
 
         ChildrenSavings(

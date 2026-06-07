@@ -330,7 +330,7 @@ TransfersOutsideToUs(
             ComparingType.Exact),
         RulesFactory.TransfersOutsideToUs(
             "mobilepay 1 000 tak for din hj",
-            "Donation",
+            "PengeGave",
             ComparingType.Exact),
 
         RulesFactory.TransfersOutsideFromUs(

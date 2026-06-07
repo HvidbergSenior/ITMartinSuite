@@ -1,4 +1,4 @@
-﻿@page "/"
+﻿@page "/budget-dashboard"
 @using ITMartinBudget.Application.Extensions
 @using ITMartinBudget.Application.Interfaces
 @using ITMartinBudget.Application.Models
@@ -151,7 +151,44 @@
 
             </div>
         }
-      
+        @if (RecurringTransactions.Any())
+        {
+            <div class="transaction-section">
+
+                <h2 class="transaction-section-title">
+                    Kommende faste betalinger
+                </h2>
+
+                <div class="transaction-list">
+
+                    @foreach (var recurring in RecurringTransactions)
+                    {
+                        <div class="transaction-row">
+
+                            <div class="transaction-description">
+
+                                <div class="transaction-title">
+                                    @recurring.Title
+                                </div>
+
+                                <div class="transaction-category">
+                                    @GetRecurringText(
+                                        recurring.RecurringIntervalMonths)
+                                </div>
+
+                            </div>
+
+                            <div class="transaction-amount negative">
+                                @Math.Abs(recurring.Amount).ToString("N0") kr.
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        }
            <div class="budget-columns">
 
     <div class="budget-column">
@@ -200,6 +237,7 @@
                 <div class="category-summary-amount positive">
                     @group.Total.ToString("N0") kr.
                 </div>
+                
                 @if (ExpandedBudgetGroup == group.BudgetGroup)
                 {
                     <div style="padding:20px;color:white">
@@ -219,8 +257,7 @@
                                 grouped.Average(x => Math.Abs(x.Amount));
 
                             var latest =
-                                grouped
-                                    .OrderByDescending(x => x.Date)
+                                grouped.OrderByDescending(x => x.Date)
                                     .First();
 
                             <div class="transaction-detail-row">
@@ -234,7 +271,7 @@
                                     <div class="meta">
                                         @grouped.Count() betalinger
                                         •
-                                        @GetMerchantFrequency(grouped)
+                                        @GetRecurringText(grouped.Count())
                                     </div>
 
                                     <div class="meta">
@@ -253,9 +290,7 @@
                                 </div>
 
                             </div>
-                        }
-
-                    </div>
+                        }                    </div>
                 }
             </div>
         }
@@ -295,7 +330,7 @@
                         <div class="meta">
                             @group.TransactionCount transaktioner
                             •
-                            @GetFrequency(group.BudgetGroup)
+                            @GetSourceCount(group.BudgetGroup) kilder
                         </div>
 
                         <div class="category-summary-count">
@@ -344,7 +379,7 @@
                                         <div class="meta">
                                             @grouped.Count() betalinger
                                             •
-                                            @GetMerchantFrequency(grouped)
+                                            @GetRecurringText(grouped.Count())
                                         </div>
 
                                         <div class="meta">
@@ -363,19 +398,6 @@
                                     </div>
 
                                 </div>
-
-                                <div style="text-align:right">
-
-                                    <div>
-                                        @totalAmount.ToString("N0") kr.
-                                    </div>
-
-                                    <div class="meta">
-                                        @averageAmount.ToString("N0") kr/stk
-                                    </div>
-
-                                </div>
-
                         }
 
                     </div>
@@ -403,7 +425,17 @@
                 x.BudgetGroup ==
                 BudgetGroup.Uncategorized)
             .ToList();
-
+    private List<BankTransaction> RecurringTransactions =>
+        Dashboard.Transactions
+            .Where(x =>
+                x.RecurringIntervalMonths > 0)
+            .GroupBy(x => x.Title)
+            .Select(x =>
+                x.OrderByDescending(y => y.Date)
+                    .First())
+            .OrderByDescending(x =>
+                Math.Abs(x.Amount))
+            .ToList();
     private string GetFrequency(
         BudgetGroup budgetGroup)
     {
@@ -484,40 +516,20 @@
                 ? null
                 : budgetGroup;
     }
-    private string GetMerchantFrequency(
-        IGrouping<string, BankTransaction> grouped)
+    private static string GetRecurringText(
+        int months)
     {
-        var transactions =
-            grouped
-                .OrderBy(x => x.Date)
-                .ToList();
-
-        if (transactions.Count < 2)
+        return months switch
         {
-            return $"{transactions.Count} betaling";
-        }
-
-        var intervals =
-            transactions
-                .Zip(
-                    transactions.Skip(1),
-                    (a, b) =>
-                        (b.Date - a.Date).TotalDays)
-                .ToList();
-
-        var avg =
-            intervals.Average();
-
-        return avg switch
-        {
-            <= 40 => "Månedlig",
-            <= 110 => "Kvartalsvis",
-            <= 150 => "Hver 4. måned",
-            <= 220 => "Halvårlig",
-            <= 450 => "Årlig",
-            _ => "Uregelmæssig"
+            1 => "Månedlig",
+            3 => "Kvartalsvis",
+            4 => "Hver 4. måned",
+            6 => "Halvårlig",
+            12 => "Årlig",
+            _ => $"{months} måneder"
         };
     }
+    
     private int GetSourceCount(
         BudgetGroup budgetGroup)
     {

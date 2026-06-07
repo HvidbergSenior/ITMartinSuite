@@ -62,8 +62,5 @@ public class BudgetDbContext : DbContext
 
         modelBuilder.Entity<BankTransaction>()
             .HasIndex(x => x.ImportedAt);
-
-        modelBuilder.Entity<BankTransaction>()
-            .HasIndex(x => x.IsRecurring);
     }
 }

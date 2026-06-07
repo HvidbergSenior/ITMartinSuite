@@ -39,7 +39,7 @@ public sealed class DashboardService
             transactions
                 .Where(x =>
                     x.Amount > 0 &&
-                    x.BudgetGroup != BudgetGroup.InternalTransfer)
+                    !IsExcludedFromDashboard(x.BudgetGroup))
                 .Sum(x => x.Amount);
 
         var totalExpenses =
@@ -47,55 +47,9 @@ public sealed class DashboardService
                 transactions
                     .Where(x =>
                         x.Amount < 0 &&
-                        x.BudgetGroup != BudgetGroup.InternalTransfer)
+                        !IsExcludedFromDashboard(x.BudgetGroup))
                     .Sum(x => x.Amount));
-
-        var internalTransferIncome =
-            transactions
-                .Where(x =>
-                    x.BudgetGroup ==
-                    BudgetGroup.InternalTransfer &&
-                    x.Amount > 0)
-                .Sum(x => x.Amount);
-
-        var internalTransferExpenses =
-            Math.Abs(
-                transactions
-                    .Where(x =>
-                        x.BudgetGroup ==
-                        BudgetGroup.InternalTransfer &&
-                        x.Amount < 0)
-                    .Sum(x => x.Amount));
-        var savingsTransactions =
-            transactions
-                .Where(x => x.BudgetGroup == BudgetGroup.Savings)
-                .ToList();
-
-        Console.WriteLine("===== OPSPARING =====");
-
-        Console.WriteLine(
-            $"Expenses: {savingsTransactions.Where(x => x.Amount < 0).Sum(x => Math.Abs(x.Amount)):N0}");
-
-        Console.WriteLine(
-            $"Income: {savingsTransactions.Where(x => x.Amount > 0).Sum(x => x.Amount):N0}");
-
-        Console.WriteLine(
-            $"Net: {savingsTransactions.Sum(x => x.Amount):N0}");
-        var savingsIncome =
-            transactions
-                .Where(x =>
-                    x.BudgetGroup == BudgetGroup.Savings &&
-                    x.Amount > 0)
-                .OrderByDescending(x => x.Amount)
-                .ToList();
-
-        Console.WriteLine("===== OPSPARING INCOME =====");
-
-        foreach (var tx in savingsIncome)
-        {
-            Console.WriteLine(
-                $"{tx.Date:dd-MM-yyyy} | {tx.Amount:N0} | {tx.Title} | {tx.Description}");
-        }
+        
         return new DashboardViewModel
         {
             Transactions = transactions,
@@ -113,25 +67,7 @@ public sealed class DashboardService
                         x.BudgetGroup ==
                         BudgetGroup.FixedIncome)
                     .Sum(x => x.Amount),
-
-            FixedExpenses =
-                Math.Abs(
-                    transactions
-                        .Where(x =>
-                            x.BudgetGroup ==
-                            BudgetGroup.FixedExpense)
-                        .Sum(x => x.Amount)),
-
-            InternalTransferIncome =
-                internalTransferIncome,
-
-            InternalTransferExpenses =
-                internalTransferExpenses,
-
-            InternalTransferNet =
-                internalTransferIncome -
-                internalTransferExpenses,
-
+            
             UncategorizedTransactions =
                 transactions
                     .Where(x =>
@@ -141,13 +77,10 @@ public sealed class DashboardService
 
             BudgetGroupSummaries =
                 transactions
-
                     .Where(x =>
-                        x.BudgetGroup !=
-                        BudgetGroup.InternalTransfer)
-
+                        !IsExcludedFromDashboard(
+                            x.BudgetGroup))
                     .GroupBy(x => x.BudgetGroup)
-
                     .Select(x =>
                         new BudgetGroupSummary
                         {
@@ -165,10 +98,8 @@ public sealed class DashboardService
                             TransactionCount =
                                 x.Count()
                         })
-
                     .OrderByDescending(x =>
                         Math.Abs(x.Total))
-
                     .ToList()
         };
     }
@@ -190,5 +121,11 @@ public sealed class DashboardService
             + last.Value.Month
             - first.Value.Month
             + 1);
+    }
+    private static bool IsExcludedFromDashboard(
+        BudgetGroup budgetGroup)
+    {
+        return budgetGroup is
+            BudgetGroup.OverførslerTilFraOpsparingsKonto;
     }
 }

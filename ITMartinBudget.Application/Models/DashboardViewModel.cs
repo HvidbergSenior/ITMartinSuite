@@ -21,14 +21,6 @@ public sealed class DashboardViewModel
 
     public decimal FixedIncome { get; init; }
 
-    public decimal FixedExpenses { get; init; }
-
-    public decimal InternalTransferIncome { get; init; }
-
-    public decimal InternalTransferExpenses { get; init; }
-
-    public decimal InternalTransferNet { get; init; }
-
     public List<BudgetGroupSummary>
         BudgetGroupSummaries { get; init; } = [];
 

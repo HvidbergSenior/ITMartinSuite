@@ -14,7 +14,7 @@ public class TransactionRule
 
     public BudgetGroup BudgetGroup { get; set; }
 
-    public bool IsRecurring { get; set; }
+    public int RecurringIntervalMonths { get; set; }
     public TransactionType TransactionType { get; set; }
     public int Priority { get; init; }
     public ComparingType ComparingType { get; set; }

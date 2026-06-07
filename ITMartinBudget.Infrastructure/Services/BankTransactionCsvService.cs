@@ -79,7 +79,7 @@ public class BankTransactionCsvService
             record.BudgetGroup =
                 BudgetGroup.Unknown;
 
-            record.IsRecurring = false;
+            record.RecurringIntervalMonths = 0;
 
             // Categorize
             _categorizer.Categorize(record);

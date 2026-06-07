@@ -17,36 +17,32 @@ public static class BudgetGroupExtensions
             BudgetGroup.IncomeFromKommuneAndStat =>
                 "Offentlige ydelser",
 
-            // Expenses
+            // Transfers / Savings
 
-            BudgetGroup.FixedExpense =>
-                "Faste udgifter",
+            BudgetGroup.ExternalTransfer =>
+                "Eksterne overførsler",
+            
+            BudgetGroup.VibzSavings =>
+                "Vibz Opsparing & Pension",
+
+            // Special
+
+            BudgetGroup.Refund =>
+                "Tilbagebetaling",
+
+            BudgetGroup.GiftIncome =>
+                "Gaver modtaget",
+
+            BudgetGroup.GiftExpense =>
+                "Gaver givet",
+
+            // Food
 
             BudgetGroup.EverydayGrocery =>
                 "Dagligvarer",
 
-            BudgetGroup.GeneralShopping =>
-                "Shopping",
-
             BudgetGroup.RestaurantCafe =>
                 "Restaurant & Café",
-
-            BudgetGroup.Subscriptions =>
-                "Abonnementer",
-
-            BudgetGroup.PersonalCare =>
-                "Personlig pleje",
-
-            BudgetGroup.Entertainment =>
-                "Underholdning",
-
-            BudgetGroup.Traveling =>
-                "Rejser",
-
-            // Children
-
-            BudgetGroup.PaymentChildren =>
-                "BetaltBørn",
 
             // Transport
 
@@ -62,46 +58,67 @@ public static class BudgetGroupExtensions
             BudgetGroup.CarRepair =>
                 "Bilreparation",
 
+            BudgetGroup.CarMaintenance =>
+                "Bilvedligehold",
+
             // Home
 
             BudgetGroup.HomeRepair =>
                 "Bolig & reparation",
 
-            // Financial
+            BudgetGroup.RealkreditBolig =>
+                "Boliglån & Realkredit",
 
-            BudgetGroup.Savings =>
-                "Opsparing",
+            // Lifestyle
 
-            BudgetGroup.VibzSavings =>
-                "Vibz Opsparing Og Pension",
+            BudgetGroup.GeneralShopping =>
+                "Shopping",
+
+            BudgetGroup.PersonalCare =>
+                "Personlig pleje",
+
+            // Entertainment
+
+            BudgetGroup.Entertainment =>
+                "Underholdning",
+
+            BudgetGroup.Traveling =>
+                "Rejser",
+
+            // Children
+
+            BudgetGroup.PaymentChildren =>
+                "Betalinger Til børn",
+        
+            BudgetGroup.Tax =>
+                "Skat",
 
             BudgetGroup.InterestsAndStock =>
                 "Aktier & renter",
 
-            BudgetGroup.Tax =>
-                "Skat",
+            BudgetGroup.FagforeningAKasse =>
+                "Fagforening & A-kasse",
 
-            // Transfers
+            BudgetGroup.Forsikring =>
+                "Forsikringer",
 
-            BudgetGroup.ExternalTransfer =>
-                "Eksterne overførsler",
+            // Family
 
-            BudgetGroup.InternalTransfer =>
-                "Interne overførsler",
+            BudgetGroup.BentOgSonjaInd =>
+                "Bent & Sonja ind",
 
-            // Misc
+            BudgetGroup.BentOgSonjaUd =>
+                "Bent & Sonja ud",
+
+            // Work
 
             BudgetGroup.WorkExpense =>
                 "ITMartin",
 
-            BudgetGroup.GiftIncome =>
-                "Gaver modtaget",
+            // Misc
 
-            BudgetGroup.GiftExpense =>
-                "Gaver Givet",
-
-            BudgetGroup.Refund =>
-                "Tilbagebetaling",
+            BudgetGroup.Subscriptions =>
+                "Abonnementer",
 
             BudgetGroup.Uncategorized =>
                 "Ukategoriseret",
@@ -109,8 +126,57 @@ public static class BudgetGroupExtensions
             BudgetGroup.Unknown =>
                 "Ukendt",
 
+            BudgetGroup.FromChildren => 
+                "Fra Børn",
+            
             _ =>
                 budgetGroup.ToString()
+        };
+    }
+    public static bool IsAdjustable(
+        this BudgetGroup budgetGroup)
+    {
+        return budgetGroup switch
+        {
+            BudgetGroup.EverydayGrocery => true,
+            BudgetGroup.RestaurantCafe => true,
+            BudgetGroup.GeneralShopping => true,
+            BudgetGroup.Entertainment => true,
+            BudgetGroup.Traveling => true,
+
+            _ => false
+        };
+    }
+
+    public static bool IsFixedIncome(
+        this BudgetGroup budgetGroup)
+    {
+        return budgetGroup ==
+               BudgetGroup.FixedIncome;
+    }
+
+    public static bool IsMandatoryExpense(
+        this BudgetGroup budgetGroup)
+    {
+        return budgetGroup switch
+        {
+            BudgetGroup.RealkreditBolig => true,
+            BudgetGroup.Forsikring => true,
+            BudgetGroup.FagforeningAKasse => true,
+
+            _ => false
+        };
+    }
+
+    public static bool IsRecurringAdjustable(
+        this BudgetGroup budgetGroup)
+    {
+        return budgetGroup switch
+        {
+            BudgetGroup.Subscriptions => true,
+            BudgetGroup.VibzSavings => true,
+
+            _ => false
         };
     }
 }

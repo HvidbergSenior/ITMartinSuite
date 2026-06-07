@@ -20,7 +20,8 @@ public static class RulesFactory
             Title = title,
             Category = Category.Dagligvarer,
             BudgetGroup = BudgetGroup.EverydayGrocery,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
         };
     }
 
@@ -36,7 +37,8 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.RestaurantCafe,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
         };
     }
 
@@ -56,7 +58,9 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.GeneralShopping,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -72,7 +76,9 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.GeneralShopping,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule PaymentForChildren(
@@ -87,7 +93,9 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.PaymentChildren,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule WorkExpense(
@@ -102,7 +110,9 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.WorkExpense,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -123,7 +133,9 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.Entertainment,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -143,7 +155,9 @@ public static class RulesFactory
             Category = Category.Braendstof,
             BudgetGroup = BudgetGroup.Fuel,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -158,7 +172,9 @@ public static class RulesFactory
             Title = title,
             Category = Category.Parkering,
             BudgetGroup = BudgetGroup.Parking,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -173,7 +189,9 @@ public static class RulesFactory
             Title = title,
             Category = Category.OffentligTransport,
             BudgetGroup = BudgetGroup.OffentligTransport,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -190,7 +208,9 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.CarRepair,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule HomeRepair(
@@ -206,7 +226,9 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.HomeRepair,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
     // =====================================
@@ -225,30 +247,13 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.PersonalCare,
-            ComparingType = comparingType
-        };
-    }
-
-    // =====================================
-    // FIXED EXPENSES
-    // =====================================
-
-    public static TransactionRule FixedExpense(
-        string pattern,
-        string title,
-        Category category,
-        ComparingType comparingType)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.FixedExpense,
             ComparingType = comparingType,
-            IsRecurring = true
+            RecurringIntervalMonths = 0
+            
         };
     }
+
+    
     public static TransactionRule Forsikring(
         string pattern,
         string title,
@@ -260,9 +265,10 @@ public static class RulesFactory
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.FixedExpense,
+            BudgetGroup = BudgetGroup.Forsikring,
             ComparingType = comparingType,
-            IsRecurring = true
+            RecurringIntervalMonths = 1
+            
         };
     }
     public static TransactionRule RealkreditSkatBolig(
@@ -276,9 +282,10 @@ public static class RulesFactory
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.FixedExpense,
+            BudgetGroup = BudgetGroup.RealkreditBolig,
             ComparingType = comparingType,
-            IsRecurring = true
+            RecurringIntervalMonths = 3
+            
         };
     }
 
@@ -293,9 +300,10 @@ public static class RulesFactory
             Pattern = pattern,
             Title = title,
             Category = category,
-            BudgetGroup = BudgetGroup.FixedExpense,
+            BudgetGroup = BudgetGroup.FagforeningAKasse,
             ComparingType = comparingType,
-            IsRecurring = true
+            RecurringIntervalMonths = 1
+            
         };
     }
 
@@ -312,7 +320,8 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.Tax,
             ComparingType = comparingType,
-            IsRecurring = true
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule CarMaintenance(
@@ -328,7 +337,8 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.CarMaintenance,
             ComparingType = comparingType,
-            IsRecurring = true
+            RecurringIntervalMonths = 0
+
         };
     }
 
@@ -345,7 +355,8 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.Subscriptions,
             ComparingType = comparingType,
-            IsRecurring = true
+            RecurringIntervalMonths = 1
+            
         };
     }
 
@@ -367,7 +378,8 @@ public static class RulesFactory
             BudgetGroup = BudgetGroup.FixedIncome,
             ComparingType = comparingType,
             TransactionType = TransactionType.Indkomst,
-            IsRecurring = true
+            RecurringIntervalMonths = 1
+            
         };
     }
     public static TransactionRule Su(
@@ -383,7 +395,8 @@ public static class RulesFactory
             BudgetGroup = BudgetGroup.FixedIncome,
             ComparingType = comparingType,
             TransactionType = TransactionType.Indkomst,
-            IsRecurring = true
+            RecurringIntervalMonths = 1
+            
         };
     }
 
@@ -400,7 +413,9 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.IncomeFromKommuneAndStat,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
+            TransactionType = TransactionType.Indkomst,
+            RecurringIntervalMonths = 0
+            
         };
     }
     
@@ -417,29 +432,12 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.Traveling,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
-
-    // =====================================
-    // TRANSFERS
-    // =====================================
-
-    public static TransactionRule InternalAccountTransfer(
-        string pattern,
-        string title,
-        Category category,
-        ComparingType comparingType)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.InternalTransfer,
-            ComparingType = comparingType
-        };
-    }
+    
     public static TransactionRule Stocks(
         string pattern,
         string title,
@@ -452,24 +450,12 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.InterestsAndStock,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
-    public static TransactionRule SavingsAndPension(
-        string pattern,
-        string title,
-        Category category,
-        ComparingType comparingType)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.Savings,
-            ComparingType = comparingType
-        };
-    }
+    
     public static TransactionRule ChildrenSavings(
         string pattern,
         string title,
@@ -482,7 +468,26 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.PaymentChildren,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 1
+            
+        };
+    }
+    public static TransactionRule TransfersOpsparingsKonto(
+        string pattern,
+        string title,
+        Category category,
+        ComparingType comparingType)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = BudgetGroup.OverførslerTilFraOpsparingsKonto,
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule VibzSavingsPension(
@@ -497,7 +502,9 @@ public static class RulesFactory
             Title = title,
             Category = category,
             BudgetGroup = BudgetGroup.VibzSavings,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 1
+            
         };
     }
     public static TransactionRule TransfersOutsideFromUs(
@@ -512,7 +519,9 @@ public static class RulesFactory
             Category = Category.OverfoerselTilUdenfor,
             BudgetGroup = BudgetGroup.ExternalTransfer,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -528,7 +537,9 @@ public static class RulesFactory
             Category = Category.OverfoerselFraUdenfor,
             BudgetGroup = BudgetGroup.ExternalTransfer,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
+            TransactionType = TransactionType.Indkomst,
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule BentOgSonjaInd(
@@ -544,7 +555,9 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.BentOgSonjaInd,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
+            TransactionType = TransactionType.Indkomst,
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule BentOgSonjaUd(
@@ -560,7 +573,9 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.BentOgSonjaUd,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
     public static TransactionRule TransfersChildrenFromUs(
@@ -575,7 +590,9 @@ public static class RulesFactory
             Category = Category.OverfoerselTilBørn,
             BudgetGroup = BudgetGroup.PaymentChildren,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -589,9 +606,11 @@ public static class RulesFactory
             Pattern = pattern,
             Title = title,
             Category = Category.OverfoerselFraBørn,
-            BudgetGroup = BudgetGroup.InternalTransfer,
+            BudgetGroup = BudgetGroup.FromChildren,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
+            TransactionType = TransactionType.Indkomst,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -611,7 +630,9 @@ public static class RulesFactory
             Category = Category.Gaver,
             BudgetGroup = BudgetGroup.GiftExpense,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Udgift
+            TransactionType = TransactionType.Udgift,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -627,7 +648,9 @@ public static class RulesFactory
             Category = Category.Gaver,
             BudgetGroup = BudgetGroup.GiftIncome,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
+            TransactionType = TransactionType.Indkomst,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -643,7 +666,9 @@ public static class RulesFactory
             Category = Category.Refund,
             BudgetGroup = BudgetGroup.Refund,
             ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst
+            TransactionType = TransactionType.Indkomst,
+            RecurringIntervalMonths = 0
+            
         };
     }
 
@@ -662,7 +687,9 @@ public static class RulesFactory
             Title = title,
             Category = Category.Renter,
             BudgetGroup = BudgetGroup.InterestsAndStock,
-            ComparingType = comparingType
+            ComparingType = comparingType,
+            RecurringIntervalMonths = 0
+            
         };
     }
 }

@@ -16,7 +16,7 @@ public static class TaxRules
         
         Taxes(
             "dk sktst personskatter",
-            "Tilbagebetalt Skat",
+            "Overskydende Skat",
             Category.Skat,
             ComparingType.Exact),
         Taxes(

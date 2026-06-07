@@ -33,7 +33,7 @@ public class TransactionCategorizer
         transaction.TransactionType =
             match.TransactionType;
 
-        transaction.IsRecurring =
-            match.IsRecurring;
+        transaction.RecurringIntervalMonths =
+            match.RecurringIntervalMonths;
     }
 }

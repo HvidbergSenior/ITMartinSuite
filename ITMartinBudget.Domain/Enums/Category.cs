@@ -94,5 +94,6 @@ public enum Category
     Husleje,
     Aktier,
     Dagpenge,
-    OverfoerselFraSonjaBent
+    OverfoerselFraSonjaBent,
+    OverfoerselOpsparingsKonto
 }

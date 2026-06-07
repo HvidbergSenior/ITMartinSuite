@@ -42,16 +42,13 @@ builder.Services.AddScoped<
     ITransactionCategorizer,
     TransactionCategorizer>();
 builder.Services.AddScoped<
-    IFamilyPlanningService,
-    FamilyPlanningService>();
+    IForwardBudgetService,
+    ForwardBudgetService>();
 // =========================
 // IMPORT / RULES
 // =========================
 builder.Services.AddScoped<
     BankTransactionCsvService>();
-builder.Services.AddScoped<
-    IForecastService,
-    ForecastService>();
 // =========================
 // LOGGING
 // =========================

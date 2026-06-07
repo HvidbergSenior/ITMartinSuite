@@ -9,17 +9,12 @@ public enum BudgetGroup
     FixedIncome = 1,
     IncomeFromKommuneAndStat = 2,
 
-    // Fixed recurring expenses
+    // Transfers (excluded from dashboard totals)
 
-    FixedExpense = 3,
-
-    // Transfers / Savings
-
-    InternalTransfer = 4,
     ExternalTransfer = 5,
-    Savings = 6,
+    OverførslerTilFraOpsparingsKonto = 6,
 
-    // Special cases
+    // Special
 
     Refund = 7,
     GiftIncome = 8,
@@ -36,35 +31,44 @@ public enum BudgetGroup
     Parking = 13,
     OffentligTransport = 14,
     CarRepair = 15,
+    CarMaintenance = 30,
 
-    // Home / Repair
+    // Home
 
     HomeRepair = 16,
+    RealkreditBolig = 35,
 
-    // Lifestyle / Shopping
+    // Shopping / Lifestyle
 
     GeneralShopping = 17,
     PersonalCare = 19,
 
-    // Entertainment / Leisure
+    // Entertainment
 
     Entertainment = 20,
+    Traveling = 27,
+
+    // Family
+
+    PaymentChildren = 28,
+    BentOgSonjaInd = 31,
+    BentOgSonjaUd = 32,
 
     // Financial
 
     Tax = 22,
     InterestsAndStock = 23,
+    VibzSavings = 29,
+    Forsikring = 33,
+    FagforeningAKasse = 36,
+
+    // Work
+
+    WorkExpense = 24,
 
     // Misc
 
-    WorkExpense = 24,
     Subscriptions = 25,
     Uncategorized = 26,
-    Traveling,
-    PaymentChildren,
-    VibzSavings,
-    CarMaintenance,
-    BentOgSonja,
-    BentOgSonjaInd,
-    BentOgSonjaUd
+    FromChildren = 40
 }
