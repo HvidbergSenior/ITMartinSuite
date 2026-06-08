@@ -8,8 +8,7 @@ namespace ITMartin.Magic.Application.Workflows.Steps;
 public sealed class ScryfallMatchWorkflowStep
     : WorkflowStep<CardScanContext>
 {
-    private readonly
-        IScryfallService
+    private readonly IScryfallService
         _scryfallService;
 
     public override string Name =>
@@ -26,27 +25,33 @@ public sealed class ScryfallMatchWorkflowStep
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(
-            context.State.OpenAiResult);
-        Console.WriteLine(
-            $"AI Name: [{context.State.OpenAiResult?.Name}]");
+        if (string.IsNullOrWhiteSpace(
+                context.State.CardName))
+        {
+            return;
+        }
 
         Console.WriteLine(
-            $"AI Set: [{context.State.OpenAiResult?.SetCode}]");
+            $"CARD NAME: [{context.State.CardName}]");
 
         Console.WriteLine(
-            $"AI Collector: [{context.State.OpenAiResult?.CollectorNumber}]");
+            $"SET CODE: [{context.State.SetCode}]");
+
+        Console.WriteLine(
+            $"COLLECTOR: [{context.State.CollectorNumber}]");
+
         var match =
-            await _scryfallService
-                .SearchAsync(
-                    context.State.OpenAiResult,
-                    cancellationToken);
+            await _scryfallService.SearchAsync(
+                context.State.CardName,
+                context.State.SetCode,
+                context.State.CollectorNumber,
+                cancellationToken);
 
         if (match?.BestMatch is null)
         {
-            throw new InvalidOperationException(
-                $"No Scryfall match found for '{context.State.OpenAiResult?.Name}'.");
+            return;
         }
+
         context.State.Candidates =
         [
             new CardCandidateViewModel
@@ -71,10 +76,10 @@ public sealed class ScryfallMatchWorkflowStep
 
                 Confidence =
                     context.State
-                        .OpenAiResult?
-                        .Confidence ?? 0
+                        .IdentificationConfidence
             }
         ];
+
         context.State.ScryfallMatchResult =
             new ScryfallMatchResult
             {
@@ -105,6 +110,10 @@ public sealed class ScryfallMatchWorkflowStep
                 UsdFoilPrice =
                     match.BestMatch.UsdFoilPrice
             };
+
+        context.State.HasConfirmedMatch =
+            true;
+
         Console.WriteLine(
             $"CARD: {match.BestMatch.Name}");
 

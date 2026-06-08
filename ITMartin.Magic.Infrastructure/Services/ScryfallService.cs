@@ -1,6 +1,4 @@
 ﻿using System.Net.Http.Json;
-using System.Text.Json.Serialization;
-using ITMartin.Ai.Models;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
 
@@ -20,37 +18,37 @@ public sealed class ScryfallService
     }
 
     public async Task<CardSearchResult?>
-    SearchAsync(
-        MagicCardAnalysisResult magicCardAnalysisResult,
+        SearchAsync(
+            string? cardName,
+            string? setCode,
+            string? collectorNumber,
+            
         CancellationToken cancellationToken)
 {
-    if (string.IsNullOrWhiteSpace(
-            magicCardAnalysisResult.Name))
+    if (string.IsNullOrWhiteSpace(cardName))
     {
         return null;
     }
 
     Console.WriteLine(
-        $"AI Name: [{magicCardAnalysisResult.Name}]");
+        $"AI Name: [{cardName}]");
 
     Console.WriteLine(
-        $"AI Set: [{magicCardAnalysisResult.SetCode}]");
+        $"AI Set: [{setCode}]");
 
     Console.WriteLine(
-        $"AI Collector: [{magicCardAnalysisResult.CollectorNumber}]");
+        $"AI Collector: [{collectorNumber}]");
 
     // ==================================================
     // 1. Exact printing lookup (Set + Collector Number)
     // ==================================================
 
-    if (!string.IsNullOrWhiteSpace(
-            magicCardAnalysisResult.SetCode)
-        && !string.IsNullOrWhiteSpace(
-            magicCardAnalysisResult.CollectorNumber))
+    if (!string.IsNullOrWhiteSpace(setCode)
+        && !string.IsNullOrWhiteSpace(collectorNumber))
     {
         var exactResponse =
             await _httpClient.GetAsync(
-                $"cards/{magicCardAnalysisResult.SetCode.ToLowerInvariant()}/{magicCardAnalysisResult.CollectorNumber}",
+                $"cards/{setCode.ToLowerInvariant()}/{collectorNumber}",
                 cancellationToken);
 
         if (exactResponse.IsSuccessStatusCode)
@@ -64,13 +62,12 @@ public sealed class ScryfallService
             if (exactDto is not null)
             {
                 if (!string.Equals(
-                        exactDto.Name,
-                        magicCardAnalysisResult.Name,
+                        exactDto.Name,cardName,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     Console.WriteLine(
                         $"Collector number mismatch. " +
-                        $"AI=[{magicCardAnalysisResult.Name}] " +
+                        $"AI=[{cardName}] " +
                         $"SCRYFALL=[{exactDto.Name}]");
 
                     exactDto = null;
@@ -92,11 +89,11 @@ public sealed class ScryfallService
     // ==================================================
 
     if (!string.IsNullOrWhiteSpace(
-            magicCardAnalysisResult.SetCode))
+            setCode))
     {
         var searchResponse =
             await _httpClient.GetAsync(
-                $"cards/search?q=!\"{Uri.EscapeDataString(magicCardAnalysisResult.Name)}\"+set:{magicCardAnalysisResult.SetCode.ToLowerInvariant()}",
+                $"cards/search?q=!\"{Uri.EscapeDataString(cardName)}\"+set:{setCode.ToLowerInvariant()}",
                 cancellationToken);
 
         if (searchResponse.IsSuccessStatusCode)
@@ -129,7 +126,7 @@ public sealed class ScryfallService
     // ==================================================
 
     var name =
-        magicCardAnalysisResult.Name.Trim();
+        cardName.Trim();
 
     var response =
         await _httpClient.GetAsync(

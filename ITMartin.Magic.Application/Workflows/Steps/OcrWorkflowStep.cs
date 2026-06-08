@@ -34,17 +34,9 @@ public sealed class OcrWorkflowStep
         CancellationToken cancellationToken = default)
     {
         var imagePath =
-            context.State.PerspectiveCorrectedImagePath
-            ?? context.State.DetectedCardImagePath
+            context.State.DetectedCardImagePath
             ?? context.State.ImagePath;
-        if (context.State.FrameType ==
-            MagicCardFrameType.OldBorder)
-        {
-            Console.WriteLine(
-                "Skipping OCR for old border card");
-
-            return;
-        }
+        
         Console.WriteLine(
             $"INPUT IMAGE: {context.State.ImagePath}");
         var ocrRegionResult =
@@ -61,5 +53,40 @@ public sealed class OcrWorkflowStep
                 .ExtractTextAsync(
                     ocrRegionResult,
                     cancellationToken);
+        var title =
+            context.State.OcrResult?
+                .Regions
+                .FirstOrDefault(x =>
+                    x.RegionName == "title");
+
+        var set =
+            context.State.OcrResult?
+                .Regions
+                .FirstOrDefault(x =>
+                    x.RegionName == "set");
+
+        var bottom =
+            context.State.OcrResult?
+                .Regions
+                .FirstOrDefault(x =>
+                    x.RegionName == "bottom");
+        
+        context.State.CardName =
+            title?.Text;
+
+        context.State.SetCode =
+            set?.Text;
+
+        context.State.IdentificationConfidence =
+            (decimal)(title?.Confidence ?? 0);
+        
+        Console.WriteLine(
+            $"OCR TITLE: [{title?.Text}]");
+
+        Console.WriteLine(
+            $"OCR SET: [{set?.Text}]");
+
+        Console.WriteLine(
+            $"OCR BOTTOM: [{bottom?.Text}]");
     }
 }

@@ -36,18 +36,7 @@ public static class DependencyInjection
         // =========================
 
         services.AddScoped<
-            DetectCardWorkflowStep>();
-
-        services.AddScoped<
-            PerspectiveCorrectionWorkflowStep>();
-
-        services.AddScoped<
-            BlurDetectionWorkflowStep>();
-
-        services.AddScoped<
             OcrWorkflowStep>();
-        services.AddScoped<
-            ClassifyFrameWorkflowStep >();
 
         services.AddScoped<
             AiCardRecognitionWorkflowStep>();

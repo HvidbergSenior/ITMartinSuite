@@ -27,10 +27,12 @@ public sealed class UpdateCollectionWorkflowStep
         CancellationToken cancellationToken = default)
     {
         var match =
-            context.State.ScryfallMatchResult
-            ?? throw new InvalidOperationException(
-                "Missing Scryfall match.");
-
+            context.State.ScryfallMatchResult;
+        
+        if (context.State.ScryfallMatchResult is null)
+        {
+            return;
+        }
         var cards =
             await _repository.GetAllAsync(
                 cancellationToken);

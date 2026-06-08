@@ -25,9 +25,13 @@ public sealed class SaveMagicCardWorkflowStep
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
+        
         var match =
             context.State.ScryfallMatchResult;
-
+        if (match is null)
+        {
+            return;
+        }
         var condition =
             context.State.ConditionResult;
 
@@ -66,8 +70,7 @@ public sealed class SaveMagicCardWorkflowStep
 
                 CreatedAt =
                     DateTime.UtcNow,
-                NormalizedImagePath =
-                    context.State.PerspectiveCorrectedImagePath,
+                
             };
 
         await _repository.SaveAsync(

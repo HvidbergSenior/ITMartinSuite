@@ -28,9 +28,12 @@ public sealed class AiCardRecognitionWorkflowStep
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
+        if (context.State.HasConfirmedMatch)
+        {
+            return;
+        }
         var imagePath =
-            context.State.PerspectiveCorrectedImagePath
-            ?? context.State.DetectedCardImagePath
+            context.State.DetectedCardImagePath
             ?? context.State.ImagePath;
 
         var detectionResult =
@@ -52,16 +55,17 @@ public sealed class AiCardRecognitionWorkflowStep
 
         context.State.OpenAiResult =
             result;
+        context.State.CardName =
+            result.Name;
 
-        context.State.FrameType =
-            result.OldBorder
-                ? MagicCardFrameType.OldBorder
-                : result.WhiteBorder
-                    ? MagicCardFrameType.WhiteBorder
-                    : MagicCardFrameType.Modern;
+        context.State.SetCode =
+            result.SetCode;
 
-        Console.WriteLine(
-            $"FRAME TYPE: [{context.State.FrameType}]");
+        context.State.CollectorNumber =
+            result.CollectorNumber;
+
+        context.State.IdentificationConfidence =
+            result.Confidence;
 
         Console.WriteLine(
             $"OPENAI RESULT: {JsonSerializer.Serialize(result)}");

@@ -1,5 +1,4 @@
-﻿using ITMartin.Magic.Application.Interfaces;
-using ITMartin.Magic.Application.Models;
+﻿using ITMartin.Magic.Application.Models;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Models;
 using OpenCvSharp;
@@ -9,76 +8,42 @@ namespace ITMartin.Magic.Infrastructure.Services;
 public sealed class OpenCvMagicCardOcrRegionExtractor
     : IOcrRegionExtractor
 {
-    private readonly
-        ICardLayoutDetectionService
-        _layoutDetectionService;
-
-    public OpenCvMagicCardOcrRegionExtractor(
-        ICardLayoutDetectionService layoutDetectionService)
-    {
-        _layoutDetectionService =
-            layoutDetectionService;
-    }
-
     public Task<OcrRegionResult?> ExtractAsync(
-        string normalizedCardPath, CancellationToken cancellationToken)
+        string normalizedCardPath,
+        CancellationToken cancellationToken)
     {
         var result =
-            Extract(normalizedCardPath, cancellationToken);
+            Extract(
+                normalizedCardPath,
+                cancellationToken);
 
         return Task.FromResult(result);
     }
 
     private OcrRegionResult? Extract(
-    string normalizedCardPath,
-    CancellationToken cancellationToken)
-{
-    using var image =
-        Cv2.ImRead(
-            normalizedCardPath,
-            ImreadModes.Color);
-
-    if (image.Empty())
+        string normalizedCardPath,
+        CancellationToken cancellationToken)
     {
-        return null;
-    }
-
-    var width =
-        image.Width;
-
-    var height =
-        image.Height;
-
-    var layoutType =
-        _layoutDetectionService
-            .DetectAsync(
+        using var image =
+            Cv2.ImRead(
                 normalizedCardPath,
-                cancellationToken)
-            .Result;
+                ImreadModes.Color);
 
-    Rect titleRect;
-    Rect bottomRect;
-    Rect setRect;
+        if (image.Empty())
+        {
+            return null;
+        }
 
-    if (layoutType ==
-        CardLayoutType.OldBorder)
-    {
-        titleRect =
-            OldBorderOcrRegions.Title;
+        var width =
+            image.Width;
 
-        bottomRect =
-            OldBorderOcrRegions.BottomInfo;
-        
-        setRect =
-            OldBorderOcrRegions.SetArea;
-    }
-    else
-    {
+        var height =
+            image.Height;
+
         var profile =
-            OcrGeometryProfiles
-                .Get(layoutType);
+            OcrGeometryProfiles.Modern;
 
-        titleRect =
+        var titleRect =
             CreateRect(
                 width,
                 height,
@@ -87,7 +52,7 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
                 profile.TitleWidth,
                 profile.TitleHeight);
 
-        bottomRect =
+        var bottomRect =
             CreateRect(
                 width,
                 height,
@@ -95,8 +60,8 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
                 profile.BottomY,
                 profile.BottomWidth,
                 profile.BottomHeight);
-        
-        setRect =
+
+        var setRect =
             CreateRect(
                 width,
                 height,
@@ -104,87 +69,82 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
                 profile.SetY,
                 profile.SetWidth,
                 profile.SetHeight);
-    }
 
-    var folder =
-        Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "data",
-            "ocr");
+        var folder =
+            Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "data",
+                "ocr");
 
-    Directory.CreateDirectory(
-        folder);
+        Directory.CreateDirectory(
+            folder);
 
-    Console.WriteLine(
-        $"Image: {width}x{height}");
+        Console.WriteLine(
+            $"Image: {width}x{height}");
 
-    Console.WriteLine(
-        $"TITLE RECT: {titleRect}");
+        Console.WriteLine(
+            $"TITLE RECT: {titleRect}");
 
-    Console.WriteLine(
-        $"BOTTOM RECT: {bottomRect}");
+        Console.WriteLine(
+            $"BOTTOM RECT: {bottomRect}");
 
-    Console.WriteLine(
-        $"SET RECT: {setRect}");
+        Console.WriteLine(
+            $"SET RECT: {setRect}");
 
-    using var debug =
-        image.Clone();
+        using var debug =
+            image.Clone();
 
-    Cv2.Rectangle(
-        debug,
-        titleRect,
-        Scalar.Red,
-        6);
+        Cv2.Rectangle(
+            debug,
+            titleRect,
+            Scalar.Red,
+            6);
 
-    Cv2.Rectangle(
-        debug,
-        bottomRect,
-        Scalar.Blue,
-        6);
+        Cv2.Rectangle(
+            debug,
+            bottomRect,
+            Scalar.Blue,
+            6);
 
-    if (layoutType !=
-        CardLayoutType.OldBorder)
-    {
         Cv2.Rectangle(
             debug,
             setRect,
             Scalar.Yellow,
             6);
+
+        Cv2.ImWrite(
+            Path.Combine(
+                folder,
+                "ocr_regions.jpg"),
+            debug);
+
+        return new OcrRegionResult
+        {
+            TitleImagePath =
+                SaveCrop(
+                    image,
+                    titleRect,
+                    folder,
+                    "title"),
+
+            BottomInfoImagePath =
+                SaveCrop(
+                    image,
+                    bottomRect,
+                    folder,
+                    "bottom"),
+
+            SetCodeImagePath =
+                SaveCrop(
+                    image,
+                    setRect,
+                    folder,
+                    "set"),
+
+            FullCardImagePath =
+                normalizedCardPath
+        };
     }
-
-    Cv2.ImWrite(
-        Path.Combine(
-            folder,
-            "ocr_regions.jpg"),
-        debug);
-
-    return new OcrRegionResult
-    {
-        TitleImagePath =
-            SaveCrop(
-                image,
-                titleRect,
-                folder,
-                "title"),
-
-        BottomInfoImagePath =
-            SaveCrop(
-                image,
-                bottomRect,
-                folder,
-                "bottom"),
-
-        SetCodeImagePath =
-            SaveCrop(
-                image,
-                setRect,
-                folder,
-                "set"),
-
-        FullCardImagePath =
-            normalizedCardPath
-    };
-}
 
     private static Rect CreateRect(
         int width,

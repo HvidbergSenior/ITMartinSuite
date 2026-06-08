@@ -26,10 +26,13 @@ public sealed class CardConditionWorkflowStep
         CancellationToken cancellationToken = default)
     {
         var match =
-            context.State.ScryfallMatchResult
-            ?? throw new InvalidOperationException(
-                "Missing Scryfall match.");
+            context.State.ScryfallMatchResult;
 
+        if (match is null)
+        {
+            return;
+        }
+        
         Console.WriteLine(
             $"Analyzing condition for {match.Name}");
 

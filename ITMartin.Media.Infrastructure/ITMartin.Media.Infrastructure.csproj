@@ -35,9 +35,5 @@
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
-    <ItemGroup>
-      <Folder Include="Ai\" />
-      <Folder Include="Logging\" />
-    </ItemGroup>
 
 </Project>
