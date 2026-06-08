@@ -3,6 +3,7 @@
     using ITMartin.Media.Application.Abstractions.Runtime;
     using ITMartin.Media.Application.Abstractions.Scanning;
     using ITMartin.Media.Application.Interfaces;
+    using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
     using ITMartin.Media.Application.Pipelines.Package1.Services;
     using ITMartin.Media.Application.Pipelines.Package2.Clients;
     using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
@@ -57,6 +58,10 @@
         Package2Client>();
     builder.Services.AddScoped<
         Package1ManifestWriter>();
+    builder.Services.AddScoped<
+        Package1WorkflowRunner>();
+    builder.Services.AddScoped<
+        Package2WorkflowRunner>();
     builder.Services.AddScoped<
         Package2WorkflowOrchestrator>();
     builder.Services.AddScoped<

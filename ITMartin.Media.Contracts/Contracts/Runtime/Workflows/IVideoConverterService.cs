@@ -2,7 +2,9 @@
 
 public interface IVideoConverterService
 {
-    Task<string?> ConvertToUniversalMp4Async(
+    Task<string> ConvertToUniversalMp4Async(
         string inputPath,
-        string outputFolder);
+        string outputDirectory,
+        Action<double>? onProgress = null,
+        CancellationToken cancellationToken = default);
 }

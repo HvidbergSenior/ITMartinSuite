@@ -7,17 +7,17 @@ namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
 public class VideoBatchService : IVideoBatchService
 {
-    private readonly VideoConverterService
-        _converter;
+    private readonly IVideoConverterService
+        _videoConverterService;
 
     private readonly ILogger<VideoBatchService>
         _logger;
 
     public VideoBatchService(
-        VideoConverterService converter,
+        IVideoConverterService videoConverterService,
         ILogger<VideoBatchService> logger)
     {
-        _converter = converter;
+        _videoConverterService = videoConverterService;
         _logger = logger;
     }
 
@@ -58,7 +58,7 @@ public class VideoBatchService : IVideoBatchService
                     file.FileName);
 
                 var output =
-                    await _converter
+                    await _videoConverterService
                         .ConvertToUniversalMp4Async(
                             file.NormalizedPath ??
                             file.FullPath,

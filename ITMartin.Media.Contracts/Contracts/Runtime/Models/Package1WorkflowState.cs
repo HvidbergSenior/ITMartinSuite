@@ -20,4 +20,5 @@ public sealed class Package1WorkflowState
         get;
         init;
     }
+    public bool EnableSegmentation { get; set; } = false;
 }

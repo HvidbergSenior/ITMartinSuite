@@ -1,8 +1,9 @@
 ﻿using System.Diagnostics;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
-public class VideoConverterService
+public class VideoConverterService : IVideoConverterService
 {
     private readonly string _ffmpegPath;
 

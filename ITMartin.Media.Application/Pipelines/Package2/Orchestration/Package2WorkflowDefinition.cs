@@ -15,8 +15,6 @@ public sealed class Package2WorkflowDefinition
 
     public Package2WorkflowDefinition(
     RestorationPreparationWorkflowStep restorationPreparationWorkflowStep,
-    VideoSplitWorkflowStep
-        videoSplitWorkflowStep,
     // SAMPLE GENERATION
     VideoSampleGenerationWorkflowStep videoSampleGenerationWorkflowStep,
 
@@ -64,7 +62,6 @@ public sealed class Package2WorkflowDefinition
     [
         // PREP
         restorationPreparationWorkflowStep,
-        videoSplitWorkflowStep,
         // SAMPLE GENERATION
         videoSampleGenerationWorkflowStep,
 

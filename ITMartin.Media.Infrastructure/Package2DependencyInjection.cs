@@ -1,6 +1,7 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Services.Steps.NormalizationStep;
 using ITMartin.Media.Contracts.Configuration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
@@ -48,9 +49,6 @@ public static class Package2DependencyInjection
         // =========================
 
         services.AddScoped<
-            Hi8PipelineRunner>();
-
-        services.AddScoped<
             IVideoEnhancementService,
             FfmpegVideoProcessingService>();
         services.AddScoped<
@@ -68,7 +66,9 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IImageEnhancementService,
             ImageProcessingService>();
-
+        services.AddScoped<
+            IImageEnhancementService,
+            ImageProcessingService>();
         services.AddScoped<
             IThumbnailService,
             ThumbnailService>();
@@ -93,8 +93,7 @@ public static class Package2DependencyInjection
 
         services.AddScoped<
             RestorationPreparationWorkflowStep>();
-        services.AddScoped<
-            VideoSplitWorkflowStep>();
+       
         services.AddScoped<
             VideoRenderWorkflowStep>();
         services.AddScoped<
@@ -186,10 +185,21 @@ public static class Package2DependencyInjection
 
         services.AddScoped<
             Manifest2BuildWorkflowStep>();
-
+        services.AddScoped<
+            IVideoSegmentThumbnailService,
+            VideoSegmentThumbnailService>();
+        services.AddScoped<
+            IVideoBatchService,
+            VideoBatchService>();
+        services.AddScoped<
+            IVideoConverterService,
+            VideoConverterService>();
+        services.AddScoped<
+            IVideoSegmentationService,
+            VideoSegmentationService>();
         services.AddScoped<
             ExportEnhancedAssetsWorkflowStep>();
-
+       
         return services;
     }
 }

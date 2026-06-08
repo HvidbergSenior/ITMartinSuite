@@ -43,6 +43,14 @@ public sealed class VideoSegmentationWorkflowStep
             ?? throw new InvalidOperationException(
                 "Invalid workflow state");
 
+        if (!state.EnableSegmentation)
+        {
+            _logger.LogInformation(
+                "Video segmentation disabled");
+
+            return;
+        }
+
         var files =
             state.MediaFiles
                 .Where(x => x.IsVideo)
