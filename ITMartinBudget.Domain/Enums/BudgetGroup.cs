@@ -61,11 +61,7 @@ public enum BudgetGroup
     VibzSavings = 29,
     Forsikring = 33,
     FagforeningAKasse = 36,
-
-    // Work
-
-    WorkExpense = 24,
-
+    
     // Misc
 
     Subscriptions = 25,

@@ -9,13 +9,13 @@ public static class ElectronicsRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        WorkExpense(
+        GeneralShopping(
             "proshop",
             "Proshop",
             Category.Elektronik,
             ComparingType.Contains),
 
-        WorkExpense(
+        GeneralShopping(
             "elgiganten",
             "Elgiganten",
             Category.Elektronik,
@@ -39,19 +39,19 @@ public static class ElectronicsRules
             Category.Elektronik,
             ComparingType.Contains),
 
-        WorkExpense(
+        GeneralShopping(
             "av cable",
             "AV-Cables",
             Category.Elektronik,
             ComparingType.Contains),
 
-        WorkExpense(
+        GeneralShopping(
             "computersalg",
             "ComputerSalg",
             Category.Elektronik,
             ComparingType.Contains),
 
-        WorkExpense(
+        GeneralShopping(
             "komplett",
             "Komplett",
             Category.Elektronik,

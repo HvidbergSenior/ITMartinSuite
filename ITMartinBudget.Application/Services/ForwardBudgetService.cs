@@ -2,6 +2,7 @@
 using ITMartinBudget.Application.Interfaces;
 using ITMartinBudget.Application.Models;
 using ITMartinBudget.Domain.Entities;
+using ITMartinBudget.Domain.Enums;
 
 namespace ITMartinBudget.Application.Services;
 
@@ -42,13 +43,24 @@ public sealed class ForwardBudgetService
             model,
             transactions);
 
+        BuildSemiAdjustableGroups(model, transactions);
+        BuildIgnoredGroups(
+            model,
+            transactions);
         model.AdjustableMonthlyExpenses =
-            model.AdjustableGroups.Sum(
-                x => x.Last3MonthsAverage);
-
+            model.AdjustableGroups.Sum(x => x.MonthlyAverage)
+            + model.RecurringAdjustableExpenses.Sum(x => x.MonthlyAmount);
         return model;
     }
-
+    private static void BuildIgnoredGroups(
+        ForwardBudgetViewModel model,
+        IEnumerable<BankTransaction> transactions)
+    {
+        model.IgnoredGroups =
+            BuildBudgetGroups(
+                transactions,
+                BudgetGroupType.Ignore);
+    }
     private static void BuildIncome(
         ForwardBudgetViewModel model,
         IEnumerable<BankTransaction> transactions)
@@ -56,18 +68,26 @@ public sealed class ForwardBudgetService
         var incomes =
             transactions
                 .Where(x =>
-                    x.BudgetGroup.IsFixedIncome())
+                    x.BudgetGroup.GetBudgetGroupType() ==
+                    BudgetGroupType.FixedIncome)
                 .Where(x =>
-                    x.Date >= DateTime.Today.AddMonths(-2))
+                    !string.Equals(
+                        x.Title,
+                        "AutoproffLøn",
+                        StringComparison.OrdinalIgnoreCase))
                 .GroupBy(x =>
                     x.Title)
                 .Select(x =>
                     new IncomeItemViewModel
                     {
                         Title = x.Key,
+
                         ExpectedAmount =
-                            x.Min(y =>
-                                Math.Abs(y.Amount))
+                            Math.Abs(
+                                x.OrderByDescending(y =>
+                                        y.Date)
+                                    .First()
+                                    .Amount)
                     })
                 .OrderByDescending(x =>
                     x.ExpectedAmount)
@@ -81,105 +101,16 @@ public sealed class ForwardBudgetService
                 x.ExpectedAmount);
     }
 
-    private static void BuildFixedExpenses(
-        ForwardBudgetViewModel model,
-        IEnumerable<BankTransaction> transactions)
-    {
-        var fixedExpenses =
-            transactions
-                .Where(x =>
-                    x.BudgetGroup.IsMandatoryExpense())
-                .GroupBy(x =>
-                    x.Title)
-                .Select(x =>
-                    new FixedExpenseViewModel
-                    {
-                        Title = x.Key,
-
-                        MonthlyAmount =
-                            Math.Abs(
-                                x.OrderByDescending(y =>
-                                        y.Date)
-                                    .First()
-                                    .Amount),
-
-                        RecurringIntervalMonths =
-                            x.Max(y =>
-                                y.RecurringIntervalMonths)
-                    })
-                .OrderByDescending(x =>
-                    x.MonthlyAmount)
-                .ToList();
-
-        model.FixedExpenses =
-            fixedExpenses;
-
-        model.FixedMonthlyExpenses =
-            fixedExpenses.Sum(x =>
-                x.MonthlyAmount);
-    }
+    
 
     private static void BuildAdjustableGroups(
         ForwardBudgetViewModel model,
         IEnumerable<BankTransaction> transactions)
     {
-        var now =
-            DateTime.Today;
-
         model.AdjustableGroups =
-            transactions
-                .Where(x =>
-                    x.BudgetGroup.IsAdjustable())
-                .GroupBy(x =>
-                    x.BudgetGroup)
-                .Select(x =>
-                {
-                    var items =
-                        x.ToList();
-
-                    return new AdjustableBudgetGroupViewModel
-                    {
-                        BudgetGroup = x.Key,
-
-                        LastMonthAmount =
-                            Math.Abs(
-                                items
-                                    .Where(y =>
-                                        y.Date >= now.AddMonths(-1))
-                                    .Sum(y =>
-                                        y.Amount)),
-
-                        Last3MonthsAverage =
-                            Math.Abs(
-                                items
-                                    .Where(y =>
-                                        y.Date >= now.AddMonths(-3))
-                                    .Sum(y =>
-                                        y.Amount) / 3m),
-
-                        Last12MonthsAverage =
-                            Math.Abs(
-                                items
-                                    .Where(y =>
-                                        y.Date >= now.AddMonths(-12))
-                                    .Sum(y =>
-                                        y.Amount) / 12m),
-
-                        CurrentYearTotal =
-                            Math.Abs(
-                                items
-                                    .Where(y =>
-                                        y.Date.Year == now.Year)
-                                    .Sum(y =>
-                                        y.Amount)),
-
-                        TransactionCount =
-                            items.Count
-                    };
-                })
-                .OrderByDescending(x =>
-                    x.CurrentYearTotal)
-                .ToList();
+            BuildBudgetGroups(
+                transactions,
+                BudgetGroupType.Adjustable);
     }
     private static void BuildMandatoryExpenses(
         ForwardBudgetViewModel model,
@@ -188,8 +119,8 @@ public sealed class ForwardBudgetService
         var expenses =
             transactions
                 .Where(x =>
-                    x.BudgetGroup
-                        .IsMandatoryExpense())
+                    x.BudgetGroup.GetBudgetGroupType() ==
+                    BudgetGroupType.MandatoryExpense)
                 .GroupBy(x =>
                     x.Title)
                 .Select(x =>
@@ -232,12 +163,29 @@ public sealed class ForwardBudgetService
         model.RecurringAdjustableExpenses =
             transactions
                 .Where(x =>
-                    x.BudgetGroup
-                        .IsRecurringAdjustable())
+                    x.BudgetGroup.GetBudgetGroupType() ==
+                    BudgetGroupType.RecurringAdjustable)
                 .GroupBy(x =>
                     x.Title)
                 .Select(x =>
                 {
+                    var latestMonth =
+                        x.Max(y =>
+                            new DateTime(
+                                y.Date.Year,
+                                y.Date.Month,
+                                1));
+
+                    var monthTotal =
+                        Math.Abs(
+                            x.Where(y =>
+                                    y.Date.Year ==
+                                    latestMonth.Year &&
+                                    y.Date.Month ==
+                                    latestMonth.Month)
+                                .Sum(y =>
+                                    y.Amount));
+
                     var latest =
                         x.OrderByDescending(y =>
                                 y.Date)
@@ -248,8 +196,7 @@ public sealed class ForwardBudgetService
                         Title = x.Key,
 
                         MonthlyAmount =
-                            Math.Abs(
-                                latest.Amount) /
+                            monthTotal /
                             Math.Max(
                                 1,
                                 latest.RecurringIntervalMonths),
@@ -262,4 +209,115 @@ public sealed class ForwardBudgetService
                     x.MonthlyAmount)
                 .ToList();
     }
+    private static void BuildSemiAdjustableGroups(
+        ForwardBudgetViewModel model,
+        IEnumerable<BankTransaction> transactions)
+    {
+        model.SemiAdjustableGroups =
+            BuildBudgetGroups(
+                transactions,
+                BudgetGroupType.SemiAdjustable);
+    }
+    private static List<AdjustableBudgetGroupViewModel>
+    BuildBudgetGroups(
+        IEnumerable<BankTransaction> transactions,
+        BudgetGroupType budgetGroupType)
+{
+    var now =
+        DateTime.Today;
+
+    var relevantTransactions =
+        transactions
+            .Where(x =>
+                x.BudgetGroup.GetBudgetGroupType() ==
+                budgetGroupType)
+            .ToList();
+
+    if (!relevantTransactions.Any())
+    {
+        return [];
+    }
+
+    var csvStartDate =
+        relevantTransactions.Min(x =>
+            x.Date);
+
+    var csvEndDate =
+        relevantTransactions.Max(x =>
+            x.Date);
+
+    var csvMonthCount =
+        ((csvEndDate.Year - csvStartDate.Year) * 12)
+        + csvEndDate.Month
+        - csvStartDate.Month
+        + 1;
+
+    return relevantTransactions
+        .GroupBy(x =>
+            x.BudgetGroup)
+        .Select(x =>
+        {
+            var items =
+                x.ToList();
+
+            var monthlyAverage =
+                items.Sum(y =>
+                {
+                    if (y.RecurringIntervalMonths > 0)
+                    {
+                        return Math.Abs(y.Amount)
+                               / y.RecurringIntervalMonths;
+                    }
+
+                    return Math.Abs(y.Amount)
+                           / Math.Max(
+                               1,
+                               csvMonthCount);
+                });
+
+            return new AdjustableBudgetGroupViewModel
+            {
+                BudgetGroup =
+                    x.Key,
+
+                MonthlyAverage =
+                    monthlyAverage,
+
+                CurrentYearTotal =
+                    Math.Abs(
+                        items
+                            .Where(y =>
+                                y.Date.Year ==
+                                now.Year)
+                            .Sum(y =>
+                                y.Amount)),
+
+                TransactionCount =
+                    items.Count,
+
+                RecentTransactions =
+                    items
+                        .OrderByDescending(y =>
+                            y.Date)
+                        .Take(10)
+                        .Select(y =>
+                            new TransactionSummaryViewModel
+                            {
+                                Date =
+                                    y.Date,
+
+                                Title =
+                                    y.Title,
+
+                                Amount =
+                                    Math.Abs(
+                                        y.Amount)
+                            })
+                        .ToList()
+            };
+        })
+        .OrderByDescending(x =>
+            x.MonthlyAverage)
+        .ToList();
+}
 }

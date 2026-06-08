@@ -53,12 +53,6 @@ public static class TransactionRules
         ..CafeRules.Items,
 
         // =====================================
-        // MobilePay
-        // =====================================
-
-        ..MobilePayRules.Items,
-
-        // =====================================
         // Transport
         // =====================================
 
@@ -93,7 +87,6 @@ public static class TransactionRules
         // Family / Kids / Pets
         // =====================================
 
-        ..WorkExpenseRules.Items,
         ..PetsRules.Items,
         ..GiftRules.Items,
 

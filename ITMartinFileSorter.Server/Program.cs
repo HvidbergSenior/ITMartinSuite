@@ -8,7 +8,6 @@ using ITMartin.Media.Application.Pipelines.Package1.Clients;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Clients;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
-using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
 using ITMartin.Media.Application.Services.Steps.NormalizationStep;
@@ -94,10 +93,6 @@ builder.Services.AddScoped<
     DuplicateService>();
 
 builder.Services.AddScoped<
-    IMediaNamingService,
-    MediaNamingService>();
-
-builder.Services.AddScoped<
     ILibraryExportService,
     LibraryExportService>();
 
@@ -134,14 +129,6 @@ builder.Services.AddScoped<
 // =========================
 // AI
 // =========================
-
-builder.Services.AddScoped<
-    IMediaVisionService,
-    MediaVisionService>();
-
-builder.Services.AddScoped<
-    IAiCollectionService,
-    AiCollectionService>();
 
 builder.Services.AddScoped<
     IAiCacheService,

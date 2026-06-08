@@ -75,18 +75,6 @@ builder.Services.AddScoped<
 // =========================
 
 builder.Services.AddScoped<
-    ICardLayoutDetectionService,
-    CardLayoutDetectionService>();
-
-builder.Services.AddScoped<
-    ICardCornerDetectionService,
-    OpenCvCardCornerDetectionService>();
-
-builder.Services.AddScoped<
-    IPerspectiveCorrectionService,
-    OpenCvPerspectiveCorrectionService>();
-
-builder.Services.AddScoped<
     IBlurDetectionService,
     OpenCvBlurDetectionService>();
 

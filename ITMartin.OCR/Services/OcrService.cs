@@ -26,29 +26,11 @@ public sealed class OcrService
 
                 Console.WriteLine(
                     $"SET FILE: {regions.SetCodeImagePath}");
-
-                Console.WriteLine(
-                    $"ARTIST FILE: {regions.ArtistImagePath}");
-
-                Console.WriteLine(
-                    $"BOTTOM FILE: {regions.BottomInfoImagePath}");
                 var title =
                     ReadRegion(
                         engine,
                         regions.TitleImagePath,
-                        PageSegMode.SingleLine);
-
-                var artist =
-                    ReadRegion(
-                        engine,
-                        regions.ArtistImagePath,
-                        PageSegMode.SingleLine);
-
-                var bottom =
-                    ReadRegion(
-                        engine,
-                        regions.BottomInfoImagePath,
-                        PageSegMode.Auto);
+                        PageSegMode.SingleWord);
 
                 var setCode =
                     ReadRegion(
@@ -56,67 +38,40 @@ public sealed class OcrService
                         regions.SetCodeImagePath,
                         PageSegMode.SingleWord);
                 Console.WriteLine(
-                    $"OCR TITLE: [{title}]");
+                    $"OCR TITLE: [{title?.Text}]");
 
                 Console.WriteLine(
-                    $"OCR SET: [{setCode}]");
+                    $"OCR SET: [{setCode?.Text}]");
 
                 Console.WriteLine(
-                    $"OCR ARTIST: [{artist}]");
+                    $"OCR TITLE CONFIDENCE: {title?.Confidence}");
 
                 Console.WriteLine(
-                    $"OCR BOTTOM: [{bottom}]");
-
+                    $"OCR SET CONFIDENCE: {setCode?.Confidence}");
                 return new OcrResult
                 {
                     Regions =
                     [
                         new OcrTextRegionResult
                         {
-                            RegionName =
-                                "title",
+                            RegionName = "title",
 
                             Text =
-                                Clean(title),
+                                Clean(title?.Text),
 
                             Confidence =
-                                1.0
+                                title?.Confidence ?? 0
                         },
 
                         new OcrTextRegionResult
                         {
-                            RegionName =
-                                "set",
+                            RegionName = "set",
 
                             Text =
-                                Clean(setCode),
+                                Clean(setCode?.Text),
 
                             Confidence =
-                                1.0
-                        },
-
-                        new OcrTextRegionResult
-                        {
-                            RegionName =
-                                "artist",
-
-                            Text =
-                                Clean(artist),
-
-                            Confidence =
-                                1.0
-                        },
-
-                        new OcrTextRegionResult
-                        {
-                            RegionName =
-                                "bottom",
-
-                            Text =
-                                Clean(bottom),
-
-                            Confidence =
-                                1.0
+                                setCode?.Confidence ?? 0
                         }
                     ]
                 };
@@ -131,12 +86,11 @@ public sealed class OcrService
         });
     }
 
-    private static string? ReadRegion(
+    private static OcrReadResult? ReadRegion(
         TesseractEngine engine,
         string? path,
         PageSegMode mode)
     {
-        
         if (string.IsNullOrWhiteSpace(path))
         {
             return null;
@@ -158,17 +112,15 @@ public sealed class OcrService
 
         Console.WriteLine(
             $"HEIGHT: {image.Height}");
-        engine.SetVariable(
-            "tessedit_char_whitelist",
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-'");
+
         using var page =
             engine.Process(
                 image,
                 mode);
-        Console.WriteLine(
-            $"OCR CONFIDENCE: {page.GetMeanConfidence()}");
-        return page
-            .GetText();
+
+        return new OcrReadResult(
+            page.GetText()?.Trim(),
+            page.GetMeanConfidence());
     }
 
     private static string? Clean(

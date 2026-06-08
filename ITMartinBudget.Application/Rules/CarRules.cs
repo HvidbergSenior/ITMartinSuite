@@ -13,7 +13,7 @@ public static class CarRules
             "dmr",
             "Motorregister",
             Category.BilVedligehold,
-            ComparingType.Word)
+            ComparingType.Word, 6)
      
     ];
 }

@@ -5,19 +5,16 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Magic.Application.Workflows.Steps;
 
-public sealed class ScryfallMatchWorkflowStep
+public sealed class FinalScryfallMatchWorkflowStep
     : WorkflowStep<CardScanContext>
 {
-    private const float OcrConfidenceThreshold =
-        0.60f;
-
     private readonly IScryfallService
         _scryfallService;
 
     public override string Name =>
-        nameof(ScryfallMatchWorkflowStep);
+        nameof(FinalScryfallMatchWorkflowStep);
 
-    public ScryfallMatchWorkflowStep(
+    public FinalScryfallMatchWorkflowStep(
         IScryfallService scryfallService)
     {
         _scryfallService =
@@ -28,62 +25,6 @@ public sealed class ScryfallMatchWorkflowStep
         WorkflowExecutionContext<CardScanContext> context,
         CancellationToken cancellationToken = default)
     {
-        // =====================================
-        // OCR PATH
-        // =====================================
-
-        if (context.State.OpenAiResult is null)
-        {
-            var title =
-                context.State.OcrResult?
-                    .Regions
-                    .FirstOrDefault(
-                        x => x.RegionName == "title");
-
-            var set =
-                context.State.OcrResult?
-                    .Regions
-                    .FirstOrDefault(
-                        x => x.RegionName == "set");
-
-            if (title is null ||
-                set is null)
-            {
-                Console.WriteLine(
-                    "Skipping Scryfall - OCR regions missing");
-
-                return;
-            }
-
-            Console.WriteLine(
-                $"TITLE CONFIDENCE: {title.Confidence}");
-
-            Console.WriteLine(
-                $"SET CONFIDENCE: {set.Confidence}");
-
-            if (title.Confidence <
-                OcrConfidenceThreshold)
-            {
-                Console.WriteLine(
-                    "Skipping Scryfall - title confidence too low");
-
-                return;
-            }
-
-            if (set.Confidence <
-                OcrConfidenceThreshold)
-            {
-                Console.WriteLine(
-                    "Skipping Scryfall - set confidence too low");
-
-                return;
-            }
-        }
-
-        // =====================================
-        // IDENTIFICATION DATA
-        // =====================================
-
         if (string.IsNullOrWhiteSpace(
                 context.State.CardName))
         {
@@ -94,28 +35,11 @@ public sealed class ScryfallMatchWorkflowStep
             $"CARD NAME: [{context.State.CardName}]");
 
         Console.WriteLine(
+            $"SET CODE: [{context.State.SetCode}]");
+
+        Console.WriteLine(
             $"COLLECTOR: [{context.State.CollectorNumber}]");
 
-        if (context.State.OpenAiResult is not null)
-        {
-            Console.WriteLine(
-                $"AI ARTIST: [{context.State.OpenAiResult.Artist}]");
-
-            Console.WriteLine(
-                $"AI SYMBOL: [{context.State.OpenAiResult.VisibleSetSymbolDescription}]");
-
-            Console.WriteLine(
-                $"AI SYMBOL VISIBLE: [{context.State.OpenAiResult.SetSymbolVisible}]");
-
-            Console.WriteLine(
-                $"AI WHITE BORDER: [{context.State.OpenAiResult.WhiteBorder}]");
-
-            Console.WriteLine(
-                $"AI OLD BORDER: [{context.State.OpenAiResult.OldBorder}]");
-
-            Console.WriteLine(
-                $"AI COPYRIGHT: [{context.State.OpenAiResult.CopyrightYear}]");
-        }
         var match =
             await _scryfallService.SearchAsync(
                 context.State.CardName,

@@ -1,16 +1,12 @@
     using ITMartin.Media.Application.Abstractions.BackgroundJobs;
     using ITMartin.Media.Application.Abstractions.Events;
-    using ITMartin.Media.Application.Abstractions.Orchestration;
     using ITMartin.Media.Application.Abstractions.Runtime;
     using ITMartin.Media.Application.Abstractions.Scanning;
     using ITMartin.Media.Application.Interfaces;
-    using ITMartin.Media.Application.Pipelines.Package1;
-    using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
     using ITMartin.Media.Application.Pipelines.Package1.Services;
     using ITMartin.Media.Application.Pipelines.Package2.Clients;
     using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
     using ITMartin.Media.Application.Pipelines.Package2.Services;
-    using ITMartin.Media.Application.Services;
     using ITMartin.Media.Application.Services.Steps.DuplicationStep;
     using ITMartin.Media.Application.Services.Steps.ExportStep;
     using ITMartin.Media.Application.Services.Steps.NormalizationStep;
@@ -76,9 +72,6 @@
         ImageConverterService>();
     // RUNTIME
     // =========================
-    builder.Services.AddScoped<
-        IMediaNamingService,
-        MediaNamingService>();
     builder.Services.AddScoped<
         IScanSessionRepository,
         ScanSessionRepository>();

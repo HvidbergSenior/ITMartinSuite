@@ -13,22 +13,20 @@ public sealed class CardScanContext
     // =========================
     // GENERATED IMAGES
     // =========================
+    public string? CardName { get; set; }
 
+    public string? SetCode { get; set; }
+
+    public string? CollectorNumber { get; set; }
+
+    public decimal IdentificationConfidence { get; set; }
     public string? DetectedCardImagePath { get; set; }
-
-    public string? PerspectiveCorrectedImagePath { get; set; }
 
     // =========================
     // PIPELINE RESULTS
     // =========================
-    public MagicCardFrameType FrameType { get; set; } =
-        MagicCardFrameType.Unknown;
-    public CardLayoutType LayoutType { get; set; } =
-        CardLayoutType.Unknown;
 
     public CardDetectionResult? DetectionResult { get; set; }
-
-    public CardCornerDetectionResult? CardCornerResult { get; set; }
 
     public OcrRegionResult? OcrRegionResult { get; set; }
 
@@ -39,6 +37,7 @@ public sealed class CardScanContext
     public MagicCardAnalysisResult? OpenAiResult { get; set; }
 
     public ScryfallMatchResult? ScryfallMatchResult { get; set; }
+    public bool HasConfirmedMatch { get; set; }
 
     public CardScanResult? Result { get; set; }
 
@@ -64,6 +63,4 @@ public sealed class CardScanContext
     public List<CardCandidateViewModel>
         Candidates { get; set; } = [];
     
-    public decimal AiConfidence =>
-        OpenAiResult?.Confidence ?? 0;
 }

@@ -30,6 +30,12 @@
                         video: {
                             facingMode: {
                                 ideal: "environment"
+                            },
+                            width: {
+                                ideal: 1920
+                            },
+                            height: {
+                                ideal: 1080
                             }
                         },
 
@@ -42,7 +48,6 @@
             console.log(
                 "TRACK SETTINGS",
                 track.getSettings());
-
             this.video.srcObject =
                 this.stream;
 
@@ -94,32 +99,107 @@
         // CANVAS
         // =====================================
 
-        const canvas =
-            document.createElement("canvas");
-
-        const ctx =
-            canvas.getContext("2d");
-
         const width =
             this.video.videoWidth;
 
         const height =
             this.video.videoHeight;
 
-        canvas.width = width;
-        canvas.height = height;
+// =====================================
+// GUIDE RECTANGLE
+// =====================================
+
+        const videoRect =
+            this.video.getBoundingClientRect();
+
+        const guide =
+            document.querySelector(".scanner-guide");
+
+        const guideRect =
+            guide.getBoundingClientRect();
+
+        const scaleX =
+            this.video.videoWidth /
+            videoRect.width;
+
+        const scaleY =
+            this.video.videoHeight /
+            videoRect.height;
+
+        const guideX =
+            (guideRect.left - videoRect.left) *
+            scaleX;
+
+        const guideY =
+            (guideRect.top - videoRect.top) *
+            scaleY;
+
+        const guideWidth =
+            guideRect.width *
+            scaleX;
+
+        const guideHeight =
+            guideRect.height *
+            scaleY;
+// =====================================
+// CROP CARD
+// =====================================
+
+        const cropCanvas =
+            document.createElement("canvas");
+
+        const cropCtx =
+            cropCanvas.getContext("2d");
+
+        cropCanvas.width =
+            guideWidth;
+
+        cropCanvas.height =
+            guideHeight;
+
+        cropCtx.drawImage(
+            this.video,
+
+            guideX,
+            guideY,
+            guideWidth,
+            guideHeight,
+
+            0,
+            0,
+            guideWidth,
+            guideHeight);
 
         // =====================================
-        // DRAW FRAME
-        // =====================================
+// UPSCALE FOR OCR
+// =====================================
+
+        const scale = 4;
+
+        const canvas =
+            document.createElement("canvas");
+
+        const ctx =
+            canvas.getContext("2d");
+
+        canvas.width =
+            guideWidth * scale;
+
+        canvas.height =
+            guideHeight * scale;
+
+        ctx.imageSmoothingEnabled =
+            true;
+
+        ctx.imageSmoothingQuality =
+            "high";
 
         ctx.drawImage(
-            this.video,
+            cropCanvas,
             0,
             0,
-            width,
-            height);
-
+            canvas.width,
+            canvas.height);
         // =====================================
         // DEBUG PREVIEW
         // =====================================
@@ -155,7 +235,17 @@
 
         canvas.style.zIndex =
             "999999";
+        console.log(
+            "GUIDE",
+            guideX,
+            guideY,
+            guideWidth,
+            guideHeight);
 
+        console.log(
+            "UPSCALED",
+            canvas.width,
+            canvas.height);
         document.body.appendChild(
             canvas);
 

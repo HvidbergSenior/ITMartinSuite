@@ -48,13 +48,14 @@ public sealed class ResultMappingWorkflowStep
                     context.State.ConditionResult?.AdjustedUsdValue,
 
                 Confidence =
-                    context.State.OpenAiResult?.Confidence ?? 0,
-
+                    context.State.IdentificationConfidence,
+                
                 IsBlurry =
                     context.State.IsBlurry,
 
                 NormalizedImagePath =
-                    context.State.PerspectiveCorrectedImagePath
+                    context.State.DetectedCardImagePath
+                    ?? context.State.ImagePath
             };
 
         return Task.CompletedTask;

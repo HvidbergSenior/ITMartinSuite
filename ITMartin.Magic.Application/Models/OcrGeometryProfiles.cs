@@ -1,78 +1,25 @@
-﻿using ITMartin.Magic.Application.Models;
-
-namespace ITMartin.Magic.Application.Models;
+﻿namespace ITMartin.Magic.Application.Models;
 
 public static class OcrGeometryProfiles
 {
-    public static OcrGeometryProfile Get(
-        CardLayoutType layout)
-    {
-        switch (layout)
+    public static readonly OcrGeometryProfile All =
+        new()
         {
-            // =====================================
-            // OLD BORDER
-            // =====================================
+            TitleX = 0.10,
+            TitleY = 0.18,
+            TitleWidth = 0.82,
+            TitleHeight = 0.07,
 
-            case CardLayoutType.OldBorder:
+            SetX = 0.76,
+            SetY = 0.48,
+            SetWidth = 0.14,
+            SetHeight = 0.20,
 
-                return new OcrGeometryProfile
-                {
-                    // =====================================
-                    // TITLE
-                    // =====================================
+            BottomX = 0.08,
+            BottomY = 0.74,
+            BottomWidth = 0.60,
+            BottomHeight = 0.10
+        };
 
-                    TitleX = 0.040,
-                    TitleY = 0.025,
-                    TitleWidth = 0.42,
-                    TitleHeight = 0.045,
-
-                    // =====================================
-// COPYRIGHT / BOTTOM
-// =====================================
-
-                    BottomX = 0.030,
-                    BottomY = 0.935,
-                    BottomWidth = 0.40,
-                    BottomHeight = 0.030,
-
-                    // =====================================
-                    // UNUSED FOR OLD BORDER
-                    // =====================================
-
-                    SetX = 0,
-                    SetY = 0,
-                    SetWidth = 0,
-                    SetHeight = 0
-                };
-
-            // =====================================
-            // MODERN
-            // =====================================
-
-            default:
-
-                return new OcrGeometryProfile
-                {
-                    TitleX = 0.085,
-                    TitleY = 0.032,
-                    TitleWidth = 0.50,
-                    TitleHeight = 0.026,
-
-                    BottomX = 0.055,
-                    BottomY = 0.948,
-                    BottomWidth = 0.36,
-                    BottomHeight = 0.018,
-
-                    ArtistX = 0.43,
-                    ArtistY = 0.948,
-                    ArtistWidth = 0.22,
-                    ArtistHeight = 0.018,
-
-                    SetX = 0.77,
-                    SetY = 0.60,
-                    SetWidth = 0.10,
-                    SetHeight = 0.07
-                };
-        }
-    }
+    
 }

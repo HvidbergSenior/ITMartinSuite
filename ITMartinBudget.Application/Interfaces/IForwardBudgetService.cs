@@ -5,4 +5,5 @@ namespace ITMartinBudget.Application.Interfaces;
 public interface IForwardBudgetService
 {
     Task<ForwardBudgetViewModel> BuildAsync();
+    
 }

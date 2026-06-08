@@ -78,7 +78,6 @@ public static class RulesFactory
             BudgetGroup = BudgetGroup.GeneralShopping,
             ComparingType = comparingType,
             RecurringIntervalMonths = 0
-            
         };
     }
     public static TransactionRule PaymentForChildren(
@@ -94,24 +93,7 @@ public static class RulesFactory
             Category = category,
             BudgetGroup = BudgetGroup.PaymentChildren,
             ComparingType = comparingType,
-            RecurringIntervalMonths = 0
-            
-        };
-    }
-    public static TransactionRule WorkExpense(
-        string pattern,
-        string title,
-        Category category,
-        ComparingType comparingType)
-    {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.WorkExpense,
-            ComparingType = comparingType,
-            RecurringIntervalMonths = 0
+            RecurringIntervalMonths = 6
             
         };
     }
@@ -258,53 +240,50 @@ public static class RulesFactory
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType)
+        ComparingType comparingType,
+        int recurringIntervalMonths = 0)
     {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.Forsikring,
-            ComparingType = comparingType,
-            RecurringIntervalMonths = 1
-            
-        };
+        return CreateRule(
+            pattern,
+            title,
+            category,
+            BudgetGroup.Forsikring,
+            comparingType,
+            recurringIntervalMonths:
+            recurringIntervalMonths);
     }
     public static TransactionRule RealkreditSkatBolig(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType)
+        ComparingType comparingType,
+        int recurringIntervalMonths = 3)
     {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.RealkreditBolig,
-            ComparingType = comparingType,
-            RecurringIntervalMonths = 3
-            
-        };
+        return CreateRule(
+            pattern,
+            title,
+            category,
+            BudgetGroup.RealkreditBolig,
+            comparingType,
+            recurringIntervalMonths:
+            recurringIntervalMonths);
     }
 
     public static TransactionRule UnionAndAKasse(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType)
+        ComparingType comparingType,
+        int recurringIntervalMonths = 0)
     {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.FagforeningAKasse,
-            ComparingType = comparingType,
-            RecurringIntervalMonths = 1
-            
-        };
+        return CreateRule(
+            pattern,
+            title,
+            category,
+            BudgetGroup.FagforeningAKasse,
+            comparingType,
+            recurringIntervalMonths:
+            recurringIntervalMonths);
     }
 
     public static TransactionRule Taxes(
@@ -324,40 +303,39 @@ public static class RulesFactory
             
         };
     }
+    
     public static TransactionRule CarMaintenance(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType)
+        ComparingType comparingType,
+        int recurringIntervalMonths = 0)
     {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.CarMaintenance,
-            ComparingType = comparingType,
-            RecurringIntervalMonths = 0
-
-        };
+        return CreateRule(
+            pattern,
+            title,
+            category,
+            BudgetGroup.CarMaintenance,
+            comparingType,
+            TransactionType.Udgift,
+            recurringIntervalMonths);
     }
 
     public static TransactionRule Subscription(
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType)
+        ComparingType comparingType,
+        int recurringIntervalMonths = 1)
     {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.Subscriptions,
-            ComparingType = comparingType,
-            RecurringIntervalMonths = 1
-            
-        };
+        return CreateRule(
+            pattern,
+            title,
+            category,
+            BudgetGroup.Subscriptions,
+            comparingType,
+            recurringIntervalMonths:
+            recurringIntervalMonths);
     }
 
     // =====================================
@@ -368,19 +346,17 @@ public static class RulesFactory
         string pattern,
         string title,
         Category category,
-        ComparingType comparingType)
+        ComparingType comparingType,
+        int recurringIntervalMonths = 1)
     {
-        return new()
-        {
-            Pattern = pattern,
-            Title = title,
-            Category = category,
-            BudgetGroup = BudgetGroup.FixedIncome,
-            ComparingType = comparingType,
-            TransactionType = TransactionType.Indkomst,
-            RecurringIntervalMonths = 1
-            
-        };
+        return CreateRule(
+            pattern,
+            title,
+            category,
+            BudgetGroup.FixedIncome,
+            comparingType,
+            TransactionType.Indkomst,
+            recurringIntervalMonths);
     }
     public static TransactionRule Su(
         string pattern,
@@ -690,6 +666,31 @@ public static class RulesFactory
             ComparingType = comparingType,
             RecurringIntervalMonths = 0
             
+        };
+    }
+    
+    private static TransactionRule CreateRule(
+        string pattern,
+        string title,
+        Category category,
+        BudgetGroup budgetGroup,
+        ComparingType comparingType,
+        TransactionType? transactionType = null,
+        int recurringIntervalMonths = 0)
+    {
+        return new()
+        {
+            Pattern = pattern,
+            Title = title,
+            Category = category,
+            BudgetGroup = budgetGroup,
+            ComparingType = comparingType,
+            RecurringIntervalMonths =
+                recurringIntervalMonths,
+
+            TransactionType =
+                transactionType ??
+                TransactionType.Udgift
         };
     }
 }

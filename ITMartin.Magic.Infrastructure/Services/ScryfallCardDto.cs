@@ -42,7 +42,8 @@ internal sealed class ScryfallCardDto
 
     [JsonPropertyName("toughness")]
     public string Toughness { get; set; } = "";
-
+    [JsonPropertyName("prints_search_uri")]
+    public string PrintsSearchUri { get; set; } = "";
     [JsonPropertyName("released_at")]
     public string ReleasedAt { get; set; } = "";
 

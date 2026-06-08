@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ITMartin.Media.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MediaDbContext))]
-    [Migration("20260602090618_Initial")]
+    [Migration("20260608100311_Initial")]
     partial class Initial
     {
         /// <inheritdoc />

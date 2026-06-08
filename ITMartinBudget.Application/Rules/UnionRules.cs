@@ -13,7 +13,7 @@ public static class UnionRules
             "akademikernes a kasse",
             "Akademikernes A-Kasse",
             Category.FagforeningAKasse,
-            ComparingType.Contains),
+            ComparingType.Contains, 3),
 
         UnionAndAKasse(
             "socialpaedagogernes landsforbund",
@@ -32,12 +32,12 @@ public static class UnionRules
             "til 3f kontingent",
             "3F",
             Category.FagforeningAKasse,
-            ComparingType.Exact),
+            ComparingType.Exact, 1),
         
         RulesFactory.UnionAndAKasse(
             "bs fagligt faelles forbund",
             "3F",
             Category.FagforeningAKasse,
-            ComparingType.Exact),
+            ComparingType.Exact, 1),
     ];
 }

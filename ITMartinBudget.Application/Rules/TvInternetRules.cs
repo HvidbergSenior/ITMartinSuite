@@ -20,12 +20,6 @@ public static class TvInternetRules
             "YouSee",
             Category.Subscription,
             ComparingType.Contains),
-
-        Subscription(
-            "norlys",
-            "Norlys",
-            Category.Subscription,
-            ComparingType.Word),
-
+        
     ];
 }

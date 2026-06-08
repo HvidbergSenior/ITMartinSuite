@@ -18,16 +18,10 @@ public sealed class OpenAiMagicCardRecognitionService
         ConcurrentDictionary<string, MagicCardAnalysisResult>
         Cache = new();
 
-    private readonly MagicSetSymbolOptions
-        _setOptions;
-
     public OpenAiMagicCardRecognitionService(
-        IConfiguration configuration,
-        IOptions<MagicSetSymbolOptions> setOptions)
+        IConfiguration configuration)
         : base(configuration)
     {
-        _setOptions =
-            setOptions.Value;
     }
 
     public async Task<MagicCardAnalysisResult?>
@@ -120,136 +114,167 @@ public sealed class OpenAiMagicCardRecognitionService
         }
     }
 
-    private SystemChatMessage
-        BuildSystemPrompt()
+    private SystemChatMessage BuildSystemPrompt()
     {
-        var supportedSets =
-            string.Join(
-                Environment.NewLine +
-                Environment.NewLine,
-                _setOptions.Symbols.Select(x =>
-                    $"{x.SetCode} = {x.SetName}{Environment.NewLine}- {x.Description}"));
-
-        var supportedSetCodes =
-            string.Join(
-                ", ",
-                _setOptions.Symbols.Select(x =>
-                    x.SetCode));
-
         return new SystemChatMessage(
-            $"""
-            You are an expert Magic: The Gathering card identification system.
+            """
+            You are an expert Magic: The Gathering card analysis system.
 
-            Set Symbol Rules
+            IMPORTANT
 
-            The card may belong to one of the following supported sets:
+            Your job is NOT to determine the card printing.
+            Your job is NOT to determine the card edition.
+            Your job is NOT to determine the set code.
 
-            {supportedSets}
+            Your job is ONLY to describe what is physically visible on the card.
 
-            Instructions:
+            Extract:
 
-            - Inspect the visible set symbol.
-            - Compare it against the supported symbols.
-            - Primary evidence is the visible set symbol.
-            - Secondary evidence may include card frame, OCR text, artist, copyright line and other visible card details.
-            - Never allow secondary evidence to override a clearly visible symbol.
-            - If a strong match exists, populate SetCode.
-            - If no strong match exists, leave SetCode empty.
-            - If SetCode is empty, populate SetSymbolDescription with a detailed description.
-            - Never invent a set code.
-            - Never guess.
-            - SetCode must be one of the supported set codes listed above.
-            - If no supported symbol matches, SetCode must be an empty string.
+            - Name
+            - Artist
+            - Collector Number
+            - Copyright Year
+            - Visible Set Symbol Description
+            - Whether a Set Symbol is visible
+            - White Border
+            - Old Border
+            - Mana Cost
+            - Card Type
+            - Power/Toughness
+            - Rarity
 
-            Supported Set Codes:
+            RULES
 
-            {supportedSetCodes}
+            - Never guess a set code.
+            - Never infer a printing.
+            - Never infer a set from the card name.
+            - Never infer a set from artwork.
+            - Never infer a set from artist.
+            - Never infer a set from copyright year.
+            - Never infer a collector number.
+            - Only report what is visible.
 
-            Collector Number Rules
+            SET SYMBOL RULES
 
-            - Only return CollectorNumber if it is directly visible and readable.
-            - Never infer, estimate, guess, derive or look up CollectorNumber.
-            - CollectorNumber must come only from text physically visible in the image.
-            - If uncertain, return null.
+            If a symbol is visible:
 
-            Return ONLY valid JSON matching this schema:
-            Return ONLY valid JSON with these properties:
+            Describe the symbol in enough detail that
+            software could later identify it.
             
+            Examples:
+            
+            "Eye with central pupil"
+            "Palm tree with curved trunk"
+            "Five pointed star"
+            "Anvil"
+            "Crescent moon"
+            "Dragon head facing left"
+            "Cloud with lightning"
+            "Shield"
+            
+            Do NOT map symbols to sets.
+
+            If no symbol is visible:
+
+            SetSymbolVisible = false
+            VisibleSetSymbolDescription = null
+
+            COLLECTOR NUMBER RULES
+
+            Only return CollectorNumber if physically visible.
+
+            If unreadable:
+
+            CollectorNumber = null
+
+            CONFIDENCE
+
+            Confidence refers to confidence in the observations.
+
+            RETURN JSON ONLY
+
+            Properties:
+
             name
             artist
-            setCode
-            setSymbolDescription
             collectorNumber
-            oldBorder
+            copyrightYear
+            visibleSetSymbolDescription
+            setSymbolVisible
             whiteBorder
-            powerToughness
+            oldBorder
             manaCost
             cardType
+            powerToughness
             rarity
             confidence
-            exactPrintingCertain
-            
-            Return JSON only.
             """);
     }
 
-    private UserChatMessage
-        BuildUserPrompt(
-            byte[] bytes,
-            string mime,
-            CardDetectionResult detection)
+    private UserChatMessage BuildUserPrompt(
+        byte[] bytes,
+        string mime,
+        CardDetectionResult detection)
     {
-        var supportedSets =
-            string.Join(
-                Environment.NewLine,
-                _setOptions.Symbols.Select(x =>
-                    $"{x.SetCode} = {x.SetName}"));
-
         return new UserChatMessage(
         [
             ChatMessageContentPart
                 .CreateTextPart(
-                    $"""
-                    OCR RESULTS
+                    $$"""
+                      OCR RESULTS
 
-                    Name:
-                    {detection.Name}
+                      Name:
+                      {{detection.Name}}
 
-                    Set:
-                    {detection.SetCode}
+                      Set:
+                      {{detection.SetCode}}
 
-                    Collector:
-                    {detection.CollectorNumber}
+                      Collector:
+                      {{detection.CollectorNumber}}
 
-                    OCR SET SYMBOL CANDIDATE
+                      OCR values are hints only.
 
-                    {detection.SetCode}
+                      Use the image as the source of truth.
 
-                    If the OCR candidate matches the visible symbol,
-                    prefer that value.
+                      If OCR disagrees with the image,
+                      ignore OCR.
 
-                    If the visible symbol clearly disagrees,
-                    override it.
+                      Describe only what is physically visible.
 
-                    IMPORTANT
+                      IMPORTANT
 
-                    Carefully inspect the visible set symbol.
+                      Do not determine a set.
+                      Do not determine a printing.
+                      Do not determine an edition.
 
-                    Supported symbols:
+                      Never guess.
 
-                    {supportedSets}
+                      If an expansion symbol is visible:
 
-                    If none match:
+                      - Describe the symbol.
+                      - Describe its shape.
+                      - Describe any distinctive details.
 
-                    - Leave SetCode empty.
-                    - Populate SetSymbolDescription.
-                    - Do not guess.
+                      Examples:
 
-                    Remember:
+                      "Eye with central pupil"
+                      "Palm tree"
+                      "Anvil"
+                      "Crescent moon"
+                      "Five pointed star"
+                      "Dragon head"
 
-                    Primary evidence is the visible set symbol.
-                    OCR is only a secondary hint.
-                    """),
+                      If no symbol is clearly visible:
+
+                      SetSymbolVisible = false
+                      VisibleSetSymbolDescription = null
+
+                      If a collector number is not readable:
+
+                      CollectorNumber = null
+
+                      Report observations only.
+                      """),
 
             ChatMessageContentPart
                 .CreateImagePart(
