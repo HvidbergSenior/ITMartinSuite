@@ -11,17 +11,6 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddScoped<
-            ICardLayoutDetectionService,
-            CardLayoutDetectionService>();
-
-        services.AddScoped<
-            ICardCornerDetectionService,
-            OpenCvCardCornerDetectionService>();
-
-        services.AddScoped<
-            IPerspectiveCorrectionService,
-            OpenCvPerspectiveCorrectionService>();
-        services.AddScoped<
             IScryfallService, ScryfallService>();
         services.AddHttpClient<
             IScryfallService,

@@ -18,7 +18,8 @@ public sealed class CardScanWorkflowDefinition
         ScryfallMatchWorkflowStep scryfallMatchWorkflowStep,
         AiCardRecognitionWorkflowStep aiCardRecognitionWorkflowStep,
         CardConditionWorkflowStep cardConditionWorkflowStep,
-        ResultMappingWorkflowStep resultMappingWorkflowStep)
+        ResultMappingWorkflowStep resultMappingWorkflowStep,
+        FinalScryfallMatchWorkflowStep finalScryfallMatchWorkflowStep)
     {
         Steps =
         [
@@ -29,7 +30,8 @@ public sealed class CardScanWorkflowDefinition
             aiCardRecognitionWorkflowStep,
 
             scryfallMatchWorkflowStep,
-
+            finalScryfallMatchWorkflowStep,
+            
             cardConditionWorkflowStep,
 
             resultMappingWorkflowStep

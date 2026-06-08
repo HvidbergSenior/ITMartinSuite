@@ -5,5 +5,8 @@ namespace ITMartin.Magic.Application.Interfaces;
 
 public interface IScryfallService
 {
-    Task<CardSearchResult?> SearchAsync(string stateCardName, string? stateSetCode, string? stateCollectorNumber, CancellationToken cancellationToken);
+    Task<CardSearchResult?> SearchAsync(
+        string cardName,
+        MagicCardAnalysisResult? analysis,
+        CancellationToken cancellationToken);
 }

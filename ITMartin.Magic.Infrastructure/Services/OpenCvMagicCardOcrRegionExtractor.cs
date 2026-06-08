@@ -12,6 +12,9 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
         string normalizedCardPath,
         CancellationToken cancellationToken)
     {
+        Console.WriteLine(
+            $"OCR SOURCE FILE: {normalizedCardPath}");
+        
         var result =
             Extract(
                 normalizedCardPath,
@@ -24,11 +27,28 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
         string normalizedCardPath,
         CancellationToken cancellationToken)
     {
+        
         using var image =
             Cv2.ImRead(
                 normalizedCardPath,
                 ImreadModes.Color);
+        Console.WriteLine(
+            $"WIDTH={image.Width} HEIGHT={image.Height}");
+        
+        var folder =
+            Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "data",
+                "ocr");
 
+        Directory.CreateDirectory(
+            folder);
+
+        Cv2.ImWrite(
+            Path.Combine(
+                folder,
+                "ocr_source.jpg"),
+            image);
         if (image.Empty())
         {
             return null;
@@ -39,9 +59,10 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
 
         var height =
             image.Height;
-
+        Console.WriteLine(
+            $"Image: {width} x {height}");
         var profile =
-            OcrGeometryProfiles.Modern;
+            OcrGeometryProfiles.All;
 
         var titleRect =
             CreateRect(
@@ -70,7 +91,7 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
                 profile.SetWidth,
                 profile.SetHeight);
 
-        var folder =
+        folder =
             Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "data",
@@ -126,13 +147,6 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
                     titleRect,
                     folder,
                     "title"),
-
-            BottomInfoImagePath =
-                SaveCrop(
-                    image,
-                    bottomRect,
-                    folder,
-                    "bottom"),
 
             SetCodeImagePath =
                 SaveCrop(

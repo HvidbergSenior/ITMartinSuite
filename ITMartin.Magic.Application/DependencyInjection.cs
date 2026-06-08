@@ -43,6 +43,8 @@ public static class DependencyInjection
 
        services.AddScoped<
        ScryfallMatchWorkflowStep>();
+       services.AddScoped<
+           FinalScryfallMatchWorkflowStep>();
 
        services.AddScoped<
         CardConditionWorkflowStep>();
