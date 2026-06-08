@@ -72,7 +72,7 @@ public static class BudgetGroupExtensions
             // Lifestyle
 
             BudgetGroup.GeneralShopping =>
-                "Shopping",
+                "Generel Shopping",
 
             BudgetGroup.PersonalCare =>
                 "Personlig pleje",
@@ -154,13 +154,13 @@ public static class BudgetGroupExtensions
                 BudgetGroupType.RecurringAdjustable,
 
             BudgetGroup.Fuel =>
-                BudgetGroupType.SemiAdjustable,
+                BudgetGroupType.Adjustable,
 
             BudgetGroup.Parking =>
-                BudgetGroupType.SemiAdjustable,
+                BudgetGroupType.Adjustable,
 
             BudgetGroup.OffentligTransport =>
-                BudgetGroupType.SemiAdjustable,
+                BudgetGroupType.Adjustable,
 
             BudgetGroup.EverydayGrocery =>
                 BudgetGroupType.Adjustable,
@@ -176,8 +176,9 @@ public static class BudgetGroupExtensions
 
             BudgetGroup.Traveling =>
                 BudgetGroupType.Adjustable,
+            
             BudgetGroup.IncomeFromKommuneAndStat
-                => BudgetGroupType.FixedIncome,
+                => BudgetGroupType.Ignore,
 
             BudgetGroup.CarRepair
                 => BudgetGroupType.SemiAdjustable,
@@ -195,7 +196,7 @@ public static class BudgetGroupExtensions
                 => BudgetGroupType.SemiAdjustable,
             
             BudgetGroup.Tax
-                => BudgetGroupType.MandatoryExpense,
+                => BudgetGroupType.Ignore,
             BudgetGroup.ExternalTransfer
                 => BudgetGroupType.Ignore,
 

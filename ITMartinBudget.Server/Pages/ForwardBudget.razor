@@ -33,7 +33,7 @@ else
             <div class="financial-item expense">
 
                 <div class="financial-label">
-                    Variable Budgetgrupper
+                    Påvirkelige Faste Udgifter
                 </div>
 
                 <div class="financial-value">
@@ -45,7 +45,7 @@ else
             <div class="financial-item income">
 
                 <div class="financial-label">
-                    Månedlig Indkomst
+                    Fast Månedlig Indkomst
                 </div>
 
                 <div class="financial-value">
@@ -57,7 +57,7 @@ else
             <div class="financial-item expense">
 
                 <div class="financial-label">
-                    Månedlige Udgifter
+                    Faste Månedlige Udgifter
                 </div>
 
                 <div class="financial-value">
@@ -66,35 +66,11 @@ else
 
             </div>
 
-            <div class="financial-item result">
-
-                <div class="financial-label">
-                    Fri Disponibel
-                </div>
-
-                <div class="financial-value">
-                    @_model.FreeDisposableAmount.ToString("N0") kr.
-                </div>
-
-            </div>
-
-            <div class="financial-item">
-
-                <div class="financial-label">
-                    Mulig Besparelse
-                </div>
-
-                <div class="financial-value">
-                    @_model.PotentialSavings.ToString("N0") kr.
-                </div>
-
-            </div>
-
         </div>
         <div class="transaction-section">
 
             <h2 class="transaction-section-title">
-                Forventet Månedlig Indkomst
+                Forventet Fast Månedlig Indkomst
             </h2>
 
             <div class="category-summary-card clickable-card"
@@ -105,7 +81,7 @@ else
                     <div>
 
                         <div class="category-summary-title">
-                            Forventet Månedlig Indkomst
+                            Forventet Fast Månedlig Indkomst
                         </div>
 
                         <div class="meta">
@@ -272,80 +248,11 @@ else
     </div>
 
 </div>
-<div class="transaction-section">
 
-    <h2 class="transaction-section-title">
-        Delvist Påvirkelige Udgifter
-    </h2>
-
-    @foreach (var group in _model.SemiAdjustableGroups)
-    {
-        <div class="category-summary-card clickable-card"
-             @onclick="() => Toggle(group.BudgetGroup.ToString())">
-
-            <div class="category-summary-top">
-
-                <div>
-
-                    <div class="category-summary-title">
-                        @group.BudgetGroup.ToDisplayName()
-                    </div>
-
-                    <div class="meta">
-                        @group.TransactionCount transaktioner
-                    </div>
-
-                </div>
-
-                <div class="category-summary-count">
-                    @group.Last3MonthsAverage.ToString("N0") kr/md
-                </div>
-
-            </div>
-
-            @if (_expanded == group.BudgetGroup.ToString())
-            {
-                <div style="padding:20px;color:white">
-
-                    <div class="meta"
-                         style="margin-bottom:10px">
-                        Seneste transaktioner
-                    </div>
-
-                    @foreach (var transaction in group.RecentTransactions)
-                    {
-                        <div class="transaction-detail-row">
-
-                            <div>
-
-                                <div>
-                                    @transaction.Title
-                                </div>
-
-                                <div class="meta">
-                                    @transaction.Date.ToString("dd-MM-yyyy")
-                                </div>
-
-                            </div>
-
-                            <div>
-                                @transaction.Amount.ToString("N0") kr.
-                            </div>
-
-                        </div>
-                    }
-
-                </div>
-            }
-
-        </div>
-    }
-
-</div>
         <div class="transaction-section">
 
             <h2 class="transaction-section-title">
-                Variable Budgetgrupper
+                Påvirkelige Udgifter
             </h2>
 
             @foreach (var group in _model.AdjustableGroups)
@@ -366,11 +273,77 @@ else
                             </div>
 
                         </div>
-
                         <div class="category-summary-count">
-                            @group.Last3MonthsAverage.ToString("N0") kr/md
+                            @group.MonthlyAverage.ToString("N0") kr./md
                         </div>
+                    </div>
 
+                    @if (_expanded == group.BudgetGroup.ToString())
+                    {
+                        <div style="padding:20px;color:white">
+
+                            <div class="meta"
+                                 style="margin-bottom:10px">
+                                Seneste transaktioner
+                            </div>
+
+                            @foreach (var transaction in group.RecentTransactions)
+                            {
+                                <div class="transaction-detail-row">
+
+                                    <div>
+
+                                        <div>
+                                            @transaction.Title
+                                        </div>
+
+                                        <div class="meta">
+                                            @transaction.Date.ToString("dd-MM-yyyy")
+                                        </div>
+
+                                    </div>
+
+                                    <div>
+                                        @transaction.Amount.ToString("N0") kr.
+                                    </div>
+
+                                </div>
+                            }
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
+        <div class="transaction-section">
+
+            <h2 class="transaction-section-title">
+                Delvist Påvirkelige Udgifter
+            </h2>
+
+            @foreach (var group in _model.SemiAdjustableGroups)
+            {
+                <div class="category-summary-card clickable-card"
+                     @onclick="() => Toggle(group.BudgetGroup.ToString())">
+
+                    <div class="category-summary-top">
+
+                        <div>
+
+                            <div class="category-summary-title">
+                                @group.BudgetGroup.ToDisplayName()
+                            </div>
+
+                            <div class="meta">
+                                @group.TransactionCount transaktioner
+                            </div>
+
+                        </div>
+                        <div class="category-summary-count">
+                            @group.MonthlyAverage.ToString("N0") kr./md
+                        </div>
                     </div>
 
                     @if (_expanded == group.BudgetGroup.ToString())
@@ -435,10 +408,6 @@ else
                                 @group.TransactionCount transaktioner
                             </div>
 
-                        </div>
-
-                        <div class="category-summary-count">
-                            @group.Last3MonthsAverage.ToString("N0") kr/md
                         </div>
 
                     </div>

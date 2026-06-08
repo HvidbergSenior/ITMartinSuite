@@ -12,11 +12,7 @@ public sealed class ForwardBudgetViewModel
         ExpectedMonthlyIncome -
         FixedMonthlyExpenses -
         AdjustableMonthlyExpenses;
-
-    public decimal PotentialSavings =>
-        AdjustableGroups.Sum(
-            x => x.SuggestedReduction);
-
+    
     public List<IncomeItemViewModel> IncomeItems { get; set; } = [];
 
     public List<FixedExpenseViewModel> FixedExpenses { get; set; } = [];

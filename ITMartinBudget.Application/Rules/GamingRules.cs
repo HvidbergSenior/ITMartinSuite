@@ -9,11 +9,11 @@ public static class GamingRules
 {
     public static readonly List<TransactionRule> Items =
     [
-        Entertainment(
+        Subscription(
             "playstation",
             "PlayStation",
             Category.Gaming,
-            ComparingType.Contains),
+            ComparingType.Contains, 12),
 
         Entertainment(
             "spilforsyningen",

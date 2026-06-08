@@ -48,9 +48,8 @@ public sealed class ForwardBudgetService
             model,
             transactions);
         model.AdjustableMonthlyExpenses =
-            model.AdjustableGroups.Sum(
-                x => x.Last3MonthsAverage);
-
+            model.AdjustableGroups.Sum(x => x.MonthlyAverage)
+            + model.RecurringAdjustableExpenses.Sum(x => x.MonthlyAmount);
         return model;
     }
     private static void BuildIgnoredGroups(
@@ -227,10 +226,33 @@ public sealed class ForwardBudgetService
     var now =
         DateTime.Today;
 
-    return transactions
-        .Where(x =>
-            x.BudgetGroup.GetBudgetGroupType() ==
-            budgetGroupType)
+    var relevantTransactions =
+        transactions
+            .Where(x =>
+                x.BudgetGroup.GetBudgetGroupType() ==
+                budgetGroupType)
+            .ToList();
+
+    if (!relevantTransactions.Any())
+    {
+        return [];
+    }
+
+    var csvStartDate =
+        relevantTransactions.Min(x =>
+            x.Date);
+
+    var csvEndDate =
+        relevantTransactions.Max(x =>
+            x.Date);
+
+    var csvMonthCount =
+        ((csvEndDate.Year - csvStartDate.Year) * 12)
+        + csvEndDate.Month
+        - csvStartDate.Month
+        + 1;
+
+    return relevantTransactions
         .GroupBy(x =>
             x.BudgetGroup)
         .Select(x =>
@@ -238,40 +260,35 @@ public sealed class ForwardBudgetService
             var items =
                 x.ToList();
 
+            var monthlyAverage =
+                items.Sum(y =>
+                {
+                    if (y.RecurringIntervalMonths > 0)
+                    {
+                        return Math.Abs(y.Amount)
+                               / y.RecurringIntervalMonths;
+                    }
+
+                    return Math.Abs(y.Amount)
+                           / Math.Max(
+                               1,
+                               csvMonthCount);
+                });
+
             return new AdjustableBudgetGroupViewModel
             {
                 BudgetGroup =
                     x.Key,
 
-                LastMonthAmount =
-                    Math.Abs(
-                        items
-                            .Where(y =>
-                                y.Date >= now.AddMonths(-1))
-                            .Sum(y =>
-                                y.Amount)),
-
-                Last3MonthsAverage =
-                    Math.Abs(
-                        items
-                            .Where(y =>
-                                y.Date >= now.AddMonths(-3))
-                            .Sum(y =>
-                                y.Amount) / 3m),
-
-                Last12MonthsAverage =
-                    Math.Abs(
-                        items
-                            .Where(y =>
-                                y.Date >= now.AddMonths(-12))
-                            .Sum(y =>
-                                y.Amount) / 12m),
+                MonthlyAverage =
+                    monthlyAverage,
 
                 CurrentYearTotal =
                     Math.Abs(
                         items
                             .Where(y =>
-                                y.Date.Year == now.Year)
+                                y.Date.Year ==
+                                now.Year)
                             .Sum(y =>
                                 y.Amount)),
 
@@ -286,15 +303,21 @@ public sealed class ForwardBudgetService
                         .Select(y =>
                             new TransactionSummaryViewModel
                             {
-                                Date = y.Date,
-                                Title = y.Title,
-                                Amount = Math.Abs(y.Amount)
+                                Date =
+                                    y.Date,
+
+                                Title =
+                                    y.Title,
+
+                                Amount =
+                                    Math.Abs(
+                                        y.Amount)
                             })
                         .ToList()
             };
         })
         .OrderByDescending(x =>
-            x.Last3MonthsAverage)
+            x.MonthlyAverage)
         .ToList();
 }
 }
