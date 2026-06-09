@@ -48,8 +48,8 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("RecurringIntervalMonths")
-                        .HasColumnType("INTEGER");
+                    b.Property<decimal>("RecurringIntervalMonths")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()

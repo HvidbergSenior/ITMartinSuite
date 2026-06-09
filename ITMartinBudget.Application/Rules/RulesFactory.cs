@@ -347,7 +347,7 @@ public static class RulesFactory
         string title,
         Category category,
         ComparingType comparingType,
-        int recurringIntervalMonths = 1)
+        decimal recurringIntervalMonths = 1)
     {
         return CreateRule(
             pattern,
@@ -676,7 +676,7 @@ public static class RulesFactory
         BudgetGroup budgetGroup,
         ComparingType comparingType,
         TransactionType? transactionType = null,
-        int recurringIntervalMonths = 0)
+        decimal recurringIntervalMonths = 0)
     {
         return new()
         {

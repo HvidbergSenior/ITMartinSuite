@@ -26,7 +26,7 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
                     BudgetGroup = table.Column<int>(type: "INTEGER", nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
                     ImportedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    RecurringIntervalMonths = table.Column<int>(type: "INTEGER", nullable: false)
+                    RecurringIntervalMonths = table.Column<decimal>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {

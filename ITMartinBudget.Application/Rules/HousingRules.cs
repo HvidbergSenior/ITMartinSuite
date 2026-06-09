@@ -44,15 +44,18 @@ public static class HousingRules
             ComparingType.Contains, 4),
 
         RealkreditSkatBolig(
-            "bs kredsloeb a/s",
+            "bs kredsloeb a s",
             "Kredsløb",
             Category.BoligVedligehold,
-            ComparingType.Exact, 3),
+            ComparingType.Exact,
+            3),
+
         RealkreditSkatBolig(
-            "bs kredsloeb genbrug a/s",
-            "Kredsløb",
+            "bs kredsloeb genbrug a s",
+            "Kredsløb Genbrug",
             Category.BoligVedligehold,
-            ComparingType.Exact, 6),
+            ComparingType.Exact,
+            6),
         
         RealkreditSkatBolig(
             "andel energi",

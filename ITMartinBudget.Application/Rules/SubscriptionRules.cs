@@ -67,7 +67,7 @@ public static class SubscriptionRules
             "google play",
             "Google Play",
             Category.Subscription,
-            ComparingType.Contains),
+            ComparingType.Contains, 12),
         
         RulesFactory.GeneralShopping(
             "dk story house egmont a s",

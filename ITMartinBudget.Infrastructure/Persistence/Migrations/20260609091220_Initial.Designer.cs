@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ITMartinBudget.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(BudgetDbContext))]
-    [Migration("20260606085405_Initial")]
+    [Migration("20260609091220_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -51,8 +51,8 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("RecurringIntervalMonths")
-                        .HasColumnType("INTEGER");
+                    b.Property<decimal>("RecurringIntervalMonths")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()

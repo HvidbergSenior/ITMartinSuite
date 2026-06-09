@@ -1,4 +1,4 @@
-﻿using ITMartinBudget.Application.Models;
+﻿namespace ITMartinBudget.Application.Models;
 
 public sealed class ForwardBudgetViewModel
 {

@@ -72,7 +72,16 @@ public static class CategorizationAnalysisService
                         / transactions.Count
                         * 100m,
                     2);
-
+        foreach (var tx in uncategorizedTransactions
+                     .Where(x =>
+                         x.NormalizedDescription ==
+                         "alka forsikring"))
+        {
+            Console.WriteLine(
+                $"{tx.Date:d} | " +
+                $"{tx.Description} | " +
+                $"{tx.Amount}");
+        }
         return new()
         {
             Total =

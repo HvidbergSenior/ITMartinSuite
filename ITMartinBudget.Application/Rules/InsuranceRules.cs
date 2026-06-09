@@ -10,13 +10,19 @@ public static class InsuranceRules
     public static readonly List<TransactionRule> Items =
     [
         Forsikring(
-            "alka forsikring",
+            "bs alka forsikring a s",
+            "Alka A/S",
+            Category.Forsikring,
+            ComparingType.Exact,
+            1),
+
+        Forsikring(
+            "bs alka forsikring",
             "Alka",
             Category.Forsikring,
-            ComparingType.Contains,
-            1
-            ),
-
+            ComparingType.Exact,
+            1),
+        
         Forsikring(
             "sygeforsikringen danmark",
             "Sygeforsikringen Danmark",
