@@ -57,6 +57,19 @@ public class BankTransactionCsvService
         await foreach (var record in
                        csv.GetRecordsAsync<BankTransaction>())
         {
+            // DEBUG
+            if (record.Description.Contains(
+                    "Alka",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine(
+                    $"RAW: {record.Date:d} | {record.Description} | {record.Amount}");
+            }
+
+            // Original description
+            record.Description =
+                record.Description?.Trim()
+                ?? string.Empty;
             // Original description
             record.Description =
                 record.Description?.Trim()

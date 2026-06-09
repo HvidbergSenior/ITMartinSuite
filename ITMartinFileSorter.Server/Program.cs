@@ -126,13 +126,6 @@ builder.Services.AddSingleton<
 builder.Services.AddScoped<
     ILibraryPathProvider,
     LibraryPathProvider>();
-// =========================
-// AI
-// =========================
-
-builder.Services.AddScoped<
-    IAiCacheService,
-    SqliteAiCacheService>();
 
 // =========================
 // UI

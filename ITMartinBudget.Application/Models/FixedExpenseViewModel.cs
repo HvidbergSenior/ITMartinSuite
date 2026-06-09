@@ -6,5 +6,5 @@ public sealed class FixedExpenseViewModel
 
     public decimal MonthlyAmount { get; set; }
 
-    public int RecurringIntervalMonths { get; set; }
+    public decimal RecurringIntervalMonths { get; set; }
 }

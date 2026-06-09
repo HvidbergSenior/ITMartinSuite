@@ -78,23 +78,40 @@ public sealed class ForwardBudgetService
                 .GroupBy(x =>
                     x.Title)
                 .Select(x =>
-                    new IncomeItemViewModel
-                    {
-                        Title = x.Key,
+                {
+                    var monthWithMultiplePayments =
+                        x.GroupBy(y => new
+                            {
+                                y.Date.Year,
+                                y.Date.Month
+                            })
+                            .OrderByDescending(g => g.Key.Year)
+                            .ThenByDescending(g => g.Key.Month)
+                            .FirstOrDefault(g =>
+                                g.Count() >= 2);
 
-                        ExpectedAmount =
-                            Math.Abs(
+                    var expectedAmount =
+                        monthWithMultiplePayments is not null
+                            ? Math.Abs(
+                                monthWithMultiplePayments.Sum(y =>
+                                    y.Amount))
+                            : Math.Abs(
                                 x.OrderByDescending(y =>
                                         y.Date)
                                     .First()
-                                    .Amount)
-                    })
+                                    .Amount);
+
+                    return new IncomeItemViewModel
+                    {
+                        Title = x.Key,
+                        ExpectedAmount = expectedAmount
+                    };
+                })
                 .OrderByDescending(x =>
                     x.ExpectedAmount)
                 .ToList();
 
-        model.IncomeItems =
-            incomes;
+        model.IncomeItems = incomes;
 
         model.ExpectedMonthlyIncome =
             incomes.Sum(x =>

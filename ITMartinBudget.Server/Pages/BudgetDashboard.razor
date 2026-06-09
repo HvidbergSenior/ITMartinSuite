@@ -517,10 +517,11 @@
                 : budgetGroup;
     }
     private static string GetRecurringText(
-        int months)
+        decimal months)
     {
         return months switch
         {
+            0.5m => "To om måneden",
             1 => "Månedlig",
             3 => "Kvartalsvis",
             4 => "Hver 4. måned",

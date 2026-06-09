@@ -29,5 +29,5 @@ public class BankTransaction
     public DateTime ImportedAt { get; set; } =
         DateTime.UtcNow;
 
-    public int RecurringIntervalMonths { get; set; }
+    public decimal RecurringIntervalMonths { get; set; }
 }

@@ -39,7 +39,7 @@ public static class FixedIncomeRules
             "VibzLøn",
             Category.Løn,
             
-            ComparingType.Exact),
+            ComparingType.Exact, 0.5m),
 
         Su(
             "su",
