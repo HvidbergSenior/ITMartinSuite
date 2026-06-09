@@ -1,6 +1,6 @@
 ﻿namespace ITMartin.Magic.Application.Models;
 
-public class CardSearchResult
+public sealed class CardSearchResult
 {
     public ScryfallCard? BestMatch { get; set; }
 

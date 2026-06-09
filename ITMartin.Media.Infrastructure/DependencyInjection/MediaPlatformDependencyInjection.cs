@@ -9,7 +9,7 @@ public static class MediaPlatformDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddMedia(configuration);
+        services.AddMediaCore(configuration);
 
         services.AddPackage1Pipeline(configuration);
 

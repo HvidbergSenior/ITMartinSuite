@@ -5,7 +5,7 @@ namespace ITMartin.Media.Infrastructure.DependencyInjection;
 
 public static class MediaDependencyInjection
 {
-    public static IServiceCollection AddMedia(
+    public static IServiceCollection AddMediaCore(
         this IServiceCollection services,
         IConfiguration configuration)
     {

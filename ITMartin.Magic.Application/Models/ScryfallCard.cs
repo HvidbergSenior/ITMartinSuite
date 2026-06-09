@@ -1,6 +1,7 @@
 ﻿namespace ITMartin.Magic.Application.Models;
 
-public class ScryfallCard
+public class 
+    ScryfallCard
 {
     public string Id { get; set; } = default!;
     public string Name { get; set; } = "";
@@ -42,4 +43,5 @@ public class ScryfallCard
     public decimal? UsdPrice { get; set; }
 
     public decimal? UsdFoilPrice { get; set; }
+    public string? SetName { get; set; }
 }

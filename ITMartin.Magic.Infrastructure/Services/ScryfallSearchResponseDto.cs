@@ -2,7 +2,7 @@
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
-internal sealed class ScryfallSearchResponseDto
+internal sealed class ScryfallSearchResponse
 {
     [JsonPropertyName("data")]
     public List<ScryfallCardDto> Data { get; set; } = [];

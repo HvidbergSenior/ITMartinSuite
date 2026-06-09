@@ -1,6 +1,4 @@
-﻿namespace ITMartin.Ai.Models;
-
-public sealed class MagicCardAnalysisResult
+﻿public sealed class MagicCardAnalysisResult
 {
     public string? Name { get; set; }
 
@@ -25,10 +23,6 @@ public sealed class MagicCardAnalysisResult
     public string? PowerToughness { get; set; }
 
     public string? Rarity { get; set; }
-
-    public string? RulesText { get; set; }
-
-    public string? FlavorText { get; set; }
 
     public decimal Confidence { get; set; }
 }

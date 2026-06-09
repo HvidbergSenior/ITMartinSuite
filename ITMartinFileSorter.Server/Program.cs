@@ -1,12 +1,28 @@
+
+using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Application.Abstractions.Events;
+using ITMartin.Media.Application.Abstractions.Runtime;
+using ITMartin.Media.Application.Abstractions.Scanning;
+using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1.Clients;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Clients;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Application.Services.Steps.DuplicationStep;
+using ITMartin.Media.Application.Services.Steps.ExportStep;
 using ITMartin.Media.Application.Services.Steps.NormalizationStep;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.BackgroundJobs;
 using ITMartin.Media.Infrastructure.DependencyInjection;
+using ITMartin.Media.Infrastructure.Events;
+using ITMartin.Media.Infrastructure.Images;
+using ITMartin.Media.Infrastructure.Media;
+using ITMartin.Media.Infrastructure.Persistence.Repositories;
+using ITMartin.Media.Infrastructure.Services;
+using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using ITMartinFileSorter.Server;
@@ -31,12 +47,59 @@ builder.Services
         options.DetailedErrors = true;
     });
 
-builder.Services.AddFileSorterCore();
+// =========================
+// SIGNALR
+// =========================
 
 builder.Services.AddMediaSignalR();
-builder.Services.AddMediaPlatform(
-    builder.Configuration);
-builder.Services.AddFileSorterServer();
+
+// =========================
+// OCR
+// =========================
+
+builder.Services.AddSingleton<
+    IOcrService,
+    OcrService>();
+
+// CORE SERVICES
+// =========================
+
+builder.Services.AddScoped<
+    IMediaTypeResolver,
+    MediaTypeResolver>();
+
+builder.Services.AddScoped<
+    IImageConverterService,
+    ImageConverterService>();
+
+builder.Services.AddScoped<
+    IThumbnailService,
+    ThumbnailService>();
+builder.Services.AddScoped<
+    Package1ManifestWriter>();
+builder.Services.AddScoped<
+    Package1ManifestSummaryService>();
+builder.Services.AddScoped<
+    Package1ManifestLoader>();
+builder.Services.AddScoped<
+    Package2ProfileBuilder>();
+builder.Services.AddScoped<
+    IPackage2Client,
+    Package2Client>();
+builder.Services.AddScoped<
+    IPackage1Client,
+    Package1Client>();
+builder.Services.AddScoped<
+    IDuplicateService,
+    DuplicateService>();
+
+builder.Services.AddScoped<
+    ILibraryExportService,
+    LibraryExportService>();
+
+builder.Services.AddScoped<
+    IScanSessionRepository,
+    ScanSessionRepository>();
 
 builder.Logging.ClearProviders();
 
@@ -49,6 +112,28 @@ builder.Logging.AddFilter(
 builder.Logging.AddFilter(
     "Microsoft.EntityFrameworkCore.Database.Command",
     LogLevel.None);
+// =========================
+// EVENTS
+// =========================
+
+builder.Services.AddSingleton<
+    IEventPublisher,
+    NullEventPublisher>();
+
+builder.Services.AddSingleton<
+    IRuntimeEventPublisher,
+    NullRuntimeEventPublisher>();
+
+builder.Services.AddScoped<
+    ILibraryPathProvider,
+    LibraryPathProvider>();
+
+// =========================
+// UI
+// =========================
+
+builder.Services.AddScoped<
+    ProgressService>();
 
 builder.Services.AddScoped(sp =>
 {
@@ -65,9 +150,24 @@ builder.Services.AddScoped(sp =>
 });
 
 
+// =========================
+// CONTROLLERS
+// =========================
+
 builder.Services.AddControllers();
 
+builder.Services.AddSingleton<
+    IBackgroundJobQueue,
+    RabbitMqBackgroundJobQueue>();
+// =========================
+// BUILD
+// =========================
+
 var app = builder.Build();
+
+// =========================
+// ERROR HANDLING
+// =========================
 
 if (!app.Environment.IsDevelopment())
 {
@@ -75,7 +175,16 @@ if (!app.Environment.IsDevelopment())
         "/Error");
 }
 
+
+// =========================
+// STATIC FILES
+// =========================
+
 app.UseStaticFiles();
+
+// =========================
+// LIBRARY FILES
+// =========================
 
 var libraryPath =
     builder.Configuration[

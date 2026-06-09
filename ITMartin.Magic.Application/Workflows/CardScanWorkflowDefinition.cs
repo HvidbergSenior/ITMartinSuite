@@ -29,9 +29,8 @@ public sealed class CardScanWorkflowDefinition
 
             aiCardRecognitionWorkflowStep,
 
-            scryfallMatchWorkflowStep,
             finalScryfallMatchWorkflowStep,
-            
+
             cardConditionWorkflowStep,
 
             resultMappingWorkflowStep

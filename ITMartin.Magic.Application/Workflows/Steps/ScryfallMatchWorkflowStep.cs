@@ -29,58 +29,6 @@ public sealed class ScryfallMatchWorkflowStep
         CancellationToken cancellationToken = default)
     {
         // =====================================
-        // OCR PATH
-        // =====================================
-
-        if (context.State.OpenAiResult is null)
-        {
-            var title =
-                context.State.OcrResult?
-                    .Regions
-                    .FirstOrDefault(
-                        x => x.RegionName == "title");
-
-            var set =
-                context.State.OcrResult?
-                    .Regions
-                    .FirstOrDefault(
-                        x => x.RegionName == "set");
-
-            if (title is null ||
-                set is null)
-            {
-                Console.WriteLine(
-                    "Skipping Scryfall - OCR regions missing");
-
-                return;
-            }
-
-            Console.WriteLine(
-                $"TITLE CONFIDENCE: {title.Confidence}");
-
-            Console.WriteLine(
-                $"SET CONFIDENCE: {set.Confidence}");
-
-            if (title.Confidence <
-                OcrConfidenceThreshold)
-            {
-                Console.WriteLine(
-                    "Skipping Scryfall - title confidence too low");
-
-                return;
-            }
-
-            if (set.Confidence <
-                OcrConfidenceThreshold)
-            {
-                Console.WriteLine(
-                    "Skipping Scryfall - set confidence too low");
-
-                return;
-            }
-        }
-
-        // =====================================
         // IDENTIFICATION DATA
         // =====================================
 
@@ -128,33 +76,18 @@ public sealed class ScryfallMatchWorkflowStep
         }
 
         context.State.Candidates =
-        [
-            new CardCandidateViewModel
-            {
-                Name =
-                    match.BestMatch.Name,
-
-                SetCode =
-                    match.BestMatch.Set,
-
-                CollectorNumber =
-                    match.BestMatch.CollectorNumber,
-
-                ImageUrl =
-                    match.BestMatch.ImageUrl,
-
-                EurPrice =
-                    match.BestMatch.EurPrice,
-
-                UsdPrice =
-                    match.BestMatch.UsdPrice,
-
-                Confidence =
-                    context.State
-                        .IdentificationConfidence
-            }
-        ];
-
+            match.Matches
+                .Select(x => new CardCandidateViewModel
+                {
+                    Name = x.Card.Name,
+                    SetCode = x.Card.Set,
+                    CollectorNumber = x.Card.CollectorNumber,
+                    ImageUrl = x.Card.ImageUrl,
+                    EurPrice = x.Card.EurPrice,
+                    UsdPrice = x.Card.UsdPrice,
+                    Confidence = x.Confidence
+                })
+                .ToList();
         context.State.ScryfallMatchResult =
             new ScryfallMatchResult
             {

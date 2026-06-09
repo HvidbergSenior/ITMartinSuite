@@ -85,7 +85,9 @@ public sealed class OpenAiMagicCardRecognitionService
             {
                 return null;
             }
-
+            Console.WriteLine("=== AI RESPONSE ===");
+            Console.WriteLine(text);
+            Console.WriteLine("===================");
             var result =
                 JsonSerializer.Deserialize<
                     MagicCardAnalysisResult>(
@@ -114,173 +116,239 @@ public sealed class OpenAiMagicCardRecognitionService
         }
     }
 
-    private SystemChatMessage BuildSystemPrompt()
-    {
-        return new SystemChatMessage(
-            """
-            You are an expert Magic: The Gathering card analysis system.
+   private SystemChatMessage BuildSystemPrompt()
+{
+    return new SystemChatMessage(
+        """
+        You are an expert Magic: The Gathering card analysis system.
 
-            IMPORTANT
+        IMPORTANT
 
-            Your job is NOT to determine the card printing.
-            Your job is NOT to determine the card edition.
-            Your job is NOT to determine the set code.
+        Your job is NOT to determine:
+        - card printing
+        - edition
+        - expansion set
+        - set code
 
-            Your job is ONLY to describe what is physically visible on the card.
+        Your job is ONLY to describe what is physically visible on the card image.
 
-            Extract:
+        Extract:
 
-            - Name
-            - Artist
-            - Collector Number
-            - Copyright Year
-            - Visible Set Symbol Description
-            - Whether a Set Symbol is visible
-            - White Border
-            - Old Border
-            - Mana Cost
-            - Card Type
-            - Power/Toughness
-            - Rarity
+        - Name
+        - Artist
+        - Collector Number
+        - Copyright Year
+        - Visible Set Symbol Description
+        - Whether a Set Symbol is visible
+        - White Border
+        - Old Border
+        - Mana Cost
+        - Card Type
+        - Power/Toughness
+        - Rarity
+        - Confidence
 
-            RULES
+        RULES
 
-            - Never guess a set code.
-            - Never infer a printing.
-            - Never infer a set from the card name.
-            - Never infer a set from artwork.
-            - Never infer a set from artist.
-            - Never infer a set from copyright year.
-            - Never infer a collector number.
-            - Only report what is visible.
+        - Never guess a set code.
+        - Never infer a printing.
+        - Never infer a set from card name.
+        - Never infer a set from artwork.
+        - Never infer a set from artist.
+        - Never infer a set from copyright year.
+        - Never infer a collector number.
+        - Only report information that is physically visible.
 
-            SET SYMBOL RULES
+        SET SYMBOL RULES
 
-            If a symbol is visible:
+        If a symbol is visible:
 
-            Describe the symbol in enough detail that
-            software could later identify it.
-            
-            Examples:
-            
+        Describe the symbol visually so that software can later identify it.
+
+        Examples:
+
+        - Eye with central pupil
+        - Palm tree with curved trunk
+        - Five pointed star
+        - Anvil
+        - Crescent moon
+        - Dragon head facing left
+        - Cloud with lightning
+        - Shield
+
+        Never map a symbol to a set.
+
+        If no symbol is visible:
+
+        setSymbolVisible = false
+        visibleSetSymbolDescription = null
+
+        COLLECTOR NUMBER RULES
+
+        Only return collectorNumber if physically visible.
+
+        If unreadable:
+
+        collectorNumber = null
+
+        CONFIDENCE RULES
+
+        Confidence represents confidence in the observations.
+
+        Confidence MUST be a JSON number.
+
+        Confidence MUST be between 0.0 and 1.0.
+
+        Examples:
+
+        0.95
+        0.80
+        0.50
+        0.10
+
+        Never return:
+
+        "high"
+        "medium"
+        "low"
+        "unknown"
+
+        RETURN JSON ONLY
+
+        Do not include markdown.
+        Do not include explanations.
+        Do not include comments.
+
+        JSON schema:
+
+        {
+          "name": string|null,
+          "artist": string|null,
+          "collectorNumber": string|null,
+          "copyrightYear": string|null,
+          "visibleSetSymbolDescription": string|null,
+          "setSymbolVisible": boolean,
+          "whiteBorder": boolean,
+          "oldBorder": boolean,
+          "manaCost": string|null,
+          "cardType": string|null,
+          "powerToughness": string|null,
+          "rarity": string|null,
+          "flavorText": string|null,
+          "rulesText": string|null,
+          "confidence": number
+        }
+        """);
+}
+
+    private UserChatMessage BuildUserPrompt(
+    byte[] bytes,
+    string mime,
+    CardDetectionResult detection)
+{
+    return new UserChatMessage(
+    [
+        ChatMessageContentPart.CreateTextPart(
+            $$"""
+            OCR RESULTS (MAY BE INCORRECT)
+
+            Name:
+            {{detection.Name}}
+
+            Set:
+            {{detection.SetCode}}
+
+            Collector Number:
+            {{detection.CollectorNumber}}
+
+            OCR values are hints only.
+
+            The image is the source of truth.
+
+            If OCR conflicts with the image:
+            - Trust the image.
+            - Ignore the OCR value.
+
+            ANALYSIS TASK
+
+            Examine the card image and report only what is physically visible.
+
+            Do NOT determine:
+            - expansion set
+            - set code
+            - edition
+            - printing
+            - card version
+
+            Do NOT guess missing information.
+
+            If text cannot be read:
+            return null.
+
+            SET SYMBOL ANALYSIS
+
+            If a set symbol is visible:
+
+            - Describe the symbol visually.
+            - Describe its overall shape.
+            - Describe distinctive details.
+            - Do NOT identify the set.
+
+            Good examples:
+
             "Eye with central pupil"
             "Palm tree with curved trunk"
             "Five pointed star"
+            "Dragon head facing left"
+            "Shield"
             "Anvil"
             "Crescent moon"
-            "Dragon head facing left"
-            "Cloud with lightning"
-            "Shield"
-            
-            Do NOT map symbols to sets.
+
+            Bad examples:
+
+            "Tempest symbol"
+            "Revised symbol"
+            "Urza's Saga symbol"
 
             If no symbol is visible:
 
-            SetSymbolVisible = false
-            VisibleSetSymbolDescription = null
+            setSymbolVisible = false
+            visibleSetSymbolDescription = null
 
-            COLLECTOR NUMBER RULES
+            COLLECTOR NUMBER
 
-            Only return CollectorNumber if physically visible.
+            Only return collectorNumber if it is readable.
 
-            If unreadable:
+            Otherwise:
 
-            CollectorNumber = null
+            collectorNumber = null
 
             CONFIDENCE
 
-            Confidence refers to confidence in the observations.
+            Return confidence as a numeric value between 0.0 and 1.0.
 
-            RETURN JSON ONLY
+            Examples:
 
-            Properties:
+            0.95
+            0.80
+            0.50
+            0.10
 
-            name
-            artist
-            collectorNumber
-            copyrightYear
-            visibleSetSymbolDescription
-            setSymbolVisible
-            whiteBorder
-            oldBorder
-            manaCost
-            cardType
-            powerToughness
-            rarity
-            confidence
-            """);
-    }
+            Never return:
 
-    private UserChatMessage BuildUserPrompt(
-        byte[] bytes,
-        string mime,
-        CardDetectionResult detection)
-    {
-        return new UserChatMessage(
-        [
-            ChatMessageContentPart
-                .CreateTextPart(
-                    $$"""
-                      OCR RESULTS
+            "high"
+            "medium"
+            "low"
 
-                      Name:
-                      {{detection.Name}}
+            Return JSON only.
+            No explanations.
+            No markdown.
+            """),
 
-                      Set:
-                      {{detection.SetCode}}
-
-                      Collector:
-                      {{detection.CollectorNumber}}
-
-                      OCR values are hints only.
-
-                      Use the image as the source of truth.
-
-                      If OCR disagrees with the image,
-                      ignore OCR.
-
-                      Describe only what is physically visible.
-
-                      IMPORTANT
-
-                      Do not determine a set.
-                      Do not determine a printing.
-                      Do not determine an edition.
-
-                      Never guess.
-
-                      If an expansion symbol is visible:
-
-                      - Describe the symbol.
-                      - Describe its shape.
-                      - Describe any distinctive details.
-
-                      Examples:
-
-                      "Eye with central pupil"
-                      "Palm tree"
-                      "Anvil"
-                      "Crescent moon"
-                      "Five pointed star"
-                      "Dragon head"
-
-                      If no symbol is clearly visible:
-
-                      SetSymbolVisible = false
-                      VisibleSetSymbolDescription = null
-
-                      If a collector number is not readable:
-
-                      CollectorNumber = null
-
-                      Report observations only.
-                      """),
-
-            ChatMessageContentPart
-                .CreateImagePart(
-                    BinaryData.FromBytes(bytes),
-                    mime,
-                    ChatImageDetailLevel.High)
-        ]);
-    }
+        ChatMessageContentPart.CreateImagePart(
+            BinaryData.FromBytes(bytes),
+            mime,
+            ChatImageDetailLevel.High)
+    ]);
+}
 }

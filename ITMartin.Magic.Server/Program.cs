@@ -19,8 +19,9 @@ using Microsoft.Extensions.FileProviders;
 
 var builder =
     WebApplication.CreateBuilder(args);
-builder.Services.AddMediaPlatform(builder.Configuration);
 
+
+builder.Services.AddMediaCore(builder.Configuration);
 builder.Services.AddMagicApplication();
 builder.Services.AddAi();
 builder.Services.AddOcr();
@@ -43,13 +44,6 @@ builder.Services.Configure<HubOptions>(
         options.MaximumReceiveMessageSize =
             1024 * 1024 * 20;
     });
-
-// =========================
-// APPLICATION
-// =========================
-
-builder.Services
-    .AddMagicApplication();
 
 // =========================
 // OCR
