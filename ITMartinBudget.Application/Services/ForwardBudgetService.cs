@@ -177,7 +177,7 @@ public sealed class ForwardBudgetService
         ForwardBudgetViewModel model,
         IEnumerable<BankTransaction> transactions)
     {
-        model.RecurringAdjustableExpenses =
+        var expenses =
             transactions
                 .Where(x =>
                     x.BudgetGroup.GetBudgetGroupType() ==
@@ -196,10 +196,8 @@ public sealed class ForwardBudgetService
                     var monthTotal =
                         Math.Abs(
                             x.Where(y =>
-                                    y.Date.Year ==
-                                    latestMonth.Year &&
-                                    y.Date.Month ==
-                                    latestMonth.Month)
+                                    y.Date.Year == latestMonth.Year &&
+                                    y.Date.Month == latestMonth.Month)
                                 .Sum(y =>
                                     y.Amount));
 
@@ -211,17 +209,31 @@ public sealed class ForwardBudgetService
                     return new FixedExpenseViewModel
                     {
                         Title = x.Key,
-
                         MonthlyAmount =
                             monthTotal /
                             Math.Max(
                                 1,
                                 latest.RecurringIntervalMonths),
-
                         RecurringIntervalMonths =
                             latest.RecurringIntervalMonths
                     };
                 })
+                .ToList();
+
+        foreach (var manual in ManualSubscriptions)
+        {
+            if (expenses.All(x =>
+                    !string.Equals(
+                        x.Title,
+                        manual.Title,
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                expenses.Add(manual);
+            }
+        }
+
+        model.RecurringAdjustableExpenses =
+            expenses
                 .OrderByDescending(x =>
                     x.MonthlyAmount)
                 .ToList();
@@ -337,4 +349,13 @@ public sealed class ForwardBudgetService
             x.MonthlyAverage)
         .ToList();
 }
+    private static readonly FixedExpenseViewModel[] ManualSubscriptions =
+    [
+        new()
+        {
+            Title = "Suno",
+            MonthlyAmount = 66.58m,
+            RecurringIntervalMonths = 12
+        }
+    ];
 }
