@@ -3,11 +3,10 @@ using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
-using ITMartin.Media.Application.Services.Steps.NormalizationStep;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ITMartin.Media.Infrastructure;
+namespace ITMartin.Media.Infrastructure.DependencyInjection;
 
 public static class Package1DependencyInjection
 {
@@ -57,6 +56,7 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             ImageNormalizationWorkflowStep>();
+        services.AddScoped<Package1WorkflowDefinition>();
 
         services.AddScoped<
             MediaClassificationWorkflowStep>();

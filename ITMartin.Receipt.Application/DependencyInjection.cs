@@ -19,10 +19,6 @@ public static class DependencyInjection
         services.AddScoped<
             SaveTransactionWorkflowStep>();
 
-        services.AddScoped<
-            IWorkflowDefinition,
-            ReceiptWorkflowDefinition>();
-
         return services;
     }
 }

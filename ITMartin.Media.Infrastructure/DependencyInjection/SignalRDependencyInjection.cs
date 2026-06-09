@@ -1,13 +1,11 @@
-﻿// File: ITMartin.Media.Infrastructure.SignalR/SignalRDependencyInjection.cs
-
-using ITMartin.Media.Application.Abstractions.Runtime;
+﻿using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Infrastructure.SignalR.Hubs;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ITMartin.Media.Infrastructure;
+namespace ITMartin.Media.Infrastructure.DependencyInjection;
 
 public static class SignalRDependencyInjection
 {

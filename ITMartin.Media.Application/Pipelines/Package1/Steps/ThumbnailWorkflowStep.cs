@@ -67,6 +67,12 @@ public sealed class ThumbnailWorkflowStep
                 file.NormalizedPath
                 ?? file.FullPath;
 
+            if (!_thumbnailService.Supports(
+                    thumbnailSource))
+            {
+                continue;
+            }
+
             var thumbnailDirectory =
                 Path.Combine(
                     Path.GetDirectoryName(

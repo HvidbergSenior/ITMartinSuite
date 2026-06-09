@@ -6,4 +6,5 @@ public interface IThumbnailService
         string sourcePath,
         string outputPath,
         CancellationToken cancellationToken = default);
+    bool Supports(string path);
 }

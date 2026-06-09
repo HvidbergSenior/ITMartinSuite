@@ -1,28 +1,33 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+﻿using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartin.Media.Runtime.Registry;
 
 public sealed class WorkflowRegistry(
-    IEnumerable<IWorkflowDefinition> workflows)
+    IServiceProvider serviceProvider)
     : IWorkflowRegistry
 {
-    private readonly Dictionary<WorkflowType, IWorkflowDefinition>
-        _workflows =
-            workflows.ToDictionary(
-                x => x.WorkflowType);
+    private readonly IServiceProvider _serviceProvider =
+        serviceProvider;
 
     public IWorkflowDefinition Resolve(
         WorkflowType workflowType)
     {
-        if (_workflows.TryGetValue(
-                workflowType,
-                out var workflow))
+        return workflowType switch
         {
-            return workflow;
-        }
+            WorkflowType.Package1 =>
+                _serviceProvider.GetRequiredService<
+                    Package1WorkflowDefinition>(),
 
-        throw new InvalidOperationException(
-            $"Workflow '{workflowType}' was not registered.");
+            WorkflowType.Package2 =>
+                _serviceProvider.GetRequiredService<
+                    Package2WorkflowDefinition>(),
+
+            _ =>
+                throw new InvalidOperationException(
+                    $"Workflow '{workflowType}' not registered.")
+        };
     }
 }

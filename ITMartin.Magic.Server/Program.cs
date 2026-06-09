@@ -9,6 +9,7 @@ using ITMartin.Magic.Infrastructure.Services;
 using ITMartin.Magic.Server;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR;
 using ITMartin.OCR.Interfaces;
@@ -18,7 +19,7 @@ using Microsoft.Extensions.FileProviders;
 
 var builder =
     WebApplication.CreateBuilder(args);
-builder.Services.AddMedia(builder.Configuration);
+builder.Services.AddMediaPlatform(builder.Configuration);
 
 builder.Services.AddMagicApplication();
 builder.Services.AddAi();

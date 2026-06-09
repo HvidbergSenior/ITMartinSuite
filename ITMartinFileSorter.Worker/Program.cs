@@ -1,97 +1,14 @@
-    using ITMartin.Media.Application.Abstractions.BackgroundJobs;
-    using ITMartin.Media.Application.Abstractions.Events;
-    using ITMartin.Media.Application.Abstractions.Runtime;
-    using ITMartin.Media.Application.Abstractions.Scanning;
-    using ITMartin.Media.Application.Interfaces;
-    using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
-    using ITMartin.Media.Application.Pipelines.Package1.Services;
-    using ITMartin.Media.Application.Pipelines.Package2.Clients;
-    using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
-    using ITMartin.Media.Application.Pipelines.Package2.Services;
-    using ITMartin.Media.Application.Services.Steps.DuplicationStep;
-    using ITMartin.Media.Application.Services.Steps.ExportStep;
-    using ITMartin.Media.Application.Services.Steps.NormalizationStep;
-    using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-    using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
-    using ITMartin.Media.Infrastructure;
-    using ITMartin.Media.Infrastructure.BackgroundJobs;
-    using ITMartin.Media.Infrastructure.Events;
-    using ITMartin.Media.Infrastructure.Images;
-    using ITMartin.Media.Infrastructure.Media;
-    using ITMartin.Media.Infrastructure.Persistence.Repositories;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Infrastructure.DependencyInjection;
     using ITMartin.Media.Infrastructure.Services;
-    using ITMartin.Media.Infrastructure.SignalR.Runtime;
-    using ITMartin.Media.Runtime.HostedServices;
 
     var builder = Host.CreateApplicationBuilder(args);
 
-    // =========================
-    // MEDIA PLATFORM
-    // =========================
-
-    builder.Services.AddMedia(
+    builder.Services.AddMediaPlatform(
         builder.Configuration);
-
-    builder.Services.AddPackage1Pipeline(
-        builder.Configuration);
-
-    builder.Services.AddPackage2Pipeline(
-        builder.Configuration);
-    // =========================
-    // CORE SERVICES
-    // =========================
-
-    builder.Services.AddScoped<
-        IMediaTypeResolver,
-        MediaTypeResolver>();
-
-    builder.Services.AddScoped<
-        IThumbnailService,
-        ThumbnailService>();
-    builder.Services.AddScoped<
-        Package2WorkflowFactory>();
-
-    builder.Services.AddScoped<
-        Package1ManifestLoader>();
-    builder.Services.AddScoped<
-        IPackage2Client,
-        Package2Client>();
-    builder.Services.AddScoped<
-        Package1ManifestWriter>();
-    builder.Services.AddScoped<
-        Package1WorkflowRunner>();
-    builder.Services.AddScoped<
-        Package2WorkflowRunner>();
-    builder.Services.AddScoped<
-        Package2WorkflowOrchestrator>();
-    builder.Services.AddScoped<
-        IDuplicateService,
-        DuplicateService>();
-    // =========================
-    // NORMALIZATION
-    // =========================
-    builder.Services.AddHostedService<
-        WorkflowQueueConsumerHostedService>();
-    builder.Services.AddScoped<
-        IImageConverterService,
-        ImageConverterService>();
-    // RUNTIME
-    // =========================
-    builder.Services.AddScoped<
-        IScanSessionRepository,
-        ScanSessionRepository>();
-    builder.Services.AddSingleton<
-        IEventPublisher,
-        NullEventPublisher>();
-    builder.Services.AddSingleton<
-        IRuntimeEventPublisher,
-        NullRuntimeEventPublisher>();
-    builder.Services.AddScoped<
-        ILibraryExportService,
-        LibraryExportService>();
-    builder.Services.AddSingleton<
-        IBackgroundJobQueue,
-        RabbitMqBackgroundJobQueue>();
+    builder.Services.AddFileSorterCore();
+    builder.Services.AddFileSorterWorker();
+  
     var libraryRoot =
         builder.Configuration[
             "MediaSettings:LibraryRoot"];
@@ -99,13 +16,6 @@
     Console.WriteLine(
         $"LIBRARY ROOT: {libraryRoot}");
 
-    builder.Services.AddScoped<
-        ILibraryPathProvider,
-        LibraryPathProvider>();
-    
-    // =========================
-    // QUEUES
-    // =========================
     builder.Logging.ClearProviders();
 
     builder.Logging.AddConsole();

@@ -2,6 +2,7 @@ using ITMartin.Ai;
 using ITMartin.Magic.Application;
 using ITMartin.Magic.Infrastructure;
 using ITMartin.Media.Infrastructure;
+using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.Media.Infrastructure.Persistence;
 using ITMartin.OCR;
 using ITMartin.Receipt.Application;
@@ -30,7 +31,7 @@ builder.Services.AddAi();
 builder.Services.AddOcr();
 builder.Services.AddOpenCv();
 
-builder.Services.AddMedia(
+builder.Services.AddMediaPlatform(
     builder.Configuration);
 
 builder.Services.AddMagicApplication();

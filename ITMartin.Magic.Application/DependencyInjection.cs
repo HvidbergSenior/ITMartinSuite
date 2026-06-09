@@ -27,9 +27,7 @@ public static class DependencyInjection
         services.AddScoped<
             CardScanWorkflowDefinition>();
 
-        services.AddScoped<
-            IWorkflowDefinition,
-            CardScanWorkflowDefinition>();
+   
 
         // =========================
         // WORKFLOW STEPS

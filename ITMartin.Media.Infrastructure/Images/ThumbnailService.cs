@@ -215,4 +215,18 @@ public sealed class ThumbnailService
         return Convert.ToHexString(hash)
                + ".jpg";
     }
+    public bool Supports(
+        string path)
+    {
+        var extension =
+            Path.GetExtension(path)
+                .ToLowerInvariant();
+
+        return extension is
+            ".jpg" or ".jpeg" or ".png" or
+            ".webp" or
+            ".mp4" or ".mkv" or ".avi" or
+            ".mov" or ".mpg" or ".mpeg" or
+            ".mts" or ".m2ts" or ".wmv";
+    }
 }

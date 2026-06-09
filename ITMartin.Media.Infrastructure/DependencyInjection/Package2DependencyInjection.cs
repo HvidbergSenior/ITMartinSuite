@@ -12,7 +12,7 @@ using ITMartin.Media.Infrastructure.Persistence.Stores;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ITMartin.Media.Infrastructure;
+namespace ITMartin.Media.Infrastructure.DependencyInjection;
 
 public static class Package2DependencyInjection
 {
@@ -31,12 +31,7 @@ public static class Package2DependencyInjection
         // WORKFLOW
         // =========================
 
-        services.AddScoped<
-            Package2WorkflowDefinition>();
-
-        services.AddScoped<
-            IWorkflowDefinition,
-            Package2WorkflowDefinition>();
+        services.AddScoped<Package2WorkflowDefinition>();
 
         services.AddScoped<
             Package2WorkflowFactory>();
@@ -62,13 +57,11 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IAudioExtractionService,
             FfmpegAudioExtractionService>();
-
+        
         services.AddScoped<
             IImageEnhancementService,
             ImageProcessingService>();
-        services.AddScoped<
-            IImageEnhancementService,
-            ImageProcessingService>();
+        
         services.AddScoped<
             IThumbnailService,
             ThumbnailService>();

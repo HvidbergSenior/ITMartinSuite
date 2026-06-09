@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ITMartin.Media.Infrastructure;
+namespace ITMartin.Media.Infrastructure.DependencyInjection;
 
 public static class InfrastructureDependencyInjection
 {

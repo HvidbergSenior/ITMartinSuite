@@ -1,13 +1,12 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Runtime.Execution;
-using ITMartin.Media.Runtime.HostedServices;
 using ITMartin.Media.Runtime.Recovery;
 using ITMartin.Media.Runtime.Registry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace ITMartin.Media.Infrastructure;
+namespace ITMartin.Media.Infrastructure.DependencyInjection;
 
 public static class RuntimeDependencyInjection
 {
