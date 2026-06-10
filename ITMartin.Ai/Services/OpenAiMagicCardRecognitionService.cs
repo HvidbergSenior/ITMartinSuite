@@ -122,15 +122,86 @@ public sealed class OpenAiMagicCardRecognitionService
         
         GOAL
         
-        Identify the card shown in the image.
+        Identify the card name and collect reliable edition-identifying observations.
         
-        Use all visible evidence available.
+        The card name will be used to search Scryfall.
         
-        Analyze the card in the exact order below.
+        Scryfall may return many printings of the same card.
         
-        Higher priority observations are more reliable than lower priority observations.
+        Your primary responsibility is therefore NOT to identify the card.
         
-        Never allow a lower-priority observation to override a higher-priority observation.
+        Your primary responsibility is to collect reliable observations that help distinguish one printing from another.
+        
+        Always prioritize edition-identifying observations over gameplay observations.
+        
+        A missing value is better than an incorrect value.
+        
+        Never invent information.
+        
+        Never estimate text.
+        
+        Never guess a collector number.
+        
+        Never guess a set symbol.
+        
+        Only return observations that are actually visible on the card.
+        OBSERVATION PHILOSOPHY
+        
+        The goal is not to identify the edition.
+        
+        The goal is to collect observations that help eliminate Scryfall candidates.
+        
+        Think like a forensic observer.
+        
+        Collect facts.
+        
+        Do not draw conclusions.
+        
+        Do not infer a set.
+        
+        Do not infer an edition.
+        
+        Do not infer a printing.
+        
+        The application will perform the reasoning.
+        
+        Priority 1 - Strongest Printing Elimination Signals
+        
+        These observations can eliminate large numbers of candidate printings.
+        
+        - collectorNumber
+        - setSymbolDescription
+        - artist
+        - copyrightText
+        - outerBorder
+        - frameStyle
+        
+        Priority 2 - Strong Printing Elimination Signals
+        
+        These observations often help eliminate candidate sets and printings.
+        
+        - setSymbolColor
+        - frameColor
+        - artistTextColor
+        - copyrightTextColor
+        
+        Priority 3 - Card Identification Signals
+        
+        These observations help identify the card but usually do not distinguish printings.
+        
+        - identifiedName
+        - manaCost
+        - cardType
+        - powerToughness
+        
+        Always prioritize observations that help eliminate printings.
+        
+        The card name is important, but Scryfall will already search by card name.
+        
+        The primary objective is to collect observations that help distinguish between different printings of the same card.
+        
+        
+        If image quality is limited, spend effort on higher-priority observations first.
         
         IMPORTANT
         
@@ -187,6 +258,22 @@ public sealed class OpenAiMagicCardRecognitionService
         Do not return null merely because classification is imperfect.
         
         Return null only when the feature itself is not visible.
+        
+        CONSISTENCY RULES
+        
+        If artist text is not visible:
+        
+        artist = null
+        artistTextColor = null
+        
+        If copyright text is not visible:
+        
+        copyrightText = null
+        copyrightTextColor = null
+        
+        Do not return a text color for text that is not visible.
+        
+        The existence of text and the color of that text must agree.
         
         CARD ANATOMY
         
@@ -408,6 +495,37 @@ public sealed class OpenAiMagicCardRecognitionService
         
         Return null only when the copyright text area is not visible.
         
+        COLLECTOR NUMBER SAFETY RULES
+        
+        Collector Number and Power/Toughness are different things.
+        
+        Never use Power/Toughness as Collector Number.
+        
+        Power/Toughness appears:
+        
+        * Inside the rules text area
+        * Bottom right of the card face
+        * Example: 1/1, 2/2, 4/4
+        
+        Collector Number appears:
+        
+        * Near artist and copyright information
+        * Along the bottom information line
+        * Usually very small text
+        
+        If the only visible number is a Power/Toughness value:
+        
+        collectorNumber = null
+        
+        If the collector number cannot be clearly read:
+        
+        collectorNumber = null
+        
+        Never infer a collector number.
+        
+        Never estimate a collector number.
+        
+        Collector Number requires every character to be visible.
         
         STEP 7 — COLLECTOR NUMBER
         
@@ -426,11 +544,36 @@ public sealed class OpenAiMagicCardRecognitionService
         
         collectorNumber = null
         
+        If the visible number could be Power/Toughness:
+        
+        collectorNumber = null
+        
+        When uncertain between Collector Number and Power/Toughness:
+        
+        collectorNumber = null
+        
         Never infer missing characters.
         
         Never estimate characters.
         
         STEP 8 — OUTER BORDER
+        IMPORTANT
+        
+        Outer Border is NOT the card color.
+        
+        Outer Border is the thin edge around the entire card.
+        
+        Examples:
+        
+        A white card can have:
+        - White frameColor
+        - Black outerBorder
+        
+        A red card can have:
+        - Red frameColor
+        - Black outerBorder
+        
+        Determine the border independently from the card color.
         
         OUTER BORDER RULES
         
@@ -458,6 +601,22 @@ public sealed class OpenAiMagicCardRecognitionService
         Return null only when the card edge itself is cropped out of the image.
         
         STEP 9 — CARD FRAME
+        
+        IMPORTANT
+        
+        Frame Color is the color of the card frame.
+        
+        Frame Color is NOT the border color.
+        
+        Examples:
+        
+        Red Scarab:
+        frameColor = White
+        outerBorder = Black
+        
+        Lightning Bolt:
+        frameColor = Red
+        outerBorder = Black
         
         FRAME COLOR RULES
         
@@ -521,6 +680,25 @@ public sealed class OpenAiMagicCardRecognitionService
         
         Return null only when the frame is not visible.
         
+        STEP 10A — SET SYMBOL PRESENCE
+        
+        Determine whether any set symbol is visible to the right of the type line.
+        
+        Values:
+        
+        true
+        false
+        
+        Examples:
+        
+        Visible symbol
+        → hasSetSymbol = true
+        
+        No visible symbol
+        → hasSetSymbol = false
+        
+        This observation is extremely valuable because it can eliminate many candidate printings.
+        
         STEP 11 — SET SYMBOL
         
         Location:
@@ -550,21 +728,36 @@ public sealed class OpenAiMagicCardRecognitionService
         
         Examples:
         
-        Circle with wave shape
-        
-        Circle with curved line
-        
-        Diamond with central circle
-        
-        Shield shape
-        
-        Tree-like silhouette
+        Silver shield
         
         Black spiked star
         
-        Silver shield
+        Silver circle with starburst
         
         Gold diamond
+        
+        Black crown
+        
+        Red flame
+        
+        Blue droplet
+        
+        Tree silhouette
+        
+        Sword shape
+        
+        Shield with central emblem
+        
+        Circle with internal symbol
+        
+        Diamond with central circle
+        
+        Describe what is visible.
+        
+        Do not identify the set.
+        
+        Do not use set names.
+        
         
         A rough visual description is preferred over null.
         
@@ -585,17 +778,35 @@ public sealed class OpenAiMagicCardRecognitionService
         
         Return null only when no symbol is visible.
         
+        EDITION IDENTIFICATION EXAMPLES
+        
+        The following combinations are highly valuable because they help distinguish printings:
+        
+        - Artist + Copyright Text
+        - Artist + Set Symbol Description
+        - Copyright Text + Border Color
+        - Set Symbol Description + Set Symbol Color
+        - Frame Style + Border Color
+        - Artist Text Color + Copyright Text Color
+        - Collector Number + Set Symbol Description
+        
+        When these observations are visible, prioritize collecting them.
+        
+        These combinations are often more useful than:
+        
+        - Mana Cost
+        - Card Type
+        - Power/Toughness
+        
+        because many printings share identical gameplay characteristics.
+        
         IMPORTANT
         
-        When visible, the following fields should almost never be null:
+        When visible, these fields should normally contain an observation.
         
-        - outerBorder
-        - frameColor
-        - frameStyle
-        - setSymbolDescription
-        - setSymbolColor
-        - artistTextColor
-        - copyrightTextColor
+        If the feature itself cannot be seen, return null.
+        
+        Never guess.
         
        
         - Artist
@@ -610,6 +821,18 @@ public sealed class OpenAiMagicCardRecognitionService
         - Frame Style
         
         Collect these whenever visible.
+        
+        IMPORTANT
+        
+        Do not attempt to identify the edition.
+        
+        Do not attempt to identify the set.
+        
+        Do not attempt to infer the printing.
+        
+        Only describe what is visually observable.
+        
+        The application will determine the most likely printing using Scryfall and scoring.
         
         COMPLETENESS REQUIREMENT
         
@@ -631,6 +854,88 @@ public sealed class OpenAiMagicCardRecognitionService
         - setSymbolColor
         
         Complete the full analysis before returning JSON.
+        
+        PRINTING ELIMINATION THINKING
+        
+        For every observation ask:
+        
+        "Can this eliminate candidate printings?"
+        
+        Examples:
+        
+        No set symbol visible
+        → eliminates many expansion sets
+        
+        White border
+        → eliminates black-border printings
+        
+        Black border
+        → eliminates white-border printings
+        
+        Old frame
+        → eliminates modern-frame printings
+        
+        Collector number visible
+        → may identify a single printing
+        
+        Artist visible
+        → may eliminate many printings of the same card
+        
+        Copyright year visible
+        → may eliminate many later or earlier printings
+        
+        Set symbol visible
+        → may eliminate many sets
+        
+        Prefer observations that eliminate candidates over observations that merely describe gameplay.
+        
+        EDITION IDENTIFICATION RULES
+        
+        The following observations are extremely valuable because they help distinguish different printings of the same card:
+        
+        - Artist
+        - Copyright Text
+        - Artist Text Color
+        - Copyright Text Color
+        - Collector Number
+        - Set Symbol Description
+        - Set Symbol Color
+        - Outer Border
+        - Frame Color
+        - Frame Style
+        
+        These observations should be collected whenever visible.
+        
+        Mana Cost, Card Type and Power/Toughness are often identical across many printings and are therefore lower priority.
+        
+        When choosing between reading Mana Cost and reading a Collector Number, prioritize the Collector Number.
+        
+        When choosing between reading Card Type and identifying a Set Symbol, prioritize the Set Symbol.
+        
+        When choosing between gameplay information and edition-identifying information, prioritize edition-identifying information.
+        
+        HIGH VALUE COMBINATIONS
+        
+        The following combinations are especially valuable for distinguishing printings:
+        
+        - Artist + Copyright Text
+        - Artist + Artist Text Color
+        - Artist + Set Symbol Description
+        - Copyright Text + Copyright Text Color
+        - Copyright Text + Border Color
+        - Copyright Text + Frame Style
+        - Set Symbol Description + Set Symbol Color
+        - Set Symbol Description + Border Color
+        - Frame Style + Border Color
+        - Frame Style + Frame Color
+        - Collector Number + Set Symbol Description
+        
+        When these observations are visible, prioritize collecting all parts of the combination.
+        
+        The value comes from collecting the observations.
+        
+        Do not infer any edition from them.
+        
         FINAL VALIDATION
         
         Before returning JSON:
@@ -661,11 +966,15 @@ public sealed class OpenAiMagicCardRecognitionService
         Use exactly this schema.
         
         {
-          "identifiedName": null,
+          {
+        "hasSetSymbol": null,
         
-          "manaCost": null,
-          "cardType": null,
-          "powerToughness": null,
+        "identifiedName": null,
+        
+        "collectorNumber": null,
+        
+          "setSymbolDescription": null,
+          "setSymbolColor": null,
         
           "artist": null,
           "artistTextColor": null,
@@ -673,18 +982,19 @@ public sealed class OpenAiMagicCardRecognitionService
           "copyrightText": null,
           "copyrightTextColor": null,
         
-          "collectorNumber": null,
+          "frameStyle": null,
+          "frameColor": null,
         
           "outerBorder": null,
         
-          "frameColor": null,
-          "frameStyle": null,
-        
-          "setSymbolDescription": null,
-          "setSymbolColor": null
+          "manaCost": null,
+          "cardType": null,
+          "powerToughness": null
         }
         
-        All properties must be strings or null except identificationConfidence.
+        hasSetSymbol must be true, false or null.
+        
+        All other properties must be strings or null except identificationConfidence.
         Do not return nested objects.
         Do not return arrays.
         """);
@@ -708,13 +1018,23 @@ public sealed class OpenAiMagicCardRecognitionService
             
             Prioritize:
             
+            Prioritize:
+            
             1. Card Name
-            2. Mana Cost
-            3. Card Type
-            4. Power/Toughness
-            5. Artist
-            6. Copyright Text
-            7. Collector Number
+            2. Collector Number
+            3. Set Symbol Description
+            4. Artist
+            5. Copyright Text
+            6. Frame Style
+            7. Border Color
+            8. Frame Color
+            9. Artist Text Color
+            10. Copyright Text Color
+            11. Mana Cost
+            12. Card Type
+            13. Power/Toughness
+            
+            The goal is to help distinguish between multiple Scryfall printings of the same card.
             
             For every field:
             

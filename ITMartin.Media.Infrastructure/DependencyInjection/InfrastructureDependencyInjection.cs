@@ -22,7 +22,7 @@ public static class InfrastructureDependencyInjection
         var connectionString =
             configuration.GetConnectionString("MediaDb")
             ?? "Data Source=media.db";
-
+       
         services.AddDbContextFactory<Persistence.MediaDbContext>(
             options =>
             {

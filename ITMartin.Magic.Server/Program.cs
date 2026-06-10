@@ -25,7 +25,7 @@ builder.Services.AddMediaCore(builder.Configuration);
 builder.Services.AddMagicApplication();
 builder.Services.AddAi();
 builder.Services.AddOcr();
-builder.Services.AddOpenCv();
+builder.Services.AddOpenCv(builder.Configuration);
 // =========================
 // SERVICES
 // =========================

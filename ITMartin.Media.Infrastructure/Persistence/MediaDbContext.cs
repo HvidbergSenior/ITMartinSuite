@@ -31,6 +31,7 @@ public sealed class MediaDbContext
     public DbSet<Package2ManifestEntity>
         Package2Manifests
         => Set<Package2ManifestEntity>();
+    
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {

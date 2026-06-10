@@ -12,7 +12,7 @@ public abstract class OpenAiServiceBase
 
     protected OpenAiServiceBase(
         IConfiguration configuration,
-        string model = "gpt-4.1-mini")
+        string model = "gpt-4.1")
     {
         var apiKey =
             configuration["OpenAI:ApiKey"];

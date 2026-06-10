@@ -121,6 +121,19 @@ public sealed class ScryfallService
             cards
                 .Select(card =>
                 {
+                    if (analysis is not null &&
+                        !PassesHardFilters(
+                            card,
+                            analysis))
+                    {
+                        return new ScryfallMatch
+                        {
+                            Card = card,
+                            Score = 0,
+                            Confidence = 0
+                        };
+                    }
+
                     var score =
                         analysis is null
                             ? 0
@@ -135,6 +148,7 @@ public sealed class ScryfallService
                         Confidence = Math.Min(score / 1500m, 1m)
                     };
                 })
+                .Where(x => x.Score > 0)
                 .OrderByDescending(x => x.Score)
                 .ToList();
 
@@ -285,5 +299,48 @@ public sealed class ScryfallService
         score += symbolScore;
 
         return score;
+    }
+    
+    private static bool PassesHardFilters(
+        ScryfallCard card,
+        MagicCardAnalysisResult analysis)
+    {
+        if (!string.IsNullOrWhiteSpace(
+                analysis.OuterBorder))
+        {
+            if (analysis.OuterBorder.Equals(
+                    "White",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !card.BorderColor.Equals(
+                    "white",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (analysis.OuterBorder.Equals(
+                    "Black",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !card.BorderColor.Equals(
+                    "black",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                analysis.CollectorNumber))
+        {
+            if (!string.Equals(
+                    analysis.CollectorNumber,
+                    card.CollectorNumber,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

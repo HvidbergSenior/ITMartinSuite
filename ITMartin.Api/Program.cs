@@ -29,7 +29,7 @@ builder.Services.AddSwaggerGen(
 
 builder.Services.AddAi();
 builder.Services.AddOcr();
-builder.Services.AddOpenCv();
+builder.Services.AddOpenCv(builder.Configuration);
 
 builder.Services.AddMediaPlatform(
     builder.Configuration);

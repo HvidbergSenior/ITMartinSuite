@@ -1,6 +1,9 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Infrastructure.Persistence;
 using ITMartin.Magic.Infrastructure.Services;
 using ITMartin.OCR.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartin.Magic.Infrastructure;
@@ -8,7 +11,8 @@ namespace ITMartin.Magic.Infrastructure;
 public static class DependencyInjection
 {
     public static IServiceCollection AddOpenCv(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddScoped<
             IScryfallService, ScryfallService>();
@@ -28,7 +32,17 @@ public static class DependencyInjection
                 "Accept",
                 "application/json");
         });
-      
+        var connectionString =
+            configuration.GetConnectionString(
+                "MagicDb")
+            ?? "Data Source=magic.db";
+
+        services.AddDbContextFactory<MagicDbContext>(
+            options =>
+            {
+                options.UseSqlite(
+                    connectionString);
+            });
 
         services.AddScoped<
             ICardMatchScoringService,
