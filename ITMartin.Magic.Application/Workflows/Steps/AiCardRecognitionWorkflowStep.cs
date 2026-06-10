@@ -35,15 +35,10 @@ public sealed class AiCardRecognitionWorkflowStep
             context.State.DetectedCardImagePath
             ?? context.State.ImagePath;
 
-        var detectionResult =
-            context.State.DetectionResult
-            ?? new CardDetectionResult();
-
         var result =
             await _magicCardRecognitionService
                 .AnalyzeAsync(
                     imagePath,
-                    detectionResult,
                     cancellationToken);
 
         if (result is null)
@@ -52,23 +47,32 @@ public sealed class AiCardRecognitionWorkflowStep
                 "AI recognition returned null.");
         }
 
+        result.IdentificationConfidence =
+            CalculateConfidence(result);
+
+        context.State.OpenAiResult =
+            result;
+
         context.State.OpenAiResult =
             result;
 
         context.State.CardName =
-            result.Name;
+            result.IdentifiedName;
 
         context.State.CollectorNumber =
             result.CollectorNumber;
 
         context.State.IdentificationConfidence =
-            result.Confidence;
+            result.IdentificationConfidence;
 
         Console.WriteLine(
             $"OPENAI RESULT: {JsonSerializer.Serialize(result)}");
 
         Console.WriteLine(
-            $"NAME: [{result.Name}]");
+            $"IDENTIFIED CARD: [{result.IdentifiedName}]");
+
+        Console.WriteLine(
+            $"CONFIDENCE: [{result.IdentificationConfidence}]");
 
         Console.WriteLine(
             $"ARTIST: [{result.Artist}]");
@@ -77,24 +81,44 @@ public sealed class AiCardRecognitionWorkflowStep
             $"COLLECTOR: [{result.CollectorNumber}]");
 
         Console.WriteLine(
-            $"COPYRIGHT: [{result.CopyrightYear}]");
+            $"SYMBOL: [{result.SetSymbolDescription}]");
 
         Console.WriteLine(
-            $"WHITE BORDER: [{result.WhiteBorder}]");
+            $"FRAME: [{result.FrameColor}] [{result.FrameStyle}]");
 
         Console.WriteLine(
-            $"OLD BORDER: [{result.OldBorder}]");
-
+            $"BORDER: [{result.OuterBorder}]");
         Console.WriteLine(
-            $"SYMBOL VISIBLE: [{result.SetSymbolVisible}]");
-
+            $"CopyrightText: [{result.CopyrightText}]");
         Console.WriteLine(
-            $"SYMBOL DESCRIPTION: [{result.VisibleSetSymbolDescription}]");
+            $"CopyrightTextColor: [{result.CopyrightTextColor}]");
+    }
+    private static decimal CalculateConfidence(
+        MagicCardAnalysisResult result)
+    {
+        if (string.IsNullOrWhiteSpace(
+                result.IdentifiedName))
+        {
+            return 0m;
+        }
 
-        Console.WriteLine(
-            $"RARITY: [{result.Rarity}]");
+        var score = 0.5m;
 
-        Console.WriteLine(
-            $"CONFIDENCE: [{result.Confidence}]");
+        if (!string.IsNullOrWhiteSpace(result.ManaCost))
+            score += 0.1m;
+
+        if (!string.IsNullOrWhiteSpace(result.CardType))
+            score += 0.1m;
+
+        if (!string.IsNullOrWhiteSpace(result.Artist))
+            score += 0.1m;
+
+        if (!string.IsNullOrWhiteSpace(result.CopyrightText))
+            score += 0.1m;
+
+        if (!string.IsNullOrWhiteSpace(result.CollectorNumber))
+            score += 0.1m;
+
+        return Math.Min(score, 1.0m);
     }
 }

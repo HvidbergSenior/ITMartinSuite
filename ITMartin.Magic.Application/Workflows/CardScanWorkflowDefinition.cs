@@ -14,8 +14,6 @@ public sealed class CardScanWorkflowDefinition
     public WorkflowType WorkflowType =>
         WorkflowType.MagicCardScan;
     public CardScanWorkflowDefinition(
-        OcrWorkflowStep ocrWorkflowStep,
-        ScryfallMatchWorkflowStep scryfallMatchWorkflowStep,
         AiCardRecognitionWorkflowStep aiCardRecognitionWorkflowStep,
         CardConditionWorkflowStep cardConditionWorkflowStep,
         ResultMappingWorkflowStep resultMappingWorkflowStep,
@@ -23,10 +21,6 @@ public sealed class CardScanWorkflowDefinition
     {
         Steps =
         [
-            ocrWorkflowStep,
-
-            scryfallMatchWorkflowStep,
-
             aiCardRecognitionWorkflowStep,
 
             finalScryfallMatchWorkflowStep,

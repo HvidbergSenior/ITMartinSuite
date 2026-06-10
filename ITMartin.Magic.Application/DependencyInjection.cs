@@ -34,13 +34,8 @@ public static class DependencyInjection
         // =========================
 
         services.AddScoped<
-            OcrWorkflowStep>();
-
-        services.AddScoped<
             AiCardRecognitionWorkflowStep>();
 
-       services.AddScoped<
-       ScryfallMatchWorkflowStep>();
        services.AddScoped<
            FinalScryfallMatchWorkflowStep>();
 

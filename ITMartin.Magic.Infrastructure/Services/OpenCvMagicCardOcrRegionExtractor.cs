@@ -32,9 +32,7 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
             Cv2.ImRead(
                 normalizedCardPath,
                 ImreadModes.Color);
-        Console.WriteLine(
-            $"WIDTH={image.Width} HEIGHT={image.Height}");
-        
+
         var folder =
             Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -99,18 +97,6 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
 
         Directory.CreateDirectory(
             folder);
-
-        Console.WriteLine(
-            $"Image: {width}x{height}");
-
-        Console.WriteLine(
-            $"TITLE RECT: {titleRect}");
-
-        Console.WriteLine(
-            $"BOTTOM RECT: {bottomRect}");
-
-        Console.WriteLine(
-            $"SET RECT: {setRect}");
 
         using var debug =
             image.Clone();

@@ -7,6 +7,5 @@ public interface IMagicCardRecognitionService
 {
     Task<MagicCardAnalysisResult?>
         AnalyzeAsync(
-            string filePath,
-            CardDetectionResult detection, CancellationToken cancellationToken);
+            string filePath, CancellationToken cancellationToken);
 }

@@ -21,11 +21,7 @@ public sealed class OcrService
                             "tessdata"),
                         "eng",
                         EngineMode.Default);
-                Console.WriteLine(
-                    $"TITLE FILE: {regions.TitleImagePath}");
 
-                Console.WriteLine(
-                    $"SET FILE: {regions.SetCodeImagePath}");
                 var title =
                     ReadRegion(
                         engine,
@@ -37,17 +33,6 @@ public sealed class OcrService
                         engine,
                         regions.SetCodeImagePath,
                         PageSegMode.SingleWord);
-                Console.WriteLine(
-                    $"OCR TITLE: [{title?.Text}]");
-
-                Console.WriteLine(
-                    $"OCR SET: [{setCode?.Text}]");
-
-                Console.WriteLine(
-                    $"OCR TITLE CONFIDENCE: {title?.Confidence}");
-
-                Console.WriteLine(
-                    $"OCR SET CONFIDENCE: {setCode?.Confidence}");
                 return new OcrResult
                 {
                     Regions =

@@ -31,8 +31,11 @@ public static class DependencyInjection
       
 
         services.AddScoped<
-            IBlurDetectionService,
-            OpenCvBlurDetectionService>();
+            ICardMatchScoringService,
+            CardMatchScoringService>();
+        services.AddScoped<
+            ISetSymbolMatchingService,
+            SetSymbolMatchingService>();
 
         services.AddScoped<
             IOcrRegionExtractor,

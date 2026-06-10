@@ -10,11 +10,13 @@ public sealed class ScryfallService
 {
     private readonly HttpClient
         _httpClient;
+
     private readonly ICardMatchScoringService _matchScoringService;
     private readonly ISetSymbolMatchingService _setSymbolMatchingService;
 
     public ScryfallService(
-        HttpClient httpClient, ICardMatchScoringService matchScoringService, ISetSymbolMatchingService setSymbolMatchingService)
+        HttpClient httpClient, ICardMatchScoringService matchScoringService,
+        ISetSymbolMatchingService setSymbolMatchingService)
     {
         _httpClient =
             httpClient;
@@ -33,8 +35,22 @@ public sealed class ScryfallService
             return null;
         }
 
+        Console.WriteLine();
+        Console.WriteLine("========================================");
+        Console.WriteLine("SCRYFALL SEARCH");
+        Console.WriteLine("========================================");
+
         Console.WriteLine(
-            $"AI Name: [{cardName}]");
+            $"AI Card: [{analysis?.IdentifiedName}]");
+
+        Console.WriteLine(
+            $"AI Mana Cost: [{analysis?.ManaCost}]");
+
+        Console.WriteLine(
+            $"AI Type: [{analysis?.CardType}]");
+
+        Console.WriteLine(
+            $"AI P/T: [{analysis?.PowerToughness}]");
 
         Console.WriteLine(
             $"AI Artist: [{analysis?.Artist}]");
@@ -43,19 +59,30 @@ public sealed class ScryfallService
             $"AI Collector: [{analysis?.CollectorNumber}]");
 
         Console.WriteLine(
-            $"AI Symbol: [{analysis?.VisibleSetSymbolDescription}]");
+            $"AI Border: [{analysis?.OuterBorder}]");
 
         Console.WriteLine(
-            $"AI White Border: [{analysis?.WhiteBorder}]");
+            $"AI Frame: [{analysis?.FrameColor}]");
 
         Console.WriteLine(
-            $"AI Old Border: [{analysis?.OldBorder}]");
+            $"AI Frame Style: [{analysis?.FrameStyle}]");
 
+        Console.WriteLine(
+            $"AI Symbol: [{analysis?.SetSymbolDescription}]");
+
+        Console.WriteLine(
+            $"AI Confidence: [{analysis?.IdentificationConfidence}]");
+        Console.WriteLine(
+            $"CopyrightText: [{analysis?.CopyrightText}]");
+        Console.WriteLine(
+            $"CopyrightTextColor: [{analysis?.CopyrightTextColor}]");
+
+        Console.WriteLine();
         var response =
             await _httpClient.GetAsync(
-                $"cards/search?q={Uri.EscapeDataString($"!\"{cardName}\"")}",
+                $"cards/search?q={Uri.EscapeDataString($"name:\"{cardName}\"")}",
                 cancellationToken);
-        
+
         if (!response.IsSuccessStatusCode)
         {
             var error =
@@ -89,42 +116,26 @@ public sealed class ScryfallService
             dto.Data
                 .Select(CreateCard)
                 .ToList();
-        cards =
-            cards
-                .OrderBy(x => x.ReleasedAt)
-                .ToList();
+        
         var matches =
             cards
-                .Select(x =>
+                .Select(card =>
                 {
                     var score =
                         analysis is null
                             ? 0
                             : _matchScoringService.CalculateScore(
-                                x,
+                                card,
                                 analysis);
 
                     return new ScryfallMatch
                     {
-                        Card = x,
+                        Card = card,
                         Score = score,
-                            Confidence =
-                                Math.Min(
-                                    score / 1200m,
-                                    1m),
-
-                        ConfidenceLabel =
-                            score switch
-                            {
-                                >= 700 => "Very High",
-                                >= 400 => "High",
-                                >= 200 => "Medium",
-                                _ => "Low"
-                            }
+                        Confidence = Math.Min(score / 1500m, 1m)
                     };
                 })
-                .OrderByDescending(x =>
-                    x.Score)
+                .OrderByDescending(x => x.Score)
                 .ToList();
 
         return new CardSearchResult
@@ -174,123 +185,102 @@ public sealed class ScryfallService
             ? price
             : null;
     }
+
     private async Task<decimal> CalculateScoreAsync(
         ScryfallCard card,
-        MagicCardAnalysisResult analysis, CancellationToken cancellationToken)
+        MagicCardAnalysisResult analysis,
+        CancellationToken cancellationToken)
     {
         decimal score = 0;
-        if (!string.IsNullOrWhiteSpace(
-                analysis.Name) &&
-            string.Equals(
-                analysis.Name,
+
+        if (!string.Equals(
+                analysis.IdentifiedName,
                 card.Name,
                 StringComparison.OrdinalIgnoreCase))
         {
-            score += 1000;
-        }
-        else
-        {
             return 0;
         }
-        if (!string.IsNullOrWhiteSpace(
-                analysis.ManaCost) &&
+
+        score += 1000;
+
+        if (!string.IsNullOrWhiteSpace(analysis.ManaCost) &&
             string.Equals(
                 analysis.ManaCost,
                 card.ManaCost,
                 StringComparison.OrdinalIgnoreCase))
         {
-            score += 75;
+            score += 100;
         }
-        if (!string.IsNullOrWhiteSpace(
-                analysis.CardType) &&
-            !string.IsNullOrWhiteSpace(
-                card.TypeLine) &&
+
+        if (!string.IsNullOrWhiteSpace(analysis.CardType) &&
             card.TypeLine.Contains(
                 analysis.CardType,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            score += 75;
-        }
-        if (!string.IsNullOrWhiteSpace(
-                analysis.PowerToughness) &&
-            !string.IsNullOrWhiteSpace(
-                card.Power) &&
-            !string.IsNullOrWhiteSpace(
-                card.Toughness))
-        {
-            var pt =
-                $"{card.Power}/{card.Toughness}";
-
-            if (string.Equals(
-                    analysis.PowerToughness,
-                    pt,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                score += 75;
-            }
-        }
-        if (!string.IsNullOrWhiteSpace(
-                analysis.Artist) &&
-            string.Equals(
-                analysis.Artist,
-                card.Artist,
                 StringComparison.OrdinalIgnoreCase))
         {
             score += 100;
         }
 
-        if (!string.IsNullOrWhiteSpace(
-                analysis.CollectorNumber) &&
+        if (!string.IsNullOrWhiteSpace(analysis.PowerToughness) &&
+            $"{card.Power}/{card.Toughness}" ==
+            analysis.PowerToughness)
+        {
+            score += 100;
+        }
+
+        if (!string.IsNullOrWhiteSpace(analysis.Artist) &&
+            string.Equals(
+                analysis.Artist,
+                card.Artist,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            score += 250;
+        }
+
+        if (!string.IsNullOrWhiteSpace(analysis.CollectorNumber) &&
             string.Equals(
                 analysis.CollectorNumber,
                 card.CollectorNumber,
                 StringComparison.OrdinalIgnoreCase))
         {
-            score += 500;
+            score += 1000;
         }
 
-        if (analysis.WhiteBorder &&
-            string.Equals(
-                card.BorderColor,
-                "white",
-                StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(analysis.OuterBorder))
         {
-            score += 50;
+            if (analysis.OuterBorder.Contains(
+                    "white",
+                    StringComparison.OrdinalIgnoreCase) &&
+                card.BorderColor == "white")
+            {
+                score += 100;
+            }
+
+            if (analysis.OuterBorder.Contains(
+                    "black",
+                    StringComparison.OrdinalIgnoreCase) &&
+                card.BorderColor == "black")
+            {
+                score += 100;
+            }
         }
 
-        if (analysis.OldBorder &&
-            card.Frame == "1993")
+        if (!string.IsNullOrWhiteSpace(analysis.FrameStyle))
         {
-            score += 50;
+            if (analysis.FrameStyle.Contains(
+                    "old",
+                    StringComparison.OrdinalIgnoreCase) &&
+                card.Frame == "1993")
+            {
+                score += 100;
+            }
         }
 
-        if (!string.IsNullOrWhiteSpace(
-                analysis.CopyrightYear) &&
-            !string.IsNullOrWhiteSpace(
-                card.ReleasedAt) &&
-            card.ReleasedAt.Contains(
-                analysis.CopyrightYear,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            score += 75;
-        }
-
-        if (!string.IsNullOrWhiteSpace(
-                analysis.Rarity) &&
-            string.Equals(
-                analysis.Rarity,
-                card.Rarity,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            score += 75;
-        }
         var symbolScore =
-            await _setSymbolMatchingService
-                .MatchAsync(
-                    analysis.VisibleSetSymbolDescription,
-                    card.Set,
-                    card.SetName,
-                    cancellationToken);
+            await _setSymbolMatchingService.MatchAsync(
+                analysis.SetSymbolDescription,
+                card.Set,
+                card.SetName,
+                cancellationToken);
 
         score += symbolScore;
 

@@ -31,15 +31,6 @@ public sealed class FinalScryfallMatchWorkflowStep
             return;
         }
 
-        Console.WriteLine(
-            $"CARD NAME: [{context.State.CardName}]");
-
-        Console.WriteLine(
-            $"SET CODE: [{context.State.SetCode}]");
-
-        Console.WriteLine(
-            $"COLLECTOR: [{context.State.CollectorNumber}]");
-
         var match =
             await _scryfallService.SearchAsync(
                 context.State.CardName,

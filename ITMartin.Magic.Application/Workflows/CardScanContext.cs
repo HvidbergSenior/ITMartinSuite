@@ -15,24 +15,21 @@ public sealed class CardScanContext
     // =========================
     public string? CardName { get; set; }
 
-    public string? SetCode { get; set; }
+    public decimal IdentificationConfidence { get; set; }
+    public string? DetectedCardImagePath { get; set; }
+    public string? IdentifiedCardName { get; set; }
 
     public string? CollectorNumber { get; set; }
 
-    public decimal IdentificationConfidence { get; set; }
-    public string? DetectedCardImagePath { get; set; }
+    public string? SetSymbolDescription { get; set; }
+
+    public string? Artist { get; set; }
+
+    public string? CopyrightYear { get; set; }
 
     // =========================
     // PIPELINE RESULTS
     // =========================
-
-    public CardDetectionResult? DetectionResult { get; set; }
-
-    public OcrRegionResult? OcrRegionResult { get; set; }
-
-    public OcrResult? OcrResult { get; set; }
-
-    public RecognitionResult? RecognitionResult { get; set; }
 
     public MagicCardAnalysisResult? OpenAiResult { get; set; }
 

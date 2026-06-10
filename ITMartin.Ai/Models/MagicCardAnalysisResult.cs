@@ -1,20 +1,6 @@
 ﻿public sealed class MagicCardAnalysisResult
 {
-    public string? Name { get; set; }
-
-    public string? Artist { get; set; }
-
-    public string? CollectorNumber { get; set; }
-
-    public string? CopyrightYear { get; set; }
-
-    public string? VisibleSetSymbolDescription { get; set; }
-
-    public bool SetSymbolVisible { get; set; }
-
-    public bool WhiteBorder { get; set; }
-
-    public bool OldBorder { get; set; }
+    public string? IdentifiedName { get; set; }
 
     public string? ManaCost { get; set; }
 
@@ -22,7 +8,22 @@
 
     public string? PowerToughness { get; set; }
 
-    public string? Rarity { get; set; }
+    public string? Artist { get; set; }
 
-    public decimal Confidence { get; set; }
+
+    public string? CollectorNumber { get; set; }
+
+    public string? OuterBorder { get; set; }
+
+    public string? FrameColor { get; set; }
+
+    public string? FrameStyle { get; set; }
+
+    public string? SetSymbolDescription { get; set; }
+
+    public decimal IdentificationConfidence { get; set; }
+    
+    public string? CopyrightText { get; set; }
+
+    public string? CopyrightTextColor { get; set; }
 }
