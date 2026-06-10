@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Runtime.Execution;
+using ITMartin.Media.Runtime.HostedServices;
 using ITMartin.Media.Runtime.Recovery;
 using ITMartin.Media.Runtime.Registry;
 using Microsoft.Extensions.Configuration;
@@ -27,7 +28,7 @@ public static class RuntimeDependencyInjection
             WorkflowRecoveryService>();
 
         //services.AddHostedService<
-          //  WorkflowRecoveryHostedService>();
+          //WorkflowRecoveryHostedService>();
 
         services.Configure<HostOptions>(
             options =>

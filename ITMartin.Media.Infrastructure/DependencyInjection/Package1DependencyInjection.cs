@@ -37,7 +37,7 @@ public static class Package1DependencyInjection
             Package1ManifestLoader>();
 
         services.AddScoped<
-            Package1CleanupPipeline>();
+            Package1CleanupResultBuilder>();
 
         services.AddScoped<
             FileDiscoveryWorkflowStep>();
@@ -59,7 +59,7 @@ public static class Package1DependencyInjection
         services.AddScoped<Package1WorkflowDefinition>();
 
         services.AddScoped<
-            MediaClassificationWorkflowStep>();
+            MediaRulesWorkflowStep>();
 
         services.AddScoped<
             VideoNormalizationWorkflowStep>();

@@ -15,7 +15,7 @@ public sealed class Package1WorkflowDefinition
 
     public Package1WorkflowDefinition(
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
-        MediaClassificationWorkflowStep mediaClassificationWorkflowStep,
+        MediaRulesWorkflowStep mediaRulesWorkflowStep,
         HashWorkflowStep hashWorkflowStep,
         MetadataWorkflowStep metadataWorkflowStep,
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
@@ -32,7 +32,7 @@ public sealed class Package1WorkflowDefinition
         [
             fileDiscoveryWorkflowStep,
 
-            mediaClassificationWorkflowStep,
+            mediaRulesWorkflowStep,
 
             hashWorkflowStep,
 
@@ -52,9 +52,9 @@ public sealed class Package1WorkflowDefinition
 
             manifest1BuildWorkflowStep,
 
-            exportWorkflowExecutionStep,
+            exportWorkflowExecutionStep
 
-            thumbnailWorkflowStep
+            //thumbnailWorkflowStep
         ];
     }
 }

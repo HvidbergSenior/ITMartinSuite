@@ -77,6 +77,10 @@ public sealed class ImageNormalizationWorkflowStep
                         await _imageConverterService
                             .ConvertToJpgAsync(
                                 file.FullPath);
+                    _logger.LogInformation(
+                        "Normalized {Source} -> {Output}",
+                        file.FullPath,
+                        file.NormalizedPath);
                 },
                 _logger);
         }

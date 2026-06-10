@@ -75,7 +75,10 @@ public class VideoBatchService : IVideoBatchService
                 if (!string.IsNullOrWhiteSpace(output))
                 {
                     file.NormalizedPath = output;
-
+                    _logger.LogInformation(
+                        "Video normalized {Source} -> {Output}",
+                        file.FullPath,
+                        output);
                     _logger.LogInformation(
                         "Conversion completed for {File}",
                         file.FileName);

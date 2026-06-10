@@ -47,9 +47,11 @@ public class VideoConverterService : IVideoConverterService
         var ffmpegArgs =
             $"-hide_banner -y -i \"{inputPath}\" " +
             "-c:v libx264 " +
+            "-pix_fmt yuv420p " +
             "-preset veryfast " +
             "-crf 22 " +
             "-c:a aac " +
+            "-movflags +faststart " +
             "-stats " +
             $"\"{outputPath}\"";
 

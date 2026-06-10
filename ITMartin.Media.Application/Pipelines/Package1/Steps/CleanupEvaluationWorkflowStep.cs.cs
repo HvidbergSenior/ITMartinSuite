@@ -11,19 +11,19 @@ namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 public sealed class CleanupEvaluationWorkflowStep
     : Package1WorkflowStepBase
 {
-    private readonly Package1CleanupPipeline
-        _cleanupPipeline;
+    private readonly Package1CleanupResultBuilder
+        _cleanupResultBuilder;
 
     private readonly ILogger<
             CleanupEvaluationWorkflowStep>
         _logger;
 
     public CleanupEvaluationWorkflowStep(
-        Package1CleanupPipeline cleanupPipeline,
+        Package1CleanupResultBuilder cleanupResultBuilder,
         ILogger<CleanupEvaluationWorkflowStep> logger)
     {
-        _cleanupPipeline =
-            cleanupPipeline;
+        _cleanupResultBuilder =
+            cleanupResultBuilder;
 
         _logger =
             logger;
@@ -108,7 +108,7 @@ public sealed class CleanupEvaluationWorkflowStep
                 }
 
                 var result =
-                    _cleanupPipeline.Run(
+                    _cleanupResultBuilder.Run(
                         state.MediaFiles);
 
                 state.CleanupResult =

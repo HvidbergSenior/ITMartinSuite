@@ -2,6 +2,7 @@
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Services.Steps.ExportStep;
 
@@ -10,12 +11,14 @@ public class LibraryExportService
 {
     private readonly IMediaNamingService
         _mediaNamingService;
-
+    private readonly ILogger<LibraryExportService>
+        _logger;
     public LibraryExportService(
-        IMediaNamingService mediaNamingService)
+        IMediaNamingService mediaNamingService, ILogger<LibraryExportService> logger)
     {
         _mediaNamingService =
             mediaNamingService;
+        _logger = logger;
     }
 
     public async Task ExportAsync(
@@ -65,12 +68,11 @@ public class LibraryExportService
                         file.Year,
                         2000);
 
-                var monthName =
-                    new DateTime(
-                            safeYear,
-                            safeMonth,
-                            1)
-                        .ToString("MMMM");
+                var monthFolder =
+                    $"{safeMonth:00}-{new DateTime(
+                        safeYear,
+                        safeMonth,
+                        1).ToString("MMMM")}";
 
                 var targetDir =
                     file.ExportSubFolder == "Duplicates"
@@ -79,12 +81,12 @@ public class LibraryExportService
                             "Duplicates",
                             category,
                             safeYear.ToString(),
-                            monthName)
+                            monthFolder)
                         : Path.Combine(
                             root,
                             category,
                             safeYear.ToString(),
-                            monthName);
+                            monthFolder);
 
                 Directory.CreateDirectory(
                     targetDir);
@@ -96,7 +98,16 @@ public class LibraryExportService
                 var sourcePath =
                     file.NormalizedPath ??
                     file.FullPath;
-
+                _logger.LogInformation(
+                    """
+                    Export:
+                    Original={Original}
+                    Normalized={Normalized}
+                    Using={Using}
+                    """,
+                    file.FullPath,
+                    file.NormalizedPath,
+                    file.NormalizedPath ?? file.FullPath);
                 // =========================
                 // AI FILE NAME
                 // =========================

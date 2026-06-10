@@ -10,60 +10,43 @@ public sealed class MediaNamingService
     public string BuildFileName(
         MediaFile file)
     {
-        var year =
-            file.Year > 0
-                ? file.Year.ToString()
-                : "Unknown";
-
-        var category =
-            !string.IsNullOrWhiteSpace(file.AiCategory)
-                ? file.AiCategory
-                : file.MainCategory.ToString();
-
-        var subCategory =
-            !string.IsNullOrWhiteSpace(file.AiSubCategory)
-                ? file.AiSubCategory
-                : file.SubCategory.ToString();
-
         var title =
             GetTitle(file);
 
-        var parts = new List<string>
-        {
-            year,
-            category
-        };
+        var extension =
+            !string.IsNullOrWhiteSpace(
+                file.NormalizedPath)
+                ? Path.GetExtension(
+                    file.NormalizedPath)
+                : file.Extension;
 
-        if (!string.IsNullOrWhiteSpace(subCategory))
-        {
-            parts.Add(subCategory);
-        }
-
-        parts.Add(title);
-
-        var name =
-            string.Join(
-                "_",
-                parts
-                    .Where(x => !string.IsNullOrWhiteSpace(x)));
-
-        return $"{Sanitize(name)}{file.Extension}";
+        return
+            $"{Sanitize(title)}{extension.ToLowerInvariant()}";
     }
 
     private static string GetTitle(
         MediaFile file)
     {
-        if (!string.IsNullOrWhiteSpace(file.Title))
+        if (!string.IsNullOrWhiteSpace(
+                file.AiDescription))
+        {
+            return file.AiDescription;
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                file.Title))
         {
             return file.Title;
         }
 
-        if (!string.IsNullOrWhiteSpace(file.DocumentTitle))
+        if (!string.IsNullOrWhiteSpace(
+                file.DocumentTitle))
         {
             return file.DocumentTitle;
         }
 
-        if (!string.IsNullOrWhiteSpace(file.Album))
+        if (!string.IsNullOrWhiteSpace(
+                file.Album))
         {
             return file.Album;
         }
@@ -78,22 +61,22 @@ public sealed class MediaNamingService
         value =
             Regex.Replace(
                 value,
-                @"[^a-zA-Z0-9_\- ]",
+                @"[^a-zA-Z0-9æøåÆØÅ_\- ]",
                 string.Empty);
 
         value =
             value.Replace(
-                " ",
-                "_");
+                "_",
+                " ");
 
         value =
             Regex.Replace(
                 value,
-                @"_+",
-                "_");
+                @"\s+",
+                " ");
 
         value =
-            value.Trim('_');
+            value.Trim();
 
         return value.Length > 150
             ? value[..150]

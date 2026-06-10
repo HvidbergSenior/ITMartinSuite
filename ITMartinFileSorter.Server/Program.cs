@@ -56,6 +56,8 @@ builder.Services.AddMediaSignalR();
 // =========================
 // OCR
 // =========================
+builder.Services.AddFileSorterCore();
+builder.Services.AddFileSorterServer();
 
 builder.Services.AddSingleton<
     IOcrService,
@@ -63,43 +65,6 @@ builder.Services.AddSingleton<
 
 // CORE SERVICES
 // =========================
-
-builder.Services.AddScoped<
-    IMediaTypeResolver,
-    MediaTypeResolver>();
-
-builder.Services.AddScoped<
-    IImageConverterService,
-    ImageConverterService>();
-
-builder.Services.AddScoped<
-    IThumbnailService,
-    ThumbnailService>();
-builder.Services.AddScoped<
-    Package1ManifestWriter>();
-builder.Services.AddScoped<
-    Package1ManifestSummaryService>();
-builder.Services.AddScoped<
-    Package1ManifestLoader>();
-builder.Services.AddScoped<
-    Package2ProfileBuilder>();
-builder.Services.AddScoped<
-    IPackage2Client,
-    Package2Client>();
-builder.Services.AddScoped<
-    IPackage1Client,
-    Package1Client>();
-builder.Services.AddScoped<
-    IDuplicateService,
-    DuplicateService>();
-
-builder.Services.AddScoped<
-    ILibraryExportService,
-    LibraryExportService>();
-
-builder.Services.AddScoped<
-    IScanSessionRepository,
-    ScanSessionRepository>();
 
 builder.Logging.ClearProviders();
 
