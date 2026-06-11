@@ -45,6 +45,13 @@ public static class DependencyInjection
             });
 
         services.AddScoped<
+            IPrintingEliminationService,
+            PrintingEliminationService>();
+
+        services.AddScoped<
+            IMagicSetImportService,
+            MagicSetImportService>();
+        services.AddScoped<
             ICardMatchScoringService,
             CardMatchScoringService>();
         services.AddScoped<

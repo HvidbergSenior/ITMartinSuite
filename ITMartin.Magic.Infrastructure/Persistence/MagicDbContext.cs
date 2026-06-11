@@ -22,5 +22,13 @@ public sealed class MagicDbContext
 
         modelBuilder.Entity<MagicSetKnowledge>()
             .HasKey(x => x.SetCode);
+
+        modelBuilder.Entity<MagicSetKnowledge>()
+            .Property(x => x.SetCode)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<MagicSetKnowledge>()
+            .Property(x => x.SetName)
+            .HasMaxLength(200);
     }
 }
