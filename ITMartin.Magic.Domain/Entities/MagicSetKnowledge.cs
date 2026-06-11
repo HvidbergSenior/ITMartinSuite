@@ -1,6 +1,4 @@
-﻿namespace ITMartin.Magic.Domain.Entities;
-
-public sealed class MagicSetKnowledge
+﻿public sealed class MagicSetKnowledge
 {
     public string SetCode { get; set; } = null!;
 
@@ -25,4 +23,14 @@ public sealed class MagicSetKnowledge
     public bool HasFoils { get; set; }
 
     public string CopyrightStyle { get; set; } = "";
+
+    // NEW
+
+    public string SymbolColor { get; set; } = "";
+
+    public string FrameStyle { get; set; } = "";
+
+    public int? CopyrightYear { get; set; }
+
+    public string SymbolShape { get; set; } = "";
 }

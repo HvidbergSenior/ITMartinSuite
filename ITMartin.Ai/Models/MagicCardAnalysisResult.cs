@@ -1,4 +1,6 @@
-﻿public sealed class MagicCardAnalysisResult
+﻿namespace ITMartin.Ai.Models;
+
+public sealed class MagicCardAnalysisResult
 {
     public string? IdentifiedName { get; set; }
 
@@ -10,7 +12,6 @@
 
     public string? Artist { get; set; }
 
-
     public string? CollectorNumber { get; set; }
 
     public string? OuterBorder { get; set; }
@@ -21,8 +22,12 @@
 
     public string? SetSymbolDescription { get; set; }
 
+    public string? SetSymbolColor { get; set; }
+
+    public string? SetSymbolShape { get; set; }
+
     public decimal IdentificationConfidence { get; set; }
-    
+
     public string? CopyrightText { get; set; }
 
     public string? CopyrightTextColor { get; set; }

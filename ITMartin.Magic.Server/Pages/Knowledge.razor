@@ -292,10 +292,14 @@ else
             }
 
         </div>
-        <button class="btn btn-success"
-                @onclick="PickRandomSet">
-            Learn Random Set
-        </button>
+            <button class="btn btn-success"
+                    @onclick="PickRandomSet">
+                Learn Random Set
+            </button>
+            <button class="btn btn-primary"
+                    @onclick="LearnNextSet">
+                Learn Next Set
+            </button>
 
     </div>
 }
@@ -317,6 +321,19 @@ else
         {
             Navigation.NavigateTo(
                 $"/knowledge/set/{random.SetCode}");
+        }
+    }
+    private void LearnNextSet()
+    {
+        var next =
+            _model?.MissingKnowledge
+                .OrderBy(x => x.ReleaseYear)
+                .FirstOrDefault();
+
+        if (next is not null)
+        {
+            Navigation.NavigateTo(
+                $"/knowledge/set/{next.SetCode}");
         }
     }
     private void NavigateToSet(

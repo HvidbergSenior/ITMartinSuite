@@ -57,7 +57,66 @@ public sealed class MagicSetKnowledgeService
         return await _db.Sets
             .Where(x =>
                 words.Any(word =>
-                    x.SymbolKeywords.Contains(word)))
+                    x.SymbolKeywords.ToLower()
+                        .Contains(word)))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<MagicSetKnowledge>>
+        SearchByFrameStyleAsync(
+            string frameStyle,
+            CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(
+                frameStyle))
+        {
+            return [];
+        }
+
+        var normalized =
+            frameStyle
+                .Trim()
+                .ToLowerInvariant();
+
+        return await _db.Sets
+            .Where(x =>
+                x.FrameStyle.ToLower() ==
+                normalized)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<MagicSetKnowledge>>
+        SearchBySymbolColorAsync(
+            string symbolColor,
+            CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(
+                symbolColor))
+        {
+            return [];
+        }
+
+        var normalized =
+            symbolColor
+                .Trim()
+                .ToLowerInvariant();
+
+        return await _db.Sets
+            .Where(x =>
+                x.SymbolColor.ToLower() ==
+                normalized)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<MagicSetKnowledge>>
+        SearchByCopyrightYearAsync(
+            int copyrightYear,
+            CancellationToken cancellationToken)
+    {
+        return await _db.Sets
+            .Where(x =>
+                x.CopyrightYear ==
+                copyrightYear)
             .ToListAsync(cancellationToken);
     }
 }

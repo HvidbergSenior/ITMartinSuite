@@ -1,4 +1,5 @@
-﻿using ITMartin.Magic.Application.Interfaces;
+﻿using ITMartin.Ai.Models;
+using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
 
 namespace ITMartin.Magic.Infrastructure.Services;
@@ -59,6 +60,18 @@ public sealed class PrintingEliminationService
 
         result =
             await EliminateBySymbolAsync(
+                result,
+                analysis,
+                cancellationToken);
+
+        result =
+            await EliminateBySymbolColorAsync(
+                result,
+                analysis,
+                cancellationToken);
+
+        result =
+            await EliminateByCopyrightAsync(
                 result,
                 analysis,
                 cancellationToken);
@@ -147,29 +160,28 @@ public sealed class PrintingEliminationService
             return cards;
         }
 
-        if (!analysis.FrameStyle.Contains(
-                "old",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return cards;
-        }
-
         var before =
             cards.Count;
 
-        var oldFrameSets =
+        var matchingSets =
             await _knowledge
-                .GetOldFrameSetsAsync(
+                .SearchByFrameStyleAsync(
+                    analysis.FrameStyle,
                     cancellationToken);
+
+        var setCodes =
+            matchingSets
+                .Select(x => x.SetCode)
+                .ToHashSet();
 
         var result =
             cards
                 .Where(x =>
-                    oldFrameSets.Contains(x.Set))
+                    setCodes.Contains(x.Set))
                 .ToList();
 
         Console.WriteLine(
-            $"Old Frame: {before} -> {result.Count}");
+            $"Frame Style: {before} -> {result.Count}");
 
         return result.Count > 0
             ? result
@@ -251,6 +263,85 @@ public sealed class PrintingEliminationService
 
         Console.WriteLine(
             $"Set Symbol: {before} -> {result.Count}");
+
+        return result.Count > 0
+            ? result
+            : cards;
+    }
+    private async Task<List<ScryfallCard>>
+        EliminateBySymbolColorAsync(
+            List<ScryfallCard> cards,
+            MagicCardAnalysisResult analysis,
+            CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(
+                analysis.SetSymbolColor))
+        {
+            return cards;
+        }
+
+        var before =
+            cards.Count;
+
+        var matchingSets =
+            await _knowledge
+                .SearchBySymbolColorAsync(
+                    analysis.SetSymbolColor,
+                    cancellationToken);
+
+        var setCodes =
+            matchingSets
+                .Select(x => x.SetCode)
+                .ToHashSet();
+
+        var result =
+            cards
+                .Where(x =>
+                    setCodes.Contains(x.Set))
+                .ToList();
+
+        Console.WriteLine(
+            $"Symbol Color: {before} -> {result.Count}");
+
+        return result.Count > 0
+            ? result
+            : cards;
+    }
+    private async Task<List<ScryfallCard>>
+        EliminateByCopyrightAsync(
+            List<ScryfallCard> cards,
+            MagicCardAnalysisResult analysis,
+            CancellationToken cancellationToken)
+    {
+        if (!int.TryParse(
+                analysis.CopyrightText,
+                out var year))
+        {
+            return cards;
+        }
+
+        var before =
+            cards.Count;
+
+        var matchingSets =
+            await _knowledge
+                .SearchByCopyrightYearAsync(
+                    year,
+                    cancellationToken);
+
+        var setCodes =
+            matchingSets
+                .Select(x => x.SetCode)
+                .ToHashSet();
+
+        var result =
+            cards
+                .Where(x =>
+                    setCodes.Contains(x.Set))
+                .ToList();
+
+        Console.WriteLine(
+            $"Copyright Year: {before} -> {result.Count}");
 
         return result.Count > 0
             ? result

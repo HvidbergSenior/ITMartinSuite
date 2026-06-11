@@ -30,73 +30,201 @@ else
 
         </div>
 
-        <div class="category-summary-card">
+        <div class="knowledge-editor">
 
-            <div class="mb-3">
+            <div class="knowledge-section">
 
-                <label>
-                    Symbol Description
-                </label>
+                <div class="knowledge-section-title">
+                    Symbol Knowledge
+                </div>
 
-                <textarea class="form-control"
-                          rows="4"
-                          @bind="_set.SymbolDescription">
-                </textarea>
+                <div class="knowledge-grid">
 
-            </div>
+                    <div class="knowledge-field knowledge-full">
 
-            <div class="mb-3">
+                        <label>
+                            Symbol Description
+                        </label>
 
-                <label>
-                    Keywords
-                </label>
+                        <textarea
+                            rows="4"
+                            @bind="_set.SymbolDescription">
+                        </textarea>
 
-                <input class="form-control"
-                       @bind="_set.SymbolKeywords" />
+                    </div>
 
-            </div>
+                    <div class="knowledge-field">
 
-            <div class="form-check">
+                        <label>
+                            Symbol Shape
+                        </label>
 
-                <input class="form-check-input"
-                       type="checkbox"
-                       @bind="_set.UsesOldFrame" />
+                        <input
+                            @bind="_set.SymbolShape" />
 
-                <label class="form-check-label">
-                    Uses Old Frame
-                </label>
+                    </div>
 
-            </div>
+                    <div class="knowledge-field">
 
-            <div class="form-check">
+                        <label>
+                            Symbol Color
+                        </label>
 
-                <input class="form-check-input"
-                       type="checkbox"
-                       @bind="_set.UsesWhiteBorder" />
+                        <input
+                            @bind="_set.SymbolColor" />
 
-                <label class="form-check-label">
-                    Uses White Border
-                </label>
+                    </div>
 
-            </div>
+                    <div class="knowledge-field knowledge-full">
 
-            <div class="form-check">
+                        <label>
+                            Symbol Keywords
+                        </label>
 
-                <input class="form-check-input"
-                       type="checkbox"
-                       @bind="_set.UsesBlackBorder" />
+                        <input
+                            @bind="_set.SymbolKeywords" />
 
-                <label class="form-check-label">
-                    Uses Black Border
-                </label>
+                    </div>
+
+                </div>
 
             </div>
 
-            <div class="mt-4">
+            <div class="knowledge-section">
+
+                <div class="knowledge-section-title">
+                    Frame & Copyright
+                </div>
+
+                <div class="knowledge-grid">
+
+                    <div class="knowledge-field">
+
+                        <label>
+                            Frame Style
+                        </label>
+
+                        <input
+                            @bind="_set.FrameStyle" />
+
+                    </div>
+
+                    <div class="knowledge-field">
+
+                        <label>
+                            Copyright Year
+                        </label>
+
+                        <input
+                            type="number"
+                            @bind="_set.CopyrightYear" />
+
+                    </div>
+
+                    <div class="knowledge-field knowledge-full">
+
+                        <label>
+                            Copyright Style
+                        </label>
+
+                        <input
+                            @bind="_set.CopyrightStyle" />
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="knowledge-section">
+
+                <div class="knowledge-section-title">
+                    Printing Characteristics
+                </div>
+
+                <div class="knowledge-checkbox-grid">
+
+                    <div class="knowledge-checkbox">
+
+                        <input
+                            type="checkbox"
+                            @bind="_set.HasSetSymbol" />
+
+                        <label>
+                            Has Set Symbol
+                        </label>
+
+                    </div>
+
+                    <div class="knowledge-checkbox">
+
+                        <input
+                            type="checkbox"
+                            @bind="_set.HasCollectorNumbers" />
+
+                        <label>
+                            Has Collector Numbers
+                        </label>
+
+                    </div>
+
+                    <div class="knowledge-checkbox">
+
+                        <input
+                            type="checkbox"
+                            @bind="_set.HasFoils" />
+
+                        <label>
+                            Has Foils
+                        </label>
+
+                    </div>
+
+                    <div class="knowledge-checkbox">
+
+                        <input
+                            type="checkbox"
+                            @bind="_set.UsesOldFrame" />
+
+                        <label>
+                            Uses Old Frame
+                        </label>
+
+                    </div>
+
+                    <div class="knowledge-checkbox">
+
+                        <input
+                            type="checkbox"
+                            @bind="_set.UsesWhiteBorder" />
+
+                        <label>
+                            Uses White Border
+                        </label>
+
+                    </div>
+
+                    <div class="knowledge-checkbox">
+
+                        <input
+                            type="checkbox"
+                            @bind="_set.UsesBlackBorder" />
+
+                        <label>
+                            Uses Black Border
+                        </label>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="knowledge-save">
 
                 <button class="btn btn-success"
                         @onclick="Save">
-                    Save
+                    Save Knowledge
                 </button>
 
             </div>

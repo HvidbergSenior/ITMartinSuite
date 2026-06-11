@@ -40,9 +40,20 @@ public sealed class MagicSetImportService
                 .ToListAsync(cancellationToken))
             .ToHashSet();
 
+        var allowedTypes = new[]
+        {
+            "core",
+            "expansion"
+        };
+
         var newSets =
             response.Data
-                .Where(x => !existingCodes.Contains(x.Code))
+                .Where(x =>
+                    allowedTypes.Contains(
+                        x.SetType,
+                        StringComparer.OrdinalIgnoreCase))
+                .Where(x =>
+                    !existingCodes.Contains(x.Code))
                 .Select(set => new MagicSetKnowledge
                 {
                     SetCode = set.Code,
@@ -51,11 +62,18 @@ public sealed class MagicSetImportService
 
                     SymbolDescription = "",
                     SymbolKeywords = "",
+                    SymbolColor = "",
+                    SymbolShape = "",
+
+                    FrameStyle = "",
+                    CopyrightStyle = "",
+                    CopyrightYear = null,
 
                     HasSetSymbol = true,
                     UsesOldFrame = false,
                     UsesWhiteBorder = false,
                     UsesBlackBorder = true,
+
                     HasCollectorNumbers = true,
                     HasFoils = true
                 });

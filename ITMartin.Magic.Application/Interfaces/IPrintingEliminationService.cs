@@ -1,4 +1,5 @@
-﻿using ITMartin.Magic.Application.Models;
+﻿using ITMartin.Ai.Models;
+using ITMartin.Magic.Application.Models;
 
 namespace ITMartin.Magic.Application.Interfaces;
 

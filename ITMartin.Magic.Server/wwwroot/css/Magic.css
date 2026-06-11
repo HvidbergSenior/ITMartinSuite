@@ -1251,3 +1251,139 @@ RESPONSIVE
         max-width: 420px;
     }
 }
+/* =========================================
+   KNOWLEDGE EDITOR
+========================================= */
+
+.knowledge-editor
+{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.knowledge-section
+{
+    background:
+            linear-gradient(
+                    180deg,
+                    #181818,
+                    #111111);
+
+    border: 1px solid #2a2a2a;
+
+    border-radius: 24px;
+
+    padding: 24px;
+}
+
+.knowledge-section-title
+{
+    font-size: 20px;
+
+    font-weight: 800;
+
+    margin-bottom: 20px;
+}
+
+.knowledge-grid
+{
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 20px;
+}
+
+.knowledge-field
+{
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+}
+
+.knowledge-field label
+{
+    font-size: 13px;
+
+    font-weight: 700;
+
+    color: var(--muted);
+
+    text-transform: uppercase;
+
+    letter-spacing: 1px;
+}
+
+.knowledge-field input,
+.knowledge-field textarea,
+.knowledge-field select
+{
+    background: #121212;
+
+    border: 1px solid #2f2f2f;
+
+    color: white;
+
+    border-radius: 14px;
+
+    padding: 14px;
+}
+
+.knowledge-field input:focus,
+.knowledge-field textarea:focus
+{
+    outline: none;
+
+    border-color: var(--blue);
+
+    box-shadow:
+            0 0 0 4px rgba(96,165,250,.15);
+}
+
+.knowledge-full
+{
+    grid-column: span 2;
+}
+
+.knowledge-checkbox-grid
+{
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 16px;
+}
+
+.knowledge-checkbox
+{
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    background: rgba(255,255,255,.03);
+
+    border: 1px solid #2a2a2a;
+
+    border-radius: 14px;
+
+    padding: 14px;
+}
+
+.knowledge-save
+{
+    display: flex;
+
+    justify-content: flex-end;
+}
+
+.knowledge-save .btn
+{
+    min-width: 180px;
+}

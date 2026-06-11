@@ -1,4 +1,5 @@
-﻿using ITMartin.Magic.Application.Interfaces;
+﻿using ITMartin.Ai.Models;
+using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
 
 public sealed class CardMatchScoringService

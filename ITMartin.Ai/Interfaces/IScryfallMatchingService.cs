@@ -1,4 +1,6 @@
-﻿namespace ITMartin.Ai.Interfaces;
+﻿using ITMartin.Ai.Models;
+
+namespace ITMartin.Ai.Interfaces;
 
 public interface IScryfallMatchingService
 {
