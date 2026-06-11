@@ -1,31 +1,30 @@
 using ITMartin.Ai;
-using ITMartin.Ai.Configuration;
 using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Services;
 using ITMartin.Magic.Application;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Infrastructure;
+using ITMartin.Magic.Infrastructure.Persistence;
 using ITMartin.Magic.Infrastructure.Services;
 using ITMartin.Magic.Server;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Infrastructure;
 using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.OCR;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
 var builder =
     WebApplication.CreateBuilder(args);
-
-
 builder.Services.AddMediaCore(builder.Configuration);
+
 builder.Services.AddMagicApplication();
+builder.Services.AddMagicInfrastructure(builder.Configuration);
 builder.Services.AddAi();
 builder.Services.AddOcr();
-builder.Services.AddOpenCv(builder.Configuration);
 // =========================
 // SERVICES
 // =========================
@@ -45,13 +44,6 @@ builder.Services.Configure<HubOptions>(
             1024 * 1024 * 20;
     });
 
-// =========================
-// OCR
-// =========================
-
-builder.Services.AddScoped<
-    IOcrService,
-    OcrService>();
 
 // =========================
 // AI
@@ -80,9 +72,6 @@ builder.Services.AddScoped<
 // =========================
 // URLS
 // =========================
-builder.Services.Configure<MagicSetSymbolOptions>(
-    builder.Configuration.GetSection(
-        "MagicSetSymbols"));
 builder.WebHost.UseUrls(
     "https://0.0.0.0:5020");
 
@@ -120,6 +109,21 @@ if (!app.Environment.IsDevelopment())
 
     app.UseHsts();
 }
+using var scope =
+    app.Services.CreateScope();
+
+var db =
+    scope.ServiceProvider
+        .GetRequiredService<MagicDbContext>();
+
+await db.Database.MigrateAsync();
+
+var importer =
+    scope.ServiceProvider
+        .GetRequiredService<IMagicSetImportService>();
+
+await importer.ImportAsync(
+    CancellationToken.None);
 
 // app.UseHttpsRedirection();
 

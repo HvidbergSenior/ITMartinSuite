@@ -1,4 +1,6 @@
-﻿public sealed class MagicCardScan
+﻿namespace ITMartin.Magic.Domain.Entities;
+
+public sealed class MagicCardScan
 {
     public Guid Id { get; init; }
 

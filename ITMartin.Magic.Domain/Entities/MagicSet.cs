@@ -1,4 +1,6 @@
-﻿public class MagicSet
+﻿namespace ITMartin.Magic.Domain.Entities;
+
+public class MagicSet
 {
     public string Code { get; set; } = "";
     public string Name { get; set; } = "";

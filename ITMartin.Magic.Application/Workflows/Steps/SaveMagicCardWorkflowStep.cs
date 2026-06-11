@@ -1,4 +1,5 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Domain.Entities;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 

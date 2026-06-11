@@ -1,6 +1,11 @@
 ﻿using System.Net.Http.Json;
+using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Application.Models;
+using ITMartin.Magic.Domain.Entities;
 using ITMartin.Magic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+
+namespace ITMartin.Magic.Infrastructure.Services;
 
 public sealed class MagicSetImportService
     : IMagicSetImportService
@@ -29,21 +34,20 @@ public sealed class MagicSetImportService
             return;
         }
 
-        foreach (var set in response.Data)
-        {
-            if (await _db.Sets.AnyAsync(
-                    x => x.SetCode == set.Code,
-                    cancellationToken))
-            {
-                continue;
-            }
+        var existingCodes =
+            (await _db.Sets
+                .Select(x => x.SetCode)
+                .ToListAsync(cancellationToken))
+            .ToHashSet();
 
-            _db.Sets.Add(
-                new MagicSetKnowledge
+        var newSets =
+            response.Data
+                .Where(x => !existingCodes.Contains(x.Code))
+                .Select(set => new MagicSetKnowledge
                 {
                     SetCode = set.Code,
                     SetName = set.Name,
-                    ReleaseYear = set.Released_At.Year,
+                    ReleaseYear = set.ReleasedAt.Year,
 
                     SymbolDescription = "",
                     SymbolKeywords = "",
@@ -55,9 +59,9 @@ public sealed class MagicSetImportService
                     HasCollectorNumbers = true,
                     HasFoils = true
                 });
-        }
 
-        await _db.SaveChangesAsync(
-            cancellationToken);
+        _db.Sets.AddRange(newSets);
+
+        await _db.SaveChangesAsync(cancellationToken);
     }
 }

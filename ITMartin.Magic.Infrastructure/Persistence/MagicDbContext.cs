@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ITMartin.Magic.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace ITMartin.Magic.Infrastructure.Persistence;
 
@@ -11,24 +12,15 @@ public sealed class MagicDbContext
     {
     }
 
-    public DbSet<MagicSetKnowledge>
-        Sets
-        => Set<MagicSetKnowledge>();
+    public DbSet<MagicSetKnowledge> Sets =>
+        Set<MagicSetKnowledge>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(MagicDbContext).Assembly);
+
         base.OnModelCreating(modelBuilder);
-
-        modelBuilder.Entity<MagicSetKnowledge>()
-            .HasKey(x => x.SetCode);
-
-        modelBuilder.Entity<MagicSetKnowledge>()
-            .Property(x => x.SetCode)
-            .HasMaxLength(10);
-
-        modelBuilder.Entity<MagicSetKnowledge>()
-            .Property(x => x.SetName)
-            .HasMaxLength(200);
     }
 }

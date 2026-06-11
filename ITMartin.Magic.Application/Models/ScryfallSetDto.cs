@@ -1,8 +1,15 @@
-﻿public sealed class ScryfallSetDto
+﻿using System.Text.Json.Serialization;
+
+namespace ITMartin.Magic.Application.Models;
+
+public sealed class ScryfallSetDto
 {
+    [JsonPropertyName("code")]
     public string Code { get; set; } = "";
 
+    [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
-    public DateTime Released_At { get; set; }
+    [JsonPropertyName("released_at")]
+    public DateTime ReleasedAt { get; set; }
 }

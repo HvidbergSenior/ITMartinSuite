@@ -1,7 +1,6 @@
 using ITMartin.Ai;
 using ITMartin.Magic.Application;
 using ITMartin.Magic.Infrastructure;
-using ITMartin.Media.Infrastructure;
 using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.Media.Infrastructure.Persistence;
 using ITMartin.OCR;
@@ -29,7 +28,7 @@ builder.Services.AddSwaggerGen(
 
 builder.Services.AddAi();
 builder.Services.AddOcr();
-builder.Services.AddOpenCv(builder.Configuration);
+builder.Services.AddMagicInfrastructure(builder.Configuration);
 
 builder.Services.AddMediaPlatform(
     builder.Configuration);

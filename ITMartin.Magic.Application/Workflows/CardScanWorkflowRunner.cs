@@ -3,6 +3,24 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 
 namespace ITMartin.Magic.Application.Workflows;
 
+/// <summary>
+/// TODO:
+/// Extract workflow engine from ITMartin.Media.Runtime.
+///
+/// Move:
+/// - IWorkflowExecutor
+/// - WorkflowExecutionContext<T>
+/// - IWorkflowDefinition
+/// - WorkflowExecutor
+/// - Workflow persistence contracts
+///
+/// Target project:
+/// ITMartin.Workflow
+///
+/// Goal:
+/// Remove Media dependency from Magic.
+/// Not blocking current development.
+/// </summary>
 public sealed class CardScanWorkflowRunner
 {
     private readonly IWorkflowExecutor _workflowExecutor;

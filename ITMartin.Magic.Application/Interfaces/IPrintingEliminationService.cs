@@ -1,5 +1,7 @@
 ﻿using ITMartin.Magic.Application.Models;
 
+namespace ITMartin.Magic.Application.Interfaces;
+
 public interface IPrintingEliminationService
 {
     Task<List<ScryfallCard>> EliminateAsync(

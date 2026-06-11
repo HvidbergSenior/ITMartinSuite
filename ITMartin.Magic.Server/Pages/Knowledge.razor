@@ -1,0 +1,343 @@
+﻿@page "/knowledge"
+
+@using ITMartin.Magic.Application.Interfaces
+@using ITMartin.Magic.Application.Models
+
+@inject IMagicKnowledgeService KnowledgeService
+@inject NavigationManager Navigation
+<PageTitle>
+    Magic Knowledge Center
+</PageTitle>
+
+@if (_model is null)
+{
+    <div>Loading...</div>
+}
+else
+{
+    <div class="magic-dashboard">
+
+        <div>
+
+            <h1 class="page-title">
+                Magic Knowledge Center
+            </h1>
+
+            <div class="meta">
+                Improve AI printing identification and set recognition.
+            </div>
+
+        </div>
+
+        <div class="magic-kpi-grid">
+
+            <div class="magic-kpi magic-kpi-primary">
+                <div class="magic-kpi-label">Coverage</div>
+                <div class="magic-kpi-value">
+                    @_model.CoveragePercent.ToString("N1")%
+                </div>
+            </div>
+
+            <div class="magic-kpi">
+                <div class="magic-kpi-label">Total Sets</div>
+                <div class="magic-kpi-value">
+                    @_model.TotalSets
+                </div>
+            </div>
+
+            <div class="magic-kpi magic-kpi-success">
+                <div class="magic-kpi-label">Known Symbols</div>
+                <div class="magic-kpi-value">
+                    @_model.KnownSymbols
+                </div>
+            </div>
+
+            <div class="magic-kpi magic-kpi-warning">
+                <div class="magic-kpi-label">Missing Knowledge</div>
+                <div class="magic-kpi-value">
+                    @_model.MissingSymbols
+                </div>
+            </div>
+
+        </div>
+            <div class="magic-panel">
+
+                <input
+                    type="text"
+                    placeholder="Search set..."
+                    @bind="_searchText" />
+
+        </div>
+            <div class="magic-panel">
+
+                    <div class="magic-set-header">
+
+                    <div>
+
+                        <div class="magic-panel-title">
+                            Knowledge Coverage
+                        </div>
+
+                        <div class="magic-panel-subtitle">
+                            Symbol recognition progress
+                        </div>
+
+                    </div>
+
+                    <div class="category-summary-count">
+                        @_model.CoveragePercent.ToString("N0")%
+                    </div>
+
+                </div>
+            <div class="magic-kpi-grid">
+
+                <div class="magic-stat">
+
+                    <div class="magic-stat-label">
+                        Old Frame Sets
+                    </div>
+
+                    <div class="magic-stat-value">
+                        @_model.KnownKnowledge.Count(x => x.UsesOldFrame)
+                    </div>
+
+                </div>
+
+                <div class="magic-stat">
+
+                    <div class="magic-stat-label">
+                        White Border
+                    </div>
+
+                    <div class="magic-stat-value">
+                        @_model.KnownKnowledge.Count(x => x.UsesWhiteBorder)
+                    </div>
+
+                </div>
+
+                <div class="magic-stat">
+
+                    <div class="magic-stat-label">
+                        Black Border
+                    </div>
+
+                    <div class="magic-stat-value">
+                        @_model.KnownKnowledge.Count(x => x.UsesBlackBorder)
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="progress mt-3">
+
+                <div class="progress-bar"
+                     role="progressbar"
+                     style="width:@($"{_model.CoveragePercent}%")">
+                </div>
+
+            </div>
+
+        </div>
+        @if (_model.MissingKnowledge.Any())
+        {
+            var next =
+                _model.MissingKnowledge
+                    .OrderBy(x => x.ReleaseYear)
+                    .First();
+
+
+            
+            <div class="magic-panel magic-learn-next">
+                <div class="magic-set-header">
+
+                    <div>
+
+                        <div class="magic-panel-title">
+                            Recommended Next Set
+                        </div>
+
+                        <div class="magic-set-code">
+                            @next.SetName
+                        </div>
+
+                    </div>
+
+                    <button class="btn btn-success"
+                            @onclick="@(() => NavigateToSet(next.SetCode))">
+                        Learn
+                    </button>
+
+                </div>
+
+            </div>
+        }
+            <div class="magic-panel">
+
+                <h2 class="magic-panel-title">
+                Sets Missing Knowledge
+            </h2>
+
+            @foreach (var set in _model.MissingKnowledge
+                          .Where(x =>
+                              string.IsNullOrWhiteSpace(_searchText)
+                              || x.SetName.Contains(
+                                  _searchText,
+                                  StringComparison.OrdinalIgnoreCase)
+                              || x.SetCode.Contains(
+                                  _searchText,
+                                  StringComparison.OrdinalIgnoreCase)))
+            {
+                <div class="magic-set-card"
+                     @onclick="() => Toggle(set.SetCode)">
+
+                    <div class="magic-set-header">
+
+                        <div>
+
+                            <div class="magic-set-name">
+                                @set.SetName
+                            </div>
+
+                            <div class="magic-set-code">
+                                @set.SetCode.ToUpperInvariant()
+                            </div>
+
+                        </div>
+
+                        <div style="text-align:right">
+
+                            <div class="category-summary-count text-warning">
+                                ?
+                            </div>
+
+                            <div class="meta">
+                                @set.ReleaseYear
+                            </div>
+
+                        </div>
+                    </div>
+
+                    @if (_expanded == set.SetCode)
+                    {
+                        <div style="padding:20px">
+
+                            <a class="btn btn-primary"
+                               href="@($"/knowledge/set/{set.SetCode}")">
+                                Edit Knowledge
+                            </a>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
+            <div class="magic-panel">
+
+                <h2 class="magic-panel-title">
+                Known Sets
+            </h2>
+
+            @foreach (var set in _model.KnownKnowledge
+                          .Where(x =>
+                              string.IsNullOrWhiteSpace(_searchText)
+                              || x.SetName.Contains(_searchText,
+                                  StringComparison.OrdinalIgnoreCase)
+                              || x.SetCode.Contains(_searchText,
+                                  StringComparison.OrdinalIgnoreCase)))
+            {
+            <div class="magic-set-card"
+                     @onclick="() => Toggle(set.SetCode)">
+
+                    <div class="magic-set-header">
+
+                    <div>
+
+                        <div class="magic-set-name">
+                            @set.SetName
+                        </div>
+
+                        <div class="magic-set-description">
+                            @set.SymbolDescription
+                        </div>
+                        
+
+                    </div>
+
+                    <div class="category-summary-count text-success">
+                        ✓
+                    </div>
+
+                </div>
+
+                    @if (_expanded == set.SetCode)
+                    {
+                        <div style="padding:20px">
+
+                            <div class="magic-set-description">
+                                @set.SymbolDescription
+                            </div>
+
+                            <a class="btn btn-primary mt-3"
+                               href="@($"/knowledge/set/{set.SetCode}")">
+                                Edit Knowledge
+                            </a>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+        </div>
+        <button class="btn btn-success"
+                @onclick="PickRandomSet">
+            Learn Random Set
+        </button>
+
+    </div>
+}
+
+@code {
+
+    private MagicKnowledgeDashboardModel? _model;
+    private string _searchText = "";
+
+    private string? _expanded;
+    private void PickRandomSet()
+    {
+        var random =
+            _model?.MissingKnowledge
+                .OrderBy(_ => Guid.NewGuid())
+                .FirstOrDefault();
+
+        if (random is not null)
+        {
+            Navigation.NavigateTo(
+                $"/knowledge/set/{random.SetCode}");
+        }
+    }
+    private void NavigateToSet(
+        string setCode)
+    {
+        Navigation.NavigateTo(
+            $"/knowledge/set/{setCode}");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        _model =
+            await KnowledgeService
+                .GetDashboardAsync();
+    }
+
+    private void Toggle(
+        string code)
+    {
+        _expanded =
+            _expanded == code
+                ? null
+                : code;
+    }
+}

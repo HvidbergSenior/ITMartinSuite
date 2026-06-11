@@ -1,0 +1,136 @@
+﻿@page "/knowledge/set/{SetCode}"
+
+@using ITMartin.Magic.Domain.Entities
+@using ITMartin.Magic.Application.Interfaces
+
+@inject IMagicKnowledgeService KnowledgeService
+@inject NavigationManager Navigation
+
+<PageTitle>
+    Set Knowledge
+</PageTitle>
+
+@if (_set is null)
+{
+    <div>Loading...</div>
+}
+else
+{
+    <div class="stack">
+
+        <div>
+
+            <h1 class="page-title">
+                @_set.SetName
+            </h1>
+
+            <div class="meta">
+                @_set.SetCode.ToUpperInvariant()
+            </div>
+
+        </div>
+
+        <div class="category-summary-card">
+
+            <div class="mb-3">
+
+                <label>
+                    Symbol Description
+                </label>
+
+                <textarea class="form-control"
+                          rows="4"
+                          @bind="_set.SymbolDescription">
+                </textarea>
+
+            </div>
+
+            <div class="mb-3">
+
+                <label>
+                    Keywords
+                </label>
+
+                <input class="form-control"
+                       @bind="_set.SymbolKeywords" />
+
+            </div>
+
+            <div class="form-check">
+
+                <input class="form-check-input"
+                       type="checkbox"
+                       @bind="_set.UsesOldFrame" />
+
+                <label class="form-check-label">
+                    Uses Old Frame
+                </label>
+
+            </div>
+
+            <div class="form-check">
+
+                <input class="form-check-input"
+                       type="checkbox"
+                       @bind="_set.UsesWhiteBorder" />
+
+                <label class="form-check-label">
+                    Uses White Border
+                </label>
+
+            </div>
+
+            <div class="form-check">
+
+                <input class="form-check-input"
+                       type="checkbox"
+                       @bind="_set.UsesBlackBorder" />
+
+                <label class="form-check-label">
+                    Uses Black Border
+                </label>
+
+            </div>
+
+            <div class="mt-4">
+
+                <button class="btn btn-success"
+                        @onclick="Save">
+                    Save
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public string SetCode { get; set; } = "";
+
+    private MagicSetKnowledge? _set;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _set =
+            await KnowledgeService
+                .GetAsync(SetCode);
+    }
+
+    private async Task Save()
+    {
+        if (_set is null)
+        {
+            return;
+        }
+
+        await KnowledgeService
+            .UpdateAsync(_set);
+
+        Navigation.NavigateTo(
+            "/knowledge");
+    }
+}

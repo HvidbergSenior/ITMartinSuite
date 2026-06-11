@@ -13,15 +13,17 @@ public sealed class ScryfallService
 
     private readonly ICardMatchScoringService _matchScoringService;
     private readonly ISetSymbolMatchingService _setSymbolMatchingService;
+    private readonly IPrintingEliminationService _printingEliminationService;
 
     public ScryfallService(
         HttpClient httpClient, ICardMatchScoringService matchScoringService,
-        ISetSymbolMatchingService setSymbolMatchingService)
+        ISetSymbolMatchingService setSymbolMatchingService, IPrintingEliminationService printingEliminationService)
     {
         _httpClient =
             httpClient;
         _matchScoringService = matchScoringService;
         _setSymbolMatchingService = setSymbolMatchingService;
+        _printingEliminationService = printingEliminationService;
     }
 
     public async Task<CardSearchResult?>
@@ -116,6 +118,13 @@ public sealed class ScryfallService
             dto.Data
                 .Select(CreateCard)
                 .ToList();
+
+        cards =
+            await _printingEliminationService
+                .EliminateAsync(
+                    cards,
+                    analysis,
+                    cancellationToken);
         
         var matches =
             cards
