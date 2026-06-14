@@ -1,8 +1,11 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
+using ITMartin.Magic.Infrastructure.BackgroundJobs;
 using ITMartin.Magic.Infrastructure.Persistence;
 using ITMartin.Magic.Infrastructure.Services;
 using ITMartin.Magic.Infrastructure.Workflows;
+using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
+using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.OCR.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartin.Magic.Infrastructure;
 
-public static class DependencyInjection
+public static class MagicDependencyInjection
 {
     public static IServiceCollection AddMagicInfrastructure(
         this IServiceCollection services,
@@ -22,7 +25,7 @@ public static class DependencyInjection
 
         services.AddMagicPersistence(
             connectionString);
-
+        services.AddScoped<IBackgroundJobHandler, ProcessMediaHandler>();
         services.AddHttpClient<
             IScryfallService,
             ScryfallService>(client =>

@@ -30,10 +30,12 @@ public sealed class FinalScryfallMatchWorkflowStep
         {
             return;
         }
-
+        Console.WriteLine(
+            $"SET FILTER: {context.State.SetCode}");
         var match =
             await _scryfallService.SearchAsync(
                 context.State.CardName,
+                context.State.SetCode,
                 context.State.OpenAiResult,
                 cancellationToken);
         

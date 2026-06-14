@@ -1,8 +1,10 @@
-﻿using ITMartin.Media.Application.Abstractions.Orchestration;
+﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Application.Abstractions.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package1.Steps;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Runtime.BackgroundJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -78,6 +80,9 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             ExportWorkflowExecutionStep>();
+        services.AddScoped<
+            IBackgroundJobHandler,
+            StartPackage1Handler>();
 
         return services;
     }

@@ -121,9 +121,6 @@ builder.Services.AddScoped(sp =>
 
 builder.Services.AddControllers();
 
-builder.Services.AddSingleton<
-    IBackgroundJobQueue,
-    RabbitMqBackgroundJobQueue>();
 // =========================
 // BUILD
 // =========================

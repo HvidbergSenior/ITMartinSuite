@@ -12,8 +12,8 @@ public sealed class MagicDbContextFactory
         var builder =
             new DbContextOptionsBuilder<MagicDbContext>();
 
-        builder.UseSqlite(
-            "Data Source=magic.db");
+        builder.UseNpgsql(
+            "Host=localhost;Port=5432;Database=magic;Username=postgres;Password=magic");
 
         return new MagicDbContext(
             builder.Options);

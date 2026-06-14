@@ -7,7 +7,7 @@
 
 @inject IJSRuntime JS
 @inject ICardScanOrchestrator CardScanOrchestrator
-
+@inject IMagicKnowledgeService MagicKnowledgeService
 @implements IAsyncDisposable
 
 <PageTitle>
@@ -35,14 +35,49 @@
         </div>
 
     </div>
+    <div class="scanner-setup">
 
+        <label class="form-label">
+            Set
+        </label>
+
+        <InputSelect @bind-Value="_selectedSetCode"
+                     class="form-select">
+
+            <option value="">
+                Select a set...
+            </option>
+
+            @foreach (var set in _sets)
+            {
+                <option value="@set.SetCode">
+                    @set.SetName
+                </option>
+            }
+
+        </InputSelect>
+
+    </div>
+    @if (string.IsNullOrWhiteSpace(_selectedSetCode))
+    {
+        <div class="alert alert-warning mt-2">
+            Select the card set before scanning.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success mt-2">
+            Scanning set: @_selectedSetCode.ToUpperInvariant()
+        </div>
+    }
     <div class="scanner-wrapper">
 
         @if (!_cameraStarted)
         {
             <div class="camera-start-panel">
 
-                <button @onclick="StartCamera">
+                <button @onclick="StartCamera"
+                        disabled="@string.IsNullOrWhiteSpace(_selectedSetCode)">
                     Start Camera
                 </button>
 
@@ -91,7 +126,8 @@
 
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
-                disabled="@_isProcessing">
+                disabled="@(_isProcessing ||
+                          string.IsNullOrWhiteSpace(_selectedSetCode))">
 
             @if (_isProcessing)
             {
@@ -305,7 +341,18 @@
     private bool _cameraStarted;
 
     private CardScanContext? _scanResult;
+    private string? _selectedSetCode;
 
+    private List<MagicSetSymbolDefinition> _sets = [];
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _sets =
+            (await MagicKnowledgeService
+                .GetSetDefinitionsAsync())
+            .OrderByDescending(x => x.SetCode)
+            .ToList();
+    }
     public async ValueTask DisposeAsync()
     {
         try
@@ -345,6 +392,14 @@
 
     private async Task Capture()
     {
+        if (string.IsNullOrWhiteSpace(_selectedSetCode))
+        {
+            _detectedText =
+                "Please select a set.";
+
+            return;
+        }
+        
         if (!_cameraStarted ||
             _isProcessing)
         {
@@ -404,6 +459,7 @@
                 await CardScanOrchestrator
                     .ExecuteAsync(
                         framePath,
+                        _selectedSetCode,
                         CancellationToken.None);
 
             if (_scanResult.Failed)

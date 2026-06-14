@@ -1,8 +1,5 @@
 ﻿using ITMartin.Ai.Models;
 using ITMartin.Magic.Application.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-using ITMartin.OCR.Models;
 
 namespace ITMartin.Magic.Application.Workflows;
 
@@ -59,5 +56,7 @@ public sealed class CardScanContext
     }
     public List<CardCandidateViewModel>
         Candidates { get; set; } = [];
+
+    public string? SetCode { get; init; }
     
 }

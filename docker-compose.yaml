@@ -61,7 +61,7 @@
     command: tunnel run
 
     environment:
-      - TUNNEL_TOKEN=eyJhIjoiYmE3ODc2MjJmMTlhYzNjZTIzNDk5YzRkZTVjYjVjMDMiLCJ0IjoiNzAwZTU4MDUtNzZhNC00NzgwLTgyYTEtMmQ3YzkxZDkwMmRmIiwicyI6Ik56SmlZbUUwWmpNdE1EazNaUzAwWXpneUxUa3paamt0TnpkbU56ZzJNemN3TUdFeE5HVXdaRE5qWldRdE1qRmhOeTAwT0RSbUxUbGxOalV0WTJNd1lqUmtNakpqWTJJMSJ9
+      - TUNNEL_TOKEN=eyJhIjoiYmE3ODc2MjJmMTlhYzNjZTIzNDk5YzRkZTVjYjVjMDMiLCJ0IjoiZWFhN2EyNTctNDVhMC00ZGUzLTkwZDAtNzMyMjcxOTI2ZmNmIiwicyI6Ik9HTTBZVEF3TlRFdE1XVTBOeTAwTUdRMUxXRmlaR0l0TVRVMk0ySXlaR1ZrTnpCbCJ9
     networks:
       - martinnet
 
@@ -113,6 +113,51 @@
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+    
+  magic-postgres:
+    image: postgres:17
+    container_name: magic-postgres
+
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=magic
+      - POSTGRES_DB=magic
+
+    volumes:
+      - /volume1/docker/martinsuite/magic/postgres:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  magic-web:
+    container_name: magic-web
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartin.Magic.Server/Dockerfile
+
+    ports:
+      - "8083:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__MagicDb=Host=magic-postgres;Port=5432;Database=magic;Username=postgres;Password=magic
+
+    volumes:
+      - /volume1/docker/martinsuite/magic/data:/app/data
+
+    depends_on:
+      - magic-postgres
 
     restart: unless-stopped
 

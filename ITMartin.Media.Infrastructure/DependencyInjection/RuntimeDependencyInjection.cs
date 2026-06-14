@@ -1,4 +1,7 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Infrastructure.BackgroundJobs;
+using ITMartin.Media.Runtime.BackgroundJobs;
 using ITMartin.Media.Runtime.Execution;
 using ITMartin.Media.Runtime.HostedServices;
 using ITMartin.Media.Runtime.Recovery;
@@ -26,7 +29,11 @@ public static class RuntimeDependencyInjection
         services.AddScoped<
             IWorkflowRecoveryService,
             WorkflowRecoveryService>();
-
+        services.AddHostedService<
+            WorkflowQueueConsumerHostedService>();
+        services.AddSingleton<
+            IBackgroundJobQueue,
+            RabbitMqBackgroundJobQueue>();
         //services.AddHostedService<
           //WorkflowRecoveryHostedService>();
 

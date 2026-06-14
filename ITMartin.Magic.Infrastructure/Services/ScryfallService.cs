@@ -26,11 +26,11 @@ public sealed class ScryfallService
         _printingEliminationService = printingEliminationService;
     }
 
-    public async Task<CardSearchResult?>
-        SearchAsync(
-            string? cardName,
-            MagicCardAnalysisResult? analysis,
-            CancellationToken cancellationToken)
+    public async Task<CardSearchResult?> SearchAsync(
+        string? cardName,
+        string? setCode,
+        MagicCardAnalysisResult? analysis,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(cardName))
         {
@@ -82,7 +82,7 @@ public sealed class ScryfallService
         Console.WriteLine();
         var response =
             await _httpClient.GetAsync(
-                $"cards/search?q={Uri.EscapeDataString($"name:\"{cardName}\"")}",
+                $"cards/search?q={Uri.EscapeDataString($"!{cardName}")}",
                 cancellationToken);
 
         if (!response.IsSuccessStatusCode)
@@ -108,17 +108,45 @@ public sealed class ScryfallService
         {
             return null;
         }
-
         Console.WriteLine(
             "SCRYFALL MATCH: Exact Name");
 
         Console.WriteLine(
             $"SCRYFALL MATCHES: {dto.Data.Count}");
+      
         var cards =
             dto.Data
                 .Select(CreateCard)
                 .ToList();
+        Console.WriteLine("ALL PRINTINGS:");
 
+        foreach (var card in cards)
+        {
+            Console.WriteLine(
+                $"{card.Name} [{card.Set}] #{card.CollectorNumber}");
+        }
+        if (!string.IsNullOrWhiteSpace(setCode))
+        {
+            var filteredCards =
+                cards
+                    .Where(x =>
+                        string.Equals(
+                            x.Set,
+                            setCode,
+                            StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            Console.WriteLine(
+                $"SET FILTER: {setCode}");
+
+            Console.WriteLine(
+                $"MATCHES AFTER FILTER: {filteredCards.Count}");
+
+            if (filteredCards.Count > 0)
+            {
+                cards = filteredCards;
+            }
+        }
         cards =
             await _printingEliminationService
                 .EliminateAsync(

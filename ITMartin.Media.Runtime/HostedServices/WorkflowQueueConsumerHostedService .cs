@@ -1,10 +1,4 @@
-﻿using System.Text.Json;
-using ITMartin.Media.Application.Abstractions.BackgroundJobs;
-using ITMartin.Media.Application.Abstractions.Orchestration;
-using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
-using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
-using ITMartin.Media.Contracts.Contracts.Runtime.Models;
-using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2;
+﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -57,79 +51,25 @@ public sealed class WorkflowQueueConsumerHostedService
                 _logger.LogInformation(
                     "Dequeued workflow job {Type}",
                     job.Type);
+                
+                var handler =
+                    scope.ServiceProvider
+                        .GetServices<IBackgroundJobHandler>()
+                        .FirstOrDefault(
+                            x => x.JobType == job.Type);
 
-                switch (job.Type)
+                if (handler is null)
                 {
-                    case "StartPackage1":
-                    {
-                        var orchestrator =
-                            scope.ServiceProvider
-                                .GetRequiredService<
-                                    IScanOrchestrator>();
+                    _logger.LogWarning(
+                        "No handler found for job type {Type}",
+                        job.Type);
 
-                        var request =
-                            JsonSerializer.Deserialize<
-                                Package1WorkflowState>(
-                                job.Payload);
-
-                        if (request is null)
-                        {
-                            return;
-                        }
-
-                        var workflowId =
-                            await orchestrator.StartAsync(
-                                request,
-                                stoppingToken);
-
-                        var runner =
-                            scope.ServiceProvider
-                                .GetRequiredService<
-                                    Package1WorkflowRunner>();
-
-                        await runner.ExecuteAsync(
-                            workflowId,
-                            request,
-                            stoppingToken);
-
-                        break;
-                    }
-
-                    case "StartPackage2":
-                    {
-                        var orchestrator =
-                            scope.ServiceProvider
-                                .GetRequiredService<
-                                    Package2WorkflowOrchestrator>();
-
-                        var request =
-                            JsonSerializer.Deserialize<
-                                StartPackage2Request>(
-                                job.Payload);
-
-                        if (request is null)
-                        {
-                            return;
-                        }
-
-                        var result =
-                            await orchestrator.StartAsync(
-                                request,
-                                stoppingToken);
-
-                        var runner =
-                            scope.ServiceProvider
-                                .GetRequiredService<
-                                    Package2WorkflowRunner>();
-
-                        await runner.ExecuteAsync(
-                            result.WorkflowId,
-                            result.State,
-                            stoppingToken);
-
-                        break;
-                    }
+                    return;
                 }
+
+                await handler.HandleAsync(
+                    job,
+                    stoppingToken);
             }
             catch (Exception ex)
             {

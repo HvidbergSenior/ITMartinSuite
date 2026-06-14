@@ -12,6 +12,7 @@ public interface IMagicKnowledgeService
         GetAsync(
             string setCode);
 
-    Task UpdateAsync(
-        MagicSetKnowledge set);
+    Task UpdateAsync(MagicSetKnowledge set);
+    
+    Task<List<MagicSetSymbolDefinition>> GetSetDefinitionsAsync();
 }

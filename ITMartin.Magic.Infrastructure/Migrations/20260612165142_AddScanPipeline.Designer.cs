@@ -3,6 +3,7 @@ using System;
 using ITMartin.Magic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ITMartin.Magic.Infrastructure.Migrations
 {
     [DbContext(typeof(MagicDbContext))]
-    partial class MagicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612165142_AddScanPipeline")]
+    partial class AddScanPipeline
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -56,10 +59,6 @@ namespace ITMartin.Magic.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("SetType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("SymbolColor")
                         .IsRequired()
                         .HasColumnType("text");
@@ -90,6 +89,96 @@ namespace ITMartin.Magic.Infrastructure.Migrations
                     b.HasKey("SetCode");
 
                     b.ToTable("Sets");
+                });
+
+            modelBuilder.Entity("ScanImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ScanSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScanSessionId");
+
+                    b.ToTable("ScanImages");
+                });
+
+            modelBuilder.Entity("ScanResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CardName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Confidence")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("ScanImageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScanImageId");
+
+                    b.ToTable("ScanResults");
+                });
+
+            modelBuilder.Entity("ScanSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ScanSessions");
+                });
+
+            modelBuilder.Entity("ScanImage", b =>
+                {
+                    b.HasOne("ScanSession", "Session")
+                        .WithMany("Images")
+                        .HasForeignKey("ScanSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("ScanResult", b =>
+                {
+                    b.HasOne("ScanImage", null)
+                        .WithMany("Results")
+                        .HasForeignKey("ScanImageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ScanImage", b =>
+                {
+                    b.Navigation("Results");
+                });
+
+            modelBuilder.Entity("ScanSession", b =>
+                {
+                    b.Navigation("Images");
                 });
 #pragma warning restore 612, 618
         }
