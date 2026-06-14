@@ -79,10 +79,18 @@ public sealed class ScryfallService
         Console.WriteLine(
             $"CopyrightTextColor: [{analysis?.CopyrightTextColor}]");
 
-        Console.WriteLine();
+        var query =
+            $"!\"{cardName}\"";
+
+        var url =
+            $"cards/search?q={Uri.EscapeDataString(query)}&unique=prints";
+        
+        Console.WriteLine($"URL: {url}");
+        
+        
         var response =
             await _httpClient.GetAsync(
-                $"cards/search?q={Uri.EscapeDataString($"!{cardName}")}",
+                url,
                 cancellationToken);
 
         if (!response.IsSuccessStatusCode)
