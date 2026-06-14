@@ -68,17 +68,18 @@ public sealed class PrintingEliminationService
         var before =
             cards.Count;
 
+        var artist =
+            NormalizeArtist(
+                analysis.Artist);
+
         var matches =
             cards
                 .Where(x =>
                     string.Equals(
-                        x.CollectorNumber,
-                        analysis.CollectorNumber,
+                        NormalizeArtist(x.Artist),
+                        artist,
                         StringComparison.OrdinalIgnoreCase))
                 .ToList();
-
-        Console.WriteLine(
-            $"Collector Number: {before} -> {matches.Count}");
 
         if (matches.Count == 0)
         {
@@ -125,5 +126,12 @@ public sealed class PrintingEliminationService
             : cards;
     }
 
-   
+    private static string NormalizeArtist(
+        string value)
+    {
+        return value
+            .Replace("Illus.", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("Illustrated by", "", StringComparison.OrdinalIgnoreCase)
+            .Trim();
+    }
 }

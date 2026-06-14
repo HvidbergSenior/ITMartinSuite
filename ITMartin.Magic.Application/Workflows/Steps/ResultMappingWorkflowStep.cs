@@ -39,7 +39,7 @@ public sealed class ResultMappingWorkflowStep
                     context.State.ScryfallMatchResult?.UsdPrice,
 
                 Condition =
-                    context.State.ConditionResult?.Condition,
+                    "Unknown",
 
                 AdjustedEurValue =
                     context.State.ConditionResult?.AdjustedEurValue,

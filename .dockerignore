@@ -19,3 +19,15 @@ output
 input
 
 **/node_modules
+
+**/TestResults
+**/.DS_Store
+
+**/*.user
+**/*.suo
+
+**/wwwroot/data
+**/wwwroot/uploads
+
+Dockerfile.*
+docker-compose.override.yml

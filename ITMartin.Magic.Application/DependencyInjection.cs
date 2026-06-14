@@ -36,8 +36,6 @@ public static class DependencyInjection
            FinalScryfallMatchWorkflowStep>();
 
        services.AddScoped<
-        CardConditionWorkflowStep>();
-       services.AddScoped<
            ResultMappingWorkflowStep>();
      
         return services;

@@ -15,7 +15,6 @@ public sealed class CardScanWorkflowDefinition
         WorkflowType.MagicCardScan;
     public CardScanWorkflowDefinition(
         AiCardRecognitionWorkflowStep aiCardRecognitionWorkflowStep,
-        CardConditionWorkflowStep cardConditionWorkflowStep,
         ResultMappingWorkflowStep resultMappingWorkflowStep,
         FinalScryfallMatchWorkflowStep finalScryfallMatchWorkflowStep)
     {
@@ -24,8 +23,6 @@ public sealed class CardScanWorkflowDefinition
             aiCardRecognitionWorkflowStep,
 
             finalScryfallMatchWorkflowStep,
-
-            cardConditionWorkflowStep,
 
             resultMappingWorkflowStep
         ];

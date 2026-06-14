@@ -13,11 +13,6 @@ public static class DependencyInjection
         services.AddScoped<
             IMagicCardRecognitionService,
             OpenAiMagicCardRecognitionService>();
-
-        services.AddScoped<
-            ICardConditionAnalysisService,
-            OpenAiCardConditionService>();
-
         services.AddScoped<
             IImageAnalysisService,
             OpenOpenAiAnalysisService>();

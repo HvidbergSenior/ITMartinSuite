@@ -135,9 +135,12 @@ public sealed class OpenAiMagicCardRecognitionService
                 PRIORITY 2 — PRINTING IDENTIFICATION
                 
                 * collectorNumber
+                
+                PRIORITY 3 — PRINTING SUPPORT
+                
                 * artist
                 
-                PRIORITY 3 — MATCH SUPPORT
+                PRIORITY 3a — MATCH SUPPORT
                 
                 * manaCost
                 * cardType
@@ -147,19 +150,33 @@ public sealed class OpenAiMagicCardRecognitionService
                 
                 Collector Number and Power/Toughness are different things.
                 
-                If any digit is unclear:
+                Collector Number must be completely readable.
+                
+                If any digit or character is unclear:
                 
                 collectorNumber = null
                 
                 Never estimate missing digits.
                 
-                ARTIST RULES
+                Never return partial collector numbers.
                 
-                Read exactly what is printed.
+                Artist Rules
                 
-                If not readable:
+                Return only the artist name.
                 
-                artist = null
+                Do not include:
+                
+                - Illus.
+                - Illustration
+                - Illustrated by
+                
+                Example:
+                
+                "Illus. Richard Thomas"
+                
+                becomes
+                
+                "Richard Thomas"
                 
                 CARD IDENTIFICATION RULES
                 

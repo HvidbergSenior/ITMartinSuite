@@ -107,6 +107,31 @@ public sealed class ScryfallService
             dto.Data
                 .Select(CreateCard)
                 .ToList();
+        
+        if (string.IsNullOrWhiteSpace(setCode))
+        {
+            cards =
+                cards
+                    .Where(x =>
+                        x.Set is
+                            "lea" or
+                            "leb" or
+                            "2ed" or
+                            "3ed" or
+                            "4ed" or
+                            "arn" or
+                            "atq" or
+                            "leg" or
+                            "drk" or
+                            "fem" or
+                            "ice" or
+                            "chr" or
+                            "rin")
+                    .ToList();
+
+            Console.WriteLine(
+                $"NO SET SELECTED FILTER: {cards.Count}");
+        }
         Console.WriteLine("ALL PRINTINGS:");
 
         foreach (var card in cards)

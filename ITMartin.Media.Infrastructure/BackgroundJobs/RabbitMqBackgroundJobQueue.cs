@@ -24,9 +24,10 @@ public sealed class RabbitMqBackgroundJobQueue
             {
                 HostName =
                     configuration["RabbitMq:Host"]
-                    ?? "localhost"
+                    ?? "rabbitmq"
             };
-
+        Console.WriteLine(
+            $"RabbitMQ Host: {factory.HostName}");
         _connection =
             factory.CreateConnection();
 
