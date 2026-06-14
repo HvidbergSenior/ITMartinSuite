@@ -38,30 +38,67 @@
     <div class="scanner-setup">
 
         <label class="form-label">
-            Set
+            Set Selection
         </label>
 
-        <InputSelect @bind-Value="_selectedSetCode"
-                     class="form-select">
+        <div class="form-check mb-2">
+            <input class="form-check-input"
+                   type="radio"
+                   name="setMode"
+                   checked="@(!NoSetSymbol)"
+                   @onchange="() => NoSetSymbol = false" />
 
-            <option value="">
-                Select a set...
-            </option>
+            <label class="form-check-label">
+                Select Set
+            </label>
+        </div>
 
-            @foreach (var set in _sets)
-            {
-                <option value="@set.SetCode">
-                    @set.SetName
+        <div class="form-check mb-3">
+            <input class="form-check-input"
+                   type="radio"
+                   name="setMode"
+                   checked="@NoSetSymbol"
+                   @onchange="() => NoSetSymbol = true" />
+
+            <label class="form-check-label">
+                Card Has No Set Symbol
+            </label>
+        </div>
+
+        @if (!_noSetSymbol)
+        {
+            <input class="form-control mb-2"
+                   placeholder="Search set..."
+                   @bind="_setSearch" />
+
+            <select class="form-select"
+                    @bind="_selectedSetCode">
+
+                <option value="">
+                    Select a set...
                 </option>
-            }
 
-        </InputSelect>
+                @foreach (var set in FilteredSets.Take(50))
+                {
+                    <option value="@set.SetCode">
+                        @set.SetName (@set.SetCode.ToUpper())
+                    </option>
+                }
 
+            </select>
+        }
     </div>
-    @if (string.IsNullOrWhiteSpace(_selectedSetCode))
+    
+    @if (_noSetSymbol)
+    {
+        <div class="alert alert-info mt-2">
+            Scanning cards without set symbols.
+        </div>
+    }
+    else if (string.IsNullOrWhiteSpace(_selectedSetCode))
     {
         <div class="alert alert-warning mt-2">
-            Select the card set before scanning.
+            Select a set before scanning.
         </div>
     }
     else
@@ -70,6 +107,7 @@
             Scanning set: @_selectedSetCode.ToUpperInvariant()
         </div>
     }
+   
     <div class="scanner-wrapper">
 
         @if (!_cameraStarted)
@@ -77,7 +115,9 @@
             <div class="camera-start-panel">
 
                 <button @onclick="StartCamera"
-                        disabled="@string.IsNullOrWhiteSpace(_selectedSetCode)">
+                        disabled="@(
+                                  string.IsNullOrWhiteSpace(_selectedSetCode)
+                                  && !_noSetSymbol)">
                     Start Camera
                 </button>
 
@@ -126,8 +166,12 @@
 
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
-                disabled="@(_isProcessing ||
-                          string.IsNullOrWhiteSpace(_selectedSetCode))">
+                disabled="@(
+                          _isProcessing ||
+                          (
+                              string.IsNullOrWhiteSpace(_selectedSetCode)
+                              && !_noSetSymbol
+                          ))">
 
             @if (_isProcessing)
             {
@@ -342,9 +386,39 @@
 
     private CardScanContext? _scanResult;
     private string? _selectedSetCode;
+    private string _setSearch = "";
+    private bool _noSetSymbol;
 
-    private List<MagicSetSymbolDefinition> _sets = [];
+    private IEnumerable<MagicSetSymbolDefinition>
+        FilteredSets =>
+        string.IsNullOrWhiteSpace(_setSearch)
+            ? _sets.Take(50)
+            : _sets
+                .Where(x =>
+                    x.SetName.Contains(
+                        _setSearch,
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    x.SetCode.Contains(
+                        _setSearch,
+                        StringComparison.OrdinalIgnoreCase))
+                .Take(50);
     
+    private List<MagicSetSymbolDefinition> _sets = [];
+    private bool NoSetSymbol
+    {
+        get => _noSetSymbol;
+        set
+        {
+            _noSetSymbol = value;
+
+            if (value)
+            {
+                _selectedSetCode = null;
+                _setSearch = "";
+            }
+        }
+    }
     protected override async Task OnInitializedAsync()
     {
         _sets =
@@ -392,10 +466,11 @@
 
     private async Task Capture()
     {
-        if (string.IsNullOrWhiteSpace(_selectedSetCode))
+        if (string.IsNullOrWhiteSpace(_selectedSetCode)
+            && !_noSetSymbol)
         {
             _detectedText =
-                "Please select a set.";
+                "Please select a set or choose 'No Set Symbol'.";
 
             return;
         }
@@ -455,11 +530,16 @@
 
             StateHasChanged();
             
+            var setCode =
+                _noSetSymbol
+                    ? null
+                    : _selectedSetCode;
+
             _scanResult =
                 await CardScanOrchestrator
                     .ExecuteAsync(
                         framePath,
-                        _selectedSetCode,
+                        setCode,
                         CancellationToken.None);
 
             if (_scanResult.Failed)

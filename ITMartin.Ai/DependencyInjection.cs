@@ -21,7 +21,9 @@ public static class DependencyInjection
         services.AddScoped<
             IImageAnalysisService,
             OpenOpenAiAnalysisService>();
-
+        services.AddScoped<
+            IOpenAiLibraryShelfRecognitionService,
+            OpenAiLibraryShelfRecognitionService>();
         services.AddScoped<
             IReceiptExtractionService,
             OpenAiReceiptExtractionService>();

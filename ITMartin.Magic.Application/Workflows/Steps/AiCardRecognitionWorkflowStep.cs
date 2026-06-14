@@ -80,18 +80,6 @@ public sealed class AiCardRecognitionWorkflowStep
         Console.WriteLine(
             $"COLLECTOR: [{result.CollectorNumber}]");
 
-        Console.WriteLine(
-            $"SYMBOL: [{result.SetSymbolDescription}]");
-
-        Console.WriteLine(
-            $"FRAME: [{result.FrameColor}] [{result.FrameStyle}]");
-
-        Console.WriteLine(
-            $"BORDER: [{result.OuterBorder}]");
-        Console.WriteLine(
-            $"CopyrightText: [{result.CopyrightText}]");
-        Console.WriteLine(
-            $"CopyrightTextColor: [{result.CopyrightTextColor}]");
     }
     private static decimal CalculateConfidence(
         MagicCardAnalysisResult result)
@@ -111,9 +99,6 @@ public sealed class AiCardRecognitionWorkflowStep
             score += 0.1m;
 
         if (!string.IsNullOrWhiteSpace(result.Artist))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.CopyrightText))
             score += 0.1m;
 
         if (!string.IsNullOrWhiteSpace(result.CollectorNumber))
