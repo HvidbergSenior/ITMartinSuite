@@ -60,7 +60,7 @@ public sealed class ClaudeMagicCardRecognitionService
     {
         _logger = logger;
 
-        var apiKey = configuration["Anthropic:ApiKey"];
+        var apiKey = configuration["Claude:ApiKey"];
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
