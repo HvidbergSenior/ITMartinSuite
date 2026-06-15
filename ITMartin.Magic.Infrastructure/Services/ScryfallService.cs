@@ -95,23 +95,22 @@ public sealed class ScryfallService
         
         if (string.IsNullOrWhiteSpace(setCode))
         {
+            // No set specified = card has no set symbol; restrict to sets that printed cards without one
             cards =
                 cards
                     .Where(x =>
                         x.Set is
-                            "lea" or
-                            "leb" or
-                            "2ed" or
-                            "3ed" or
-                            "4ed" or
-                            "arn" or
-                            "atq" or
-                            "leg" or
-                            "drk" or
-                            "fem" or
-                            "ice" or
-                            "chr" or
-                            "ren")
+                            "lea" or  // Alpha
+                            "leb" or  // Beta
+                            "2ed" or  // Unlimited
+                            "3ed" or  // Revised
+                            "4ed" or  // 4th Edition
+                            "4bb" or  // 4th Edition Black Border (foreign)
+                            "arn" or  // Arabian Nights
+                            "atq" or  // Antiquities
+                            "5ed" or  // 5th Edition
+                            "chr" or  // Chronicles
+                            "ren")    // Renaissance (foreign)
                     .ToList();
 
             _logger.LogDebug("No-set filter applied — {Count} printings remain", cards.Count);
