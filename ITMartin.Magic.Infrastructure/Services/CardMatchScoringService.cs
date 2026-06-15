@@ -1,35 +1,39 @@
 ﻿using ITMartin.Ai.Models;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
+using Microsoft.Extensions.Logging;
+
+namespace ITMartin.Magic.Infrastructure.Services;
 
 public sealed class CardMatchScoringService
     : ICardMatchScoringService
 {
+    private readonly ILogger<CardMatchScoringService> _logger;
+
+    public CardMatchScoringService(ILogger<CardMatchScoringService> logger)
+    {
+        _logger = logger;
+    }
+
     public decimal CalculateScore(
         ScryfallCard card,
         MagicCardAnalysisResult analysis)
     {
         decimal score = 0;
 
-        Console.WriteLine();
-        Console.WriteLine(
-            $"SCORING [{card.Name}] [{card.Set}]");
+        _logger.LogDebug("Scoring [{Name}] [{Set}]", card.Name, card.Set);
 
         if (!string.Equals(
                 analysis.IdentifiedName,
                 card.Name,
                 StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine(
-                "FAILED NAME MATCH");
+            _logger.LogDebug("Name mismatch — score 0");
 
             return 0;
         }
 
         score += 100;
-
-        Console.WriteLine(
-            "+100 Name");
 
         if (!string.IsNullOrWhiteSpace(
                 analysis.CollectorNumber))
@@ -40,16 +44,10 @@ public sealed class CardMatchScoringService
                     StringComparison.OrdinalIgnoreCase))
             {
                 score += 1000;
-
-                Console.WriteLine(
-                    "+1000 Collector Number");
             }
             else
             {
                 score -= 500;
-
-                Console.WriteLine(
-                    "-500 Collector Number Mismatch");
             }
         }
 
@@ -62,9 +60,6 @@ public sealed class CardMatchScoringService
                     StringComparison.OrdinalIgnoreCase))
             {
                 score += 300;
-
-                Console.WriteLine(
-                    "+300 Artist");
             }
         }
 
@@ -77,9 +72,6 @@ public sealed class CardMatchScoringService
                     StringComparison.OrdinalIgnoreCase))
             {
                 score += 100;
-
-                Console.WriteLine(
-                    "+100 Mana Cost");
             }
         }
 
@@ -91,9 +83,6 @@ public sealed class CardMatchScoringService
                     StringComparison.OrdinalIgnoreCase))
             {
                 score += 100;
-
-                Console.WriteLine(
-                    "+100 Type");
             }
         }
 
@@ -104,14 +93,40 @@ public sealed class CardMatchScoringService
                 analysis.PowerToughness)
             {
                 score += 100;
-
-                Console.WriteLine(
-                    "+100 Power/Toughness");
             }
         }
 
-        Console.WriteLine(
-            $"FINAL SCORE: {score}");
+        if (!string.IsNullOrWhiteSpace(
+                analysis.BorderColor))
+        {
+            if (string.Equals(
+                    analysis.BorderColor,
+                    card.BorderColor,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                score += 200;
+            }
+            else
+            {
+                score -= 300;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(analysis.CopyrightYear) &&
+            !string.IsNullOrWhiteSpace(card.ReleasedAt) &&
+            card.ReleasedAt.Length >= 4)
+        {
+            if (card.ReleasedAt[..4] == analysis.CopyrightYear)
+            {
+                score += 150;
+            }
+            else
+            {
+                score -= 150;
+            }
+        }
+
+        _logger.LogDebug("Final score for [{Name}] [{Set}]: {Score}", card.Name, card.Set, score);
 
         return score;
     }

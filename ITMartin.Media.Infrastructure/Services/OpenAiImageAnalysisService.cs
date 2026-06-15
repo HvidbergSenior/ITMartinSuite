@@ -1,178 +1,148 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text.Json;
+using Anthropic;
+using Anthropic.Models.Messages;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Configuration;
-using OpenAI.Chat;
 
 namespace ITMartin.Media.Infrastructure.Services;
 
 public sealed class OpenAiImageAnalysisService
     : IImageAnalysisService
 {
-    private readonly ChatClient _client;
+    private static readonly Dictionary<string, AiAnalysisResult> Cache = new();
 
-    private static readonly Dictionary<string, object>
-        Cache = new();
-
-    public OpenAiImageAnalysisService(
-        IConfiguration configuration)
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        var apiKey =
-            configuration["OpenAI:ApiKey"];
+        PropertyNameCaseInsensitive = true
+    };
+
+    private static readonly Tool ReportImageTool = new()
+    {
+        Name = "report_image",
+        Description = "Report the image analysis result",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["description"] = JsonSerializer.SerializeToElement(
+                    new { type = "string", description = "Concise description of the image" }),
+                ["tags"] = JsonDocument.Parse("""
+                    { "type": "array", "items": { "type": "string" }, "description": "Relevant content tags" }
+                    """).RootElement,
+                ["confidence"] = JsonSerializer.SerializeToElement(
+                    new { type = "number", description = "Confidence score 0.0–1.0" }),
+            },
+            Required = ["description", "confidence"],
+        },
+    };
+
+    private readonly AnthropicClient _client;
+
+    public OpenAiImageAnalysisService(IConfiguration configuration)
+    {
+        var apiKey = configuration["Claude:ApiKey"];
 
         if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new Exception(
-                "Missing OpenAI API key");
-        }
+            throw new InvalidOperationException("Missing Claude API key");
 
-        _client = new ChatClient(
-            model: "gpt-4.1-mini",
-            apiKey: apiKey);
+        _client = new AnthropicClient { ApiKey = apiKey };
     }
 
-    public async Task<AiAnalysisResult>
-        AnalyzeImageAsync(
-            string filePath)
+    public async Task<AiAnalysisResult> AnalyzeImageAsync(string filePath)
     {
         try
         {
-            var bytes =
-                await File.ReadAllBytesAsync(
-                    filePath);
+            var bytes = await File.ReadAllBytesAsync(filePath);
+            var cacheKey = $"image-{CreateHash(bytes)}";
 
-            var cacheKey =
-                CreateHash(bytes);
+            if (Cache.TryGetValue(cacheKey, out var cached))
+                return cached;
 
-            if (Cache.TryGetValue(
-                    $"image-{cacheKey}",
-                    out var cached))
+            var mime = GetMimeType(filePath);
+            var base64 = Convert.ToBase64String(bytes);
+
+            var request = new MessageCreateParams
             {
-                return (AiAnalysisResult)cached;
-            }
-
-            var mime =
-                GetMimeType(filePath);
-
-            var messages =
-                new List<ChatMessage>
-                {
-                    new SystemChatMessage("""
-                    You analyze images.
-
-                    Return ONLY valid JSON.
-
-                    Example:
-
+                Model = Model.ClaudeOpus4_8,
+                MaxTokens = 512,
+                System = "You analyze images and return structured descriptions.",
+                Tools = [ReportImageTool],
+                ToolChoice = new ToolChoiceTool { Name = "report_image" },
+                Messages =
+                [
+                    new()
                     {
-                      "description": "A child skiing in snow",
-                      "tags": ["skiing", "snow", "child"],
-                      "confidence": 0.95
+                        Role = Role.User,
+                        Content = new List<ContentBlockParam>
+                        {
+                            new TextBlockParam { Text = "Analyze this image and call the report_image tool." },
+                            new ImageBlockParam
+                            {
+                                Source = new Base64ImageSource
+                                {
+                                    Data = base64,
+                                    MediaType = mime,
+                                }
+                            },
+                        }
                     }
-                    """),
+                ]
+            };
 
-                    new UserChatMessage(
-                    [
-                        ChatMessageContentPart.CreateTextPart(
-                            "Analyze this image"),
+            var response = await _client.Messages.Create(request);
 
-                        ChatMessageContentPart
-                            .CreateImagePart(
-                                BinaryData.FromBytes(bytes),
-                                mime,
-                                ChatImageDetailLevel.High)
-                    ])
-                };
-
-            var options =
-                new ChatCompletionOptions
+            ToolUseBlock? toolUse = null;
+            foreach (var block in response.Content)
+            {
+                if (block.TryPickToolUse(out var tu))
                 {
-                    ResponseFormat =
-                        ChatResponseFormat
-                            .CreateJsonObjectFormat()
-                };
-
-            var response =
-                await _client.CompleteChatAsync(
-                    messages,
-                    options);
-
-            var text =
-                response.Value.Content
-                    .FirstOrDefault()?.Text;
-
-            Console.WriteLine(
-                $"OPENAI RESPONSE: {text}");
-
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return Empty();
+                    toolUse = tu;
+                    break;
+                }
             }
 
-            var result =
-                JsonSerializer.Deserialize<
-                    AiAnalysisResult>(
-                    text,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
-
-            if (result == null)
-            {
+            if (toolUse is null)
                 return Empty();
-            }
 
-            Cache[$"image-{cacheKey}"] =
-                result;
+            var json = JsonSerializer.Serialize(toolUse.Input);
+            Console.WriteLine($"CLAUDE RESPONSE: {json}");
 
+            var result = JsonSerializer.Deserialize<AiAnalysisResult>(json, JsonOptions);
+
+            if (result is null)
+                return Empty();
+
+            Cache[cacheKey] = result;
             return result;
         }
         catch (Exception ex)
         {
-            Console.WriteLine(
-                $"OPENAI ERROR: {ex}");
-
+            Console.WriteLine($"CLAUDE ERROR: {ex}");
             return Empty();
         }
     }
 
-    private static string CreateHash(
-        byte[] bytes)
+    private static string CreateHash(byte[] bytes)
     {
-        using var sha =
-            SHA256.Create();
-
-        var hash =
-            sha.ComputeHash(bytes);
-
-        return Convert.ToHexString(hash);
+        using var sha = SHA256.Create();
+        return Convert.ToHexString(sha.ComputeHash(bytes));
     }
 
-    private static string GetMimeType(
-        string filePath)
-    {
-        var ext =
-            Path.GetExtension(filePath)
-                .ToLowerInvariant();
-
-        return ext switch
+    private static string GetMimeType(string filePath) =>
+        Path.GetExtension(filePath).ToLowerInvariant() switch
         {
             ".png" => "image/png",
             ".webp" => "image/webp",
             ".gif" => "image/gif",
             _ => "image/jpeg"
         };
-    }
 
-    private static AiAnalysisResult Empty()
+    private static AiAnalysisResult Empty() => new()
     {
-        return new AiAnalysisResult
-        {
-            Description = "Unknown",
-            Tags = [],
-            Confidence = 0
-        };
-    }
+        Description = "Unknown",
+        Tags = [],
+        Confidence = 0
+    };
 }

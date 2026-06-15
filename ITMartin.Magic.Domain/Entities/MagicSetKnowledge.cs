@@ -3,6 +3,7 @@
     public string SetCode { get; set; } = null!;
 
     public string SetName { get; set; } = null!;
+    public string SetType { get; set; } = null!;
 
     public int ReleaseYear { get; set; }
 

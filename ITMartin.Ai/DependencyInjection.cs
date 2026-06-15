@@ -1,4 +1,4 @@
-﻿using ITMartin.Ai.Interfaces;
+using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,21 +10,21 @@ public static class DependencyInjection
     public static IServiceCollection AddAi(
         this IServiceCollection services)
     {
-        services.AddScoped<
+        services.AddSingleton<
             IMagicCardRecognitionService,
-            OpenAiMagicCardRecognitionService>();
+            ClaudeMagicCardRecognitionService>();
 
-        services.AddScoped<
-            ICardConditionAnalysisService,
-            OpenAiCardConditionService>();
-
-        services.AddScoped<
+        services.AddSingleton<
             IImageAnalysisService,
-            OpenOpenAiAnalysisService>();
+            ClaudeImageAnalysisService>();
 
-        services.AddScoped<
+        services.AddSingleton<
+            IOpenAiLibraryShelfRecognitionService,
+            ClaudeLibraryShelfRecognitionService>();
+
+        services.AddSingleton<
             IReceiptExtractionService,
-            OpenAiReceiptExtractionService>();
+            ClaudeReceiptExtractionService>();
 
         return services;
     }

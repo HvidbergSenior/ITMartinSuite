@@ -1,19 +1,21 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0
-WORKDIR /app
+﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
-RUN apt-get update && \
-    apt-get install -y \
-        ffmpeg \
-        libgl1 \
-        libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
 
 COPY . .
 
-RUN mkdir -p /data /library
+RUN dotnet restore ITMartin.Magic.Server/ITMartin.Magic.Server.csproj
 
-ENV ASPNETCORE_URLS=http://+:8080
+RUN dotnet publish ITMartin.Magic.Server/ITMartin.Magic.Server.csproj \
+    -c Release \
+    -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+
+WORKDIR /app
+
+COPY --from=build /app/publish .
 
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "ITMartinFileSorter.Server.dll"]
+ENTRYPOINT ["dotnet", "ITMartin.Magic.Server.dll"]

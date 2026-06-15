@@ -1,6 +1,7 @@
 ﻿using ITMartin.Magic.Application.Models;
 using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Models;
+using Microsoft.Extensions.Logging;
 using OpenCvSharp;
 
 namespace ITMartin.Magic.Infrastructure.Services;
@@ -8,12 +9,18 @@ namespace ITMartin.Magic.Infrastructure.Services;
 public sealed class OpenCvMagicCardOcrRegionExtractor
     : IOcrRegionExtractor
 {
+    private readonly ILogger<OpenCvMagicCardOcrRegionExtractor> _logger;
+
+    public OpenCvMagicCardOcrRegionExtractor(ILogger<OpenCvMagicCardOcrRegionExtractor> logger)
+    {
+        _logger = logger;
+    }
+
     public Task<OcrRegionResult?> ExtractAsync(
         string normalizedCardPath,
         CancellationToken cancellationToken)
     {
-        Console.WriteLine(
-            $"OCR SOURCE FILE: {normalizedCardPath}");
+        _logger.LogDebug("OCR source file: {Path}", normalizedCardPath);
         
         var result =
             Extract(
@@ -57,8 +64,7 @@ public sealed class OpenCvMagicCardOcrRegionExtractor
 
         var height =
             image.Height;
-        Console.WriteLine(
-            $"Image: {width} x {height}");
+        _logger.LogDebug("Image dimensions: {Width}x{Height}", width, height);
         var profile =
             OcrGeometryProfiles.All;
 

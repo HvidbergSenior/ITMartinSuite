@@ -24,8 +24,7 @@ public static class FileSorterWorkerDependencyInjection
             Package2WorkflowRunner>();
         services.AddScoped<
             Package2WorkflowOrchestrator>();
-        services.AddHostedService<
-            WorkflowQueueConsumerHostedService>();
+      
         services.AddScoped<
             IPackage2Client,
             Package2Client>();

@@ -7,6 +7,7 @@ public enum WorkflowType
 
     MagicCardScan,
     ReceiptScan,
+    LibraryShelfScan,
     RememberDocument,
     StorageClassification
 }

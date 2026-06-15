@@ -32,10 +32,10 @@
                                 ideal: "environment"
                             },
                             width: {
-                                ideal: 1920
+                                ideal: 2560
                             },
                             height: {
-                                ideal: 1080
+                                ideal: 1440
                             }
                         },
 
@@ -44,6 +44,42 @@
             const track =
                 this.stream
                     .getVideoTracks()[0];
+
+            const capabilities =
+                track.getCapabilities?.();
+
+            if (capabilities?.torch)
+            {
+                try
+                {
+                    await track.applyConstraints({
+                        advanced: [
+                            {
+                                torch: true
+                            }
+                        ]
+                    });
+                }
+                catch
+                {
+                }
+            }
+            if (capabilities?.focusMode)
+            {
+                try
+                {
+                    await track.applyConstraints({
+                        advanced: [
+                            {
+                                focusMode: "continuous"
+                            }
+                        ]
+                    });
+                }
+                catch
+                {
+                }
+            }
 
             console.log(
                 "TRACK SETTINGS",
@@ -127,20 +163,24 @@
             videoRect.height;
 
         const guideX =
-            (guideRect.left - videoRect.left) *
-            scaleX;
+            Math.round(
+                (guideRect.left - videoRect.left) *
+                scaleX);
 
         const guideY =
-            (guideRect.top - videoRect.top) *
-            scaleY;
+            Math.round(
+                (guideRect.top - videoRect.top) *
+                scaleY);
 
         const guideWidth =
-            guideRect.width *
-            scaleX;
+            Math.round(
+                guideRect.width *
+                scaleX);
 
         const guideHeight =
-            guideRect.height *
-            scaleY;
+            Math.round(
+                guideRect.height *
+                scaleY);
 // =====================================
 // CROP CARD
 // =====================================
@@ -152,10 +192,10 @@
             cropCanvas.getContext("2d");
 
         cropCanvas.width =
-            guideWidth;
+            Math.round(guideWidth);
 
         cropCanvas.height =
-            guideHeight;
+            Math.round(guideHeight);
 
         cropCtx.drawImage(
             this.video,
@@ -266,7 +306,7 @@
             image:
                 canvas.toDataURL(
                     "image/jpeg",
-                    0.98)
+                    1.0)
         };
     },
 

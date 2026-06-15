@@ -59,9 +59,6 @@ public static class FileSorterDependencyInjection
             IRuntimeEventPublisher,
             NullRuntimeEventPublisher>();
 
-        services.AddSingleton<
-            IBackgroundJobQueue,
-            RabbitMqBackgroundJobQueue>();
 
         return services;
     }

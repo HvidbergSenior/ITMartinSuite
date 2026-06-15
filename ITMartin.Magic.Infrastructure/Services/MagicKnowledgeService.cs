@@ -77,4 +77,16 @@ public sealed class MagicKnowledgeService
 
         await _db.SaveChangesAsync();
     }
+    public async Task<List<MagicSetSymbolDefinition>>
+        GetSetDefinitionsAsync()
+    {
+        return await _db.Sets
+            .OrderBy(x => x.SetName)
+            .Select(x =>
+                new MagicSetSymbolDefinition(
+                    x.SetCode,
+                    x.SetName,
+                    x.SymbolDescription ?? string.Empty))
+            .ToListAsync();
+    }
 }

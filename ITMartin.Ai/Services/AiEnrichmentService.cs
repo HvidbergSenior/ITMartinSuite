@@ -1,8 +1,9 @@
-﻿using System.Text.Json;
+using System.Text.Json;
+using Anthropic;
+using Anthropic.Models.Messages;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Configuration;
-using OpenAI.Chat;
 
 namespace ITMartin.Ai.Services;
 
@@ -10,34 +11,20 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 {
     private static readonly HashSet<string> AllowedCategories =
     [
-        "Travel",
-        "Family",
-        "Work",
-        "Screenshots",
-        "Documents",
-        "Music",
-        "Movies",
-        "Games",
-        "Memes",
-        "Receipts",
-        "Unknown"
+        "Travel", "Family", "Work", "Screenshots", "Documents",
+        "Music", "Movies", "Games", "Memes", "Receipts", "Unknown"
     ];
 
-    private readonly ChatClient _client;
+    private readonly AnthropicClient _client;
 
-
-    public AiEnrichmentService(
-        IConfiguration configuration)
+    public AiEnrichmentService(IConfiguration configuration)
     {
-
-        var apiKey = configuration["OpenAI:ApiKey"];
+        var apiKey = configuration["Claude:ApiKey"];
 
         if (string.IsNullOrWhiteSpace(apiKey))
-            throw new Exception("Missing OpenAI API key");
+            throw new InvalidOperationException("Missing Claude API key");
 
-        _client = new ChatClient(
-            model: "gpt-4.1-mini",
-            apiKey: apiKey);
+        _client = new AnthropicClient { ApiKey = apiKey };
     }
 
     public async Task EnrichBatchAsync(
@@ -45,9 +32,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         Func<Task>? onBatchCompleted = null,
         CancellationToken cancellationToken = default)
     {
-        var filesToProcess = files
-            .Where(NeedsAi)
-            .ToList();
+        var filesToProcess = files.Where(NeedsAi).ToList();
 
         if (filesToProcess.Count == 0)
             return;
@@ -62,14 +47,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
             try
             {
-                
-                // =========================
-                // BATCH CLASSIFICATION
-                // =========================
-
-                var results = await ProcessBatchAsync(
-                    batchList,
-                    cancellationToken);
+                var results = await ProcessBatchAsync(batchList, cancellationToken);
 
                 if (results == null)
                     continue;
@@ -83,50 +61,35 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
                     Console.WriteLine($"Description: {result.Description}");
                     Console.WriteLine($"Confidence: {result.Confidence}");
 
-                    var file = batchList
-                        .FirstOrDefault(x => x.Id == result.Id);
+                    var file = batchList.FirstOrDefault(x => x.Id == result.Id);
 
                     if (file == null)
                         continue;
 
-                    Console.WriteLine(
-                        $"FILE: {file.FullPath}");
+                    Console.WriteLine($"FILE: {file.FullPath}");
 
-                    var category =
-                        AllowedCategories.Contains(
-                            result.Category)
-                            ? result.Category
-                            : "Unknown";
+                    var category = AllowedCategories.Contains(result.Category)
+                        ? result.Category
+                        : "Unknown";
 
                     file.AiCategory = category;
                     file.AiSubCategory = result.SubCategory;
 
-                    // Keep best vision description if available
+                    if (string.IsNullOrWhiteSpace(file.AiDescription))
+                        file.AiDescription = result.Description;
 
-                    if (string.IsNullOrWhiteSpace(
-                            file.AiDescription))
-                    {
-                        file.AiDescription =
-                            result.Description;
-                    }
-
-                    file.AiConfidence =
-                        Math.Max(
-                            file.AiConfidence ?? 0,
-                            (float?)result.Confidence ?? 0);
+                    file.AiConfidence = Math.Max(
+                        file.AiConfidence ?? 0,
+                        (float?)result.Confidence ?? 0);
 
                     file.AiProcessed = true;
                 }
 
-                Console.WriteLine(
-                    $"Processed AI batch: {batchList.Count} files");
+                Console.WriteLine($"Processed AI batch: {batchList.Count} files");
 
-                await (onBatchCompleted?.Invoke()
-                       ?? Task.CompletedTask);
+                await (onBatchCompleted?.Invoke() ?? Task.CompletedTask);
 
-                await Task.Delay(
-                    2000,
-                    cancellationToken);
+                await Task.Delay(2000, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -134,12 +97,8 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    $"AI BATCH ERROR: {ex}");
-
-                await Task.Delay(
-                    10000,
-                    cancellationToken);
+                Console.WriteLine($"AI BATCH ERROR: {ex}");
+                await Task.Delay(10000, cancellationToken);
             }
         }
     }
@@ -154,60 +113,53 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         {
             try
             {
-                var response =
-                    await _client.CompleteChatAsync(
-                    [
-                        new SystemChatMessage("""
+                var request = new MessageCreateParams
+                {
+                    Model = Model.ClaudeHaiku4_5,
+                    MaxTokens = 2048,
+                    System = """
                         You are a file classification AI.
-
                         Return ONLY valid JSON.
                         Return ONLY a JSON array.
-
                         Never skip files.
                         Never return markdown.
                         Never explain anything.
-                        """),
+                        """,
+                    Messages =
+                    [
+                        new() { Role = Role.User, Content = prompt }
+                    ]
+                };
 
-                        new UserChatMessage(prompt)
-                    ],
-                    new ChatCompletionOptions
+                var response = await _client.Messages.Create(request);
+
+                string? text = null;
+                foreach (var block in response.Content)
+                {
+                    if (block.TryPickText(out var tb))
                     {
-                        Temperature = 0
-                    },
-                    cancellationToken);
+                        text = tb.Text;
+                        break;
+                    }
+                }
 
-                var text =
-                    response.Value.Content
-                        .FirstOrDefault()?.Text;
-
-                Console.WriteLine(
-                    $"RAW AI RESPONSE: {text}");
+                Console.WriteLine($"RAW AI RESPONSE: {text}");
 
                 if (string.IsNullOrWhiteSpace(text))
                     return null;
 
-                var results =
-                    JsonSerializer.Deserialize<
-                        List<AiBatchResult>>(
-                        text,
-                        new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
-
-                return results;
+                return JsonSerializer.Deserialize<List<AiBatchResult>>(
+                    text,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
             catch (JsonException ex)
             {
-                Console.WriteLine(
-                    $"JSON PARSE ERROR (attempt {attempt}): {ex}");
+                Console.WriteLine($"JSON PARSE ERROR (attempt {attempt}): {ex}");
 
                 if (attempt == 2)
                     throw;
 
-                await Task.Delay(
-                    2000,
-                    cancellationToken);
+                await Task.Delay(2000, cancellationToken);
             }
         }
 
@@ -216,64 +168,48 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
     public async Task<string> TestAsync()
     {
-        var response =
-            await _client.CompleteChatAsync(
-            [
-                new UserChatMessage("Say hello")
-            ]);
+        var request = new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 64,
+            Messages = [new() { Role = Role.User, Content = "Say hello" }]
+        };
 
-        return response.Value.Content
-            .FirstOrDefault()?.Text ?? "No response";
+        var response = await _client.Messages.Create(request);
+
+        string? text = null;
+        foreach (var block in response.Content)
+        {
+            if (block.TryPickText(out var tb))
+            {
+                text = tb.Text;
+                break;
+            }
+        }
+
+        return text ?? "No response";
     }
 
-    private static bool NeedsAi(
-        MediaFile file)
-    {
-        return file.RequiresReview;
-    }
+    private static bool NeedsAi(MediaFile file) => file.RequiresReview;
 
-    private static string BuildBatchPrompt(
-        List<MediaFile> files)
+    private static string BuildBatchPrompt(List<MediaFile> files)
     {
         var items = files.Select(x => new
         {
             x.Id,
-
-            FileName = Path.GetFileName(
-                x.NormalizedPath ??
-                x.FullPath),
-
+            FileName = Path.GetFileName(x.NormalizedPath ?? x.FullPath),
             MediaType = x.Type.ToString(),
-
-            OCR =
-                string.IsNullOrWhiteSpace(x.OcrText)
-                    ? null
-                    : x.OcrText.Length > 3000
-                        ? x.OcrText[..3000]
-                        : x.OcrText,
-
-            ImageDescription =
-                string.IsNullOrWhiteSpace(x.AiDescription)
-                    ? null
-                    : x.AiDescription,
-
-            ImageTags =
-                x.AiTags?.Any() == true
-                    ? x.AiTags
-                    : null,
-
+            OCR = string.IsNullOrWhiteSpace(x.OcrText)
+                ? null
+                : x.OcrText.Length > 3000 ? x.OcrText[..3000] : x.OcrText,
+            ImageDescription = string.IsNullOrWhiteSpace(x.AiDescription) ? null : x.AiDescription,
+            ImageTags = x.AiTags?.Any() == true ? x.AiTags : null,
             Width = x.Width,
             Height = x.Height,
             Year = x.Year
         });
 
-        var json =
-            JsonSerializer.Serialize(
-                items,
-                new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
+        var json = JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true });
 
         return $$"""
 You are an intelligent media classification AI.

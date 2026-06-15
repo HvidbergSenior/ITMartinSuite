@@ -3,6 +3,8 @@ using ITMartin.Magic.Application.Services;
 using ITMartin.Magic.Application.Workflows;
 using ITMartin.Magic.Application.Workflows.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Infrastructure.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartin.Magic.Application;
@@ -10,12 +12,8 @@ namespace ITMartin.Magic.Application;
 public static class DependencyInjection
 {
     public static IServiceCollection AddMagicApplication(
-        this IServiceCollection services)
+        this IServiceCollection services, IConfiguration configuration)
     {
-        // =========================
-        // ORCHESTRATION
-        // =========================
-
         services.AddScoped<
             ICardScanOrchestrator,
             CardScanOrchestrator>();
@@ -27,8 +25,6 @@ public static class DependencyInjection
         services.AddScoped<
             CardScanWorkflowDefinition>();
 
-   
-
         // =========================
         // WORKFLOW STEPS
         // =========================
@@ -39,8 +35,6 @@ public static class DependencyInjection
        services.AddScoped<
            FinalScryfallMatchWorkflowStep>();
 
-       services.AddScoped<
-        CardConditionWorkflowStep>();
        services.AddScoped<
            ResultMappingWorkflowStep>();
      

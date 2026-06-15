@@ -1,28 +1,42 @@
-﻿using ITMartinLibrary.Application.Interfaces;
-using ITMartinLibrary.Application.Services;
+using ITMartin.Ai;
+using ITMartinLibrary.Application;
 using ITMartinLibrary.Infrastructure;
-using ITMartinLibrary.Infrastructure.Options;
-using ITMartinLibrary.Infrastructure.Repositories;
 using ITMartinLibrary.Infrastructure.Services;
 using ITMartinLibrary.Server;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// =========================
+// CORE SERVICES
+// =========================
+
+builder.Services.AddLibraryApplication();
+builder.Services.AddLibraryInfrastructure(builder.Configuration);
+builder.Services.AddAi();
+
+builder.Services.AddHostedService<BarcodeEnrichmentWorker>();
+
+// =========================
+// SIGNALR
+// =========================
+
+builder.Services.Configure<HubOptions>(options =>
+{
+    options.MaximumReceiveMessageSize = 1024 * 1024 * 20;
+});
+
+// =========================
+// BLAZOR
+// =========================
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
-builder.Services.AddScoped<InventoryService>();
-builder.Services.AddSingleton<IBarcodeEnrichmentQueue, BarcodeEnrichmentQueue>();
-builder.Services.AddHttpClient<IBarcodeLookupService, BarcodeLookupService>();
-builder.Services.AddHostedService<BarcodeEnrichmentWorker>();
-builder.Services.AddDbContext<LibraryDbContext>(options =>
-    options.UseSqlite(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+// =========================
+// BUILD
+// =========================
 
-builder.Services.Configure<OmdbOptions>(
-    builder.Configuration.GetSection("Omdb"));
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

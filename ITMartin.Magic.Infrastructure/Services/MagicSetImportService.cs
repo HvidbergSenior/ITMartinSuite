@@ -43,13 +43,26 @@ public sealed class MagicSetImportService
         var allowedTypes = new[]
         {
             "core",
-            "expansion"
+            "expansion",
+            "masters",
+            "eternal",
+            "commander",
+            "draft_innovation",
+            "starter",
+            "funny"
+        };
+        var excludedTypes = new[]
+        {
+            "token",
+            "promo",
+            "memorabilia",
+            "minigame"
         };
 
         var newSets =
             response.Data
                 .Where(x =>
-                    allowedTypes.Contains(
+                    !excludedTypes.Contains(
                         x.SetType,
                         StringComparer.OrdinalIgnoreCase))
                 .Where(x =>
@@ -58,6 +71,7 @@ public sealed class MagicSetImportService
                 {
                     SetCode = set.Code,
                     SetName = set.Name,
+                    SetType = set.SetType,
                     ReleaseYear = set.ReleasedAt.Year,
 
                     SymbolDescription = "",

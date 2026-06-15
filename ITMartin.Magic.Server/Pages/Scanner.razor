@@ -7,7 +7,7 @@
 
 @inject IJSRuntime JS
 @inject ICardScanOrchestrator CardScanOrchestrator
-
+@inject IMagicKnowledgeService MagicKnowledgeService
 @implements IAsyncDisposable
 
 <PageTitle>
@@ -35,14 +35,89 @@
         </div>
 
     </div>
+    <div class="scanner-setup">
 
+        <label class="form-label">
+            Set Selection
+        </label>
+
+        <div class="form-check mb-2">
+            <input class="form-check-input"
+                   type="radio"
+                   name="setMode"
+                   checked="@(!NoSetSymbol)"
+                   @onchange="() => NoSetSymbol = false" />
+
+            <label class="form-check-label">
+                Select Set
+            </label>
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input"
+                   type="radio"
+                   name="setMode"
+                   checked="@NoSetSymbol"
+                   @onchange="() => NoSetSymbol = true" />
+
+            <label class="form-check-label">
+                Card Has No Set Symbol
+            </label>
+        </div>
+
+        @if (!NoSetSymbol)
+        {
+            <input class="form-control mb-2"
+                   placeholder="Search set..."
+                   @bind="_setSearch" />
+
+            <select class="form-select"
+                    @bind="_selectedSetCode">
+
+                <option value="">
+                    Select a set...
+                </option>
+
+                @foreach (var set in FilteredSets.Take(50))
+                {
+                    <option value="@set.SetCode">
+                        @set.SetName (@set.SetCode.ToUpper())
+                    </option>
+                }
+
+            </select>
+        }
+    </div>
+    
+    @if (NoSetSymbol)
+    {
+        <div class="alert alert-info mt-2">
+            Scanning cards without set symbols.
+        </div>
+    }
+    else if (string.IsNullOrWhiteSpace(_selectedSetCode))
+    {
+        <div class="alert alert-warning mt-2">
+            Select a set before scanning.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success mt-2">
+            Scanning set: @_selectedSetCode.ToUpperInvariant()
+        </div>
+    }
+   
     <div class="scanner-wrapper">
 
         @if (!_cameraStarted)
         {
             <div class="camera-start-panel">
 
-                <button @onclick="StartCamera">
+                <button @onclick="StartCamera"
+                        disabled="@(
+                                  string.IsNullOrWhiteSpace(_selectedSetCode)
+                                  && !NoSetSymbol)">
                     Start Camera
                 </button>
 
@@ -91,7 +166,12 @@
 
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
-                disabled="@_isProcessing">
+                disabled="@(
+                          _isProcessing ||
+                          (
+                              string.IsNullOrWhiteSpace(_selectedSetCode)
+                              && !NoSetSymbol
+                          ))">
 
             @if (_isProcessing)
             {
@@ -187,6 +267,40 @@
                                         </strong>
 
                                     </div>
+
+                                    @if ((_scanResult.ScryfallMatchResult?.EurFoilPrice ?? 0) > 0)
+                                    {
+                                        <div class="price-item">
+
+                                            <span>
+                                                EUR Foil
+                                            </span>
+
+                                            <strong>
+                                                €@((_scanResult
+                                                     .ScryfallMatchResult?
+                                                     .EurFoilPrice ?? 0) / 100m)
+                                            </strong>
+
+                                        </div>
+                                    }
+
+                                    @if ((_scanResult.ScryfallMatchResult?.UsdFoilPrice ?? 0) > 0)
+                                    {
+                                        <div class="price-item">
+
+                                            <span>
+                                                USD Foil
+                                            </span>
+
+                                            <strong>
+                                                $@((_scanResult
+                                                     .ScryfallMatchResult?
+                                                     .UsdFoilPrice ?? 0) / 100m)
+                                            </strong>
+
+                                        </div>
+                                    }
 
                                 </div>
                             </div>
@@ -305,9 +419,52 @@
     private bool _cameraStarted;
 
     private CardScanContext? _scanResult;
+    private string? _selectedSetCode;
+    private string _setSearch = "";
+    private bool _noSetSymbol;
+    private bool _disposed;
+    private IEnumerable<MagicSetSymbolDefinition>
+        FilteredSets =>
+        string.IsNullOrWhiteSpace(_setSearch)
+            ? _sets.Take(50)
+            : _sets
+                .Where(x =>
+                    x.SetName.Contains(
+                        _setSearch,
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    x.SetCode.Contains(
+                        _setSearch,
+                        StringComparison.OrdinalIgnoreCase))
+                .Take(50);
+    
+    private List<MagicSetSymbolDefinition> _sets = [];
+    private bool NoSetSymbol
+    {
+        get => _noSetSymbol;
+        set
+        {
+            _noSetSymbol = value;
 
+            if (value)
+            {
+                _selectedSetCode = null;
+                _setSearch = "";
+            }
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        _sets =
+            (await MagicKnowledgeService
+                .GetSetDefinitionsAsync())
+            .OrderByDescending(x => x.SetCode)
+            .ToList();
+    }
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+
         try
         {
             await JS.InvokeVoidAsync(
@@ -345,6 +502,25 @@
 
     private async Task Capture()
     {
+        if (_isProcessing)
+        {
+            return;
+        }
+        
+        if (_disposed)
+        {
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(_selectedSetCode)
+            && !NoSetSymbol)
+        {
+            _detectedText =
+                "Please select a set or choose 'No Set Symbol'.";
+
+            return;
+        }
+        
         if (!_cameraStarted ||
             _isProcessing)
         {
@@ -362,9 +538,18 @@
 
             StateHasChanged();
 
-            var capture =
-                await JS.InvokeAsync<CameraCaptureResult>(
-                    "webcam.capture");
+            CameraCaptureResult capture;
+
+            try
+            {
+                capture =
+                    await JS.InvokeAsync<CameraCaptureResult>(
+                        "webcam.capture");
+            }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
 
             var clean =
                 capture.Image.Replace(
@@ -400,10 +585,16 @@
 
             StateHasChanged();
             
+            var setCode =
+                NoSetSymbol
+                    ? null
+                    : _selectedSetCode;
+
             _scanResult =
                 await CardScanOrchestrator
                     .ExecuteAsync(
                         framePath,
+                        setCode,
                         CancellationToken.None);
 
             if (_scanResult.Failed)

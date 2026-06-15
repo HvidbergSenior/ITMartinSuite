@@ -13,7 +13,7 @@ public static class MagicPersistenceDependencyInjection
     {
         services.AddDbContext<MagicDbContext>(
             options =>
-                options.UseSqlite(
+                options.UseNpgsql(
                     connectionString));
 
         return services;

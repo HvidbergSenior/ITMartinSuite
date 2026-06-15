@@ -1,8 +1,8 @@
-﻿using System.Text.Json;
-using ITMartin.Ai.Interfaces;
+﻿using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Magic.Application.Workflows.Steps;
 
@@ -12,14 +12,18 @@ public sealed class AiCardRecognitionWorkflowStep
     private readonly IMagicCardRecognitionService
         _magicCardRecognitionService;
 
+    private readonly ILogger<AiCardRecognitionWorkflowStep> _logger;
+
     public override string Name =>
         nameof(AiCardRecognitionWorkflowStep);
 
     public AiCardRecognitionWorkflowStep(
-        IMagicCardRecognitionService magicCardRecognitionService)
+        IMagicCardRecognitionService magicCardRecognitionService,
+        ILogger<AiCardRecognitionWorkflowStep> logger)
     {
         _magicCardRecognitionService =
             magicCardRecognitionService;
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync(
@@ -47,12 +51,6 @@ public sealed class AiCardRecognitionWorkflowStep
                 "AI recognition returned null.");
         }
 
-        result.IdentificationConfidence =
-            CalculateConfidence(result);
-
-        context.State.OpenAiResult =
-            result;
-
         context.State.OpenAiResult =
             result;
 
@@ -65,60 +63,12 @@ public sealed class AiCardRecognitionWorkflowStep
         context.State.IdentificationConfidence =
             result.IdentificationConfidence;
 
-        Console.WriteLine(
-            $"OPENAI RESULT: {JsonSerializer.Serialize(result)}");
+        _logger.LogDebug(
+            "AI result — Card: [{Name}] Confidence: [{Confidence}] Artist: [{Artist}] Collector: [{Collector}]",
+            result.IdentifiedName,
+            result.IdentificationConfidence,
+            result.Artist,
+            result.CollectorNumber);
 
-        Console.WriteLine(
-            $"IDENTIFIED CARD: [{result.IdentifiedName}]");
-
-        Console.WriteLine(
-            $"CONFIDENCE: [{result.IdentificationConfidence}]");
-
-        Console.WriteLine(
-            $"ARTIST: [{result.Artist}]");
-
-        Console.WriteLine(
-            $"COLLECTOR: [{result.CollectorNumber}]");
-
-        Console.WriteLine(
-            $"SYMBOL: [{result.SetSymbolDescription}]");
-
-        Console.WriteLine(
-            $"FRAME: [{result.FrameColor}] [{result.FrameStyle}]");
-
-        Console.WriteLine(
-            $"BORDER: [{result.OuterBorder}]");
-        Console.WriteLine(
-            $"CopyrightText: [{result.CopyrightText}]");
-        Console.WriteLine(
-            $"CopyrightTextColor: [{result.CopyrightTextColor}]");
-    }
-    private static decimal CalculateConfidence(
-        MagicCardAnalysisResult result)
-    {
-        if (string.IsNullOrWhiteSpace(
-                result.IdentifiedName))
-        {
-            return 0m;
-        }
-
-        var score = 0.5m;
-
-        if (!string.IsNullOrWhiteSpace(result.ManaCost))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.CardType))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.Artist))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.CopyrightText))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.CollectorNumber))
-            score += 0.1m;
-
-        return Math.Min(score, 1.0m);
     }
 }

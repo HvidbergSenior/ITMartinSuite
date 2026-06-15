@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
+﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
+using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Steps;
 using ITMartin.Media.Application.Services.Steps.NormalizationStep;
@@ -9,6 +10,7 @@ using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Persistence.Stores;
+using ITMartin.Media.Runtime.BackgroundJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -192,6 +194,10 @@ public static class Package2DependencyInjection
             VideoSegmentationService>();
         services.AddScoped<
             ExportEnhancedAssetsWorkflowStep>();
+        services.AddScoped<
+            IBackgroundJobHandler,
+            StartPackage2Handler>();
+        
        
         return services;
     }

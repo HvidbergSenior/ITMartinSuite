@@ -64,3 +64,5 @@ secrets.json
 **/exports/
 **/thumbnails/
 **/temp/
+
+magic.env

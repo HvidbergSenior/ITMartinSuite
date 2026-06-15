@@ -19,9 +19,16 @@ using Microsoft.Extensions.FileProviders;
 
 var builder =
     WebApplication.CreateBuilder(args);
-builder.Services.AddMediaCore(builder.Configuration);
+builder.Logging.AddFilter(
+    "Microsoft.EntityFrameworkCore.Database.Command",
+    LogLevel.Warning);
 
-builder.Services.AddMagicApplication();
+builder.Logging.AddFilter(
+    "Microsoft.AspNetCore",
+    LogLevel.Warning);
+builder.Services.AddMediaCore(builder.Configuration);
+builder.Services.AddMediaRuntime(builder.Configuration);
+builder.Services.AddMagicApplication(builder.Configuration);
 builder.Services.AddMagicInfrastructure(builder.Configuration);
 builder.Services.AddAi();
 builder.Services.AddOcr();
@@ -53,10 +60,6 @@ builder.Services.AddScoped<
     IImageAnalysisService,
     OpenAiImageAnalysisService>();
 
-builder.Services.AddScoped<
-    IMagicCardRecognitionService,
-    OpenAiMagicCardRecognitionService>();
-
 // =========================
 // OPENCV
 // =========================
@@ -69,11 +72,6 @@ builder.Services.AddScoped<
     IOcrRegionExtractor,
     OpenCvMagicCardOcrRegionExtractor>();
 
-// =========================
-// URLS
-// =========================
-builder.WebHost.UseUrls(
-    "https://0.0.0.0:5020");
 
 // =========================
 // DATA FOLDERS

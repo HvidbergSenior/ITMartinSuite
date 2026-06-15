@@ -2,6 +2,7 @@
 using System.Text.Json;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
+using Microsoft.Extensions.Configuration;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -15,14 +16,18 @@ public sealed class RabbitMqBackgroundJobQueue
 
     private readonly IModel _channel;
 
-    public RabbitMqBackgroundJobQueue()
+    public RabbitMqBackgroundJobQueue(
+        IConfiguration configuration)
     {
         var factory =
             new ConnectionFactory
             {
-                HostName = "localhost"
+                HostName =
+                    configuration["RabbitMq:Host"]
+                    ?? "rabbitmq"
             };
-
+        Console.WriteLine(
+            $"RabbitMQ Host: {factory.HostName}");
         _connection =
             factory.CreateConnection();
 
