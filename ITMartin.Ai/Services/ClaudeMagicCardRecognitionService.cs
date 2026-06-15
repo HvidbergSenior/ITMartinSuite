@@ -39,7 +39,7 @@ public sealed class ClaudeMagicCardRecognitionService
                 ["artist"] = JsonSerializer.SerializeToElement(
                     new { type = "string", description = "Artist name only, no 'Illus.' prefix" }),
                 ["manaCost"] = JsonSerializer.SerializeToElement(
-                    new { type = "string", description = "The mana cost" }),
+                    new { type = "string", description = "The mana cost in MTG brace notation e.g. {3}{G} or {X}{R}{R}" }),
                 ["cardType"] = JsonSerializer.SerializeToElement(
                     new { type = "string", description = "The card type line" }),
                 ["powerToughness"] = JsonSerializer.SerializeToElement(
@@ -214,6 +214,12 @@ public sealed class ClaudeMagicCardRecognitionService
         * manaCost
         * cardType
         * powerToughness
+
+        MANA COST RULES
+
+        Always use MTG brace notation: {W} {U} {B} {R} {G} {C} {X} {0}–{20}
+
+        Examples: "3G" → {3}{G} / "2WW" → {2}{W}{W} / "XRR" → {X}{R}{R}
 
         COLLECTOR NUMBER RULES
 
