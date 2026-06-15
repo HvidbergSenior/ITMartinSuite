@@ -126,7 +126,7 @@ public sealed class ScryfallService
                             "fem" or
                             "ice" or
                             "chr" or
-                            "rin")
+                            "ren")
                     .ToList();
 
             Console.WriteLine(
