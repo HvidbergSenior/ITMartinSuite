@@ -3,6 +3,7 @@ using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Magic.Application.Workflows.Steps;
 
@@ -12,14 +13,18 @@ public sealed class AiCardRecognitionWorkflowStep
     private readonly IMagicCardRecognitionService
         _magicCardRecognitionService;
 
+    private readonly ILogger<AiCardRecognitionWorkflowStep> _logger;
+
     public override string Name =>
         nameof(AiCardRecognitionWorkflowStep);
 
     public AiCardRecognitionWorkflowStep(
-        IMagicCardRecognitionService magicCardRecognitionService)
+        IMagicCardRecognitionService magicCardRecognitionService,
+        ILogger<AiCardRecognitionWorkflowStep> logger)
     {
         _magicCardRecognitionService =
             magicCardRecognitionService;
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync(
@@ -62,20 +67,12 @@ public sealed class AiCardRecognitionWorkflowStep
         context.State.IdentificationConfidence =
             result.IdentificationConfidence;
 
-        Console.WriteLine(
-            $"OPENAI RESULT: {JsonSerializer.Serialize(result)}");
-
-        Console.WriteLine(
-            $"IDENTIFIED CARD: [{result.IdentifiedName}]");
-
-        Console.WriteLine(
-            $"CONFIDENCE: [{result.IdentificationConfidence}]");
-
-        Console.WriteLine(
-            $"ARTIST: [{result.Artist}]");
-
-        Console.WriteLine(
-            $"COLLECTOR: [{result.CollectorNumber}]");
+        _logger.LogDebug(
+            "AI result — Card: [{Name}] Confidence: [{Confidence}] Artist: [{Artist}] Collector: [{Collector}]",
+            result.IdentifiedName,
+            result.IdentificationConfidence,
+            result.Artist,
+            result.CollectorNumber);
 
     }
     private static decimal CalculateConfidence(

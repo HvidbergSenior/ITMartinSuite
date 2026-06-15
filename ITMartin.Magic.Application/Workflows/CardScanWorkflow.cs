@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Magic.Application.Workflows;
 
@@ -9,11 +10,15 @@ public sealed class CardScanWorkflow
         IReadOnlyCollection<IWorkflowStep>
         _steps;
 
+    private readonly ILogger<CardScanWorkflow> _logger;
+
     public CardScanWorkflow(
-        CardScanWorkflowDefinition workflowDefinition)
+        CardScanWorkflowDefinition workflowDefinition,
+        ILogger<CardScanWorkflow> logger)
     {
         _steps =
             workflowDefinition.Steps;
+        _logger = logger;
     }
 
     public async Task ExecuteAsync(
@@ -43,8 +48,7 @@ public sealed class CardScanWorkflow
 
             try
             {
-                Console.WriteLine(
-                    $"Executing workflow step: {step.Name}");
+                _logger.LogDebug("Executing workflow step: {Step}", step.Name);
 
                 await step.ExecuteAsync(
                     workflowContext,

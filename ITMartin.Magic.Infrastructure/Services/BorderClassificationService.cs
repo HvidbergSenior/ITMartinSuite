@@ -1,4 +1,5 @@
 ﻿using ITMartin.Magic.Application.Interfaces;
+using Microsoft.Extensions.Logging;
 using OpenCvSharp;
 
 namespace ITMartin.Magic.Infrastructure.Services;
@@ -6,6 +7,12 @@ namespace ITMartin.Magic.Infrastructure.Services;
 public class BorderClassificationService
     : IBorderClassificationService
 {
+    private readonly ILogger<BorderClassificationService> _logger;
+
+    public BorderClassificationService(ILogger<BorderClassificationService> logger)
+    {
+        _logger = logger;
+    }
     public bool IsOldBorder(
         string imagePath)
     {
@@ -49,8 +56,7 @@ public class BorderClassificationService
             var brightness =
                 total / samplePoints.Length;
 
-            Console.WriteLine(
-                $"OLD BORDER BRIGHTNESS: {brightness}");
+            _logger.LogDebug("Old border brightness: {Brightness}", brightness);
 
             return brightness < 165;
         }
@@ -103,8 +109,7 @@ public class BorderClassificationService
             var brightness =
                 total / samplePoints.Length;
 
-            Console.WriteLine(
-                $"WHITE BORDER BRIGHTNESS: {brightness}");
+            _logger.LogDebug("White border brightness: {Brightness}", brightness);
 
             return brightness > 125;
         }

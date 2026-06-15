@@ -1,15 +1,18 @@
 ﻿using ITMartin.Ai.Models;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
 public sealed class PrintingEliminationService
     : IPrintingEliminationService
 {
+    private readonly ILogger<PrintingEliminationService> _logger;
 
-    public PrintingEliminationService()
+    public PrintingEliminationService(ILogger<PrintingEliminationService> logger)
     {
+        _logger = logger;
     }
 
     public async Task<List<ScryfallCard>>
@@ -21,16 +24,7 @@ public sealed class PrintingEliminationService
         var result =
             cards.ToList();
 
-        Console.WriteLine();
-        Console.WriteLine(
-            "========================================");
-        Console.WriteLine(
-            "PRINTING ELIMINATION");
-        Console.WriteLine(
-            "========================================");
-
-        Console.WriteLine(
-            $"STARTING PRINTINGS: {result.Count}");
+        _logger.LogDebug("Printing elimination — starting with {Count} printings", result.Count);
 
         result =
             EliminateByCollectorNumber(
@@ -42,13 +36,11 @@ public sealed class PrintingEliminationService
                 result,
                 analysis);
 
-        Console.WriteLine(
-            $"FINAL PRINTINGS: {result.Count}");
+        _logger.LogDebug("Printing elimination — {Count} printings remain", result.Count);
 
         foreach (var card in result)
         {
-            Console.WriteLine(
-                $" -> {card.Name} [{card.Set}] #{card.CollectorNumber}");
+            _logger.LogDebug("  -> {Name} [{Set}] #{Collector}", card.Name, card.Set, card.CollectorNumber);
         }
 
         return result;
@@ -83,14 +75,12 @@ public sealed class PrintingEliminationService
 
         if (matches.Count == 0)
         {
-            Console.WriteLine(
-                $"Collector Number: {before} -> 0 (ignored)");
+            _logger.LogDebug("Collector number filter: {Before} -> 0 (no match, ignored)", before);
 
             return cards;
         }
 
-        Console.WriteLine(
-            $"Collector Number: {before} -> {matches.Count}");
+        _logger.LogDebug("Collector number filter: {Before} -> {After}", before, matches.Count);
 
         return matches;
     }
@@ -118,8 +108,7 @@ public sealed class PrintingEliminationService
                         StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-        Console.WriteLine(
-            $"Artist: {before} -> {matches.Count}");
+        _logger.LogDebug("Artist filter: {Before} -> {After}", before, matches.Count);
 
         return matches.Count > 0
             ? matches

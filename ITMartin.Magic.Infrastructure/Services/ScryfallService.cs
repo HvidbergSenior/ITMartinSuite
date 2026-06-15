@@ -2,6 +2,7 @@
 using ITMartin.Ai.Models;
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Models;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
@@ -13,14 +14,19 @@ public sealed class ScryfallService
 
     private readonly ICardMatchScoringService _matchScoringService;
     private readonly IPrintingEliminationService _printingEliminationService;
+    private readonly ILogger<ScryfallService> _logger;
 
     public ScryfallService(
-        HttpClient httpClient, ICardMatchScoringService matchScoringService, IPrintingEliminationService printingEliminationService)
+        HttpClient httpClient,
+        ICardMatchScoringService matchScoringService,
+        IPrintingEliminationService printingEliminationService,
+        ILogger<ScryfallService> logger)
     {
         _httpClient =
             httpClient;
         _matchScoringService = matchScoringService;
         _printingEliminationService = printingEliminationService;
+        _logger = logger;
     }
 
     public async Task<CardSearchResult?> SearchAsync(
@@ -34,31 +40,15 @@ public sealed class ScryfallService
             return null;
         }
 
-        Console.WriteLine();
-        Console.WriteLine("========================================");
-        Console.WriteLine("SCRYFALL SEARCH");
-        Console.WriteLine("========================================");
-
-        Console.WriteLine(
-            $"AI Card: [{analysis?.IdentifiedName}]");
-
-        Console.WriteLine(
-            $"AI Mana Cost: [{analysis?.ManaCost}]");
-
-        Console.WriteLine(
-            $"AI Type: [{analysis?.CardType}]");
-
-        Console.WriteLine(
-            $"AI P/T: [{analysis?.PowerToughness}]");
-
-        Console.WriteLine(
-            $"AI Artist: [{analysis?.Artist}]");
-
-        Console.WriteLine(
-            $"AI Collector: [{analysis?.CollectorNumber}]");
-
-        Console.WriteLine(
-            $"AI Confidence: [{analysis?.IdentificationConfidence}]");
+        _logger.LogDebug(
+            "Scryfall search — Card: [{Name}] ManaCost: [{ManaCost}] Type: [{Type}] P/T: [{PT}] Artist: [{Artist}] Collector: [{Collector}] Confidence: [{Confidence}]",
+            analysis?.IdentifiedName,
+            analysis?.ManaCost,
+            analysis?.CardType,
+            analysis?.PowerToughness,
+            analysis?.Artist,
+            analysis?.CollectorNumber,
+            analysis?.IdentificationConfidence);
 
         var query =
             $"!\"{cardName}\"";
@@ -66,7 +56,7 @@ public sealed class ScryfallService
         var url =
             $"cards/search?q={Uri.EscapeDataString(query)}&unique=prints";
         
-        Console.WriteLine($"URL: {url}");
+        _logger.LogDebug("Scryfall URL: {Url}", url);
         
         
         var response =
@@ -80,8 +70,7 @@ public sealed class ScryfallService
                 await response.Content
                     .ReadAsStringAsync(cancellationToken);
 
-            Console.WriteLine(
-                $"Scryfall error: {error}");
+            _logger.LogWarning("Scryfall error: {Error}", error);
 
             return null;
         }
@@ -97,11 +86,7 @@ public sealed class ScryfallService
         {
             return null;
         }
-        Console.WriteLine(
-            "SCRYFALL MATCH: Exact Name");
-
-        Console.WriteLine(
-            $"SCRYFALL MATCHES: {dto.Data.Count}");
+        _logger.LogDebug("Scryfall exact name match — {Count} printings", dto.Data.Count);
       
         var cards =
             dto.Data
@@ -129,15 +114,11 @@ public sealed class ScryfallService
                             "ren")
                     .ToList();
 
-            Console.WriteLine(
-                $"NO SET SELECTED FILTER: {cards.Count}");
+            _logger.LogDebug("No-set filter applied — {Count} printings remain", cards.Count);
         }
-        Console.WriteLine("ALL PRINTINGS:");
-
         foreach (var card in cards)
         {
-            Console.WriteLine(
-                $"{card.Name} [{card.Set}] #{card.CollectorNumber}");
+            _logger.LogDebug("Printing: {Name} [{Set}] #{Collector}", card.Name, card.Set, card.CollectorNumber);
         }
         if (!string.IsNullOrWhiteSpace(setCode))
         {
@@ -150,11 +131,7 @@ public sealed class ScryfallService
                             StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-            Console.WriteLine(
-                $"SET FILTER: {setCode}");
-
-            Console.WriteLine(
-                $"MATCHES AFTER FILTER: {filteredCards.Count}");
+            _logger.LogDebug("Set filter [{SetCode}] — {Count} printings remain", setCode, filteredCards.Count);
 
             if (filteredCards.Count > 0)
             {

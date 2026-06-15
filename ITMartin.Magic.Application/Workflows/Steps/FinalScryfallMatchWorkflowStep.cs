@@ -2,6 +2,7 @@
 using ITMartin.Magic.Application.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Magic.Application.Workflows.Steps;
 
@@ -11,14 +12,18 @@ public sealed class FinalScryfallMatchWorkflowStep
     private readonly IScryfallService
         _scryfallService;
 
+    private readonly ILogger<FinalScryfallMatchWorkflowStep> _logger;
+
     public override string Name =>
         nameof(FinalScryfallMatchWorkflowStep);
 
     public FinalScryfallMatchWorkflowStep(
-        IScryfallService scryfallService)
+        IScryfallService scryfallService,
+        ILogger<FinalScryfallMatchWorkflowStep> logger)
     {
         _scryfallService =
             scryfallService;
+        _logger = logger;
     }
 
     public override async Task ExecuteAsync(
@@ -30,8 +35,7 @@ public sealed class FinalScryfallMatchWorkflowStep
         {
             return;
         }
-        Console.WriteLine(
-            $"SET FILTER: {context.State.SetCode}");
+        _logger.LogDebug("Scryfall match — set filter: {SetCode}", context.State.SetCode);
         var match =
             await _scryfallService.SearchAsync(
                 context.State.CardName,
@@ -106,19 +110,12 @@ public sealed class FinalScryfallMatchWorkflowStep
         context.State.HasConfirmedMatch =
             true;
 
-        Console.WriteLine(
-            $"CARD: {match.BestMatch.Name}");
-
-        Console.WriteLine(
-            $"EUR: {match.BestMatch.EurPrice}");
-
-        Console.WriteLine(
-            $"USD: {match.BestMatch.UsdPrice}");
-
-        Console.WriteLine(
-            $"SET: {match.BestMatch.Set}");
-
-        Console.WriteLine(
-            $"COLLECTOR: {match.BestMatch.CollectorNumber}");
+        _logger.LogDebug(
+            "Scryfall best match — {Name} [{Set}] #{Collector} EUR:{Eur} USD:{Usd}",
+            match.BestMatch.Name,
+            match.BestMatch.Set,
+            match.BestMatch.CollectorNumber,
+            match.BestMatch.EurPrice,
+            match.BestMatch.UsdPrice);
     }
 }
