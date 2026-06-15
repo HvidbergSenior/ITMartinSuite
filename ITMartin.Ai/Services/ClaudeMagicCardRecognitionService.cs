@@ -53,7 +53,7 @@ public sealed class ClaudeMagicCardRecognitionService
                 ["identificationConfidence"] = JsonSerializer.SerializeToElement(
                     new { type = "number", description = "Confidence 0.0-1.0" }),
             },
-            Required = ["identificationConfidence"],
+            Required = ["identificationConfidence", "borderColor", "copyrightYear"],
         },
     };
 
