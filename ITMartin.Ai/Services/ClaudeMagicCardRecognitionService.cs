@@ -7,6 +7,8 @@ using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
 namespace ITMartin.Ai.Services;
 
@@ -81,6 +83,19 @@ public sealed class ClaudeMagicCardRecognitionService
                 await File.ReadAllBytesAsync(
                     filePath,
                     cancellationToken);
+
+            const int MaxBytes = 8 * 1024 * 1024;
+            if (bytes.Length > MaxBytes)
+            {
+                using var image = Image.Load(bytes);
+                var scale = Math.Sqrt((double)MaxBytes / bytes.Length);
+                image.Mutate(x => x.Resize(
+                    (int)(image.Width * scale),
+                    (int)(image.Height * scale)));
+                using var ms = new MemoryStream();
+                await image.SaveAsJpegAsync(ms, cancellationToken);
+                bytes = ms.ToArray();
+            }
 
             var cacheKey = CreateHash(bytes);
 
