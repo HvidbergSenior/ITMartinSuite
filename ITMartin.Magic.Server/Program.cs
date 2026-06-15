@@ -60,10 +60,6 @@ builder.Services.AddScoped<
     IImageAnalysisService,
     OpenAiImageAnalysisService>();
 
-builder.Services.AddScoped<
-    IMagicCardRecognitionService,
-    OpenAiMagicCardRecognitionService>();
-
 // =========================
 // OPENCV
 // =========================
