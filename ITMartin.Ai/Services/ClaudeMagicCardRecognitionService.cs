@@ -253,15 +253,28 @@ public sealed class ClaudeMagicCardRecognitionService
 
         BORDER COLOR RULES
 
-        Look at the card border (the outer edge around the card art and text).
+        Look at the physical border — the colored frame that surrounds the entire card face.
 
         Return "black" or "white" only.
 
+        Examples:
+        - Dark/near-black outer frame → "black"
+        - Light/white outer frame → "white"
+
         COPYRIGHT YEAR RULES
 
-        Read the copyright year from the fine print at the bottom of the card.
+        Look at the very bottom of the card for a copyright line.
 
-        Return only the 4-digit year e.g. "1995". Omit if not readable.
+        The line typically reads: "© 1993 Wizards of the Coast, Inc." or similar.
+
+        Return only the 4-digit year.
+
+        Examples:
+        - "© 1993 Wizards of the Coast, Inc." → "1993"
+        - "© 1994 Wizards of the Coast, Inc." → "1994"
+        - "© 1995 Wizards of the Coast, Inc." → "1995"
+
+        If the bottom of the card is cropped or the copyright line is not readable, omit copyrightYear entirely.
 
         COLLECTOR NUMBER RULES
 
@@ -305,6 +318,8 @@ public sealed class ClaudeMagicCardRecognitionService
         4. Mana Cost
         5. Card Type
         6. Power/Toughness
+        7. Border Color — look at the outer frame: is it black or white?
+        8. Copyright Year — look at the very bottom of the card for a line like "© 1993 Wizards of the Coast, Inc."
 
         Read only information that is directly visible.
 
