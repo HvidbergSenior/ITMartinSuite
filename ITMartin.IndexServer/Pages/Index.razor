@@ -1,77 +1,55 @@
 @page "/"
 
+@using Microsoft.AspNetCore.Components.Web
 @using ITMartin.Shared.UI.Components
 @inject IConfiguration Config
 
-<div class="index-page">
+<PageTitle>ITMartin Suite</PageTitle>
 
-    <SectionTitle Title="ITMartin Suite" />
+<div class="page-container">
 
-    <ContentCard CssClass="mb-4">
-        <p class="mb-0">
-            Launch your tools from one place.
-        </p>
-    </ContentCard>
+    <div style="margin-bottom: 28px;">
+        <h1 style="font-size:32px; font-weight:800; margin:0 0 8px;">ITMartin Suite</h1>
+        <div class="text-muted">Launch your tools from one place.</div>
+    </div>
 
-    <div class="main-category-row mt-4">
+    <div class="suite-grid">
 
-        <ContentCard>
-            <h4>🎬 FileSorter</h4>
-            <p>Organize, scan and export media files</p>
-            <a href="@Config["Apps:FileSorterUrl"]"
-               class="btn btn-primary mt-3"
-               target="_blank">
-                Open App
-            </a>
-        </ContentCard>
+        <div class="content-card">
+            <div class="suite-card-title">🎬 FileSorter</div>
+            <div class="suite-card-desc">Organize, scan and export media files</div>
+            <a href="@Config["Apps:FileSorterUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+        </div>
 
-        <ContentCard>
-            <h4>💰 Budget</h4>
-            <p>Personal budget management</p>
-            <a href="@Config["Apps:BudgetUrl"]"
-               class="btn btn-primary mt-3"
-               target="_blank">
-                Open App
-            </a>
-        </ContentCard>
+        <div class="content-card">
+            <div class="suite-card-title">💰 Budget</div>
+            <div class="suite-card-desc">Personal and family budget management</div>
+            <a href="@Config["Apps:BudgetUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+        </div>
 
-        <ContentCard>
-            <h4>🃏 Magic</h4>
-            <p>MTG card scanner and collection manager</p>
-            <a href="@Config["Apps:MagicUrl"]"
-               class="btn btn-primary mt-3"
-               target="_blank">
-                Open App
-            </a>
-        </ContentCard>
+        <div class="content-card">
+            <div class="suite-card-title">🃏 Magic</div>
+            <div class="suite-card-desc">MTG card scanner and collection manager</div>
+            <a href="@Config["Apps:MagicUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+        </div>
 
-        <ContentCard>
-            <h4>🧾 Receipt</h4>
-            <p>Photograph grocery receipts and extract clean item lists</p>
-            <a href="@Config["Apps:ReceiptUrl"]"
-               class="btn btn-primary mt-3"
-               target="_blank">
-                Open App
-            </a>
-        </ContentCard>
+        <div class="content-card">
+            <div class="suite-card-title">🧾 Receipt</div>
+            <div class="suite-card-desc">Photograph grocery receipts and extract clean item lists</div>
+            <a href="@Config["Apps:ReceiptUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+        </div>
 
-        <ContentCard>
-            <h4>📚 Library</h4>
-            <p>Scan and manage books, DVDs and cartoons</p>
-            <a href="@Config["Apps:LibraryUrl"]"
-               class="btn btn-primary mt-3"
-               target="_blank">
-                Open App
-            </a>
-        </ContentCard>
+        <div class="content-card">
+            <div class="suite-card-title">📚 Library</div>
+            <div class="suite-card-desc">Scan and manage books, DVDs and cartoons</div>
+            <a href="@Config["Apps:LibraryUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+        </div>
 
-        <ContentCard>
-            <h4>🎵 Chord Finder</h4>
-            <p>Detect chords from MP3 files</p>
-            <button class="btn btn-secondary mt-3" disabled>
-                Coming Soon
-            </button>
-        </ContentCard>
+        <div class="content-card">
+            <div class="suite-card-title">🎵 Chord Finder</div>
+            <div class="suite-card-desc">Detect chords from MP3 files</div>
+            <button class="btn btn-secondary" disabled>Coming Soon</button>
+        </div>
 
     </div>
 

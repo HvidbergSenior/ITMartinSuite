@@ -1,6 +1,9 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.SuiteLayout)"/>
-        <FocusOnNavigate RouteData="routeData" Selector="h1"/>
+        <RouteView RouteData="routeData"
+                   DefaultLayout="typeof(Layout.SuiteLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

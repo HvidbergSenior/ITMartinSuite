@@ -20,6 +20,7 @@
       <ProjectReference Include="..\ITMartin.Magic.Application\ITMartin.Magic.Application.csproj" />
       <ProjectReference Include="..\ITMartin.Magic.Infrastructure\ITMartin.Magic.Infrastructure.csproj" />
       <ProjectReference Include="..\ITMartin.Receipt.Application\ITMartin.Receipt.Application.csproj" />
+      <ProjectReference Include="..\ITMartin.Receipt.Infrastructure\ITMartin.Receipt.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

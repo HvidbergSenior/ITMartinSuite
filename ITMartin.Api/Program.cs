@@ -5,6 +5,7 @@ using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.Media.Infrastructure.Persistence;
 using ITMartin.OCR;
 using ITMartin.Receipt.Application;
+using ITMartin.Receipt.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
@@ -36,6 +37,7 @@ builder.Services.AddMediaPlatform(
 builder.Services.AddMagicApplication(builder.Configuration);
 
 builder.Services.AddReceiptApplication();
+builder.Services.AddReceiptInfrastructure(builder.Configuration);
 
 builder.Services.AddDbContext<MediaDbContext>(options =>
 {
