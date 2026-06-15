@@ -3,11 +3,12 @@ using ITMartin.OCR;
 using ITMartin.Receipt.Application;
 using ITMartin.Receipt.Infrastructure;
 using ITMartin.Receipt.Server;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddReceiptApplication();
-builder.Services.AddReceiptInfrastructure();
+builder.Services.AddReceiptInfrastructure(builder.Configuration);
 builder.Services.AddAi();
 builder.Services.AddOcr();
 
@@ -33,6 +34,12 @@ builder.Services
 // =========================
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ReceiptDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
 
 if (!app.Environment.IsDevelopment())
 {

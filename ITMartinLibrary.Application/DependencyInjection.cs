@@ -11,6 +11,8 @@ public static class DependencyInjection
     public static IServiceCollection AddLibraryApplication(
         this IServiceCollection services)
     {
+        services.AddScoped<InventoryService>();
+
         services.AddScoped<
             IShelfScanOrchestrator,
             ShelfScanOrchestrator>();
