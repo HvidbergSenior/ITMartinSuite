@@ -96,9 +96,20 @@ public sealed class ClaudeMagicCardRecognitionService
                 image.Mutate(x => x.Resize(
                     Math.Max(1, (int)(image.Width * scale)),
                     Math.Max(1, (int)(image.Height * scale))));
-                using var ms = new MemoryStream();
-                await image.SaveAsJpegAsync(ms, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 80 }, cancellationToken);
-                bytes = ms.ToArray();
+
+                var quality = 80;
+                byte[] resized;
+                do
+                {
+                    using var ms = new MemoryStream();
+                    await image.SaveAsJpegAsync(ms,
+                        new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = quality },
+                        cancellationToken);
+                    resized = ms.ToArray();
+                    quality -= 10;
+                } while (resized.Length > MaxBytes && quality > 10);
+
+                bytes = resized;
             }
 
             var cacheKey = CreateHash(bytes);
