@@ -1,4 +1,35 @@
-﻿services:
+services:
+
+  # =========================================================
+  # PORTAL
+  # =========================================================
+
+  index-web:
+    container_name: index-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartin.IndexServer/Dockerfile
+
+    ports:
+      - "8086:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - Apps__FileSorterUrl=https://filesorter.YOURDOMAIN.com
+      - Apps__BudgetUrl=https://budget.YOURDOMAIN.com
+      - Apps__MagicUrl=https://magic.YOURDOMAIN.com
+      - Apps__ReceiptUrl=https://receipt.YOURDOMAIN.com
+      - Apps__LibraryUrl=https://library.YOURDOMAIN.com
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # FILESORTER
+  # =========================================================
 
   filesorter-web:
     container_name: filesorter-web
@@ -20,6 +51,10 @@
     networks:
       - martinnet
 
+  # =========================================================
+  # BUDGET
+  # =========================================================
+
   budget-web:
     container_name: budget-web
     build: ./ITMartinBudget.Server
@@ -38,32 +73,9 @@
     networks:
       - martinnet
 
-  image-processor:
-    container_name: image-processor
-    build: ./ITMartinImageProcessor.Worker
-
-    volumes:
-      - /volume1/docker/imageprocessor/input:/data
-      - /volume1/docker/imageprocessor/output:/library
-      - /volume1/docker/imageprocessor/archive:/archive
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-
-    restart: unless-stopped
-
-    command: tunnel run
-
-    environment:
-      - TUNNEL_TOKEN=eyJhIjoiYmE3ODc2MjJmMTlhYzNjZTIzNDk5YzRkZTVjYjVjMDMiLCJ0IjoiZWFhN2EyNTctNDVhMC00ZGUzLTkwZDAtNzMyMjcxOTI2ZmNmIiwicyI6Ik9HTTBZVEF3TlRFdE1XVTBOeTAwTUdRMUxXRmlaR0l0TVRVMk0ySXlaR1ZrTnpCbCJ9
-    networks:
-      - martinnet
+  # =========================================================
+  # R6 ASSISTANT
+  # =========================================================
 
   r6assistant-web:
     container_name: r6assistant-web
@@ -83,42 +95,10 @@
     networks:
       - martinnet
 
-  plex:
-    image: lscr.io/linuxserver/plex:latest
-    container_name: plex
+  # =========================================================
+  # MAGIC
+  # =========================================================
 
-    network_mode: host
-
-    environment:
-      - PUID=1026
-      - PGID=100
-      - TZ=Europe/Copenhagen
-      - VERSION=docker
-
-    volumes:
-      - /volume1/docker/plex/config:/config
-      - /volume1/docker/plex/Movies:/movies
-      - /volume1/docker/plex/Tv:/tv
-
-    restart: unless-stopped
-    
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-    
   magic-postgres:
     image: postgres:17
     container_name: magic-postgres
@@ -164,6 +144,154 @@
 
     networks:
       - martinnet
+
+  # =========================================================
+  # RECEIPT
+  # =========================================================
+
+  receipt-web:
+    container_name: receipt-web
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartin.Receipt.Server/Dockerfile
+
+    ports:
+      - "8084:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+
+    volumes:
+      - /volume1/docker/martinsuite/receipt/data:/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # LIBRARY
+  # =========================================================
+
+  library-web:
+    container_name: library-web
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartinLibrary.Server/Dockerfile
+
+    ports:
+      - "8085:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/library.db
+      - Omdb__ApiKey=dc9d07ad
+
+    volumes:
+      - /volume1/docker/martinsuite/library/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # WORKERS
+  # =========================================================
+
+  image-processor:
+    container_name: image-processor
+    build: ./ITMartinImageProcessor.Worker
+
+    volumes:
+      - /volume1/docker/imageprocessor/input:/data
+      - /volume1/docker/imageprocessor/output:/library
+      - /volume1/docker/imageprocessor/archive:/archive
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # INFRASTRUCTURE
+  # =========================================================
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # CLOUDFLARE TUNNEL
+  # Routes configured at: https://one.dash.cloudflare.com
+  #   → Tunnels → your tunnel → Public Hostnames
+  #
+  # Add one hostname per service:
+  #   filesorter.YOURDOMAIN.com  →  http://filesorter-web:8080
+  #   budget.YOURDOMAIN.com      →  http://budget-web:8080
+  #   magic.YOURDOMAIN.com       →  http://magic-web:8080
+  #   receipt.YOURDOMAIN.com     →  http://receipt-web:8080
+  #   library.YOURDOMAIN.com     →  http://library-web:8080
+  #   martin.YOURDOMAIN.com      →  http://index-web:8080
+  # =========================================================
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+
+    restart: unless-stopped
+
+    command: tunnel run
+
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiYmE3ODc2MjJmMTlhYzNjZTIzNDk5YzRkZTVjYjVjMDMiLCJ0IjoiZWFhN2EyNTctNDVhMC00ZGUzLTkwZDAtNzMyMjcxOTI2ZmNmIiwicyI6Ik9HTTBZVEF3TlRFdE1XVTBOeTAwTUdRMUxXRmlaR0l0TVRVMk0ySXlaR1ZrTnpCbCJ9
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # PLEX (host network — separate from bridge)
+  # =========================================================
+
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+
+    network_mode: host
+
+    environment:
+      - PUID=1026
+      - PGID=100
+      - TZ=Europe/Copenhagen
+      - VERSION=docker
+
+    volumes:
+      - /volume1/docker/plex/config:/config
+      - /volume1/docker/plex/Movies:/movies
+      - /volume1/docker/plex/Tv:/tv
+
+    restart: unless-stopped
 
 networks:
   martinnet:
