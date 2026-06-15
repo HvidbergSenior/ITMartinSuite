@@ -10,9 +10,9 @@ public static class DependencyInjection
     public static IServiceCollection AddAi(
         this IServiceCollection services)
     {
-        services.AddScoped<
+        services.AddSingleton<
             IMagicCardRecognitionService,
-            OpenAiMagicCardRecognitionService>();
+            ClaudeMagicCardRecognitionService>();
         services.AddScoped<
             IImageAnalysisService,
             OpenOpenAiAnalysisService>();

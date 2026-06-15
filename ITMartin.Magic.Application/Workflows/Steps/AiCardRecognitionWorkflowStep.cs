@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using ITMartin.Ai.Interfaces;
+﻿using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -52,9 +51,6 @@ public sealed class AiCardRecognitionWorkflowStep
                 "AI recognition returned null.");
         }
 
-        result.IdentificationConfidence =
-            CalculateConfidence(result);
-
         context.State.OpenAiResult =
             result;
 
@@ -74,30 +70,5 @@ public sealed class AiCardRecognitionWorkflowStep
             result.Artist,
             result.CollectorNumber);
 
-    }
-    private static decimal CalculateConfidence(
-        MagicCardAnalysisResult result)
-    {
-        if (string.IsNullOrWhiteSpace(
-                result.IdentifiedName))
-        {
-            return 0m;
-        }
-
-        var score = 0.5m;
-
-        if (!string.IsNullOrWhiteSpace(result.ManaCost))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.CardType))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.Artist))
-            score += 0.1m;
-
-        if (!string.IsNullOrWhiteSpace(result.CollectorNumber))
-            score += 0.1m;
-
-        return Math.Min(score, 1.0m);
     }
 }
