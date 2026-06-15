@@ -14,7 +14,6 @@ public sealed class CardScanContext
 
     public decimal IdentificationConfidence { get; set; }
     public string? DetectedCardImagePath { get; set; }
-    public string? IdentifiedCardName { get; set; }
 
     public string? CollectorNumber { get; set; }
 

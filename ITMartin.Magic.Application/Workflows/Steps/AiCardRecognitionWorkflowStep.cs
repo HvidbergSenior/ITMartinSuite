@@ -53,9 +53,6 @@ public sealed class AiCardRecognitionWorkflowStep
         context.State.OpenAiResult =
             result;
 
-        context.State.OpenAiResult =
-            result;
-
         context.State.CardName =
             result.IdentifiedName;
 

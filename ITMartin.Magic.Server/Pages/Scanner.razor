@@ -65,7 +65,7 @@
             </label>
         </div>
 
-        @if (!_noSetSymbol)
+        @if (!NoSetSymbol)
         {
             <input class="form-control mb-2"
                    placeholder="Search set..."
@@ -89,7 +89,7 @@
         }
     </div>
     
-    @if (_noSetSymbol)
+    @if (NoSetSymbol)
     {
         <div class="alert alert-info mt-2">
             Scanning cards without set symbols.
@@ -117,7 +117,7 @@
                 <button @onclick="StartCamera"
                         disabled="@(
                                   string.IsNullOrWhiteSpace(_selectedSetCode)
-                                  && !_noSetSymbol)">
+                                  && !NoSetSymbol)">
                     Start Camera
                 </button>
 
@@ -170,7 +170,7 @@
                           _isProcessing ||
                           (
                               string.IsNullOrWhiteSpace(_selectedSetCode)
-                              && !_noSetSymbol
+                              && !NoSetSymbol
                           ))">
 
             @if (_isProcessing)
@@ -479,7 +479,7 @@
         }
         
         if (string.IsNullOrWhiteSpace(_selectedSetCode)
-            && !_noSetSymbol)
+            && !NoSetSymbol)
         {
             _detectedText =
                 "Please select a set or choose 'No Set Symbol'.";
@@ -552,7 +552,7 @@
             StateHasChanged();
             
             var setCode =
-                _noSetSymbol
+                NoSetSymbol
                     ? null
                     : _selectedSetCode;
 
