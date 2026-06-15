@@ -152,6 +152,7 @@
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__MagicDb=Host=magic-postgres;Port=5432;Database=magic;Username=postgres;Password=magic
+      - Logging__LogLevel__ITMartin=Debug
 
     volumes:
       - /volume1/docker/martinsuite/magic/data:/app/data
