@@ -2,13 +2,13 @@
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
-        <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
-        <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
+        <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
+        <ProjectReference Include="..\ITMartin.Receipt.Application\ITMartin.Receipt.Application.csproj" />
         <ProjectReference Include="..\ITMartin.Receipt.Domain\ITMartin.Receipt.Domain.csproj" />
     </ItemGroup>
 

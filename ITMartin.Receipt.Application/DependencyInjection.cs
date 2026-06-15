@@ -1,6 +1,8 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+﻿using ITMartin.Receipt.Application.Interfaces;
+using ITMartin.Receipt.Application.Services;
 using ITMartin.Receipt.Application.Workflows;
 using ITMartin.Receipt.Application.Workflows.Steps;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ITMartin.Receipt.Application;
 
@@ -10,6 +12,20 @@ public static class DependencyInjection
         AddReceiptApplication(
             this IServiceCollection services)
     {
+        services.AddScoped<
+            IReceiptWorkflowOrchestrator,
+            ReceiptWorkflowOrchestrator>();
+
+        services.AddScoped<
+            ReceiptWorkflowRunner>();
+
+        services.AddScoped<
+            ReceiptWorkflowDefinition>();
+
+        // =========================
+        // WORKFLOW STEPS
+        // =========================
+
         services.AddScoped<
             ReceiptOcrWorkflowStep>();
 

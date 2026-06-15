@@ -1,26 +1,20 @@
 using ITMartin.Ai;
-using ITMartinLibrary.Application;
-using ITMartinLibrary.Infrastructure;
-using ITMartinLibrary.Infrastructure.Services;
-using Microsoft.AspNetCore.SignalR;
+using ITMartin.OCR;
+using ITMartin.Receipt.Application;
+using ITMartin.Receipt.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// =========================
-// CORE SERVICES
-// =========================
-
-builder.Services.AddLibraryApplication();
-builder.Services.AddLibraryInfrastructure(builder.Configuration);
+builder.Services.AddReceiptApplication();
+builder.Services.AddReceiptInfrastructure();
 builder.Services.AddAi();
-
-builder.Services.AddHostedService<BarcodeEnrichmentWorker>();
+builder.Services.AddOcr();
 
 // =========================
 // SIGNALR
 // =========================
 
-builder.Services.Configure<HubOptions>(options =>
+builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions>(options =>
 {
     options.MaximumReceiveMessageSize = 1024 * 1024 * 20;
 });
@@ -29,7 +23,8 @@ builder.Services.Configure<HubOptions>(options =>
 // BLAZOR
 // =========================
 
-builder.Services.AddRazorComponents()
+builder.Services
+    .AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // =========================
@@ -41,10 +36,18 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+// =========================
+// DATA FOLDERS
+// =========================
+
+Directory.CreateDirectory("data");
+Directory.CreateDirectory("data/receipts");
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

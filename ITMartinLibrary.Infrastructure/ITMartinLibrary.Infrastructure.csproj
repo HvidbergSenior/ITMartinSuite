@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
         <ProjectReference Include="..\ITMartinLibrary.Domain\ITMartinLibrary.Domain.csproj" />
         <ProjectReference Include="..\ITMartinLibrary.Application\ITMartinLibrary.Application.csproj" />
     </ItemGroup>

@@ -1,0 +1,271 @@
+@page "/library/shelf-scanner"
+
+@using ITMartinLibrary.Application.Interfaces
+@using ITMartinLibrary.Application.Models
+@using ITMartinLibrary.Application.Workflows
+@using Microsoft.JSInterop
+
+@inject IJSRuntime JS
+@inject IShelfScanOrchestrator ShelfScanOrchestrator
+@implements IAsyncDisposable
+
+<PageTitle>Shelf Scanner</PageTitle>
+
+<div class="scanner-page">
+
+    <div class="scanner-header">
+
+        <div>
+            <h1 class="scanner-title">Shelf Scanner</h1>
+            <div class="scanner-subtitle">Point your camera at the shelf to identify all items</div>
+        </div>
+
+        <div class="ai-badge">AI Vision</div>
+
+    </div>
+
+    <div class="scanner-wrapper">
+
+        @if (!_cameraStarted)
+        {
+            <div class="camera-start-panel">
+                <button @onclick="StartCamera">
+                    Start Camera
+                </button>
+            </div>
+        }
+        else
+        {
+            <video id="video"
+                   autoplay
+                   muted
+                   playsinline
+                   webkit-playsinline
+                   class="scanner-video">
+            </video>
+
+            <div class="scanner-guide">
+                <div class="guide-text">Point at the shelf</div>
+            </div>
+        }
+
+        @if (_isProcessing)
+        {
+            <div class="scanner-overlay">
+                <div class="scanner-loading">
+                    <div class="spinner-border text-light"></div>
+                    <div class="mt-4 fw-bold">@_statusText</div>
+                </div>
+            </div>
+        }
+
+    </div>
+
+    <div class="scanner-buttons">
+
+        <button class="btn btn-success btn-lg scan-button"
+                @onclick="Capture"
+                disabled="@_isProcessing">
+            @if (_isProcessing)
+            {
+                <span>Scanning...</span>
+            }
+            else
+            {
+                <span>Scan Shelf</span>
+            }
+        </button>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_statusText) && !_isProcessing)
+    {
+        <div class="alert alert-dark scanner-alert mt-4">
+            @_statusText
+        </div>
+    }
+
+    @if (_context != null && !_context.Failed && _context.Result != null)
+    {
+        <div class="result-panel">
+
+            <h4 class="mb-3">
+                Found @_context.Result.Items.Count item(s)
+            </h4>
+
+            <div class="shelf-items-grid">
+
+                @foreach (var item in _context.Result.Items)
+                {
+                    <div class="shelf-item-card">
+
+                        <div class="shelf-item-type-badge">
+                            @item.MediaType
+                        </div>
+
+                        <div class="shelf-item-title">
+                            @(string.IsNullOrWhiteSpace(item.Title) ? "Unknown Title" : item.Title)
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(item.Author))
+                        {
+                            <div class="shelf-item-author">
+                                @item.Author
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(item.Barcode) || !string.IsNullOrWhiteSpace(item.Isbn))
+                        {
+                            <div class="shelf-item-barcode">
+                                @(item.Isbn ?? item.Barcode)
+                            </div>
+                        }
+
+                        <div class="shelf-item-confidence">
+                            @((item.Confidence * 100).ToString("F0"))% confidence
+                        </div>
+
+                        @if (!item.AddedToInventory && (!string.IsNullOrWhiteSpace(item.Barcode) || !string.IsNullOrWhiteSpace(item.Isbn)))
+                        {
+                            <button class="btn btn-sm btn-primary mt-2"
+                                    @onclick="() => AddToInventory(item)">
+                                Add to Inventory
+                            </button>
+                        }
+                        else if (item.AddedToInventory)
+                        {
+                            <div class="text-success mt-2">Added</div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+
+        </div>
+    }
+
+    @if (_context?.Failed == true)
+    {
+        <div class="alert alert-danger mt-4">
+            @_context.FailureReason
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_capturedImage))
+    {
+        <div class="mt-4">
+            <h5>Captured Image</h5>
+            <img src="@_capturedImage"
+                 style="max-width:100%; border-radius:12px; border:2px solid #444;" />
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private string? _capturedImage;
+    private string? _statusText;
+    private bool _isProcessing;
+    private bool _cameraStarted;
+    private bool _disposed;
+    private ShelfScanContext? _context;
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+
+        try
+        {
+            await JS.InvokeVoidAsync("webcam.stop");
+        }
+        catch { }
+    }
+
+    private async Task StartCamera()
+    {
+        try
+        {
+            _cameraStarted = true;
+            StateHasChanged();
+            await Task.Delay(300);
+            await JS.InvokeVoidAsync("webcam.start");
+        }
+        catch (Exception ex)
+        {
+            _cameraStarted = false;
+            _statusText = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task Capture()
+    {
+        if (_isProcessing || _disposed) return;
+
+        try
+        {
+            _isProcessing = true;
+            _statusText = "Capturing shelf...";
+            _context = null;
+            StateHasChanged();
+
+            CameraCaptureResult capture;
+
+            try
+            {
+                capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture");
+            }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
+
+            var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
+            var bytes = Convert.FromBase64String(clean);
+
+            var folder = Path.Combine(
+                Directory.GetCurrentDirectory(), "data", "shelves");
+
+            Directory.CreateDirectory(folder);
+
+            var imagePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+
+            await File.WriteAllBytesAsync(imagePath, bytes);
+
+            _capturedImage = $"data:image/jpeg;base64,{clean}";
+            _statusText = "Identifying items...";
+            StateHasChanged();
+
+            _context = await ShelfScanOrchestrator.ExecuteAsync(
+                imagePath,
+                CancellationToken.None);
+
+            _statusText = _context.Failed
+                ? _context.FailureReason
+                : $"Found {_context.Result?.Items.Count ?? 0} item(s)";
+        }
+        catch (Exception ex)
+        {
+            _statusText = ex.Message;
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddToInventory(ScannedShelfItem item)
+    {
+        item.AddedToInventory = true;
+        StateHasChanged();
+    }
+
+    private sealed class CameraCaptureResult
+    {
+        public string Image { get; set; } = "";
+    }
+}

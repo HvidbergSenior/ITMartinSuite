@@ -11,6 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
         <ProjectReference Include="..\ITMartinLibrary.Application\ITMartinLibrary.Application.csproj" />
         <ProjectReference Include="..\ITMartinLibrary.Domain\ITMartinLibrary.Domain.csproj" />
