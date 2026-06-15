@@ -2,6 +2,7 @@ using ITMartin.Ai;
 using ITMartinLibrary.Application;
 using ITMartinLibrary.Infrastructure;
 using ITMartinLibrary.Infrastructure.Services;
+using ITMartinLibrary.Server;
 using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);

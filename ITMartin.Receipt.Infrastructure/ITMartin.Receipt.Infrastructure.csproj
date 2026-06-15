@@ -7,7 +7,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
+        <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
+        <ProjectReference Include="..\ITMartin.Media.Runtime\ITMartin.Media.Runtime.csproj" />
         <ProjectReference Include="..\ITMartin.Receipt.Application\ITMartin.Receipt.Application.csproj" />
         <ProjectReference Include="..\ITMartin.Receipt.Domain\ITMartin.Receipt.Domain.csproj" />
     </ItemGroup>

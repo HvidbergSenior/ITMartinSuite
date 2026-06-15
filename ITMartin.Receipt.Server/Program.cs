@@ -2,6 +2,7 @@ using ITMartin.Ai;
 using ITMartin.OCR;
 using ITMartin.Receipt.Application;
 using ITMartin.Receipt.Infrastructure;
+using ITMartin.Receipt.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 

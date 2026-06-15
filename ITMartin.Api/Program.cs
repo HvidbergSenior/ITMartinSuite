@@ -33,7 +33,7 @@ builder.Services.AddMagicInfrastructure(builder.Configuration);
 builder.Services.AddMediaPlatform(
     builder.Configuration);
 
-builder.Services.AddMagicApplication();
+builder.Services.AddMagicApplication(builder.Configuration);
 
 builder.Services.AddReceiptApplication();
 

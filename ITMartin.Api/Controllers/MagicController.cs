@@ -37,6 +37,7 @@ public sealed class MagicController
         var result =
             await _orchestrator.ExecuteAsync(
                 path,
+                null,
                 cancellationToken);
 
         return Ok(result);
@@ -74,6 +75,7 @@ public sealed class MagicController
         var result =
             await _orchestrator.ExecuteAsync(
                 path,
+                null,
                 cancellationToken);
 
         return Ok(result);
