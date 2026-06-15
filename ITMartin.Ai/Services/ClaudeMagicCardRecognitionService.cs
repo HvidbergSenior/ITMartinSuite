@@ -84,16 +84,16 @@ public sealed class ClaudeMagicCardRecognitionService
                     filePath,
                     cancellationToken);
 
-            const int MaxBytes = 8 * 1024 * 1024;
+            const int MaxBytes = 9 * 1024 * 1024;
             if (bytes.Length > MaxBytes)
             {
                 using var image = Image.Load(bytes);
-                var scale = Math.Sqrt((double)MaxBytes / bytes.Length);
+                var scale = Math.Sqrt(4.0 * 1024 * 1024 / bytes.Length);
                 image.Mutate(x => x.Resize(
-                    (int)(image.Width * scale),
-                    (int)(image.Height * scale)));
+                    Math.Max(1, (int)(image.Width * scale)),
+                    Math.Max(1, (int)(image.Height * scale))));
                 using var ms = new MemoryStream();
-                await image.SaveAsJpegAsync(ms, cancellationToken);
+                await image.SaveAsJpegAsync(ms, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 80 }, cancellationToken);
                 bytes = ms.ToArray();
             }
 
