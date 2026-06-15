@@ -46,7 +46,7 @@ public sealed class PrintingEliminationService
         return result;
     }
 
-    private static List<ScryfallCard>
+    private List<ScryfallCard>
         EliminateByCollectorNumber(
             List<ScryfallCard> cards,
             MagicCardAnalysisResult analysis)
@@ -85,7 +85,7 @@ public sealed class PrintingEliminationService
         return matches;
     }
 
-    private static List<ScryfallCard>
+    private List<ScryfallCard>
         EliminateByArtist(
             List<ScryfallCard> cards,
             MagicCardAnalysisResult analysis)
