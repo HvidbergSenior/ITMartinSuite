@@ -96,6 +96,36 @@ public sealed class CardMatchScoringService
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(
+                analysis.BorderColor))
+        {
+            if (string.Equals(
+                    analysis.BorderColor,
+                    card.BorderColor,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                score += 200;
+            }
+            else
+            {
+                score -= 300;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(analysis.CopyrightYear) &&
+            !string.IsNullOrWhiteSpace(card.ReleasedAt) &&
+            card.ReleasedAt.Length >= 4)
+        {
+            if (card.ReleasedAt[..4] == analysis.CopyrightYear)
+            {
+                score += 150;
+            }
+            else
+            {
+                score -= 150;
+            }
+        }
+
         _logger.LogDebug("Final score for [{Name}] [{Set}]: {Score}", card.Name, card.Set, score);
 
         return score;

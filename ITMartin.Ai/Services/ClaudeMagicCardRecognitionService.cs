@@ -46,6 +46,10 @@ public sealed class ClaudeMagicCardRecognitionService
                     new { type = "string", description = "The card type line" }),
                 ["powerToughness"] = JsonSerializer.SerializeToElement(
                     new { type = "string", description = "Power/toughness e.g. 2/3" }),
+                ["borderColor"] = JsonSerializer.SerializeToElement(
+                    new { type = "string", description = "Border color: black or white" }),
+                ["copyrightYear"] = JsonSerializer.SerializeToElement(
+                    new { type = "string", description = "Copyright year printed at the bottom of the card e.g. 1995" }),
                 ["identificationConfidence"] = JsonSerializer.SerializeToElement(
                     new { type = "number", description = "Confidence 0.0-1.0" }),
             },
@@ -235,6 +239,18 @@ public sealed class ClaudeMagicCardRecognitionService
         Always use MTG brace notation: {W} {U} {B} {R} {G} {C} {X} {0}–{20}
 
         Examples: "3G" → {3}{G} / "2WW" → {2}{W}{W} / "XRR" → {X}{R}{R}
+
+        BORDER COLOR RULES
+
+        Look at the card border (the outer edge around the card art and text).
+
+        Return "black" or "white" only.
+
+        COPYRIGHT YEAR RULES
+
+        Read the copyright year from the fine print at the bottom of the card.
+
+        Return only the 4-digit year e.g. "1995". Omit if not readable.
 
         COLLECTOR NUMBER RULES
 

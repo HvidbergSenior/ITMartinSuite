@@ -14,5 +14,9 @@ public sealed class MagicCardAnalysisResult
 
     public string? PowerToughness { get; set; }
 
+    public string? BorderColor { get; set; }
+
+    public string? CopyrightYear { get; set; }
+
     public decimal IdentificationConfidence { get; set; }
 }
