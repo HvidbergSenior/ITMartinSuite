@@ -114,6 +114,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Library.Contracts"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Api", "ITMartin.Api\ITMartin.Api.csproj", "{6D06BF40-CE76-48ED-98D3-FD912975E953}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Receipt.Tests", "ITMartin.Receipt.Tests\ITMartin.Receipt.Tests.csproj", "{F225734A-CFAD-4EDF-88D9-F75F2122838D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -335,5 +337,9 @@ Global
 		{6D06BF40-CE76-48ED-98D3-FD912975E953}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6D06BF40-CE76-48ED-98D3-FD912975E953}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6D06BF40-CE76-48ED-98D3-FD912975E953}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F225734A-CFAD-4EDF-88D9-F75F2122838D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F225734A-CFAD-4EDF-88D9-F75F2122838D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F225734A-CFAD-4EDF-88D9-F75F2122838D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F225734A-CFAD-4EDF-88D9-F75F2122838D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
