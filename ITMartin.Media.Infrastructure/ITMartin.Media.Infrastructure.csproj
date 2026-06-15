@@ -15,6 +15,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Anthropic" Version="12.29.0" />
       <PackageReference Include="FFMpegCore" Version="5.4.0" />
       <PackageReference Include="MetadataExtractor" Version="2.9.3" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.25" />

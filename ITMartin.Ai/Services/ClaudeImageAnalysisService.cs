@@ -5,10 +5,11 @@ using Anthropic.Models.Messages;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
-namespace ITMartin.Media.Infrastructure.Services;
+namespace ITMartin.Ai.Services;
 
-public sealed class OpenAiImageAnalysisService
+public sealed class ClaudeImageAnalysisService
     : IImageAnalysisService
 {
     private static readonly Dictionary<string, AiAnalysisResult> Cache = new();
@@ -21,15 +22,15 @@ public sealed class OpenAiImageAnalysisService
     private static readonly Tool ReportImageTool = new()
     {
         Name = "report_image",
-        Description = "Report the image analysis result",
+        Description = "Report the analysis of the image",
         InputSchema = new()
         {
             Properties = new Dictionary<string, JsonElement>
             {
                 ["description"] = JsonSerializer.SerializeToElement(
-                    new { type = "string", description = "Concise description of the image" }),
+                    new { type = "string", description = "A concise description of what is in the image" }),
                 ["tags"] = JsonDocument.Parse("""
-                    { "type": "array", "items": { "type": "string" }, "description": "Relevant content tags" }
+                    { "type": "array", "items": { "type": "string" }, "description": "Relevant tags for the image content" }
                     """).RootElement,
                 ["confidence"] = JsonSerializer.SerializeToElement(
                     new { type = "number", description = "Confidence score 0.0–1.0" }),
@@ -39,9 +40,14 @@ public sealed class OpenAiImageAnalysisService
     };
 
     private readonly AnthropicClient _client;
+    private readonly ILogger<ClaudeImageAnalysisService> _logger;
 
-    public OpenAiImageAnalysisService(IConfiguration configuration)
+    public ClaudeImageAnalysisService(
+        IConfiguration configuration,
+        ILogger<ClaudeImageAnalysisService> logger)
     {
+        _logger = logger;
+
         var apiKey = configuration["Claude:ApiKey"];
 
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -107,7 +113,7 @@ public sealed class OpenAiImageAnalysisService
                 return Empty();
 
             var json = JsonSerializer.Serialize(toolUse.Input);
-            Console.WriteLine($"CLAUDE RESPONSE: {json}");
+            _logger.LogDebug("Claude image analysis: {Json}", json);
 
             var result = JsonSerializer.Deserialize<AiAnalysisResult>(json, JsonOptions);
 
@@ -119,7 +125,7 @@ public sealed class OpenAiImageAnalysisService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"CLAUDE ERROR: {ex}");
+            _logger.LogError(ex, "Claude image analysis failed for {FilePath}", filePath);
             return Empty();
         }
     }
