@@ -1,11 +1,197 @@
 @page "/"
 
-@inject NavigationManager Navigation
+@using ITMartin.Receipt.Application.Interfaces
+@using ITMartin.Receipt.Domain.Entities
 
-@code
-{
-    protected override void OnInitialized()
+@inject IReceiptRepository ReceiptRepository
+
+<PageTitle>Receipt Dashboard</PageTitle>
+
+<div class="page-container">
+
+    <div class="scanner-header">
+        <div>
+            <h1 class="scanner-title">Receipt Dashboard</h1>
+            <div class="scanner-subtitle">All scanned receipts</div>
+        </div>
+        <a href="/scanner" class="btn btn-success">
+            + Scan Receipt
+        </a>
+    </div>
+
+    @if (_transactions is null)
     {
-        Navigation.NavigateTo("/scanner");
+        <div class="text-muted">Loading...</div>
     }
+    else
+    {
+        <div class="dashboard-stats-grid">
+
+            <div class="content-card stat-card">
+                <h3>@_transactions.Count</h3>
+                <p>Total Receipts</p>
+            </div>
+
+            <div class="content-card stat-card">
+                <h3>@_transactions.Select(x => x.Currency).Distinct().Count()</h3>
+                <p>Currencies</p>
+            </div>
+
+            <div class="content-card stat-card">
+                <h3>@_totalSpend.ToString("F2")</h3>
+                <p>Total Spend (DKK)</p>
+            </div>
+
+        </div>
+
+        @if (!_transactions.Any())
+        {
+            <div class="content-card" style="text-align:center; padding:40px;">
+                <div style="font-size:48px; margin-bottom:12px;">🧾</div>
+                <div style="color:var(--text-muted);">No receipts scanned yet. Go scan one!</div>
+            </div>
+        }
+        else
+        {
+            <div class="stack mt-3">
+
+                @foreach (var tx in _transactions)
+                {
+                    <div class="content-card receipt-history-card">
+
+                        <div class="receipt-history-row">
+
+                            <div>
+                                <div class="receipt-history-merchant">
+                                    @(string.IsNullOrWhiteSpace(tx.MerchantName) ? "Unknown Merchant" : tx.MerchantName)
+                                </div>
+                                <div class="text-muted" style="font-size:13px; margin-top:4px;">
+                                    @tx.ScannedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                                    @if (tx.PurchaseDate.HasValue)
+                                    {
+                                        <span> &middot; Purchased @tx.PurchaseDate.Value.ToString("dd MMM yyyy")</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (tx.TotalAmount.HasValue)
+                            {
+                                <div class="receipt-history-total">
+                                    @tx.Currency @tx.TotalAmount.Value.ToString("F2")
+                                </div>
+                            }
+
+                        </div>
+
+                        @if (tx.Items.Any())
+                        {
+                            <div class="receipt-history-items">
+                                @foreach (var item in tx.Items.Take(3))
+                                {
+                                    <div class="receipt-history-item">
+                                        <span>@item.Description</span>
+                                        @if (item.Amount.HasValue)
+                                        {
+                                            <span>@tx.Currency @item.Amount.Value.ToString("F2")</span>
+                                        }
+                                    </div>
+                                }
+                                @if (tx.Items.Count > 3)
+                                {
+                                    <div class="text-muted" style="font-size:12px; margin-top:4px;">
+                                        + @(tx.Items.Count - 3) more items
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+        }
+    }
+
+</div>
+
+<style>
+    .dashboard-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        text-align: center;
+    }
+
+    .stat-card h3 {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0 0 4px;
+    }
+
+    .stat-card p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .receipt-history-card {
+        transition: transform 0.15s ease;
+    }
+
+    .receipt-history-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .receipt-history-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .receipt-history-merchant {
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .receipt-history-total {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--success);
+        white-space: nowrap;
+    }
+
+    .receipt-history-items {
+        margin-top: 12px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        padding-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .receipt-history-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+</style>
+
+@code {
+
+    private List<ReceiptTransaction>? _transactions;
+    private decimal _totalSpend;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _transactions = await ReceiptRepository.GetAllAsync();
+        _totalSpend = _transactions
+            .Where(x => x.Currency == "DKK" && x.TotalAmount.HasValue)
+            .Sum(x => x.TotalAmount!.Value);
+    }
+
 }

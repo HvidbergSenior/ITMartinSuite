@@ -7,6 +7,7 @@
 
 @inject IJSRuntime JS
 @inject IShelfScanOrchestrator ShelfScanOrchestrator
+@inject InventoryService InventoryService
 @implements IAsyncDisposable
 
 <PageTitle>Shelf Scanner</PageTitle>
@@ -125,7 +126,7 @@
                             @((item.Confidence * 100).ToString("F0"))% confidence
                         </div>
 
-                        @if (!item.AddedToInventory && (!string.IsNullOrWhiteSpace(item.Barcode) || !string.IsNullOrWhiteSpace(item.Isbn)))
+                        @if (!item.AddedToInventory)
                         {
                             <button class="btn btn-sm btn-primary mt-2"
                                     @onclick="() => AddToInventory(item)">
@@ -258,8 +259,27 @@
         }
     }
 
-    private void AddToInventory(ScannedShelfItem item)
+    private async Task AddToInventory(ScannedShelfItem item)
     {
+        var barcode = item.Barcode ?? item.Isbn;
+
+        if (!string.IsNullOrWhiteSpace(barcode))
+        {
+            await InventoryService.ScanOrIncrementAsync(barcode);
+        }
+        else
+        {
+            await InventoryService.AddAsync(new InventoryItem
+            {
+                Barcode = $"SHELF-{Guid.NewGuid():N}",
+                Title = item.Title ?? "Unknown",
+                Type = item.MediaType,
+                AuthorOrDirector = item.Author ?? "",
+                Quantity = 1,
+                LookupStatus = "Completed"
+            });
+        }
+
         item.AddedToInventory = true;
         StateHasChanged();
     }
