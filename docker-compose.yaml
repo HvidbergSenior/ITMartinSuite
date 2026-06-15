@@ -264,8 +264,8 @@ services:
 
     command: tunnel run
 
-    environment:
-      - TUNNEL_TOKEN=eyJhIjoiYmE3ODc2MjJmMTlhYzNjZTIzNDk5YzRkZTVjYjVjMDMiLCJ0IjoiZWFhN2EyNTctNDVhMC00ZGUzLTkwZDAtNzMyMjcxOTI2ZmNmIiwicyI6Ik9HTTBZVEF3TlRFdE1XVTBOeTAwTUdRMUxXRmlaR0l0TVRVMk0ySXlaR1ZrTnpCbCJ9
+    env_file:
+      - cloudflare.env
 
     networks:
       - martinnet
