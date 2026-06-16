@@ -447,8 +447,50 @@ body {
 .camera-video {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
+    background: #000;
+}
+
+/* ---- Viewfinder Guide Overlay ---- */
+
+.camera-guide-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    pointer-events: none;
+}
+
+.camera-guide-top {
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-align: center;
+}
+
+.camera-guide-top strong {
+    color: #c4b5fd;
+}
+
+.camera-guide-frame {
+    width: 80%;
+    aspect-ratio: 4/3;
+    border: 2px dashed rgba(255, 255, 255, 0.35);
+    border-radius: 12px;
+}
+
+.camera-guide-bottom {
+    background: rgba(0, 0, 0, 0.55);
+    color: #aaa;
+    font-size: 0.78rem;
+    padding: 6px 14px;
+    border-radius: 20px;
 }
 
 .camera-start-panel {

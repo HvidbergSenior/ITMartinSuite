@@ -37,6 +37,14 @@
                        webkit-playsinline
                        class="camera-video">
                 </video>
+
+                <div class="camera-guide-overlay">
+                    <div class="camera-guide-top">
+                        Show the <strong>item</strong> and <strong>where it is</strong>
+                    </div>
+                    <div class="camera-guide-frame"></div>
+                    <div class="camera-guide-bottom">Step back so context is visible</div>
+                </div>
             }
 
         </div>
@@ -130,7 +138,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+        try { await JS.InvokeVoidAsync("finditCamera.stop"); } catch { }
     }
 
     private async Task StartCamera()
@@ -142,7 +150,7 @@
 
         try
         {
-            await JS.InvokeVoidAsync("webcam.start");
+            await JS.InvokeVoidAsync("finditCamera.start");
         }
         catch (Exception ex)
         {
@@ -163,7 +171,7 @@
 
         try
         {
-            var capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture");
+            var capture = await JS.InvokeAsync<CameraCaptureResult>("finditCamera.capture");
 
             var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
             var bytes = Convert.FromBase64String(clean);
@@ -172,7 +180,7 @@
             _state = CameraState.Analyzing;
             StateHasChanged();
 
-            await JS.InvokeVoidAsync("webcam.stop");
+            await JS.InvokeVoidAsync("finditCamera.stop");
 
             _parsed = await ClaudeService.AnalyzeItemPhotoAsync(bytes, "image/jpeg");
 
