@@ -13,13 +13,15 @@ window.finditCamera = {
             this.stop();
 
             this.stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: { ideal: "environment" },
-                    width:  { ideal: 1280 },
-                    height: { ideal: 720 },
-                },
+                video: { facingMode: { ideal: "environment" } },
                 audio: false
             });
+
+            // Force minimum zoom (wide angle) if supported
+            const track = this.stream.getVideoTracks()[0];
+            try {
+                await track.applyConstraints({ advanced: [{ zoom: 1 }] });
+            } catch {}
 
             this.video.srcObject = this.stream;
             this.video.autoplay = true;

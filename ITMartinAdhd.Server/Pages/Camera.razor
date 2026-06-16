@@ -16,16 +16,13 @@
 
     @if (_state == CameraState.Viewfinder)
     {
-        <div class="camera-viewfinder">
+        <div class="camera-viewfinder" @onclick="Capture">
 
             @if (!_cameraStarted)
             {
                 <div class="camera-start-panel">
                     <div class="camera-start-icon">📷</div>
-                    <div class="camera-start-text">Point at the item and where you put it</div>
-                    <button class="btn-primary btn-camera-start" @onclick="StartCamera">
-                        Start Camera
-                    </button>
+                    <div class="camera-start-text">Starting camera...</div>
                 </div>
             }
             else
@@ -43,24 +40,29 @@
                         Show the <strong>item</strong> and <strong>where it is</strong>
                     </div>
                     <div class="camera-guide-frame"></div>
-                    <div class="camera-guide-bottom">Step back so context is visible</div>
+                    <div class="camera-guide-bottom">
+                        @if (_isProcessing)
+                        {
+                            <span>Capturing...</span>
+                        }
+                        else
+                        {
+                            <span>Tap anywhere to capture</span>
+                        }
+                    </div>
                 </div>
             }
 
         </div>
 
-        @if (_cameraStarted)
-        {
-            <div class="camera-controls">
-                <button class="btn-capture" @onclick="Capture" disabled="@_isProcessing">
-                    <span class="capture-ring"></span>
-                </button>
-            </div>
-        }
-
         @if (!string.IsNullOrWhiteSpace(_errorMessage))
         {
-            <div class="camera-error">@_errorMessage</div>
+            <div class="camera-error">
+                @_errorMessage
+                <button class="btn-secondary" style="margin-top:12px" @onclick="StartCamera" @onclick:stopPropagation>
+                    Try again
+                </button>
+            </div>
         }
     }
 
@@ -110,7 +112,7 @@
             {
                 <div class="result-card result-failed">
                     <div class="result-failed-text">Could not identify item or location</div>
-                    <div class="result-failed-sub">Try again with better lighting, or log it manually</div>
+                    <div class="result-failed-sub">Try again — step back so both the item and its surroundings are visible</div>
                     <div class="result-actions">
                         <button class="btn-secondary" @onclick="Retake">Retake</button>
                         <button class="btn-secondary" @onclick="GoHome">Manual</button>
@@ -136,6 +138,11 @@
     private string _editName = "";
     private string _editLocation = "";
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await StartCamera();
+    }
+
     public async ValueTask DisposeAsync()
     {
         try { await JS.InvokeVoidAsync("finditCamera.stop"); } catch { }
@@ -144,19 +151,22 @@
     private async Task StartCamera()
     {
         _errorMessage = null;
+        _cameraStarted = false;
+        StateHasChanged();
+        await Task.Delay(50);
+
         _cameraStarted = true;
         StateHasChanged();
-        await Task.Delay(100);
+        await Task.Delay(50);
 
         try
         {
             await JS.InvokeVoidAsync("finditCamera.start");
         }
-        catch (Exception ex)
+        catch
         {
             _cameraStarted = false;
-            _errorMessage = "Camera access denied. Allow camera permissions and try again.";
-            _logger_placeholder(ex);
+            _errorMessage = "Camera access denied — allow camera permissions and tap Try again.";
         }
 
         StateHasChanged();
@@ -164,10 +174,11 @@
 
     private async Task Capture()
     {
-        if (_isProcessing) return;
+        if (_isProcessing || !_cameraStarted || _state != CameraState.Viewfinder) return;
 
         _isProcessing = true;
         _errorMessage = null;
+        StateHasChanged();
 
         try
         {
@@ -188,10 +199,9 @@
             _editLocation = _parsed.Location;
             _state = CameraState.Result;
         }
-        catch (Exception ex)
+        catch
         {
-            _errorMessage = "Capture failed. Try again.";
-            _logger_placeholder(ex);
+            _errorMessage = "Capture failed — tap Try again.";
             _state = CameraState.Viewfinder;
         }
         finally
@@ -209,7 +219,6 @@
         StateHasChanged();
 
         await StoredItemService.SaveAsync(_editName.Trim(), _editLocation.Trim());
-
         Navigation.NavigateTo("/");
     }
 
@@ -218,16 +227,11 @@
         _state = CameraState.Viewfinder;
         _previewImage = null;
         _parsed = null;
-        _cameraStarted = false;
         StateHasChanged();
-
-        await Task.Delay(100);
         await StartCamera();
     }
 
     private void GoHome() => Navigation.NavigateTo("/");
-
-    private static void _logger_placeholder(Exception _) { }
 
     private sealed class CameraCaptureResult
     {
