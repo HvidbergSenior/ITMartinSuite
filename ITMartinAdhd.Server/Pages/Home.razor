@@ -1,0 +1,268 @@
+@page "/"
+@using ITMartinAdhd.Application.Interfaces
+@using ITMartinAdhd.Application.Models
+
+@inject IStoredItemService StoredItemService
+@inject IAdhdClaudeService ClaudeService
+
+<PageTitle>FindIt</PageTitle>
+
+<div class="findit-page">
+
+    <div class="search-section">
+        <input class="search-input"
+               type="search"
+               placeholder="Where is my...?"
+               value="@_searchQuery"
+               @oninput="OnSearchChanged"
+               autocomplete="off"
+               autofocus />
+    </div>
+
+    @if (_isSearching)
+    {
+        <div class="results-section">
+            @if (_searchResults.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">?</div>
+                    <div class="empty-text">Nothing found for "@_searchQuery"</div>
+                    <div class="empty-sub">Log it below if you just put it somewhere</div>
+                </div>
+            }
+            else
+            {
+                @foreach (var item in _searchResults)
+                {
+                    <div class="item-card" @key="item.Id">
+                        <div class="item-main">
+                            <div class="item-name">@item.Name</div>
+                            <div class="item-location">@item.Location</div>
+                            @if (!string.IsNullOrWhiteSpace(item.Notes))
+                            {
+                                <div class="item-notes">@item.Notes</div>
+                            }
+                        </div>
+                        <div class="item-meta">
+                            <span class="item-time">@item.TimeAgo</span>
+                            <button class="btn-icon btn-delete"
+                                    title="Delete"
+                                    @onclick="() => DeleteItem(item.Id)">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+    else
+    {
+        <div class="log-section">
+            <div class="log-card">
+                <div class="log-title">Log item</div>
+
+                @if (_showAiInput)
+                {
+                    <div class="ai-mode">
+                        <textarea class="ai-textarea"
+                                  placeholder='Describe it: "put my keys on the kitchen counter"'
+                                  @bind="_aiInput"
+                                  rows="2"></textarea>
+                        <div class="log-actions">
+                            <button class="btn-secondary" @onclick="() => _showAiInput = false">
+                                Manual
+                            </button>
+                            <button class="btn-primary"
+                                    @onclick="ParseAndLog"
+                                    disabled="@(_isSaving || string.IsNullOrWhiteSpace(_aiInput))">
+                                @(_isSaving ? "Saving..." : "Save")
+                            </button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="manual-mode">
+                        <input class="log-input"
+                               type="text"
+                               placeholder="What? (keys, glasses, passport...)"
+                               @bind="_itemName"
+                               @onkeydown="OnLogKeyDown" />
+                        <input class="log-input"
+                               type="text"
+                               placeholder="Where? (kitchen counter, car, desk...)"
+                               @bind="_itemLocation"
+                               @onkeydown="OnLogKeyDown" />
+                        <input class="log-input log-input-notes"
+                               type="text"
+                               placeholder="Notes (optional)"
+                               @bind="_itemNotes" />
+                        <div class="log-actions">
+                            <button class="btn-secondary" @onclick="() => _showAiInput = true">
+                                AI input
+                            </button>
+                            <button class="btn-primary"
+                                    @onclick="SaveManual"
+                                    disabled="@(_isSaving || string.IsNullOrWhiteSpace(_itemName) || string.IsNullOrWhiteSpace(_itemLocation))">
+                                @(_isSaving ? "Saving..." : "Save")
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                @if (_savedFlash)
+                {
+                    <div class="save-flash">Saved!</div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                {
+                    <div class="error-flash">@_errorMessage</div>
+                }
+            </div>
+        </div>
+
+        <div class="recent-section">
+            <div class="recent-title">Recent</div>
+
+            @if (_recentItems.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-text">Nothing logged yet</div>
+                    <div class="empty-sub">Log your first item above</div>
+                </div>
+            }
+            else
+            {
+                @foreach (var item in _recentItems)
+                {
+                    <div class="item-card" @key="item.Id">
+                        <div class="item-main">
+                            <div class="item-name">@item.Name</div>
+                            <div class="item-location">@item.Location</div>
+                            @if (!string.IsNullOrWhiteSpace(item.Notes))
+                            {
+                                <div class="item-notes">@item.Notes</div>
+                            }
+                        </div>
+                        <div class="item-meta">
+                            <span class="item-time">@item.TimeAgo</span>
+                            <button class="btn-icon btn-delete"
+                                    title="Delete"
+                                    @onclick="() => DeleteItem(item.Id)">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private string _searchQuery = "";
+    private bool _isSearching => !string.IsNullOrWhiteSpace(_searchQuery);
+
+    private List<StoredItemModel> _recentItems = [];
+    private List<StoredItemModel> _searchResults = [];
+
+    private bool _showAiInput;
+    private string _aiInput = "";
+    private string _itemName = "";
+    private string _itemLocation = "";
+    private string _itemNotes = "";
+
+    private bool _isSaving;
+    private bool _savedFlash;
+    private string _errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recentItems = await StoredItemService.GetRecentAsync(20);
+    }
+
+    private async Task OnSearchChanged(ChangeEventArgs e)
+    {
+        _searchQuery = e.Value?.ToString() ?? "";
+
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            _searchResults = [];
+            return;
+        }
+
+        _searchResults = await StoredItemService.SearchAsync(_searchQuery);
+    }
+
+    private async Task OnLogKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SaveManual();
+    }
+
+    private async Task SaveManual()
+    {
+        if (string.IsNullOrWhiteSpace(_itemName) || string.IsNullOrWhiteSpace(_itemLocation)) return;
+
+        await DoSave(_itemName.Trim(), _itemLocation.Trim(), _itemNotes.Trim().NullIfEmpty());
+        _itemName = "";
+        _itemLocation = "";
+        _itemNotes = "";
+    }
+
+    private async Task ParseAndLog()
+    {
+        if (string.IsNullOrWhiteSpace(_aiInput)) return;
+
+        _isSaving = true;
+        _errorMessage = "";
+        StateHasChanged();
+
+        var parsed = await ClaudeService.ParseNaturalLanguageAsync(_aiInput);
+
+        if (!parsed.Success || string.IsNullOrWhiteSpace(parsed.ItemName) || string.IsNullOrWhiteSpace(parsed.Location))
+        {
+            _errorMessage = "Could not understand that. Try: \"my keys are on the kitchen counter\"";
+            _isSaving = false;
+            return;
+        }
+
+        await DoSave(parsed.ItemName, parsed.Location, null);
+        _aiInput = "";
+        _showAiInput = false;
+    }
+
+    private async Task DoSave(string name, string location, string? notes)
+    {
+        _isSaving = true;
+        _errorMessage = "";
+
+        try
+        {
+            var saved = await StoredItemService.SaveAsync(name, location, notes);
+
+            var existing = _recentItems.FirstOrDefault(x => x.Id == saved.Id);
+            if (existing is not null) _recentItems.Remove(existing);
+            _recentItems.Insert(0, saved);
+            if (_recentItems.Count > 20) _recentItems.RemoveAt(20);
+
+            _savedFlash = true;
+            StateHasChanged();
+            await Task.Delay(1500);
+            _savedFlash = false;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        await StoredItemService.DeleteAsync(id);
+        _recentItems.RemoveAll(x => x.Id == id);
+        _searchResults.RemoveAll(x => x.Id == id);
+    }
+}

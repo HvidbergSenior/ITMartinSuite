@@ -23,6 +23,7 @@ services:
       - Apps__MagicUrl=https://magic.ITMartin.dk
       - Apps__ReceiptUrl=https://receipt.ITMartin.dk
       - Apps__LibraryUrl=https://library.ITMartin.dk
+      - Apps__AdhdUrl=https://adhd.ITMartin.dk
 
     restart: unless-stopped
 
@@ -35,18 +36,23 @@ services:
 
   filesorter-web:
     container_name: filesorter-web
-    build: ./ITMartinFileSorter.Server
+
+    build:
+      context: .
+      dockerfile: ./ITMartinFileSorter.Server/Dockerfile
 
     ports:
       - "8080:8080"
 
     environment:
       - ASPNETCORE_URLS=http://+:8080
+      - MediaSettings__SourceRoot=/data
+      - MediaSettings__LibraryRoot=/library
+      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
 
     volumes:
       - /volume1/docker/filesorter/incoming:/data
       - /volume1/docker/filesorter/library:/library
-      - /volume1/docker/filesorter/config:/config
 
     restart: unless-stopped
 
@@ -199,6 +205,34 @@ services:
 
     volumes:
       - /volume1/docker/martinsuite/library/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # ADHD — FindIt
+  # =========================================================
+
+  adhd-web:
+    container_name: adhd-web
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartinAdhd.Server/Dockerfile
+
+    ports:
+      - "8087:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+
+    volumes:
+      - /volume1/docker/martinsuite/adhd/data:/app/data
 
     restart: unless-stopped
 

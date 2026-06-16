@@ -1,0 +1,80 @@
+@page "/history"
+@using ITMartinAdhd.Application.Interfaces
+@using ITMartinAdhd.Application.Models
+
+@inject IStoredItemService StoredItemService
+
+<PageTitle>History — FindIt</PageTitle>
+
+<div class="findit-page">
+
+    <div class="search-section">
+        <input class="search-input"
+               type="search"
+               placeholder="Search all items..."
+               value="@_query"
+               @oninput="OnSearch"
+               autocomplete="off" />
+    </div>
+
+    <div class="recent-section">
+
+        @if (_items.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-text">Nothing here yet</div>
+            </div>
+        }
+        else
+        {
+            @foreach (var item in _items)
+            {
+                <div class="item-card" @key="item.Id">
+                    <div class="item-main">
+                        <div class="item-name">@item.Name</div>
+                        <div class="item-location">@item.Location</div>
+                        @if (!string.IsNullOrWhiteSpace(item.Notes))
+                        {
+                            <div class="item-notes">@item.Notes</div>
+                        }
+                    </div>
+                    <div class="item-meta">
+                        <span class="item-time">@item.TimeAgo</span>
+                        <button class="btn-icon btn-delete"
+                                title="Delete"
+                                @onclick="() => DeleteItem(item.Id)">
+                            ×
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+
+    </div>
+
+</div>
+
+@code {
+    private List<StoredItemModel> _items = [];
+    private string _query = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await StoredItemService.GetRecentAsync(100);
+    }
+
+    private async Task OnSearch(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+
+        _items = string.IsNullOrWhiteSpace(_query)
+            ? await StoredItemService.GetRecentAsync(100)
+            : await StoredItemService.SearchAsync(_query);
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        await StoredItemService.DeleteAsync(id);
+        _items.RemoveAll(x => x.Id == id);
+    }
+}
