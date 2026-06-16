@@ -65,7 +65,10 @@ services:
 
   budget-web:
     container_name: budget-web
-    build: ./ITMartinBudget.Server
+
+    build:
+      context: .
+      dockerfile: ./ITMartinBudget.Server/Dockerfile
 
     env_file:
       - magic.env
