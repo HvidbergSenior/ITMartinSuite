@@ -1,11 +1,44 @@
-﻿
+
 @inherits LayoutComponentBase
 
 <div class="app-shell">
-    <header class="app-header">
+
+    <header class="app-header fs-header">
+
         <div class="header-title">
-            🎬 ITMartins FileSorter
+            🎬 FileSorter
         </div>
+
+        <nav class="fs-nav">
+
+            <NavLink class="fs-nav-link"
+                     href="/filesorter"
+                     Match="NavLinkMatch.All">
+                📦 Cleanup
+            </NavLink>
+
+            <NavLink class="fs-nav-link"
+                     href="/package2">
+                ✨ Enhancement
+            </NavLink>
+
+            <NavLink class="fs-nav-link"
+                     href="/library">
+                🎬 Library
+            </NavLink>
+
+            <NavLink class="fs-nav-link"
+                     href="/ai-collections">
+                🗂️ Collections
+            </NavLink>
+
+            <NavLink class="fs-nav-link"
+                     href="/curator">
+                ✏️ Curator
+            </NavLink>
+
+        </nav>
+
     </header>
 
     <main class="app-main">
@@ -15,4 +48,5 @@
     <div class="app-footer">
         &copy; @DateTime.Now.Year FileSorter
     </div>
+
 </div>

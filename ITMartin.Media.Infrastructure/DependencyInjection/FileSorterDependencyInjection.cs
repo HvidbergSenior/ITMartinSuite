@@ -8,6 +8,7 @@ using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure.BackgroundJobs;
+using ITMartin.Media.Infrastructure.Collections;
 using ITMartin.Media.Infrastructure.Events;
 using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Media;
@@ -50,6 +51,10 @@ public static class FileSorterDependencyInjection
         services.AddScoped<
             ILibraryPathProvider,
             LibraryPathProvider>();
+
+        services.AddSingleton<
+            ICollectionStore,
+            JsonCollectionStore>();
 
         services.AddSingleton<
             IEventPublisher,

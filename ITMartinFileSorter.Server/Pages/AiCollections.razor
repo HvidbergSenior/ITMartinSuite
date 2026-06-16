@@ -1,46 +1,349 @@
-﻿@page "/ai-collections"
+@page "/ai-collections"
 
-@using ITMartin.Media.Application.Services
-@using ITMartin.Media.Application.Services.Steps.DuplicationStep
-@using ITMartin.Media.Contracts.Entities
-@using ITMartin.Media.Infrastructure.Services
+@using ITMartin.Media.Contracts.Contracts.Runtime.Helpers
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
 
-@inject DuplicateService DuplicateService
+@inject IConfiguration Configuration
 @inject NavigationManager Navigation
-
-<PageTitle>AI Collections</PageTitle>
+@inject IImageAnalysisService ImageAnalysis
+@inject ILogger<AiCollections> Logger
 
 <div class="collections-page">
 
     <div class="hero">
 
-        <h1>
-            ✨ AI Collections
-        </h1>
+        <h1>Collections</h1>
 
         <p>
-            Automatically generated memories,
-            themes and smart groups.
+            Browse your media organised by trip, year, or event.
         </p>
 
     </div>
 
-    
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+
+        <input class="filter-input"
+               placeholder="Filter collections..."
+               @bind="FilterText"
+               @bind:event="oninput" />
+
+        <div class="filter-chips">
+
+            @foreach (var year in Years)
+            {
+                <button class="chip @(SelectedYear == year ? "active" : "")"
+                        @onclick="() => ToggleYear(year)">
+                    @year
+                </button>
+            }
+
+        </div>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="error-box">
+            @ErrorMessage
+        </div>
+    }
+
+    @if (!Collections.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon">🗂️</div>
+            <div class="empty-title">No collections yet</div>
+            <div class="empty-sub">Run Package 1 first to create your library structure.</div>
+        </div>
+    }
+    else
+    {
+        <div class="collections-grid">
+
+            @foreach (var col in FilteredCollections)
+            {
+                <div class="collection-card"
+                     @onclick="() => OpenCollection(col)">
+
+                    <div class="collection-cover">
+
+                        @if (!string.IsNullOrWhiteSpace(col.CoverUrl))
+                        {
+                            <img src="@col.CoverUrl"
+                                 alt="@col.Title"
+                                 loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="cover-placeholder">
+                                📁
+                            </div>
+                        }
+
+                        <div class="overlay">
+                            <span class="count">
+                                @col.FileCount files
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <div class="collection-content">
+
+                        <h3>@col.Title</h3>
+
+                        @if (col.Year > 0)
+                        {
+                            <p>@col.Year</p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(col.AiDescription))
+                        {
+                            <p class="ai-description">@col.AiDescription</p>
+                        }
+                        else if (col.IsAnalyzing)
+                        {
+                            <p class="ai-analyzing">✦ Analysing...</p>
+                        }
+
+                        <div class="tags-row">
+
+                            @foreach (var tag in col.Tags)
+                            {
+                                <span class="tag-chip">@tag</span>
+                            }
+
+                        </div>
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
 
 </div>
 
 @code {
 
+    private string FilterText = "";
 
-    private void OpenCollection(
-        AiCollection collection)
+    private int? SelectedYear;
+
+    private string ErrorMessage = "";
+
+    private List<CollectionVm> Collections = [];
+
+    private List<int> Years = [];
+
+    private IEnumerable<CollectionVm> FilteredCollections =>
+        Collections
+            .Where(c =>
+                (SelectedYear == null || c.Year == SelectedYear) &&
+                (string.IsNullOrWhiteSpace(FilterText) ||
+                 c.Title.Contains(FilterText, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(c => c.Year)
+            .ThenBy(c => c.Title);
+
+    protected override void OnInitialized()
     {
-        Navigation.NavigateTo(
-            $"/ai-collection/{Uri.EscapeDataString(collection.Title)}");
+        LoadCollections();
+        _ = AnalyzeAllAsync();
     }
 
-    private string GetImage(string path)
+    private void LoadCollections()
     {
-        return $"/thumbnail?path={Uri.EscapeDataString(path)}";
+        var root =
+            Configuration["MediaSettings:LibraryRoot"];
+
+        if (string.IsNullOrWhiteSpace(root) ||
+            !Directory.Exists(root))
+        {
+            ErrorMessage =
+                "Library folder not configured or missing.";
+
+            return;
+        }
+
+        var folders = Directory
+            .EnumerateDirectories(root)
+            .OrderByDescending(d => d)
+            .ToList();
+
+        Collections = folders
+            .Select(f => BuildCollection(f, root))
+            .ToList();
+
+        Years = Collections
+            .Where(c => c.Year > 0)
+            .Select(c => c.Year)
+            .Distinct()
+            .OrderByDescending(y => y)
+            .ToList();
+
+        Logger.LogInformation(
+            "Loaded {Count} collections from {Root}",
+            Collections.Count,
+            root);
+    }
+
+    private async Task AnalyzeAllAsync()
+    {
+        foreach (var col in Collections.ToList())
+        {
+            if (string.IsNullOrWhiteSpace(col.CoverImagePath) ||
+                !File.Exists(col.CoverImagePath))
+                continue;
+
+            col.IsAnalyzing = true;
+            await InvokeAsync(StateHasChanged);
+
+            var result = await ImageAnalysis.AnalyzeImageAsync(col.CoverImagePath);
+
+            col.IsAnalyzing = false;
+
+            if (result.Tags.Count > 0)
+                col.Tags = result.Tags;
+
+            if (!string.IsNullOrWhiteSpace(result.Description))
+                col.AiDescription = result.Description;
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private CollectionVm BuildCollection(
+        string folderPath,
+        string root)
+    {
+        var name = Path.GetFileName(folderPath);
+
+        var files = Directory
+            .EnumerateFiles(
+                folderPath,
+                "*.*",
+                SearchOption.AllDirectories)
+            .Where(MediaFileHelper.IsSupportedMedia)
+            .ToList();
+
+        var (coverUrl, coverPath) = FindCover(folderPath, root);
+
+        var year = ParseYear(name, files);
+
+        var tags = BuildTags(name);
+
+        return new CollectionVm
+        {
+            Title = name,
+            FolderPath = folderPath,
+            FileCount = files.Count,
+            CoverUrl = coverUrl,
+            CoverImagePath = coverPath,
+            Year = year,
+            Tags = tags
+        };
+    }
+
+    private (string Url, string Path) FindCover(
+        string folderPath,
+        string root)
+    {
+        var first = Directory
+            .EnumerateFiles(
+                folderPath,
+                "*.*",
+                SearchOption.AllDirectories)
+            .FirstOrDefault(f =>
+            {
+                var ext = Path.GetExtension(f).ToLowerInvariant();
+                return ext is ".jpg" or ".jpeg" or ".png" or ".webp";
+            });
+
+        if (first == null)
+            return ("", "");
+
+        var thumbPath = Path.Combine(
+            Path.GetDirectoryName(first) ?? "",
+            "thumbnails",
+            $"{Path.GetFileNameWithoutExtension(first)}.jpg");
+
+        var displaySource = File.Exists(thumbPath) ? thumbPath : first;
+
+        var relative = Path
+            .GetRelativePath(root, displaySource)
+            .Replace("\\", "/");
+
+        return ($"/libraryfiles/{relative}", first);
+    }
+
+    private static int ParseYear(
+        string folderName,
+        List<string> files)
+    {
+        for (var i = 0; i <= folderName.Length - 4; i++)
+        {
+            if (int.TryParse(
+                    folderName.AsSpan(i, 4),
+                    out var y) &&
+                y is >= 1950 and <= 2100)
+            {
+                return y;
+            }
+        }
+
+        if (files.Count > 0)
+        {
+            return files
+                .Select(f => File.GetLastWriteTimeUtc(f).Year)
+                .GroupBy(y => y)
+                .OrderByDescending(g => g.Count())
+                .First()
+                .Key;
+        }
+
+        return 0;
+    }
+
+    private static List<string> BuildTags(string folderName)
+    {
+        var tags = new List<string>();
+
+        var parts = folderName
+            .Split(['_', '-', ' '], StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => p.Length > 2 && !int.TryParse(p, out _));
+
+        foreach (var part in parts.Take(3))
+        {
+            tags.Add(part);
+        }
+
+        return tags;
+    }
+
+    private void ToggleYear(int year)
+    {
+        SelectedYear =
+            SelectedYear == year ? null : year;
+    }
+
+    private void OpenCollection(CollectionVm col)
+    {
+        Navigation.NavigateTo(
+            $"/library?path={Uri.EscapeDataString(col.FolderPath)}");
+    }
+
+    private sealed class CollectionVm
+    {
+        public string Title { get; set; } = "";
+        public string FolderPath { get; set; } = "";
+        public int FileCount { get; set; }
+        public string CoverUrl { get; set; } = "";
+        public string CoverImagePath { get; set; } = "";
+        public int Year { get; set; }
+        public List<string> Tags { get; set; } = [];
+        public string AiDescription { get; set; } = "";
+        public bool IsAnalyzing { get; set; }
     }
 }

@@ -1,0 +1,404 @@
+/* =====================================================
+   ROOT LAYOUT
+===================================================== */
+
+.curator-root {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 0;
+    height: calc(100vh - 56px); /* subtract header */
+    overflow: hidden;
+}
+
+/* =====================================================
+   LEFT: BROWSER
+===================================================== */
+
+.curator-browser {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid rgba(255,255,255,0.07);
+}
+
+.browser-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0;
+}
+
+.browser-path {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(99,102,241,0.12);
+    border-bottom: 1px solid rgba(99,102,241,0.25);
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.browser-folders {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-shrink: 0;
+}
+
+.folder-chip {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.folder-chip:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+}
+
+/* =====================================================
+   FILE GRID
+===================================================== */
+
+.file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.file-card {
+    position: relative;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background: rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    overflow: hidden;
+    user-select: none;
+}
+
+.file-card:hover {
+    background: rgba(255,255,255,0.06);
+}
+
+.file-card.selected {
+    border-color: rgba(99,102,241,0.7);
+    background: rgba(99,102,241,0.08);
+}
+
+.file-card.in-collection {
+    border-color: rgba(251,191,36,0.6);
+}
+
+.file-card.selected.in-collection {
+    border-color: rgba(99,102,241,0.7);
+}
+
+.file-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: #111;
+}
+
+.file-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.2s;
+}
+
+.file-card:hover .file-thumb img {
+    transform: scale(1.04);
+}
+
+.thumb-icon {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    background: linear-gradient(135deg, #1a1f2e, #0d1117);
+}
+
+.collection-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(251,191,36,0.9);
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 999px;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-name {
+    padding: 6px 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+}
+
+.file-name:hover {
+    color: var(--text-main);
+    text-decoration: underline;
+}
+
+.rename-input {
+    width: 100%;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--text-main);
+    outline: none;
+}
+
+.file-check {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+}
+
+.file-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.browser-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+    opacity: 0.4;
+}
+
+/* =====================================================
+   RIGHT: COLLECTIONS PANEL
+===================================================== */
+
+.curator-collections {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: rgba(255,255,255,0.02);
+}
+
+.collections-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0;
+}
+
+.collections-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.new-collection-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0;
+}
+
+.new-col-input {
+    flex: 1;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: var(--text-main);
+    font-size: 13px;
+    outline: none;
+    min-width: 0;
+}
+
+.new-col-input:focus {
+    border-color: var(--accent);
+}
+
+.collection-list {
+    flex: 0 0 auto;
+    overflow-y: auto;
+    max-height: 40%;
+}
+
+.collection-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+}
+
+.collection-item:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.collection-item.active {
+    background: rgba(251,191,36,0.1);
+    border-left: 3px solid rgba(251,191,36,0.7);
+    padding-left: 13px;
+}
+
+.col-info {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.col-name {
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.col-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.col-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.col-delete:hover {
+    opacity: 0.9;
+}
+
+.col-empty {
+    padding: 20px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.6;
+}
+
+/* =====================================================
+   ACTIVE COLLECTION FILE LIST
+===================================================== */
+
+.active-col-files {
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding-bottom: 16px;
+}
+
+.active-col-title {
+    padding: 10px 16px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(251,191,36,0.8);
+    flex-shrink: 0;
+}
+
+.active-col-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.active-col-file span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+}
+
+.col-file-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    flex-shrink: 0;
+    opacity: 0.5;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.col-file-remove:hover {
+    opacity: 1;
+    color: #fca5a5;
+}
+
+@media (max-width: 768px) {
+    .curator-root {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+    }
+
+    .curator-collections {
+        max-height: 300px;
+        border-right: none;
+        border-top: 1px solid rgba(255,255,255,0.07);
+    }
+}

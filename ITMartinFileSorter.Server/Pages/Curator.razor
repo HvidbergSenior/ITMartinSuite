@@ -1,0 +1,581 @@
+@page "/curator"
+
+@using ITMartin.Media.Contracts.Contracts.Constants
+@using ITMartin.Media.Contracts.Contracts.Runtime.Enums
+@using ITMartin.Media.Contracts.Contracts.Runtime.Helpers
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Entities
+
+@inject ICollectionStore CollectionStore
+@inject IConfiguration Configuration
+@inject NavigationManager Navigation
+@inject ILogger<Curator> Logger
+
+<div class="curator-root">
+
+    <!-- ================================================
+         LEFT: FILE BROWSER
+    ================================================ -->
+
+    <div class="curator-browser">
+
+        <div class="browser-header">
+
+            <button class="btn btn-sm btn-secondary"
+                    @onclick="GoBack"
+                    disabled="@(!CanGoBack)">
+                ← Back
+            </button>
+
+            <button class="btn btn-sm btn-secondary"
+                    @onclick="GoToRoot">
+                📁 Root
+            </button>
+
+            <span class="browser-path" title="@CurrentPath">
+                @CurrentPath
+            </span>
+
+        </div>
+
+        @if (SelectionCount > 0)
+        {
+            <div class="selection-bar">
+
+                <span>@SelectionCount selected</span>
+
+                <button class="btn btn-sm btn-secondary"
+                        @onclick="ClearSelection">
+                    ✕ Clear
+                </button>
+
+                @if (ActiveCollection != null)
+                {
+                    <button class="btn btn-sm btn-primary"
+                            @onclick="AddSelectedToCollection">
+                        + Add to "@ActiveCollection.Name"
+                    </button>
+                }
+                else
+                {
+                    <span style="opacity:0.5;font-size:12px;">
+                        Select a collection →
+                    </span>
+                }
+
+            </div>
+        }
+
+        @if (Folders.Any())
+        {
+            <div class="browser-folders">
+                @foreach (var folder in Folders)
+                {
+                    <div class="folder-chip"
+                         @onclick="() => OpenFolder(folder.FullPath)">
+                        📁 @folder.Name
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="file-grid">
+
+            @foreach (var file in Files)
+            {
+                var inActiveCollection =
+                    ActiveCollection?.FilePaths.Contains(file.Path) == true;
+
+                var isSelected = SelectedPaths.Contains(file.Path);
+
+                <div class="file-card @(isSelected ? "selected" : "") @(inActiveCollection ? "in-collection" : "")"
+                     @onclick="() => ToggleSelect(file)">
+
+                    <div class="file-thumb"
+                         @onclick="() => OpenViewer(file)"
+                         @onclick:stopPropagation>
+
+                        @if (file.Type == MediaType.Image &&
+                             !string.IsNullOrWhiteSpace(file.ThumbnailUrl))
+                        {
+                            <img src="@file.ThumbnailUrl"
+                                 alt="@file.Name"
+                                 loading="lazy" />
+                        }
+                        else if (file.Type == MediaType.Video)
+                        {
+                            <div class="thumb-icon">▶</div>
+                        }
+                        else if (file.Type == MediaType.Audio)
+                        {
+                            <div class="thumb-icon">🎵</div>
+                        }
+                        else
+                        {
+                            <div class="thumb-icon">📄</div>
+                        }
+
+                        @if (inActiveCollection)
+                        {
+                            <div class="collection-badge">✦</div>
+                        }
+
+                    </div>
+
+                    @if (file.IsRenaming)
+                    {
+                        <input class="rename-input"
+                               value="@file.EditName"
+                               @onchange="e => file.EditName = e.Value?.ToString() ?? file.Name"
+                               @onkeydown="e => OnRenameKey(e, file)"
+                               @onblur="() => CommitRename(file)"
+                               @onclick:stopPropagation />
+                    }
+                    else
+                    {
+                        <div class="file-name"
+                             title="Click to rename"
+                             @onclick="() => StartRename(file)"
+                             @onclick:stopPropagation>
+                            @file.Name
+                        </div>
+                    }
+
+                    <div class="file-check">
+                        <input type="checkbox"
+                               checked="@isSelected"
+                               @onchange="() => ToggleSelect(file)"
+                               @onclick:stopPropagation />
+                    </div>
+
+                </div>
+            }
+
+        </div>
+
+        @if (!Folders.Any() && !Files.Any())
+        {
+            <div class="browser-empty">
+                <div style="font-size:40px">📭</div>
+                <div>Empty folder</div>
+            </div>
+        }
+
+    </div>
+
+    <!-- ================================================
+         RIGHT: COLLECTIONS PANEL
+    ================================================ -->
+
+    <div class="curator-collections">
+
+        <div class="collections-header">
+            <h3>Collections</h3>
+        </div>
+
+        <div class="new-collection-row">
+
+            <input class="new-col-input"
+                   placeholder="New collection name..."
+                   @bind="NewCollectionName"
+                   @bind:event="oninput"
+                   @onkeydown="OnNewCollectionKey" />
+
+            <button class="btn btn-sm btn-primary"
+                    @onclick="CreateCollection"
+                    disabled="@string.IsNullOrWhiteSpace(NewCollectionName)">
+                +
+            </button>
+
+        </div>
+
+        <div class="collection-list">
+
+            @foreach (var col in Collections)
+            {
+                var isActive = ActiveCollectionId == col.Id;
+
+                <div class="collection-item @(isActive ? "active" : "")"
+                     @onclick="() => ToggleActiveCollection(col)">
+
+                    <div class="col-info">
+                        <div class="col-name">@col.Name</div>
+                        <div class="col-count">@col.FilePaths.Count files</div>
+                    </div>
+
+                    <button class="col-delete"
+                            title="Delete"
+                            @onclick="() => DeleteCollection(col)"
+                            @onclick:stopPropagation>
+                        🗑
+                    </button>
+
+                </div>
+            }
+
+            @if (!Collections.Any())
+            {
+                <div class="col-empty">
+                    No collections yet.<br />
+                    Create one above.
+                </div>
+            }
+
+        </div>
+
+        @if (ActiveCollection != null)
+        {
+            <div class="active-col-files">
+
+                <div class="active-col-title">
+                    "@ActiveCollection.Name"
+                </div>
+
+                @foreach (var filePath in ActiveCollection.FilePaths.ToList())
+                {
+                    <div class="active-col-file">
+
+                        <span title="@filePath"
+                              @onclick="() => JumpToFile(filePath)"
+                              style="cursor:pointer">
+                            @System.IO.Path.GetFileName(filePath)
+                        </span>
+
+                        <button class="col-file-remove"
+                                @onclick="() => RemoveFromCollection(filePath)">
+                            ✕
+                        </button>
+
+                    </div>
+                }
+
+                @if (!ActiveCollection.FilePaths.Any())
+                {
+                    <div style="padding:12px 16px;font-size:12px;opacity:0.4">
+                        No files yet — select files on the left.
+                    </div>
+                }
+
+            </div>
+        }
+
+    </div>
+
+</div>
+
+@code {
+
+    private string RootPath = "";
+    private string CurrentPath = "";
+    private List<FolderVm> Folders = [];
+    private List<FileVm> Files = [];
+    private HashSet<string> SelectedPaths = [];
+    private List<MediaCollection> Collections = [];
+    private string? ActiveCollectionId;
+    private string NewCollectionName = "";
+
+    private MediaCollection? ActiveCollection =>
+        Collections.FirstOrDefault(c => c.Id == ActiveCollectionId);
+
+    private int SelectionCount => SelectedPaths.Count;
+
+    private bool CanGoBack =>
+        !string.Equals(CurrentPath, RootPath, StringComparison.OrdinalIgnoreCase);
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? path { get; set; }
+
+    protected override void OnInitialized()
+    {
+        RootPath = Configuration["MediaSettings:LibraryRoot"] ?? "";
+        _ = LoadCollectionsAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        var target =
+            string.IsNullOrWhiteSpace(path) ? RootPath : path;
+
+        if (!string.IsNullOrWhiteSpace(target))
+            LoadFolder(target);
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        Collections = await CollectionStore.LoadAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void LoadFolder(string folderPath)
+    {
+        if (!Directory.Exists(folderPath))
+            return;
+
+        CurrentPath = folderPath;
+        SelectedPaths.Clear();
+
+        Folders = Directory
+            .EnumerateDirectories(folderPath)
+            .Select(d => new FolderVm
+            {
+                Name = System.IO.Path.GetFileName(d),
+                FullPath = d
+            })
+            .OrderBy(f => f.Name)
+            .ToList();
+
+        Files = Directory
+            .EnumerateFiles(folderPath)
+            .Where(MediaDisplayHelper.IsDisplayable)
+            .Select(CreateFileVm)
+            .OrderByDescending(f => f.CreatedAt)
+            .ToList();
+    }
+
+    private FileVm CreateFileVm(string filePath)
+    {
+        var info = new FileInfo(filePath);
+        var ext = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+
+        var type =
+            MediaExtensions.ImageExtensions.Contains(ext) ? MediaType.Image
+            : MediaExtensions.VideoExtensions.Contains(ext) ? MediaType.Video
+            : MediaExtensions.AudioExtensions.Contains(ext) ? MediaType.Audio
+            : MediaType.Document;
+
+        return new FileVm
+        {
+            Path = filePath,
+            Name = info.Name,
+            EditName = info.Name,
+            Type = type,
+            SizeBytes = info.Length,
+            CreatedAt = info.LastWriteTimeUtc,
+            ThumbnailUrl = BuildThumbnailUrl(filePath),
+        };
+    }
+
+    private string BuildThumbnailUrl(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(RootPath))
+            return "";
+
+        var dir = System.IO.Path.GetDirectoryName(filePath) ?? "";
+
+        var thumbPath = System.IO.Path.Combine(
+            dir,
+            "thumbnails",
+            $"{System.IO.Path.GetFileNameWithoutExtension(filePath)}.jpg");
+
+        var source = File.Exists(thumbPath) ? thumbPath : filePath;
+
+        var relative = System.IO.Path
+            .GetRelativePath(RootPath, source)
+            .Replace("\\", "/");
+
+        return $"/libraryfiles/{relative}";
+    }
+
+    // ---- NAVIGATION ----
+
+    private void OpenFolder(string folderPath)
+    {
+        Navigation.NavigateTo(
+            $"/curator?path={Uri.EscapeDataString(folderPath)}");
+    }
+
+    private void GoBack()
+    {
+        var parent = Directory.GetParent(CurrentPath);
+
+        if (parent != null)
+        {
+            Navigation.NavigateTo(
+                $"/curator?path={Uri.EscapeDataString(parent.FullName)}");
+        }
+    }
+
+    private void GoToRoot()
+    {
+        Navigation.NavigateTo("/curator");
+    }
+
+    private void OpenViewer(FileVm file)
+    {
+        var index = Files.FindIndex(f => f.Path == file.Path);
+
+        Navigation.NavigateTo(
+            $"/viewer?path={Uri.EscapeDataString(file.Path)}&index={index}",
+            true);
+    }
+
+    private void JumpToFile(string filePath)
+    {
+        var dir = System.IO.Path.GetDirectoryName(filePath);
+
+        if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+        {
+            Navigation.NavigateTo(
+                $"/curator?path={Uri.EscapeDataString(dir)}");
+        }
+    }
+
+    // ---- SELECTION ----
+
+    private void ToggleSelect(FileVm file)
+    {
+        if (file.IsRenaming) return;
+
+        if (!SelectedPaths.Remove(file.Path))
+            SelectedPaths.Add(file.Path);
+    }
+
+    private void ClearSelection() => SelectedPaths.Clear();
+
+    // ---- RENAME ----
+
+    private void StartRename(FileVm file)
+    {
+        file.EditName = file.Name;
+        file.IsRenaming = true;
+    }
+
+    private void OnRenameKey(KeyboardEventArgs e, FileVm file)
+    {
+        if (e.Key == "Enter") CommitRename(file);
+
+        if (e.Key == "Escape")
+        {
+            file.IsRenaming = false;
+            file.EditName = file.Name;
+        }
+    }
+
+    private void CommitRename(FileVm file)
+    {
+        file.IsRenaming = false;
+
+        var newName = file.EditName?.Trim();
+
+        if (string.IsNullOrWhiteSpace(newName) || newName == file.Name)
+        {
+            file.EditName = file.Name;
+            return;
+        }
+
+        var dir = System.IO.Path.GetDirectoryName(file.Path) ?? "";
+        var newPath = System.IO.Path.Combine(dir, newName);
+
+        if (File.Exists(newPath))
+        {
+            Logger.LogWarning("Rename skipped — target exists: {Path}", newPath);
+            file.EditName = file.Name;
+            return;
+        }
+
+        try
+        {
+            File.Move(file.Path, newPath);
+
+            foreach (var col in Collections)
+            {
+                var idx = col.FilePaths.IndexOf(file.Path);
+                if (idx >= 0) col.FilePaths[idx] = newPath;
+            }
+
+            _ = CollectionStore.SaveAsync(Collections);
+
+            file.Path = newPath;
+            file.Name = newName;
+            file.EditName = newName;
+            file.ThumbnailUrl = BuildThumbnailUrl(newPath);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Rename failed: {Old} → {New}", file.Path, newPath);
+            file.EditName = file.Name;
+        }
+    }
+
+    // ---- COLLECTIONS ----
+
+    private void ToggleActiveCollection(MediaCollection col)
+    {
+        ActiveCollectionId =
+            ActiveCollectionId == col.Id ? null : col.Id;
+    }
+
+    private async Task CreateCollection()
+    {
+        var name = NewCollectionName.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        var col = new MediaCollection { Name = name };
+        Collections.Add(col);
+        ActiveCollectionId = col.Id;
+        NewCollectionName = "";
+
+        await CollectionStore.SaveAsync(Collections);
+    }
+
+    private void OnNewCollectionKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") _ = CreateCollection();
+    }
+
+    private async Task AddSelectedToCollection()
+    {
+        var col = ActiveCollection;
+
+        if (col == null || SelectedPaths.Count == 0)
+            return;
+
+        foreach (var p in SelectedPaths)
+        {
+            if (!col.FilePaths.Contains(p))
+                col.FilePaths.Add(p);
+        }
+
+        SelectedPaths.Clear();
+        await CollectionStore.SaveAsync(Collections);
+    }
+
+    private async Task RemoveFromCollection(string filePath)
+    {
+        ActiveCollection?.FilePaths.Remove(filePath);
+        await CollectionStore.SaveAsync(Collections);
+    }
+
+    private async Task DeleteCollection(MediaCollection col)
+    {
+        Collections.Remove(col);
+
+        if (ActiveCollectionId == col.Id)
+            ActiveCollectionId = null;
+
+        await CollectionStore.SaveAsync(Collections);
+    }
+
+    // ---- VIEW MODELS ----
+
+    private sealed class FolderVm
+    {
+        public string Name { get; set; } = "";
+        public string FullPath { get; set; } = "";
+    }
+
+    private sealed class FileVm
+    {
+        public string Path { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string EditName { get; set; } = "";
+        public bool IsRenaming { get; set; }
+        public MediaType Type { get; set; }
+        public long SizeBytes { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public string ThumbnailUrl { get; set; } = "";
+    }
+}

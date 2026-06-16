@@ -220,7 +220,7 @@
             $"/libraryfiles/{relative}";
 
         IsVideo =
-            MediaFileHelper.IsSupportedMedia(FilePath);
+            MediaTypeHelper.IsVideo(FilePath);
 
         Logger.LogInformation(
             "Viewing file {File}",
