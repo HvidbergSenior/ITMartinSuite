@@ -18,7 +18,7 @@ public sealed class ReceiptWorkflowDefinition
 
     public ReceiptWorkflowDefinition(
         ReceiptOcrWorkflowStep receiptOcrWorkflowStep,
-        OpenAiReceiptExtractionWorkflowStep openAiReceiptExtractionWorkflowStep,
+        AiReceiptExtractionWorkflowStep openAiReceiptExtractionWorkflowStep,
         SaveTransactionWorkflowStep saveTransactionWorkflowStep)
     {
         Steps =

@@ -205,105 +205,78 @@
 
             @if (_scanResult.ScryfallMatchResult != null)
             {
+                var match = _scanResult.ScryfallMatchResult;
+                var conf = _scanResult.IdentificationConfidence;
+                var confClass = conf >= 0.8m ? "score-perfect" : conf >= 0.5m ? "score-good" : "score-weak";
+
                 <div class="card-result">
 
                     <div class="image-panel">
 
-                        <img src="@_scanResult.ScryfallMatchResult.ImageUrl"
+                        <img src="@match.ImageUrl"
                              class="matched-card-image" />
 
                     </div>
 
                     <div class="card-details">
-                        <div class="mt-3">
 
-                            <div>
-                                AI Confidence:
-                                @_scanResult.IdentificationConfidence.ToString("P0")
-                            </div>
-
-                        </div>
                         <div class="card-header">
 
                             <div>
 
                                 <h2 class="card-name">
-                                    @_scanResult.ScryfallMatchResult.Name
+                                    @match.Name
                                 </h2>
 
                                 <div class="set-line">
-
-                                    @_scanResult.ScryfallMatchResult.SetCode?.ToUpperInvariant()
+                                    @match.SetCode?.ToUpperInvariant()
                                     ·
-                                    #@_scanResult.ScryfallMatchResult.CollectorNumber
-
+                                    #@match.CollectorNumber
                                 </div>
-                                <div class="price-panel">
 
-                                    <div class="price-item">
+                            </div>
 
-                                        <span>
-                                            EUR
-                                        </span>
+                            <span class="score-badge @confClass">
+                                @conf.ToString("P0")
+                            </span>
 
-                                        <strong>
-                                            €@((_scanResult
-                                                 .ScryfallMatchResult?
-                                                 .EurPrice ?? 0) / 100m)
-                                        </strong>
+                        </div>
 
-                                    </div>
+                        <div class="price-grid">
 
-                                    <div class="price-item">
-
-                                        <span>
-                                            USD
-                                        </span>
-
-                                        <strong>
-                                            $@((_scanResult
-                                                 .ScryfallMatchResult?
-                                                 .UsdPrice ?? 0) / 100m)
-                                        </strong>
-
-                                    </div>
-
-                                    @if ((_scanResult.ScryfallMatchResult?.EurFoilPrice ?? 0) > 0)
-                                    {
-                                        <div class="price-item">
-
-                                            <span>
-                                                EUR Foil
-                                            </span>
-
-                                            <strong>
-                                                €@((_scanResult
-                                                     .ScryfallMatchResult?
-                                                     .EurFoilPrice ?? 0) / 100m)
-                                            </strong>
-
-                                        </div>
-                                    }
-
-                                    @if ((_scanResult.ScryfallMatchResult?.UsdFoilPrice ?? 0) > 0)
-                                    {
-                                        <div class="price-item">
-
-                                            <span>
-                                                USD Foil
-                                            </span>
-
-                                            <strong>
-                                                $@((_scanResult
-                                                     .ScryfallMatchResult?
-                                                     .UsdFoilPrice ?? 0) / 100m)
-                                            </strong>
-
-                                        </div>
-                                    }
-
+                            <div class="price-box">
+                                <div class="price-label">EUR</div>
+                                <div class="price-value">
+                                    @(match.EurPrice.HasValue
+                                        ? $"€{match.EurPrice.Value:F2}"
+                                        : "—")
                                 </div>
                             </div>
+
+                            <div class="price-box">
+                                <div class="price-label">USD</div>
+                                <div class="price-value">
+                                    @(match.UsdPrice.HasValue
+                                        ? $"${match.UsdPrice.Value:F2}"
+                                        : "—")
+                                </div>
+                            </div>
+
+                            @if (match.EurFoilPrice.HasValue)
+                            {
+                                <div class="price-box">
+                                    <div class="price-label">EUR Foil</div>
+                                    <div class="price-value">€@match.EurFoilPrice.Value.ToString("F2")</div>
+                                </div>
+                            }
+
+                            @if (match.UsdFoilPrice.HasValue)
+                            {
+                                <div class="price-box">
+                                    <div class="price-label">USD Foil</div>
+                                    <div class="price-value">$@match.UsdFoilPrice.Value.ToString("F2")</div>
+                                </div>
+                            }
 
                         </div>
 

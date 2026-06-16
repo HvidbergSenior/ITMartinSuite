@@ -4,7 +4,7 @@ using ITMartin.Ai.Interfaces;
 
 namespace ITMartin.Receipt.Application.Workflows.Steps;
 
-public sealed class OpenAiReceiptExtractionWorkflowStep
+public sealed class AiReceiptExtractionWorkflowStep
     : WorkflowStep<ReceiptContext>
 {
     private readonly
@@ -12,9 +12,9 @@ public sealed class OpenAiReceiptExtractionWorkflowStep
         _receiptExtractionService;
 
     public override string Name =>
-        nameof(OpenAiReceiptExtractionWorkflowStep);
+        nameof(AiReceiptExtractionWorkflowStep);
 
-    public OpenAiReceiptExtractionWorkflowStep(
+    public AiReceiptExtractionWorkflowStep(
         IReceiptExtractionService receiptExtractionService)
     {
         _receiptExtractionService =

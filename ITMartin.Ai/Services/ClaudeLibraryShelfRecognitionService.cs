@@ -13,7 +13,7 @@ using SixLabors.ImageSharp.Processing;
 namespace ITMartin.Ai.Services;
 
 public sealed class ClaudeLibraryShelfRecognitionService
-    : IOpenAiLibraryShelfRecognitionService
+    : ILibraryShelfRecognitionService
 {
     private const int MaxCacheSize = 200;
 

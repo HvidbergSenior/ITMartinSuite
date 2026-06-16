@@ -2,7 +2,7 @@
 
 namespace ITMartin.Ai.Interfaces;
 
-public interface IOpenAiLibraryShelfRecognitionService
+public interface ILibraryShelfRecognitionService
 {
     Task<LibraryShelfAnalysisResult?>
         AnalyzeAsync(

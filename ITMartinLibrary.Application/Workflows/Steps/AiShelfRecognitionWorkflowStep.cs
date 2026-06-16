@@ -9,7 +9,7 @@ namespace ITMartinLibrary.Application.Workflows.Steps;
 public sealed class AiShelfRecognitionWorkflowStep
     : WorkflowStep<ShelfScanContext>
 {
-    private readonly IOpenAiLibraryShelfRecognitionService _recognitionService;
+    private readonly ILibraryShelfRecognitionService _recognitionService;
 
     private readonly ILogger<AiShelfRecognitionWorkflowStep> _logger;
 
@@ -17,7 +17,7 @@ public sealed class AiShelfRecognitionWorkflowStep
         nameof(AiShelfRecognitionWorkflowStep);
 
     public AiShelfRecognitionWorkflowStep(
-        IOpenAiLibraryShelfRecognitionService recognitionService,
+        ILibraryShelfRecognitionService recognitionService,
         ILogger<AiShelfRecognitionWorkflowStep> logger)
     {
         _recognitionService = recognitionService;

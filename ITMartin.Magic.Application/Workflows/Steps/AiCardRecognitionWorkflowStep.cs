@@ -51,7 +51,7 @@ public sealed class AiCardRecognitionWorkflowStep
                 "AI recognition returned null.");
         }
 
-        context.State.OpenAiResult =
+        context.State.AiResult =
             result;
 
         context.State.CardName =

@@ -96,15 +96,12 @@ public static class InfrastructureDependencyInjection
             IAiEnrichmentService,
             AiEnrichmentService>();
 
-        services.AddScoped<
+        services.AddSingleton<
             IImageAnalysisService,
-            OpenAiImageAnalysisService>();
+            ClaudeImageAnalysisService>();
 
         services.Configure<MediaSettingsOptions>(
             configuration.GetSection("MediaSettings"));
-
-        services.Configure<OpenAiOptions>(
-            configuration.GetSection("OpenAI"));
 
         return services;
     }

@@ -53,14 +53,6 @@ builder.Services.Configure<HubOptions>(
 
 
 // =========================
-// AI
-// =========================
-
-builder.Services.AddScoped<
-    IImageAnalysisService,
-    OpenAiImageAnalysisService>();
-
-// =========================
 // OPENCV
 // =========================
 

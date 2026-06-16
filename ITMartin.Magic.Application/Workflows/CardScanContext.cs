@@ -27,7 +27,7 @@ public sealed class CardScanContext
     // PIPELINE RESULTS
     // =========================
 
-    public MagicCardAnalysisResult? OpenAiResult { get; set; }
+    public MagicCardAnalysisResult? AiResult { get; set; }
 
     public ScryfallMatchResult? ScryfallMatchResult { get; set; }
     public bool HasConfirmedMatch { get; set; }

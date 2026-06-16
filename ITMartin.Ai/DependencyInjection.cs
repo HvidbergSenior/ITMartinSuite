@@ -19,7 +19,7 @@ public static class DependencyInjection
             ClaudeImageAnalysisService>();
 
         services.AddSingleton<
-            IOpenAiLibraryShelfRecognitionService,
+            ILibraryShelfRecognitionService,
             ClaudeLibraryShelfRecognitionService>();
 
         services.AddSingleton<

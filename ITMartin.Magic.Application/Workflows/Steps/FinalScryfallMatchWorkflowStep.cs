@@ -40,7 +40,7 @@ public sealed class FinalScryfallMatchWorkflowStep
             await _scryfallService.SearchAsync(
                 context.State.CardName,
                 context.State.SetCode,
-                context.State.OpenAiResult,
+                context.State.AiResult,
                 cancellationToken);
         
         if (match?.BestMatch is null)
