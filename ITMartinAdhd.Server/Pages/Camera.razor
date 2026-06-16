@@ -1,0 +1,228 @@
+@page "/camera"
+@using ITMartinAdhd.Application.Interfaces
+@using ITMartinAdhd.Application.Models
+@using Microsoft.JSInterop
+
+@inject IJSRuntime JS
+@inject IAdhdClaudeService ClaudeService
+@inject IStoredItemService StoredItemService
+@inject NavigationManager Navigation
+
+@implements IAsyncDisposable
+
+<PageTitle>Camera — FindIt</PageTitle>
+
+<div class="camera-page">
+
+    @if (_state == CameraState.Viewfinder)
+    {
+        <div class="camera-viewfinder">
+
+            @if (!_cameraStarted)
+            {
+                <div class="camera-start-panel">
+                    <div class="camera-start-icon">📷</div>
+                    <div class="camera-start-text">Point at the item and where you put it</div>
+                    <button class="btn-primary btn-camera-start" @onclick="StartCamera">
+                        Start Camera
+                    </button>
+                </div>
+            }
+            else
+            {
+                <video id="video"
+                       autoplay
+                       muted
+                       playsinline
+                       webkit-playsinline
+                       class="camera-video">
+                </video>
+            }
+
+        </div>
+
+        @if (_cameraStarted)
+        {
+            <div class="camera-controls">
+                <button class="btn-capture" @onclick="Capture" disabled="@_isProcessing">
+                    <span class="capture-ring"></span>
+                </button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="camera-error">@_errorMessage</div>
+        }
+    }
+
+    @if (_state == CameraState.Analyzing)
+    {
+        <div class="camera-analyzing">
+            @if (!string.IsNullOrWhiteSpace(_previewImage))
+            {
+                <img class="camera-preview" src="@_previewImage" alt="Captured" />
+            }
+            <div class="analyzing-overlay">
+                <div class="analyzing-spinner"></div>
+                <div class="analyzing-text">Identifying item...</div>
+            </div>
+        </div>
+    }
+
+    @if (_state == CameraState.Result)
+    {
+        <div class="camera-result">
+
+            @if (!string.IsNullOrWhiteSpace(_previewImage))
+            {
+                <img class="camera-preview-thumb" src="@_previewImage" alt="Captured" />
+            }
+
+            @if (_parsed is { Success: true })
+            {
+                <div class="result-card">
+                    <div class="result-label">Item</div>
+                    <input class="log-input" type="text" @bind="_editName" />
+
+                    <div class="result-label" style="margin-top:12px">Location</div>
+                    <input class="log-input" type="text" @bind="_editLocation" />
+
+                    <div class="result-actions">
+                        <button class="btn-secondary" @onclick="Retake">Retake</button>
+                        <button class="btn-primary"
+                                @onclick="Save"
+                                disabled="@(_isSaving || string.IsNullOrWhiteSpace(_editName) || string.IsNullOrWhiteSpace(_editLocation))">
+                            @(_isSaving ? "Saving..." : "Save")
+                        </button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="result-card result-failed">
+                    <div class="result-failed-text">Could not identify item or location</div>
+                    <div class="result-failed-sub">Try again with better lighting, or log it manually</div>
+                    <div class="result-actions">
+                        <button class="btn-secondary" @onclick="Retake">Retake</button>
+                        <button class="btn-secondary" @onclick="GoHome">Manual</button>
+                    </div>
+                </div>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+    private enum CameraState { Viewfinder, Analyzing, Result }
+
+    private CameraState _state = CameraState.Viewfinder;
+    private bool _cameraStarted;
+    private bool _isProcessing;
+    private bool _isSaving;
+    private string? _previewImage;
+    private string? _errorMessage;
+    private ParsedItemModel? _parsed;
+    private string _editName = "";
+    private string _editLocation = "";
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+    }
+
+    private async Task StartCamera()
+    {
+        _errorMessage = null;
+        _cameraStarted = true;
+        StateHasChanged();
+        await Task.Delay(100);
+
+        try
+        {
+            await JS.InvokeVoidAsync("webcam.start");
+        }
+        catch (Exception ex)
+        {
+            _cameraStarted = false;
+            _errorMessage = "Camera access denied. Allow camera permissions and try again.";
+            _logger_placeholder(ex);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task Capture()
+    {
+        if (_isProcessing) return;
+
+        _isProcessing = true;
+        _errorMessage = null;
+
+        try
+        {
+            var capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture");
+
+            var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
+            var bytes = Convert.FromBase64String(clean);
+
+            _previewImage = capture.Image;
+            _state = CameraState.Analyzing;
+            StateHasChanged();
+
+            await JS.InvokeVoidAsync("webcam.stop");
+
+            _parsed = await ClaudeService.AnalyzeItemPhotoAsync(bytes, "image/jpeg");
+
+            _editName = _parsed.ItemName;
+            _editLocation = _parsed.Location;
+            _state = CameraState.Result;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Capture failed. Try again.";
+            _logger_placeholder(ex);
+            _state = CameraState.Viewfinder;
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_editName) || string.IsNullOrWhiteSpace(_editLocation)) return;
+
+        _isSaving = true;
+        StateHasChanged();
+
+        await StoredItemService.SaveAsync(_editName.Trim(), _editLocation.Trim());
+
+        Navigation.NavigateTo("/");
+    }
+
+    private async Task Retake()
+    {
+        _state = CameraState.Viewfinder;
+        _previewImage = null;
+        _parsed = null;
+        _cameraStarted = false;
+        StateHasChanged();
+
+        await Task.Delay(100);
+        await StartCamera();
+    }
+
+    private void GoHome() => Navigation.NavigateTo("/");
+
+    private static void _logger_placeholder(Exception _) { }
+
+    private sealed class CameraCaptureResult
+    {
+        public string Image { get; set; } = "";
+    }
+}

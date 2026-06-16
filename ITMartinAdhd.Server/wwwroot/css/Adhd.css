@@ -393,6 +393,248 @@ body {
     to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ---- Camera Shortcut (Home) ---- */
+
+.camera-shortcut {
+    padding: 8px 16px 0;
+}
+
+.btn-camera-shortcut {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: linear-gradient(135deg, #2a1f6e 0%, #1e1e2a 100%);
+    border: 1.5px solid var(--adhd-accent);
+    border-radius: var(--adhd-radius);
+    color: var(--adhd-text);
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 16px 18px;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-camera-shortcut:hover {
+    background: linear-gradient(135deg, #3a2f8e 0%, #2a2a3a 100%);
+    color: var(--adhd-text);
+}
+
+.camera-shortcut-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+/* ---- Camera Page ---- */
+
+.camera-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 57px);
+    background: #000;
+    overflow: hidden;
+}
+
+.camera-viewfinder {
+    flex: 1;
+    position: relative;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.camera-start-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 32px;
+    text-align: center;
+}
+
+.camera-start-icon {
+    font-size: 3.5rem;
+    opacity: 0.6;
+}
+
+.camera-start-text {
+    color: #aaa;
+    font-size: 0.95rem;
+    max-width: 240px;
+}
+
+.btn-camera-start {
+    margin-top: 8px;
+    padding: 14px 32px;
+    font-size: 1rem;
+}
+
+.camera-controls {
+    background: #000;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.btn-capture {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid rgba(255,255,255,0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: transform 0.1s;
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.15);
+}
+
+.btn-capture:active:not(:disabled) {
+    transform: scale(0.93);
+}
+
+.btn-capture:disabled {
+    opacity: 0.5;
+}
+
+.capture-ring {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fff;
+    display: block;
+}
+
+.camera-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--adhd-danger);
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* ---- Analyzing State ---- */
+
+.camera-analyzing {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+}
+
+.camera-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.analyzing-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.analyzing-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(124, 106, 247, 0.3);
+    border-top-color: var(--adhd-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.analyzing-text {
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* ---- Result State ---- */
+
+.camera-result {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--adhd-bg);
+}
+
+.camera-preview-thumb {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.result-card {
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.result-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--adhd-muted);
+}
+
+.result-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.result-failed {
+    align-items: center;
+    text-align: center;
+    padding: 32px 24px;
+}
+
+.result-failed-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--adhd-danger);
+    margin-bottom: 6px;
+}
+
+.result-failed-sub {
+    font-size: 0.85rem;
+    color: var(--adhd-muted);
+    margin-bottom: 20px;
+}
+
+/* ---- Animations ---- */
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* ---- Mobile Tweaks ---- */
 
 @media (max-width: 540px) {
