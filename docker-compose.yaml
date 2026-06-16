@@ -93,7 +93,10 @@ services:
 
   r6assistant-web:
     container_name: r6assistant-web
-    build: ./ITMartinR6Assistant.Server
+
+    build:
+      context: .
+      dockerfile: ./ITMartinR6Assistant.Server/Dockerfile
 
     ports:
       - "8082:8080"
