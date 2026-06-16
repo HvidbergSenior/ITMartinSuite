@@ -67,6 +67,9 @@ services:
     container_name: budget-web
     build: ./ITMartinBudget.Server
 
+    env_file:
+      - magic.env
+
     ports:
       - "8081:8080"
 
