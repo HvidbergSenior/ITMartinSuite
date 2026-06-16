@@ -16,17 +16,21 @@ public class BankTransactionCsvService
 {
     private readonly BudgetDbContext _db;
     private readonly ITransactionCategorizer _categorizer;
+    private readonly IClaudeTransactionCategorizationService _claude;
 
     public BankTransactionCsvService(
         BudgetDbContext db,
-        ITransactionCategorizer categorizer)
+        ITransactionCategorizer categorizer,
+        IClaudeTransactionCategorizationService claude)
     {
         _db = db;
         _categorizer = categorizer;
+        _claude = claude;
     }
 
     public async Task<List<BankTransaction>> ImportAsync(
-        Stream stream)
+        Stream stream,
+        CancellationToken cancellationToken = default)
     {
         using var reader =
             new StreamReader(stream);
@@ -116,6 +120,9 @@ public class BankTransactionCsvService
             records.Add(record);
         }
 
+        // Claude AI categorization for uncategorized transactions
+        await CategorizeWithClaudeAsync(records, cancellationToken);
+
         // Analysis BEFORE deduplication
         var analysis =
             CategorizationAnalysisService
@@ -194,5 +201,39 @@ public class BankTransactionCsvService
             $"{date:yyyyMMdd}-{amount:F2}-{description}";
     }
 
-    
+    private async Task CategorizeWithClaudeAsync(
+        List<BankTransaction> records,
+        CancellationToken cancellationToken)
+    {
+        var uncategorized = records
+            .Where(x => x.BudgetGroup == BudgetGroup.Uncategorized)
+            .ToList();
+
+        if (!uncategorized.Any())
+            return;
+
+        Console.WriteLine($"Sending {uncategorized.Count} uncategorized transactions to Claude...");
+
+        foreach (var tx in uncategorized)
+        {
+            try
+            {
+                var result = await _claude.CategorizeAsync(
+                    tx.Description,
+                    tx.Amount,
+                    cancellationToken);
+
+                tx.Title = result.Title;
+                tx.Category = result.Category;
+                tx.BudgetGroup = result.BudgetGroup;
+                tx.RecurringIntervalMonths = result.RecurringIntervalMonths;
+
+                Console.WriteLine($"  Claude: \"{tx.Description}\" → {result.BudgetGroup} / {result.Title}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  Claude failed for \"{tx.Description}\": {ex.Message}");
+            }
+        }
+    }
 }

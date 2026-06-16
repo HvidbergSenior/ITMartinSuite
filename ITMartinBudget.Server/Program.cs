@@ -45,6 +45,15 @@ builder.Services.AddScoped<
     IForwardBudgetService,
     ForwardBudgetService>();
 // =========================
+// AI
+// =========================
+builder.Services.AddScoped<
+    IClaudeTransactionCategorizationService,
+    ClaudeTransactionCategorizationService>();
+builder.Services.AddScoped<
+    IPlannedTransactionService,
+    PlannedTransactionService>();
+// =========================
 // IMPORT / RULES
 // =========================
 builder.Services.AddScoped<
