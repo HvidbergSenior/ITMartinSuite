@@ -4,6 +4,7 @@ using Anthropic.Models.Messages;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Ai.Services;
 
@@ -16,9 +17,14 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
     ];
 
     private readonly AnthropicClient _client;
+    private readonly ILogger<AiEnrichmentService> _logger;
 
-    public AiEnrichmentService(IConfiguration configuration)
+    public AiEnrichmentService(
+        IConfiguration configuration,
+        ILogger<AiEnrichmentService> logger)
     {
+        _logger = logger;
+
         var apiKey = configuration["Claude:ApiKey"];
 
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -54,19 +60,14 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
                 foreach (var result in results)
                 {
-                    Console.WriteLine("=================================");
-                    Console.WriteLine($"ID: {result.Id}");
-                    Console.WriteLine($"Category: {result.Category}");
-                    Console.WriteLine($"SubCategory: {result.SubCategory}");
-                    Console.WriteLine($"Description: {result.Description}");
-                    Console.WriteLine($"Confidence: {result.Confidence}");
+                    _logger.LogDebug(
+                        "AI result — id:{Id} category:{Category} sub:{Sub} confidence:{Confidence}",
+                        result.Id, result.Category, result.SubCategory, result.Confidence);
 
                     var file = batchList.FirstOrDefault(x => x.Id == result.Id);
 
                     if (file == null)
                         continue;
-
-                    Console.WriteLine($"FILE: {file.FullPath}");
 
                     var category = AllowedCategories.Contains(result.Category)
                         ? result.Category
@@ -85,7 +86,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
                     file.AiProcessed = true;
                 }
 
-                Console.WriteLine($"Processed AI batch: {batchList.Count} files");
+                _logger.LogInformation("Processed AI batch: {Count} files", batchList.Count);
 
                 await (onBatchCompleted?.Invoke() ?? Task.CompletedTask);
 
@@ -97,7 +98,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"AI BATCH ERROR: {ex}");
+                _logger.LogError(ex, "AI batch error");
                 await Task.Delay(10000, cancellationToken);
             }
         }
@@ -143,7 +144,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
                     }
                 }
 
-                Console.WriteLine($"RAW AI RESPONSE: {text}");
+                _logger.LogDebug("Raw AI response: {Text}", text);
 
                 if (string.IsNullOrWhiteSpace(text))
                     return null;
@@ -154,7 +155,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
             }
             catch (JsonException ex)
             {
-                Console.WriteLine($"JSON PARSE ERROR (attempt {attempt}): {ex}");
+                _logger.LogWarning(ex, "JSON parse error (attempt {Attempt})", attempt);
 
                 if (attempt == 2)
                     throw;

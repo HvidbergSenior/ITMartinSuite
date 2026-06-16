@@ -55,7 +55,7 @@ public sealed class AdhdClaudeService : IAdhdClaudeService
         {
             var request = new MessageCreateParams
             {
-                Model = "claude-haiku-4-5-20251001",
+                Model = Model.ClaudeHaiku4_5,
                 MaxTokens = 256,
                 System = "You extract item names and locations from natural language. Always call the parse_item tool.",
                 Tools = [ParseItemTool],
@@ -107,7 +107,7 @@ public sealed class AdhdClaudeService : IAdhdClaudeService
 
             var request = new MessageCreateParams
             {
-                Model = "claude-haiku-4-5-20251001",
+                Model = Model.ClaudeHaiku4_5,
                 MaxTokens = 256,
                 System = "You look at photos and identify the item shown and where it is located. Always call the parse_item tool.",
                 Tools = [ParseItemTool],
