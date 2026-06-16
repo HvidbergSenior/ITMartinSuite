@@ -14,6 +14,7 @@ using ITMartin.Media.Application.Services.Steps.NormalizationStep;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Ai;
 using ITMartin.Media.Infrastructure;
 using ITMartin.Media.Infrastructure.BackgroundJobs;
 using ITMartin.Media.Infrastructure.DependencyInjection;
@@ -58,6 +59,7 @@ builder.Services.AddMediaSignalR();
 // =========================
 builder.Services.AddFileSorterCore();
 builder.Services.AddFileSorterServer();
+builder.Services.AddAi();
 
 builder.Services.AddSingleton<
     IOcrService,
