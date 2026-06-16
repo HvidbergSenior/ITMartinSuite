@@ -90,9 +90,10 @@
                                 {
                                     <div class="receipt-history-item">
                                         <span>@item.Description</span>
-                                        @if (item.Amount.HasValue)
+                                        @if (item.OriginalPrice.HasValue)
                                         {
-                                            <span>@tx.Currency @item.Amount.Value.ToString("F2")</span>
+                                            var net = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
+                                            <span>@tx.Currency @net.ToString("F2")</span>
                                         }
                                     </div>
                                 }

@@ -1,12 +1,26 @@
-﻿@page "/library/scan-media"
+@page "/library/scan-media"
 
 @using ITMartinLibrary.Application.Services
+@using ITMartinLibrary.Domain.Entities
 @inject InventoryService InventoryService
 
 <div class="library-page">
     <div class="page-container">
+
         <div class="scan-hero-card">
-            <h1>🎬 Scan DVD / Blu-ray</h1>
+            <div class="library-row">
+                <div>
+                    <h1>🎬 Scan DVD / Blu-ray</h1>
+                    <p class="hero-text">Scan barcodes — items are added or stock incremented automatically.</p>
+                </div>
+                @if (_sessionCount > 0)
+                {
+                    <div class="content-card stat-card" style="min-width:100px; text-align:center;">
+                        <h3>@_sessionCount</h3>
+                        <p>Scanned</p>
+                    </div>
+                }
+            </div>
         </div>
 
         <input @ref="barcodeInput"
@@ -14,13 +28,90 @@
                @bind:event="oninput"
                class="form-control scan-input"
                placeholder="Ready for media scan..." />
+
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger mt-3">@_error</div>
+        }
+
+        @if (_recentScans.Count > 0)
+        {
+            <div class="content-card mt-4">
+                <h4 class="mb-3">Recently Scanned</h4>
+                <div class="stack">
+                    @foreach (var entry in _recentScans)
+                    {
+                        <div class="recent-scan-row">
+                            <div>
+                                <div class="recent-scan-title">
+                                    @(string.IsNullOrWhiteSpace(entry.Item.Title) || entry.Item.Title == "Untitled"
+                                        ? entry.Item.Barcode
+                                        : entry.Item.Title)
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(entry.Item.AuthorOrDirector))
+                                {
+                                    <div class="text-muted" style="font-size:13px;">@entry.Item.AuthorOrDirector</div>
+                                }
+                                <div class="text-muted" style="font-size:12px;">@entry.Item.Barcode</div>
+                            </div>
+                            <div class="recent-scan-right">
+                                <div class="item-status-badge @GetStatusClass(entry.Item.LookupStatus)">
+                                    @entry.Item.LookupStatus
+                                </div>
+                                <div class="recent-scan-action">
+                                    @(entry.IsNew ? "Added" : $"Qty: {entry.Item.Quantity}")
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
     </div>
 </div>
 
+<style>
+    .recent-scan-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .recent-scan-row:last-child {
+        border-bottom: none;
+    }
+
+    .recent-scan-title {
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+    .recent-scan-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .recent-scan-action {
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+</style>
+
 @code {
     private string barcode = "";
+    private string? _error;
     private bool isProcessing;
+    private int _sessionCount;
     private ElementReference barcodeInput;
+
+    private readonly record struct ScanEntry(InventoryItem Item, bool IsNew);
+    private List<ScanEntry> _recentScans = new();
 
     private string Barcode
     {
@@ -29,8 +120,7 @@
         {
             barcode = value;
 
-            if (!isProcessing &&
-                barcode.Length is 12 or 13)
+            if (!isProcessing && barcode.Length is 12 or 13)
             {
                 _ = ProcessScan();
             }
@@ -48,21 +138,41 @@
             return;
 
         isProcessing = true;
+        _error = null;
 
         try
         {
             var scannedCode = barcode;
+            var (item, isNew) = await InventoryService.ScanOrIncrementAsync(scannedCode);
 
-            await InventoryService.ScanOrIncrementAsync(scannedCode);
+            _sessionCount++;
+            _recentScans.Insert(0, new ScanEntry(item, isNew));
+
+            if (_recentScans.Count > 10)
+                _recentScans.RemoveAt(_recentScans.Count - 1);
 
             barcode = "";
 
             await InvokeAsync(StateHasChanged);
             await barcodeInput.FocusAsync();
         }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            await InvokeAsync(StateHasChanged);
+        }
         finally
         {
             isProcessing = false;
         }
     }
+
+    private string GetStatusClass(string? status) => status switch
+    {
+        "Completed" => "status-completed",
+        "Processing" => "status-processing",
+        "Pending" => "status-pending",
+        "Pending Manual Review" => "status-review",
+        _ => "status-pending"
+    };
 }

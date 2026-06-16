@@ -33,14 +33,16 @@ public class InventoryService
             _queue.Enqueue(item.Barcode);
     }
 
-    public async Task ScanOrIncrementAsync(string barcode)
+    public async Task<(InventoryItem Item, bool IsNew)> ScanOrIncrementAsync(string barcode)
     {
         var now = DateTime.UtcNow;
 
         var item = await _repository.GetByBarcodeAsync(barcode);
+        bool isNew;
 
         if (item is null)
         {
+            isNew = true;
             var type = (barcode.StartsWith("978") || barcode.StartsWith("979"))
                 ? "Book"
                 : "DVD";
@@ -61,6 +63,7 @@ public class InventoryService
         }
         else
         {
+            isNew = false;
             item.Quantity += 1;
             item.LastScannedAt = now;
             item.DetailsUpdatedAt = now;
@@ -69,6 +72,8 @@ public class InventoryService
         }
 
         _queue.Enqueue(barcode);
+
+        return (item, isNew);
     }
     public async Task UpdateAsync(InventoryItem item)
     {

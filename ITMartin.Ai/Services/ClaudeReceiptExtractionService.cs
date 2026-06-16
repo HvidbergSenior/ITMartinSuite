@@ -13,7 +13,8 @@ public sealed class ClaudeReceiptExtractionService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters = { new FlexibleDecimalConverter() }
     };
 
     private static readonly Tool ReportReceiptTool = new()
@@ -37,13 +38,14 @@ public sealed class ClaudeReceiptExtractionService
                 ["items"] = JsonDocument.Parse("""
                     {
                         "type": "array",
-                        "description": "Individual line items on the receipt",
+                        "description": "Every line item on the receipt including discount lines",
                         "items": {
                             "type": "object",
                             "properties": {
                                 "description": { "type": "string" },
                                 "amount":      { "type": "number" }
-                            }
+                            },
+                            "required": ["description"]
                         }
                     }
                     """).RootElement
@@ -78,8 +80,9 @@ public sealed class ClaudeReceiptExtractionService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 1024,
             System = """
-                You are a receipt extraction system.
-                Extract structured data from the receipt text provided.
+                You are a receipt extraction system for Danish grocery receipts.
+                Extract every line on the receipt exactly as it appears — including discount lines like 'Rabat' and 'Lidl Plus-kupon'.
+                Report each line as its own item with description and amount.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],
@@ -121,5 +124,36 @@ public sealed class ClaudeReceiptExtractionService
         var result = JsonSerializer.Deserialize<ReceiptExtractionResult>(json, JsonOptions);
 
         return result ?? throw new InvalidOperationException("Failed to deserialize receipt result.");
+    }
+}
+
+// Handles both "14.95" (JSON number or dot string) and "14,95" (Danish comma string)
+file sealed class FlexibleDecimalConverter : System.Text.Json.Serialization.JsonConverter<decimal?>
+{
+    public override decimal? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+            return null;
+
+        if (reader.TokenType == JsonTokenType.Number)
+            return reader.GetDecimal();
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var s = reader.GetString()?.Replace(',', '.');
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            if (decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var v))
+                return v;
+            return null;
+        }
+
+        return null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, decimal? value, JsonSerializerOptions options)
+    {
+        if (value is null) writer.WriteNullValue();
+        else writer.WriteNumberValue(value.Value);
     }
 }

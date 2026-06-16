@@ -122,32 +122,36 @@
 
                 @if (tx.Items.Any())
                 {
+                    var ordered = tx.Items
+                        .OrderBy(i => i.DiscountType == "Plus-kupon" ? 0 : i.DiscountType == "Rabat" ? 1 : 2)
+                        .ToList();
+
                     <div class="receipt-items">
-
-                        <h4 class="mb-3">Items</h4>
-
-                        @foreach (var item in tx.Items)
+                        @foreach (var item in ordered)
                         {
+                            var hasDiscount = !string.IsNullOrWhiteSpace(item.DiscountType);
+                            var typeLabel   = item.DiscountType == "Plus-kupon" ? "Lidl Plus"
+                                           : item.DiscountType == "Rabat"       ? "Almindelig Rabat"
+                                           :                                       "Ingen Rabat";
+                            var netPrice    = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
+
                             <div class="receipt-item-row">
-
-                                <div class="item-description">
-                                    @item.Description
-                                    @if (!string.IsNullOrWhiteSpace(item.Category))
+                                <div class="item-description">@item.Description</div>
+                                <div class="item-type @(hasDiscount ? "item-type-discount" : "item-type-regular")">@typeLabel</div>
+                                <div class="item-prices">
+                                    @if (hasDiscount && item.OriginalPrice.HasValue)
                                     {
-                                        <span class="item-category">@item.Category</span>
+                                        <span class="item-original-price">@($"{tx.Currency} {item.OriginalPrice.Value:F2}")</span>
+                                        <span class="item-discount">@($"{item.DiscountAmount:F2}")</span>
+                                        <span class="item-net-price">@($"{tx.Currency} {netPrice:F2}")</span>
+                                    }
+                                    else if (item.OriginalPrice.HasValue)
+                                    {
+                                        <span class="item-net-price">@($"{tx.Currency} {item.OriginalPrice.Value:F2}")</span>
                                     }
                                 </div>
-
-                                <div class="item-amount">
-                                    @if (item.Amount.HasValue)
-                                    {
-                                        @($"{tx.Currency} {item.Amount.Value:F2}")
-                                    }
-                                </div>
-
                             </div>
                         }
-
                     </div>
                 }
 

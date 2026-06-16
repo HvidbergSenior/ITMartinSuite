@@ -4,7 +4,9 @@ public sealed class ReceiptTransactionItem
 {
     public string Description { get; set; } = string.Empty;
 
-    public decimal? Amount { get; set; }
+    public decimal? OriginalPrice { get; set; }
 
-    public string? Category { get; set; }
+    public decimal? DiscountAmount { get; set; }
+
+    public string? DiscountType { get; set; }
 }

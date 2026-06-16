@@ -4,7 +4,7 @@ public sealed class ReceiptExtractionResult
 {
     public string? MerchantName { get; set; }
 
-    public DateTime? PurchaseDate { get; set; }
+    public string? PurchaseDate { get; set; }
 
     public decimal? TotalAmount { get; set; }
 

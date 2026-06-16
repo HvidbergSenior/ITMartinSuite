@@ -1,0 +1,427 @@
+@page "/library/inventory"
+
+@using ITMartinLibrary.Application.Services
+@using ITMartinLibrary.Domain.Entities
+@inject InventoryService InventoryService
+
+<PageTitle>Inventory</PageTitle>
+
+<div class="library-page">
+    <div class="page-container">
+
+        <!-- HEADER -->
+        <div class="inv-header">
+            <div>
+                <h1 class="inv-title">Inventory</h1>
+                <div class="inv-subtitle">@_filtered.Count of @_all.Count items</div>
+            </div>
+            <a href="/library" class="btn btn-secondary">← Dashboard</a>
+        </div>
+
+        <!-- SEARCH + FILTERS -->
+        <div class="content-card inv-toolbar">
+
+            <input class="inv-search"
+                   type="search"
+                   placeholder="Search title, author, barcode…"
+                   @bind="_search"
+                   @bind:event="oninput" />
+
+            <div class="inv-filter-row">
+
+                <div class="inv-chips">
+                    @foreach (var t in _typeOptions)
+                    {
+                        <button class="inv-chip @(_typeFilter == t ? "inv-chip-active" : "")"
+                                @onclick="() => _typeFilter = t">
+                            @t
+                        </button>
+                    }
+                </div>
+
+                <select class="inv-sort" @bind="_sortBy">
+                    <option value="date">Newest first</option>
+                    <option value="title">Title A–Z</option>
+                    <option value="quantity">Quantity ↓</option>
+                </select>
+
+            </div>
+
+        </div>
+
+        <!-- LIST -->
+        @if (_all.Count == 0)
+        {
+            <div class="content-card" style="text-align:center; padding:48px 20px;">
+                <div style="font-size:48px; margin-bottom:12px;">📦</div>
+                <div class="text-muted">No items yet. Scan something first.</div>
+            </div>
+        }
+        else if (_filtered.Count == 0)
+        {
+            <div class="content-card" style="text-align:center; padding:48px 20px;">
+                <div style="font-size:48px; margin-bottom:12px;">🔍</div>
+                <div class="text-muted">No items match your search.</div>
+            </div>
+        }
+        else
+        {
+            <div class="inv-list">
+                @foreach (var item in _filtered)
+                {
+                    <div class="inv-row">
+
+                        <!-- COVER / ICON -->
+                        <div class="inv-cover">
+                            @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
+                            {
+                                <img src="@item.CoverUrl" alt="cover" class="inv-cover-img" />
+                            }
+                            else
+                            {
+                                <div class="inv-cover-placeholder">
+                                    @TypeIcon(item.Type)
+                                </div>
+                            }
+                        </div>
+
+                        <!-- MAIN INFO -->
+                        <div class="inv-info">
+                            <div class="inv-item-title">
+                                @(string.IsNullOrWhiteSpace(item.Title) || item.Title == "Untitled"
+                                    ? item.Barcode
+                                    : item.Title)
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(item.AuthorOrDirector))
+                            {
+                                <div class="inv-item-sub">@item.AuthorOrDirector</div>
+                            }
+
+                            <div class="inv-item-meta">
+                                @if (!string.IsNullOrWhiteSpace(item.Barcode))
+                                {
+                                    <span>@item.Barcode</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.ReleaseYear))
+                                {
+                                    <span>@item.ReleaseYear</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.ShelfLocation))
+                                {
+                                    <span>📍 @item.ShelfLocation</span>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- BADGES + ACTION -->
+                        <div class="inv-right">
+                            <div class="inv-badges">
+                                <span class="inv-type-badge">@item.Type</span>
+                                <span class="item-status-badge @StatusClass(item.LookupStatus)">
+                                    @item.LookupStatus
+                                </span>
+                            </div>
+                            <div class="inv-qty">×@item.Quantity</div>
+                            <a href="/library/edit/@item.Id" class="btn btn-secondary inv-edit-btn">Edit</a>
+                        </div>
+
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+</div>
+
+<style>
+    .library-page {
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #111 0%, #0b0b0b 60%);
+        padding: 20px 16px 60px;
+        color: var(--text-main);
+    }
+
+    .inv-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .inv-title {
+        font-size: 28px;
+        font-weight: 900;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .inv-subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .inv-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 14px 16px;
+    }
+
+    .inv-search {
+        width: 100%;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: white;
+        font-size: 15px;
+        outline: none;
+    }
+
+    .inv-search:focus {
+        border-color: var(--accent);
+    }
+
+    .inv-search::placeholder {
+        color: var(--text-muted);
+    }
+
+    .inv-filter-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .inv-chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .inv-chip {
+        padding: 5px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.15);
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .inv-chip:hover {
+        border-color: rgba(255,255,255,0.35);
+        color: white;
+    }
+
+    .inv-chip-active {
+        background: var(--accent) !important;
+        border-color: var(--accent) !important;
+        color: white !important;
+    }
+
+    .inv-sort {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 8px;
+        padding: 6px 10px;
+        color: white;
+        font-size: 13px;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .inv-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .inv-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: linear-gradient(160deg, #1e222b, #121317);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 14px;
+        padding: 12px 14px;
+        transition: background 0.15s ease;
+    }
+
+    .inv-row:hover {
+        background: linear-gradient(160deg, #252a35, #161a22);
+    }
+
+    .inv-cover {
+        flex-shrink: 0;
+        width: 44px;
+        height: 60px;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .inv-cover-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .inv-cover-placeholder {
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.06);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .inv-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .inv-item-title {
+        font-weight: 600;
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .inv-item-sub {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .inv-item-meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 5px;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    .inv-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .inv-badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .inv-type-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        color: var(--text-muted);
+    }
+
+    .inv-qty {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-muted);
+    }
+
+    .inv-edit-btn {
+        font-size: 12px !important;
+        height: 30px !important;
+        padding: 0 12px !important;
+    }
+
+    /* Status badges (shared pattern) */
+    .item-status-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+    }
+
+    .status-completed { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .status-processing { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .status-pending { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+    .status-review { background: rgba(250,204,21,0.15); color: #facc15; }
+</style>
+
+@code {
+    private List<InventoryItem> _all = new();
+    private string _search = "";
+    private string _typeFilter = "All";
+    private string _sortBy = "date";
+
+    private static readonly string[] _typeOptions = ["All", "Book", "DVD", "Other"];
+
+    private List<InventoryItem> _filtered => ApplyFilters();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _all = await InventoryService.GetAllAsync();
+    }
+
+    private List<InventoryItem> ApplyFilters()
+    {
+        var q = _all.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            var term = _search.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                x.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                x.AuthorOrDirector.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                x.Barcode.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (_typeFilter != "All")
+        {
+            if (_typeFilter == "Other")
+                q = q.Where(x => x.Type != "Book" && x.Type != "DVD");
+            else
+                q = q.Where(x => x.Type == _typeFilter);
+        }
+
+        q = _sortBy switch
+        {
+            "title"    => q.OrderBy(x => x.Title),
+            "quantity" => q.OrderByDescending(x => x.Quantity),
+            _          => q.OrderByDescending(x => x.FirstScannedAt)
+        };
+
+        return q.ToList();
+    }
+
+    private static string TypeIcon(string? type) => type switch
+    {
+        "Book" => "📚",
+        "DVD"  => "🎬",
+        _      => "📦"
+    };
+
+    private static string StatusClass(string? status) => status switch
+    {
+        "Completed"            => "status-completed",
+        "Processing"           => "status-processing",
+        "Pending Manual Review" => "status-review",
+        _                      => "status-pending"
+    };
+}
