@@ -41,6 +41,9 @@ services:
       context: .
       dockerfile: ./ITMartinFileSorter.Server/Dockerfile
 
+    env_file:
+      - magic.env
+
     ports:
       - "8080:8080"
 
