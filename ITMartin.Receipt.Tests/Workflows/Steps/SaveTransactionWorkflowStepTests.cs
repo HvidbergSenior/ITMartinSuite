@@ -35,7 +35,7 @@ public class SaveTransactionWorkflowStepTests
         string currency = "DKK",
         decimal total = 99.95m,
         decimal vat = 24.99m,
-        DateTime? date = null,
+        string? date = null,
         List<ReceiptLineItem>? items = null) =>
         new()
         {
@@ -46,7 +46,7 @@ public class SaveTransactionWorkflowStepTests
                 Currency = currency,
                 TotalAmount = total,
                 VatAmount = vat,
-                PurchaseDate = date ?? new DateTime(2024, 3, 15),
+                PurchaseDate = date ?? "2024-03-15",
                 Items = items ?? []
             }
         };
@@ -125,14 +125,14 @@ public class SaveTransactionWorkflowStepTests
     [Test]
     public async Task Maps_total_vat_and_date_to_application_transaction()
     {
-        var date = new DateTime(2024, 6, 1);
+        var date = "2024-06-01";
         var state = ContextWithExtraction(total: 250m, vat: 50m, date: date);
 
         await _step.ExecuteAsync(Context(state));
 
         state.Transaction!.TotalAmount.Should().Be(250m);
         state.Transaction!.VatAmount.Should().Be(50m);
-        state.Transaction!.PurchaseDate.Should().Be(date);
+        state.Transaction!.PurchaseDate.Should().Be(DateTime.Parse(date));
     }
 
     [Test]
@@ -148,7 +148,7 @@ public class SaveTransactionWorkflowStepTests
 
         state.Transaction!.Items.Should().HaveCount(2);
         state.Transaction!.Items[0].Description.Should().Be("Mælk 1L");
-        state.Transaction!.Items[0].Amount.Should().Be(12.95m);
+        state.Transaction!.Items[0].OriginalPrice.Should().Be(12.95m);
         state.Transaction!.Items[1].Description.Should().Be("Brød");
     }
 
@@ -225,7 +225,7 @@ public class SaveTransactionWorkflowStepTests
 
         captured!.Items.Should().HaveCount(1);
         captured!.Items[0].Description.Should().Be("Smør");
-        captured!.Items[0].Amount.Should().Be(19.95m);
+        captured!.Items[0].OriginalPrice.Should().Be(19.95m);
     }
 
     [Test]
