@@ -1,327 +1,282 @@
-﻿@page "/package2"
+@page "/package2"
 
 @using ITMartin.Media.Application.Pipelines.Package2.Services
 @using ITMartin.Media.Contracts.Contracts.Runtime.Enums
 @using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
 @using ITMartin.Media.Contracts.Contracts.Runtime.Models
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
+@using ITMartin.Media.Contracts.Contracts.Runtime.Services
+
+@implements IDisposable
 
 @inject IPackage2Client Package2Client
-@inject ILogger<Package2> Logger
+@inject ProgressService Progress
 @inject Package2ProfileBuilder ProfileBuilder
-<PageTitle>Package 2</PageTitle>
+@inject IConfiguration Configuration
+@inject ILogger<Package2> Logger
 
-<h3>✨ Package 2</h3>
+<PageLayout Title="✨ Package 2 — Enhancement">
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
+    <div class="filesorter-app">
 
-        <div class="mb-3">
-            <label class="form-label">
-                Library Folder
-            </label>
+        <ContentCard CssClass="scan-hero-card">
 
-            <input class="form-control"
-                   @bind="FolderPath" />
-        </div>
+            <h2 class="mb-3">Video & Audio Enhancement</h2>
 
-        <div class="row">
+            <p class="hero-text">
+                Restore and enhance your media using ffmpeg processing pipelines.
+            </p>
 
-            <div class="col-md-6 mb-4">
+            <div class="p2-profile-grid mt-3">
 
-                <label class="form-label">
-                    Restoration Profile
-                </label>
+                <div>
+                    <div class="p2-label">Restoration Profile</div>
+                    <select class="p2-select"
+                            @bind="SelectedRestorationProfile"
+                            @bind:after="RefreshConfiguration"
+                            disabled="@IsRunning">
+                        <option value="@RestorationProfile.FamilyArchive">Family Archive</option>
+                        <option value="@RestorationProfile.Hi8">Hi8</option>
+                        <option value="@RestorationProfile.VHS">VHS</option>
+                        <option value="@RestorationProfile.VHSAggressive">VHS Aggressive</option>
+                        <option value="@RestorationProfile.HandheldCamera">Handheld Camera</option>
+                        <option value="@RestorationProfile.CleanDigitalCapture">Clean Digital Capture</option>
+                    </select>
+                </div>
 
-                <select class="form-select"
-                        @bind="SelectedRestorationProfile">
-
-                    <option value="@RestorationProfile.FamilyArchive">
-                        Family Archive
-                    </option>
-
-                    <option value="@RestorationProfile.Hi8">
-                        Hi8
-                    </option>
-
-                    <option value="@RestorationProfile.VHS">
-                        VHS
-                    </option>
-
-                    <option value="@RestorationProfile.VHSAggressive">
-                        VHS Aggressive
-                    </option>
-
-                    <option value="@RestorationProfile.HandheldCamera">
-                        Handheld Camera
-                    </option>
-
-                    <option value="@RestorationProfile.CleanDigitalCapture">
-                        Clean Digital Capture
-                    </option>
-
-                </select>
+                <div>
+                    <div class="p2-label">Enhancement Profile</div>
+                    <select class="p2-select"
+                            @bind="SelectedEnhancementProfile"
+                            @bind:after="RefreshConfiguration"
+                            disabled="@IsRunning">
+                        <option value="@EnhancementProfile.FastPreview">Fast Preview</option>
+                        <option value="@EnhancementProfile.Standard">Standard</option>
+                        <option value="@EnhancementProfile.HighQuality">High Quality</option>
+                        <option value="@EnhancementProfile.Archival">Archival</option>
+                        <option value="@EnhancementProfile.WebOptimized">Web Optimized</option>
+                        <option value="@EnhancementProfile.AggressiveAi">Aggressive AI</option>
+                    </select>
+                </div>
 
             </div>
 
-            <div class="col-md-6 mb-4">
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="text-danger mt-3">@ErrorMessage</div>
+            }
 
-                <label class="form-label">
-                    Enhancement Profile
-                </label>
+            @if (!IsRunning && !IsComplete)
+            {
+                <div class="mt-3">
+                    <button class="btn btn-primary btn-lg"
+                            @onclick="StartPackage2">
+                        ✨ Start Enhancement
+                    </button>
+                </div>
+            }
 
-                <select class="form-select"
-                        @bind="SelectedEnhancementProfile">
+        </ContentCard>
 
-                    <option value="@EnhancementProfile.FastPreview">
-                        Fast Preview
-                    </option>
+        @if (IsRunning || Progress.Info.WorkDone > 0)
+        {
+            <ProgressPanel
+                Title="@Progress.Info.Stage"
+                Current="@Progress.Info.WorkDone"
+                Total="@Progress.Info.TotalWork"
+                Percent="@ProgressPercent"
+                CurrentItem=""
+                LoadingText="Enhancing media..."
+                Icon="✨" />
+        }
 
-                    <option value="@EnhancementProfile.Standard">
-                        Standard
-                    </option>
+        @if (IsComplete)
+        {
+            <ContentCard>
+                <div class="text-success">
+                    ✔ Enhancement complete
+                </div>
+            </ContentCard>
+        }
 
-                    <option value="@EnhancementProfile.HighQuality">
-                        High Quality
-                    </option>
+        <ContentCard Title="Active Configuration">
 
-                    <option value="@EnhancementProfile.Archival">
-                        Archival
-                    </option>
+            <div class="p2-config-grid">
 
-                    <option value="@EnhancementProfile.WebOptimized">
-                        Web Optimized
-                    </option>
+                <div class="p2-config-group">
+                    <div class="p2-config-title">Video</div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Deinterlace</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableDeinterlace)">
+                            @BoolLabel(ActiveConfig.Video.EnableDeinterlace)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Crop</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableCrop)">
+                            @BoolLabel(ActiveConfig.Video.EnableCrop)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Denoise</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableDenoise)">
+                            @BoolLabel(ActiveConfig.Video.EnableDenoise)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Sharpen</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableSharpen)">
+                            @BoolLabel(ActiveConfig.Video.EnableSharpen)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Stabilization</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableStabilization)">
+                            @BoolLabel(ActiveConfig.Video.EnableStabilization)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Color Correction</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableColorCorrection)">
+                            @BoolLabel(ActiveConfig.Video.EnableColorCorrection)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Upscaling</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableUpscaling)">
+                            @BoolLabel(ActiveConfig.Video.EnableUpscaling)
+                        </span>
+                    </div>
+                </div>
 
-                    <option value="@EnhancementProfile.AggressiveAi">
-                        Aggressive AI
-                    </option>
-
-                </select>
+                <div class="p2-config-group">
+                    <div class="p2-config-title">Audio</div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Normalize</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableNormalize)">
+                            @BoolLabel(ActiveConfig.Audio.EnableNormalize)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Noise Reduction</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableNoiseReduction)">
+                            @BoolLabel(ActiveConfig.Audio.EnableNoiseReduction)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">AI Enhancement</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableAiEnhancement)">
+                            @BoolLabel(ActiveConfig.Audio.EnableAiEnhancement)
+                        </span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Speech Enhancement</span>
+                        <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableSpeechEnhancement)">
+                            @BoolLabel(ActiveConfig.Audio.EnableSpeechEnhancement)
+                        </span>
+                    </div>
+                </div>
 
             </div>
 
-        </div>
-
-        <button class="btn btn-primary"
-                @onclick="StartPackage2">
-            Start Package2
-        </button>
+        </ContentCard>
 
     </div>
-</div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-
-        <h5>
-            Active Configuration
-        </h5>
-
-        <div class="row mt-4">
-
-            <div class="col-md-6">
-
-                <h6>
-                    Video
-                </h6>
-
-                <ul class="list-group">
-
-                    <li class="list-group-item">
-                        Deinterlace:
-                        <strong>
-                            @Configuration.Video.EnableDeinterlace
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Crop:
-                        <strong>
-                            @Configuration.Video.EnableCrop
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Denoise:
-                        <strong>
-                            @Configuration.Video.EnableDenoise
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Sharpen:
-                        <strong>
-                            @Configuration.Video.EnableSharpen
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Stabilization:
-                        <strong>
-                            @Configuration.Video.EnableStabilization
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Color Correction:
-                        <strong>
-                            @Configuration.Video.EnableColorCorrection
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Upscaling:
-                        <strong>
-                            @Configuration.Video.EnableUpscaling
-                        </strong>
-                    </li>
-
-                </ul>
-
-            </div>
-
-            <div class="col-md-6">
-
-                <h6>
-                    Audio
-                </h6>
-
-                <ul class="list-group">
-
-                    <li class="list-group-item">
-                        Normalize:
-                        <strong>
-                            @Configuration.Audio.EnableNormalize
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Noise Reduction:
-                        <strong>
-                            @Configuration.Audio.EnableNoiseReduction
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        AI Enhancement:
-                        <strong>
-                            @Configuration.Audio.EnableAiEnhancement
-                        </strong>
-                    </li>
-
-                    <li class="list-group-item">
-                        Speech Enhancement:
-                        <strong>
-                            @Configuration.Audio.EnableSpeechEnhancement
-                        </strong>
-                    </li>
-
-                </ul>
-
-            </div>
-
-        </div>
-
-    </div>
-</div>
-
-@if (!string.IsNullOrWhiteSpace(Status))
-{
-    <div class="alert alert-info">
-        @Status
-    </div>
-}
+</PageLayout>
 
 @code {
 
-    private string FolderPath = "";
+    private RestorationProfile SelectedRestorationProfile = RestorationProfile.FamilyArchive;
 
-    private string Status = "";
+    private EnhancementProfile SelectedEnhancementProfile = EnhancementProfile.Standard;
 
-    private RestorationProfile
-        SelectedRestorationProfile =
-            RestorationProfile.FamilyArchive;
+    private Package2Configuration ActiveConfig = new();
 
-    private EnhancementProfile
-        SelectedEnhancementProfile =
-            EnhancementProfile.Standard;
+    private bool IsRunning;
 
-    private Package2Configuration
-        Configuration =
-            new();
+    private bool IsComplete;
+
+    private string ErrorMessage = "";
+
+    private int ProgressPercent =>
+        Progress.Info.TotalWork == 0
+            ? 1
+            : (int)((double)Progress.Info.WorkDone / Progress.Info.TotalWork * 100);
 
     protected override void OnInitialized()
     {
-        var libraryRoot =
-            ConfigurationManager[
-                "MediaSettings:LibraryRoot"];
-
-        if (!string.IsNullOrWhiteSpace(
-                libraryRoot))
-        {
-            FolderPath =
-                libraryRoot;
-        }
-
+        Progress.OnChange += HandleProgressChanged;
         RefreshConfiguration();
     }
 
-    [Inject]
-    private IConfiguration
-        ConfigurationManager
+    public void Dispose()
     {
-        get;
-        set;
-    } = default!;
+        Progress.OnChange -= HandleProgressChanged;
+    }
+
+    private void HandleProgressChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
 
     private void RefreshConfiguration()
     {
-        Configuration =
-            ProfileBuilder.Build(
-                SelectedRestorationProfile,
-                SelectedEnhancementProfile);
+        ActiveConfig = ProfileBuilder.Build(
+            SelectedRestorationProfile,
+            SelectedEnhancementProfile);
     }
 
     private async Task StartPackage2()
     {
+        if (IsRunning) return;
+
+        ErrorMessage = "";
+        IsComplete = false;
+
+        var libraryRoot = Configuration["MediaSettings:LibraryRoot"];
+
+        if (string.IsNullOrWhiteSpace(libraryRoot))
+        {
+            ErrorMessage = "MediaSettings:LibraryRoot is not configured.";
+            return;
+        }
+
         try
         {
-            RefreshConfiguration();
-
-            Status =
-                "Starting Package2...";
+            IsRunning = true;
+            await InvokeAsync(StateHasChanged);
 
             await Package2Client.StartAsync(
                 new StartPackage2Request
                 {
-                    SourceLibraryPath =
-                        FolderPath,
-
-                    WorkingDirectory =
-                        Path.Combine(
-                            FolderPath,
-                            ".package2"),
-
-                    RestorationProfile =
-                        SelectedRestorationProfile,
-
-                    EnhancementProfile =
-                        SelectedEnhancementProfile
+                    SourceLibraryPath = libraryRoot,
+                    WorkingDirectory = Path.Combine(libraryRoot, ".package2"),
+                    RestorationProfile = SelectedRestorationProfile,
+                    EnhancementProfile = SelectedEnhancementProfile
                 },
                 CancellationToken.None);
 
-            Status =
-                $"Package2 started using {SelectedRestorationProfile} + {SelectedEnhancementProfile}";
+            Logger.LogInformation(
+                "Package2 enqueued: {Restoration} + {Enhancement}",
+                SelectedRestorationProfile,
+                SelectedEnhancementProfile);
+
+            IsComplete = true;
         }
         catch (Exception ex)
         {
-            Logger.LogError(
-                ex,
-                "Failed to start Package2");
-
-            Status =
-                ex.Message;
+            Logger.LogError(ex, "Package2 failed");
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsRunning = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
+
+    private static string BoolLabel(bool value) => value ? "On" : "Off";
+
+    private static string OnOff(bool value) => value ? "on" : "off";
 }

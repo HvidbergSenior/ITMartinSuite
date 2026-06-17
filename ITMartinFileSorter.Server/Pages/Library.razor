@@ -1,4 +1,4 @@
-﻿@page "/library"
+@page "/library"
 
 @using ITMartin.Media.Contracts.Contracts.Constants
 @using ITMartin.Media.Contracts.Contracts.Runtime.Enums
@@ -14,35 +14,31 @@
 
     <div class="page-container stack library-page">
 
-        <SectionTitle Title="🎬 My Media Library" />
+        <div class="library-header">
 
-        <!-- ACTIONS -->
-        <div class="library-actions">
+            <SectionTitle Title="🎬 Media Library" />
 
-            <button class="btn btn-secondary"
-                    @onclick="GoBack"
-                    disabled="@(!CanGoBack)">
-                ← Back
-            </button>
+            <div class="library-actions">
 
-            <button class="btn btn-secondary"
-                    @onclick="GoToRoot">
-                📁 Library
-            </button>
+                <button class="btn btn-secondary"
+                        @onclick="GoBack"
+                        disabled="@(!CanGoBack)">
+                    ← Back
+                </button>
+
+                <button class="btn btn-secondary"
+                        @onclick="GoToRoot">
+                    📁 Library Root
+                </button>
+
+            </div>
 
         </div>
 
-        <!-- FOLDERS -->
-        <ContentCard Title="📁 Folders">
+        @if (Folders.Any())
+        {
+            <ContentCard Title="📁 Folders">
 
-            @if (!Folders.Any())
-            {
-                <div class="library-empty">
-                    No folders found
-                </div>
-            }
-            else
-            {
                 <div class="library-grid">
 
                     @foreach (var folder in Folders)
@@ -50,33 +46,44 @@
                         <div class="folder-card"
                              @onclick="() => OpenFolder(folder.FullPath)">
 
-                            <div class="folder-title">
-                                📁 @folder.Name
-                            </div>
+                            @if (!string.IsNullOrWhiteSpace(folder.CoverImageUrl))
+                            {
+                                <img class="folder-cover"
+                                     src="@folder.CoverImageUrl"
+                                     alt="@folder.Name" />
+                            }
+                            else
+                            {
+                                <div class="folder-cover-placeholder">
+                                    📁
+                                </div>
+                            }
 
-                            <div class="folder-count">
-                                @folder.FileCount files
+                            <div class="folder-info">
+
+                                <div class="folder-title">
+                                    @folder.Name
+                                </div>
+
+                                <div class="folder-meta">
+                                    @folder.FileCount files
+                                    · @FormatSize(folder.TotalBytes)
+                                </div>
+
                             </div>
 
                         </div>
                     }
 
                 </div>
-            }
 
-        </ContentCard>
+            </ContentCard>
+        }
 
-        <!-- MEDIA -->
-        <ContentCard Title="🎬 Media">
+        @if (Files.Any())
+        {
+            <ContentCard Title="🎬 Media">
 
-            @if (!Files.Any())
-            {
-                <div class="library-empty">
-                    No media files
-                </div>
-            }
-            else
-            {
                 <div class="media-grid">
 
                     @foreach (var file in Files)
@@ -86,27 +93,64 @@
 
                             @if (file.Type == MediaType.Image)
                             {
+                                var thumb = GetThumbnailUrl(file);
                                 <img class="media-thumb"
-                                     src="@GetPreviewPath(file)"
-                                     alt="@file.FileName" />
+                                     src="@thumb"
+                                     alt="@file.FileName"
+                                     loading="lazy" />
+                            }
+                            else if (file.Type == MediaType.Video)
+                            {
+                                <div class="media-video-thumb">
+                                    <span class="play-icon">▶</span>
+                                </div>
+                            }
+                            else if (file.Type == MediaType.Audio)
+                            {
+                                <div class="media-audio-thumb">
+                                    🎵
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="media-doc-thumb">
+                                    📄
+                                </div>
                             }
 
-                            <div class="media-name">
-                                @GetIcon(file)
-                                @file.FileName
-                            </div>
+                            <div class="media-info">
 
-                            <div class="media-meta">
-                                @FormatSize(file.SizeBytes)
+                                <div class="media-name">
+                                    @file.FileName
+                                </div>
+
+                                <div class="media-meta">
+                                    @FormatSize(file.SizeBytes)
+                                    @if (file.CreatedAt != default)
+                                    {
+                                        <span class="media-date">
+                                            · @file.CreatedAt!.Value.ToString("yyyy-MM-dd")
+                                        </span>
+                                    }
+                                </div>
+
                             </div>
 
                         </div>
                     }
 
                 </div>
-            }
 
-        </ContentCard>
+            </ContentCard>
+        }
+
+        @if (!Folders.Any() && !Files.Any())
+        {
+            <EmptyState
+                Icon="📭"
+                Title="Empty folder"
+                Subtitle="No media files here yet" />
+        }
 
     </div>
 
@@ -162,22 +206,10 @@
         LoadFolder(RootPath);
     }
 
-    private void OpenFolder(string path)
+    private void OpenFolder(string folderPath)
     {
-        if (string.Equals(
-                CurrentPath,
-                path,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        Logger.LogInformation(
-            "Opening folder {Folder}",
-            path);
-
         Navigation.NavigateTo(
-            $"/library?path={Uri.EscapeDataString(path)}");
+            $"/library?path={Uri.EscapeDataString(folderPath)}");
     }
 
     private void OpenFile(MediaFile file)
@@ -185,40 +217,32 @@
         var index = Files.FindIndex(f =>
             f.FullPath == file.FullPath);
 
-        Logger.LogInformation(
-            "Opening file viewer for {File}",
-            file.FileName);
-
         Navigation.NavigateTo(
             $"/viewer?path={Uri.EscapeDataString(file.FullPath)}&index={index}",
             true);
     }
 
-    private void LoadFolder(string path)
+    private void LoadFolder(string folderPath)
     {
-        if (!Directory.Exists(path))
+        if (!Directory.Exists(folderPath))
         {
             Logger.LogWarning(
                 "Library folder does not exist: {Path}",
-                path);
+                folderPath);
 
             return;
         }
 
-        CurrentPath = path;
-
-        Logger.LogInformation(
-            "Loading library folder {Path}",
-            path);
+        CurrentPath = folderPath;
 
         Folders = Directory
-            .EnumerateDirectories(path)
+            .EnumerateDirectories(folderPath)
             .Select(CreateFolderItem)
             .OrderBy(x => x.Name)
             .ToList();
 
         Files = Directory
-            .EnumerateFiles(path)
+            .EnumerateFiles(folderPath)
             .Where(MediaDisplayHelper.IsDisplayable)
             .Select(CreateMediaFile)
             .OrderByDescending(f => f.CreatedAt)
@@ -227,16 +251,32 @@
         StateHasChanged();
     }
 
-    private string GetPreviewPath(MediaFile file)
+    private string GetThumbnailUrl(MediaFile file)
     {
         var root =
             Configuration["MediaSettings:LibraryRoot"];
 
         if (string.IsNullOrWhiteSpace(root))
-        {
             return "";
+
+        // Try thumbnail first (generated by Package 1)
+        var dir = Path.GetDirectoryName(file.FullPath) ?? "";
+
+        var thumbPath = Path.Combine(
+            dir,
+            "thumbnails",
+            $"{Path.GetFileNameWithoutExtension(file.FullPath)}.jpg");
+
+        if (File.Exists(thumbPath))
+        {
+            var thumbRelative = Path
+                .GetRelativePath(root, thumbPath)
+                .Replace("\\", "/");
+
+            return $"/libraryfiles/{thumbRelative}";
         }
 
+        // Fall back to full image
         var relative = Path
             .GetRelativePath(root, file.FullPath)
             .Replace("\\", "/");
@@ -244,20 +284,60 @@
         return $"/libraryfiles/{relative}";
     }
 
+    private string GetFolderCoverUrl(string folderPath)
+    {
+        var root =
+            Configuration["MediaSettings:LibraryRoot"];
+
+        if (string.IsNullOrWhiteSpace(root))
+            return "";
+
+        var first = Directory
+            .EnumerateFiles(
+                folderPath,
+                "*.*",
+                SearchOption.AllDirectories)
+            .FirstOrDefault(f =>
+            {
+                var ext = Path.GetExtension(f).ToLowerInvariant();
+                return ext is ".jpg" or ".jpeg" or ".png" or ".webp";
+            });
+
+        if (first == null)
+            return "";
+
+        // Prefer thumbnail
+        var thumbPath = Path.Combine(
+            Path.GetDirectoryName(first) ?? "",
+            "thumbnails",
+            $"{Path.GetFileNameWithoutExtension(first)}.jpg");
+
+        var source = File.Exists(thumbPath) ? thumbPath : first;
+
+        var relative = Path
+            .GetRelativePath(root, source)
+            .Replace("\\", "/");
+
+        return $"/libraryfiles/{relative}";
+    }
+
     private FolderItem CreateFolderItem(string folder)
     {
+        var files = Directory
+            .EnumerateFiles(
+                folder,
+                "*.*",
+                SearchOption.AllDirectories)
+            .Where(MediaFileHelper.IsSupportedMedia)
+            .ToList();
+
         return new FolderItem
         {
             Name = Path.GetFileName(folder),
-
             FullPath = folder,
-
-            FileCount = Directory
-                .EnumerateFiles(
-                    folder,
-                    "*.*",
-                    SearchOption.AllDirectories)
-                .Count(MediaFileHelper.IsSupportedMedia)
+            FileCount = files.Count,
+            TotalBytes = files.Sum(f => new FileInfo(f).Length),
+            CoverImageUrl = GetFolderCoverUrl(folder)
         };
     }
 
@@ -277,7 +357,7 @@
                     : MediaExtensions.AudioExtensions.Contains(extension)
                         ? MediaType.Audio
                         : MediaType.Document;
-        
+
         return new MediaFile(
             file,
             info.LastWriteTimeUtc,
@@ -285,31 +365,14 @@
             info.Length);
     }
 
-    private static string GetIcon(MediaFile file) =>
-        file.Type switch
-        {
-            MediaType.Image => "🖼️",
-            MediaType.Video => "🎬",
-            MediaType.Audio => "🎵",
-            _ => "📄"
-        };
-
     private static string FormatSize(long bytes)
     {
-        string[] sizes =
-        [
-            "B",
-            "KB",
-            "MB",
-            "GB"
-        ];
+        string[] sizes = ["B", "KB", "MB", "GB"];
 
         double len = bytes;
-
         var order = 0;
 
-        while (len >= 1024 &&
-               order < sizes.Length - 1)
+        while (len >= 1024 && order < sizes.Length - 1)
         {
             order++;
             len /= 1024;
@@ -321,9 +384,9 @@
     private sealed class FolderItem
     {
         public string Name { get; set; } = "";
-
         public string FullPath { get; set; } = "";
-
         public int FileCount { get; set; }
+        public long TotalBytes { get; set; }
+        public string CoverImageUrl { get; set; } = "";
     }
 }

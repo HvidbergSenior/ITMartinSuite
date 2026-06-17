@@ -115,7 +115,10 @@ public sealed class VideoRenderWorkflowStep
                                         fileName,
                                         progressValue);
                                 },
-                                cancellationToken);
+                                cancellationToken,
+                                state.Configuration.Video.Crf,
+                                state.Configuration.Video.Preset,
+                                state.Configuration.Video.Codec);
 
                     cancellationToken
                         .ThrowIfCancellationRequested();

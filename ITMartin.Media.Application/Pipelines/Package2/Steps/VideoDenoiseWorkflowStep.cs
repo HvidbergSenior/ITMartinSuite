@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -38,8 +39,24 @@ public sealed class VideoDenoiseWorkflowStep
             return Task.CompletedTask;
         }
 
-        const string filter =
-            "hqdn3d=2:2:1.5:1.5";
+        // Stronger denoise for tape sources — hqdn3d: luma_spatial:chroma_spatial:luma_temporal:chroma_temporal
+        var filter = state.RestorationProfile switch
+        {
+            RestorationProfile.VHSAggressive =>
+                "hqdn3d=6:6:5:5",
+
+            RestorationProfile.VHS =>
+                "hqdn3d=5:5:4:4",
+
+            RestorationProfile.Hi8 =>
+                "hqdn3d=4:4:3:3",
+
+            RestorationProfile.FamilyArchive =>
+                "hqdn3d=3:3:2:2",
+
+            _ =>
+                "hqdn3d=2:2:1.5:1.5"
+        };
 
         foreach (var item in state.Items
                      .Where(x =>

@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -38,8 +38,14 @@ public sealed class VideoUpscaleWorkflowStep
             return Task.CompletedTask;
         }
 
-        const string filter =
-            "scale=-2:1080";
+        var targetHeight =
+            state.Configuration.Video.TargetHeight > 0
+                ? state.Configuration.Video.TargetHeight
+                : 1080;
+
+        // Lanczos gives sharper results than the default bilinear when upscaling
+        var filter =
+            $"scale=-2:{targetHeight}:flags=lanczos";
 
         foreach (var item in state.Items
                      .Where(x =>

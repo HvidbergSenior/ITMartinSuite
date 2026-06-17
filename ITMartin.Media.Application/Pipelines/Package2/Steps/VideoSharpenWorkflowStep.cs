@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -38,8 +39,23 @@ public sealed class VideoSharpenWorkflowStep
             return Task.CompletedTask;
         }
 
-        const string filter =
-            "unsharp=5:5:0.8:3:3:0.4";
+        // For tape sources, sharpen luma only (chroma sharpening adds noise on compressed tape).
+        // unsharp: lx:ly:la:cx:cy:ca — luma matrix 5x5, luma amount, chroma off.
+        var filter = state.RestorationProfile switch
+        {
+            RestorationProfile.VHSAggressive =>
+                "unsharp=5:5:1.2:0:0:0",
+
+            RestorationProfile.VHS or
+            RestorationProfile.Hi8 =>
+                "unsharp=5:5:1.0:0:0:0",
+
+            RestorationProfile.FamilyArchive =>
+                "unsharp=5:5:0.6:0:0:0",
+
+            _ =>
+                "unsharp=5:5:0.8:3:3:0.4"
+        };
 
         foreach (var item in state.Items
                      .Where(x =>

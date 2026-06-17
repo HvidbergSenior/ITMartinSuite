@@ -7,7 +7,10 @@ public interface IVideoEnhancementService
         string videoFilterChain,
         string audioFilterChain,
         Action<double>? onProgress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        int crf = 18,
+        string preset = "slow",
+        string codec = "libx264");
 
     Task<string> DeinterlaceAsync(
         string inputPath,

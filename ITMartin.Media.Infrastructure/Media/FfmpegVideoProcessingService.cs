@@ -1,4 +1,4 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 namespace ITMartin.Media.Infrastructure.Media;
 
@@ -11,15 +11,15 @@ public sealed class FfmpegVideoProcessingService
         string videoFilterChain,
         string audioFilterChain,
         Action<double>? onProgress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int crf = 18,
+        string preset = "slow",
+        string codec = "libx264")
     {
         var outputPath =
             BuildOutputPath(
                 inputPath,
                 "restored");
-
-        const string encoder =
-            "libx264";
 
         var arguments =
             BuildArguments(
@@ -27,7 +27,9 @@ public sealed class FfmpegVideoProcessingService
                 outputPath,
                 videoFilterChain,
                 audioFilterChain,
-                encoder);
+                codec,
+                crf,
+                preset);
 
         await ExecuteAsync(
             arguments,
@@ -46,7 +48,9 @@ public sealed class FfmpegVideoProcessingService
         string outputPath,
         string videoFilterChain,
         string audioFilterChain,
-        string encoder)
+        string codec,
+        int crf,
+        string preset)
     {
         var arguments =
             $"-hide_banner -y -i \"{inputPath}\" ";
@@ -66,11 +70,15 @@ public sealed class FfmpegVideoProcessingService
         }
 
         arguments +=
-            $"-c:v {encoder} " +
-            "-preset veryfast " +
+            $"-c:v {codec} " +
+            $"-crf {crf} " +
+            $"-preset {preset} " +
+            "-profile:v high " +
+            "-level:v 4.1 " +
             "-pix_fmt yuv420p " +
             "-movflags +faststart " +
             "-c:a aac " +
+            "-b:a 192k " +
             $"\"{outputPath}\"";
 
         return arguments;
@@ -152,7 +160,7 @@ public sealed class FfmpegVideoProcessingService
     {
         return await ApplyFiltersAsync(
             inputPath,
-            "scale=-2:1080",
+            "scale=-2:1080:flags=lanczos",
             string.Empty,
             onProgress,
             cancellationToken);
