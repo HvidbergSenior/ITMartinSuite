@@ -15,6 +15,9 @@ public sealed class MagicDbContext
     public DbSet<MagicSetKnowledge> Sets =>
         Set<MagicSetKnowledge>();
 
+    public DbSet<MagicCard> Cards =>
+        Set<MagicCard>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
