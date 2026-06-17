@@ -18,11 +18,11 @@
     </ItemGroup>
     
     <ItemGroup>
-        <Content Include="ffmpeg\ffmpeg.exe">
+        <Content Include="ffmpeg\ffmpeg.exe" Condition="'$(OS)' == 'Windows_NT'">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
 
-        <Content Include="ffmpeg\ffprobe.exe">
+        <Content Include="ffmpeg\ffprobe.exe" Condition="'$(OS)' == 'Windows_NT'">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>

@@ -58,7 +58,6 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             ImageNormalizationWorkflowStep>();
-        services.AddScoped<Package1WorkflowDefinition>();
 
         services.AddScoped<
             MediaRulesWorkflowStep>();

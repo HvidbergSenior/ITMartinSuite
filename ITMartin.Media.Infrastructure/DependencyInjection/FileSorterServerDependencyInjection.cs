@@ -33,6 +33,10 @@ public static class FileSorterServerDependencyInjection
         this IServiceCollection services)
     {
         services.AddSingleton<
+            IBackgroundJobQueue,
+            RabbitMqBackgroundJobQueue>();
+
+        services.AddSingleton<
             IOcrService,
             OcrService>();
 

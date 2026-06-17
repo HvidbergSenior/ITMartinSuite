@@ -1,0 +1,215 @@
+@page "/planned-transactions"
+
+@using ITMartinBudget.Application.Extensions
+@using ITMartinBudget.Application.Interfaces
+@using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Domain.Enums
+
+@inject IPlannedTransactionService PlannedTransactionService
+@inject IClaudeTransactionCategorizationService ClaudeService
+
+<PageTitle>Kommende Transaktioner</PageTitle>
+
+<div class="stack">
+
+    <div>
+        <h1 class="page-title">Kommende Transaktioner</h1>
+        <div class="meta">Tilføj forventede fremtidige transaktioner</div>
+    </div>
+
+    <div class="financial-overview-card">
+
+        <h2 class="transaction-section-title" style="margin-bottom:16px">Tilføj transaktion</h2>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+
+                <div style="flex:1;min-width:200px">
+                    <label class="meta">Beskrivelse</label>
+                    <input class="form-input"
+                           @bind="_description"
+                           placeholder="f.eks. Netflix, Husleje..." />
+                </div>
+
+                <div style="min-width:140px">
+                    <label class="meta">Beløb (kr.)</label>
+                    <input class="form-input"
+                           type="number"
+                           step="0.01"
+                           @bind="_amount"
+                           placeholder="-500" />
+                </div>
+
+                <div style="min-width:160px">
+                    <label class="meta">Forventet dato</label>
+                    <input class="form-input"
+                           type="date"
+                           @bind="_expectedDate" />
+                </div>
+
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <div style="color:#ff6b6b">@_errorMessage</div>
+            }
+
+            <div style="display:flex;gap:12px;align-items:center">
+
+                <button class="btn-primary"
+                        @onclick="AddTransactionAsync"
+                        disabled="@_isAdding">
+                    @if (_isAdding)
+                    {
+                        <span>Claude kategoriserer...</span>
+                    }
+                    else
+                    {
+                        <span>Tilføj</span>
+                    }
+                </button>
+
+                @if (_isAdding)
+                {
+                    <span class="meta">Claude AI finder kategori...</span>
+                }
+
+            </div>
+
+        </div>
+
+    </div>
+
+    @if (_transactions.Any())
+    {
+        <div class="transaction-section">
+
+            <h2 class="transaction-section-title">
+                Planlagte transaktioner (@_transactions.Count)
+            </h2>
+
+            <div class="transaction-list">
+
+                @foreach (var tx in _transactions)
+                {
+                    <div class="transaction-row">
+
+                        <div class="transaction-date">
+                            @tx.ExpectedDate.ToString("dd/MM/yyyy")
+                        </div>
+
+                        <div class="transaction-description">
+
+                            <div class="transaction-title">@tx.Title</div>
+
+                            <div class="transaction-category">
+                                @tx.Description
+                                • @tx.BudgetGroup.ToDisplayName()
+                            </div>
+
+                        </div>
+
+                        <div class="transaction-amount @(tx.Amount >= 0 ? "positive" : "negative")">
+                            @tx.Amount.ToString("N0") kr.
+                        </div>
+
+                        <button class="btn-delete"
+                                @onclick="() => DeleteAsync(tx.Id)"
+                                title="Slet">
+                            ✕
+                        </button>
+
+                    </div>
+                }
+
+            </div>
+
+        </div>
+    }
+    else
+    {
+        <div class="meta" style="text-align:center;padding:40px">
+            Ingen planlagte transaktioner endnu
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<PlannedTransaction> _transactions = [];
+    private string _description = string.Empty;
+    private decimal _amount;
+    private DateTime _expectedDate = DateTime.Today.AddMonths(1);
+    private bool _isAdding;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _transactions = await PlannedTransactionService.GetAllAsync();
+    }
+
+    private async Task AddTransactionAsync()
+    {
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_description))
+        {
+            _errorMessage = "Indtast en beskrivelse";
+            return;
+        }
+
+        if (_amount == 0)
+        {
+            _errorMessage = "Beløb må ikke være 0";
+            return;
+        }
+
+        _isAdding = true;
+
+        try
+        {
+            var categorization = await ClaudeService.CategorizeAsync(
+                _description,
+                _amount);
+
+            var transaction = new PlannedTransaction
+            {
+                Description = _description,
+                Amount = _amount,
+                ExpectedDate = _expectedDate,
+                Title = categorization.Title,
+                Category = categorization.Category,
+                BudgetGroup = categorization.BudgetGroup,
+                RecurringIntervalMonths = categorization.RecurringIntervalMonths,
+                TransactionType = _amount < 0
+                    ? TransactionType.Udgift
+                    : TransactionType.Indkomst
+            };
+
+            await PlannedTransactionService.AddAsync(transaction);
+
+            _transactions = await PlannedTransactionService.GetAllAsync();
+
+            _description = string.Empty;
+            _amount = 0;
+            _expectedDate = DateTime.Today.AddMonths(1);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Fejl: {ex.Message}";
+        }
+        finally
+        {
+            _isAdding = false;
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await PlannedTransactionService.DeleteAsync(id);
+        _transactions = await PlannedTransactionService.GetAllAsync();
+    }
+
+}

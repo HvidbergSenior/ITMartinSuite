@@ -14,6 +14,9 @@ public class BudgetDbContext : DbContext
     public DbSet<BankTransaction> Transactions =>
         Set<BankTransaction>();
 
+    public DbSet<PlannedTransaction> PlannedTransactions =>
+        Set<PlannedTransaction>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {

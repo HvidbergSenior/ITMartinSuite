@@ -1,5 +1,4 @@
-﻿using ITMartin.Media.Application.Abstractions.BackgroundJobs;
-using ITMartin.Media.Application.Abstractions.Events;
+﻿using ITMartin.Media.Application.Abstractions.Events;
 using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
@@ -7,7 +6,6 @@ using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Infrastructure.BackgroundJobs;
 using ITMartin.Media.Infrastructure.Collections;
 using ITMartin.Media.Infrastructure.Events;
 using ITMartin.Media.Infrastructure.Images;
@@ -63,7 +61,6 @@ public static class FileSorterDependencyInjection
         services.AddSingleton<
             IRuntimeEventPublisher,
             NullRuntimeEventPublisher>();
-
 
         return services;
     }

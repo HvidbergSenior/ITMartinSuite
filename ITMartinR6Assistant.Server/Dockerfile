@@ -1,10 +1,20 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
-WORKDIR /app
+WORKDIR /src
 
 COPY . .
 
-ENV ASPNETCORE_URLS=http://+:8080
+RUN dotnet restore ITMartinR6Assistant.Server/ITMartinR6Assistant.Server.csproj
+
+RUN dotnet publish ITMartinR6Assistant.Server/ITMartinR6Assistant.Server.csproj \
+    -c Release \
+    -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+
+WORKDIR /app
+
+COPY --from=build /app/publish .
 
 EXPOSE 8080
 

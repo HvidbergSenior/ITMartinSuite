@@ -26,6 +26,9 @@ public static class MagicDependencyInjection
         services.AddMagicPersistence(
             connectionString);
         services.AddScoped<IBackgroundJobHandler, ProcessMediaHandler>();
+        services.AddScoped<
+            IMagicCardRepository,
+            MagicCardRepository>();
         services.AddHttpClient<
             IScryfallService,
             ScryfallService>(client =>
