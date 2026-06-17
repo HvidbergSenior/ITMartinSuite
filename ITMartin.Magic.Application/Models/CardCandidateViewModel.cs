@@ -14,9 +14,15 @@ public sealed class CardCandidateViewModel
     public string ImageUrl { get; set; } =
         string.Empty;
 
+    public string SetName { get; set; } = string.Empty;
+
     public decimal? EurPrice { get; set; }
 
+    public decimal? EurFoilPrice { get; set; }
+
     public decimal? UsdPrice { get; set; }
+
+    public decimal? UsdFoilPrice { get; set; }
 
     public decimal Confidence { get; set; }
 }

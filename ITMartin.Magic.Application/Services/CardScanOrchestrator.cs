@@ -1,26 +1,17 @@
-﻿using System.Text.Json;
-using ITMartin.Magic.Application.Interfaces;
+﻿using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Application.Workflows;
-using ITMartin.Media.Application.Abstractions.BackgroundJobs;
-using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
 
 namespace ITMartin.Magic.Application.Services;
 
 public sealed class CardScanOrchestrator
     : ICardScanOrchestrator
 {
-    private readonly
-        CardScanWorkflowRunner
-        _workflow;
-
-    private readonly IBackgroundJobQueue _queue;
+    private readonly CardScanWorkflowRunner _workflow;
 
     public CardScanOrchestrator(
-        CardScanWorkflowRunner workflow,
-        IBackgroundJobQueue queue)
+        CardScanWorkflowRunner workflow)
     {
         _workflow = workflow;
-        _queue = queue;
     }
 
     public async Task<CardScanContext> ExecuteAsync(
@@ -28,27 +19,16 @@ public sealed class CardScanOrchestrator
         string? setCode,
         CancellationToken cancellationToken)
     {
-        var payload =
-            JsonSerializer.Serialize(
-                new CardScanJobPayload(
-                    imagePath,
-                    setCode));
+        var context = new CardScanContext
+        {
+            ImagePath = imagePath,
+            SetCode = setCode
+        };
 
-        await _queue.EnqueueAsync(
-            new BackgroundJob
-            {
-                Id = Guid.NewGuid(),
-                Queue = "workflow",
-                Type = BackgroundJobTypes.ProcessMedia,
-                Payload = payload,
-                CreatedAt = DateTimeOffset.UtcNow,
-                Status = "Pending"
-            },
+        await _workflow.ExecuteAsync(
+            context,
             cancellationToken);
 
-        return new CardScanContext
-        {
-            ImagePath = imagePath
-        };
+        return context;
     }
 }

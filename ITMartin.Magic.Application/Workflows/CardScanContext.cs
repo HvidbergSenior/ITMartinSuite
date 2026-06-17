@@ -56,6 +56,9 @@ public sealed class CardScanContext
     public List<CardCandidateViewModel>
         Candidates { get; set; } = [];
 
+    public List<CardCandidateViewModel>
+        OtherPrintings { get; set; } = [];
+
     public string? SetCode { get; init; }
     
 }

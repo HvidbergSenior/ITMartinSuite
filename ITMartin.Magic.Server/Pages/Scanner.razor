@@ -242,80 +242,70 @@
 
                         </div>
 
-                        <div class="price-grid">
+                        <div class="price-hero">
+                            @(match.EurPrice.HasValue ? $"€{match.EurPrice.Value:F2}" : "No price")
+                        </div>
 
-                            <div class="price-box">
-                                <div class="price-label">EUR</div>
-                                <div class="price-value">
-                                    @(match.EurPrice.HasValue
-                                        ? $"€{match.EurPrice.Value:F2}"
-                                        : "—")
-                                </div>
-                            </div>
-
-                            <div class="price-box">
-                                <div class="price-label">USD</div>
-                                <div class="price-value">
-                                    @(match.UsdPrice.HasValue
-                                        ? $"${match.UsdPrice.Value:F2}"
-                                        : "—")
-                                </div>
-                            </div>
-
+                        <div class="price-sub">
+                            @if (match.UsdPrice.HasValue)
+                            {
+                                <span>$@match.UsdPrice.Value.ToString("F2") USD</span>
+                            }
                             @if (match.EurFoilPrice.HasValue)
                             {
-                                <div class="price-box">
-                                    <div class="price-label">EUR Foil</div>
-                                    <div class="price-value">€@match.EurFoilPrice.Value.ToString("F2")</div>
-                                </div>
+                                <span>· €@match.EurFoilPrice.Value.ToString("F2") Foil</span>
                             }
-
-                            @if (match.UsdFoilPrice.HasValue)
-                            {
-                                <div class="price-box">
-                                    <div class="price-label">USD Foil</div>
-                                    <div class="price-value">$@match.UsdFoilPrice.Value.ToString("F2")</div>
-                                </div>
-                            }
-
                         </div>
 
                     </div>
 
                 </div>
             }
-            @if (_scanResult.Candidates.Any())
+            @if (_scanResult.OtherPrintings.Any())
             {
+                var maxEur = _scanResult.OtherPrintings.Max(p => p.EurPrice ?? 0);
+
                 <div class="candidate-panel">
 
                     <h4 class="mb-3">
-                        Possible Matches
+                        Other Editions
                     </h4>
 
-                    @foreach (var card in _scanResult.Candidates)
+                    @foreach (var printing in _scanResult.OtherPrintings)
                     {
-                        <div class="candidate-row">
+                        var isHighest = (printing.EurPrice ?? 0) == maxEur && maxEur > 0;
 
-                            <img src="@card.ImageUrl"
+                        <div class="candidate-row @(isHighest ? "candidate-row-highlight" : "")">
+
+                            <img src="@printing.ImageUrl"
                                  class="candidate-image" />
 
                             <div class="candidate-details">
 
                                 <div class="candidate-name">
-                                    @card.Name
+                                    @(string.IsNullOrWhiteSpace(printing.SetName) ? printing.SetCode.ToUpperInvariant() : printing.SetName)
+                                    @if (isHighest)
+                                    {
+                                        <span class="highest-badge">Highest</span>
+                                    }
                                 </div>
 
                                 <div class="candidate-set">
-                                    @card.SetCode
-                                    ·
-                                    #@card.CollectorNumber
+                                    @printing.SetCode.ToUpperInvariant() · #@printing.CollectorNumber
                                 </div>
 
                             </div>
 
                             <div class="candidate-confidence">
 
-                                @(card.Confidence * 100m)%
+                                @if (printing.EurPrice.HasValue)
+                                {
+                                    <span>€@printing.EurPrice.Value.ToString("F2")</span>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
 
                             </div>
 
@@ -366,7 +356,7 @@
 
         </div>
     }
-    @if (!string.IsNullOrWhiteSpace(_capturedImage))
+    @if (!string.IsNullOrWhiteSpace(_capturedImage) && (_scanResult == null || _scanResult.Failed))
     {
         <div class="mt-4">
 

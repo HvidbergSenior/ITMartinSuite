@@ -107,8 +107,28 @@ public sealed class FinalScryfallMatchWorkflowStep
                     match.BestMatch.UsdFoilPrice
             };
 
-        context.State.HasConfirmedMatch =
-            true;
+        context.State.HasConfirmedMatch = true;
+
+        context.State.OtherPrintings =
+            match.Matches
+                .Where(m =>
+                    m.Card.Set != match.BestMatch.Set ||
+                    m.Card.CollectorNumber != match.BestMatch.CollectorNumber)
+                .OrderByDescending(m => m.Card.EurPrice ?? 0)
+                .Select(m => new CardCandidateViewModel
+                {
+                    Name           = m.Card.Name,
+                    SetCode        = m.Card.Set,
+                    SetName        = m.Card.SetName ?? m.Card.Set,
+                    CollectorNumber = m.Card.CollectorNumber,
+                    ImageUrl       = m.Card.ImageUrl,
+                    EurPrice       = m.Card.EurPrice,
+                    EurFoilPrice   = m.Card.EurFoilPrice,
+                    UsdPrice       = m.Card.UsdPrice,
+                    UsdFoilPrice   = m.Card.UsdFoilPrice,
+                    Confidence     = m.Confidence
+                })
+                .ToList();
 
         _logger.LogDebug(
             "Scryfall best match — {Name} [{Set}] #{Collector} EUR:{Eur} USD:{Usd}",
