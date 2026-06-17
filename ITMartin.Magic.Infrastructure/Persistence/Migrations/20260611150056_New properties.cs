@@ -10,32 +10,10 @@ namespace ITMartin.Magic.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "CopyrightYear",
-                table: "Sets",
-                type: "INTEGER",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "FrameStyle",
-                table: "Sets",
-                type: "TEXT",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<string>(
-                name: "SymbolColor",
-                table: "Sets",
-                type: "TEXT",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<string>(
-                name: "SymbolShape",
-                table: "Sets",
-                type: "TEXT",
-                nullable: false,
-                defaultValue: "");
+            migrationBuilder.Sql(@"ALTER TABLE ""Sets"" ADD COLUMN IF NOT EXISTS ""CopyrightYear"" INTEGER;");
+            migrationBuilder.Sql(@"ALTER TABLE ""Sets"" ADD COLUMN IF NOT EXISTS ""FrameStyle"" TEXT NOT NULL DEFAULT '';");
+            migrationBuilder.Sql(@"ALTER TABLE ""Sets"" ADD COLUMN IF NOT EXISTS ""SymbolColor"" TEXT NOT NULL DEFAULT '';");
+            migrationBuilder.Sql(@"ALTER TABLE ""Sets"" ADD COLUMN IF NOT EXISTS ""SymbolShape"" TEXT NOT NULL DEFAULT '';");
         }
 
         /// <inheritdoc />
