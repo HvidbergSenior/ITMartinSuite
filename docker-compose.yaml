@@ -62,6 +62,33 @@ services:
     networks:
       - martinnet
 
+  filesorter-worker:
+    container_name: filesorter-worker
+
+    build:
+      context: .
+      dockerfile: ./ITMartinFileSorter.Worker/Dockerfile
+
+    env_file:
+      - magic.env
+
+    environment:
+      - MediaSettings__SourceRoot=/data
+      - MediaSettings__LibraryRoot=/library
+      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
+
+    volumes:
+      - /volume1/docker/filesorter/incoming:/data
+      - /volume1/docker/filesorter/library:/library
+
+    depends_on:
+      - rabbitmq
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
   # =========================================================
   # BUDGET
   # =========================================================
