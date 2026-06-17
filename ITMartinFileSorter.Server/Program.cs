@@ -1,31 +1,6 @@
 
-using ITMartin.Media.Application.Abstractions.BackgroundJobs;
-using ITMartin.Media.Application.Abstractions.Events;
-using ITMartin.Media.Application.Abstractions.Runtime;
-using ITMartin.Media.Application.Abstractions.Scanning;
-using ITMartin.Media.Application.Interfaces;
-using ITMartin.Media.Application.Pipelines.Package1.Clients;
-using ITMartin.Media.Application.Pipelines.Package1.Services;
-using ITMartin.Media.Application.Pipelines.Package2.Clients;
-using ITMartin.Media.Application.Pipelines.Package2.Services;
-using ITMartin.Media.Application.Services.Steps.DuplicationStep;
-using ITMartin.Media.Application.Services.Steps.ExportStep;
-using ITMartin.Media.Application.Services.Steps.NormalizationStep;
-using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
-using ITMartin.Media.Contracts.Contracts.Runtime.Services;
-using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Ai;
-using ITMartin.Media.Infrastructure;
-using ITMartin.Media.Infrastructure.BackgroundJobs;
 using ITMartin.Media.Infrastructure.DependencyInjection;
-using ITMartin.Media.Infrastructure.Events;
-using ITMartin.Media.Infrastructure.Images;
-using ITMartin.Media.Infrastructure.Media;
-using ITMartin.Media.Infrastructure.Persistence.Repositories;
-using ITMartin.Media.Infrastructure.Services;
-using ITMartin.Media.Infrastructure.SignalR.Runtime;
-using ITMartin.OCR.Interfaces;
-using ITMartin.OCR.Services;
 using ITMartinFileSorter.Server;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
@@ -49,23 +24,21 @@ builder.Services
     });
 
 // =========================
-// SIGNALR
+// SERVICES
+// =========================
+
+builder.Services.AddFileSorterCore();
+builder.Services.AddFileSorterServer();
+builder.Services.AddAi();
+
+// =========================
+// SIGNALR (after Core so SignalR publisher overrides the null default)
 // =========================
 
 builder.Services.AddMediaSignalR();
 
 // =========================
-// OCR
-// =========================
-builder.Services.AddFileSorterCore();
-builder.Services.AddFileSorterServer();
-builder.Services.AddAi();
-
-builder.Services.AddSingleton<
-    IOcrService,
-    OcrService>();
-
-// CORE SERVICES
+// LOGGING
 // =========================
 
 builder.Logging.ClearProviders();
@@ -79,28 +52,10 @@ builder.Logging.AddFilter(
 builder.Logging.AddFilter(
     "Microsoft.EntityFrameworkCore.Database.Command",
     LogLevel.None);
-// =========================
-// EVENTS
-// =========================
-
-builder.Services.AddSingleton<
-    IEventPublisher,
-    NullEventPublisher>();
-
-builder.Services.AddSingleton<
-    IRuntimeEventPublisher,
-    NullRuntimeEventPublisher>();
-
-builder.Services.AddScoped<
-    ILibraryPathProvider,
-    LibraryPathProvider>();
 
 // =========================
-// UI
+// HTTP CLIENT
 // =========================
-
-builder.Services.AddScoped<
-    ProgressService>();
 
 builder.Services.AddScoped(sp =>
 {
@@ -115,7 +70,6 @@ builder.Services.AddScoped(sp =>
                 navigation.BaseUri)
     };
 });
-
 
 // =========================
 // CONTROLLERS
@@ -138,7 +92,6 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler(
         "/Error");
 }
-
 
 // =========================
 // STATIC FILES

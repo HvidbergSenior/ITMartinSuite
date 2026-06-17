@@ -48,10 +48,11 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IVideoEnhancementService,
             FfmpegVideoProcessingService>();
+
         services.AddScoped<
             IVideoSampleService,
             FfmpegVideoSampleService>();
-        
+
         services.AddScoped<
             IAudioEnhancementService,
             FfmpegAudioProcessingService>();
@@ -59,14 +60,10 @@ public static class Package2DependencyInjection
         services.AddScoped<
             IAudioExtractionService,
             FfmpegAudioExtractionService>();
-        
+
         services.AddScoped<
             IImageEnhancementService,
             ImageProcessingService>();
-        
-        services.AddScoped<
-            IThumbnailService,
-            ThumbnailService>();
 
         services.AddScoped<
             IEnhancedFileNamingService,

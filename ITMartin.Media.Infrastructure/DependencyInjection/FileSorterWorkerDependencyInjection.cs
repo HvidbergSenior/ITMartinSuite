@@ -20,11 +20,10 @@ public static class FileSorterWorkerDependencyInjection
 
         services.AddScoped<
             Package1WorkflowRunner>();
+
         services.AddScoped<
             Package2WorkflowRunner>();
-        services.AddScoped<
-            Package2WorkflowOrchestrator>();
-      
+
         services.AddScoped<
             IPackage2Client,
             Package2Client>();
