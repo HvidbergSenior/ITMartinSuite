@@ -88,16 +88,20 @@ public sealed class ClaudeMagicCardRecognitionService
                     filePath,
                     cancellationToken);
 
-            const int MaxBytes = 9 * 1024 * 1024;
+            const int MaxBytes = 4 * 1024 * 1024;
             if (bytes.Length > MaxBytes)
             {
                 using var image = Image.Load(bytes);
-                var scale = Math.Sqrt(4.0 * 1024 * 1024 / bytes.Length);
-                image.Mutate(x => x.Resize(
-                    Math.Max(1, (int)(image.Width * scale)),
-                    Math.Max(1, (int)(image.Height * scale))));
+                const int MaxDimension = 1600;
+                if (image.Width > MaxDimension || image.Height > MaxDimension)
+                {
+                    var ratio = Math.Min((double)MaxDimension / image.Width, (double)MaxDimension / image.Height);
+                    image.Mutate(x => x.Resize(
+                        Math.Max(1, (int)(image.Width * ratio)),
+                        Math.Max(1, (int)(image.Height * ratio))));
+                }
 
-                var quality = 80;
+                var quality = 85;
                 byte[] resized;
                 do
                 {
@@ -107,7 +111,7 @@ public sealed class ClaudeMagicCardRecognitionService
                         cancellationToken);
                     resized = ms.ToArray();
                     quality -= 10;
-                } while (resized.Length > MaxBytes && quality > 10);
+                } while (resized.Length > MaxBytes && quality > 20);
 
                 bytes = resized;
             }

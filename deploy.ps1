@@ -5,9 +5,10 @@ param(
 
 $NasHost = "martinhvidberg@100.117.120.44"
 $NasPath = "~/martinsuite-magic"
+$SyncFolder = "C:\Users\hvidb\SynologyDrive\martinsuite-magic"
 
 $ServiceMap = @{
-    "magic-web"         = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";       Context = "." }
+    "magic-web"         = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";        Context = "." }
     "filesorter-web"    = @{ Dockerfile = "ITMartinFileSorter.Server/Dockerfile";    Context = "." }
     "filesorter-worker" = @{ Dockerfile = "ITMartinFileSorter.Worker/Dockerfile";    Context = "." }
     "budget-web"        = @{ Dockerfile = "ITMartinBudget.Server/Dockerfile";        Context = "." }
@@ -28,17 +29,22 @@ $entry      = $ServiceMap[$Service]
 $imageName  = "martinsuite-$Service"
 $dockerfile = $entry.Dockerfile
 $context    = $entry.Context
+$syncFile   = "$SyncFolder\$imageName.tar"
 
 Write-Host "[1/3] Building $imageName..." -ForegroundColor Cyan
-docker build -t $imageName -f $dockerfile $context
+docker build --platform linux/amd64 --provenance=false -t $imageName -f $dockerfile $context
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
-Write-Host "[2/3] Transferring to NAS..." -ForegroundColor Cyan
-docker save $imageName | ssh $NasHost "docker load"
+Write-Host "[2/3] Saving to Synology Drive..." -ForegroundColor Cyan
+docker save -o $syncFile $imageName
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
-Write-Host "[3/3] Restarting $Service on NAS..." -ForegroundColor Cyan
-ssh $NasHost "cd $NasPath && docker compose up -d $Service"
+Write-Host "    Waiting for sync (30s)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 30
+
+Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cyan
+$nasFile = "/volume1/homes/MartinHvidberg/martinsuite-magic/$imageName.tar"
+ssh $NasHost "docker --context default load -i $nasFile && rm $nasFile && cd $NasPath && docker --context default compose up -d $Service"
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "Done! $Service is deployed." -ForegroundColor Green
