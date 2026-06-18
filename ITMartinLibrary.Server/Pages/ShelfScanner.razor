@@ -62,27 +62,57 @@
 
     </div>
 
-    <div class="scanner-buttons">
+    <div class="scanner-buttons" style="gap:12px;">
 
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
-                disabled="@_isProcessing">
+                disabled="@(_isProcessing || _continuousMode)">
             @if (_isProcessing)
             {
                 <span>Scanning...</span>
             }
             else
             {
-                <span>Scan Shelf</span>
+                <span>Scan Once</span>
             }
+        </button>
+
+        <button class="btn btn-lg @(_continuousMode ? "btn-danger" : "btn-warning") scan-button"
+                @onclick="ToggleContinuous">
+            @(_continuousMode ? "Stop Auto" : "Auto Scan")
         </button>
 
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(_statusText) && !_isProcessing)
+    @if (!string.IsNullOrWhiteSpace(_statusText))
     {
         <div class="alert alert-dark scanner-alert mt-4">
             @_statusText
+        </div>
+    }
+
+    @if (_sessionItems.Count > 0)
+    {
+        <div class="content-card mt-4">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h4 style="margin:0;">Added this session (@_sessionItems.Count)</h4>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => _sessionItems.Clear()">Clear</button>
+            </div>
+            <div class="stack">
+                @foreach (var item in _sessionItems)
+                {
+                    <div class="recent-scan-row">
+                        <div>
+                            <div class="recent-scan-title">@item.Title</div>
+                            @if (!string.IsNullOrWhiteSpace(item.Author))
+                            {
+                                <div class="text-muted" style="font-size:13px;">@item.Author</div>
+                            }
+                        </div>
+                        <div class="text-success" style="font-size:13px; white-space:nowrap;">✓ Added</div>
+                    </div>
+                }
+            </div>
         </div>
     }
 
@@ -172,16 +202,53 @@
     private bool _cameraStarted;
     private bool _disposed;
     private ShelfScanContext? _context;
+    private bool _continuousMode;
+    private CancellationTokenSource? _continuousCts;
+
+    private sealed record SessionItem(string Title, string? Author);
+    private readonly List<SessionItem> _sessionItems = [];
+    private readonly HashSet<string> _addedTitles = new(StringComparer.OrdinalIgnoreCase);
 
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        _continuousCts?.Cancel();
 
         try
         {
             await JS.InvokeVoidAsync("webcam.stop");
         }
         catch { }
+    }
+
+    private async Task ToggleContinuous()
+    {
+        if (_continuousMode)
+        {
+            _continuousMode = false;
+            _continuousCts?.Cancel();
+            _statusText = "Auto scan stopped.";
+            StateHasChanged();
+            return;
+        }
+
+        if (!_cameraStarted) await StartCamera();
+
+        _continuousMode = true;
+        _continuousCts = new CancellationTokenSource();
+        _statusText = "Auto scan running...";
+        StateHasChanged();
+
+        _ = RunContinuousAsync(_continuousCts.Token);
+    }
+
+    private async Task RunContinuousAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested && !_disposed)
+        {
+            await Capture(autoMode: true);
+            try { await Task.Delay(4000, ct); } catch (OperationCanceledException) { break; }
+        }
     }
 
     private async Task StartCamera()
@@ -202,15 +269,16 @@
         StateHasChanged();
     }
 
-    private async Task Capture()
+    private Task Capture() => Capture(autoMode: false);
+
+    private async Task Capture(bool autoMode)
     {
         if (_isProcessing || _disposed) return;
 
         try
         {
             _isProcessing = true;
-            _statusText = "Capturing shelf...";
-            _context = null;
+            if (!autoMode) { _statusText = "Capturing shelf..."; _context = null; }
             StateHasChanged();
 
             CameraCaptureResult capture;
@@ -244,9 +312,24 @@
                 imagePath,
                 CancellationToken.None);
 
-            _statusText = _context.Failed
-                ? _context.FailureReason
-                : $"Found {_context.Result?.Items.Count ?? 0} item(s)";
+            if (autoMode && _context is { Failed: false, Result: not null })
+            {
+                foreach (var item in _context.Result.Items)
+                {
+                    var key = item.Title ?? item.Barcode ?? item.Isbn ?? "";
+                    if (!string.IsNullOrWhiteSpace(key) && _addedTitles.Add(key))
+                    {
+                        await AddToInventory(item);
+                    }
+                }
+                _statusText = $"Auto scan: {_sessionItems.Count} items added";
+            }
+            else if (!autoMode)
+            {
+                _statusText = _context.Failed
+                    ? _context.FailureReason
+                    : $"Found {_context.Result?.Items.Count ?? 0} item(s)";
+            }
         }
         catch (Exception ex)
         {
@@ -281,6 +364,7 @@
         }
 
         item.AddedToInventory = true;
+        _sessionItems.Insert(0, new SessionItem(item.Title ?? "Unknown", item.Author));
         StateHasChanged();
     }
 

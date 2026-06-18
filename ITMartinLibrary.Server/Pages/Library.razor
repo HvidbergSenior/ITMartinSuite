@@ -2,8 +2,10 @@
 @page "/library"
 @implements IDisposable
 
+@using ITMartin.Ai.Interfaces
 @using ITMartinLibrary.Domain.Entities
 @inject InventoryService InventoryService
+@inject IAuthorSimilarityService AuthorSimilarity
 
 <div class="library-page">
     <div class="page-container">
@@ -114,12 +116,74 @@
                 </div>
             }
         </div>
+        <!-- SIMILAR AUTHORS -->
+        <div class="content-card mt-4">
+            <div class="library-row">
+                <div>
+                    <h3>🔍 Discover Similar Authors</h3>
+                    <p class="text-muted">AI suggestions based on your library</p>
+                </div>
+                <button class="btn btn-primary" @onclick="LoadSuggestions" disabled="@_loadingSuggestions">
+                    @(_loadingSuggestions ? "Thinking..." : "Get Suggestions")
+                </button>
+            </div>
+
+            @if (_suggestions.Count > 0)
+            {
+                <div class="suggestions-grid mt-3">
+                    @foreach (var s in _suggestions)
+                    {
+                        <div class="suggestion-card">
+                            <div class="suggestion-name">@s.AuthorName</div>
+                            <div class="suggestion-genre">@s.Genre</div>
+                            <div class="suggestion-reason">@s.Reason</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
     </div>
 </div>
+
+<style>
+    .suggestions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+    }
+
+    .suggestion-card {
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(255,255,255,.1);
+        border-radius: 12px;
+        padding: 14px;
+    }
+
+    .suggestion-name {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .suggestion-genre {
+        font-size: 12px;
+        color: #f59e0b;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .suggestion-reason {
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+</style>
 
 @code {
     private List<InventoryItem> items = new();
     private List<InventoryItem> recentItems = new();
+    private List<AuthorSuggestion> _suggestions = new();
+    private bool _loadingSuggestions;
 
     private PeriodicTimer? refreshTimer;
     private CancellationTokenSource cts = new();
@@ -156,6 +220,26 @@
             .OrderByDescending(x => x.DetailsUpdatedAt ?? x.LastScannedAt)
             .Take(5)
             .ToList();
+    }
+
+    private async Task LoadSuggestions()
+    {
+        _loadingSuggestions = true;
+        StateHasChanged();
+        try
+        {
+            var authors = items
+                .Select(x => x.AuthorOrDirector)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct();
+            _suggestions = await AuthorSimilarity.GetSimilarAuthorsAsync(authors);
+        }
+        catch { }
+        finally
+        {
+            _loadingSuggestions = false;
+            StateHasChanged();
+        }
     }
 
     private string GetStatusClass(string? status)

@@ -26,6 +26,10 @@ public static class DependencyInjection
             IReceiptExtractionService,
             ClaudeReceiptExtractionService>();
 
+        services.AddSingleton<
+            IAuthorSimilarityService,
+            ClaudeAuthorSimilarityService>();
+
         return services;
     }
 }
