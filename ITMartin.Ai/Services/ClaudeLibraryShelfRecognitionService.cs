@@ -44,7 +44,7 @@ public sealed class ClaudeLibraryShelfRecognitionService
                                 "author":    { "type": "string" },
                                 "isbn":      { "type": "string" },
                                 "barcode":   { "type": "string" },
-                                "mediaType": { "type": "string", "description": "Book, Comic, or Movie" },
+                                "mediaType": { "type": "string", "description": "Book, Comic, DVD, Bluray, or Cartoon" },
                                 "confidence":{ "type": "number" }
                             }
                         }
@@ -117,8 +117,10 @@ public sealed class ClaudeLibraryShelfRecognitionService
                 Model = Model.ClaudeOpus4_8,
                 MaxTokens = 2048,
                 System = """
-                    You are an expert library inventory system.
-                    Identify every visible book, comic and movie on the shelf.
+                    You are an expert home media inventory system.
+                    Identify every visible item on the shelf: books, comics, DVDs, Blu-rays, and cartoons/animated titles.
+                    For mediaType use exactly one of: Book, Comic, DVD, Bluray, Cartoon.
+                    Use Cartoon for animated series or animated movies regardless of format.
                     Use only text directly visible in the image.
                     A missing value is better than a guessed one.
                     """,
@@ -133,7 +135,7 @@ public sealed class ClaudeLibraryShelfRecognitionService
                         {
                             new TextBlockParam
                             {
-                                Text = "Identify every visible book, comic and movie on this shelf. Call the report_shelf tool with all items you can identify."
+                                Text = "Identify every visible item on this shelf — books, comics, DVDs, Blu-rays, and cartoons. Call the report_shelf tool with all items you can identify."
                             },
                             new ImageBlockParam
                             {

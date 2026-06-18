@@ -1,5 +1,6 @@
 @page "/library/shelf-scanner"
 
+@using System.Threading.Channels
 @using ITMartinLibrary.Application.Interfaces
 @using ITMartinLibrary.Application.Models
 @using ITMartinLibrary.Application.Workflows
@@ -66,7 +67,7 @@
 
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
-                disabled="@(_isProcessing || _continuousMode)">
+                disabled="@_continuousMode">
             @if (_isProcessing)
             {
                 <span>Scanning...</span>
@@ -209,16 +210,64 @@
     private readonly List<SessionItem> _sessionItems = [];
     private readonly HashSet<string> _addedTitles = new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly Channel<(string ImagePath, bool AutoMode)> _workChannel =
+        Channel.CreateBounded<(string, bool)>(
+            new BoundedChannelOptions(4) { FullMode = BoundedChannelFullMode.DropOldest });
+
+    protected override Task OnInitializedAsync()
+    {
+        _ = RunWorkerAsync();
+        return Task.CompletedTask;
+    }
+
+    private async Task RunWorkerAsync()
+    {
+        await foreach (var (imagePath, autoMode) in _workChannel.Reader.ReadAllAsync())
+        {
+            if (_disposed) break;
+            try
+            {
+                _isProcessing = true;
+                _statusText = "Identifying items...";
+                await InvokeAsync(StateHasChanged);
+
+                _context = await ShelfScanOrchestrator.ExecuteAsync(imagePath, CancellationToken.None);
+
+                if (autoMode && _context is { Failed: false, Result: not null })
+                {
+                    foreach (var item in _context.Result.Items)
+                    {
+                        var key = item.Title ?? item.Barcode ?? item.Isbn ?? "";
+                        if (!string.IsNullOrWhiteSpace(key) && _addedTitles.Add(key))
+                            await AddToInventory(item);
+                    }
+                    _statusText = $"Auto scan: {_sessionItems.Count} items added";
+                }
+                else
+                {
+                    _statusText = _context.Failed
+                        ? _context.FailureReason
+                        : $"Found {_context.Result?.Items.Count ?? 0} item(s)";
+                }
+            }
+            catch (Exception ex)
+            {
+                _statusText = ex.Message;
+            }
+            finally
+            {
+                _isProcessing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
         _continuousCts?.Cancel();
-
-        try
-        {
-            await JS.InvokeVoidAsync("webcam.stop");
-        }
-        catch { }
+        _workChannel.Writer.TryComplete();
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
     }
 
     private async Task ToggleContinuous()
@@ -265,7 +314,6 @@
             _cameraStarted = false;
             _statusText = ex.Message;
         }
-
         StateHasChanged();
     }
 
@@ -273,71 +321,33 @@
 
     private async Task Capture(bool autoMode)
     {
-        if (_isProcessing || _disposed) return;
+        if (_disposed) return;
 
         try
         {
-            _isProcessing = true;
-            if (!autoMode) { _statusText = "Capturing shelf..."; _context = null; }
-            StateHasChanged();
+            if (!autoMode) { _statusText = "Capturing..."; _context = null; StateHasChanged(); }
 
             CameraCaptureResult capture;
-
-            try
-            {
-                capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture");
-            }
-            catch (TaskCanceledException)
-            {
-                return;
-            }
+            try { capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture"); }
+            catch (TaskCanceledException) { return; }
 
             var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
             var bytes = Convert.FromBase64String(clean);
 
-            var folder = Path.Combine(
-                Directory.GetCurrentDirectory(), "data", "shelves");
-
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "shelves");
             Directory.CreateDirectory(folder);
-
             var imagePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
-
             await File.WriteAllBytesAsync(imagePath, bytes);
 
             _capturedImage = $"data:image/jpeg;base64,{clean}";
-            _statusText = "Identifying items...";
+            _statusText = "Queued...";
             StateHasChanged();
 
-            _context = await ShelfScanOrchestrator.ExecuteAsync(
-                imagePath,
-                CancellationToken.None);
-
-            if (autoMode && _context is { Failed: false, Result: not null })
-            {
-                foreach (var item in _context.Result.Items)
-                {
-                    var key = item.Title ?? item.Barcode ?? item.Isbn ?? "";
-                    if (!string.IsNullOrWhiteSpace(key) && _addedTitles.Add(key))
-                    {
-                        await AddToInventory(item);
-                    }
-                }
-                _statusText = $"Auto scan: {_sessionItems.Count} items added";
-            }
-            else if (!autoMode)
-            {
-                _statusText = _context.Failed
-                    ? _context.FailureReason
-                    : $"Found {_context.Result?.Items.Count ?? 0} item(s)";
-            }
+            await _workChannel.Writer.WriteAsync((imagePath, autoMode));
         }
         catch (Exception ex)
         {
             _statusText = ex.Message;
-        }
-        finally
-        {
-            _isProcessing = false;
             StateHasChanged();
         }
     }
@@ -369,7 +379,7 @@
 
         item.AddedToInventory = true;
         _sessionItems.Insert(0, new SessionItem(item.Title ?? "Unknown", item.Author));
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private sealed class CameraCaptureResult
