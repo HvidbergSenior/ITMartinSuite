@@ -45,7 +45,8 @@ public sealed class ClaudeReceiptExtractionService
                             "type": "object",
                             "properties": {
                                 "description": { "type": "string" },
-                                "amount":      { "type": "number" }
+                                "amount":      { "type": "number" },
+                                "suspicious":  { "type": "boolean", "description": "True if the price looks wrong or unusually high for this item type (e.g. bananas at 150 DKK)" }
                             },
                             "required": ["description"]
                         }
@@ -85,6 +86,7 @@ public sealed class ClaudeReceiptExtractionService
                 You are a receipt extraction system for Danish grocery receipts.
                 Extract every line on the receipt exactly as it appears — including discount lines like 'Rabat' and 'Lidl Plus-kupon'.
                 Report each line as its own item with description and amount.
+                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK).
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],
@@ -173,6 +175,7 @@ public sealed class ClaudeReceiptExtractionService
                 You are a receipt extraction system for Danish grocery receipts.
                 Extract every line on the receipt exactly as it appears — including discount lines like 'Rabat' and 'Lidl Plus-kupon'.
                 Report each line as its own item with description and amount.
+                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK).
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],

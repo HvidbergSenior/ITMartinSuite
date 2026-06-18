@@ -9,4 +9,6 @@ public sealed class ReceiptTransactionItem
     public decimal? DiscountAmount { get; set; }
 
     public string? DiscountType { get; set; }
+
+    public bool IsSuspicious { get; set; }
 }

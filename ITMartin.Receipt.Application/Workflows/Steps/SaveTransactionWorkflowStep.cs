@@ -61,7 +61,8 @@ public sealed class SaveTransactionWorkflowStep
                         Description    = x.Description,
                         OriginalPrice  = x.OriginalPrice,
                         DiscountAmount = x.DiscountAmount,
-                        DiscountType   = x.DiscountType
+                        DiscountType   = x.DiscountType,
+                        IsSuspicious   = x.IsSuspicious
                     })
                     .ToList()
             };
@@ -91,6 +92,7 @@ public sealed class SaveTransactionWorkflowStep
                 {
                     Description   = line.Description,
                     OriginalPrice = line.Amount,
+                    IsSuspicious  = line.Suspicious,
                 });
             }
         }

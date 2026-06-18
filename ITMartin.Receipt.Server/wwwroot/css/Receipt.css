@@ -521,6 +521,66 @@ RESULT PANEL
 }
 
 /* =========================================
+ZOOM CONTROLS
+========================================= */
+
+.zoom-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.zoom-btn {
+    border: 1px solid rgba(255,255,255,.15);
+    background: rgba(255,255,255,.07);
+    color: white;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.zoom-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,.15);
+}
+
+.zoom-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* =========================================
+LIDL PLUS KUPON
+========================================= */
+
+.sub-kupon {
+    color: #fbbf24 !important;
+}
+
+.sub-kupon .sub-label::before {
+    content: "★ ";
+}
+
+/* =========================================
+SUSPICIOUS PRICE
+========================================= */
+
+.receipt-item-suspicious {
+    border-left: 3px solid #ef4444;
+    padding-left: 10px;
+    background: rgba(239,68,68,.06);
+    border-radius: 6px;
+}
+
+.suspicious-badge {
+    color: #ef4444;
+    font-size: 14px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* =========================================
 MOBILE
 ========================================= */
 

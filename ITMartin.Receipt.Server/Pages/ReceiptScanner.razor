@@ -20,7 +20,7 @@
             <div class="scanner-subtitle">AI-powered receipt analysis</div>
         </div>
 
-        <div class="ai-badge">AI + OCR</div>
+        <div class="ai-badge">AI Vision</div>
 
     </div>
 
@@ -91,7 +91,7 @@
 
         <div class="result-panel">
 
-            <div class="receipt-result">
+            <div class="receipt-result" style="font-size: @(_zoom)rem;">
 
                 <div class="receipt-header-row">
 
@@ -110,13 +110,20 @@
                         }
                     </div>
 
-                    @if (tx.TotalAmount.HasValue)
-                    {
-                        <div class="receipt-total">
-                            <span>Total</span>
-                            <strong>@tx.Currency @tx.TotalAmount.Value.ToString("F2")</strong>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                        @if (tx.TotalAmount.HasValue)
+                        {
+                            <div class="receipt-total">
+                                <span>Total</span>
+                                <strong>@tx.Currency @tx.TotalAmount.Value.ToString("F2")</strong>
+                            </div>
+                        }
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" @onclick="ZoomOut" disabled="@(_zoom <= 0.8)">A−</button>
+                            <button class="zoom-btn" @onclick="ZoomReset">A</button>
+                            <button class="zoom-btn" @onclick="ZoomIn" disabled="@(_zoom >= 2.0)">A+</button>
                         </div>
-                    }
+                    </div>
 
                 </div>
 
@@ -125,13 +132,22 @@
                     <div class="receipt-items">
                         @foreach (var item in tx.Items)
                         {
-                            var hasDiscount = item.DiscountAmount.HasValue && item.DiscountAmount != 0;
-                            var netPrice    = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
+                            var hasDiscount  = item.DiscountAmount.HasValue && item.DiscountAmount != 0;
+                            var netPrice     = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
+                            var isKupon      = item.DiscountType == "Plus-kupon";
+                            var itemClass    = item.IsSuspicious ? "receipt-item receipt-item-suspicious"
+                                             : "receipt-item";
 
-                            <div class="receipt-item">
+                            <div class="@itemClass">
 
                                 <div class="receipt-item-main">
-                                    <span class="item-desc">@item.Description</span>
+                                    <span class="item-desc">
+                                        @item.Description
+                                        @if (item.IsSuspicious)
+                                        {
+                                            <span class="suspicious-badge" title="Price may be wrong">⚠</span>
+                                        }
+                                    </span>
                                     <span class="item-price">
                                         @if (hasDiscount && item.OriginalPrice.HasValue)
                                         {
@@ -146,7 +162,7 @@
 
                                 @if (hasDiscount)
                                 {
-                                    <div class="receipt-item-sub">
+                                    <div class="receipt-item-sub @(isKupon ? "sub-kupon" : "")">
                                         <span class="sub-label">@(item.DiscountType ?? "Rabat")</span>
                                         <span class="sub-amount">- @($"{tx.Currency} {Math.Abs(item.DiscountAmount ?? 0):F2}")</span>
                                     </div>
@@ -193,6 +209,11 @@
     private bool _cameraStarted;
     private bool _disposed;
     private ReceiptContext? _context;
+    private double _zoom = 1.0;
+
+    private void ZoomIn()    => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
+    private void ZoomOut()   => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
+    private void ZoomReset() => _zoom = 1.0;
 
     public async ValueTask DisposeAsync()
     {
