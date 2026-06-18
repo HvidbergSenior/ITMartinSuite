@@ -25,19 +25,19 @@ public sealed class ReceiptOcrWorkflowStep
         WorkflowExecutionContext<ReceiptContext> context,
         CancellationToken cancellationToken = default)
     {
-        var text =
-            await _ocrService
+        try
+        {
+            var text = await _ocrService
                 .ExtractTextAsync(
                     context.State.ImagePath,
                     cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            throw new InvalidOperationException(
-                "No OCR text could be extracted.");
+            if (!string.IsNullOrWhiteSpace(text))
+                context.State.OcrText = text;
         }
-
-        context.State.OcrText =
-            text;
+        catch
+        {
+            // OCR unavailable — AI step will use image directly
+        }
     }
 }

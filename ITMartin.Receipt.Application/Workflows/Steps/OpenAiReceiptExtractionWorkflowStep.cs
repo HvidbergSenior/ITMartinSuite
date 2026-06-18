@@ -25,20 +25,14 @@ public sealed class AiReceiptExtractionWorkflowStep
         WorkflowExecutionContext<ReceiptContext> context,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(
-                context.State.OcrText))
-        {
-            throw new InvalidOperationException(
-                "OCR text missing.");
-        }
+        var result = string.IsNullOrWhiteSpace(context.State.OcrText)
+            ? await _receiptExtractionService.ExtractFromImageAsync(
+                context.State.ImagePath,
+                cancellationToken)
+            : await _receiptExtractionService.ExtractAsync(
+                context.State.OcrText,
+                cancellationToken);
 
-        var result =
-            await _receiptExtractionService
-                .ExtractAsync(
-                    context.State.OcrText,
-                    cancellationToken);
-
-        context.State.ExtractionResult =
-            result;
+        context.State.ExtractionResult = result;
     }
 }

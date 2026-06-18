@@ -8,4 +8,9 @@ public interface IReceiptExtractionService
         ExtractAsync(
             string receiptText,
             CancellationToken cancellationToken = default);
+
+    Task<ReceiptExtractionResult>
+        ExtractFromImageAsync(
+            string imagePath,
+            CancellationToken cancellationToken = default);
 }

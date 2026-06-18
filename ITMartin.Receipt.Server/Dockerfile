@@ -20,7 +20,10 @@ RUN apt-get update && \
         libglib2.0-0 \
         tesseract-ocr \
         tesseract-ocr-eng \
-    && find /usr/lib -name "libleptonica.so.*" | head -1 | xargs -I{} ln -sf {} /usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so \
+        libleptonica-dev \
+    && find /usr/lib -name "libleptonica.so*" -o -name "libleptonica-*.so" 2>/dev/null | head -5 \
+    && LEPT=$(find /usr/lib /usr/local/lib -name "libleptonica.so*" 2>/dev/null | head -1) \
+    && if [ -n "$LEPT" ]; then ln -sf "$LEPT" /usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so; fi \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /data/receipts

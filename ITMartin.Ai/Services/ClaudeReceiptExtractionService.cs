@@ -5,6 +5,8 @@ using ITMartin.Ai.Interfaces;
 using ITMartin.Ai.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
 namespace ITMartin.Ai.Services;
 
@@ -123,6 +125,89 @@ public sealed class ClaudeReceiptExtractionService
 
         var result = JsonSerializer.Deserialize<ReceiptExtractionResult>(json, JsonOptions);
 
+        return result ?? throw new InvalidOperationException("Failed to deserialize receipt result.");
+    }
+
+    public async Task<ReceiptExtractionResult> ExtractFromImageAsync(
+        string imagePath,
+        CancellationToken cancellationToken = default)
+    {
+        var bytes = await File.ReadAllBytesAsync(imagePath, cancellationToken);
+
+        const int MaxBytes = 4 * 1024 * 1024;
+        if (bytes.Length > MaxBytes)
+        {
+            using var image = Image.Load(bytes);
+            const int MaxDimension = 1600;
+            if (image.Width > MaxDimension || image.Height > MaxDimension)
+            {
+                var ratio = Math.Min((double)MaxDimension / image.Width, (double)MaxDimension / image.Height);
+                image.Mutate(x => x.Resize(
+                    Math.Max(1, (int)(image.Width * ratio)),
+                    Math.Max(1, (int)(image.Height * ratio))));
+            }
+            var quality = 85;
+            byte[] resized;
+            do
+            {
+                using var ms = new System.IO.MemoryStream();
+                await image.SaveAsJpegAsync(ms,
+                    new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = quality },
+                    cancellationToken);
+                resized = ms.ToArray();
+                quality -= 10;
+            } while (resized.Length > MaxBytes && quality > 20);
+            bytes = resized;
+        }
+
+        var base64 = Convert.ToBase64String(bytes);
+        var ext = Path.GetExtension(imagePath).ToLowerInvariant();
+        var mime = ext == ".png" ? "image/png" : "image/jpeg";
+
+        var request = new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 1024,
+            System = """
+                You are a receipt extraction system for Danish grocery receipts.
+                Extract every line on the receipt exactly as it appears — including discount lines like 'Rabat' and 'Lidl Plus-kupon'.
+                Report each line as its own item with description and amount.
+                Omit fields you cannot determine — never guess.
+                """,
+            Tools = [ReportReceiptTool],
+            ToolChoice = new ToolChoiceTool { Name = "report_receipt" },
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = new List<ContentBlockParam>
+                    {
+                        new TextBlockParam { Text = "Extract the receipt data from this image and call the report_receipt tool." },
+                        new ImageBlockParam
+                        {
+                            Source = new Base64ImageSource { Data = base64, MediaType = mime }
+                        }
+                    }
+                }
+            ]
+        };
+
+        var response = await _client.Messages.Create(request, cancellationToken);
+
+        ToolUseBlock? toolUse = null;
+        foreach (var block in response.Content)
+        {
+            if (block.TryPickToolUse(out var tu)) { toolUse = tu; break; }
+        }
+
+        if (toolUse is null)
+            throw new InvalidOperationException("Claude did not call the report_receipt tool.");
+
+        var json = JsonSerializer.Serialize(toolUse.Input);
+        _logger.LogDebug("Claude receipt image response: {Json}", json);
+
+        var result = JsonSerializer.Deserialize<ReceiptExtractionResult>(json, JsonOptions);
         return result ?? throw new InvalidOperationException("Failed to deserialize receipt result.");
     }
 }
