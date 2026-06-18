@@ -17,4 +17,6 @@ public sealed class ReceiptTransaction
     public List<ReceiptTransactionItem> Items { get; set; } = [];
 
     public DateTime ScannedAt { get; init; } = DateTime.UtcNow;
+
+    public bool IsTemplate { get; set; }
 }

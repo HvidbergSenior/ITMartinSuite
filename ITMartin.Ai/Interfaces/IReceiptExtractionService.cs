@@ -12,5 +12,6 @@ public interface IReceiptExtractionService
     Task<ReceiptExtractionResult>
         ExtractFromImageAsync(
             string imagePath,
+            ReceiptExtractionResult? template = null,
             CancellationToken cancellationToken = default);
 }

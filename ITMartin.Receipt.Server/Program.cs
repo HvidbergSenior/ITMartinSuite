@@ -39,6 +39,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ReceiptDbContext>();
     await db.Database.EnsureCreatedAsync();
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Transactions\" ADD COLUMN \"IsTemplate\" INTEGER NOT NULL DEFAULT 0"); } catch { }
 }
 
 if (!app.Environment.IsDevelopment())

@@ -57,13 +57,17 @@
 
                 @foreach (var tx in _transactions)
                 {
-                    <div class="content-card receipt-history-card">
+                    <div class="content-card receipt-history-card @(tx.IsTemplate ? "template-card" : "")">
 
                         <div class="receipt-history-row">
 
                             <div>
                                 <div class="receipt-history-merchant">
                                     @(string.IsNullOrWhiteSpace(tx.MerchantName) ? "Unknown Merchant" : tx.MerchantName)
+                                    @if (tx.IsTemplate)
+                                    {
+                                        <span class="template-badge">Template</span>
+                                    }
                                 </div>
                                 <div class="text-muted" style="font-size:13px; margin-top:4px;">
                                     @tx.ScannedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
@@ -74,12 +78,18 @@
                                 </div>
                             </div>
 
-                            @if (tx.TotalAmount.HasValue)
-                            {
-                                <div class="receipt-history-total">
-                                    @tx.Currency @tx.TotalAmount.Value.ToString("F2")
-                                </div>
-                            }
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <button class="btn btn-sm @(tx.IsTemplate ? "btn-warning" : "btn-outline-secondary")"
+                                        @onclick="() => ToggleTemplate(tx)">
+                                    @(tx.IsTemplate ? "Unset Template" : "Set Template")
+                                </button>
+                                @if (tx.TotalAmount.HasValue)
+                                {
+                                    <div class="receipt-history-total">
+                                        @tx.Currency @tx.TotalAmount.Value.ToString("F2")
+                                    </div>
+                                }
+                            </div>
 
                         </div>
 
@@ -180,6 +190,21 @@
         font-size: 13px;
         color: var(--text-muted);
     }
+
+    .template-card {
+        border-color: rgba(245, 158, 11, 0.5) !important;
+    }
+
+    .template-badge {
+        font-size: 11px;
+        font-weight: 700;
+        background: rgba(245,158,11,.2);
+        color: #f59e0b;
+        border-radius: 999px;
+        padding: 2px 8px;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
 </style>
 
 @code {
@@ -193,6 +218,12 @@
         _totalSpend = _transactions
             .Where(x => x.Currency == "DKK" && x.TotalAmount.HasValue)
             .Sum(x => x.TotalAmount!.Value);
+    }
+
+    private async Task ToggleTemplate(ReceiptTransaction tx)
+    {
+        tx.IsTemplate = !tx.IsTemplate;
+        await ReceiptRepository.SetTemplateAsync(tx.Id, tx.IsTemplate);
     }
 
 }

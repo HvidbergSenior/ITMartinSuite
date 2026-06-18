@@ -29,4 +29,32 @@ public sealed class ReceiptRepository : IReceiptRepository
             .OrderByDescending(x => x.ScannedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task SetTemplateAsync(
+        Guid id,
+        bool isTemplate,
+        CancellationToken cancellationToken = default)
+    {
+        var tx = await _db.Transactions.FindAsync([id], cancellationToken);
+        if (tx is null) return;
+        tx.IsTemplate = isTemplate;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<ReceiptTransaction?> GetTemplateAsync(
+        string merchantName,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Transactions
+            .Include(x => x.Items)
+            .Where(x => x.IsTemplate &&
+                x.MerchantName.ToLower() == merchantName.ToLower())
+            .OrderByDescending(x => x.ScannedAt)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? await _db.Transactions
+                .Include(x => x.Items)
+                .Where(x => x.IsTemplate)
+                .OrderByDescending(x => x.ScannedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+    }
 }

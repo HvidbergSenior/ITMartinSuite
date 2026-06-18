@@ -6,4 +6,6 @@ public interface IReceiptRepository
 {
     Task SaveAsync(ReceiptTransaction transaction, CancellationToken cancellationToken = default);
     Task<List<ReceiptTransaction>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task SetTemplateAsync(Guid id, bool isTemplate, CancellationToken cancellationToken = default);
+    Task<ReceiptTransaction?> GetTemplateAsync(string merchantName, CancellationToken cancellationToken = default);
 }

@@ -130,6 +130,7 @@ public sealed class ClaudeReceiptExtractionService
 
     public async Task<ReceiptExtractionResult> ExtractFromImageAsync(
         string imagePath,
+        ReceiptExtractionResult? template = null,
         CancellationToken cancellationToken = default)
     {
         var bytes = await File.ReadAllBytesAsync(imagePath, cancellationToken);
@@ -183,7 +184,17 @@ public sealed class ClaudeReceiptExtractionService
                     Role = Role.User,
                     Content = new List<ContentBlockParam>
                     {
-                        new TextBlockParam { Text = "Extract the receipt data from this image and call the report_receipt tool." },
+                        new TextBlockParam
+                        {
+                            Text = template is null
+                                ? "Extract the receipt data from this image and call the report_receipt tool."
+                                : $"""
+                                   Extract the receipt data from this image and call the report_receipt tool.
+
+                                   Use this verified receipt as a structural reference — follow the same format for items, discounts, and grouping:
+                                   {JsonSerializer.Serialize(template, JsonOptions)}
+                                   """
+                        },
                         new ImageBlockParam
                         {
                             Source = new Base64ImageSource { Data = base64, MediaType = mime }
