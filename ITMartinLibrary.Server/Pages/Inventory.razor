@@ -132,7 +132,7 @@
                             {
                                 <input class="shelf-input"
                                        value="@item.ShelfLocation"
-                                       @onchange="e => SaveShelf(item, e.Value?.ToString() ?? "")"
+                                       @onchange="e => SaveShelf(item, e.Value?.ToString() ?? string.Empty)"
                                        @onblur="() => _editingShelf = null"
                                        placeholder="e.g. A3" />
                             }
