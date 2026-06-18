@@ -1,0 +1,132 @@
+@page "/sell"
+@rendermode InteractiveServer
+
+@using ITMartinMarket.Application.Interfaces
+@using ITMartinMarket.Domain.Entities
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
+
+@inject ISaleItemRepository ItemRepo
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Sell Item</PageTitle>
+
+<link rel="stylesheet" href="css/market.css" />
+
+<div class="market-page">
+    <div class="market-header" style="margin-bottom:20px;">
+        <a href="/" class="m-btn-ghost">← Back</a>
+        <h2 style="margin:0;">List an Item</h2>
+    </div>
+
+    <div class="action-card">
+        <div style="display:flex; flex-direction:column; gap:14px;">
+            <input class="m-input" @bind="_title" placeholder="Title (e.g. Blue sofa, iPhone 12)" />
+            <textarea class="m-input" @bind="_description" placeholder="Description (optional)" rows="3" style="resize:vertical;"></textarea>
+            <input class="m-input" type="number" @bind="_askingPrice" placeholder="Asking price (kr)" />
+
+            @if (!_cameraOpen && _previewImage is null)
+            {
+                <button class="m-btn-ghost" @onclick="OpenCamera">📷 Add Photo</button>
+            }
+            else if (_cameraOpen)
+            {
+                <div style="position:relative;">
+                    <video id="sell-video" autoplay muted playsinline style="width:100%;border-radius:12px;"></video>
+                    <button class="capture-btn" @onclick="CapturePhoto">Capture</button>
+                </div>
+            }
+
+            @if (_previewImage is not null)
+            {
+                <div style="position:relative;">
+                    <img src="data:image/jpeg;base64,@_previewImage" style="width:100%;border-radius:12px;max-height:240px;object-fit:cover;" />
+                    <button @onclick="() => _previewImage = null" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:none;color:white;border-radius:6px;padding:4px 8px;cursor:pointer;">✕</button>
+                </div>
+            }
+
+            <button class="m-btn-primary" @onclick="PostItem" disabled="@(_posting || string.IsNullOrWhiteSpace(_title) || _askingPrice <= 0)">
+                @(_posting ? "Posting..." : "Post Item")
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="js/market.js"></script>
+
+@code {
+    private string _myName = "";
+    private string _title = "";
+    private string _description = "";
+    private decimal _askingPrice;
+    private string? _previewImage;
+    private bool _cameraOpen;
+    private bool _posting;
+    private HubConnection? _hub;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _myName = await JS.InvokeAsync<string>("marketApp.getName");
+        if (string.IsNullOrWhiteSpace(_myName)) { Navigation.NavigateTo("/"); return; }
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/market"))
+            .WithAutomaticReconnect()
+            .Build();
+        await _hub.StartAsync();
+    }
+
+    private async Task OpenCamera()
+    {
+        _cameraOpen = true;
+        StateHasChanged();
+        await Task.Delay(200);
+        await JS.InvokeVoidAsync("marketApp.startCamera", "sell-video");
+    }
+
+    private async Task CapturePhoto()
+    {
+        _previewImage = await JS.InvokeAsync<string>("marketApp.capturePhoto", "sell-video");
+        await JS.InvokeVoidAsync("marketApp.stopCamera", "sell-video");
+        _cameraOpen = false;
+    }
+
+    private async Task PostItem()
+    {
+        if (string.IsNullOrWhiteSpace(_title) || _askingPrice <= 0) return;
+        _posting = true;
+        StateHasChanged();
+
+        string? imagePath = null;
+        if (_previewImage is not null)
+        {
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "items");
+            imagePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+            await File.WriteAllBytesAsync(imagePath, Convert.FromBase64String(_previewImage));
+        }
+
+        var item = new SaleItem
+        {
+            Title = _title.Trim(),
+            Description = string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(),
+            AskingPrice = _askingPrice,
+            ImagePath = imagePath,
+            SellerName = _myName
+        };
+
+        await ItemRepo.AddAsync(item);
+
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("ItemPosted", item);
+
+        Navigation.NavigateTo("/");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null) await _hub.DisposeAsync();
+    }
+}

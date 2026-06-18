@@ -1,0 +1,221 @@
+@page "/item/{Id:guid}"
+@rendermode InteractiveServer
+
+@using ITMartinMarket.Application.Interfaces
+@using ITMartinMarket.Domain.Entities
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
+
+@inject ISaleItemRepository ItemRepo
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>@(_item?.Title ?? "Item")</PageTitle>
+
+<link rel="stylesheet" href="css/market.css" />
+
+<div class="market-page">
+
+    <div class="market-header" style="margin-bottom:16px;">
+        <a href="/" class="m-btn-ghost">← Back</a>
+        @if (_item is not null && _item.SellerName == _myName && !_item.IsSold)
+        {
+            <button class="m-btn-danger" @onclick="MarkSold">Mark as Sold</button>
+        }
+    </div>
+
+    @if (_item is null)
+    {
+        <div class="empty-state">Loading...</div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(_item.ImagePath) && File.Exists(_item.ImagePath))
+        {
+            <img src="/item-image/@_item.Id" class="item-full-img" />
+        }
+
+        <div class="item-detail-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <h2 class="item-detail-title">@_item.Title</h2>
+                    <div class="item-detail-price">@_item.AskingPrice.ToString("N0") kr</div>
+                </div>
+                @if (_item.IsSold)
+                {
+                    <div class="sold-badge" style="font-size:18px;">SOLD to @_item.SoldTo</div>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_item.Description))
+            {
+                <div class="item-description">@_item.Description</div>
+            }
+
+            <div class="item-meta" style="margin-top:8px;">Posted by @_item.SellerName · @_item.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")</div>
+        </div>
+
+        @if (!_item.IsSold && _item.SellerName != _myName)
+        {
+            <div class="action-card">
+                <h4 style="margin:0 0 14px;">Interested?</h4>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="m-btn-primary" @onclick="WantIt" disabled="@_acting">I want it!</button>
+                </div>
+
+                <div style="margin-top:14px; display:flex; gap:8px;">
+                    <input class="m-input" type="number" @bind="_bidAmount" placeholder="Bid amount (kr)" style="width:160px;" />
+                    <button class="m-btn-secondary" @onclick="PlaceBid" disabled="@(_bidAmount is null || _acting)">Place bid</button>
+                </div>
+
+                <div style="margin-top:14px; display:flex; gap:8px;">
+                    <input class="m-input" style="flex:1;" @bind="_messageText" placeholder="Ask something..." />
+                    <button class="m-btn-ghost" @onclick="SendMessage" disabled="@(string.IsNullOrWhiteSpace(_messageText) || _acting)">Send</button>
+                </div>
+            </div>
+        }
+
+        @if (_item.Bids.Any())
+        {
+            <div class="section-card">
+                <h4 style="margin:0 0 12px;">Bids (@_item.Bids.Count)</h4>
+                @foreach (var bid in _item.Bids.OrderByDescending(b => b.PlacedAt))
+                {
+                    <div class="bid-row">
+                        <span class="bid-name">@bid.BuyerName</span>
+                        @if (bid.Amount.HasValue)
+                        {
+                            <span class="bid-amount">@bid.Amount.Value.ToString("N0") kr</span>
+                        }
+                        else
+                        {
+                            <span class="bid-want">wants it</span>
+                        }
+                        <span class="bid-time">@bid.PlacedAt.ToLocalTime().ToString("HH:mm")</span>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (_item.Messages.Any())
+        {
+            <div class="section-card">
+                <h4 style="margin:0 0 12px;">Messages</h4>
+                @foreach (var msg in _item.Messages.OrderBy(m => m.SentAt))
+                {
+                    <div class="msg-row @(msg.SenderName == _myName ? "msg-mine" : "")">
+                        <span class="msg-sender">@msg.SenderName</span>
+                        <span class="msg-text">@msg.Text</span>
+                        <span class="msg-time">@msg.SentAt.ToLocalTime().ToString("HH:mm")</span>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private SaleItem? _item;
+    private string _myName = "";
+    private HubConnection? _hub;
+    private bool _acting;
+    private decimal? _bidAmount;
+    private string _messageText = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _myName = await JS.InvokeAsync<string>("marketApp.getName");
+        _item = await ItemRepo.GetByIdAsync(Id);
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/market"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<Guid, string, decimal?>("BidPlaced", (itemId, buyer, amount) =>
+        {
+            if (itemId != Id || _item is null) return;
+            _item.Bids.Add(new Bid { SaleItemId = itemId, BuyerName = buyer, Amount = amount, PlacedAt = DateTime.UtcNow });
+            InvokeAsync(StateHasChanged);
+        });
+        _hub.On<Guid, string, string>("MessageSent", (itemId, sender, text) =>
+        {
+            if (itemId != Id || _item is null) return;
+            _item.Messages.Add(new ItemMessage { SaleItemId = itemId, SenderName = sender, Text = text, SentAt = DateTime.UtcNow });
+            InvokeAsync(StateHasChanged);
+        });
+        _hub.On<Guid, string>("ItemSold", (itemId, soldTo) =>
+        {
+            if (itemId != Id || _item is null) return;
+            _item.IsSold = true; _item.SoldTo = soldTo;
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hub.StartAsync();
+        StateHasChanged();
+    }
+
+    private async Task WantIt()
+    {
+        _acting = true;
+        var bid = new Bid { SaleItemId = Id, BuyerName = _myName, Amount = null };
+        await ItemRepo.AddBidAsync(bid);
+        _item?.Bids.Add(bid);
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("BidPlaced", Id, _myName, (decimal?)null);
+        _acting = false;
+        StateHasChanged();
+    }
+
+    private async Task PlaceBid()
+    {
+        if (_bidAmount is null) return;
+        _acting = true;
+        var bid = new Bid { SaleItemId = Id, BuyerName = _myName, Amount = _bidAmount };
+        await ItemRepo.AddBidAsync(bid);
+        _item?.Bids.Add(bid);
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("BidPlaced", Id, _myName, _bidAmount);
+        _bidAmount = null;
+        _acting = false;
+        StateHasChanged();
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_messageText)) return;
+        _acting = true;
+        var msg = new ItemMessage { SaleItemId = Id, SenderName = _myName, Text = _messageText };
+        await ItemRepo.AddMessageAsync(msg);
+        _item?.Messages.Add(msg);
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("MessageSent", Id, _myName, _messageText);
+        _messageText = "";
+        _acting = false;
+        StateHasChanged();
+    }
+
+    private async Task MarkSold()
+    {
+        if (_item is null) return;
+        var topBidder = _item.Bids.OrderByDescending(b => b.Amount ?? 0).FirstOrDefault()?.BuyerName ?? "unknown";
+        _item.IsSold = true;
+        _item.SoldTo = topBidder;
+        _item.SoldAt = DateTime.UtcNow;
+        await ItemRepo.UpdateAsync(_item);
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("ItemSold", Id, topBidder);
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null) await _hub.DisposeAsync();
+    }
+}

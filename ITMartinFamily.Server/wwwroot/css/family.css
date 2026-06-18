@@ -1,0 +1,264 @@
+body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* Name picker */
+.name-picker {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.name-picker-card {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+}
+
+.name-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.name-btn {
+    background: rgba(99,102,241,.2);
+    border: 1px solid rgba(99,102,241,.4);
+    color: white;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.name-btn:hover { background: rgba(99,102,241,.4); }
+
+.name-input {
+    flex: 1;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: white;
+    font-size: 15px;
+    outline: none;
+}
+
+/* Main page */
+.family-page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+}
+
+.family-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+
+.family-title {
+    font-size: 32px;
+    font-weight: 900;
+    margin: 0;
+}
+
+.family-subtitle {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.add-btn {
+    background: rgba(99,102,241,.25);
+    border: 1px solid rgba(99,102,241,.5);
+    color: white;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Add panel */
+.add-panel {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.task-input {
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: white;
+    font-size: 16px;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cam-btn {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #94a3b8;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.capture-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    color: #0f172a;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 28px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.preview-img {
+    width: 100%;
+    border-radius: 10px;
+    max-height: 220px;
+    object-fit: cover;
+}
+
+.submit-btn {
+    background: #6366f1;
+    border: none;
+    color: white;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+}
+
+.submit-btn:disabled { opacity: .5; }
+
+/* Task grid */
+.task-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.task-card {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    transition: opacity .3s;
+}
+
+.task-done { opacity: .5; }
+
+.task-mine {
+    border-color: rgba(99,102,241,.5);
+    background: rgba(99,102,241,.08);
+}
+
+.task-img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+}
+
+.task-body {
+    padding: 14px 16px;
+}
+
+.task-note {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.task-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 10px;
+}
+
+.task-status {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.task-status.claimed { color: #f59e0b; }
+.task-status.done { color: #4ade80; }
+
+.action-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.claim-btn {
+    background: #6366f1;
+    color: white;
+}
+
+.done-btn {
+    background: #22c55e;
+    color: white;
+}
+
+.delete-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(239,68,68,.2);
+    border: 1px solid rgba(239,68,68,.4);
+    color: #f87171;
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: #475569;
+    font-size: 18px;
+}

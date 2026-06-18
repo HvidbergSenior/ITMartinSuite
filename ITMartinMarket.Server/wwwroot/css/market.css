@@ -1,0 +1,275 @@
+body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.name-picker {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.name-picker-card {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+}
+
+.market-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+}
+
+.market-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 12px;
+}
+
+.market-title {
+    font-size: 32px;
+    font-weight: 900;
+    margin: 0;
+}
+
+.market-subtitle {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+/* Buttons */
+.m-btn-primary {
+    background: #6366f1;
+    border: none;
+    color: white;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.m-btn-primary:disabled { opacity: .5; cursor: default; }
+
+.m-btn-secondary {
+    background: rgba(99,102,241,.2);
+    border: 1px solid rgba(99,102,241,.4);
+    color: white;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.m-btn-ghost {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #94a3b8;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.m-btn-danger {
+    background: rgba(239,68,68,.2);
+    border: 1px solid rgba(239,68,68,.4);
+    color: #f87171;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.m-input {
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: white;
+    font-size: 15px;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Items grid */
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.item-card {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .15s, border-color .15s;
+}
+
+.item-card:hover { transform: translateY(-2px); border-color: rgba(99,102,241,.5); }
+.item-card.item-sold { opacity: .5; }
+
+.item-thumb {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+}
+
+.item-thumb-placeholder {
+    width: 100%;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    background: rgba(255,255,255,.03);
+}
+
+.item-card-body { padding: 12px; }
+.item-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.item-price { font-size: 18px; font-weight: 900; color: #4ade80; margin-bottom: 6px; }
+.item-meta { font-size: 12px; color: #64748b; }
+
+.bid-badge {
+    background: rgba(99,102,241,.25);
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 11px;
+    color: #a5b4fc;
+    margin-left: 6px;
+}
+
+.sold-badge {
+    background: rgba(239,68,68,.2);
+    border: 1px solid rgba(239,68,68,.3);
+    color: #f87171;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Detail page */
+.item-full-img {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    border-radius: 16px;
+    margin-bottom: 16px;
+}
+
+.item-detail-card {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.item-detail-title { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+.item-detail-price { font-size: 28px; font-weight: 900; color: #4ade80; }
+.item-description { margin-top: 12px; color: #94a3b8; line-height: 1.5; }
+
+.action-card, .section-card {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.bid-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    font-size: 14px;
+}
+
+.bid-row:last-child { border-bottom: none; }
+.bid-name { font-weight: 600; flex: 1; }
+.bid-amount { color: #4ade80; font-weight: 700; }
+.bid-want { color: #6366f1; font-style: italic; }
+.bid-time { color: #475569; font-size: 12px; }
+
+.msg-row {
+    padding: 8px 12px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    background: rgba(255,255,255,.04);
+    font-size: 14px;
+}
+
+.msg-row.msg-mine { background: rgba(99,102,241,.12); }
+.msg-sender { font-weight: 600; margin-right: 8px; color: #a5b4fc; }
+.msg-time { float: right; font-size: 11px; color: #475569; }
+
+/* List row */
+.item-list-row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color .15s;
+}
+
+.item-list-row:hover { border-color: rgba(99,102,241,.4); }
+.item-list-row.item-sold { opacity: .5; }
+
+.item-list-thumb {
+    width: 72px;
+    height: 72px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: rgba(255,255,255,.05);
+}
+
+.capture-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    color: #0f172a;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 28px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: #475569;
+    font-size: 18px;
+}

@@ -1,0 +1,80 @@
+@page "/my-items"
+@rendermode InteractiveServer
+
+@using ITMartinMarket.Application.Interfaces
+@using ITMartinMarket.Domain.Entities
+@using Microsoft.JSInterop
+
+@inject ISaleItemRepository ItemRepo
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>My Items</PageTitle>
+
+<link rel="stylesheet" href="css/market.css" />
+
+<div class="market-page">
+    <div class="market-header" style="margin-bottom:20px;">
+        <a href="/" class="m-btn-ghost">← Back</a>
+        <h2 style="margin:0;">My Items</h2>
+    </div>
+
+    @if (_items is null)
+    {
+        <div class="empty-state">Loading...</div>
+    }
+    else if (!_items.Any())
+    {
+        <div class="empty-state">
+            <div style="font-size:48px;">📦</div>
+            <div>You haven't listed anything yet.</div>
+            <a href="/sell" class="m-btn-primary" style="margin-top:16px;display:inline-block;">List Something</a>
+        </div>
+    }
+    else
+    {
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            @foreach (var item in _items)
+            {
+                var soldCss = item.IsSold ? "item-list-row item-sold" : "item-list-row";
+                var navTarget = "/item/" + item.Id;
+                <div class="@soldCss" @onclick="() => Navigation.NavigateTo(navTarget)">
+                    @if (!string.IsNullOrWhiteSpace(item.ImagePath) && File.Exists(item.ImagePath))
+                    {
+                        <img src="/item-image/@item.Id" class="item-list-thumb" />
+                    }
+                    else
+                    {
+                        <div class="item-list-thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px;">📦</div>
+                    }
+                    <div style="flex:1; min-width:0;">
+                        <div class="item-title">@item.Title</div>
+                        <div class="item-meta">
+                            @item.AskingPrice.ToString("N0") kr
+                            · @item.Bids.Count bid(s)
+                            · @item.Messages.Count message(s)
+                        </div>
+                        @if (item.IsSold)
+                        {
+                            <div class="sold-badge" style="display:inline-block;margin-top:4px;">SOLD to @item.SoldTo</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<SaleItem>? _items;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var name = await JS.InvokeAsync<string>("marketApp.getName");
+        if (string.IsNullOrWhiteSpace(name)) { Navigation.NavigateTo("/"); return; }
+        var all = await ItemRepo.GetAllAsync();
+        _items = all.Where(i => i.SellerName == name).ToList();
+        StateHasChanged();
+    }
+}

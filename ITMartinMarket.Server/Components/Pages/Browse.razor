@@ -1,0 +1,140 @@
+@page "/"
+@rendermode InteractiveServer
+
+@using ITMartinMarket.Application.Interfaces
+@using ITMartinMarket.Domain.Entities
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
+
+@inject ISaleItemRepository ItemRepo
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Marketplace</PageTitle>
+
+<link rel="stylesheet" href="css/market.css" />
+
+@if (string.IsNullOrWhiteSpace(_myName))
+{
+    <div class="name-picker">
+        <div class="name-picker-card">
+            <h2>Who are you?</h2>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+                <input class="m-input" @bind="_customName" placeholder="Enter your name..." />
+                <button class="m-btn-primary" @onclick="PickName">Continue</button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="market-page">
+        <div class="market-header">
+            <div>
+                <h1 class="market-title">Marketplace</h1>
+                <div class="market-subtitle">Hi @_myName · @_items.Count active item(s)</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <a href="/sell" class="m-btn-primary">+ Sell</a>
+                <a href="/my-items" class="m-btn-ghost">My items</a>
+            </div>
+        </div>
+
+        @if (!_items.Any())
+        {
+            <div class="empty-state">
+                <div style="font-size:56px;">🏪</div>
+                <div>Nothing for sale right now.</div>
+                <a href="/sell" class="m-btn-primary" style="margin-top:16px; display:inline-block;">Be the first to sell something</a>
+            </div>
+        }
+        else
+        {
+            <div class="items-grid">
+                @foreach (var item in _items.OrderByDescending(i => i.CreatedAt))
+                {
+                    <div class="item-card @(item.IsSold ? "item-sold" : "")" @onclick="() => GoToItem(item.Id)">
+                        @if (!string.IsNullOrWhiteSpace(item.ImagePath) && File.Exists(item.ImagePath))
+                        {
+                            <img src="/item-image/@item.Id" class="item-thumb" />
+                        }
+                        else
+                        {
+                            <div class="item-thumb-placeholder">📦</div>
+                        }
+                        <div class="item-card-body">
+                            <div class="item-title">@item.Title</div>
+                            <div class="item-price">@item.AskingPrice.ToString("N0") kr</div>
+                            <div class="item-meta">
+                                @item.SellerName
+                                @if (item.Bids.Any())
+                                {
+                                    <span class="bid-badge">@item.Bids.Count bid(s)</span>
+                                }
+                            </div>
+                            @if (item.IsSold)
+                            {
+                                <div class="sold-badge">SOLD</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+<script src="js/market.js"></script>
+
+@code {
+    private string _myName = "";
+    private string _customName = "";
+    private List<SaleItem> _items = [];
+    private HubConnection? _hub;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _myName = await JS.InvokeAsync<string>("marketApp.getName");
+        _items = await ItemRepo.GetActiveAsync();
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/market"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<SaleItem>("ItemPosted", item => { _items.Insert(0, item); InvokeAsync(StateHasChanged); });
+        _hub.On<Guid, string, decimal?>("BidPlaced", (itemId, buyer, amount) =>
+        {
+            var it = _items.FirstOrDefault(x => x.Id == itemId);
+            if (it is not null) it.Bids.Add(new Bid { SaleItemId = itemId, BuyerName = buyer, Amount = amount });
+            InvokeAsync(StateHasChanged);
+        });
+        _hub.On<Guid, string>("ItemSold", (itemId, soldTo) =>
+        {
+            var it = _items.FirstOrDefault(x => x.Id == itemId);
+            if (it is not null) { it.IsSold = true; it.SoldTo = soldTo; }
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hub.StartAsync();
+        StateHasChanged();
+    }
+
+    private async Task PickName()
+    {
+        if (string.IsNullOrWhiteSpace(_customName)) return;
+        _myName = _customName.Trim();
+        await JS.InvokeVoidAsync("marketApp.setName", _myName);
+        StateHasChanged();
+    }
+
+    private void GoToItem(Guid id) => Navigation.NavigateTo($"/item/{id}");
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null) await _hub.DisposeAsync();
+    }
+}

@@ -1,0 +1,294 @@
+@page "/"
+@rendermode InteractiveServer
+
+@using ITMartinFamily.Application.Interfaces
+@using ITMartinFamily.Domain.Entities
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
+
+@inject IDailyTaskRepository TaskRepo
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@implements IAsyncDisposable
+
+<PageTitle>Today's Tasks</PageTitle>
+
+<link rel="stylesheet" href="css/family.css" />
+
+@if (string.IsNullOrWhiteSpace(_myName))
+{
+    <div class="name-picker">
+        <div class="name-picker-card">
+            <h2>Who are you?</h2>
+            <div class="name-grid">
+                @foreach (var name in _familyNames)
+                {
+                    <button class="name-btn" @onclick="() => PickName(name)">@name</button>
+                }
+            </div>
+            <div style="margin-top:16px; display:flex; gap:8px;">
+                <input class="name-input" @bind="_customName" placeholder="Other name..." />
+                <button class="name-btn" @onclick="PickCustomName">Go</button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="family-page">
+
+        <div class="family-header">
+            <div>
+                <h1 class="family-title">Today</h1>
+                <div class="family-subtitle">@DateTime.Today.ToString("dddd d. MMMM") · Hi @_myName</div>
+            </div>
+            <button class="add-btn" @onclick="ToggleAdd">@(_showAdd ? "✕ Cancel" : "+ Add Task")</button>
+        </div>
+
+        @if (_showAdd)
+        {
+            <div class="add-panel">
+                <input class="task-input" @bind="_newNote" placeholder="What needs to be done?" />
+
+                @if (!_cameraOpen)
+                {
+                    <button class="cam-btn" @onclick="OpenCamera">📷 Take Photo</button>
+                }
+                else
+                {
+                    <div style="position:relative;">
+                        <video id="task-video" autoplay muted playsinline style="width:100%;border-radius:12px;"></video>
+                        <button class="capture-btn" @onclick="CapturePhoto">Capture</button>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_previewImage))
+                {
+                    <img src="data:image/jpeg;base64,@_previewImage" class="preview-img" />
+                }
+
+                <button class="submit-btn" @onclick="AddTask" disabled="@_adding">
+                    @(_adding ? "Adding..." : "Add Task")
+                </button>
+            </div>
+        }
+
+        @if (!_tasks.Any())
+        {
+            <div class="empty-state">
+                <div style="font-size:56px;">✅</div>
+                <div>Nothing to do today!</div>
+            </div>
+        }
+        else
+        {
+            <div class="task-grid">
+                @foreach (var task in _tasks.OrderBy(t => t.CompletedAt.HasValue).ThenBy(t => t.CreatedAt))
+                {
+                    <div class="task-card @(task.CompletedAt.HasValue ? "task-done" : "") @(task.ClaimedBy == _myName && task.CompletedAt is null ? "task-mine" : "")">
+
+                        @if (!string.IsNullOrWhiteSpace(task.ImagePath) && File.Exists(task.ImagePath))
+                        {
+                            <img src="/task-image/@task.Id" class="task-img" />
+                        }
+
+                        <div class="task-body">
+                            @if (!string.IsNullOrWhiteSpace(task.Note))
+                            {
+                                <div class="task-note">@task.Note</div>
+                            }
+                            <div class="task-meta">Added by @task.CreatedBy</div>
+
+                            @if (task.CompletedAt.HasValue)
+                            {
+                                <div class="task-status done">✅ Done by @task.ClaimedBy</div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(task.ClaimedBy))
+                            {
+                                <div class="task-status claimed">@task.ClaimedBy is on it</div>
+                                @if (task.ClaimedBy == _myName)
+                                {
+                                    <button class="action-btn done-btn" @onclick="() => MarkDone(task)">Mark Done ✓</button>
+                                }
+                            }
+                            else
+                            {
+                                <button class="action-btn claim-btn" @onclick="() => ClaimTask(task)">I'll do it</button>
+                            }
+                        </div>
+
+                        @if (task.CreatedBy == _myName && task.CompletedAt is null)
+                        {
+                            <button class="delete-btn" @onclick="() => DeleteTask(task)">✕</button>
+                        }
+
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+}
+
+<script src="js/family.js"></script>
+
+@code {
+    private static readonly string[] _familyNames = ["Mor", "Far", "Barn 1", "Barn 2"];
+
+    private string _myName = "";
+    private string _customName = "";
+    private List<DailyTask> _tasks = [];
+    private bool _showAdd;
+    private bool _cameraOpen;
+    private bool _adding;
+    private string _newNote = "";
+    private string? _previewImage;
+    private HubConnection? _hub;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _myName = await JS.InvokeAsync<string>("familyApp.getName");
+        _tasks = await TaskRepo.GetTodayAsync();
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/family"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<DailyTask>("TaskAdded", task => { _tasks.Add(task); InvokeAsync(StateHasChanged); });
+        _hub.On<Guid, string>("TaskClaimed", (id, by) =>
+        {
+            var t = _tasks.FirstOrDefault(x => x.Id == id);
+            if (t is not null) { t.ClaimedBy = by; t.ClaimedAt = DateTime.UtcNow; }
+            InvokeAsync(StateHasChanged);
+        });
+        _hub.On<Guid>("TaskCompleted", id =>
+        {
+            var t = _tasks.FirstOrDefault(x => x.Id == id);
+            if (t is not null) t.CompletedAt = DateTime.UtcNow;
+            InvokeAsync(StateHasChanged);
+        });
+        _hub.On<Guid>("TaskDeleted", id =>
+        {
+            _tasks.RemoveAll(x => x.Id == id);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hub.StartAsync();
+        StateHasChanged();
+    }
+
+    private async Task PickName(string name)
+    {
+        _myName = name;
+        await JS.InvokeVoidAsync("familyApp.setName", name);
+        StateHasChanged();
+    }
+
+    private async Task PickCustomName()
+    {
+        if (!string.IsNullOrWhiteSpace(_customName))
+            await PickName(_customName.Trim());
+    }
+
+    private void ToggleAdd()
+    {
+        _showAdd = !_showAdd;
+        if (!_showAdd) { _cameraOpen = false; _previewImage = null; _newNote = ""; }
+    }
+
+    private async Task OpenCamera()
+    {
+        _cameraOpen = true;
+        StateHasChanged();
+        await Task.Delay(200);
+        await JS.InvokeVoidAsync("familyApp.startCamera", "task-video");
+    }
+
+    private async Task CapturePhoto()
+    {
+        _previewImage = await JS.InvokeAsync<string>("familyApp.capturePhoto");
+        await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
+        _cameraOpen = false;
+    }
+
+    private async Task AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(_newNote) && _previewImage is null) return;
+
+        _adding = true;
+        StateHasChanged();
+
+        string? imagePath = null;
+
+        if (_previewImage is not null)
+        {
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "tasks");
+            Directory.CreateDirectory(folder);
+            imagePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+            await File.WriteAllBytesAsync(imagePath, Convert.FromBase64String(_previewImage));
+        }
+
+        var task = new DailyTask
+        {
+            Note = _newNote.Trim(),
+            ImagePath = imagePath,
+            CreatedBy = _myName,
+            Date = DateOnly.FromDateTime(DateTime.Today)
+        };
+
+        await TaskRepo.AddAsync(task);
+        _tasks.Add(task);
+
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("TaskAdded", task);
+
+        _newNote = "";
+        _previewImage = null;
+        _showAdd = false;
+        _adding = false;
+        StateHasChanged();
+    }
+
+    private async Task ClaimTask(DailyTask task)
+    {
+        task.ClaimedBy = _myName;
+        task.ClaimedAt = DateTime.UtcNow;
+        await TaskRepo.UpdateAsync(task);
+
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("TaskClaimed", task.Id, _myName);
+
+        StateHasChanged();
+    }
+
+    private async Task MarkDone(DailyTask task)
+    {
+        task.CompletedAt = DateTime.UtcNow;
+        await TaskRepo.UpdateAsync(task);
+
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("TaskCompleted", task.Id);
+
+        StateHasChanged();
+    }
+
+    private async Task DeleteTask(DailyTask task)
+    {
+        _tasks.Remove(task);
+        await TaskRepo.DeleteAsync(task.Id);
+
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("TaskDeleted", task.Id);
+
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null) await _hub.DisposeAsync();
+    }
+}
