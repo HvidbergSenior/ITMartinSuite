@@ -47,4 +47,28 @@ public sealed class MagicCardRepository
         _db.Cards.Update(card);
         await _db.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task UpsertScannedAsync(
+        MagicCard card,
+        CancellationToken cancellationToken = default)
+    {
+        var existing = card.ScryfallId is not null
+            ? await GetByScryfallIdAsync(card.ScryfallId, cancellationToken)
+            : null;
+
+        if (existing is null)
+        {
+            _db.Cards.Add(card);
+        }
+        else
+        {
+            existing.Quantity++;
+            existing.EurPrice = card.EurPrice;
+            existing.UsdPrice = card.UsdPrice;
+            existing.LastSeenAt = DateTime.UtcNow;
+            _db.Cards.Update(existing);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 }

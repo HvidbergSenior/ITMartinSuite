@@ -4,11 +4,13 @@
 @using ITMartin.Magic.Application.Interfaces
 @using ITMartin.Magic.Application.Models
 @using ITMartin.Magic.Application.Workflows
+@using ITMartin.Magic.Domain.Entities
 @using Microsoft.JSInterop
 
 @inject IJSRuntime JS
 @inject ICardScanOrchestrator CardScanOrchestrator
 @inject IMagicKnowledgeService MagicKnowledgeService
+@inject IMagicCardRepository CardRepository
 @implements IAsyncDisposable
 
 <PageTitle>
@@ -31,9 +33,7 @@
 
         </div>
 
-        <div class="ai-badge">
-            GPT + OCR
-        </div>
+        <a href="/collection" class="ai-badge" style="text-decoration:none;">My Collection</a>
 
     </div>
     <div class="scanner-setup">
@@ -506,17 +506,34 @@
                 var setCode = NoSetSymbol ? null : _selectedSetCode;
                 var result = await CardScanOrchestrator.ExecuteAsync(framePath, setCode, CancellationToken.None);
 
+                if (!result.Failed && result.ScryfallMatchResult is { } match)
+                {
+                    await CardRepository.UpsertScannedAsync(new MagicCard
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = match.Name,
+                        SetCode = match.SetCode ?? "",
+                        CollectorNumber = match.CollectorNumber ?? "",
+                        ScryfallId = match.ScryfallId,
+                        Quantity = 1,
+                        EurPrice = match.EurPrice,
+                        UsdPrice = match.UsdPrice,
+                        FirstSeenAt = DateTime.UtcNow,
+                        LastSeenAt = DateTime.UtcNow
+                    });
+                }
+
                 await InvokeAsync(() =>
                 {
                     _scanResult = result;
                     _isProcessing = false;
 
-                    if (!result.Failed && result.ScryfallMatchResult is { } match)
+                    if (!result.Failed && result.ScryfallMatchResult is { } m)
                     {
-                        _detectedText = $"Scanned: {match.Name}";
-                        if (_sessionNames.Add(match.Name))
+                        _detectedText = $"Scanned: {m.Name}";
+                        if (_sessionNames.Add(m.Name))
                         {
-                            _sessionCards.Insert(0, new SessionCard(match.Name, match.SetCode, match.EurPrice));
+                            _sessionCards.Insert(0, new SessionCard(m.Name, m.SetCode, m.EurPrice));
                             if (_sessionCards.Count > 50) _sessionCards.RemoveAt(_sessionCards.Count - 1);
                         }
                     }

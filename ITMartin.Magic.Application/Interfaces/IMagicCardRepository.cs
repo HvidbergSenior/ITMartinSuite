@@ -18,4 +18,8 @@ public interface IMagicCardRepository
     Task UpdateAsync(
         MagicCard card,
         CancellationToken cancellationToken = default);
+
+    Task UpsertScannedAsync(
+        MagicCard card,
+        CancellationToken cancellationToken = default);
 }

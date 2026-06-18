@@ -11,6 +11,8 @@ public sealed class CardCandidateViewModel
     public string CollectorNumber { get; set; } =
         string.Empty;
 
+    public string? ScryfallId { get; set; }
+
     public string ImageUrl { get; set; } =
         string.Empty;
 
