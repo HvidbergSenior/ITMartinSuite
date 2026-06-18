@@ -18,6 +18,9 @@ public sealed class MagicDbContext
     public DbSet<MagicCard> Cards =>
         Set<MagicCard>();
 
+    public DbSet<PriceAlert> PriceAlerts =>
+        Set<PriceAlert>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {

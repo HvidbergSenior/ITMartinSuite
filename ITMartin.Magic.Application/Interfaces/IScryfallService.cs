@@ -10,4 +10,8 @@ public interface IScryfallService
         string? setCode,
         MagicCardAnalysisResult? analysis,
         CancellationToken cancellationToken);
+
+    Task<(decimal? Eur, decimal? Usd)?> GetPriceByIdAsync(
+        string scryfallId,
+        CancellationToken cancellationToken);
 }

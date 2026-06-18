@@ -29,6 +29,10 @@ public static class MagicDependencyInjection
         services.AddScoped<
             IMagicCardRepository,
             MagicCardRepository>();
+        services.AddScoped<
+            IPriceAlertRepository,
+            PriceAlertRepository>();
+        services.AddHostedService<MagicPriceAlertService>();
         services.AddHttpClient<
             IScryfallService,
             ScryfallService>(client =>

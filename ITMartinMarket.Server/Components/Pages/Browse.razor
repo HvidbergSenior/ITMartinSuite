@@ -109,9 +109,24 @@ else
         _hub.On<Guid, string, decimal?>("BidPlaced", (itemId, buyer, amount) =>
         {
             var it = _items.FirstOrDefault(x => x.Id == itemId);
-            if (it is not null) it.Bids.Add(new Bid { SaleItemId = itemId, BuyerName = buyer, Amount = amount });
+            if (it is not null)
+            {
+                it.Bids.Add(new Bid { SaleItemId = itemId, BuyerName = buyer, Amount = amount });
+                if (it.SellerName == _myName)
+                {
+                    var msg = amount.HasValue ? $"{buyer} bid {amount:N0} kr" : $"{buyer} wants it!";
+                    InvokeAsync(() => JS.InvokeVoidAsync("marketApp.notify", it.Title, msg).AsTask());
+                }
+            }
             InvokeAsync(StateHasChanged);
         });
+        _hub.On<Guid, string, string>("MessageSent", (itemId, sender, text) =>
+        {
+            var it = _items.FirstOrDefault(x => x.Id == itemId);
+            if (it?.SellerName == _myName)
+                InvokeAsync(() => JS.InvokeVoidAsync("marketApp.notify", it.Title, $"{sender}: {text}").AsTask());
+        });
+
         _hub.On<Guid, string>("ItemSold", (itemId, soldTo) =>
         {
             var it = _items.FirstOrDefault(x => x.Id == itemId);
@@ -120,6 +135,7 @@ else
         });
 
         await _hub.StartAsync();
+        await JS.InvokeVoidAsync("marketApp.requestNotifyPermission");
         StateHasChanged();
     }
 

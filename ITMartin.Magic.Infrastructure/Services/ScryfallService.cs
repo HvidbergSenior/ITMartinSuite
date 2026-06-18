@@ -186,6 +186,24 @@ public sealed class ScryfallService
         };
     }
 
+    public async Task<(decimal? Eur, decimal? Usd)?> GetPriceByIdAsync(
+        string scryfallId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"cards/{scryfallId}", cancellationToken);
+            if (!response.IsSuccessStatusCode) return null;
+            var dto = await response.Content.ReadFromJsonAsync<ScryfallCardDto>(cancellationToken: cancellationToken);
+            if (dto is null) return null;
+            return (ParsePrice(dto.Prices?.Eur), ParsePrice(dto.Prices?.Usd));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static ScryfallCard
         CreateCard(
             ScryfallCardDto dto)

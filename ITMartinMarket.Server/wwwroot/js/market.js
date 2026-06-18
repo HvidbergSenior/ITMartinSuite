@@ -2,6 +2,16 @@ window.marketApp = {
     getName: () => localStorage.getItem('market_name') ?? '',
     setName: (name) => localStorage.setItem('market_name', name),
 
+    requestNotifyPermission: async () => {
+        if ('Notification' in window && Notification.permission === 'default')
+            await Notification.requestPermission();
+    },
+
+    notify: (title, body) => {
+        if ('Notification' in window && Notification.permission === 'granted')
+            new Notification(title, { body, icon: '/favicon.ico' });
+    },
+
     capturePhoto: async (videoId) => {
         const video = document.getElementById(videoId);
         const canvas = document.createElement('canvas');

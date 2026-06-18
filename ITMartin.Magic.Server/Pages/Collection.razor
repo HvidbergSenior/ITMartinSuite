@@ -4,6 +4,7 @@
 @using ITMartin.Magic.Domain.Entities
 
 @inject IMagicCardRepository CardRepository
+@inject IPriceAlertRepository AlertRepository
 @inject NavigationManager Navigation
 
 <PageTitle>My Collection</PageTitle>
@@ -17,6 +18,29 @@
         </div>
         <a href="/scanner" class="btn btn-success">Scan Cards</a>
     </div>
+
+    @if (_alerts.Any())
+    {
+        <div class="alerts-panel mt-2 mb-3">
+            <div style="font-size:13px; font-weight:700; color:#fbbf24; margin-bottom:8px;">📈 Price Alerts</div>
+            @foreach (var alert in _alerts)
+            {
+                <div class="alert-row">
+                    <div class="alert-info">
+                        <span class="alert-name">@alert.CardName</span>
+                        <span class="alert-set">@alert.SetCode.ToUpperInvariant()</span>
+                    </div>
+                    <div class="alert-prices">
+                        <span class="alert-old">€@alert.OldPrice.ToString("F2")</span>
+                        <span class="alert-arrow">→</span>
+                        <span class="alert-new">€@alert.NewPrice.ToString("F2")</span>
+                        <span class="alert-delta">+€@alert.Delta.ToString("F2")</span>
+                    </div>
+                    <button class="alert-dismiss" @onclick="() => DismissAlert(alert)">✕</button>
+                </div>
+            }
+        </div>
+    }
 
     @if (_cards is null)
     {
@@ -194,6 +218,7 @@
 
 @code {
     private List<MagicCard>? _cards;
+    private List<PriceAlert> _alerts = [];
     private string _search = "";
     private string _sortBy = "value";
 
@@ -223,5 +248,12 @@
     protected override async Task OnInitializedAsync()
     {
         _cards = (await CardRepository.GetAllAsync()).ToList();
+        _alerts = await AlertRepository.GetActiveAsync();
+    }
+
+    private async Task DismissAlert(PriceAlert alert)
+    {
+        await AlertRepository.DismissAsync(alert.Id);
+        _alerts.Remove(alert);
     }
 }

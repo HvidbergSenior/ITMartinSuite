@@ -1479,3 +1479,37 @@ RESPONSIVE
     min-width: 60px;
     text-align: right;
 }
+
+.alerts-panel {
+    background: rgba(251,191,36,.07);
+    border: 1px solid rgba(251,191,36,.3);
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+
+.alert-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+}
+
+.alert-row:last-child { border-bottom: none; }
+.alert-info { flex: 1; display: flex; gap: 8px; align-items: center; }
+.alert-name { font-weight: 600; font-size: 14px; }
+.alert-set { font-size: 12px; color: #94a3b8; }
+.alert-prices { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.alert-old { color: #94a3b8; text-decoration: line-through; }
+.alert-arrow { color: #475569; }
+.alert-new { color: #4ade80; font-weight: 700; }
+.alert-delta { color: #fbbf24; font-weight: 700; }
+.alert-dismiss {
+    background: none;
+    border: none;
+    color: #475569;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 6px;
+}
+.alert-dismiss:hover { color: #f87171; }
