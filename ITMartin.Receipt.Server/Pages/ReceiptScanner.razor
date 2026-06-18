@@ -1,5 +1,6 @@
 @page "/scanner"
 
+@using System.Threading.Channels
 @using ITMartin.Receipt.Application.Interfaces
 @using ITMartin.Receipt.Application.Models
 @using ITMartin.Receipt.Application.Workflows
@@ -215,15 +216,48 @@
     private void ZoomOut()   => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
     private void ZoomReset() => _zoom = 1.0;
 
+    private readonly Channel<string> _workChannel =
+        Channel.CreateBounded<string>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
+
+    protected override Task OnInitializedAsync()
+    {
+        _ = RunWorkerAsync();
+        return Task.CompletedTask;
+    }
+
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        _workChannel.Writer.TryComplete();
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+    }
 
-        try
+    private async Task RunWorkerAsync()
+    {
+        await foreach (var imagePath in _workChannel.Reader.ReadAllAsync())
         {
-            await JS.InvokeVoidAsync("webcam.stop");
+            if (_disposed) break;
+            try
+            {
+                var result = await ReceiptOrchestrator.ExecuteAsync(imagePath, CancellationToken.None);
+                await InvokeAsync(() =>
+                {
+                    _context = result;
+                    _isProcessing = false;
+                    _statusText = result.Failed ? result.FailureReason : "Scan complete";
+                    StateHasChanged();
+                });
+            }
+            catch (Exception ex)
+            {
+                await InvokeAsync(() =>
+                {
+                    _isProcessing = false;
+                    _statusText = ex.Message;
+                    StateHasChanged();
+                });
+            }
         }
-        catch { }
     }
 
     private async Task StartCamera()
@@ -240,7 +274,6 @@
             _cameraStarted = false;
             _statusText = ex.Message;
         }
-
         StateHasChanged();
     }
 
@@ -256,53 +289,28 @@
             StateHasChanged();
 
             CameraCaptureResult capture;
-
-            try
-            {
-                capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture");
-            }
-            catch (TaskCanceledException)
-            {
-                return;
-            }
+            try { capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture"); }
+            catch (TaskCanceledException) { _isProcessing = false; return; }
 
             var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
             var bytes = Convert.FromBase64String(clean);
-
-            var folder = Path.Combine(
-                Directory.GetCurrentDirectory(), "data", "receipts");
-
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "receipts");
             Directory.CreateDirectory(folder);
-
             var imagePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
-
             await File.WriteAllBytesAsync(imagePath, bytes);
 
             _capturedImage = $"data:image/jpeg;base64,{clean}";
             _statusText = "Analyzing receipt...";
+            _workChannel.Writer.TryWrite(imagePath);
             StateHasChanged();
-
-            _context = await ReceiptOrchestrator.ExecuteAsync(
-                imagePath,
-                CancellationToken.None);
-
-            _statusText = _context.Failed
-                ? _context.FailureReason
-                : "Scan complete";
         }
         catch (Exception ex)
         {
-            _statusText = ex.Message;
-        }
-        finally
-        {
             _isProcessing = false;
+            _statusText = ex.Message;
             StateHasChanged();
         }
     }
 
-    private sealed class CameraCaptureResult
-    {
-        public string Image { get; set; } = "";
-    }
+    private sealed class CameraCaptureResult { public string Image { get; set; } = ""; }
 }
