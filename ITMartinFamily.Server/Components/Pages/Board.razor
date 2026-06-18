@@ -9,6 +9,7 @@
 @inject IDailyTaskRepository TaskRepo
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IConfiguration Config
 
 @implements IAsyncDisposable
 
@@ -134,7 +135,7 @@ else
 <script src="js/family.js"></script>
 
 @code {
-    private static readonly string[] _familyNames = ["Mor", "Far", "Barn 1", "Barn 2"];
+    private string[] _familyNames = ["Mor", "Far", "Barn 1", "Barn 2"];
 
     private string _myName = "";
     private string _customName = "";
@@ -149,6 +150,10 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+
+        var namesConfig = Config["Family:Names"];
+        if (!string.IsNullOrWhiteSpace(namesConfig))
+            _familyNames = namesConfig.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         _myName = await JS.InvokeAsync<string>("familyApp.getName");
         _tasks = await TaskRepo.GetTodayAsync();
