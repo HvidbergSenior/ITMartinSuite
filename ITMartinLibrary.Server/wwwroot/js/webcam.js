@@ -84,3 +84,62 @@ window.webcam = {
         }
     }
 };
+
+window.barcodeScanner = {
+    stream: null,
+    animFrame: null,
+    lastCode: null,
+    lastTime: 0,
+
+    async start(videoId, dotNetRef) {
+        const video = document.getElementById(videoId);
+        if (!video) return;
+        try {
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 } }
+            });
+            video.srcObject = this.stream;
+            await video.play();
+            this.scan(video, dotNetRef);
+        } catch (e) { console.error('barcodeScanner.start', e); }
+    },
+
+    scan(video, dotNetRef) {
+        if (!('BarcodeDetector' in window)) {
+            console.warn('BarcodeDetector not supported');
+            return;
+        }
+        const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a'] });
+        const loop = async () => {
+            if (!this.stream) return;
+            try {
+                const barcodes = await detector.detect(video);
+                if (barcodes.length > 0) {
+                    const code = barcodes[0].rawValue;
+                    const now = Date.now();
+                    if (code !== this.lastCode || now - this.lastTime > 3000) {
+                        this.lastCode = code;
+                        this.lastTime = now;
+                        await dotNetRef.invokeMethodAsync('OnBarcodeDetected', code);
+                    }
+                }
+            } catch {}
+            this.animFrame = requestAnimationFrame(loop);
+        };
+        this.animFrame = requestAnimationFrame(loop);
+    },
+
+    stop() {
+        if (this.animFrame) cancelAnimationFrame(this.animFrame);
+        this.animFrame = null;
+        if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+        this.lastCode = null;
+    }
+};
+
+window.downloadFile = (filename, mimeType, base64) => {
+    const a = document.createElement('a');
+    a.href = `data:${mimeType};base64,${base64}`;
+    a.download = filename;
+    a.click();
+};

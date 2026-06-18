@@ -2,7 +2,10 @@
 
 @using ITMartinLibrary.Application.Services
 @using ITMartinLibrary.Domain.Entities
+@using Microsoft.JSInterop
 @inject InventoryService InventoryService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <div class="library-page">
     <div class="page-container">
@@ -12,6 +15,12 @@
                 <div>
                     <h1>📚 Scan Books</h1>
                     <p class="hero-text">Scan barcodes — items are added or stock incremented automatically.</p>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="btn @(_cameraMode ? "btn-warning" : "btn-outline-secondary")"
+                            @onclick="ToggleCameraMode">
+                        @(_cameraMode ? "📷 Camera ON" : "📷 Use Camera")
+                    </button>
                 </div>
                 @if (_sessionCount > 0)
                 {
@@ -23,11 +32,26 @@
             </div>
         </div>
 
-        <input @ref="barcodeInput"
-               @bind="Barcode"
-               @bind:event="oninput"
-               class="form-control scan-input"
-               placeholder="Ready for book scan..." />
+        @if (_cameraMode)
+        {
+            <div class="camera-scan-wrapper mt-3">
+                <video id="barcode-video" autoplay muted playsinline webkit-playsinline
+                       style="width:100%; border-radius:16px; background:black;"></video>
+                <div class="camera-scan-hint">Point camera at barcode — auto detects</div>
+                @if (!string.IsNullOrWhiteSpace(_cameraStatus))
+                {
+                    <div class="alert alert-dark mt-2">@_cameraStatus</div>
+                }
+            </div>
+        }
+        else
+        {
+            <input @ref="barcodeInput"
+                   @bind="Barcode"
+                   @bind:event="oninput"
+                   class="form-control scan-input"
+                   placeholder="Ready for book scan..." />
+        }
 
         @if (_error is not null)
         {
@@ -101,6 +125,28 @@
         font-size: 13px;
         color: var(--text-muted);
     }
+
+    .camera-scan-wrapper {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        background: black;
+        max-height: 50vh;
+    }
+
+    .camera-scan-hint {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,.7);
+        color: white;
+        padding: 6px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
 </style>
 
 @code {
@@ -109,9 +155,51 @@
     private bool isProcessing;
     private int _sessionCount;
     private ElementReference barcodeInput;
+    private bool _cameraMode;
+    private string? _cameraStatus;
+    private DotNetObjectReference<ScanBook>? _dotNetRef;
 
     private readonly record struct ScanEntry(InventoryItem Item, bool IsNew);
     private List<ScanEntry> _recentScans = new();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cameraMode) await StopCamera();
+        _dotNetRef?.Dispose();
+    }
+
+    private async Task ToggleCameraMode()
+    {
+        _cameraMode = !_cameraMode;
+        StateHasChanged();
+        if (_cameraMode)
+        {
+            await Task.Delay(200);
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            _cameraStatus = "Starting camera...";
+            await JS.InvokeVoidAsync("barcodeScanner.start", "barcode-video", _dotNetRef);
+            _cameraStatus = "Point at barcode";
+        }
+        else
+        {
+            await StopCamera();
+        }
+    }
+
+    private async Task StopCamera()
+    {
+        try { await JS.InvokeVoidAsync("barcodeScanner.stop"); } catch { }
+        _cameraStatus = null;
+    }
+
+    [JSInvokable]
+    public async Task OnBarcodeDetected(string code)
+    {
+        if (isProcessing || string.IsNullOrWhiteSpace(code)) return;
+        barcode = code;
+        _cameraStatus = $"Detected: {code}";
+        await ProcessScan();
+    }
 
     private string Barcode
     {

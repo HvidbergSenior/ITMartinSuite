@@ -3,6 +3,7 @@
 @using ITMartinLibrary.Application.Services
 @using ITMartinLibrary.Domain.Entities
 @inject InventoryService InventoryService
+@inject ITMartinLibrary.Application.Interfaces.IInventoryRepository InventoryRepository
 
 <PageTitle>Inventory</PageTitle>
 
@@ -122,7 +123,25 @@
                                     @item.LookupStatus
                                 </span>
                             </div>
-                            <div class="inv-qty">×@item.Quantity</div>
+                            <div class="inv-qty-row">
+                                <button class="qty-btn" @onclick="() => ChangeQty(item, -1)" disabled="@(item.Quantity <= 1)">−</button>
+                                <span class="inv-qty">@item.Quantity</span>
+                                <button class="qty-btn" @onclick="() => ChangeQty(item, +1)">+</button>
+                            </div>
+                            @if (_editingShelf == item.Id)
+                            {
+                                <input class="shelf-input"
+                                       value="@item.ShelfLocation"
+                                       @onchange="e => SaveShelf(item, e.Value?.ToString() ?? "")"
+                                       @onblur="() => _editingShelf = null"
+                                       placeholder="e.g. A3" />
+                            }
+                            else
+                            {
+                                <button class="shelf-btn" @onclick="() => _editingShelf = item.Id">
+                                    📍 @(string.IsNullOrWhiteSpace(item.ShelfLocation) ? "Set shelf" : item.ShelfLocation)
+                                </button>
+                            }
                             <a href="/library/edit/@item.Id" class="btn btn-secondary inv-edit-btn">Edit</a>
                         </div>
 
@@ -350,6 +369,54 @@
         padding: 0 12px !important;
     }
 
+    .inv-qty-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .qty-btn {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,.15);
+        background: rgba(255,255,255,.07);
+        color: white;
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .qty-btn:disabled { opacity: 0.3; cursor: default; }
+    .qty-btn:hover:not(:disabled) { background: rgba(255,255,255,.15); }
+
+    .shelf-btn {
+        font-size: 11px;
+        color: #94a3b8;
+        background: none;
+        border: 1px dashed rgba(255,255,255,.15);
+        border-radius: 6px;
+        padding: 3px 8px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .shelf-btn:hover { border-color: rgba(255,255,255,.4); color: white; }
+
+    .shelf-input {
+        width: 80px;
+        background: rgba(255,255,255,.08);
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        color: white;
+        font-size: 12px;
+        padding: 3px 7px;
+        outline: none;
+    }
+
     /* Status badges (shared pattern) */
     .item-status-badge {
         font-size: 11px;
@@ -369,6 +436,7 @@
     private string _search = "";
     private string _typeFilter = "All";
     private string _sortBy = "date";
+    private int? _editingShelf;
 
     private static readonly string[] _typeOptions = ["All", "Book", "DVD", "Other"];
 
@@ -408,6 +476,19 @@
         };
 
         return q.ToList();
+    }
+
+    private async Task ChangeQty(InventoryItem item, int delta)
+    {
+        item.Quantity = Math.Max(1, item.Quantity + delta);
+        await InventoryRepository.UpdateAsync(item);
+    }
+
+    private async Task SaveShelf(InventoryItem item, string value)
+    {
+        item.ShelfLocation = value;
+        await InventoryRepository.UpdateAsync(item);
+        _editingShelf = null;
     }
 
     private static string TypeIcon(string? type) => type switch

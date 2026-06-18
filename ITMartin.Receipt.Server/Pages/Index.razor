@@ -44,18 +44,28 @@
 
         </div>
 
-        @if (!_transactions.Any())
+        <div class="content-card" style="padding:12px 16px; margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            <input class="inv-search" style="flex:1; min-width:180px;"
+                   type="search" placeholder="Search merchant..."
+                   @bind="_search" @bind:event="oninput" />
+            <input class="inv-search" style="width:150px;"
+                   type="date" @bind="_fromDate" @bind:event="onchange" />
+            <input class="inv-search" style="width:150px;"
+                   type="date" @bind="_toDate" @bind:event="onchange" />
+        </div>
+
+        @if (!_filtered.Any())
         {
             <div class="content-card" style="text-align:center; padding:40px;">
                 <div style="font-size:48px; margin-bottom:12px;">🧾</div>
-                <div style="color:var(--text-muted);">No receipts scanned yet. Go scan one!</div>
+                <div style="color:var(--text-muted);">@(_transactions.Any() ? "No receipts match your search." : "No receipts scanned yet. Go scan one!")</div>
             </div>
         }
         else
         {
             <div class="stack mt-3">
 
-                @foreach (var tx in _transactions)
+                @foreach (var tx in _filtered)
                 {
                     <div class="content-card receipt-history-card @(tx.IsTemplate ? "template-card" : "")">
 
@@ -211,6 +221,14 @@
 
     private List<ReceiptTransaction>? _transactions;
     private decimal _totalSpend;
+    private string _search = "";
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+
+    private IEnumerable<ReceiptTransaction> _filtered => (_transactions ?? []).Where(tx =>
+        (string.IsNullOrWhiteSpace(_search) || tx.MerchantName.Contains(_search, StringComparison.OrdinalIgnoreCase)) &&
+        (_fromDate is null || tx.ScannedAt.Date >= _fromDate.Value.Date) &&
+        (_toDate is null   || tx.ScannedAt.Date <= _toDate.Value.Date));
 
     protected override async Task OnInitializedAsync()
     {

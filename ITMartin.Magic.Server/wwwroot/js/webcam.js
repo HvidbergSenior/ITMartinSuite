@@ -360,3 +360,10 @@
         return await response.json();
     }
 };
+
+window.downloadFile = (filename, mimeType, base64) => {
+    const a = document.createElement('a');
+    a.href = `data:${mimeType};base64,${base64}`;
+    a.download = filename;
+    a.click();
+};

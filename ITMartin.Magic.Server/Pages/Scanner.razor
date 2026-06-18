@@ -190,7 +190,10 @@
                         <span class="session-total"> · €@_sessionTotal.ToString("F2") total</span>
                     }
                 </div>
-                <button class="btn btn-sm btn-outline-secondary" @onclick="() => { _sessionCards.Clear(); _sessionNames.Clear(); }">Clear</button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-sm btn-outline-success" @onclick="ExportCsv">Export CSV</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => { _sessionCards.Clear(); _sessionNames.Clear(); }">Clear</button>
+                </div>
             </div>
             <div class="session-list">
                 @foreach (var c in _sessionCards)
@@ -572,6 +575,17 @@
         {
             if (!background) { _isProcessing = false; _detectedText = ex.Message; StateHasChanged(); }
         }
+    }
+
+    private async Task ExportCsv()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Name,Set,EUR Price");
+        foreach (var c in _sessionCards)
+            sb.AppendLine($"\"{c.Name}\",\"{c.SetCode?.ToUpperInvariant()}\",\"{c.EurPrice?.ToString("F2") ?? ""}\"");
+
+        var base64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+        await JS.InvokeVoidAsync("downloadFile", $"mtg-session-{DateTime.Now:yyyyMMdd-HHmm}.csv", "text/csv", base64);
     }
 
     private sealed class CameraCaptureResult { public string Image { get; set; } = ""; }
