@@ -39,6 +39,12 @@ namespace ITMartinLibrary.Infrastructure.Repositories
                 .FirstOrDefaultAsync(x => x.Barcode == barcode);
         }
 
+        public async Task<InventoryItem?> GetByTitleAsync(string title)
+        {
+            return await _db.Items
+                .FirstOrDefaultAsync(x => x.Title.ToLower() == title.ToLower());
+        }
+
         public async Task<InventoryItem?> GetByIdAsync(int id)
         {
             return await _db.Items.FindAsync(id);

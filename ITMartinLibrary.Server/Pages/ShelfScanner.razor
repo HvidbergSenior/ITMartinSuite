@@ -348,14 +348,18 @@
 
         if (!string.IsNullOrWhiteSpace(barcode))
         {
+            var existing = await InventoryService.GetByBarcodeAsync(barcode);
+            if (existing is not null) { item.AddedToInventory = true; return; }
             await InventoryService.ScanOrIncrementAsync(barcode);
         }
-        else
+        else if (!string.IsNullOrWhiteSpace(item.Title))
         {
+            var existing = await InventoryService.GetByTitleAsync(item.Title);
+            if (existing is not null) { item.AddedToInventory = true; return; }
             await InventoryService.AddAsync(new InventoryItem
             {
                 Barcode = $"SHELF-{Guid.NewGuid():N}",
-                Title = item.Title ?? "Unknown",
+                Title = item.Title,
                 Type = item.MediaType,
                 AuthorOrDirector = item.Author ?? "",
                 Quantity = 1,

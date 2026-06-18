@@ -90,4 +90,10 @@ public class InventoryService
     {
         return await _repository.GetAllAsync();
     }
+
+    public Task<InventoryItem?> GetByBarcodeAsync(string barcode)
+        => _repository.GetByBarcodeAsync(barcode);
+
+    public Task<InventoryItem?> GetByTitleAsync(string title)
+        => _repository.GetByTitleAsync(title);
 }
