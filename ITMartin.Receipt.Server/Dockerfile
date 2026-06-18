@@ -20,7 +20,8 @@ RUN apt-get update && \
         libglib2.0-0 \
         tesseract-ocr \
         tesseract-ocr-eng \
-        libleptonica-dev \
+        libleptonica6 \
+    && ln -sf /usr/lib/x86_64-linux-gnu/libleptonica.so.6 /usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /data/receipts
