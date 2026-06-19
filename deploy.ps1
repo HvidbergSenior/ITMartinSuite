@@ -39,11 +39,23 @@ Write-Host "[2/3] Saving to Synology Drive..." -ForegroundColor Cyan
 docker save -o $syncFile $imageName
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
-Write-Host "    Waiting for sync (30s)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 30
+Write-Host "    Waiting for file to appear on NAS..." -ForegroundColor Yellow
+$nasFile = "/volume1/homes/MartinHvidberg/martinsuite-magic/$imageName.tar"
+$timeout = 300
+$elapsed = 0
+do {
+    Start-Sleep -Seconds 5
+    $elapsed += 5
+    $exists = ssh $NasHost "test -f $nasFile && echo yes || echo no"
+    Write-Host "    ${elapsed}s — $exists" -ForegroundColor DarkGray
+} while ($exists.Trim() -ne "yes" -and $elapsed -lt $timeout)
+
+if ($exists.Trim() -ne "yes") {
+    Write-Error "File did not appear on NAS after ${timeout}s. Check Synology Drive sync."
+    exit 1
+}
 
 Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cyan
-$nasFile = "/volume1/homes/MartinHvidberg/martinsuite-magic/$imageName.tar"
 ssh $NasHost "docker --context default load -i $nasFile && rm $nasFile && cd $NasPath && docker --context default compose up -d $Service"
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
