@@ -4,8 +4,9 @@ namespace ITMartinLibrary.Application.Interfaces;
 
 public interface IScannedShelfRepository
 {
-    Task SaveShelvesAsync(IList<ScannedShelf> shelves, CancellationToken ct);
+    Task AddShelvesAsync(IList<ScannedShelf> shelves, CancellationToken ct);
+    Task<HashSet<string>> GetExistingTitlesAsync(CancellationToken ct);
     Task<IList<ScannedShelf>> GetAllWithBooksAsync(CancellationToken ct);
     Task ClearAllAsync(CancellationToken ct);
-    Task<bool> HasDataAsync(CancellationToken ct);
+    Task<int> GetTotalBookCountAsync(CancellationToken ct);
 }

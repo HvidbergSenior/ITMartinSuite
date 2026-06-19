@@ -2,7 +2,6 @@
 @layout FullScreenLayout
 
 @using ITMartinLibrary.Application.Interfaces
-@using ITMartinLibrary.Application.Services
 @using ITMartinLibrary.Domain.Entities
 @using ITMartinLibrary.Server.Layout
 @using Microsoft.JSInterop
@@ -17,7 +16,16 @@
 
     @if (_state == PageState.Scanning)
     {
-        <!-- SHELF COUNTER PILL -->
+        <!-- HEADER -->
+        <div class="bc-header">
+            <span class="bc-collection-count">📚 @_totalBooks book@(_totalBooks == 1 ? "" : "s") in collection</span>
+            @if (_totalBooks > 0)
+            {
+                <button class="bc-header-btn" @onclick="GoToSearch">Search</button>
+            }
+        </div>
+
+        <!-- CAPTURED PILL -->
         @if (_shelves.Count > 0)
         {
             <div class="bc-pill">
@@ -41,7 +49,7 @@
             else
             {
                 <video id="video" autoplay muted playsinline webkit-playsinline class="bc-video"></video>
-                <div class="bc-guide-label">Shelf @(_shelves.Count + 1)</div>
+                <div class="bc-guide-label">Section @(_shelves.Count + 1)</div>
             }
         </div>
 
@@ -51,23 +59,14 @@
             {
                 <div class="bc-status">@_statusText</div>
             }
-
             <div class="bc-actions">
                 <button class="bc-btn bc-btn--capture" @onclick="CaptureShelf" disabled="@(!_cameraStarted || _capturing)">
-                    @if (_capturing)
-                    {
-                        <span>Capturing...</span>
-                    }
-                    else
-                    {
-                        <span>📸 Capture Shelf @(_shelves.Count + 1)</span>
-                    }
+                    @(_capturing ? "Capturing..." : $"📸 Capture Section {_shelves.Count + 1}")
                 </button>
-
                 @if (_shelves.Count > 0)
                 {
                     <button class="bc-btn bc-btn--done" @onclick="DoneScanning">
-                        ✅ Done — Analyze @_shelves.Count shelf@(_shelves.Count == 1 ? "" : "s")
+                        ✅ Analyze @_shelves.Count section@(_shelves.Count == 1 ? "" : "s")
                     </button>
                 }
             </div>
@@ -93,6 +92,12 @@
 
     else if (_state == PageState.Searching)
     {
+        <!-- HEADER -->
+        <div class="bc-header">
+            <button class="bc-header-btn" @onclick="GoToScan">📷 Scan more</button>
+            <span class="bc-collection-count">📚 @_totalBooks book@(_totalBooks == 1 ? "" : "s")</span>
+        </div>
+
         <!-- SEARCH BAR -->
         <div class="bc-search-bar">
             <input class="bc-search-input"
@@ -113,78 +118,74 @@
                     <div>@_processingError</div>
                 </div>
             }
-            else if (_displayResults is null && _totalBooks == 0)
+            else if (_scanSummary is not null)
             {
-                <div class="bc-empty">
-                    <div class="bc-empty-icon">📷</div>
-                    <div>No books detected. Try holding the camera closer with better lighting, then re-scan.</div>
-                </div>
+                <div class="bc-summary">@_scanSummary</div>
             }
             else if (_displayResults is null)
             {
                 <div class="bc-empty">
-                    <div class="bc-empty-icon">📚</div>
-                    <div>Type to search your @_totalBooks book@(_totalBooks == 1 ? "" : "s")</div>
-                </div>
-            }
-            else if (_displayResults.Count == 0)
-            {
-                <div class="bc-empty">
                     <div class="bc-empty-icon">🔍</div>
-                    <div>No matches found</div>
+                    <div>Type to search your collection</div>
                 </div>
             }
-            else
+
+            @if (_displayResults is not null)
             {
-                @foreach (var display in _displayResults)
+                @if (_displayResults.Count == 0)
                 {
-                    <div class="bc-result-card">
-                        <div class="bc-result-header">
-                            Shelf @display.Result.ShelfNumber
-                            — @display.Result.MatchingBooks.Count match@(display.Result.MatchingBooks.Count == 1 ? "" : "es")
-                        </div>
-
-                        <div class="bc-image-wrap">
-                            @if (!string.IsNullOrEmpty(display.Base64Image))
-                            {
-                                <img src="data:image/jpeg;base64,@display.Base64Image"
-                                     class="bc-shelf-img" />
-                                <svg class="bc-overlay"
-                                     viewBox="0 0 100 100"
-                                     preserveAspectRatio="none">
-                                    @foreach (var book in display.Result.MatchingBooks)
-                                    {
-                                        <rect x="@((int)book.BBoxX)"
-                                              y="@((int)book.BBoxY)"
-                                              width="@((int)book.BBoxW)"
-                                              height="@((int)book.BBoxH)"
-                                              class="bc-highlight" />
-                                    }
-                                </svg>
-                            }
-                        </div>
-
-                        <div class="bc-match-list">
-                            @foreach (var book in display.Result.MatchingBooks)
-                            {
-                                <div class="bc-match-row">
-                                    <span class="bc-match-title">@(string.IsNullOrWhiteSpace(book.Title) ? "Unknown" : book.Title)</span>
-                                    @if (!string.IsNullOrWhiteSpace(book.Author))
-                                    {
-                                        <span class="bc-match-author">@book.Author</span>
-                                    }
-                                </div>
-                            }
-                        </div>
+                    <div class="bc-empty">
+                        <div class="bc-empty-icon">🤷</div>
+                        <div>No matches found</div>
                     </div>
+                }
+                else
+                {
+                    @foreach (var display in _displayResults)
+                    {
+                        <div class="bc-result-card">
+                            <div class="bc-result-header">
+                                Section @display.Result.ShelfNumber
+                                — @display.Result.MatchingBooks.Count match@(display.Result.MatchingBooks.Count == 1 ? "" : "es")
+                            </div>
+                            <div class="bc-image-wrap">
+                                @if (!string.IsNullOrEmpty(display.Base64Image))
+                                {
+                                    <img src="data:image/jpeg;base64,@display.Base64Image" class="bc-shelf-img" />
+                                    <svg class="bc-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                        @foreach (var book in display.Result.MatchingBooks)
+                                        {
+                                            <rect x="@((int)book.BBoxX)"
+                                                  y="@((int)book.BBoxY)"
+                                                  width="@((int)book.BBoxW)"
+                                                  height="@((int)book.BBoxH)"
+                                                  class="bc-highlight" />
+                                        }
+                                    </svg>
+                                }
+                            </div>
+                            <div class="bc-match-list">
+                                @foreach (var book in display.Result.MatchingBooks)
+                                {
+                                    <div class="bc-match-row">
+                                        <span class="bc-match-title">@(string.IsNullOrWhiteSpace(book.Title) ? "Unknown" : book.Title)</span>
+                                        @if (!string.IsNullOrWhiteSpace(book.Author))
+                                        {
+                                            <span class="bc-match-author">@book.Author</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 }
             }
         </div>
 
-        <!-- RESCAN BUTTON -->
+        <!-- CLEAR -->
         <div class="bc-rescan">
-            <button class="bc-btn bc-btn--rescan" @onclick="Rescan">
-                🔄 Re-scan bookcase
+            <button class="bc-btn bc-btn--rescan" @onclick="ClearAll">
+                🗑️ Clear entire collection
             </button>
         </div>
     }
@@ -192,7 +193,6 @@
 </div>
 
 <style>
-    /* ── APP SHELL ── */
     .bc-app {
         display: flex;
         flex-direction: column;
@@ -204,10 +204,39 @@
         position: relative;
     }
 
+    /* ── HEADER ── */
+    .bc-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: rgba(10,10,15,0.95);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        flex-shrink: 0;
+        z-index: 10;
+    }
+
+    .bc-collection-count {
+        font-size: 14px;
+        color: rgba(255,255,255,0.5);
+        font-weight: 500;
+    }
+
+    .bc-header-btn {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 6px 14px;
+        cursor: pointer;
+    }
+
     /* ── SHELF PILL ── */
     .bc-pill {
         position: absolute;
-        top: 16px;
+        top: 60px;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
@@ -230,18 +259,14 @@
         font-weight: 700;
     }
 
-    .bc-pill-dot--done {
-        background: #22c55e;
-        color: #000;
-    }
-
+    .bc-pill-dot--done { background: #22c55e; color: #000; }
     .bc-pill-dot--next {
         background: rgba(255,255,255,0.15);
         border: 2px solid rgba(255,255,255,0.4);
         color: #fff;
     }
 
-    /* ── CAMERA AREA ── */
+    /* ── CAMERA ── */
     .bc-camera-area {
         flex: 1;
         position: relative;
@@ -260,22 +285,14 @@
         cursor: pointer;
     }
 
-    .bc-camera-icon {
-        font-size: 64px;
-        opacity: 0.4;
-    }
+    .bc-camera-icon { font-size: 64px; opacity: 0.4; }
 
     .bc-camera-hint {
         font-size: 16px;
         color: rgba(255,255,255,0.45);
-        letter-spacing: 0.02em;
     }
 
-    .bc-video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
+    .bc-video { width: 100%; height: 100%; object-fit: cover; }
 
     .bc-guide-label {
         position: absolute;
@@ -301,7 +318,6 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
-        backdrop-filter: blur(8px);
     }
 
     .bc-status {
@@ -310,11 +326,7 @@
         text-align: center;
     }
 
-    .bc-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
+    .bc-actions { display: flex; flex-direction: column; gap: 10px; }
 
     /* ── BUTTONS ── */
     .bc-btn {
@@ -325,27 +337,19 @@
         font-size: 16px;
         font-weight: 700;
         cursor: pointer;
-        letter-spacing: 0.01em;
         transition: opacity 0.15s, transform 0.1s;
     }
 
     .bc-btn:active { transform: scale(0.97); opacity: 0.85; }
     .bc-btn:disabled { opacity: 0.35; pointer-events: none; }
-
-    .bc-btn--capture {
-        background: #2563eb;
-        color: #fff;
-    }
-
-    .bc-btn--done {
-        background: #16a34a;
-        color: #fff;
-    }
-
+    .bc-btn--capture { background: #2563eb; color: #fff; }
+    .bc-btn--done { background: #16a34a; color: #fff; }
     .bc-btn--rescan {
-        background: rgba(255,255,255,0.08);
-        color: rgba(255,255,255,0.7);
-        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+        color: rgba(255,255,255,0.4);
+        border: 1px solid rgba(255,255,255,0.08);
+        font-size: 14px;
+        padding: 12px;
     }
 
     /* ── PROCESSING ── */
@@ -356,6 +360,7 @@
         align-items: center;
         justify-content: center;
         gap: 24px;
+        padding: 32px;
     }
 
     .bc-spinner {
@@ -373,27 +378,19 @@
         font-size: 16px;
         color: rgba(255,255,255,0.6);
         font-weight: 500;
-    }
-
-    .bc-shelf-log {
-        margin-top: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
         text-align: center;
     }
 
-    .bc-shelf-log-row {
-        font-size: 13px;
-        color: #22c55e;
-    }
+    .bc-shelf-log { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+    .bc-shelf-log-row { font-size: 13px; color: #22c55e; }
 
     /* ── SEARCH ── */
     .bc-search-bar {
         display: flex;
         gap: 8px;
-        padding: 16px 16px 8px;
+        padding: 12px 16px 8px;
         background: #0a0a0f;
+        flex-shrink: 0;
     }
 
     .bc-search-input {
@@ -432,6 +429,16 @@
         gap: 16px;
     }
 
+    .bc-summary {
+        text-align: center;
+        font-size: 14px;
+        color: #22c55e;
+        padding: 12px;
+        background: rgba(34,197,94,0.08);
+        border-radius: 12px;
+        border: 1px solid rgba(34,197,94,0.2);
+    }
+
     .bc-empty {
         flex: 1;
         display: flex;
@@ -465,26 +472,17 @@
         border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
-    .bc-image-wrap {
-        position: relative;
-        width: 100%;
-    }
-
-    .bc-shelf-img {
-        width: 100%;
-        display: block;
-    }
+    .bc-image-wrap { position: relative; width: 100%; }
+    .bc-shelf-img { width: 100%; display: block; }
 
     .bc-overlay {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
     }
 
     .bc-highlight {
-        fill: rgba(255, 220, 0, 0.18);
+        fill: rgba(255,220,0,0.18);
         stroke: #FFD700;
         stroke-width: 1.5;
         vector-effect: non-scaling-stroke;
@@ -497,28 +495,12 @@
         gap: 6px;
     }
 
-    .bc-match-row {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
+    .bc-match-row { display: flex; flex-direction: column; gap: 2px; }
+    .bc-match-title { font-size: 14px; font-weight: 600; color: #f0f0f0; }
+    .bc-match-author { font-size: 12px; color: rgba(255,255,255,0.45); }
 
-    .bc-match-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #f0f0f0;
-    }
-
-    .bc-match-author {
-        font-size: 12px;
-        color: rgba(255,255,255,0.45);
-    }
-
-    /* ── RESCAN ── */
-    .bc-rescan {
-        padding: 12px 16px 28px;
-        background: #0a0a0f;
-    }
+    /* ── CLEAR ── */
+    .bc-rescan { padding: 8px 16px 28px; background: #0a0a0f; flex-shrink: 0; }
 </style>
 
 @code {
@@ -530,11 +512,11 @@
     private bool _capturing;
     private string? _statusText;
     private string? _processingError;
+    private string? _scanSummary;
     private string _searchQuery = "";
     private IList<ShelfDisplay>? _displayResults;
     private int _totalBooks;
     private readonly List<string> _shelfLog = [];
-
     private readonly List<CapturedShelf> _shelves = [];
 
     private sealed record CapturedShelf(int ShelfNumber, string ImagePath, string Base64);
@@ -547,11 +529,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (await BookcaseService.HasDataAsync(CancellationToken.None))
-        {
-            _state = PageState.Searching;
-            await LoadTotalBooksAsync();
-        }
+        _totalBooks = await BookcaseService.GetTotalBookCountAsync(CancellationToken.None);
     }
 
     private async Task StartCamera()
@@ -583,7 +561,7 @@
 
             var shelfNumber = _shelves.Count + 1;
             _shelves.Add(new CapturedShelf(shelfNumber, path, clean));
-            _statusText = $"Shelf {shelfNumber} captured";
+            _statusText = $"Section {shelfNumber} captured";
         }
         catch (Exception ex)
         {
@@ -603,34 +581,60 @@
         _state = PageState.Processing;
         _statusText = "Starting...";
         _processingError = null;
+        _scanSummary = null;
         _shelfLog.Clear();
         StateHasChanged();
 
         var progress = new Progress<string>(msg =>
         {
             _statusText = msg;
-            if (msg.StartsWith("Shelf ") && msg.Contains("found"))
+            if (msg.StartsWith("Section ") || msg.StartsWith("Shelf "))
                 _shelfLog.Add(msg);
             InvokeAsync(StateHasChanged);
         });
 
         try
         {
-            await BookcaseService.ProcessShelvesAsync(
+            var result = await BookcaseService.ProcessShelvesAsync(
                 _shelves.Select(x => (x.ShelfNumber, x.ImagePath)).ToList(),
                 progress,
                 CancellationToken.None);
 
-            await LoadTotalBooksAsync();
+            _totalBooks = await BookcaseService.GetTotalBookCountAsync(CancellationToken.None);
+
+            _scanSummary = result.NewBooks > 0
+                ? $"Added {result.NewBooks} new book{(result.NewBooks == 1 ? "" : "s")} — {result.SkippedBooks} already in collection"
+                : result.SkippedBooks > 0
+                    ? $"No new books — all {result.SkippedBooks} already in collection"
+                    : "No books detected. Try closer with better lighting.";
         }
         catch (Exception ex)
         {
             _processingError = ex.Message;
         }
 
+        _shelves.Clear();
         _state = PageState.Searching;
         _searchQuery = "";
         _displayResults = null;
+        StateHasChanged();
+    }
+
+    private void GoToSearch()
+    {
+        _state = PageState.Searching;
+        _scanSummary = null;
+        _displayResults = null;
+        StateHasChanged();
+    }
+
+    private async Task GoToScan()
+    {
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+        _cameraStarted = false;
+        _shelves.Clear();
+        _statusText = null;
+        _state = PageState.Scanning;
         StateHasChanged();
     }
 
@@ -649,6 +653,7 @@
         }
 
         _displayResults = display;
+        _scanSummary = null;
         StateHasChanged();
     }
 
@@ -657,21 +662,14 @@
         if (e.Key == "Enter") await Search();
     }
 
-    private async Task Rescan()
+    private async Task ClearAll()
     {
         await BookcaseService.ClearAllAsync(CancellationToken.None);
-        _shelves.Clear();
-        _searchQuery = "";
-        _displayResults = null;
         _totalBooks = 0;
+        _displayResults = null;
+        _scanSummary = null;
         _state = PageState.Scanning;
         StateHasChanged();
-    }
-
-    private async Task LoadTotalBooksAsync()
-    {
-        var all = await BookcaseService.SearchAsync("", CancellationToken.None);
-        _totalBooks = all.Sum(x => x.MatchingBooks.Count);
     }
 
     private static async Task<string> ReadBase64Async(string path)

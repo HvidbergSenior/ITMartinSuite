@@ -10,18 +10,21 @@ public sealed class ScannedShelfRepository : IScannedShelfRepository
 
     public ScannedShelfRepository(LibraryDbContext db) => _db = db;
 
-    public async Task SaveShelvesAsync(IList<ScannedShelf> shelves, CancellationToken ct)
+    public async Task AddShelvesAsync(IList<ScannedShelf> shelves, CancellationToken ct)
     {
-        var books = await _db.ShelfBooks.ToListAsync(ct);
-        _db.ShelfBooks.RemoveRange(books);
-
-        var existing = await _db.ScannedShelves.ToListAsync(ct);
-        _db.ScannedShelves.RemoveRange(existing);
-
-        await _db.SaveChangesAsync(ct);
-
         _db.ScannedShelves.AddRange(shelves);
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<HashSet<string>> GetExistingTitlesAsync(CancellationToken ct)
+    {
+        var titles = await _db.ShelfBooks
+            .Select(x => x.Title)
+            .ToListAsync(ct);
+
+        return titles
+            .Select(t => t.Trim().ToLowerInvariant())
+            .ToHashSet();
     }
 
     public Task<IList<ScannedShelf>> GetAllWithBooksAsync(CancellationToken ct) =>
@@ -38,6 +41,6 @@ public sealed class ScannedShelfRepository : IScannedShelfRepository
         await _db.SaveChangesAsync(ct);
     }
 
-    public Task<bool> HasDataAsync(CancellationToken ct) =>
-        _db.ScannedShelves.AnyAsync(ct);
+    public Task<int> GetTotalBookCountAsync(CancellationToken ct) =>
+        _db.ShelfBooks.CountAsync(ct);
 }

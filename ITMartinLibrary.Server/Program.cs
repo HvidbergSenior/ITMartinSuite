@@ -45,9 +45,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<LibraryDbContext>();
     await db.Database.EnsureCreatedAsync();
 
-    await db.Database.ExecuteSqlRawAsync("DELETE FROM ShelfBooks");
-    await db.Database.ExecuteSqlRawAsync("DELETE FROM ScannedShelves");
-
     await db.Database.ExecuteSqlRawAsync("""
         CREATE TABLE IF NOT EXISTS "ScannedShelves" (
             "Id"          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
