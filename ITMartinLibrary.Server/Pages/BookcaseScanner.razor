@@ -97,7 +97,21 @@
 
         <!-- RESULTS -->
         <div class="bc-results">
-            @if (_displayResults is null)
+            @if (_processingError is not null)
+            {
+                <div class="bc-empty">
+                    <div class="bc-empty-icon">⚠️</div>
+                    <div>@_processingError</div>
+                </div>
+            }
+            else if (_displayResults is null && _totalBooks == 0)
+            {
+                <div class="bc-empty">
+                    <div class="bc-empty-icon">📷</div>
+                    <div>No books detected. Try holding the camera closer with better lighting, then re-scan.</div>
+                </div>
+            }
+            else if (_displayResults is null)
             {
                 <div class="bc-empty">
                     <div class="bc-empty-icon">📚</div>
@@ -493,6 +507,7 @@
     private bool _cameraStarted;
     private bool _capturing;
     private string? _statusText;
+    private string? _processingError;
     private string _searchQuery = "";
     private IList<ShelfDisplay>? _displayResults;
     private int _totalBooks;
@@ -564,6 +579,7 @@
         _cameraStarted = false;
         _state = PageState.Processing;
         _statusText = "Starting...";
+        _processingError = null;
         StateHasChanged();
 
         var progress = new Progress<string>(msg =>
@@ -572,12 +588,20 @@
             InvokeAsync(StateHasChanged);
         });
 
-        await BookcaseService.ProcessShelvesAsync(
-            _shelves.Select(x => (x.ShelfNumber, x.ImagePath)).ToList(),
-            progress,
-            CancellationToken.None);
+        try
+        {
+            await BookcaseService.ProcessShelvesAsync(
+                _shelves.Select(x => (x.ShelfNumber, x.ImagePath)).ToList(),
+                progress,
+                CancellationToken.None);
 
-        await LoadTotalBooksAsync();
+            await LoadTotalBooksAsync();
+        }
+        catch (Exception ex)
+        {
+            _processingError = ex.Message;
+        }
+
         _state = PageState.Searching;
         _searchQuery = "";
         _displayResults = null;

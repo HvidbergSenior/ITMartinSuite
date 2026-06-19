@@ -1,0 +1,9 @@
+{
+  "name": "Martin Library",
+  "short_name": "Library",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "start_url": "/library/bookcase",
+  "scope": "/"
+}
