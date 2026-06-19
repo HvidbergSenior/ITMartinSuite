@@ -1,0 +1,16 @@
+{
+  "name": "Martin FindIt",
+  "short_name": "FindIt",
+  "display": "standalone",
+  "background_color": "#0d0d14",
+  "theme_color": "#0d0d14",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

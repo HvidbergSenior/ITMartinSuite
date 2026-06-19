@@ -1,0 +1,16 @@
+{
+  "name": "Martin FileSorter",
+  "short_name": "FileSorter",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}
