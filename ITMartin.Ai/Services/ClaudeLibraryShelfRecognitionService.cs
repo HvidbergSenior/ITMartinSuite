@@ -45,7 +45,11 @@ public sealed class ClaudeLibraryShelfRecognitionService
                                 "isbn":      { "type": "string" },
                                 "barcode":   { "type": "string" },
                                 "mediaType": { "type": "string", "description": "Book, Comic, DVD, Bluray, or Cartoon" },
-                                "confidence":{ "type": "number" }
+                                "confidence":{ "type": "number" },
+                                "bboxX": { "type": "number", "description": "Left edge of spine as % of image width (0-100)" },
+                                "bboxY": { "type": "number", "description": "Top edge of spine as % of image height (0-100)" },
+                                "bboxW": { "type": "number", "description": "Width of spine as % of image width (0-100)" },
+                                "bboxH": { "type": "number", "description": "Height of spine as % of image height (0-100)" }
                             }
                         }
                     }
@@ -122,6 +126,7 @@ public sealed class ClaudeLibraryShelfRecognitionService
                     For mediaType use exactly one of: Book, Comic, DVD, Bluray, Cartoon.
                     Use Cartoon for animated series or animated movies regardless of format.
                     Use only text directly visible in the image.
+                    For each item report its bounding box as a percentage of the image (bboxX, bboxY, bboxW, bboxH, all 0-100).
                     A missing value is better than a guessed one.
                     """,
                 Tools = [ReportShelfTool],

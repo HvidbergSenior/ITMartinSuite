@@ -13,6 +13,8 @@ public static class DependencyInjection
     {
         services.AddScoped<InventoryService>();
 
+        services.AddScoped<IBookcaseService, BookcaseService>();
+
         services.AddScoped<
             IShelfScanOrchestrator,
             ShelfScanOrchestrator>();

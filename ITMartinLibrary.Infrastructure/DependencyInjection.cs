@@ -29,6 +29,10 @@ public static class DependencyInjection
             IInventoryRepository,
             InventoryRepository>();
 
+        services.AddScoped<
+            IScannedShelfRepository,
+            ScannedShelfRepository>();
+
         services.AddSingleton<
             IBarcodeEnrichmentQueue,
             BarcodeEnrichmentQueue>();
