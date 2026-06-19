@@ -79,6 +79,15 @@
         <div class="bc-processing">
             <div class="bc-spinner"></div>
             <div class="bc-processing-text">@_statusText</div>
+            @if (_shelfLog.Count > 0)
+            {
+                <div class="bc-shelf-log">
+                    @foreach (var line in _shelfLog)
+                    {
+                        <div class="bc-shelf-log-row">@line</div>
+                    }
+                </div>
+            }
         </div>
     }
 
@@ -366,6 +375,19 @@
         font-weight: 500;
     }
 
+    .bc-shelf-log {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+    }
+
+    .bc-shelf-log-row {
+        font-size: 13px;
+        color: #22c55e;
+    }
+
     /* ── SEARCH ── */
     .bc-search-bar {
         display: flex;
@@ -511,6 +533,7 @@
     private string _searchQuery = "";
     private IList<ShelfDisplay>? _displayResults;
     private int _totalBooks;
+    private readonly List<string> _shelfLog = [];
 
     private readonly List<CapturedShelf> _shelves = [];
 
@@ -580,11 +603,14 @@
         _state = PageState.Processing;
         _statusText = "Starting...";
         _processingError = null;
+        _shelfLog.Clear();
         StateHasChanged();
 
         var progress = new Progress<string>(msg =>
         {
             _statusText = msg;
+            if (msg.StartsWith("Shelf ") && msg.Contains("found"))
+                _shelfLog.Add(msg);
             InvokeAsync(StateHasChanged);
         });
 

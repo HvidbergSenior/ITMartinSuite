@@ -28,29 +28,34 @@ public sealed class BookcaseService : IBookcaseService
             progress?.Report($"Analyzing shelf {i + 1} of {shelves.Count}...");
 
             var result = await _ai.AnalyzeAsync(imagePath, ct);
-            if (result is null) continue;
+
+            var books = result?.Items
+                .Where(x => !string.IsNullOrWhiteSpace(x.Title) || !string.IsNullOrWhiteSpace(x.Author))
+                .Select(x => new ShelfBook
+                {
+                    Title = x.Title ?? "",
+                    Author = x.Author ?? "",
+                    BBoxX = x.BBoxX ?? 0,
+                    BBoxY = x.BBoxY ?? 0,
+                    BBoxW = x.BBoxW ?? 100,
+                    BBoxH = x.BBoxH ?? 100,
+                })
+                .ToList() ?? [];
 
             scanned.Add(new ScannedShelf
             {
                 ShelfNumber = shelfNumber,
                 ImagePath = imagePath,
                 ScannedAt = DateTime.UtcNow,
-                Books = result.Items
-                    .Where(x => !string.IsNullOrWhiteSpace(x.Title) || !string.IsNullOrWhiteSpace(x.Author))
-                    .Select(x => new ShelfBook
-                    {
-                        Title = x.Title ?? "",
-                        Author = x.Author ?? "",
-                        BBoxX = x.BBoxX ?? 0,
-                        BBoxY = x.BBoxY ?? 0,
-                        BBoxW = x.BBoxW ?? 100,
-                        BBoxH = x.BBoxH ?? 100,
-                    })
-                    .ToList()
+                Books = books
             });
+
+            progress?.Report($"Shelf {i + 1} of {shelves.Count}: found {books.Count} book{(books.Count == 1 ? "" : "s")}");
         }
 
-        await _repo.SaveShelvesAsync(scanned, ct);
+        var totalBooks = scanned.Sum(x => x.Books.Count);
+        if (totalBooks > 0)
+            await _repo.SaveShelvesAsync(scanned, ct);
     }
 
     public async Task<IList<ShelfSearchResult>> SearchAsync(string query, CancellationToken ct)
