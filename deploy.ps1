@@ -5,7 +5,7 @@ param(
 
 $NasHost = "martinhvidberg@100.117.120.44"
 $NasPath = "~/martinsuite-magic"
-$SyncFolder = "Z:"
+$SyncFolder = "C:\Users\hvidb\SynologyDrive\martinsuite-magic"
 
 $ServiceMap = @{
     "magic-web"         = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";        Context = "." }
@@ -43,7 +43,7 @@ Write-Host "    Waiting for sync (30s)..." -ForegroundColor Yellow
 Start-Sleep -Seconds 30
 
 Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cyan
-$nasFile = "~/$imageName.tar"
+$nasFile = "/volume1/homes/MartinHvidberg/martinsuite-magic/$imageName.tar"
 ssh $NasHost "docker --context default load -i $nasFile && rm $nasFile && cd $NasPath && docker --context default compose up -d $Service"
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
