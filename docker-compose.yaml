@@ -245,6 +245,11 @@ services:
     volumes:
       - /volume1/docker/martinsuite/library/data:/app/data
 
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
     restart: unless-stopped
 
     networks:

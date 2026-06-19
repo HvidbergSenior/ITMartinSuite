@@ -579,7 +579,7 @@
         try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
         _cameraStarted = false;
         _state = PageState.Processing;
-        _statusText = "Starting...";
+        _statusText = $"Preparing {_shelves.Count} photo{(_shelves.Count == 1 ? "" : "s")} for AI...";
         _processingError = null;
         _scanSummary = null;
         _shelfLog.Clear();
@@ -588,7 +588,7 @@
         var progress = new Progress<string>(msg =>
         {
             _statusText = msg;
-            if (msg.StartsWith("Section ") || msg.StartsWith("Shelf "))
+            if (msg.StartsWith("Photo "))
                 _shelfLog.Add(msg);
             InvokeAsync(StateHasChanged);
         });

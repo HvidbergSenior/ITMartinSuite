@@ -28,7 +28,7 @@ public sealed class BookcaseService : IBookcaseService
         for (var i = 0; i < shelves.Count; i++)
         {
             var (shelfNumber, imagePath) = shelves[i];
-            progress?.Report($"Analyzing shelf {i + 1} of {shelves.Count}...");
+            progress?.Report($"Sending photo {i + 1} of {shelves.Count} to AI...");
 
             var result = await _ai.AnalyzeAsync(imagePath, ct);
 
@@ -63,7 +63,7 @@ public sealed class BookcaseService : IBookcaseService
                 newBooks++;
             }
 
-            progress?.Report($"Shelf {i + 1} of {shelves.Count}: {booksForShelf.Count} new, {candidates.Count - booksForShelf.Count} already in collection");
+            progress?.Report($"Photo {i + 1} of {shelves.Count}: {booksForShelf.Count} new, {candidates.Count - booksForShelf.Count} already in collection");
 
             if (booksForShelf.Count > 0)
             {

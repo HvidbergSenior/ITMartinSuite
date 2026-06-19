@@ -84,29 +84,25 @@ public sealed class ClaudeLibraryShelfRecognitionService
         {
             var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken);
 
-            const int MaxBytes = 9 * 1024 * 1024;
-            if (bytes.Length > MaxBytes)
+            // Always resize to max 1920px wide — Claude doesn't need full camera resolution
+            // and large images consume too much memory on the NAS
+            using (var image = Image.Load(bytes))
             {
-                using var image = Image.Load(bytes);
-                var scale = Math.Sqrt(4.0 * 1024 * 1024 / bytes.Length);
-                image.Mutate(x => x.Resize(
-                    Math.Max(1, (int)(image.Width * scale)),
-                    Math.Max(1, (int)(image.Height * scale))));
-
-                var quality = 80;
-                byte[] resized;
-                do
+                const int MaxWidth = 1920;
+                if (image.Width > MaxWidth)
                 {
-                    using var ms = new MemoryStream();
-                    await image.SaveAsJpegAsync(ms,
-                        new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = quality },
-                        cancellationToken);
-                    resized = ms.ToArray();
-                    quality -= 10;
-                } while (resized.Length > MaxBytes && quality > 10);
+                    var ratio = (double)MaxWidth / image.Width;
+                    image.Mutate(x => x.Resize(MaxWidth, (int)(image.Height * ratio)));
+                }
 
-                bytes = resized;
+                using var ms = new MemoryStream();
+                await image.SaveAsJpegAsync(ms,
+                    new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 },
+                    cancellationToken);
+                bytes = ms.ToArray();
             }
+
+            _logger.LogInformation("Image prepared: {Bytes} bytes for {File}", bytes.Length, Path.GetFileName(filePath));
 
             var cacheKey = CreateHash(bytes);
 
@@ -171,9 +167,10 @@ public sealed class ClaudeLibraryShelfRecognitionService
                 return null;
 
             var json = JsonSerializer.Serialize(toolUse.Input);
-            _logger.LogDebug("Claude shelf response: {Json}", json);
+            _logger.LogInformation("Claude shelf response: {Json}", json);
 
             var result = JsonSerializer.Deserialize<LibraryShelfAnalysisResult>(json, JsonOptions);
+            _logger.LogInformation("Claude shelf parsed {Count} items", result?.Items?.Count ?? 0);
 
             if (result is null)
                 return null;
