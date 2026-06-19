@@ -61,7 +61,7 @@ if (-not $found) {
 }
 
 Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cyan
-ssh $NasHost "docker --context default load -i '$nasFile' && rm '$nasFile' && cd $NasPath && docker --context default compose up -d $Service"
+ssh $NasHost "docker --context default load -i '$nasFile' && rm '$nasFile' && cd $NasPath && docker --context default compose up -d --force-recreate --timeout 10 $Service"
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "Done! $Service is deployed." -ForegroundColor Green
