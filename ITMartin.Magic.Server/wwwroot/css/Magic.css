@@ -1281,11 +1281,23 @@ RESPONSIVE
         font-size: 20px;
     }
 
+    .scanner-header {
+
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .scanner-buttons {
+
+        gap: 8px;
+    }
+
     .scan-button {
 
-        width: calc(100% - 32px);
-
-        max-width: 420px;
+        flex: 1;
+        width: auto !important;
+        max-width: none !important;
+        min-width: 120px;
     }
 }
 /* =========================================

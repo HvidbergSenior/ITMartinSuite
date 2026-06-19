@@ -5,7 +5,7 @@ param(
 
 $NasHost = "martinhvidberg@100.117.120.44"
 $NasPath = "~/martinsuite-magic"
-$SyncFolder = "C:\Users\hvidb\SynologyDrive\martinsuite-magic"
+$NasFile_Base = "/volume1/homes/MartinHvidberg/martinsuite-magic"
 
 $ServiceMap = @{
     "magic-web"         = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";        Context = "." }
@@ -29,35 +29,42 @@ $entry      = $ServiceMap[$Service]
 $imageName  = "martinsuite-$Service"
 $dockerfile = $entry.Dockerfile
 $context    = $entry.Context
-$syncFile   = "$SyncFolder\$imageName.tar"
-$nasFile    = "/volume1/homes/MartinHvidberg/martinsuite-magic/$imageName.tar"
+$tarName    = "$imageName.tar"
+$nasFile    = "$NasFile_Base/$tarName"
 
 Write-Host "[1/3] Building $imageName..." -ForegroundColor Cyan
 docker build --platform linux/amd64 --provenance=false -t $imageName -f $dockerfile $context
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
-Write-Host "[2/3] Saving to Synology Drive..." -ForegroundColor Cyan
-docker save -o $syncFile $imageName
-if ($LASTEXITCODE -ne 0) { exit 1 }
+Write-Host "[2/3] Saving image..." -ForegroundColor Cyan
 
-Write-Host "    Waiting for file to appear on NAS..." -ForegroundColor Yellow
-$timeout = 300
-$elapsed = 0
-$found = $false
-while ($elapsed -lt $timeout) {
-    Start-Sleep -Seconds 5
-    $elapsed += 5
-    $check = ssh $NasHost "test -f '$nasFile' && echo yes || echo no"
-    Write-Host "    ${elapsed}s - $check" -ForegroundColor DarkGray
-    if ($check.Trim() -eq "yes") {
-        $found = $true
-        break
+if (Test-Path "Z:\martinsuite-magic") {
+    $dest = "Z:\martinsuite-magic\$tarName"
+    Write-Host "    Copying directly to NAS via Z: ..." -ForegroundColor Yellow
+    docker save -o $dest $imageName
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+    Write-Host "    Done." -ForegroundColor Green
+} else {
+    $dest = "C:\Users\hvidb\SynologyDrive\martinsuite-magic\$tarName"
+    Write-Host "    Z: not available, saving to Synology Drive and waiting for sync..." -ForegroundColor Yellow
+    docker save -o $dest $imageName
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+
+    $timeout = 300
+    $elapsed = 0
+    $found = $false
+    while ($elapsed -lt $timeout) {
+        Start-Sleep -Seconds 5
+        $elapsed += 5
+        $check = ssh $NasHost "test -f '$nasFile' && echo yes || echo no"
+        Write-Host "    ${elapsed}s - $check" -ForegroundColor DarkGray
+        if ($check.Trim() -eq "yes") { $found = $true; break }
     }
-}
 
-if (-not $found) {
-    Write-Error "File did not appear on NAS after ${timeout}s. Check Synology Drive sync."
-    exit 1
+    if (-not $found) {
+        Write-Error "File did not appear on NAS after ${timeout}s. Check Synology Drive sync."
+        exit 1
+    }
 }
 
 Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cyan

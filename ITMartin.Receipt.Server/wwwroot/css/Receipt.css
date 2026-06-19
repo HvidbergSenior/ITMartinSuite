@@ -580,6 +580,17 @@ SUSPICIOUS PRICE
     vertical-align: middle;
 }
 
+.camera-start-panel button {
+    padding: 14px 36px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+}
+
 /* =========================================
 MOBILE
 ========================================= */
@@ -595,6 +606,12 @@ MOBILE
     .scanner-title {
 
         font-size: 28px;
+    }
+
+    .scanner-header {
+
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     .scanner-guide {
