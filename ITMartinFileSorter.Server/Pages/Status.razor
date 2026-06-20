@@ -1,0 +1,138 @@
+@page "/status"
+
+@using ITMartin.Media.Infrastructure.Persistence
+@using ITMartin.Media.Infrastructure.Persistence.Entities
+@using Microsoft.EntityFrameworkCore
+
+@implements IDisposable
+
+@inject IDbContextFactory<MediaDbContext> DbFactory
+
+<div class="filesorter-app">
+
+    <div class="page-container stack">
+
+        <SectionTitle Title="⚙️ Worker Status" />
+
+        @if (Running is not null)
+        {
+            <ContentCard Title="🔄 Running">
+
+                <div class="status-row">
+                    <span class="status-label">Workflow</span>
+                    <span>@Running.WorkflowName</span>
+                </div>
+
+                <div class="status-row">
+                    <span class="status-label">Step</span>
+                    <span class="status-step">@Running.CurrentStep</span>
+                </div>
+
+                <div class="status-row">
+                    <span class="status-label">Started</span>
+                    <span>@Running.StartedAtUtc.ToString("HH:mm:ss") UTC</span>
+                </div>
+
+                <div class="status-row">
+                    <span class="status-label">Running for</span>
+                    <span>@FormatDuration(DateTime.UtcNow - Running.StartedAtUtc)</span>
+                </div>
+
+            </ContentCard>
+        }
+        else
+        {
+            <EmptyState Title="Idle" Text="No workflow is currently running" />
+        }
+
+        @if (Recent.Any())
+        {
+            <ContentCard Title="📋 Recent">
+
+                <div class="history-list">
+
+                    @foreach (var item in Recent)
+                    {
+                        <div class="history-row">
+
+                            <span class="history-badge status-@item.Status.ToLower()">
+                                @item.Status
+                            </span>
+
+                            <span class="history-name">@item.WorkflowName</span>
+
+                            <span class="history-time">
+                                @item.StartedAtUtc.ToString("yyyy-MM-dd HH:mm")
+                            </span>
+
+                            @if (item.CompletedAtUtc.HasValue)
+                            {
+                                <span class="history-duration">
+                                    @FormatDuration(item.CompletedAtUtc.Value - item.StartedAtUtc)
+                                </span>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(item.FailureReason))
+                            {
+                                <span class="history-error">@item.FailureReason</span>
+                            }
+
+                        </div>
+                    }
+
+                </div>
+
+            </ContentCard>
+        }
+
+    </div>
+
+</div>
+
+@code {
+
+    private WorkflowInstanceEntity? Running;
+
+    private List<WorkflowInstanceEntity> Recent = [];
+
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Refresh();
+
+        _timer = new Timer(async _ =>
+        {
+            await Refresh();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private async Task Refresh()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        Running = await db.WorkflowInstances
+            .Where(x => x.Status == "Running")
+            .OrderByDescending(x => x.StartedAtUtc)
+            .FirstOrDefaultAsync();
+
+        Recent = await db.WorkflowInstances
+            .Where(x => x.Status != "Running")
+            .OrderByDescending(x => x.StartedAtUtc)
+            .Take(10)
+            .ToListAsync();
+    }
+
+    private static string FormatDuration(TimeSpan ts)
+    {
+        if (ts.TotalHours >= 1)
+            return $"{(int)ts.TotalHours}h {ts.Minutes}m {ts.Seconds}s";
+        if (ts.TotalMinutes >= 1)
+            return $"{ts.Minutes}m {ts.Seconds}s";
+        return $"{ts.Seconds}s";
+    }
+
+    public void Dispose() => _timer?.Dispose();
+
+}

@@ -1,0 +1,57 @@
+.status-row {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+}
+
+.status-row:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    min-width: 110px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-step {
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.history-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    flex-wrap: wrap;
+}
+
+.history-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-completed { background: #16a34a22; color: #16a34a; }
+.status-failed    { background: #dc262622; color: #dc2626; }
+.status-cancelled { background: #6b728022; color: #6b7280; }
+.status-paused    { background: #d9770622; color: #d97706; }
+
+.history-name  { flex: 1; }
+.history-time  { color: var(--text-muted); font-size: 0.8rem; }
+.history-duration { color: var(--text-muted); font-size: 0.8rem; }
+.history-error { color: #dc2626; font-size: 0.8rem; font-style: italic; width: 100%; }

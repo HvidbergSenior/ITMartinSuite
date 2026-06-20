@@ -27,6 +27,7 @@ builder.Services
 // SERVICES
 // =========================
 
+builder.Services.AddMediaInfrastructureCore(builder.Configuration);
 builder.Services.AddFileSorterCore();
 builder.Services.AddFileSorterServer();
 builder.Services.AddAi();
