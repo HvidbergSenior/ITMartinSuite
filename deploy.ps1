@@ -9,8 +9,10 @@ $NasFile_Base = "/volume1/homes/MartinHvidberg/martinsuite-magic"
 
 $ServiceMap = @{
     "magic-web"         = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";        Context = "." }
-    "filesorter-web"    = @{ Dockerfile = "ITMartinFileSorter.Server/Dockerfile";    Context = "." }
-    "filesorter-worker" = @{ Dockerfile = "ITMartinFileSorter.Worker/Dockerfile";    Context = "." }
+    "filesorter-web"    = @{ Dockerfile = "ITMartinFileSorter.Server/Dockerfile";         Context = "." }
+    "filesorter-worker" = @{ Dockerfile = "ITMartinFileSorter.Worker/Dockerfile";         Context = "." }
+    "gallery-web"       = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
+    "gallery-vibeke"    = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
     "budget-web"        = @{ Dockerfile = "ITMartinBudget.Server/Dockerfile";        Context = "." }
     "r6assistant-web"   = @{ Dockerfile = "ITMartinR6Assistant.Server/Dockerfile";   Context = "." }
     "receipt-web"       = @{ Dockerfile = "ITMartin.Receipt.Server/Dockerfile";      Context = "." }
