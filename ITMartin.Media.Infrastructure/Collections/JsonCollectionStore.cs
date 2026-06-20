@@ -29,11 +29,16 @@ public sealed class JsonCollectionStore : ICollectionStore
 
     public async Task SaveAsync(List<MediaCollection> collections)
     {
-        var dir = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrWhiteSpace(dir))
-            Directory.CreateDirectory(dir);
+        try
+        {
+            var dir = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrWhiteSpace(dir))
+                Directory.CreateDirectory(dir);
 
-        var json = JsonSerializer.Serialize(collections, Options);
-        await File.WriteAllTextAsync(_filePath, json);
+            var json = JsonSerializer.Serialize(collections, Options);
+            await File.WriteAllTextAsync(_filePath, json);
+        }
+        catch (UnauthorizedAccessException) { }
+        catch (IOException) { }
     }
 }
