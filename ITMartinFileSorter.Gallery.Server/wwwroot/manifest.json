@@ -1,10 +1,10 @@
 {
-  "name": "Martin Sort",
-  "short_name": "Sort",
+  "name": "Martin Gallery",
+  "short_name": "Gallery",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#0a0a0f",
-  "start_url": "/filesorter",
+  "start_url": "/library",
   "scope": "/",
   "icons": [
     {

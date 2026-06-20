@@ -50,6 +50,10 @@ html, body {
 
 .app-header {
     padding: 16px 24px;
+    /* Push content below iPhone notch / Dynamic Island in standalone PWA mode */
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
     background: #111;
     border-bottom: 1px solid var(--border);
     font-weight: 700;

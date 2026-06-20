@@ -1,12 +1,14 @@
 
 @inherits LayoutComponentBase
 
+@inject IConfiguration Configuration
+
 <div class="app-shell">
 
     <header class="app-header fs-header">
 
         <div class="header-title">
-            🎬 FileSorter
+            📦 Sort
         </div>
 
         <nav class="fs-nav">
@@ -22,20 +24,10 @@
                 ✨ Enhancement
             </NavLink>
 
-            <NavLink class="fs-nav-link"
-                     href="/library">
-                🎬 Library
-            </NavLink>
-
-            <NavLink class="fs-nav-link"
-                     href="/ai-collections">
-                🗂️ Collections
-            </NavLink>
-
-            <NavLink class="fs-nav-link"
-                     href="/curator">
-                ✏️ Curator
-            </NavLink>
+            <a class="fs-nav-link"
+               href="@GalleryUrl">
+                🎬 Gallery ↗
+            </a>
 
         </nav>
 
@@ -45,8 +37,9 @@
         @Body
     </main>
 
-    <div class="app-footer">
-        &copy; @DateTime.Now.Year FileSorter
-    </div>
-
 </div>
+
+@code {
+    private string GalleryUrl =>
+        Configuration["Apps:GalleryUrl"] ?? "https://gallery.itmartin.dk";
+}
