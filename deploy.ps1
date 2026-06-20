@@ -7,6 +7,9 @@ $NasHost = "martinhvidberg@100.117.120.44"
 $NasPath = "~/martinsuite-magic"
 $NasFile_Base = "/volume1/homes/MartinHvidberg/martinsuite-magic"
 
+# Reconnect persistent mapped drives (Z: may have dropped after reboot)
+net use * /persistent:yes 2>$null | Out-Null
+
 $ServiceMap = @{
     "magic-web"         = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";        Context = "." }
     "filesorter-web"    = @{ Dockerfile = "ITMartinFileSorter.Server/Dockerfile";         Context = "." }
