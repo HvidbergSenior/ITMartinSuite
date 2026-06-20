@@ -24,6 +24,8 @@ services:
       - Apps__ReceiptUrl=https://receipt.ITMartin.dk
       - Apps__LibraryUrl=https://library.ITMartin.dk
       - Apps__AdhdUrl=https://adhd.ITMartin.dk
+      - Apps__FamilyUrl=https://family.ITMartin.dk
+      - Apps__MarketUrl=https://market.ITMartin.dk
 
     restart: unless-stopped
 
@@ -106,7 +108,7 @@ services:
       - magic.env
 
     ports:
-      - "8088:8080"
+      - "8090:8080"
 
     environment:
       - ASPNETCORE_URLS=http://+:8080
@@ -243,9 +245,10 @@ services:
 
     environment:
       - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/receipts.db
 
     volumes:
-      - /volume1/docker/martinsuite/receipt/data:/data
+      - /volume1/docker/martinsuite/receipt/data:/app/data
 
     restart: unless-stopped
 
@@ -281,6 +284,65 @@ services:
       resources:
         limits:
           memory: 512m
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # MARKETPLACE
+  # =========================================================
+
+  market-web:
+    container_name: market-web
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartinMarket.Server/Dockerfile
+
+    ports:
+      - "8089:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/market.db
+
+    volumes:
+      - /volume1/docker/martinsuite/market/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # FAMILY PLANNER
+  # =========================================================
+
+  family-web:
+    container_name: family-web
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartinFamily.Server/Dockerfile
+
+    ports:
+      - "8088:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/family.db
+      - Family__Names=Mor,Far,Barn 1,Barn 2
+
+    volumes:
+      - /volume1/docker/martinsuite/family/data:/app/data
 
     restart: unless-stopped
 
