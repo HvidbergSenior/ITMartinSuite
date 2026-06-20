@@ -73,4 +73,13 @@ Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cy
 ssh $NasHost "docker --context default load -i '$nasFile' && rm '$nasFile' && cd $NasPath && docker --context default compose up -d --force-recreate --timeout 10 $Service"
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
+# Cleanup — delete local tar and prune Docker build cache
+$localTar = "C:\Users\hvidb\SynologyDrive\martinsuite-magic\$tarName"
+if (Test-Path $localTar) {
+    Remove-Item $localTar -Force
+    Write-Host "    Deleted local tar." -ForegroundColor DarkGray
+}
+Write-Host "[Cleanup] Pruning Docker builder cache..." -ForegroundColor DarkGray
+docker builder prune -f | Out-Null
+
 Write-Host "Done! $Service is deployed." -ForegroundColor Green
