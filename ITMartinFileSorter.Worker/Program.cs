@@ -1,6 +1,8 @@
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure.DependencyInjection;
-    using ITMartin.Media.Infrastructure.Services;
+using ITMartin.Media.Infrastructure.Persistence;
+using ITMartin.Media.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 
     var builder = Host.CreateApplicationBuilder(args);
 
@@ -34,9 +36,14 @@ using ITMartin.Media.Infrastructure.DependencyInjection;
 
     var host = builder.Build();
 
-    // =========================
-    // RUN
-    // =========================
+    using (var scope = host.Services.CreateScope())
+    {
+        var factory = scope.ServiceProvider
+            .GetRequiredService<IDbContextFactory<MediaDbContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        await db.Database.MigrateAsync();
+    }
+
     Console.WriteLine(
         builder.Configuration
             .GetConnectionString("MediaDb"));

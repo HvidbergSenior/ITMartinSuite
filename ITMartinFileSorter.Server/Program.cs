@@ -1,6 +1,8 @@
 
 using ITMartin.Ai;
 using ITMartin.Media.Infrastructure.DependencyInjection;
+using ITMartin.Media.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using ITMartinFileSorter.Server;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
@@ -82,6 +84,14 @@ builder.Services.AddControllers();
 // =========================
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var factory = scope.ServiceProvider
+        .GetRequiredService<IDbContextFactory<MediaDbContext>>();
+    await using var db = await factory.CreateDbContextAsync();
+    await db.Database.MigrateAsync();
+}
 
 // =========================
 // ERROR HANDLING
