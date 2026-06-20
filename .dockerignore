@@ -8,7 +8,8 @@
 **/*.db
 **/*.sqlite
 
-ITMartinFileSorter.Server/ffmpeg
+**/ffmpeg
+publish
 
 data
 images
