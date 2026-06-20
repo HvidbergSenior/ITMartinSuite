@@ -40,7 +40,4 @@ using ITMartin.Media.Infrastructure.DependencyInjection;
     Console.WriteLine(
         builder.Configuration
             .GetConnectionString("MediaDb"));
-    Console.WriteLine(
-        Path.GetFullPath(
-            "C:\\ITMartin\\Data\\media.db"));
     await host.RunAsync();
