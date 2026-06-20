@@ -175,6 +175,32 @@ services:
     networks:
       - martinnet
 
+  gallery-hvidbergfamily:
+    container_name: gallery-hvidbergfamily
+
+    build:
+      context: .
+      dockerfile: ./ITMartinFileSorter.Gallery.Server/Dockerfile
+
+    env_file:
+      - magic.env
+
+    ports:
+      - "8093:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - MediaSettings__LibraryRoot=/library
+      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
+
+    volumes:
+      - /volume1/docker/filesorter/library/hvidbergfamily:/library:ro
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
   # =========================================================
   # BUDGET
   # =========================================================
