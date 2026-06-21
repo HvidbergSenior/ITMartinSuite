@@ -23,8 +23,10 @@ public static class InfrastructureDependencyInjection
             configuration.GetConnectionString("MediaDb")
             ?? "Data Source=media.db";
        
+        services.AddSingleton<Persistence.SqliteWalInterceptor>();
+
         services.AddDbContextFactory<Persistence.MediaDbContext>(
-            options =>
+            (sp, options) =>
             {
                 options.UseSqlite(
                     connectionString,
@@ -34,6 +36,8 @@ public static class InfrastructureDependencyInjection
                             typeof(Persistence.MediaDbContext)
                                 .Assembly.FullName);
                     });
+                options.AddInterceptors(
+                    sp.GetRequiredService<Persistence.SqliteWalInterceptor>());
             });
 
         services.AddScoped<
