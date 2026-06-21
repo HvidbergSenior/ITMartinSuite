@@ -118,7 +118,7 @@
     {
         if (!firstRender) return;
         _session = await SessionSvc.GetByCodeAsync(Code);
-        if (_session is null) { Nav.NavigateTo("/"); return; }
+        if (_session is null) { Nav.NavigateTo("/", forceLoad: true); return; }
 
         var stored = await JS.InvokeAsync<string?>("barTab.getItem", StorageKey + Code.ToUpper());
         if (Guid.TryParse(stored, out var pid))
@@ -188,10 +188,10 @@
         }
 
         await SessionSvc.AddDrinkAsync(Code, _participant.Id, _description, _price, _isRound, photoPath, _shares);
-        Nav.NavigateTo($"/session/{Code}");
+        Nav.NavigateTo($"/session/{Code}", forceLoad: true);
     }
 
-    private void GoBack() => Nav.NavigateTo($"/session/{Code}");
+    private void GoBack() => Nav.NavigateTo($"/session/{Code}", forceLoad: true);
 
     private static string ShareLabel(ShareType t) => t switch
     {

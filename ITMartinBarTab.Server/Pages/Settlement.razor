@@ -74,9 +74,9 @@
     protected override async Task OnInitializedAsync()
     {
         _session = await SessionSvc.GetByCodeAsync(Code);
-        if (_session is null) { Nav.NavigateTo("/"); return; }
+        if (_session is null) { Nav.NavigateTo("/", forceLoad: true); return; }
         (_balances, _transfers) = SettleSvc.Calculate(_session);
     }
 
-    private void GoBack() => Nav.NavigateTo($"/session/{Code}");
+    private void GoBack() => Nav.NavigateTo($"/session/{Code}", forceLoad: true);
 }

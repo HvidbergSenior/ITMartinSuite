@@ -134,7 +134,7 @@ else
         if (!firstRender) return;
 
         _session = await SessionSvc.GetByCodeAsync(Code);
-        if (_session is null) { Nav.NavigateTo("/"); return; }
+        if (_session is null) { Nav.NavigateTo("/", forceLoad: true); return; }
 
         var stored = await JS.InvokeAsync<string?>("barTab.getItem", StorageKey + Code.ToUpper());
         if (Guid.TryParse(stored, out var pid))
@@ -191,8 +191,8 @@ else
         await SessionSvc.SendMessageAsync(Code, _participant.Id, msg);
     }
 
-    private void GoAdd() => Nav.NavigateTo($"/session/{Code}/add");
-    private void GoSettle() => Nav.NavigateTo($"/session/{Code}/settle");
+    private void GoAdd() => Nav.NavigateTo($"/session/{Code}/add", forceLoad: true);
+    private void GoSettle() => Nav.NavigateTo($"/session/{Code}/settle", forceLoad: true);
 
     private static string ShareLabel(ShareType t) => t switch
     {
