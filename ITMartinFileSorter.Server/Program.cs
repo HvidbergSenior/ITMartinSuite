@@ -162,6 +162,31 @@ if (!string.IsNullOrWhiteSpace(
 }
 
 // =========================
+// SOURCE FILES
+// =========================
+
+var sourcePath =
+    builder.Configuration[
+        "MediaSettings:SourceRoot"];
+
+if (!string.IsNullOrWhiteSpace(sourcePath) &&
+    Directory.Exists(sourcePath))
+{
+    app.UseStaticFiles(
+        new StaticFileOptions
+        {
+            FileProvider =
+                new PhysicalFileProvider(sourcePath),
+
+            RequestPath = "/sourcefiles",
+
+            ContentTypeProvider = provider,
+
+            ServeUnknownFileTypes = false
+        });
+}
+
+// =========================
 // PIPELINE
 // =========================
 
