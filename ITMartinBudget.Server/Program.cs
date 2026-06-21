@@ -51,8 +51,17 @@ builder.Services.AddScoped<
     IClaudeTransactionCategorizationService,
     ClaudeTransactionCategorizationService>();
 builder.Services.AddScoped<
+    IFinancialAdvisorService,
+    ClaudeFinancialAdvisorService>();
+builder.Services.AddScoped<
     IPlannedTransactionService,
     PlannedTransactionService>();
+// =========================
+// FORECAST
+// =========================
+builder.Services.AddScoped<
+    IFinancialForecastService,
+    FinancialForecastService>();
 // =========================
 // IMPORT / RULES
 // =========================

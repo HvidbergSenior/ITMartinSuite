@@ -56,5 +56,17 @@ public static class RestaurantRules
             "Lunch",
             Category.Restaurant,
             ComparingType.Word),
+
+        RulesFactory.RestaurantCafe(
+            "vdk bleep",
+            "Bleep",
+            Category.Restaurant,
+            ComparingType.Exact),
+
+        RulesFactory.RestaurantCafe(
+            "vdk restaurant storm",
+            "Restaurant Storm",
+            Category.Restaurant,
+            ComparingType.Exact),
     ];
 }

@@ -62,5 +62,11 @@ public static class BeautyRules
             "Apotek",
             Category.Sundhed,
             ComparingType.Contains),
+
+        RulesFactory.PersonalCare(
+            "dk xn rigtigehrprodukter cub dk",
+            "Rigtige HR Produkter",
+            Category.Sundhed,
+            ComparingType.Exact),
     ];
 }

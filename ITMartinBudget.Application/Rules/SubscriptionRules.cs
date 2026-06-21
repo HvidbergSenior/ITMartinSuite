@@ -97,5 +97,11 @@ public static class SubscriptionRules
             "One.com",
             Category.TelefonTvInternet,
             ComparingType.Exact, 12),
+
+        RulesFactory.Subscription(
+            "vdk anthropic",
+            "Anthropic",
+            Category.Subscription,
+            ComparingType.Contains, 1),
     ];
 }

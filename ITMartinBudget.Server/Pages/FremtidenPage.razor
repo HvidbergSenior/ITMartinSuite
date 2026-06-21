@@ -1,0 +1,404 @@
+@page "/fremtiden"
+
+@using ITMartinBudget.Application.Interfaces
+@using ITMartinBudget.Application.Models
+@using ITMartinBudget.Domain.Enums
+
+@inject IFinancialForecastService ForecastService
+@inject IForwardBudgetService ForwardBudgetService
+@inject IFinancialAdvisorService AdvisorService
+
+<PageTitle>Fremtidsudsigt</PageTitle>
+
+@if (_forecast is null)
+{
+    <div class="stack">
+        <div class="forecast-loading">
+            <div class="forecast-loading-pulse"></div>
+            <span>Analyserer din økonomi...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+
+        <div>
+            <h1 class="page-title">Fremtidsudsigt</h1>
+            <div class="meta">
+                Baseret på @_forecast.History.Count måneders transaktioner · prognose for de næste 3 måneder
+            </div>
+        </div>
+
+        <!-- ── Trend KPI row ─────────────────────────────────── -->
+        <div class="forecast-kpi-row">
+
+            <div class="forecast-kpi @(_forecast.AvgIncome - _forecast.AvgExpenses >= 0 ? "kpi-income" : "kpi-expense")">
+                <div class="forecast-kpi-label">Gns. månedlig indkomst</div>
+                <div class="forecast-kpi-value">@_forecast.AvgIncome.ToString("N0") kr</div>
+            </div>
+
+            <div class="forecast-kpi kpi-expense">
+                <div class="forecast-kpi-label">Gns. månedlige udgifter</div>
+                <div class="forecast-kpi-value">@_forecast.AvgExpenses.ToString("N0") kr</div>
+            </div>
+
+            <div class="forecast-kpi @(_forecast.AvgIncome - _forecast.AvgExpenses >= 0 ? "kpi-net" : "kpi-expense")">
+                <div class="forecast-kpi-label">Gns. månedligt resultat</div>
+                <div class="forecast-kpi-value @(_forecast.AvgIncome - _forecast.AvgExpenses >= 0 ? "positive" : "negative")">
+                    @((_forecast.AvgIncome - _forecast.AvgExpenses).ToString("+N0;-N0;0")) kr
+                </div>
+            </div>
+
+            <div class="forecast-kpi @(_forecast.IncomeSlope >= 0 ? "" : "kpi-warning")">
+                <div class="forecast-kpi-label">Indkomst-tendens</div>
+                <div class="forecast-kpi-value @(_forecast.IncomeSlope >= 0 ? "positive" : "negative")">
+                    @(_forecast.IncomeSlope >= 0 ? "↑" : "↓") @Math.Abs(_forecast.IncomeSlope).ToString("N0") kr/md
+                </div>
+                <div class="meta" style="margin-top:4px">
+                    @(_forecast.IncomeSlope >= 0 ? "Stigende indkomst" : "Faldende indkomst")
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── SVG Line Chart ────────────────────────────────── -->
+        <div class="forecast-chart-card">
+            <div class="forecast-chart-title">Indkomst vs. Udgifter pr. måned</div>
+            <div class="forecast-chart-legend">
+                <span class="legend-dot" style="background:#22c55e"></span> Indkomst
+                <span class="legend-dot" style="background:#ef4444; margin-left:16px"></span> Udgifter
+                <span class="legend-dashed" style="margin-left:16px"></span> Prognose
+            </div>
+            @if (_forecast.AllPoints.Count >= 2)
+            {
+                <div class="forecast-chart-wrap">
+                    <svg viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet" class="forecast-svg">
+                        @RenderChart(_forecast)
+                    </svg>
+                </div>
+            }
+            else
+            {
+                <div class="meta" style="padding:32px;text-align:center">Ikke nok data til at vise graf — upload mindst 2 måneders transaktioner.</div>
+            }
+        </div>
+
+        <!-- ── Where to cut ─────────────────────────────────── -->
+        <div class="transaction-section">
+            <h2 class="transaction-section-title">Hvor kan du spare?</h2>
+            <div class="meta" style="margin-bottom:24px">
+                Rangeret efter månedligt gennemsnit · den realistiske besparelse er baseret på 20% reduktion
+            </div>
+
+            @if (_forecast.CuttableExpenses.Any())
+            {
+                var maxAmount = _forecast.CuttableExpenses.Max(c => c.MonthlyAverage);
+                @foreach (var item in _forecast.CuttableExpenses)
+                {
+                    var pct = maxAmount > 0 ? (double)(item.MonthlyAverage / maxAmount) * 100 : 0;
+                    var typeLabel = item.GroupType switch
+                    {
+                        BudgetGroupType.RecurringAdjustable => "Abonnement",
+                        BudgetGroupType.Adjustable => "Let at ændre",
+                        BudgetGroupType.SemiAdjustable => "Delvist muligt",
+                        _ => ""
+                    };
+                    var typeColor = item.GroupType switch
+                    {
+                        BudgetGroupType.RecurringAdjustable => "#a855f7",
+                        BudgetGroupType.Adjustable => "#22c55e",
+                        BudgetGroupType.SemiAdjustable => "#f97316",
+                        _ => "#9ca3af"
+                    };
+
+                    <div class="cut-expense-row">
+                        <div class="cut-expense-header">
+                            <div>
+                                <span class="cut-expense-name">@item.DisplayName</span>
+                                <span class="cut-type-badge" style="color:@typeColor; border-color:@typeColor">@typeLabel</span>
+                            </div>
+                            <div class="cut-expense-amounts">
+                                <span class="cut-avg">@item.MonthlyAverage.ToString("N0") kr/md</span>
+                                <span class="cut-saving">spar ~@item.RealisticSaving.ToString("N0") kr</span>
+                            </div>
+                        </div>
+                        <div class="cut-bar-track">
+                            <div class="cut-bar" style="width:@pct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)%; background:@typeColor"></div>
+                        </div>
+                        <div class="meta" style="margin-top:4px">@item.TransactionCount transaktioner · @item.MonthlyAverage.ToString("N0") kr/md → mål: @((item.MonthlyAverage - item.RealisticSaving).ToString("N0")) kr/md</div>
+                    </div>
+                }
+
+                <div class="cut-total-card">
+                    <div class="cut-total-label">Samlet potentiel besparelse pr. måned (20% af alt)</div>
+                    <div class="cut-total-value positive">
+                        +@_forecast.CuttableExpenses.Sum(c => c.RealisticSaving).ToString("N0") kr
+                    </div>
+                    <div class="meta">= @(_forecast.CuttableExpenses.Sum(c => c.RealisticSaving) * 12).ToString("N0") kr om året</div>
+                </div>
+            }
+        </div>
+
+        <!-- ── Claude AI Advisor ─────────────────────────────── -->
+        <div class="transaction-section">
+            <h2 class="transaction-section-title">🤖 AI Økonomi-analyse</h2>
+            <div class="meta" style="margin-bottom:24px">
+                Claude analyserer dine tal og giver konkrete, personlige råd på dansk
+            </div>
+
+            @if (_advice is null && !_loadingAdvice)
+            {
+                <button class="btn btn-claude" @onclick="LoadAdvice" disabled="@_loadingAdvice">
+                    <span class="claude-btn-icon">✨</span>
+                    Analysér min økonomi med Claude
+                </button>
+            }
+
+            @if (_loadingAdvice)
+            {
+                <div class="claude-loading-card">
+                    <div class="claude-loading-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div>Claude analyserer din økonomi...</div>
+                    <div class="meta">Det tager typisk 10-20 sekunder</div>
+                </div>
+            }
+
+            @if (_advice is not null)
+            {
+                <div class="claude-advice-card">
+                    <div class="claude-advice-header">
+                        <div class="claude-avatar">C</div>
+                        <div>
+                            <div style="font-weight:800">Claude Sonnet</div>
+                            <div class="meta">Personlig økonomi-analyse</div>
+                        </div>
+                        <button class="btn-refresh" @onclick="LoadAdvice" title="Opdater analyse">↺</button>
+                    </div>
+                    <div class="claude-advice-body">
+                        @foreach (var paragraph in _advice.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                        {
+                            <p>@paragraph</p>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (_adviceError is not null)
+            {
+                <div class="meta" style="color:var(--red); padding:16px">
+                    Fejl: @_adviceError
+                    <button class="btn btn-primary" style="margin-left:12px" @onclick="LoadAdvice">Prøv igen</button>
+                </div>
+            }
+        </div>
+
+    </div>
+}
+
+@code {
+    private ForecastViewModel? _forecast;
+    private ForwardBudgetViewModel? _budget;
+    private string? _advice;
+    private string? _adviceError;
+    private bool _loadingAdvice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var forecastTask = ForecastService.BuildAsync();
+        var budgetTask = ForwardBudgetService.BuildAsync();
+        await Task.WhenAll(forecastTask, budgetTask);
+        _forecast = forecastTask.Result;
+        _budget = budgetTask.Result;
+    }
+
+    private async Task LoadAdvice()
+    {
+        if (_forecast is null || _budget is null) return;
+        _loadingAdvice = true;
+        _adviceError = null;
+        _advice = null;
+        StateHasChanged();
+
+        try
+        {
+            _advice = await AdvisorService.GetAdviceAsync(_forecast, _budget);
+        }
+        catch (Exception ex)
+        {
+            _adviceError = ex.Message;
+        }
+        finally
+        {
+            _loadingAdvice = false;
+            StateHasChanged();
+        }
+    }
+
+    private static RenderFragment RenderChart(ForecastViewModel vm) => builder =>
+    {
+        var all = vm.AllPoints;
+        if (all.Count < 2) return;
+
+        const double padL = 80, padR = 20, padT = 20, padB = 55;
+        const double svgW = 900, svgH = 300;
+        double plotW = svgW - padL - padR;
+        double plotH = svgH - padT - padB;
+
+        var allVals = all.SelectMany(p => new[] { (double)p.Income, (double)p.Expenses }).ToList();
+        double minV = 0;
+        double maxV = allVals.Max() * 1.08;
+        if (maxV <= 0) maxV = 1;
+
+        double XPos(int i) => padL + (i / (double)(all.Count - 1)) * plotW;
+        double YPos(double v) => padT + (1.0 - (v - minV) / (maxV - minV)) * plotH;
+
+        int seq = 0;
+
+        // Grid lines (5 horizontal)
+        for (int g = 0; g <= 4; g++)
+        {
+            var gv = minV + (maxV - minV) * g / 4.0;
+            var gy = YPos(gv);
+            builder.OpenElement(seq++, "line");
+            builder.AddAttribute(seq++, "x1", padL.ToString("F0"));
+            builder.AddAttribute(seq++, "y1", gy.ToString("F1"));
+            builder.AddAttribute(seq++, "x2", (svgW - padR).ToString("F0"));
+            builder.AddAttribute(seq++, "y2", gy.ToString("F1"));
+            builder.AddAttribute(seq++, "stroke", "rgba(255,255,255,0.06)");
+            builder.AddAttribute(seq++, "stroke-width", "1");
+            builder.CloseElement();
+
+            // Y-axis label
+            builder.OpenElement(seq++, "text");
+            builder.AddAttribute(seq++, "x", (padL - 8).ToString("F0"));
+            builder.AddAttribute(seq++, "y", (gy + 4).ToString("F1"));
+            builder.AddAttribute(seq++, "text-anchor", "end");
+            builder.AddAttribute(seq++, "fill", "#6b7280");
+            builder.AddAttribute(seq++, "font-size", "11");
+            builder.AddContent(seq++, $"{gv / 1000:F0}k");
+            builder.CloseElement();
+        }
+
+        // Separator between history and projected
+        if (vm.Projected.Any())
+        {
+            var sepIdx = vm.History.Count - 1;
+            var sx = XPos(sepIdx);
+            builder.OpenElement(seq++, "line");
+            builder.AddAttribute(seq++, "x1", sx.ToString("F1"));
+            builder.AddAttribute(seq++, "y1", padT.ToString("F0"));
+            builder.AddAttribute(seq++, "x2", sx.ToString("F1"));
+            builder.AddAttribute(seq++, "y2", (svgH - padB).ToString("F0"));
+            builder.AddAttribute(seq++, "stroke", "rgba(255,255,255,0.15)");
+            builder.AddAttribute(seq++, "stroke-width", "1");
+            builder.AddAttribute(seq++, "stroke-dasharray", "4 4");
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "text");
+            builder.AddAttribute(seq++, "x", (sx + 6).ToString("F1"));
+            builder.AddAttribute(seq++, "y", (padT + 14).ToString("F0"));
+            builder.AddAttribute(seq++, "fill", "#6b7280");
+            builder.AddAttribute(seq++, "font-size", "10");
+            builder.AddContent(seq++, "prognose →");
+            builder.CloseElement();
+        }
+
+        // Solid portion (history only)
+        if (vm.History.Count >= 2)
+        {
+            var histPoints = vm.History.Select((p, i) => $"{XPos(i).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)},{YPos((double)p.Income).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}");
+            builder.OpenElement(seq++, "polyline");
+            builder.AddAttribute(seq++, "points", string.Join(" ", histPoints));
+            builder.AddAttribute(seq++, "fill", "none");
+            builder.AddAttribute(seq++, "stroke", "#22c55e");
+            builder.AddAttribute(seq++, "stroke-width", "2.5");
+            builder.AddAttribute(seq++, "stroke-linecap", "round");
+            builder.AddAttribute(seq++, "stroke-linejoin", "round");
+            builder.CloseElement();
+
+            var expHistPoints = vm.History.Select((p, i) => $"{XPos(i).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)},{YPos((double)p.Expenses).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}");
+            builder.OpenElement(seq++, "polyline");
+            builder.AddAttribute(seq++, "points", string.Join(" ", expHistPoints));
+            builder.AddAttribute(seq++, "fill", "none");
+            builder.AddAttribute(seq++, "stroke", "#ef4444");
+            builder.AddAttribute(seq++, "stroke-width", "2.5");
+            builder.AddAttribute(seq++, "stroke-linecap", "round");
+            builder.AddAttribute(seq++, "stroke-linejoin", "round");
+            builder.CloseElement();
+        }
+
+        // Dashed projected portion (connect from last history point)
+        if (vm.Projected.Any())
+        {
+            var bridgeInc = vm.History.TakeLast(1).Concat(vm.Projected).Select((p, i) =>
+            {
+                var idx = vm.History.Count - 1 + i;
+                return $"{XPos(idx).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)},{YPos((double)p.Income).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}";
+            });
+            builder.OpenElement(seq++, "polyline");
+            builder.AddAttribute(seq++, "points", string.Join(" ", bridgeInc));
+            builder.AddAttribute(seq++, "fill", "none");
+            builder.AddAttribute(seq++, "stroke", "#22c55e");
+            builder.AddAttribute(seq++, "stroke-width", "2");
+            builder.AddAttribute(seq++, "stroke-dasharray", "6 4");
+            builder.CloseElement();
+
+            var bridgeExp = vm.History.TakeLast(1).Concat(vm.Projected).Select((p, i) =>
+            {
+                var idx = vm.History.Count - 1 + i;
+                return $"{XPos(idx).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)},{YPos((double)p.Expenses).ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}";
+            });
+            builder.OpenElement(seq++, "polyline");
+            builder.AddAttribute(seq++, "points", string.Join(" ", bridgeExp));
+            builder.AddAttribute(seq++, "fill", "none");
+            builder.AddAttribute(seq++, "stroke", "#ef4444");
+            builder.AddAttribute(seq++, "stroke-width", "2");
+            builder.AddAttribute(seq++, "stroke-dasharray", "6 4");
+            builder.CloseElement();
+        }
+
+        // Dots + labels for each month
+        for (int i = 0; i < all.Count; i++)
+        {
+            var p = all[i];
+            var cx = XPos(i);
+            var incY = YPos((double)p.Income);
+            var expY = YPos((double)p.Expenses);
+            var dotFill = p.IsProjected ? "none" : "#111";
+            var dotStrokeW = p.IsProjected ? "1.5" : "2";
+
+            // Income dot
+            builder.OpenElement(seq++, "circle");
+            builder.AddAttribute(seq++, "cx", cx.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            builder.AddAttribute(seq++, "cy", incY.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            builder.AddAttribute(seq++, "r", "4");
+            builder.AddAttribute(seq++, "fill", dotFill);
+            builder.AddAttribute(seq++, "stroke", "#22c55e");
+            builder.AddAttribute(seq++, "stroke-width", dotStrokeW);
+            builder.CloseElement();
+
+            // Expense dot
+            builder.OpenElement(seq++, "circle");
+            builder.AddAttribute(seq++, "cx", cx.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            builder.AddAttribute(seq++, "cy", expY.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            builder.AddAttribute(seq++, "r", "4");
+            builder.AddAttribute(seq++, "fill", dotFill);
+            builder.AddAttribute(seq++, "stroke", "#ef4444");
+            builder.AddAttribute(seq++, "stroke-width", dotStrokeW);
+            builder.CloseElement();
+
+            // Month label
+            builder.OpenElement(seq++, "text");
+            builder.AddAttribute(seq++, "x", cx.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            builder.AddAttribute(seq++, "y", (svgH - padB + 16).ToString("F0"));
+            builder.AddAttribute(seq++, "text-anchor", "middle");
+            builder.AddAttribute(seq++, "fill", p.IsProjected ? "#4b5563" : "#9ca3af");
+            builder.AddAttribute(seq++, "font-size", "11");
+            builder.AddContent(seq++, p.Label);
+            builder.CloseElement();
+        }
+    };
+}

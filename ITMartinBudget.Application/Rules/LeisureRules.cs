@@ -206,5 +206,17 @@ public static class LeisureRules
             "Idre",
             Category.Ferie,
             ComparingType.Exact),
+
+        RulesFactory.GeneralShopping(
+            "dk chas e vinhandel risskov",
+            "Chas E Vinhandel",
+            Category.OtherThanGroceries,
+            ComparingType.Exact),
+
+        RulesFactory.Entertainment(
+            "dk seawest attraktioner services",
+            "SeaWest",
+            Category.RejserUdflugter,
+            ComparingType.Exact),
     ];
 }

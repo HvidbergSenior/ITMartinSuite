@@ -310,6 +310,11 @@ TransfersOutsideToUs(
             ComparingType.Exact),
 
         RulesFactory.TransfersOutsideFromUs(
+            "mobilepay christian birkefe",
+            "Christian",
+            ComparingType.Exact),
+
+        RulesFactory.TransfersOutsideFromUs(
             "vdk mob pay christina aitken",
             "Christina",
             ComparingType.Exact),
