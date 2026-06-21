@@ -1,6 +1,7 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -16,15 +17,22 @@ public sealed class ThumbnailWorkflowStep
             ThumbnailWorkflowStep>
         _logger;
 
+    private readonly IWorkflowInstanceStore
+        _workflowInstanceStore;
+
     public ThumbnailWorkflowStep(
         IThumbnailService thumbnailService,
-        ILogger<ThumbnailWorkflowStep> logger)
+        ILogger<ThumbnailWorkflowStep> logger,
+        IWorkflowInstanceStore workflowInstanceStore)
     {
         _thumbnailService =
             thumbnailService;
 
         _logger =
             logger;
+
+        _workflowInstanceStore =
+            workflowInstanceStore;
     }
 
     public override string Name =>
@@ -62,6 +70,16 @@ public sealed class ThumbnailWorkflowStep
                 processed,
                 total,
                 file.FileName);
+
+            if (processed % 10 == 0 || processed == total)
+            {
+                await _workflowInstanceStore.SetProgressAsync(
+                    context.WorkflowId,
+                    processed,
+                    total,
+                    item: file.FileName,
+                    cancellationToken: cancellationToken);
+            }
 
             var thumbnailSource =
                 file.NormalizedPath

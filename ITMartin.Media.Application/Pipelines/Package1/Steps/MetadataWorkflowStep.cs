@@ -3,6 +3,7 @@ using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -29,13 +30,17 @@ public sealed class MetadataWorkflowStep
     private readonly IGpsService
         _gpsService;
 
+    private readonly IWorkflowInstanceStore
+        _workflowInstanceStore;
+
     public MetadataWorkflowStep(
         ILogger<MetadataWorkflowStep> logger,
         IMediaDateService mediaDateService,
         IImageMetadataService imageMetadataService,
         IVideoMetadataService videoMetadataService,
         IDocumentMetadataService documentMetadataService,
-        IGpsService gpsService)
+        IGpsService gpsService,
+        IWorkflowInstanceStore workflowInstanceStore)
     {
         _logger =
             logger;
@@ -54,6 +59,9 @@ public sealed class MetadataWorkflowStep
 
         _gpsService =
             gpsService;
+
+        _workflowInstanceStore =
+            workflowInstanceStore;
     }
 
     public override string Name =>
@@ -86,6 +94,16 @@ public sealed class MetadataWorkflowStep
                 current,
                 total,
                 file.FileName);
+
+            if (current % 10 == 0 || current == total)
+            {
+                await _workflowInstanceStore.SetProgressAsync(
+                    context.WorkflowId,
+                    current,
+                    total,
+                    item: file.FileName,
+                    cancellationToken: cancellationToken);
+            }
 
             await ExecuteOperationAsync(
                 "ExtractMetadata",

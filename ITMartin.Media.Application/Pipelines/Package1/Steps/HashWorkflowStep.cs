@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
@@ -13,15 +14,22 @@ public sealed class HashWorkflowStep
     private readonly IHashService
         _hashService;
 
+    private readonly IWorkflowInstanceStore
+        _workflowInstanceStore;
+
     public HashWorkflowStep(
         ILogger<HashWorkflowStep> logger,
-        IHashService hashService)
+        IHashService hashService,
+        IWorkflowInstanceStore workflowInstanceStore)
     {
         _logger =
             logger;
 
         _hashService =
             hashService;
+
+        _workflowInstanceStore =
+            workflowInstanceStore;
     }
 
     public override string Name =>
@@ -51,6 +59,16 @@ public sealed class HashWorkflowStep
                 current,
                 total,
                 file.FileName);
+
+            if (current % 10 == 0 || current == total)
+            {
+                await _workflowInstanceStore.SetProgressAsync(
+                    context.WorkflowId,
+                    current,
+                    total,
+                    item: file.FileName,
+                    cancellationToken: cancellationToken);
+            }
 
             if (!string.IsNullOrWhiteSpace(
                     file.Hash))
