@@ -17,4 +17,10 @@ public sealed class WorkflowInstanceEntity
     public DateTime? CompletedAtUtc { get; set; }
 
     public string? FailureReason { get; set; }
+
+    public int? ProgressCurrent { get; set; }
+
+    public int? ProgressTotal { get; set; }
+
+    public string? ProgressItem { get; set; }
 }

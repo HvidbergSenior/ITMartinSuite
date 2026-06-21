@@ -90,6 +90,29 @@ public sealed class EfWorkflowInstanceStore(
         await dbContext.SaveChangesAsync(
             cancellationToken);
     }
+    public async Task SetProgressAsync(
+        Guid workflowId,
+        int current,
+        int total,
+        string? item = null,
+        CancellationToken cancellationToken = default)
+    {
+        var entity =
+            await dbContext.WorkflowInstances
+                .FirstOrDefaultAsync(
+                    x => x.WorkflowId == workflowId,
+                    cancellationToken);
+
+        if (entity is null) return;
+
+        entity.ProgressCurrent = current;
+        entity.ProgressTotal = total;
+        entity.ProgressItem = item;
+        entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsAsync(
         Guid workflowId,
         CancellationToken cancellationToken = default)

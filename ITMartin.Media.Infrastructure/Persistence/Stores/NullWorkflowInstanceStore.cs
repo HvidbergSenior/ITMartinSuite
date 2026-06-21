@@ -49,4 +49,14 @@ public sealed class NullWorkflowInstanceStore
     {
         return Task.FromResult<IReadOnlyCollection<Guid>>([]);
     }
+
+    public Task SetProgressAsync(
+        Guid workflowId,
+        int current,
+        int total,
+        string? item = null,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
 }

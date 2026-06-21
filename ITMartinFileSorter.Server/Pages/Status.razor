@@ -28,6 +28,22 @@
                     <span class="status-step">@Running.CurrentStep</span>
                 </div>
 
+                @if (Running.ProgressTotal > 0)
+                {
+                    var pct = (int)((double)Running.ProgressCurrent! / Running.ProgressTotal * 100);
+                    <div class="status-row">
+                        <span class="status-label">Progress</span>
+                        <span>@Running.ProgressCurrent / @Running.ProgressTotal (@pct%)</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">File</span>
+                        <span class="status-step">@Running.ProgressItem</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" style="width: @pct%"></div>
+                    </div>
+                }
+
                 <div class="status-row">
                     <span class="status-label">Started</span>
                     <span>@Running.StartedAtUtc.ToString("HH:mm:ss") UTC</span>

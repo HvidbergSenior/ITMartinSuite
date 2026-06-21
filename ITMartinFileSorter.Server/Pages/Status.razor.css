@@ -55,3 +55,19 @@
 .history-time  { color: var(--text-muted); font-size: 0.8rem; }
 .history-duration { color: var(--text-muted); font-size: 0.8rem; }
 .history-error { color: #dc2626; font-size: 0.8rem; font-style: italic; width: 100%; }
+
+.progress-bar-track {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #2563eb;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}

@@ -25,4 +25,11 @@ public interface IWorkflowInstanceStore
         CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<Guid>> GetRecoverableWorkflowIdsAsync(
         CancellationToken cancellationToken = default);
+
+    Task SetProgressAsync(
+        Guid workflowId,
+        int current,
+        int total,
+        string? item = null,
+        CancellationToken cancellationToken = default);
 }

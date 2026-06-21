@@ -1,8 +1,9 @@
-﻿using ITMartin.Media.Application.Interfaces;
+using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -23,10 +24,14 @@ public sealed class FileDiscoveryWorkflowStep
     private readonly IMediaDateService
         _mediaDateService;
 
+    private readonly IWorkflowInstanceStore
+        _workflowInstanceStore;
+
     public FileDiscoveryWorkflowStep(
         IFileScanner fileScanner,
         IMediaTypeResolver mediaTypeResolver,
         IMediaDateService mediaDateService,
+        IWorkflowInstanceStore workflowInstanceStore,
         ILogger<FileDiscoveryWorkflowStep> logger)
     {
         _fileScanner =
@@ -37,6 +42,9 @@ public sealed class FileDiscoveryWorkflowStep
 
         _mediaDateService =
             mediaDateService;
+
+        _workflowInstanceStore =
+            workflowInstanceStore;
 
         _logger =
             logger;
@@ -65,42 +73,50 @@ public sealed class FileDiscoveryWorkflowStep
             async () =>
             {
                 var files =
-                    await _fileScanner.ScanAsync(
+                    (await _fileScanner.ScanAsync(
                         state.RootPath,
-                        cancellationToken);
+                        cancellationToken)).ToList();
 
-                var total =
-                    files.Count();
-
+                var total = files.Count;
                 var current = 0;
+                var result = new List<MediaFile>(total);
 
-                state.MediaFiles =
-                    files
-                        .Select(path =>
-                        {
-                            current++;
+                foreach (var path in files)
+                {
+                    current++;
 
-                            LogStepProgress(
-                                _logger,
-                                Name,
-                                current,
-                                total,
-                                Path.GetFileName(path));
+                    LogStepProgress(
+                        _logger,
+                        Name,
+                        current,
+                        total,
+                        Path.GetFileName(path));
 
-                            var dateResult =
-                                _mediaDateService.GetBestDate(
-                                    new MediaDateRequest(
-                                        path,
-                                        state.OverrideYear));
+                    if (current % 10 == 0 || current == total)
+                    {
+                        await _workflowInstanceStore.SetProgressAsync(
+                            context.WorkflowId,
+                            current,
+                            total,
+                            Path.GetFileName(path),
+                            cancellationToken);
+                    }
 
-                            return new MediaFile(
+                    var dateResult =
+                        _mediaDateService.GetBestDate(
+                            new MediaDateRequest(
                                 path,
-                                dateResult.Date,
-                                _mediaTypeResolver.Resolve(path),
-                                new FileInfo(path).Length,
-                                dateResult.IsReliable);
-                        })
-                        .ToList();
+                                state.OverrideYear));
+
+                    result.Add(new MediaFile(
+                        path,
+                        dateResult.Date,
+                        _mediaTypeResolver.Resolve(path),
+                        new FileInfo(path).Length,
+                        dateResult.IsReliable));
+                }
+
+                state.MediaFiles = result;
             },
             _logger);
     }
