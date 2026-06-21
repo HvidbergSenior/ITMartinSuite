@@ -1,5 +1,6 @@
 @page "/status"
 
+@using System.Text.Json
 @using ITMartin.Media.Infrastructure.Persistence
 @using ITMartin.Media.Infrastructure.Persistence.Entities
 @using Microsoft.EntityFrameworkCore
@@ -35,13 +36,31 @@
                         <span class="status-label">Progress</span>
                         <span>@Running.ProgressCurrent / @Running.ProgressTotal (@pct%)</span>
                     </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" style="width: @pct%"></div>
+                    </div>
                     <div class="status-row">
                         <span class="status-label">File</span>
                         <span class="status-step">@Running.ProgressItem</span>
                     </div>
-                    <div class="progress-bar-track">
-                        <div class="progress-bar-fill" style="width: @pct%"></div>
-                    </div>
+                    @if (!string.IsNullOrEmpty(Running.ProgressData))
+                    {
+                        var counts = JsonSerializer.Deserialize<Dictionary<string, int>>(Running.ProgressData);
+                        if (counts is not null && counts.Count > 0)
+                        {
+                            <div class="status-row">
+                                <span class="status-label">Found</span>
+                                <div class="category-chips">
+                                    @foreach (var (type, count) in counts.OrderByDescending(x => x.Value))
+                                    {
+                                        <span class="category-chip chip-@type.ToLower()">
+                                            @GetTypeIcon(type) @type <strong>@count</strong>
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
                 }
 
                 <div class="status-row">
@@ -139,6 +158,15 @@
             .Take(10)
             .ToListAsync();
     }
+
+    private static string GetTypeIcon(string type) => type switch
+    {
+        "Image"    => "📷",
+        "Video"    => "🎬",
+        "Audio"    => "🎵",
+        "Document" => "📄",
+        _          => "❓"
+    };
 
     private static string FormatDuration(TimeSpan ts)
     {

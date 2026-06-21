@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
+﻿using System.Text.Json;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -95,6 +96,7 @@ public sealed class EfWorkflowInstanceStore(
         int current,
         int total,
         string? item = null,
+        IReadOnlyDictionary<string, int>? counts = null,
         CancellationToken cancellationToken = default)
     {
         var entity =
@@ -108,6 +110,9 @@ public sealed class EfWorkflowInstanceStore(
         entity.ProgressCurrent = current;
         entity.ProgressTotal = total;
         entity.ProgressItem = item;
+        entity.ProgressData = counts is not null
+            ? JsonSerializer.Serialize(counts)
+            : entity.ProgressData;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);

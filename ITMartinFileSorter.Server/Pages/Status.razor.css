@@ -56,6 +56,28 @@
 .history-duration { color: var(--text-muted); font-size: 0.8rem; }
 .history-error { color: #dc2626; font-size: 0.8rem; font-style: italic; width: 100%; }
 
+.category-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.category-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.chip-image    { background: #dbeafe; color: #1d4ed8; }
+.chip-video    { background: #f3e8ff; color: #7c3aed; }
+.chip-audio    { background: #dcfce7; color: #166534; }
+.chip-document { background: #fef9c3; color: #854d0e; }
+.chip-unknown  { background: #f1f5f9; color: #64748b; }
+
 .progress-bar-track {
     width: 100%;
     height: 6px;

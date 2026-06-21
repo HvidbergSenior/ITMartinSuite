@@ -55,6 +55,7 @@ public sealed class NullWorkflowInstanceStore
         int current,
         int total,
         string? item = null,
+        IReadOnlyDictionary<string, int>? counts = null,
         CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;

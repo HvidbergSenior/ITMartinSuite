@@ -80,10 +80,16 @@ public sealed class FileDiscoveryWorkflowStep
                 var total = files.Count;
                 var current = 0;
                 var result = new List<MediaFile>(total);
+                var categoryCounts = new Dictionary<string, int>();
 
                 foreach (var path in files)
                 {
                     current++;
+
+                    var mediaType = _mediaTypeResolver.Resolve(path);
+                    var typeName = mediaType.ToString();
+                    categoryCounts[typeName] =
+                        categoryCounts.GetValueOrDefault(typeName) + 1;
 
                     LogStepProgress(
                         _logger,
@@ -98,8 +104,9 @@ public sealed class FileDiscoveryWorkflowStep
                             context.WorkflowId,
                             current,
                             total,
-                            Path.GetFileName(path),
-                            cancellationToken);
+                            item: Path.GetFileName(path),
+                            counts: categoryCounts,
+                            cancellationToken: cancellationToken);
                     }
 
                     var dateResult =
@@ -111,7 +118,7 @@ public sealed class FileDiscoveryWorkflowStep
                     result.Add(new MediaFile(
                         path,
                         dateResult.Date,
-                        _mediaTypeResolver.Resolve(path),
+                        mediaType,
                         new FileInfo(path).Length,
                         dateResult.IsReliable));
                 }

@@ -31,5 +31,6 @@ public interface IWorkflowInstanceStore
         int current,
         int total,
         string? item = null,
+        IReadOnlyDictionary<string, int>? counts = null,
         CancellationToken cancellationToken = default);
 }

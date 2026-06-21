@@ -23,4 +23,6 @@ public sealed class WorkflowInstanceEntity
     public int? ProgressTotal { get; set; }
 
     public string? ProgressItem { get; set; }
+
+    public string? ProgressData { get; set; }
 }
