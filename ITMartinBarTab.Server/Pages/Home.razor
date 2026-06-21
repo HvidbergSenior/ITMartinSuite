@@ -1,0 +1,72 @@
+@page "/"
+@rendermode InteractiveServer
+@inject SessionService SessionSvc
+@inject NavigationManager Nav
+
+<div class="home-page">
+    <div class="home-card">
+        <div class="home-logo">🍺</div>
+        <h1 class="home-title">BarTab</h1>
+        <p class="home-sub">Split the bill, skip the drama</p>
+
+        <div class="home-section">
+            <label class="home-label">Session name</label>
+            <input class="home-input" @bind="SessionName" @bind:event="oninput" placeholder="Friday at Mikkeller" maxlength="40" />
+            <button class="btn-primary" @onclick="CreateSession" disabled="@(string.IsNullOrWhiteSpace(SessionName) || Creating)">
+                @(Creating ? "Creating..." : "Create session")
+            </button>
+        </div>
+
+        <div class="home-divider">or join existing</div>
+
+        <div class="home-section">
+            <label class="home-label">Session code</label>
+            <input class="home-input home-code" @bind="JoinCode" @bind:event="oninput" placeholder="ABC123" maxlength="6" />
+            <button class="btn-secondary" @onclick="JoinSession" disabled="@(string.IsNullOrWhiteSpace(JoinCode))">
+                Join session
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <p class="home-error">@Error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string SessionName = "";
+    private string JoinCode = "";
+    private string Error = "";
+    private bool Creating;
+
+    private async Task CreateSession()
+    {
+        if (string.IsNullOrWhiteSpace(SessionName)) return;
+        Creating = true;
+        Error = "";
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var session = await SessionSvc.CreateAsync(SessionName.Trim());
+            Nav.NavigateTo($"/session/{session.Code}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Error = $"Could not create session: {ex.Message}";
+            Creating = false;
+        }
+    }
+
+    private async Task JoinSession()
+    {
+        var code = JoinCode.Trim().ToUpper();
+        var session = await SessionSvc.GetByCodeAsync(code);
+        if (session is null)
+        {
+            Error = "Session not found. Check the code.";
+            return;
+        }
+        Nav.NavigateTo($"/session/{code}", forceLoad: true);
+    }
+}

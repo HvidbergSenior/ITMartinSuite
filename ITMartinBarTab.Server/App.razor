@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>BarTab</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="manifest" href="manifest.json" />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        window.barTab = {
+            getItem: (key) => localStorage.getItem(key),
+            setItem: (key, val) => localStorage.setItem(key, val),
+            removeItem: (key) => localStorage.removeItem(key)
+        };
+    </script>
+</body>
+</html>

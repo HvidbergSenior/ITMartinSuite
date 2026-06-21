@@ -1,0 +1,210 @@
+@page "/session/{Code}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@inject SessionService SessionSvc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (_session is null)
+{
+    <div class="loading">Loading session...</div>
+}
+else if (_participant is null)
+{
+    <div class="join-page">
+        <div class="join-card">
+            <div class="join-logo">🍺</div>
+            <h2>@_session.Name</h2>
+            <p class="join-code">Code: <strong>@_session.Code</strong></p>
+            <p>@_session.Participants.Count person(s) in session</p>
+            <label class="home-label">Your name</label>
+            <input class="home-input" @bind="_nameInput" placeholder="Martin" maxlength="30"
+                   @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(DoJoin); })" />
+            <button class="btn-primary" @onclick="DoJoin" disabled="@string.IsNullOrWhiteSpace(_nameInput)">
+                Join
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="session-page">
+        <div class="session-header">
+            <div class="session-header-left">
+                <span class="session-name">@_session.Name</span>
+                <span class="session-code-badge">@_session.Code</span>
+            </div>
+            <div class="session-header-right">
+                <button class="btn-icon" @onclick="GoSettle" title="Settle up">💰</button>
+                <button class="btn-add" @onclick="GoAdd">+ Drink</button>
+            </div>
+        </div>
+
+        <div class="participants-row">
+            @foreach (var p in _session.Participants)
+            {
+                <div class="avatar" style="background:@p.Color" title="@p.Name">
+                    @p.Name[..1].ToUpper()
+                </div>
+            }
+        </div>
+
+        <div class="drinks-list">
+            @if (!_session.Drinks.Any())
+            {
+                <div class="empty-state">No drinks yet — add the first one!</div>
+            }
+            @foreach (var drink in _session.Drinks.OrderByDescending(d => d.CreatedAt))
+            {
+                var adder = _session.Participants.FirstOrDefault(p => p.Id == drink.AddedByParticipantId);
+                <div class="drink-card">
+                    @if (drink.PhotoPath != null)
+                    {
+                        <img class="drink-photo" src="/photos/@Path.GetFileName(drink.PhotoPath)" alt="drink" />
+                    }
+                    else
+                    {
+                        <div class="drink-emoji">🍺</div>
+                    }
+                    <div class="drink-info">
+                        <div class="drink-desc">@drink.Description</div>
+                        <div class="drink-meta">
+                            <span class="drink-price">@drink.Price.ToString("0") kr</span>
+                            @if (drink.IsRound)
+                            {
+                                <span class="round-badge">Round</span>
+                            }
+                            <span class="drink-by" style="color:@(adder?.Color ?? "#999")">@adder?.Name</span>
+                        </div>
+                        <div class="share-row">
+                            @foreach (var p in _session.Participants)
+                            {
+                                var share = drink.Shares.FirstOrDefault(s => s.ParticipantId == p.Id);
+                                var current = share?.Share ?? ShareType.None;
+                                <div class="share-pill-group">
+                                    <span class="share-name" style="color:@p.Color">@p.Name[..1]</span>
+                                    @foreach (var st in new[] { ShareType.Full, ShareType.Half, ShareType.Taste, ShareType.None })
+                                    {
+                                        <button class="share-btn @(current == st ? "active" : "")"
+                                                @onclick="() => SetShare(drink.Id, p.Id, st)">
+                                            @ShareLabel(st)
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="chat-panel">
+            <div class="chat-messages" id="chat-messages">
+                @foreach (var msg in _session.Messages.OrderBy(m => m.CreatedAt))
+                {
+                    var sender = _session.Participants.FirstOrDefault(p => p.Id == msg.ParticipantId);
+                    <div class="chat-msg @(msg.ParticipantId == _participant.Id ? "mine" : "")">
+                        <span class="chat-sender" style="color:@(sender?.Color ?? "#999")">@sender?.Name</span>
+                        <span class="chat-text">@msg.Text</span>
+                    </div>
+                }
+            </div>
+            <div class="chat-input-row">
+                <input class="chat-input" @bind="_chatMsg" placeholder="Say something..."
+                       @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(SendChat); })" />
+                <button class="btn-send" @onclick="SendChat">➤</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private Session? _session;
+    private Participant? _participant;
+    private string _nameInput = "";
+    private string _chatMsg = "";
+    private Microsoft.AspNetCore.SignalR.Client.HubConnection? _hub;
+    private const string StorageKey = "bartab_participant_";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _session = await SessionSvc.GetByCodeAsync(Code);
+        if (_session is null) { Nav.NavigateTo("/"); return; }
+
+        var stored = await JS.InvokeAsync<string?>("barTab.getItem", StorageKey + Code.ToUpper());
+        if (Guid.TryParse(stored, out var pid))
+            _participant = _session.Participants.FirstOrDefault(p => p.Id == pid);
+
+        await ConnectHub();
+        StateHasChanged();
+    }
+
+    private async Task DoJoin()
+    {
+        if (string.IsNullOrWhiteSpace(_nameInput)) return;
+        _participant = await SessionSvc.JoinAsync(Code, _nameInput.Trim());
+        await JS.InvokeVoidAsync("barTab.setItem", StorageKey + Code.ToUpper(), _participant.Id.ToString());
+        _session = await SessionSvc.GetByCodeAsync(Code);
+        StateHasChanged();
+    }
+
+    private async Task ConnectHub()
+    {
+        _hub = new Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/session"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On("DrinkAdded", (object _) => InvokeAsync(Refresh));
+        _hub.On("ShareUpdated", (object _) => InvokeAsync(Refresh));
+        _hub.On("ParticipantJoined", (object _) => InvokeAsync(Refresh));
+        _hub.On("MessageReceived", (object _) => InvokeAsync(Refresh));
+
+        await _hub.StartAsync();
+        await _hub.SendAsync("JoinSession", Code.ToUpper());
+    }
+
+    private async Task Refresh()
+    {
+        _session = await SessionSvc.GetByCodeAsync(Code);
+        StateHasChanged();
+        await JS.InvokeVoidAsync("eval", "var el=document.getElementById('chat-messages');if(el)el.scrollTop=el.scrollHeight;");
+    }
+
+    private async Task SetShare(Guid drinkId, Guid participantId, ShareType share)
+    {
+        await SessionSvc.UpdateShareAsync(Code, drinkId, participantId, share);
+        _session = await SessionSvc.GetByCodeAsync(Code);
+        StateHasChanged();
+    }
+
+    private async Task SendChat()
+    {
+        if (string.IsNullOrWhiteSpace(_chatMsg) || _participant is null) return;
+        var msg = _chatMsg.Trim();
+        _chatMsg = "";
+        await SessionSvc.SendMessageAsync(Code, _participant.Id, msg);
+    }
+
+    private void GoAdd() => Nav.NavigateTo($"/session/{Code}/add");
+    private void GoSettle() => Nav.NavigateTo($"/session/{Code}/settle");
+
+    private static string ShareLabel(ShareType t) => t switch
+    {
+        ShareType.Full  => "All",
+        ShareType.Half  => "½",
+        ShareType.Taste => "Sip",
+        _               => "—"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+            await _hub.DisposeAsync();
+    }
+}

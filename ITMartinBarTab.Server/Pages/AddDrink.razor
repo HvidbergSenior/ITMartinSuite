@@ -1,0 +1,203 @@
+@page "/session/{Code}/add"
+@rendermode InteractiveServer
+@inject SessionService SessionSvc
+@inject DrinkVisionService VisionSvc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="add-page">
+    <div class="add-header">
+        <button class="btn-back" @onclick="GoBack">← Back</button>
+        <h2>Add Drink</h2>
+    </div>
+
+    <div class="add-card">
+        <div class="photo-section">
+            @if (_previewUrl != null)
+            {
+                <img class="photo-preview" src="@_previewUrl" alt="drink" />
+                <button class="btn-secondary btn-sm" @onclick="ClearPhoto">Remove photo</button>
+            }
+            else
+            {
+                <label class="photo-drop">
+                    <span>📸 Take / upload photo</span>
+                    <InputFile OnChange="OnPhoto" accept="image/*" capture="environment" />
+                </label>
+            }
+            @if (_analyzing)
+            {
+                <div class="analyzing-badge">🤖 Identifying drink...</div>
+            }
+        </div>
+
+        <div class="add-field">
+            <label>Description</label>
+            <input class="home-input" @bind="_description" placeholder="Carlsberg, bottle of red wine..." />
+        </div>
+
+        <div class="add-field">
+            <label>Price (kr)</label>
+            <input class="home-input" type="number" @bind="_price" min="0" step="5" placeholder="75" />
+        </div>
+
+        <div class="add-field add-toggle">
+            <label>
+                <input type="checkbox" @bind="_isRound" />
+                This is a round (split evenly among selected people)
+            </label>
+        </div>
+
+        <div class="add-field">
+            <label>Who's in?</label>
+            <div class="who-list">
+                @if (_session != null)
+                {
+                    @foreach (var p in _session.Participants)
+                    {
+                        var share = _shares.GetValueOrDefault(p.Id, ShareType.None);
+                        <div class="who-row">
+                            <div class="avatar sm" style="background:@p.Color">@p.Name[..1]</div>
+                            <span class="who-name">@p.Name</span>
+                            @if (_isRound)
+                            {
+                                <label class="toggle-in">
+                                    <input type="checkbox"
+                                           checked="@(share != ShareType.None)"
+                                           @onchange="e => ToggleRound(p.Id, (bool)(e.Value ?? false))" />
+                                    In round
+                                </label>
+                            }
+                            else
+                            {
+                                <div class="share-btns">
+                                    @foreach (var st in new[] { ShareType.Full, ShareType.Half, ShareType.Taste, ShareType.None })
+                                    {
+                                        <button class="share-btn @(share == st ? "active" : "")"
+                                                @onclick="() => _shares[p.Id] = st">
+                                            @ShareLabel(st)
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="home-error">@_error</p>
+        }
+
+        <button class="btn-primary" @onclick="Save" disabled="@(Saving || string.IsNullOrWhiteSpace(_description))">
+            @(Saving ? "Saving..." : "Add drink")
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private Session? _session;
+    private Participant? _participant;
+    private string _description = "";
+    private decimal _price = 0;
+    private bool _isRound;
+    private Dictionary<Guid, ShareType> _shares = new();
+    private string? _previewUrl;
+    private byte[]? _photoBytes;
+    private string _photoMime = "image/jpeg";
+    private bool _analyzing;
+    private bool Saving;
+    private string _error = "";
+    private const string StorageKey = "bartab_participant_";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _session = await SessionSvc.GetByCodeAsync(Code);
+        if (_session is null) { Nav.NavigateTo("/"); return; }
+
+        var stored = await JS.InvokeAsync<string?>("barTab.getItem", StorageKey + Code.ToUpper());
+        if (Guid.TryParse(stored, out var pid))
+            _participant = _session.Participants.FirstOrDefault(p => p.Id == pid);
+
+        foreach (var p in _session.Participants)
+            _shares[p.Id] = ShareType.None;
+
+        if (_participant != null)
+            _shares[_participant.Id] = ShareType.Full;
+
+        StateHasChanged();
+    }
+
+    private async Task OnPhoto(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        _photoMime = file.ContentType ?? "image/jpeg";
+        using var ms = new MemoryStream();
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await stream.CopyToAsync(ms);
+        _photoBytes = ms.ToArray();
+        _previewUrl = $"data:{_photoMime};base64,{Convert.ToBase64String(_photoBytes)}";
+
+        _analyzing = true;
+        StateHasChanged();
+
+        var analysis = await VisionSvc.AnalyzeAsync(_photoBytes, _photoMime);
+        if (analysis != null)
+        {
+            _description = analysis.Description;
+            _price = analysis.SuggestedPrice;
+        }
+
+        _analyzing = false;
+        StateHasChanged();
+    }
+
+    private void ClearPhoto()
+    {
+        _previewUrl = null;
+        _photoBytes = null;
+    }
+
+    private void ToggleRound(Guid participantId, bool inRound)
+    {
+        _shares[participantId] = inRound ? ShareType.Full : ShareType.None;
+    }
+
+    private async Task Save()
+    {
+        if (_participant is null) { _error = "You must join the session first."; return; }
+        if (string.IsNullOrWhiteSpace(_description)) { _error = "Add a description."; return; }
+
+        Saving = true;
+        string? photoPath = null;
+
+        if (_photoBytes != null)
+        {
+            var dir = Path.Combine("/app/data/photos", Code.ToUpper());
+            Directory.CreateDirectory(dir);
+            var ext = _photoMime.Contains("png") ? ".png" : ".jpg";
+            photoPath = Path.Combine(dir, $"{Guid.NewGuid()}{ext}");
+            await File.WriteAllBytesAsync(photoPath, _photoBytes);
+        }
+
+        await SessionSvc.AddDrinkAsync(Code, _participant.Id, _description, _price, _isRound, photoPath, _shares);
+        Nav.NavigateTo($"/session/{Code}");
+    }
+
+    private void GoBack() => Nav.NavigateTo($"/session/{Code}");
+
+    private static string ShareLabel(ShareType t) => t switch
+    {
+        ShareType.Full  => "All",
+        ShareType.Half  => "½",
+        ShareType.Taste => "Sip",
+        _               => "—"
+    };
+}

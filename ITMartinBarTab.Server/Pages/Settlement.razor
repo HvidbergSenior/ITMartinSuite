@@ -1,0 +1,82 @@
+@page "/session/{Code}/settle"
+@rendermode InteractiveServer
+@inject SessionService SessionSvc
+@inject SettlementService SettleSvc
+@inject NavigationManager Nav
+
+<div class="settle-page">
+    <div class="add-header">
+        <button class="btn-back" @onclick="GoBack">← Back</button>
+        <h2>Settlement</h2>
+    </div>
+
+    @if (_session is null)
+    {
+        <div class="loading">Loading...</div>
+    }
+    else
+    {
+        <div class="settle-totals">
+            <h3>Balances</h3>
+            @foreach (var b in _balances)
+            {
+                <div class="balance-row">
+                    <div class="avatar sm" style="background:@b.Color">@b.Name[..1]</div>
+                    <span class="balance-name">@b.Name</span>
+                    <span class="balance-paid">paid @b.Paid.ToString("0") kr</span>
+                    <span class="balance-owed">owed @b.Owed.ToString("0") kr</span>
+                    <span class="balance-net @(b.Net >= 0 ? "pos" : "neg")">
+                        @(b.Net >= 0 ? "+" : "")@b.Net.ToString("0") kr
+                    </span>
+                </div>
+            }
+        </div>
+
+        <div class="transfers">
+            <h3>Who pays who</h3>
+            @if (!_transfers.Any())
+            {
+                <div class="empty-state">Everyone is even! 🎉</div>
+            }
+            @foreach (var t in _transfers)
+            {
+                <div class="transfer-row">
+                    <span class="transfer-from" style="color:@t.FromColor">@t.From</span>
+                    <span class="transfer-arrow">pays</span>
+                    <span class="transfer-to" style="color:@t.ToColor">@t.To</span>
+                    <span class="transfer-amount">@t.Amount.ToString("0") kr</span>
+                </div>
+            }
+        </div>
+
+        <div class="drinks-breakdown">
+            <h3>Drink breakdown</h3>
+            @foreach (var drink in _session.Drinks.OrderBy(d => d.CreatedAt))
+            {
+                var adder = _session.Participants.FirstOrDefault(p => p.Id == drink.AddedByParticipantId);
+                <div class="breakdown-row">
+                    <span class="breakdown-desc">@drink.Description</span>
+                    <span class="breakdown-price">@drink.Price.ToString("0") kr</span>
+                    <span class="breakdown-by" style="color:@(adder?.Color ?? "#999")">@adder?.Name paid</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private Session? _session;
+    private List<ParticipantBalance> _balances = [];
+    private List<Transfer> _transfers = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _session = await SessionSvc.GetByCodeAsync(Code);
+        if (_session is null) { Nav.NavigateTo("/"); return; }
+        (_balances, _transfers) = SettleSvc.Calculate(_session);
+    }
+
+    private void GoBack() => Nav.NavigateTo($"/session/{Code}");
+}
