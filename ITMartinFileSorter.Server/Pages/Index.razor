@@ -317,6 +317,8 @@
                 "Scanning files...",
                 paths);
 
+        var scanStartedAt = DateTime.UtcNow;
+
         await Package1Client.StartAsync(
         new StartPackage1Request
         {
@@ -348,14 +350,15 @@
                 Configuration[
                     "MediaSettings:LibraryRoot"];
 
-            for (var i = 0; i < 30; i++)
+            for (var i = 0; i < 300; i++)
             {
                 var manifestPath =
                     Path.Combine(
                         exportRoot!,
                         "manifest.json");
 
-                if (File.Exists(manifestPath))
+                if (File.Exists(manifestPath) &&
+                    File.GetLastWriteTimeUtc(manifestPath) > scanStartedAt)
                 {
                     ScanResult =
                         await ManifestSummaryService
