@@ -1,0 +1,12 @@
+.scan-action-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.scan-source-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-family: monospace;
+}

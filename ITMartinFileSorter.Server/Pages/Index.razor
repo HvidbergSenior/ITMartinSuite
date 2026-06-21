@@ -35,14 +35,17 @@
                 Scan, deduplicate and organize media files.
             </p>
 
-            <FolderInputPanel
-                Value="@FolderPath"
-                ValueChanged="OnFolderPathChanged"
-                ButtonText="@(IsScanning
-                    ? Progress.Info.Stage
-                    : "Start Cleanup")"
-                Disabled="@IsScanning"
-                OnAction="ScanFolder" />
+            <div class="scan-action-row">
+                <button class="btn btn-primary btn-lg"
+                        disabled="@IsScanning"
+                        @onclick="ScanFolder">
+                    @(IsScanning ? Progress.Info.Stage : "Start Cleanup")
+                </button>
+                @if (!string.IsNullOrWhiteSpace(FolderPath))
+                {
+                    <span class="scan-source-label">📂 @FolderPath</span>
+                }
+            </div>
 
             @if (!string.IsNullOrWhiteSpace(ErrorMessage))
             {
@@ -262,12 +265,6 @@
             HandleProgressChanged;
     }
 
-    private void OnFolderPathChanged(
-        string value)
-    {
-        FolderPath = value;
-    }
-
     private async Task ScanFolder()
     {
         if (IsScanning)
@@ -275,20 +272,9 @@
 
         ErrorMessage = "";
 
-        if (string.IsNullOrWhiteSpace(
-                FolderPath))
+        if (string.IsNullOrWhiteSpace(FolderPath))
         {
-            ErrorMessage =
-                "Please enter a folder path.";
-
-            return;
-        }
-
-        if (!Directory.Exists(FolderPath))
-        {
-            ErrorMessage =
-                $"Folder not found: {FolderPath}";
-
+            ErrorMessage = "No source folder configured (MediaSettings:SourceRoot).";
             return;
         }
 
