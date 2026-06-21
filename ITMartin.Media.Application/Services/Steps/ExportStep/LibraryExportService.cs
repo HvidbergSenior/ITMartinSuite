@@ -82,11 +82,16 @@ public class LibraryExportService
                             category,
                             safeYear.ToString(),
                             monthFolder)
-                        : Path.Combine(
-                            root,
-                            category,
-                            safeYear.ToString(),
-                            monthFolder);
+                        : !file.IsDateReliable
+                            ? Path.Combine(
+                                root,
+                                "Undated",
+                                category)
+                            : Path.Combine(
+                                root,
+                                category,
+                                safeYear.ToString(),
+                                monthFolder);
 
                 Directory.CreateDirectory(
                     targetDir);
