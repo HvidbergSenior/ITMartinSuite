@@ -16,6 +16,13 @@ public sealed class FileScanner : IFileScanner
         return Task.FromResult(files);
     }
 
+    private static readonly HashSet<string> SkippedFolders =
+    [
+        "@eadir", "@eaDir", "#recycle", "#snapshot",
+        ".@__thumb", "@recently-snapshot", ".synophoto",
+        ".package1", ".package2", "thumbnails"
+    ];
+
     public IEnumerable<string> EnumerateFiles(
         string rootPath)
     {
@@ -24,10 +31,33 @@ public sealed class FileScanner : IFileScanner
             return [];
         }
 
-        return Directory.EnumerateFiles(
-            rootPath,
-            "*.*",
-            SearchOption.AllDirectories);
+        return EnumerateFilesRecursive(rootPath);
+    }
+
+    private static IEnumerable<string> EnumerateFilesRecursive(
+        string directory)
+    {
+        foreach (var file in Directory.EnumerateFiles(directory))
+        {
+            yield return file;
+        }
+
+        foreach (var subDir in Directory.EnumerateDirectories(directory))
+        {
+            var name = Path.GetFileName(subDir);
+            if (SkippedFolders.Contains(name) ||
+                name.StartsWith('@') ||
+                name.StartsWith('#') ||
+                name.StartsWith('.'))
+            {
+                continue;
+            }
+
+            foreach (var file in EnumerateFilesRecursive(subDir))
+            {
+                yield return file;
+            }
+        }
     }
     public MediaFile? ProcessFile(
         string path,
