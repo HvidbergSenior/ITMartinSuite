@@ -22,5 +22,7 @@ public sealed class Package1WorkflowState
     }
     public bool EnableSegmentation { get; set; } = false;
 
+    public bool EnableAiClassification { get; set; } = false;
+
     public string? OutputPath { get; set; }
 }

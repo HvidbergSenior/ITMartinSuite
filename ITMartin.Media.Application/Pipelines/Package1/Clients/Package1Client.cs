@@ -33,7 +33,8 @@ public sealed class Package1Client
                 RootPath =
                     request.SourceLibraryPath,
                 OverrideYear = request.OverrideYear,
-                OutputPath = request.OutputPath
+                OutputPath = request.OutputPath,
+                EnableAiClassification = request.EnableAiClassification
             };
 
         await _backgroundJobQueue

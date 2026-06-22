@@ -36,6 +36,13 @@
                 <label class="p1-label">Output folder <span class="p1-optional">(leave empty to use default library)</span></label>
                 <input class="p1-input" @bind="_outputPath" placeholder="/jobs/mie" />
             </div>
+            <div class="p1-toggle-row">
+                <label class="p1-toggle">
+                    <input type="checkbox" @bind="_enableAi" />
+                    <span>AI classification</span>
+                    <span class="p1-optional">(detects blurry, solid-colour, memes, screenshots — uses Claude API)</span>
+                </label>
+            </div>
             <button class="p1-btn-start" @onclick="Start" disabled="@string.IsNullOrWhiteSpace(_folderPath)">
                 ▶ Start Package 1
             </button>
@@ -167,6 +174,9 @@
     .p1-btn-start:hover:not(:disabled) { background: #1d4ed8; }
 
     .p1-optional { font-weight: 400; color: #475569; }
+    .p1-toggle-row { margin-bottom: 16px; }
+    .p1-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
+    .p1-toggle input[type=checkbox] { width: 16px; height: 16px; accent-color: #3b82f6; cursor: pointer; }
     .p1-error { margin-top: 12px; color: #f87171; font-size: 13px; }
 
     .p1-status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
@@ -215,6 +225,7 @@
 @code {
     private string _folderPath = "";
     private string _outputPath = "";
+    private bool _enableAi;
     private string _error = "";
     private bool _justStarted;
     private string _curatorUrl = "#";
@@ -269,7 +280,7 @@
                 WorkingDirectory     = Path.Combine(_folderPath, ".package1"),
                 OutputPath           = string.IsNullOrWhiteSpace(_outputPath) ? null : _outputPath,
                 EnableDeduplication  = true,
-                EnableAiClassification = false,
+                EnableAiClassification = _enableAi,
                 EnableOcr            = false,
                 Profile              = "Package1"
             }, CancellationToken.None);

@@ -24,6 +24,7 @@ public sealed class Package1WorkflowDefinition
         VideoSegmentationWorkflowStep videoSegmentationWorkflowStep,
         SegmentThumbnailWorkflowStep segmentThumbnailWorkflowStep,
         CleanupEvaluationWorkflowStep cleanupEvaluationWorkflowStep,
+        AiClassificationWorkflowStep aiClassificationWorkflowStep,
         Manifest1BuildWorkflowStep manifest1BuildWorkflowStep,
         ExportWorkflowExecutionStep exportWorkflowExecutionStep,
         ThumbnailWorkflowStep thumbnailWorkflowStep)
@@ -49,6 +50,8 @@ public sealed class Package1WorkflowDefinition
             segmentThumbnailWorkflowStep,
 
             cleanupEvaluationWorkflowStep,
+
+            aiClassificationWorkflowStep,
 
             manifest1BuildWorkflowStep,
 

@@ -75,6 +75,9 @@ public static class Package1DependencyInjection
             CleanupEvaluationWorkflowStep>();
 
         services.AddScoped<
+            AiClassificationWorkflowStep>();
+
+        services.AddScoped<
             Manifest1BuildWorkflowStep>();
 
         services.AddScoped<

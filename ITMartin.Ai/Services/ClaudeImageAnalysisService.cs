@@ -34,8 +34,16 @@ public sealed class ClaudeImageAnalysisService
                     """).RootElement,
                 ["confidence"] = JsonSerializer.SerializeToElement(
                     new { type = "number", description = "Confidence score 0.0–1.0" }),
+                ["is_blurry"] = JsonSerializer.SerializeToElement(
+                    new { type = "boolean", description = "True if the image is noticeably blurry or out of focus" }),
+                ["is_solid_color"] = JsonSerializer.SerializeToElement(
+                    new { type = "boolean", description = "True if the image is mostly a single solid color, blank, or near-empty" }),
+                ["is_meme"] = JsonSerializer.SerializeToElement(
+                    new { type = "boolean", description = "True if the image is a meme, joke image, or internet humor content" }),
+                ["is_screenshot"] = JsonSerializer.SerializeToElement(
+                    new { type = "boolean", description = "True if the image is a screenshot of a phone, computer, or app" }),
             },
-            Required = ["description", "confidence"],
+            Required = ["description", "confidence", "is_blurry", "is_solid_color", "is_meme", "is_screenshot"],
         },
     };
 
@@ -73,7 +81,7 @@ public sealed class ClaudeImageAnalysisService
             {
                 Model = Model.ClaudeOpus4_8,
                 MaxTokens = 512,
-                System = "You analyze images and return structured descriptions.",
+                System = "You analyze images for photo library management. Be precise about blur, solid-color/blank images, memes, and screenshots. Always call report_image.",
                 Tools = [ReportImageTool],
                 ToolChoice = new ToolChoiceTool { Name = "report_image" },
                 Messages =
@@ -115,7 +123,17 @@ public sealed class ClaudeImageAnalysisService
             var json = JsonSerializer.Serialize(toolUse.Input);
             _logger.LogDebug("Claude image analysis: {Json}", json);
 
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
             var result = JsonSerializer.Deserialize<AiAnalysisResult>(json, JsonOptions);
+            if (result is not null)
+            {
+                if (root.TryGetProperty("is_blurry", out var b))     result.IsBlurry     = b.GetBoolean();
+                if (root.TryGetProperty("is_solid_color", out var s)) result.IsSolidColor = s.GetBoolean();
+                if (root.TryGetProperty("is_meme", out var m))        result.IsMeme       = m.GetBoolean();
+                if (root.TryGetProperty("is_screenshot", out var sc)) result.IsScreenshot = sc.GetBoolean();
+            }
 
             if (result is null)
                 return Empty();
