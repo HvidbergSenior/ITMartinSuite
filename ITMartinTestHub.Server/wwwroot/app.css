@@ -173,6 +173,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 .rounds-row:hover { background: var(--bg3); }
 .rounds-name { font-weight: 600; margin-right: .5rem; }
 .rounds-date { color: var(--muted); font-size: .8rem; }
+.rounds-row-actions { display: flex; align-items: center; gap: .4rem; }
 
 /* Apps grid */
 .apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .5rem; }

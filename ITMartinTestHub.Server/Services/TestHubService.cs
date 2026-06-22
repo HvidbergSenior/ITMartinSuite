@@ -109,6 +109,17 @@ public sealed class TestHubService(TestHubDbContext db)
         if (round is not null) { round.IsActive = false; await db.SaveChangesAsync(); }
     }
 
+    public async Task DeleteRoundAsync(Guid id)
+    {
+        var round = await db.Rounds
+            .Include(r => r.Assignments).ThenInclude(a => a.Results)
+            .Include(r => r.Assignments).ThenInclude(a => a.Feedbacks)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (round is null) return;
+        db.Rounds.Remove(round);
+        await db.SaveChangesAsync();
+    }
+
     // ── Assignments ───────────────────────────────────────────────────────
 
     public async Task<TestAssignment> CreateAssignmentAsync(Guid roundId, Guid appId, Guid testerId)

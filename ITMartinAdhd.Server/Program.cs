@@ -12,6 +12,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton<ToastService>();
+builder.Services.AddHostedService<ItemCleanupService>();
 
 // =========================
 // DATABASE

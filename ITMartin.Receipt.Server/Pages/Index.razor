@@ -89,15 +89,24 @@
                             </div>
 
                             <div style="display:flex; align-items:center; gap:12px;">
-                                <button class="btn btn-sm @(tx.IsTemplate ? "btn-warning" : "btn-outline-secondary")"
-                                        @onclick="() => ToggleTemplate(tx)">
-                                    @(tx.IsTemplate ? "Unset Template" : "Set Template")
-                                </button>
                                 @if (tx.TotalAmount.HasValue)
                                 {
                                     <div class="receipt-history-total">
                                         @tx.Currency @tx.TotalAmount.Value.ToString("F2")
                                     </div>
+                                }
+                                <button class="btn btn-sm @(tx.IsTemplate ? "btn-warning" : "btn-outline-secondary")"
+                                        @onclick="() => ToggleTemplate(tx)">
+                                    @(tx.IsTemplate ? "Unset Template" : "Set Template")
+                                </button>
+                                @if (_deleteConfirmId == tx.Id)
+                                {
+                                    <button class="btn btn-sm btn-danger"  @onclick="() => ConfirmDelete(tx.Id)">✓ Delete</button>
+                                    <button class="btn btn-sm btn-secondary" @onclick="CancelDelete">Cancel</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => AskDelete(tx.Id)">🗑</button>
                                 }
                             </div>
 
@@ -226,6 +235,7 @@
     private string _search = "";
     private DateTime? _fromDate;
     private DateTime? _toDate;
+    private Guid? _deleteConfirmId;
 
     private IEnumerable<ReceiptTransaction> _filtered => (_transactions ?? []).Where(tx =>
         (string.IsNullOrWhiteSpace(_search) || tx.MerchantName.Contains(_search, StringComparison.OrdinalIgnoreCase)) &&
@@ -244,6 +254,19 @@
     {
         tx.IsTemplate = !tx.IsTemplate;
         await ReceiptRepository.SetTemplateAsync(tx.Id, tx.IsTemplate);
+    }
+
+    private void AskDelete(Guid id)   => _deleteConfirmId = id;
+    private void CancelDelete()       => _deleteConfirmId = null;
+
+    private async Task ConfirmDelete(Guid id)
+    {
+        _deleteConfirmId = null;
+        await ReceiptRepository.DeleteAsync(id);
+        _transactions?.RemoveAll(x => x.Id == id);
+        _totalSpend = (_transactions ?? [])
+            .Where(x => x.Currency == "DKK" && x.TotalAmount.HasValue)
+            .Sum(x => x.TotalAmount!.Value);
     }
 
 }

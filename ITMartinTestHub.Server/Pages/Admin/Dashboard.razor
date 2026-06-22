@@ -96,7 +96,18 @@
                     <span class="rounds-name">@r.Name</span>
                     @if (!r.IsActive) { <span class="badge-archived">Archived</span> }
                 </div>
-                <span class="rounds-date">@r.CreatedAt.ToString("dd MMM yyyy")</span>
+                <div class="rounds-row-actions" @onclick:stopPropagation>
+                    <span class="rounds-date">@r.CreatedAt.ToString("dd MMM yyyy")</span>
+                    @if (_deleteConfirmRoundId == r.Id)
+                    {
+                        <button class="btn-icon-sm danger" title="Confirm delete" @onclick="() => ConfirmDeleteRound(r.Id)">✓</button>
+                        <button class="btn-icon-sm"        title="Cancel"         @onclick="CancelDeleteRound">✕</button>
+                    }
+                    else
+                    {
+                        <button class="btn-icon-sm danger" title="Delete round" @onclick="() => AskDeleteRound(r.Id)">🗑</button>
+                    }
+                </div>
             </div>
         }
         @if (!_rounds.Any()) { <div class="muted">No rounds yet.</div> }
@@ -147,6 +158,7 @@
     private bool   _creating;
     private string _newRoundName  = "";
     private string _newRoundError = "";
+    private Guid?  _deleteConfirmRoundId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -171,6 +183,17 @@
     {
         await JS.InvokeVoidAsync("adminLogout");
         Nav.NavigateTo("/", forceLoad: true);
+    }
+
+    private void AskDeleteRound(Guid id)   => _deleteConfirmRoundId = id;
+    private void CancelDeleteRound()       => _deleteConfirmRoundId = null;
+
+    private async Task ConfirmDeleteRound(Guid id)
+    {
+        _deleteConfirmRoundId = null;
+        await Svc.DeleteRoundAsync(id);
+        _rounds = await Svc.GetRoundsAsync();
+        _activeRound = await Svc.GetActiveRoundAsync();
     }
 
     private static string FeedbackIcon(FeedbackType t) => t switch

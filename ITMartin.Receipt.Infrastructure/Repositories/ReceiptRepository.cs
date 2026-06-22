@@ -41,6 +41,16 @@ public sealed class ReceiptRepository : IReceiptRepository
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var tx = await _db.Transactions
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (tx is null) return;
+        _db.Transactions.Remove(tx);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<ReceiptTransaction?> GetTemplateAsync(
         string merchantName,
         CancellationToken cancellationToken = default)
