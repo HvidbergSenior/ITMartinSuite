@@ -9,7 +9,7 @@ public sealed class TestHubService(TestHubDbContext db)
     // ── Apps ──────────────────────────────────────────────────────────────
 
     public Task<List<AppEntry>> GetAppsAsync() =>
-        db.Apps.OrderBy(a => a.SortOrder).ToListAsync();
+        db.Apps.Include(a => a.Steps).OrderBy(a => a.SortOrder).ToListAsync();
 
     public Task<AppEntry?> GetAppAsync(Guid id) =>
         db.Apps.Include(a => a.Steps.OrderBy(s => s.Order))
@@ -216,6 +216,7 @@ public sealed class TestHubService(TestHubDbContext db)
           .Include(r => r.Assignments).ThenInclude(a => a.Results)
           .Where(r => r.IsActive)
           .OrderByDescending(r => r.CreatedAt)
+          .AsSplitQuery()
           .FirstOrDefaultAsync();
 
     public Task<List<Feedback>> GetRecentFeedbackAsync(int count = 10) =>

@@ -152,7 +152,7 @@
         _rounds         = await Svc.GetRoundsAsync();
         _apps           = await Svc.GetAppsAsync();
         _recentFeedback = await Svc.GetRecentFeedbackAsync(15);
-        _appNames       = await Svc.GetAppNamesAsync();
+        _appNames       = _apps.ToDictionary(a => a.Id, a => a.Name);
     }
 
     private void CreateRound() { _creating = true; _newRoundName = ""; }
