@@ -25,7 +25,7 @@
 
         <div class="home-divider">or</div>
 
-        <button class="btn-secondary" @onclick="@(() => Nav.NavigateTo("/admin"))">
+        <button class="btn-secondary" @onclick="@(() => Nav.NavigateTo("/admin", forceLoad: true))">
             🔧 Admin dashboard
         </button>
 
