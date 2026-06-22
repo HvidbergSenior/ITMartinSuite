@@ -18,6 +18,19 @@ else if (_participant is null)
             <h2>@_session.Name</h2>
             <p class="join-code">Code: <strong>@_session.Code</strong></p>
             <p>@_session.Participants.Count person(s) in session</p>
+
+            <div class="rules-box">
+                <div class="rules-title">📋 House rules</div>
+                <ul class="rules-list">
+                    <li>Log every drink you order or pay for — honesty keeps it fair</li>
+                    <li>Set shares correctly: <strong>All</strong> = full drink, <strong>½</strong> = half, <strong>Sip</strong> = just a taste</li>
+                    <li>Shares can be adjusted at any time before settlement</li>
+                    <li>When the session ends, check the settlement totals together</li>
+                    <li>Pay your balance via MobilePay or bank transfer</li>
+                </ul>
+                <p class="rules-agree">By joining you agree to these rules.</p>
+            </div>
+
             <label class="home-label">Your name</label>
             <input class="home-input" @bind="_nameInput" placeholder="Martin" maxlength="30"
                    @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(DoJoin); })" />

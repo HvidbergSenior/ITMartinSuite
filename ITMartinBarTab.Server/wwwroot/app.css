@@ -136,3 +136,10 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 .breakdown-by { font-size: .75rem; }
 
 .loading { display: flex; align-items: center; justify-content: center; height: 100dvh; color: var(--muted); }
+
+/* Rules box on join screen */
+.rules-box { background: var(--bg3); border: 1px solid #2e3150; border-radius: 10px; padding: 1rem 1.1rem; margin: 1rem 0; text-align: left; }
+.rules-title { font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
+.rules-list { padding-left: 1.2rem; display: flex; flex-direction: column; gap: .45rem; font-size: .82rem; color: var(--text); }
+.rules-list li { line-height: 1.4; }
+.rules-agree { margin-top: .7rem; font-size: .75rem; color: var(--muted); }
