@@ -13,7 +13,7 @@ else
 
         <div class="admin-header">
             <div>
-                <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/admin"))">← Admin</button>
+                <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/admin", forceLoad: true))">← Admin</button>
                 <div class="admin-title">@_round.Name</div>
                 @if (!_round.IsActive) { <span class="badge-archived">Archived</span> }
             </div>
@@ -51,7 +51,7 @@ else
                             @if (complete) { <span class="badge-done">✓</span> }
                         </div>
                         <div class="ar-actions">
-                            <button class="btn-text" @onclick="@(() => Nav.NavigateTo($"/test/{a.Id}"))">
+                            <button class="btn-text" @onclick="@(() => Nav.NavigateTo($"/test/{a.Id}", forceLoad: true))">
                                 View →
                             </button>
                             @if (_round.IsActive)

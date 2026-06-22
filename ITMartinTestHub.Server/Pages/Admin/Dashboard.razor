@@ -10,7 +10,7 @@
             <div class="admin-title">🧪 TestHub Admin</div>
         </div>
         <div class="admin-header-actions">
-            <button class="btn-secondary btn-sm" @onclick="@(() => Nav.NavigateTo("/"))">← Home</button>
+            <button class="btn-secondary btn-sm" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Home</button>
             <button class="btn-primary   btn-sm" @onclick="CreateRound">+ New round</button>
         </div>
     </div>
@@ -76,7 +76,7 @@
             @if (!_activeRound.Assignments.Any())
             {
                 <div class="muted">No assignments yet.
-                    <button class="btn-text" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}"))">
+                    <button class="btn-text" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}", forceLoad: true))">
                         Add some →
                     </button>
                 </div>

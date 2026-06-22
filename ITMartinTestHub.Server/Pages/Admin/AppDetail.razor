@@ -13,7 +13,7 @@ else
 
         <div class="admin-header">
             <div>
-                <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/admin"))">← Admin</button>
+                <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/admin", forceLoad: true))">← Admin</button>
                 <div class="admin-title">@_app.Icon @_app.Name</div>
             </div>
         </div>

@@ -19,7 +19,7 @@
                 <div class="header-name">@_tester.Name</div>
                 <div class="header-sub">Your test assignments</div>
             </div>
-            <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/"))">← Switch</button>
+            <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Switch</button>
         </div>
 
         @if (!_assignments.Any())
