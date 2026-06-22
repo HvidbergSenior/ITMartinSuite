@@ -1,0 +1,263 @@
+@page "/test/{AssignmentId:guid}"
+@rendermode InteractiveServer
+@inject TestHubService Svc
+@inject NavigationManager Nav
+
+@if (_assignment is null)
+{
+    <div class="loading">Loading…</div>
+}
+else
+{
+    <div class="test-page">
+
+        <!-- Header -->
+        <div class="test-header">
+            <button class="btn-text" @onclick="GoBack">← Back</button>
+            <div class="test-header-center">
+                <span class="test-app-icon">@_assignment.App?.Icon</span>
+                <span class="test-app-name">@_assignment.App?.Name</span>
+            </div>
+            <a class="btn-open-app" href="@_assignment.App?.Url" target="_blank">
+                Open app ↗
+            </a>
+        </div>
+
+        <div class="test-body">
+
+            <!-- Steps panel -->
+            <div class="steps-panel">
+                <div class="panel-title">
+                    Test steps
+                    <span class="step-counter">@_doneCount / @_totalCount</span>
+                </div>
+
+                @foreach (var step in _assignment.App?.Steps ?? [])
+                {
+                    var result = _assignment.Results.FirstOrDefault(r => r.TestStepId == step.Id);
+                    var isOpen = _openStepId == step.Id;
+
+                    <div class="step-card @StatusClass(result) @(isOpen ? "step-open" : "")"
+                         @onclick="() => ToggleStep(step.Id)">
+
+                        <div class="step-header">
+                            <div class="step-status-icon">@StatusIcon(result)</div>
+                            <div class="step-num">@step.Order</div>
+                            <div class="step-instruction">@step.Instruction</div>
+                        </div>
+
+                        @if (isOpen)
+                        {
+                            <div class="step-body">
+                                @if (!string.IsNullOrWhiteSpace(step.ExpectedResult))
+                                {
+                                    <div class="step-expected">
+                                        <span class="step-expected-label">Expected:</span>
+                                        @step.ExpectedResult
+                                    </div>
+                                }
+
+                                <div class="step-actions">
+                                    <button class="btn-pass  @(result?.Status == StepStatus.Pass ? "active" : "")"
+                                            @onclick:stopPropagation
+                                            @onclick="() => RecordResult(step.Id, StepStatus.Pass)">
+                                        ✓ Pass
+                                    </button>
+                                    <button class="btn-fail  @(result?.Status == StepStatus.Fail ? "active" : "")"
+                                            @onclick:stopPropagation
+                                            @onclick="() => RecordResult(step.Id, StepStatus.Fail)">
+                                        ✗ Fail
+                                    </button>
+                                    <button class="btn-skip  @(result?.Status == StepStatus.Skip ? "active" : "")"
+                                            @onclick:stopPropagation
+                                            @onclick="() => RecordResult(step.Id, StepStatus.Skip)">
+                                        → Skip
+                                    </button>
+                                </div>
+
+                                <textarea class="step-note"
+                                          placeholder="Optional note…"
+                                          @bind="_notes[step.Id]"
+                                          @bind:event="oninput"
+                                          rows="2"
+                                          @onclick:stopPropagation></textarea>
+
+                                @if (!string.IsNullOrWhiteSpace(_notes.GetValueOrDefault(step.Id)))
+                                {
+                                    <button class="btn-save-note"
+                                            @onclick:stopPropagation
+                                            @onclick="() => SaveNote(step.Id)">
+                                        Save note
+                                    </button>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(result?.Note))
+                                {
+                                    <div class="saved-note">📝 @result.Note</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Feedback panel -->
+            <div class="feedback-panel">
+                <div class="panel-title">Ideas &amp; Bugs</div>
+
+                <div class="feedback-type-row">
+                    @foreach (var ft in new[] { FeedbackType.Bug, FeedbackType.Idea, FeedbackType.Comment })
+                    {
+                        <button class="feedback-type-btn @(_feedbackType == ft ? "active" : "")"
+                                @onclick="() => _feedbackType = ft">
+                            @FeedbackIcon(ft) @ft
+                        </button>
+                    }
+                </div>
+
+                <textarea class="feedback-input"
+                          @bind="_feedbackText"
+                          @bind:event="oninput"
+                          placeholder="@FeedbackPlaceholder()"
+                          rows="3"></textarea>
+
+                <button class="btn-feedback"
+                        @onclick="AddFeedback"
+                        disabled="@string.IsNullOrWhiteSpace(_feedbackText)">
+                    Add @_feedbackType.ToString().ToLower()
+                </button>
+
+                <div class="feedback-list">
+                    @foreach (var f in _assignment.Feedbacks.OrderByDescending(f => f.CreatedAt))
+                    {
+                        <div class="feedback-item">
+                            <div class="feedback-item-header">
+                                <span class="feedback-type-badge type-@f.Type.ToString().ToLower()">
+                                    @FeedbackIcon(f.Type) @f.Type
+                                </span>
+                                <span class="feedback-item-who" style="color:@(f.Tester?.Color ?? "#999")">
+                                    @f.Tester?.Name
+                                </span>
+                                <span class="feedback-item-time">@TimeAgo(f.CreatedAt)</span>
+                            </div>
+                            <div class="feedback-item-text">@f.Text</div>
+                        </div>
+                    }
+                </div>
+
+                @if (_assignment.CompletedAt.HasValue)
+                {
+                    <div class="complete-badge">✓ Test complete · @_assignment.CompletedAt.Value.ToString("dd MMM HH:mm")</div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid AssignmentId { get; set; }
+
+    private TestAssignment?      _assignment;
+    private Guid?                _openStepId;
+    private FeedbackType         _feedbackType = FeedbackType.Idea;
+    private string               _feedbackText = "";
+    private Dictionary<Guid, string> _notes    = new();
+
+    private int _totalCount => _assignment?.App?.Steps.Count ?? 0;
+    private int _doneCount  => _assignment?.Results.Count    ?? 0;
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload()
+    {
+        _assignment = await Svc.GetAssignmentAsync(AssignmentId);
+        if (_assignment is not null)
+        {
+            foreach (var r in _assignment.Results.Where(r => !string.IsNullOrWhiteSpace(r.Note)))
+                _notes[r.TestStepId] = r.Note!;
+
+            if (_openStepId is null)
+            {
+                var firstPending = _assignment.App?.Steps
+                    .FirstOrDefault(s => !_assignment.Results.Any(r => r.TestStepId == s.Id));
+                _openStepId = firstPending?.Id;
+            }
+        }
+    }
+
+    private void ToggleStep(Guid stepId) =>
+        _openStepId = _openStepId == stepId ? null : stepId;
+
+    private async Task RecordResult(Guid stepId, StepStatus status)
+    {
+        var note = _notes.GetValueOrDefault(stepId);
+        await Svc.RecordResultAsync(AssignmentId, stepId, status, note);
+        await Reload();
+
+        // Auto-advance to next unanswered step
+        var nextPending = _assignment?.App?.Steps
+            .FirstOrDefault(s => !_assignment.Results.Any(r => r.TestStepId == s.Id));
+        _openStepId = nextPending?.Id ?? stepId;
+    }
+
+    private async Task SaveNote(Guid stepId)
+    {
+        var result = _assignment?.Results.FirstOrDefault(r => r.TestStepId == stepId);
+        if (result is null) return;
+        await Svc.RecordResultAsync(AssignmentId, stepId, result.Status, _notes.GetValueOrDefault(stepId));
+        await Reload();
+    }
+
+    private async Task AddFeedback()
+    {
+        if (string.IsNullOrWhiteSpace(_feedbackText) || _assignment is null) return;
+        await Svc.AddFeedbackAsync(AssignmentId, _assignment.AppEntryId,
+            _assignment.TesterId, _feedbackText.Trim(), _feedbackType);
+        _feedbackText = "";
+        await Reload();
+    }
+
+    private void GoBack() =>
+        Nav.NavigateTo($"/tester/{_assignment?.TesterId}", forceLoad: true);
+
+    private static string StatusClass(StepResult? r) => r?.Status switch
+    {
+        StepStatus.Pass => "step-pass",
+        StepStatus.Fail => "step-fail",
+        StepStatus.Skip => "step-skip",
+        _               => "step-pending"
+    };
+
+    private static string StatusIcon(StepResult? r) => r?.Status switch
+    {
+        StepStatus.Pass => "✓",
+        StepStatus.Fail => "✗",
+        StepStatus.Skip => "→",
+        _               => "○"
+    };
+
+    private static string FeedbackIcon(FeedbackType t) => t switch
+    {
+        FeedbackType.Bug     => "🐛",
+        FeedbackType.Idea    => "💡",
+        FeedbackType.Comment => "💬",
+        _                    => "?"
+    };
+
+    private string FeedbackPlaceholder() => _feedbackType switch
+    {
+        FeedbackType.Bug     => "Describe what went wrong…",
+        FeedbackType.Idea    => "Share an improvement idea…",
+        FeedbackType.Comment => "Any other comment…",
+        _                    => ""
+    };
+
+    private static string TimeAgo(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 2)  return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours   < 24) return $"{(int)diff.TotalHours}h ago";
+        return dt.ToString("dd MMM");
+    }
+}

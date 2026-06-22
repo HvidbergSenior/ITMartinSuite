@@ -1,0 +1,175 @@
+@page "/admin"
+@rendermode InteractiveServer
+@inject TestHubService Svc
+@inject NavigationManager Nav
+
+<div class="admin-page">
+
+    <div class="admin-header">
+        <div>
+            <div class="admin-title">🧪 TestHub Admin</div>
+        </div>
+        <div class="admin-header-actions">
+            <button class="btn-secondary btn-sm" @onclick="@(() => Nav.NavigateTo("/"))">← Home</button>
+            <button class="btn-primary   btn-sm" @onclick="CreateRound">+ New round</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_newRoundError))
+    {
+        <p class="form-error">@_newRoundError</p>
+    }
+
+    @if (_creating)
+    {
+        <div class="inline-form">
+            <input class="home-input" @bind="_newRoundName" placeholder="Annual Test — June 2026" maxlength="80" />
+            <button class="btn-primary btn-sm" @onclick="SaveRound"
+                    disabled="@string.IsNullOrWhiteSpace(_newRoundName)">Create</button>
+            <button class="btn-text" @onclick="() => _creating = false">Cancel</button>
+        </div>
+    }
+
+    <!-- Active round -->
+    @if (_activeRound is not null)
+    {
+        <div class="section-title">
+            Active round: <strong>@_activeRound.Name</strong>
+            <button class="btn-text btn-sm" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}"))">
+                Manage →
+            </button>
+        </div>
+
+        <div class="round-grid">
+            @foreach (var a in _activeRound.Assignments.OrderBy(a => a.App?.SortOrder))
+            {
+                var total    = a.App?.Steps.Count ?? 0;
+                var done     = a.Results.Count;
+                var pct      = total > 0 ? (int)((done / (double)total) * 100) : 0;
+                var complete = a.CompletedAt.HasValue;
+
+                <div class="round-card">
+                    <div class="round-card-icon">@(a.App?.Icon ?? "🔷")</div>
+                    <div class="round-card-info">
+                        <div class="round-card-app">@a.App?.Name</div>
+                        <div class="round-card-tester" style="color:@(a.Tester?.Color ?? "#999")">
+                            @a.Tester?.Name
+                        </div>
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar @(complete ? "progress-done" : "")"
+                                 style="width:@pct%"></div>
+                        </div>
+                        <div class="round-card-meta">
+                            @if (complete)
+                            {
+                                <span class="badge-done">✓ Done</span>
+                            }
+                            else
+                            {
+                                <span>@done / @total</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!_activeRound.Assignments.Any())
+            {
+                <div class="muted">No assignments yet.
+                    <button class="btn-text" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}"))">
+                        Add some →
+                    </button>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- All rounds -->
+    <div class="section-title" style="margin-top:2rem">All rounds</div>
+    <div class="rounds-list">
+        @foreach (var r in _rounds)
+        {
+            <div class="rounds-row" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{r.Id}"))">
+                <div>
+                    <span class="rounds-name">@r.Name</span>
+                    @if (!r.IsActive) { <span class="badge-archived">Archived</span> }
+                </div>
+                <span class="rounds-date">@r.CreatedAt.ToString("dd MMM yyyy")</span>
+            </div>
+        }
+        @if (!_rounds.Any()) { <div class="muted">No rounds yet.</div> }
+    </div>
+
+    <!-- Apps -->
+    <div class="section-title" style="margin-top:2rem">Apps &amp; test steps</div>
+    <div class="apps-grid">
+        @foreach (var a in _apps)
+        {
+            <div class="app-card" @onclick="@(() => Nav.NavigateTo($"/admin/apps/{a.Id}"))">
+                <div class="app-card-icon">@a.Icon</div>
+                <div class="app-card-info">
+                    <div class="app-card-name">@a.Name</div>
+                    <div class="app-card-steps">@a.Steps.Count step(s)</div>
+                </div>
+                <div class="app-card-arrow">›</div>
+            </div>
+        }
+    </div>
+
+    <!-- Recent feedback -->
+    <div class="section-title" style="margin-top:2rem">Recent feedback</div>
+    <div class="feedback-feed">
+        @foreach (var f in _recentFeedback)
+        {
+            var appName = _appNames.GetValueOrDefault(f.AppEntryId, "?");
+            <div class="feed-item">
+                <span class="feedback-type-badge type-@f.Type.ToString().ToLower()">
+                    @FeedbackIcon(f.Type) @f.Type
+                </span>
+                <span class="feed-app">@appName</span>
+                <span class="feed-text">@f.Text</span>
+                <span class="feed-who" style="color:@(f.Tester?.Color ?? "#999")">@f.Tester?.Name</span>
+                <span class="feed-time">@f.CreatedAt.ToString("dd MMM HH:mm")</span>
+            </div>
+        }
+        @if (!_recentFeedback.Any()) { <div class="muted">No feedback yet.</div> }
+    </div>
+</div>
+
+@code {
+    private TestRound?        _activeRound;
+    private List<TestRound>   _rounds         = [];
+    private List<AppEntry>    _apps           = [];
+    private List<Feedback>    _recentFeedback = [];
+    private Dictionary<Guid,string> _appNames = new();
+    private bool   _creating;
+    private string _newRoundName  = "";
+    private string _newRoundError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _activeRound    = await Svc.GetActiveRoundAsync();
+        _rounds         = await Svc.GetRoundsAsync();
+        _apps           = await Svc.GetAppsAsync();
+        _recentFeedback = await Svc.GetRecentFeedbackAsync(15);
+        _appNames       = await Svc.GetAppNamesAsync();
+    }
+
+    private void CreateRound() { _creating = true; _newRoundName = ""; }
+
+    private async Task SaveRound()
+    {
+        if (string.IsNullOrWhiteSpace(_newRoundName)) return;
+        var round = await Svc.CreateRoundAsync(_newRoundName.Trim());
+        _creating = false;
+        Nav.NavigateTo($"/admin/rounds/{round.Id}", forceLoad: true);
+    }
+
+    private static string FeedbackIcon(FeedbackType t) => t switch
+    {
+        FeedbackType.Bug     => "🐛",
+        FeedbackType.Idea    => "💡",
+        FeedbackType.Comment => "💬",
+        _                    => "?"
+    };
+}

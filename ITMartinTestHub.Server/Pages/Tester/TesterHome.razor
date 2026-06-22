@@ -1,0 +1,85 @@
+@page "/tester/{TesterId:guid}"
+@rendermode InteractiveServer
+@inject TestHubService Svc
+@inject NavigationManager Nav
+
+<div class="tester-home">
+
+    @if (_tester is null)
+    {
+        <div class="loading">Loading…</div>
+    }
+    else
+    {
+        <div class="th-header">
+            <div class="header-avatar" style="background:@_tester.Color">
+                @_tester.Name[..1].ToUpper()
+            </div>
+            <div>
+                <div class="header-name">@_tester.Name</div>
+                <div class="header-sub">Your test assignments</div>
+            </div>
+            <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/"))">← Switch</button>
+        </div>
+
+        @if (!_assignments.Any())
+        {
+            <div class="empty-state">
+                <div style="font-size:3rem">🎉</div>
+                <p>No active assignments — you're all caught up!</p>
+                <p class="muted">Ask the admin to assign you to a test round.</p>
+            </div>
+        }
+        else
+        {
+            <div class="assignment-list">
+                @foreach (var a in _assignments)
+                {
+                    var total    = a.App?.Steps.Count ?? 0;
+                    var done     = a.Results.Count;
+                    var pct      = total > 0 ? (int)((done / (double)total) * 100) : 0;
+                    var complete = a.CompletedAt.HasValue;
+
+                    <div class="assignment-card @(complete ? "assignment-done" : "")"
+                         @onclick="@(() => Nav.NavigateTo($"/test/{a.Id}", forceLoad: true))">
+
+                        <div class="assignment-icon">@(a.App?.Icon ?? "🔷")</div>
+
+                        <div class="assignment-info">
+                            <div class="assignment-name">@a.App?.Name</div>
+                            <div class="assignment-round">@a.Round?.Name</div>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar" style="width:@pct%"></div>
+                            </div>
+                            <div class="assignment-meta">
+                                @if (complete)
+                                {
+                                    <span class="badge-done">✓ Complete</span>
+                                }
+                                else
+                                {
+                                    <span>@done / @total steps done</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="assignment-arrow">›</div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid TesterId { get; set; }
+
+    private Tester?             _tester;
+    private List<TestAssignment> _assignments = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tester      = (await Svc.GetTestersAsync()).FirstOrDefault(t => t.Id == TesterId);
+        _assignments = await Svc.GetTesterAssignmentsAsync(TesterId);
+    }
+}

@@ -535,6 +535,32 @@ services:
       - martinnet
 
   # =========================================================
+  # TESTHUB
+  # =========================================================
+
+  testhub-web:
+    container_name: testhub-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinTestHub.Server/Dockerfile
+
+    ports:
+      - "8097:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__TestHubDb=Data Source=/app/db/testhub.db
+
+    volumes:
+      - /volume1/docker/martinsuite/testhub/db:/app/db
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # WORKERS
   # =========================================================
 

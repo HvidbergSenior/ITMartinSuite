@@ -1,0 +1,61 @@
+@page "/"
+@rendermode InteractiveServer
+@inject TestHubService Svc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="home-page">
+    <div class="home-card">
+        <div class="home-logo">🧪</div>
+        <h1 class="home-title">TestHub</h1>
+        <p class="home-sub">Quality testing for all ITMartin apps</p>
+
+        <div class="home-section">
+            <label class="home-label">I'm a tester</label>
+            <input class="home-input"
+                   @bind="_name" @bind:event="oninput"
+                   placeholder="Enter your name"
+                   maxlength="40"
+                   @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(EnterAsTester); })" />
+            <button class="btn-primary" @onclick="EnterAsTester"
+                    disabled="@string.IsNullOrWhiteSpace(_name)">
+                See my assignments
+            </button>
+        </div>
+
+        <div class="home-divider">or</div>
+
+        <button class="btn-secondary" @onclick="@(() => Nav.NavigateTo("/admin"))">
+            🔧 Admin dashboard
+        </button>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="home-error">@_error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string _name  = "";
+    private string _error = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var saved = await JS.InvokeAsync<string?>("th.getItem", "tester_name");
+        if (!string.IsNullOrWhiteSpace(saved))
+        {
+            _name = saved;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task EnterAsTester()
+    {
+        if (string.IsNullOrWhiteSpace(_name)) return;
+        var tester = await Svc.GetOrCreateTesterAsync(_name.Trim());
+        await JS.InvokeVoidAsync("th.setItem", "tester_name", tester.Name);
+        Nav.NavigateTo($"/tester/{tester.Id}", forceLoad: true);
+    }
+}

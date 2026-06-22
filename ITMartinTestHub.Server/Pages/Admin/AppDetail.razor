@@ -1,0 +1,141 @@
+@page "/admin/apps/{AppId:guid}"
+@rendermode InteractiveServer
+@inject TestHubService Svc
+@inject NavigationManager Nav
+
+@if (_app is null)
+{
+    <div class="loading">Loading…</div>
+}
+else
+{
+    <div class="admin-page">
+
+        <div class="admin-header">
+            <div>
+                <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/admin"))">← Admin</button>
+                <div class="admin-title">@_app.Icon @_app.Name</div>
+            </div>
+        </div>
+
+        <!-- App info -->
+        <div class="detail-section">
+            <div class="section-title">App info</div>
+            <div class="form-row">
+                <label class="home-label">Icon</label>
+                <input class="home-input" style="max-width:80px" @bind="_app.Icon" maxlength="4" />
+            </div>
+            <div class="form-row">
+                <label class="home-label">Name</label>
+                <input class="home-input" @bind="_app.Name" maxlength="60" />
+            </div>
+            <div class="form-row">
+                <label class="home-label">URL</label>
+                <input class="home-input" @bind="_app.Url" maxlength="200" type="url" />
+            </div>
+            <div class="form-row">
+                <label class="home-label">Description</label>
+                <input class="home-input" @bind="_app.Description" maxlength="200" />
+            </div>
+            <button class="btn-primary btn-sm" @onclick="SaveApp">Save</button>
+            @if (_saved) { <span class="save-confirm">✓ Saved</span> }
+        </div>
+
+        <!-- Test steps -->
+        <div class="detail-section">
+            <div class="section-title">Test steps (@_app.Steps.Count)</div>
+
+            <div class="steps-editor">
+                @foreach (var step in _app.Steps)
+                {
+                    <div class="step-editor-row">
+                        <div class="step-editor-num">@step.Order</div>
+                        <div class="step-editor-body">
+                            <div class="step-editor-instruction">@step.Instruction</div>
+                            @if (!string.IsNullOrWhiteSpace(step.ExpectedResult))
+                            {
+                                <div class="step-editor-expected">→ @step.ExpectedResult</div>
+                            }
+                        </div>
+                        <div class="step-editor-actions">
+                            <button class="btn-icon-sm" title="Move up"
+                                    @onclick="() => MoveStep(step.Id, -1)">↑</button>
+                            <button class="btn-icon-sm" title="Move down"
+                                    @onclick="() => MoveStep(step.Id, 1)">↓</button>
+                            <button class="btn-icon-sm danger" title="Delete"
+                                    @onclick="() => DeleteStep(step.Id)">✕</button>
+                        </div>
+                    </div>
+                }
+
+                @if (!_app.Steps.Any())
+                {
+                    <div class="muted">No steps yet — add the first one below.</div>
+                }
+            </div>
+
+            <!-- Add step form -->
+            <div class="add-step-form">
+                <div class="form-row">
+                    <label class="home-label">Instruction</label>
+                    <input class="home-input" @bind="_newInstruction"
+                           placeholder="Open the app and create a new session"
+                           maxlength="300" />
+                </div>
+                <div class="form-row">
+                    <label class="home-label">Expected result (optional)</label>
+                    <input class="home-input" @bind="_newExpected"
+                           placeholder="Session appears with a 6-char code"
+                           maxlength="300" />
+                </div>
+                <button class="btn-primary btn-sm" @onclick="AddStep"
+                        disabled="@string.IsNullOrWhiteSpace(_newInstruction)">
+                    + Add step
+                </button>
+            </div>
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter] public Guid AppId { get; set; }
+
+    private AppEntry? _app;
+    private string    _newInstruction = "";
+    private string?   _newExpected;
+    private bool      _saved;
+
+    protected override async Task OnInitializedAsync() =>
+        _app = await Svc.GetAppAsync(AppId);
+
+    private async Task SaveApp()
+    {
+        if (_app is null) return;
+        await Svc.SaveAppAsync(_app);
+        _saved = true;
+        await Task.Delay(2000);
+        _saved = false;
+    }
+
+    private async Task AddStep()
+    {
+        if (string.IsNullOrWhiteSpace(_newInstruction)) return;
+        await Svc.AddStepAsync(AppId, _newInstruction.Trim(), _newExpected?.Trim());
+        _newInstruction = "";
+        _newExpected    = null;
+        _app = await Svc.GetAppAsync(AppId);
+    }
+
+    private async Task DeleteStep(Guid stepId)
+    {
+        await Svc.DeleteStepAsync(stepId);
+        _app = await Svc.GetAppAsync(AppId);
+    }
+
+    private async Task MoveStep(Guid stepId, int direction)
+    {
+        await Svc.MoveStepAsync(stepId, direction);
+        _app = await Svc.GetAppAsync(AppId);
+    }
+}
