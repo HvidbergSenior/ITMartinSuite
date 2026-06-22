@@ -23,7 +23,8 @@ else if (_participant is null)
                 <div class="rules-title">📋 House rules</div>
                 <ul class="rules-list">
                     <li>Log every drink you order or pay for — honesty keeps it fair</li>
-                    <li>Set shares correctly: <strong>All</strong> = full drink, <strong>½</strong> = half, <strong>Sip</strong> = just a taste</li>
+                    <li>Everyone defaults to <strong>Sip 5%</strong> on each drink — a small minimum contribution</li>
+                    <li>Set your share correctly: <strong>All</strong> = full drink, <strong>½</strong> = half, <strong>Sip 5%</strong> = just a taste, <strong>—</strong> = no part at all</li>
                     <li>Shares can be adjusted at any time before settlement</li>
                     <li>When the session ends, check the settlement totals together</li>
                     <li>Pay your balance via MobilePay or bank transfer</li>
@@ -211,7 +212,7 @@ else
     {
         ShareType.Full  => "All",
         ShareType.Half  => "½",
-        ShareType.Taste => "Sip",
+        ShareType.Taste => "Sip 5%",
         _               => "—"
     };
 

@@ -40,15 +40,37 @@ public sealed class SettlementService
             }
             else
             {
-                var totalWeight = drink.Shares.Sum(s => DrinkShare.Weight(s.Share));
-                if (totalWeight > 0)
+                // Sip = flat 5% of drink price per person, remainder split among Full/Half by weight
+                const decimal SipRate = 0.05m;
+
+                var sipShares  = drink.Shares.Where(s => s.Share == ShareType.Taste).ToList();
+                var mainShares = drink.Shares.Where(s => s.Share is ShareType.Full or ShareType.Half).ToList();
+
+                decimal perSip    = Math.Round(drink.Price * SipRate, 2);
+                decimal totalSips = sipShares.Count * perSip;
+                decimal remainder = drink.Price - totalSips;
+
+                foreach (var share in sipShares)
+                    if (balances.ContainsKey(share.ParticipantId))
+                        balances[share.ParticipantId] = (balances[share.ParticipantId].paid, balances[share.ParticipantId].owed + perSip);
+
+                if (mainShares.Count > 0)
                 {
-                    foreach (var share in drink.Shares)
+                    var totalWeight = mainShares.Sum(s => DrinkShare.Weight(s.Share));
+                    foreach (var share in mainShares)
                     {
-                        var portion = (decimal)(DrinkShare.Weight(share.Share) / totalWeight) * drink.Price;
+                        var portion = (decimal)(DrinkShare.Weight(share.Share) / totalWeight) * remainder;
                         if (balances.ContainsKey(share.ParticipantId))
                             balances[share.ParticipantId] = (balances[share.ParticipantId].paid, balances[share.ParticipantId].owed + portion);
                     }
+                }
+                else if (sipShares.Count > 0)
+                {
+                    // Nobody had Full/Half — split the remainder equally among sippers
+                    var extra = remainder / sipShares.Count;
+                    foreach (var share in sipShares)
+                        if (balances.ContainsKey(share.ParticipantId))
+                            balances[share.ParticipantId] = (balances[share.ParticipantId].paid, balances[share.ParticipantId].owed + extra);
                 }
             }
         }

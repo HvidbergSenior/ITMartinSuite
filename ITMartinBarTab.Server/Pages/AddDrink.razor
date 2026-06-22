@@ -125,7 +125,7 @@
             _participant = _session.Participants.FirstOrDefault(p => p.Id == pid);
 
         foreach (var p in _session.Participants)
-            _shares[p.Id] = ShareType.None;
+            _shares[p.Id] = ShareType.Taste;
 
         if (_participant != null)
             _shares[_participant.Id] = ShareType.Full;
@@ -197,7 +197,7 @@
     {
         ShareType.Full  => "All",
         ShareType.Half  => "½",
-        ShareType.Taste => "Sip",
+        ShareType.Taste => "Sip 5%",
         _               => "—"
     };
 }
