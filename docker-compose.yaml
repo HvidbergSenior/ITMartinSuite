@@ -497,6 +497,7 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__BarTabDb=Data Source=/app/db/bartab.db
+      - Concurrency__MaxUsers=10
 
     volumes:
       - /volume1/docker/martinsuite/bartab/db:/app/db

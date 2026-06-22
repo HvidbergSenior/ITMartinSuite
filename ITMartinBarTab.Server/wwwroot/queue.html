@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Du er i kø — BarTab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #0f1117;
+            color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100dvh;
+        }
+        .card {
+            background: #1a1d27;
+            border-radius: 18px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            max-width: 340px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0,0,0,.4);
+        }
+        .emoji { font-size: 3rem; margin-bottom: 1rem; }
+        h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: .6rem; }
+        .sub { color: #7a7f9a; font-size: .9rem; line-height: 1.5; margin-bottom: 2rem; }
+        .counter { font-size: 3rem; font-weight: 800; color: #f5a623; line-height: 1; }
+        .counter-label { color: #7a7f9a; font-size: .85rem; margin-top: .3rem; }
+        .bar-wrap { background: #23263a; border-radius: 99px; height: 6px; margin: 1.5rem 0 0; overflow: hidden; }
+        .bar { height: 100%; background: #f5a623; border-radius: 99px; transition: width 1s linear; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="emoji">🕐</div>
+        <h1>Du er i kø</h1>
+        <p class="sub">Appen er optaget lige nu.<br>Du bliver sendt ind automatisk om lidt.</p>
+        <div class="counter" id="cnt">15</div>
+        <div class="counter-label">sekunder</div>
+        <div class="bar-wrap">
+            <div class="bar" id="bar" style="width:100%"></div>
+        </div>
+    </div>
+    <script>
+        const total = 15;
+        let n = total;
+        const cnt = document.getElementById('cnt');
+        const bar = document.getElementById('bar');
+        const dest = new URLSearchParams(location.search).get('from') || '/';
+
+        const iv = setInterval(() => {
+            n--;
+            cnt.textContent = n;
+            bar.style.width = (n / total * 100) + '%';
+            if (n <= 0) {
+                clearInterval(iv);
+                location.href = dest;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
