@@ -28,7 +28,6 @@ public sealed class Package2WorkflowFactory
                             x.OriginalPath,
 
                         NormalizedPath =
-                            x.NormalizedPath ??
                             x.ExportedPath!,
 
                         CurrentWorkingPath =

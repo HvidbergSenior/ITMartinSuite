@@ -39,7 +39,9 @@ public sealed class Package2Client
 
                     Payload =
                         JsonSerializer
-                            .Serialize(request)
+                            .Serialize(request),
+
+                    CreatedAt = DateTimeOffset.UtcNow
                 },
                 cancellationToken);
         Console.WriteLine("PACKAGE2 ENQUEUED");

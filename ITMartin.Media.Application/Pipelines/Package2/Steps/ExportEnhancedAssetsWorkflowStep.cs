@@ -91,9 +91,27 @@ public sealed class ExportEnhancedAssetsWorkflowStep
                         _enhancedFileNamingService
                             .BuildFileName(item);
 
-                    var finalPath =
+                    var sourceLibraryPath =
+                        Path.GetDirectoryName(
+                            state.WorkingDirectory)!;
+
+                    var relativeDir =
+                        Path.GetDirectoryName(
+                            Path.GetRelativePath(
+                                sourceLibraryPath,
+                                item.NormalizedPath))
+                        ?? string.Empty;
+
+                    var targetDir =
                         Path.Combine(
                             enhancedDirectory,
+                            relativeDir);
+
+                    Directory.CreateDirectory(targetDir);
+
+                    var finalPath =
+                        Path.Combine(
+                            targetDir,
                             fileName);
 
                     File.Copy(

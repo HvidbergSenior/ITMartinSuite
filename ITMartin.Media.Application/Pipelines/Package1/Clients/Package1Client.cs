@@ -47,7 +47,9 @@ public sealed class Package1Client
 
                     Payload =
                         JsonSerializer.Serialize(
-                            state)
+                            state),
+
+                    CreatedAt = DateTimeOffset.UtcNow
                 },
                 cancellationToken);
 

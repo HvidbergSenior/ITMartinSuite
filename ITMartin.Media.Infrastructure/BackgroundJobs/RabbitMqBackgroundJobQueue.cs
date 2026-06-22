@@ -102,6 +102,16 @@ public sealed class RabbitMqBackgroundJobQueue
                     return;
                 }
 
+                if (job.CreatedAt != default &&
+                    DateTimeOffset.UtcNow - job.CreatedAt > TimeSpan.FromMinutes(10))
+                {
+                    _channel.BasicAck(
+                        eventArgs.DeliveryTag,
+                        false);
+
+                    return;
+                }
+
                 await handler(job);
 
                 _channel.BasicAck(

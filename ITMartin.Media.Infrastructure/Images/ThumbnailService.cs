@@ -123,18 +123,16 @@ public sealed class ThumbnailService
             string outputPath,
             CancellationToken cancellationToken)
     {
-        var ffmpegPath =
+        var bundledPath =
             Path.Combine(
-                Directory.GetCurrentDirectory(),
+                AppContext.BaseDirectory,
                 "ffmpeg",
                 "ffmpeg.exe");
 
-        if (!File.Exists(ffmpegPath))
-        {
-            throw new FileNotFoundException(
-                "ffmpeg executable not found.",
-                ffmpegPath);
-        }
+        var ffmpegPath =
+            File.Exists(bundledPath)
+                ? bundledPath
+                : "ffmpeg";
 
         using var cts =
             CancellationTokenSource
