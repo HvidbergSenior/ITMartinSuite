@@ -1,0 +1,50 @@
+@page "/admin/login"
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="home-page">
+    <div class="home-card">
+        <div class="home-logo">🔐</div>
+        <h1 class="home-title">Admin Access</h1>
+        <p class="home-sub">TestHub admin area</p>
+
+        <div class="home-section">
+            <input class="home-input" type="password"
+                   @bind="_pin" @bind:event="oninput"
+                   placeholder="PIN"
+                   @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(Login); })" />
+            <button class="btn-primary" @onclick="Login"
+                    disabled="@(string.IsNullOrWhiteSpace(_pin) || _loading)">
+                @(_loading ? "Checking…" : "Enter")
+            </button>
+        </div>
+
+        @if (_error)
+        {
+            <p class="home-error">Wrong PIN — try again</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string _pin    = "";
+    private bool   _error;
+    private bool   _loading;
+
+    private async Task Login()
+    {
+        if (string.IsNullOrWhiteSpace(_pin)) return;
+        _loading = true;
+        _error   = false;
+        var ok = await JS.InvokeAsync<bool>("adminLogin", _pin);
+        if (ok)
+            Nav.NavigateTo("/admin", forceLoad: true);
+        else
+        {
+            _error   = true;
+            _loading = false;
+            _pin     = "";
+        }
+    }
+}

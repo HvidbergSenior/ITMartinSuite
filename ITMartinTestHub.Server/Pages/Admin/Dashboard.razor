@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject TestHubService Svc
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <div class="admin-page">
 
@@ -12,6 +13,7 @@
         <div class="admin-header-actions">
             <button class="btn-secondary btn-sm" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Home</button>
             <button class="btn-primary   btn-sm" @onclick="CreateRound">+ New round</button>
+            <button class="btn-text      btn-sm" @onclick="Logout">🔓 Logout</button>
         </div>
     </div>
 
@@ -163,6 +165,12 @@
         var round = await Svc.CreateRoundAsync(_newRoundName.Trim());
         _creating = false;
         Nav.NavigateTo($"/admin/rounds/{round.Id}", forceLoad: true);
+    }
+
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("adminLogout");
+        Nav.NavigateTo("/", forceLoad: true);
     }
 
     private static string FeedbackIcon(FeedbackType t) => t switch
