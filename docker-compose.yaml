@@ -551,7 +551,7 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__TestHubDb=Data Source=/app/db/testhub.db
-      - Admin__Pin=1234
+      - Admin__Pin=272205
 
     volumes:
       - /volume1/docker/martinsuite/testhub/db:/app/db
