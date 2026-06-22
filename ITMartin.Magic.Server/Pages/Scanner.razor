@@ -332,44 +332,27 @@
 
                 </div>
             }
-            <div class="debug-panel">
-
-                <h4 class="mb-3">
-                    Workflow Steps
-                </h4>
-
-                <div class="debug-grid">
-
-                    @foreach (var step in _scanResult.Steps)
-                    {
-                        <div class="debug-item">
-
-                            <div class="debug-label">
-                                @step.Name
+            @if (_showDebug)
+            {
+                <div class="debug-panel">
+                    <h4 class="mb-3">Workflow Steps</h4>
+                    <div class="debug-grid">
+                        @foreach (var step in _scanResult.Steps)
+                        {
+                            <div class="debug-item">
+                                <div class="debug-label">@step.Name</div>
+                                <div class="debug-value">@(step.Success ? "Success" : "Failed")</div>
                             </div>
-
-                            <div class="debug-value">
-
-                                @if (step.Success)
-                                {
-                                    <span>
-                                        Success
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span>
-                                        Failed
-                                    </span>
-                                }
-
-                            </div>
-
-                        </div>
-                    }
-
+                        }
+                    </div>
                 </div>
-
+            }
+            <div style="text-align:right;margin-top:4px;">
+                <button class="btn btn-sm btn-outline-secondary"
+                        @onclick="() => _showDebug = !_showDebug"
+                        style="font-size:11px;opacity:.5">
+                    @(_showDebug ? "Hide" : "Debug")
+                </button>
             </div>
 
         </div>
@@ -414,6 +397,7 @@
     private readonly HashSet<string> _sessionNames = new(StringComparer.OrdinalIgnoreCase);
     private decimal _sessionTotal => _sessionCards.Sum(c => c.EurPrice ?? 0);
 
+    private bool _showDebug;
     private List<MagicSetSymbolDefinition> _sets = [];
 
     private IEnumerable<MagicSetSymbolDefinition> FilteredSets =>

@@ -26,6 +26,7 @@ builder.Logging.AddFilter(
 builder.Logging.AddFilter(
     "Microsoft.AspNetCore",
     LogLevel.Warning);
+builder.Services.AddMemoryCache();
 builder.Services.AddMediaCore(builder.Configuration);
 builder.Services.AddMediaRuntime(builder.Configuration);
 builder.Services.AddMagicApplication(builder.Configuration);

@@ -3,6 +3,7 @@ using ITMartin.Magic.Application.Models;
 using ITMartin.Magic.Domain.Entities;
 using ITMartin.Magic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ITMartin.Magic.Infrastructure.Services;
 
@@ -10,11 +11,13 @@ public sealed class MagicKnowledgeService
     : IMagicKnowledgeService
 {
     private readonly MagicDbContext _db;
+    private readonly IMemoryCache   _cache;
+    private const string SetsCacheKey = "magic_set_definitions";
 
-    public MagicKnowledgeService(
-        MagicDbContext db)
+    public MagicKnowledgeService(MagicDbContext db, IMemoryCache cache)
     {
-        _db = db;
+        _db    = db;
+        _cache = cache;
     }
 
     public async Task<MagicKnowledgeDashboardModel>
@@ -77,16 +80,20 @@ public sealed class MagicKnowledgeService
 
         await _db.SaveChangesAsync();
     }
-    public async Task<List<MagicSetSymbolDefinition>>
-        GetSetDefinitionsAsync()
+    public async Task<List<MagicSetSymbolDefinition>> GetSetDefinitionsAsync()
     {
-        return await _db.Sets
+        if (_cache.TryGetValue(SetsCacheKey, out List<MagicSetSymbolDefinition>? cached) && cached is not null)
+            return cached;
+
+        var sets = await _db.Sets
             .OrderBy(x => x.SetName)
-            .Select(x =>
-                new MagicSetSymbolDefinition(
-                    x.SetCode,
-                    x.SetName,
-                    x.SymbolDescription ?? string.Empty))
+            .Select(x => new MagicSetSymbolDefinition(
+                x.SetCode,
+                x.SetName,
+                x.SymbolDescription ?? string.Empty))
             .ToListAsync();
+
+        _cache.Set(SetsCacheKey, sets, TimeSpan.FromHours(1));
+        return sets;
     }
 }
