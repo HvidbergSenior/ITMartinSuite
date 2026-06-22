@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITMartin Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #e5e5e5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── WELCOME ── */
+    #welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 20px;
+      text-align: center;
+      padding: 32px;
+    }
+    #welcome .logo { font-size: 4rem; }
+    #welcome h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
+    #welcome p { color: #888; font-size: 0.95rem; max-width: 360px; }
+
+    .pick-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #6d28d9, #4f46e5);
+      color: white;
+      padding: 14px 36px;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      margin-top: 8px;
+    }
+    .pick-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .pick-btn:active { transform: translateY(0); }
+
+    #welcome .hint {
+      font-size: 0.78rem;
+      color: #444;
+      margin-top: 4px;
+    }
+
+    /* ── GRID ── */
+    #grid-view {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px;
+      background: #141414;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
+    }
+    .tb-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: #bbb;
+      padding: 6px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: background 0.15s;
+    }
+    .tb-btn:hover { background: #222; color: #eee; }
+    #count-label { color: #666; font-size: 0.85rem; margin-left: auto; }
+
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 5px;
+      padding: 14px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .grid-item {
+      aspect-ratio: 1;
+      border-radius: 9px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #1a1a1a;
+      position: relative;
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .grid-item:hover {
+      transform: scale(1.04);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.7);
+      z-index: 1;
+    }
+    .grid-item img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .grid-item .vid-card {
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px;
+    }
+    .play-icon { font-size: 2.8rem; opacity: 0.7; }
+    .vid-name {
+      font-size: 0.72rem;
+      color: #999;
+      text-align: center;
+      word-break: break-all;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+
+    /* ── VIEWER ── */
+    #viewer {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      flex-direction: column;
+      z-index: 100;
+    }
+
+    #viewer-header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    #viewer:hover #viewer-header,
+    #viewer.show-ui #viewer-header { opacity: 1; }
+
+    .close-btn {
+      background: rgba(255,255,255,0.12);
+      border: none;
+      color: white;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .close-btn:hover { background: rgba(255,255,255,0.25); }
+
+    #viewer-name {
+      flex: 1;
+      font-size: 0.88rem;
+      color: #ccc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #viewer-counter { color: #666; font-size: 0.82rem; white-space: nowrap; }
+
+    #viewer-stage {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    #viewer-media-container {
+      max-width: 100vw;
+      max-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #viewer-media-container img {
+      max-width: 100vw;
+      max-height: 100vh;
+      object-fit: contain;
+      display: block;
+    }
+    #viewer-media-container video {
+      max-width: 100vw;
+      max-height: 100vh;
+      display: block;
+    }
+
+    .nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.08);
+      border: none;
+      color: white;
+      width: 50px; height: 90px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.15s;
+      z-index: 20;
+    }
+    #viewer:hover .nav-btn,
+    #viewer.show-ui .nav-btn { opacity: 1; }
+    .nav-btn:hover { background: rgba(255,255,255,0.18); }
+    .nav-btn.left { left: 14px; }
+    .nav-btn.right { right: 14px; }
+  </style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div id="welcome">
+  <div class="logo">📁</div>
+  <h1>ITMartin Viewer</h1>
+  <p>Vælg mappen med dine filer for at starte afspilningen</p>
+  <label class="pick-btn">
+    📁 Vælg mappe
+    <input type="file" id="folderInput" webkitdirectory multiple style="display:none">
+  </label>
+  <p class="hint">Kræver Chrome eller Edge · Dine filer forlader ikke computeren</p>
+</div>
+
+<!-- GRID -->
+<div id="grid-view">
+  <div id="toolbar">
+    <button class="tb-btn" onclick="showWelcome()">← Ny mappe</button>
+    <span id="count-label"></span>
+  </div>
+  <div id="grid"></div>
+</div>
+
+<!-- VIEWER -->
+<div id="viewer" onclick="nextMedia()">
+  <div id="viewer-header">
+    <button class="close-btn" onclick="event.stopPropagation(); closeViewer()" title="Luk (ESC)">✕</button>
+    <span id="viewer-name"></span>
+    <span id="viewer-counter"></span>
+  </div>
+  <div id="viewer-stage">
+    <button class="nav-btn left" onclick="event.stopPropagation(); prevMedia()">❮</button>
+    <div id="viewer-media-container" onclick="event.stopPropagation()"></div>
+    <button class="nav-btn right" onclick="event.stopPropagation(); nextMedia()">❯</button>
+  </div>
+</div>
+
+<script>
+const IMAGE_EXTS = new Set(['.jpg','.jpeg','.png','.webp','.gif','.heic','.avif','.bmp','.tiff']);
+const VIDEO_EXTS = new Set(['.mp4','.mov','.mkv','.avi','.m4v','.webm','.wmv']);
+
+let files = [];
+let idx = 0;
+let activeUrl = null;
+
+function fileExt(name) {
+  const i = name.lastIndexOf('.');
+  return i >= 0 ? name.slice(i).toLowerCase() : '';
+}
+
+function isMedia(f) {
+  const e = fileExt(f.name);
+  return IMAGE_EXTS.has(e) || VIDEO_EXTS.has(e);
+}
+
+function isVideo(f) {
+  return VIDEO_EXTS.has(fileExt(f.name));
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.getElementById('folderInput').addEventListener('change', function(e) {
+  files = Array.from(e.target.files)
+    .filter(isMedia)
+    .sort((a, b) => a.webkitRelativePath.localeCompare(b.webkitRelativePath, undefined, { numeric: true }));
+  renderGrid();
+});
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  document.getElementById('count-label').textContent = `${files.length} filer`;
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('grid-view').style.display = 'flex';
+
+  files.forEach((file, i) => {
+    const item = document.createElement('div');
+    item.className = 'grid-item';
+    item.addEventListener('click', () => openViewer(i));
+
+    if (isVideo(file)) {
+      item.innerHTML = `<div class="vid-card"><div class="play-icon">▶</div><div class="vid-name">${esc(file.name)}</div></div>`;
+    } else {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = file.name;
+      img.src = URL.createObjectURL(file);
+      item.appendChild(img);
+    }
+    grid.appendChild(item);
+  });
+}
+
+function openViewer(i) {
+  idx = i;
+  loadMedia();
+  document.getElementById('viewer').style.display = 'flex';
+  document.getElementById('viewer').classList.add('show-ui');
+  setTimeout(() => document.getElementById('viewer').classList.remove('show-ui'), 2000);
+}
+
+function loadMedia() {
+  if (activeUrl) { URL.revokeObjectURL(activeUrl); activeUrl = null; }
+
+  const file = files[idx];
+  const container = document.getElementById('viewer-media-container');
+  container.innerHTML = '';
+
+  activeUrl = URL.createObjectURL(file);
+  document.getElementById('viewer-name').textContent = file.name;
+  document.getElementById('viewer-counter').textContent = `${idx + 1} / ${files.length}`;
+
+  if (isVideo(file)) {
+    const v = document.createElement('video');
+    v.src = activeUrl;
+    v.controls = true;
+    v.autoplay = true;
+    v.playsinline = true;
+    v.addEventListener('click', e => e.stopPropagation());
+    container.appendChild(v);
+  } else {
+    const img = document.createElement('img');
+    img.src = activeUrl;
+    img.alt = file.name;
+    container.appendChild(img);
+  }
+}
+
+function nextMedia() {
+  if (!files.length) return;
+  idx = (idx + 1) % files.length;
+  loadMedia();
+}
+
+function prevMedia() {
+  if (!files.length) return;
+  idx = (idx - 1 + files.length) % files.length;
+  loadMedia();
+}
+
+function closeViewer() {
+  if (activeUrl) { URL.revokeObjectURL(activeUrl); activeUrl = null; }
+  document.getElementById('viewer').style.display = 'none';
+  document.getElementById('viewer-media-container').innerHTML = '';
+}
+
+function showWelcome() {
+  document.getElementById('grid-view').style.display = 'none';
+  document.getElementById('welcome').style.display = 'flex';
+  document.getElementById('grid').innerHTML = '';
+  files = [];
+}
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('viewer').style.display === 'none') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); nextMedia(); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); prevMedia(); }
+  if (e.key === 'Escape') closeViewer();
+});
+
+// Touch swipe support
+let touchX = 0;
+document.getElementById('viewer').addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+document.getElementById('viewer').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 50) dx < 0 ? nextMedia() : prevMedia();
+});
+</script>
+
+</body>
+</html>

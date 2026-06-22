@@ -747,6 +747,31 @@
     transition:
             transform 0.18s ease,
             box-shadow 0.18s ease;
+
+    position: relative;
+}
+
+.folder-export-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 4px 9px;
+    font-size: 1rem;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    line-height: 1.4;
+}
+
+.folder-card:hover .folder-export-btn {
+    opacity: 1;
+}
+
+.folder-export-btn:hover {
+    background: rgba(255,255,255,0.16);
 }
 
 .folder-card:hover {

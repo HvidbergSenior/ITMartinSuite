@@ -71,6 +71,13 @@
 
                                 </div>
 
+                                <a class="folder-export-btn"
+                                   href="@($"/api/guest-export/folder?path={Uri.EscapeDataString(folder.FullPath)}")"
+                                   title="Download ZIP for guest"
+                                   @onclick:stopPropagation>
+                                    ⬇️
+                                </a>
+
                             </div>
                         }
 
