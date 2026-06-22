@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Auction</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        window.auction = {
+            getItem: (k) => localStorage.getItem(k),
+            setItem: (k, v) => localStorage.setItem(k, v),
+            removeItem: (k) => localStorage.removeItem(k)
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+@page "/"
+@rendermode InteractiveServer
+@inject AuctionService Svc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="home-page">
+    <div class="home-card">
+        <div class="home-logo">🔨</div>
+        <h1 class="home-title">Auction</h1>
+        <p class="home-sub">Live bidding for collectors</p>
+
+        <div class="home-section">
+            <label class="home-label">Session name</label>
+            <input class="home-input"
+                   @bind="SessionName"
+                   @bind:event="oninput"
+                   placeholder="Magic Cards — June 2026"
+                   maxlength="60" />
+            <button class="btn-primary"
+                    @onclick="CreateSession"
+                    disabled="@(string.IsNullOrWhiteSpace(SessionName) || Creating)">
+                @(Creating ? "Creating..." : "Create auction")
+            </button>
+        </div>
+
+        <div class="home-divider">or join existing</div>
+
+        <div class="home-section">
+            <label class="home-label">Session code</label>
+            <input class="home-input home-code"
+                   @bind="JoinCode"
+                   @bind:event="oninput"
+                   placeholder="ABC123"
+                   maxlength="6" />
+            <button class="btn-secondary"
+                    @onclick="JoinSession"
+                    disabled="@string.IsNullOrWhiteSpace(JoinCode)">
+                Join
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <p class="home-error">@Error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string SessionName = "";
+    private string JoinCode    = "";
+    private string Error       = "";
+    private bool   Creating;
+
+    private async Task CreateSession()
+    {
+        if (string.IsNullOrWhiteSpace(SessionName)) return;
+        Creating = true;
+        Error    = "";
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var session = await Svc.CreateAsync(SessionName.Trim());
+            await JS.InvokeVoidAsync("auction.setItem", $"host_{session.Code}", "1");
+            Nav.NavigateTo($"/auction/{session.Code}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Error    = $"Could not create session: {ex.Message}";
+            Creating = false;
+        }
+    }
+
+    private async Task JoinSession()
+    {
+        var code    = JoinCode.Trim().ToUpper();
+        var session = await Svc.GetByCodeAsync(code);
+        if (session is null)
+        {
+            Error = "Session not found. Check the code.";
+            return;
+        }
+        Nav.NavigateTo($"/auction/{code}", forceLoad: true);
+    }
+}

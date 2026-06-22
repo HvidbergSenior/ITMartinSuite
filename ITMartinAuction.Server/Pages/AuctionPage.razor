@@ -1,0 +1,401 @@
+@page "/auction/{Code}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@inject AuctionService Svc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (_session is null)
+{
+    <div class="loading">Loading…</div>
+}
+else if (_me is null)
+{
+    <!-- Join screen -->
+    <div class="join-page">
+        <div class="join-card">
+            <div class="join-logo">🔨</div>
+            <h2>@_session.Name</h2>
+            <p class="join-code">Code: <strong>@_session.Code</strong></p>
+            <p>@_session.Bidders.Count bidder(s) so far</p>
+            <label class="home-label">Your name</label>
+            <input class="home-input"
+                   @bind="_nameInput"
+                   placeholder="Your name"
+                   maxlength="30"
+                   @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(DoJoin); })" />
+            <button class="btn-primary"
+                    @onclick="DoJoin"
+                    disabled="@string.IsNullOrWhiteSpace(_nameInput)">
+                Join auction
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="auction-page">
+
+        <!-- Header -->
+        <div class="auction-header">
+            <div class="header-left">
+                <span class="session-name">@_session.Name</span>
+                <span class="code-badge">@_session.Code</span>
+            </div>
+            <div class="header-right">
+                <div class="bidders-row">
+                    @foreach (var b in _session.Bidders)
+                    {
+                        <div class="avatar" style="background:@b.Color" title="@b.Name">
+                            @b.Name[..1].ToUpper()
+                        </div>
+                    }
+                </div>
+                @if (_isHost)
+                {
+                    <button class="btn-add" @onclick="GoAdd">+ Item</button>
+                }
+            </div>
+        </div>
+
+        <div class="auction-body">
+
+            <!-- Active item stage -->
+            <div class="item-stage">
+                @if (_activeItem is null)
+                {
+                    <div class="stage-empty">
+                        <div class="stage-empty-icon">🔨</div>
+                        @if (_isHost)
+                        {
+                            <p>Open an item from the queue to start bidding</p>
+                        }
+                        else
+                        {
+                            <p>Waiting for the host to open the next item…</p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="item-card @(_newBidFlash ? "bid-flash" : "")">
+
+                        @if (_activeItem.PhotoPath is not null)
+                        {
+                            <img class="item-photo" src="/photos/@Path.GetFileName(_activeItem.PhotoPath)" alt="@_activeItem.Name" />
+                        }
+                        else
+                        {
+                            <div class="item-no-photo">🏷️</div>
+                        }
+
+                        <div class="item-details">
+                            <div class="item-name">@_activeItem.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(_activeItem.Description))
+                            {
+                                <div class="item-desc">@_activeItem.Description</div>
+                            }
+                            <div class="item-starting">Starting: @_activeItem.StartingPrice.ToString("0") kr</div>
+
+                            @{
+                                var topBid = _activeItem.Bids.OrderByDescending(b => b.Amount).FirstOrDefault();
+                            }
+                            @if (topBid is not null)
+                            {
+                                <div class="current-bid">
+                                    <span class="current-bid-label">Current bid</span>
+                                    <span class="current-bid-amount">@topBid.Amount.ToString("0") kr</span>
+                                    <span class="current-bid-by" style="color:@(topBid.Bidder?.Color ?? "#999")">
+                                        @topBid.Bidder?.Name
+                                    </span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="current-bid">
+                                    <span class="current-bid-label">No bids yet — be first!</span>
+                                </div>
+                            }
+                        </div>
+
+                    </div>
+
+                    <!-- Bid input (guests) -->
+                    @if (!_isHost)
+                    {
+                        <div class="bid-input-row">
+                            <input class="bid-input"
+                                   type="number"
+                                   min="@MinBid"
+                                   @bind="_bidAmount"
+                                   placeholder="@($"{MinBid} kr")" />
+                            <button class="btn-bid"
+                                    @onclick="PlaceBid"
+                                    disabled="@(_bidding || _bidAmount < MinBid)">
+                                @(_bidding ? "…" : "Place bid")
+                            </button>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_bidError))
+                        {
+                            <p class="bid-error">@_bidError</p>
+                        }
+                    }
+
+                    <!-- Host controls -->
+                    @if (_isHost)
+                    {
+                        <div class="host-controls">
+                            <button class="btn-hammer" @onclick="Hammer">🔨 SOLD!</button>
+                            <button class="btn-pass"   @onclick="Pass">Pass</button>
+                        </div>
+                    }
+
+                    <!-- Bid history -->
+                    @if (_activeItem.Bids.Any())
+                    {
+                        <div class="bid-history">
+                            @foreach (var bid in _activeItem.Bids.OrderByDescending(b => b.PlacedAt))
+                            {
+                                <div class="bid-row">
+                                    <div class="bid-avatar" style="background:@(bid.Bidder?.Color ?? "#555")">
+                                        @((bid.Bidder?.Name ?? "?")[..1].ToUpper())
+                                    </div>
+                                    <span class="bid-name">@bid.Bidder?.Name</span>
+                                    <span class="bid-amount">@bid.Amount.ToString("0") kr</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- Host item queue -->
+            @if (_isHost)
+            {
+                <div class="item-queue">
+                    <div class="queue-title">Queue</div>
+                    @if (!_session.Items.Any())
+                    {
+                        <p class="queue-empty">No items yet — add some!</p>
+                    }
+                    @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
+                    {
+                        <div class="queue-item @(item.Status == AuctionItemStatus.Active ? "queue-item-active" : "")
+                                               @(item.Status == AuctionItemStatus.Sold   ? "queue-item-sold"   : "")
+                                               @(item.Status == AuctionItemStatus.Passed ? "queue-item-passed" : "")">
+                            <div class="queue-item-name">@item.Name</div>
+                            <div class="queue-item-meta">
+                                <span>@item.StartingPrice.ToString("0") kr</span>
+                                @if (item.Status == AuctionItemStatus.Sold)
+                                {
+                                    <span class="badge-sold">✓ @item.WinningBid?.ToString("0") kr</span>
+                                }
+                                else if (item.Status == AuctionItemStatus.Passed)
+                                {
+                                    <span class="badge-passed">Passed</span>
+                                }
+                                else if (item.Status == AuctionItemStatus.Active)
+                                {
+                                    <span class="badge-active">Live</span>
+                                }
+                                else
+                                {
+                                    <button class="btn-open" @onclick="() => OpenItem(item.Id)">Open</button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+        </div>
+
+        <!-- Winner overlay -->
+        @if (_showWinner)
+        {
+            <div class="winner-overlay" @onclick="() => _showWinner = false">
+                <div class="winner-card">
+                    <div class="winner-gavel">🔨</div>
+                    <div class="winner-sold">SOLD!</div>
+                    <div class="winner-item">@_winnerItemName</div>
+                    <div class="winner-amount">@_winnerAmount?.ToString("0") kr</div>
+                    <div class="winner-to">to</div>
+                    <div class="winner-name" style="color:@_winnerColor">@_winnerName</div>
+                    <p class="winner-dismiss">tap to dismiss</p>
+                </div>
+            </div>
+        }
+
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private AuctionSession? _session;
+    private Bidder?         _me;
+    private bool            _isHost;
+    private AuctionItem?    _activeItem;
+    private string          _nameInput  = "";
+    private decimal         _bidAmount;
+    private string          _bidError   = "";
+    private bool            _bidding;
+    private bool            _newBidFlash;
+    private bool            _showWinner;
+    private string?         _winnerName;
+    private string?         _winnerColor;
+    private string?         _winnerItemName;
+    private decimal?        _winnerAmount;
+    private HubConnection?  _hub;
+
+    private decimal MinBid => _activeItem is null ? 0
+        : _activeItem.Bids.Any()
+            ? _activeItem.Bids.Max(b => b.Amount) + 1
+            : _activeItem.StartingPrice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _session = await Svc.GetByCodeAsync(Code);
+        if (_session is null) return;
+
+        _activeItem = _session.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/auction"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<object>("BidderJoined", _ => InvokeAsync(async () =>
+        {
+            _session = await Svc.GetByCodeAsync(Code);
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("ItemAdded", _ => InvokeAsync(async () =>
+        {
+            _session = await Svc.GetByCodeAsync(Code);
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("ItemActivated", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetByCodeAsync(Code);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _bidAmount  = MinBid;
+            _bidError   = "";
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("BidPlaced", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetByCodeAsync(Code);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _bidAmount  = MinBid;
+            _newBidFlash = true;
+            StateHasChanged();
+            await Task.Delay(600);
+            _newBidFlash = false;
+            StateHasChanged();
+        }));
+
+        _hub.On<string, string?, string?, string?, decimal?>("ItemClosed",
+            (itemId, status, winnerName, winnerColor, winningBid) => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetByCodeAsync(Code);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+
+            if (status == "Sold" && winnerName is not null)
+            {
+                var closedItem = _session?.Items.FirstOrDefault(i => i.Id.ToString() == itemId);
+                _winnerItemName = closedItem?.Name;
+                _winnerName     = winnerName;
+                _winnerColor    = winnerColor;
+                _winnerAmount   = winningBid;
+                _showWinner     = true;
+            }
+            StateHasChanged();
+        }));
+
+        await _hub.StartAsync();
+        await _hub.InvokeAsync("JoinSession", Code.ToUpper());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _session is null) return;
+
+        var isHost = await JS.InvokeAsync<string?>("auction.getItem", $"host_{Code.ToUpper()}");
+        _isHost = isHost == "1";
+
+        var savedName = await JS.InvokeAsync<string?>("auction.getItem", $"name_{Code.ToUpper()}");
+        if (!string.IsNullOrWhiteSpace(savedName))
+        {
+            _me = _session.Bidders.FirstOrDefault(b =>
+                string.Equals(b.Name, savedName, StringComparison.OrdinalIgnoreCase));
+
+            if (_me is null)
+                _me = await Svc.JoinAsync(Code, savedName);
+        }
+
+        _bidAmount = MinBid;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task DoJoin()
+    {
+        if (string.IsNullOrWhiteSpace(_nameInput)) return;
+        _me = await Svc.JoinAsync(Code, _nameInput.Trim());
+        await JS.InvokeVoidAsync("auction.setItem", $"name_{Code.ToUpper()}", _me.Name);
+        _bidAmount = MinBid;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PlaceBid()
+    {
+        if (_me is null || _activeItem is null) return;
+        _bidding  = true;
+        _bidError = "";
+        try
+        {
+            await Svc.PlaceBidAsync(Code, _activeItem.Id, _me.Id, _bidAmount);
+        }
+        catch (Exception ex)
+        {
+            _bidError = ex.Message;
+        }
+        finally
+        {
+            _bidding = false;
+        }
+    }
+
+    private async Task OpenItem(Guid itemId)
+    {
+        await Svc.ActivateItemAsync(Code, itemId);
+    }
+
+    private async Task Hammer()
+    {
+        if (_activeItem is null) return;
+        await Svc.CloseItemAsync(Code, _activeItem.Id, sold: true);
+    }
+
+    private async Task Pass()
+    {
+        if (_activeItem is null) return;
+        await Svc.CloseItemAsync(Code, _activeItem.Id, sold: false);
+    }
+
+    private void GoAdd() =>
+        Nav.NavigateTo($"/auction/{Code}/add", forceLoad: true);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+        {
+            await _hub.InvokeAsync("LeaveSession", Code.ToUpper());
+            await _hub.DisposeAsync();
+        }
+    }
+}

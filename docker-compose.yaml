@@ -456,6 +456,33 @@ services:
       - martinnet
 
   # =========================================================
+  # AUCTION
+  # =========================================================
+
+  auction-web:
+    container_name: auction-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinAuction.Server/Dockerfile
+
+    ports:
+      - "8094:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__AuctionDb=Data Source=/app/db/auction.db
+
+    volumes:
+      - /volume1/docker/martinsuite/auction/db:/app/db
+      - /volume1/docker/martinsuite/auction/photos:/app/data/photos
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # WORKERS
   # =========================================================
 

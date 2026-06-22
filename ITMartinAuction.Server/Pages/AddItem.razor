@@ -1,0 +1,108 @@
+@page "/auction/{Code}/add"
+@rendermode InteractiveServer
+@inject AuctionService Svc
+@inject NavigationManager Nav
+@inject IWebHostEnvironment Env
+
+<div class="add-page">
+    <div class="add-card">
+        <button class="btn-back" @onclick="GoBack">← Back</button>
+        <h2>Add Item</h2>
+
+        <div class="home-section">
+            <label class="home-label">Name</label>
+            <input class="home-input" @bind="Name" placeholder="Black Lotus (LP)" maxlength="100" />
+        </div>
+
+        <div class="home-section">
+            <label class="home-label">Description (optional)</label>
+            <textarea class="home-input home-textarea"
+                      @bind="Description"
+                      placeholder="Condition, edition, notes…"
+                      rows="3"
+                      maxlength="500"></textarea>
+        </div>
+
+        <div class="home-section">
+            <label class="home-label">Starting price (kr)</label>
+            <input class="home-input"
+                   type="number"
+                   min="0"
+                   @bind="StartingPrice"
+                   placeholder="50" />
+        </div>
+
+        <div class="home-section">
+            <label class="home-label">Photo (optional)</label>
+            <InputFile OnChange="OnPhotoSelected" accept="image/*" class="photo-input" />
+            @if (_photoPreview is not null)
+            {
+                <img class="photo-preview" src="@_photoPreview" alt="preview" />
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="home-error">@_error</p>
+        }
+
+        <button class="btn-primary"
+                @onclick="Save"
+                disabled="@(string.IsNullOrWhiteSpace(Name) || _saving)">
+            @(_saving ? "Saving…" : "Add item")
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private string  Name         = "";
+    private string? Description;
+    private decimal StartingPrice = 0;
+    private string? _photoPath;
+    private string? _photoPreview;
+    private string  _error = "";
+    private bool    _saving;
+
+    private async Task OnPhotoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        var ext   = Path.GetExtension(file.Name).ToLowerInvariant();
+        var fname = $"{Guid.NewGuid()}{ext}";
+        var dir   = "/app/data/photos";
+
+        if (!Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+
+        var fullPath = Path.Combine(dir, fname);
+        await using var fs = new FileStream(fullPath, FileMode.Create);
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await stream.CopyToAsync(fs);
+
+        _photoPath    = fullPath;
+        _photoPreview = $"/photos/{fname}";
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(Name)) return;
+        _saving = true;
+        _error  = "";
+        try
+        {
+            await Svc.AddItemAsync(Code, Name.Trim(), Description?.Trim(), StartingPrice, _photoPath);
+            GoBack();
+        }
+        catch (Exception ex)
+        {
+            _error  = ex.Message;
+            _saving = false;
+        }
+    }
+
+    private void GoBack() =>
+        Nav.NavigateTo($"/auction/{Code}", forceLoad: true);
+}
