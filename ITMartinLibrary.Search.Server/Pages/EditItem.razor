@@ -1,0 +1,90 @@
+@page "/edit/{Id:int}"
+@rendermode InteractiveServer
+
+@using ITMartinLibrary.Application.Interfaces
+@inject InventoryService InventoryService
+@inject IBarcodeLookupService BarcodeLookupService
+@inject NavigationManager Navigation
+
+<div class="library-page" style="min-height:100vh; padding:20px 16px 60px;">
+    <div class="page-container">
+
+        <div style="margin-bottom:20px;">
+            <h1 style="font-size:24px; font-weight:800; margin:0;">✏️ Edit Item</h1>
+        </div>
+
+        <div class="content-card" style="padding:20px;">
+            @if (_item is null)
+            {
+                <p class="text-muted">Loading...</p>
+            }
+            else
+            {
+                <div class="edit-grid">
+                    <div><label>Title</label><input @bind="_item.Title" class="form-control" /></div>
+                    <div><label>Type</label><input @bind="_item.Type" class="form-control" /></div>
+                    <div><label>Author / Director</label><input @bind="_item.AuthorOrDirector" class="form-control" /></div>
+                    <div><label>Genre</label><input @bind="_item.Genre" class="form-control" /></div>
+                    <div><label>Release Year</label><input @bind="_item.ReleaseYear" class="form-control" /></div>
+                    <div><label>Runtime</label><input @bind="_item.Runtime" class="form-control" /></div>
+                    <div style="grid-column:1/-1;"><label>Plot</label><textarea @bind="_item.Plot" class="form-control" rows="3"></textarea></div>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;">
+                    <button class="btn btn-primary" @onclick="SearchMovie">🎬 Search Movie Details</button>
+                    <button class="btn btn-success" @onclick="Save">💾 Save</button>
+                    <a href="/" class="btn btn-secondary">← Back</a>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_status))
+                {
+                    <div class="text-muted" style="margin-top:12px; font-size:13px;">@_status</div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @@media (max-width: 600px) { .edit-grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private InventoryItem? _item;
+    private string? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _item = await InventoryService.GetByIdAsync(Id);
+    }
+
+    private async Task SearchMovie()
+    {
+        if (_item is null || string.IsNullOrWhiteSpace(_item.Title)) return;
+        _status = "Searching...";
+        var enriched = await BarcodeLookupService.LookupMovieByTitleAsync(_item.Title);
+        if (enriched is null) { _status = "No results found."; return; }
+        _item.Title = enriched.Title;
+        _item.AuthorOrDirector = enriched.AuthorOrDirector;
+        _item.Genre = enriched.Genre;
+        _item.Runtime = enriched.Runtime;
+        _item.ReleaseYear = enriched.ReleaseYear;
+        _item.Plot = enriched.Plot;
+        _item.CoverUrl = enriched.CoverUrl;
+        _item.Type = enriched.Type;
+        _item.LookupStatus = "Completed";
+        await InventoryService.UpdateAsync(_item);
+        _status = "Updated.";
+    }
+
+    private async Task Save()
+    {
+        if (_item is null) return;
+        await InventoryService.UpdateAsync(_item);
+        Navigation.NavigateTo("/");
+    }
+}

@@ -309,6 +309,32 @@ services:
       - martinnet
 
   # =========================================================
+  # LIBRARY SEARCH (browse & find items)
+  # =========================================================
+
+  library-search-web:
+    container_name: library-search-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinLibrary.Search.Server/Dockerfile
+
+    ports:
+      - "8099:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__LibraryDb=Data Source=/data/library.db
+
+    volumes:
+      - /volume1/docker/martinsuite/library/data:/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # MAGIC COLLECTION (read-only collection viewer)
   # =========================================================
 
