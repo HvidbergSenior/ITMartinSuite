@@ -79,7 +79,7 @@ public sealed class Package2ProfileBuilder
                     true;
 
                 configuration.Video.EnableSharpen =
-                    false;
+                    true;
 
                 configuration.Video.EnableCrop =
                     true;
