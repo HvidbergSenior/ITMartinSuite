@@ -41,4 +41,10 @@ public sealed class StartPackage1Request
         get;
         init;
     }
+
+    public string? OutputPath
+    {
+        get;
+        init;
+    }
 }

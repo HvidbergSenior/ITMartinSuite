@@ -57,7 +57,9 @@ public sealed class ExportWorkflowExecutionStep
                 "Invalid workflow state");
 
         var exportRoot =
-            _libraryPathProvider.LibraryRoot;
+            !string.IsNullOrWhiteSpace(state.OutputPath)
+                ? state.OutputPath
+                : _libraryPathProvider.LibraryRoot;
 
         Directory.CreateDirectory(
             exportRoot);

@@ -32,7 +32,8 @@ public sealed class Package1Client
             {
                 RootPath =
                     request.SourceLibraryPath,
-                OverrideYear = request.OverrideYear
+                OverrideYear = request.OverrideYear,
+                OutputPath = request.OutputPath
             };
 
         await _backgroundJobQueue

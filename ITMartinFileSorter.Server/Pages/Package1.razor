@@ -32,6 +32,10 @@
                 <label class="p1-label">Source folder</label>
                 <input class="p1-input" @bind="_folderPath" placeholder="/data" />
             </div>
+            <div class="p1-field">
+                <label class="p1-label">Output folder <span class="p1-optional">(leave empty to use default library)</span></label>
+                <input class="p1-input" @bind="_outputPath" placeholder="/jobs/mie" />
+            </div>
             <button class="p1-btn-start" @onclick="Start" disabled="@string.IsNullOrWhiteSpace(_folderPath)">
                 ▶ Start Package 1
             </button>
@@ -162,6 +166,7 @@
     .p1-btn-start:disabled { opacity: 0.4; cursor: default; }
     .p1-btn-start:hover:not(:disabled) { background: #1d4ed8; }
 
+    .p1-optional { font-weight: 400; color: #475569; }
     .p1-error { margin-top: 12px; color: #f87171; font-size: 13px; }
 
     .p1-status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
@@ -209,6 +214,7 @@
 
 @code {
     private string _folderPath = "";
+    private string _outputPath = "";
     private string _error = "";
     private bool _justStarted;
     private string _curatorUrl = "#";
@@ -261,6 +267,7 @@
             {
                 SourceLibraryPath    = _folderPath,
                 WorkingDirectory     = Path.Combine(_folderPath, ".package1"),
+                OutputPath           = string.IsNullOrWhiteSpace(_outputPath) ? null : _outputPath,
                 EnableDeduplication  = true,
                 EnableAiClassification = false,
                 EnableOcr            = false,

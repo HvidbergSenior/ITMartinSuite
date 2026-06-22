@@ -21,4 +21,6 @@ public sealed class Package1WorkflowState
         init;
     }
     public bool EnableSegmentation { get; set; } = false;
+
+    public string? OutputPath { get; set; }
 }
