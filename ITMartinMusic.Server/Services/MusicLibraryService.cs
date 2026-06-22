@@ -20,7 +20,12 @@ public sealed class MusicLibraryService
         var all = AudioExt.Concat(VideoExt).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return Directory
-            .EnumerateFiles(_root, "*", SearchOption.AllDirectories)
+            .EnumerateFiles(_root, "*", new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible    = true,
+                AttributesToSkip      = FileAttributes.Hidden | FileAttributes.System
+            })
             .Where(f => all.Contains(Path.GetExtension(f)))
             .Select(f => Path.GetRelativePath(_root, f).Replace('\\', '/'))
             .OrderBy(f => f)
