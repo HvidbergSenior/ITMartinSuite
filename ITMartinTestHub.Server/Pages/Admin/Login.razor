@@ -13,8 +13,8 @@
             <input class="home-input" type="password"
                    @bind="_pin" @bind:event="oninput"
                    placeholder="PIN"
-                   @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(Login); })" />
-            <button class="btn-primary" @onclick="Login"
+                   @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(Submit); })" />
+            <button class="btn-primary" @onclick="Submit"
                     disabled="@(string.IsNullOrWhiteSpace(_pin) || _loading)">
                 @(_loading ? "Checking…" : "Enter")
             </button>
@@ -32,7 +32,7 @@
     private bool   _error;
     private bool   _loading;
 
-    private async Task Login()
+    private async Task Submit()
     {
         if (string.IsNullOrWhiteSpace(_pin)) return;
         _loading = true;
