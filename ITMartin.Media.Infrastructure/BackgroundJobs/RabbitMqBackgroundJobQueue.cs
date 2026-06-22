@@ -22,9 +22,10 @@ public sealed class RabbitMqBackgroundJobQueue
         var factory =
             new ConnectionFactory
             {
-                HostName =
-                    configuration["RabbitMq:Host"]
-                    ?? "rabbitmq"
+                HostName  = configuration["RabbitMq:Host"] ?? "rabbitmq",
+                UserName  = configuration["RabbitMq:User"] ?? "guest",
+                Password  = configuration["RabbitMq:Password"] ?? "guest",
+                Port      = int.TryParse(configuration["RabbitMq:Port"], out var p) ? p : 5672
             };
         Console.WriteLine(
             $"RabbitMQ Host: {factory.HostName}");
