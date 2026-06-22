@@ -8,6 +8,13 @@
         "DOTNET_ENVIRONMENT": "Development",
         "MEDIA_DB": "Data Source=C:\\ITMartin\\Data\\media.db"
       }
+    },
+    "NAS (Windows)": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "NAS"
+      }
     }
   }
 }

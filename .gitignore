@@ -42,8 +42,10 @@ publish/
 
 appsettings.json
 appsettings.Development.json
+appsettings.NAS.json
 **/appsettings.json
 **/appsettings.Development.json
+**/appsettings.NAS.json
 secrets.json
 
 # =========================================
