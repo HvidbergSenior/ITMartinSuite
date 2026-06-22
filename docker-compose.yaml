@@ -629,28 +629,6 @@ services:
     networks:
       - martinnet
 
-  # =========================================================
-  # PLEX (host network — separate from bridge)
-  # =========================================================
-
-  plex:
-    image: lscr.io/linuxserver/plex:latest
-    container_name: plex
-
-    network_mode: host
-
-    environment:
-      - PUID=1026
-      - PGID=100
-      - TZ=Europe/Copenhagen
-      - VERSION=docker
-
-    volumes:
-      - /volume1/docker/plex/config:/config
-      - /volume1/docker/plex/Movies:/movies
-      - /volume1/docker/plex/Tv:/tv
-
-    restart: unless-stopped
 
 networks:
   martinnet:
