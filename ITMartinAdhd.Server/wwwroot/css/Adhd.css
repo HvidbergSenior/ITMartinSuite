@@ -159,6 +159,15 @@ body {
     border-color: var(--adhd-accent);
 }
 
+.item-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 10px;
+    flex-shrink: 0;
+    border: 1px solid var(--adhd-border);
+}
+
 .item-main {
     flex: 1;
     min-width: 0;

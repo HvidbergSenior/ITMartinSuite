@@ -6,7 +6,9 @@ using ITMartinMarket.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents()
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 5 * 1024 * 1024);
 builder.Services.AddSignalR();
 builder.Services.AddMarketInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<ToastService>();

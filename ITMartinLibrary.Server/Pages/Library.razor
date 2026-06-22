@@ -195,9 +195,14 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadDashboard();
+    }
 
-        refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return Task.CompletedTask;
+        refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
         _ = RefreshLoop();
+        return Task.CompletedTask;
     }
 
     private async Task RefreshLoop()

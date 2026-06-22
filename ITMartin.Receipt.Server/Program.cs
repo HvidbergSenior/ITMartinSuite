@@ -29,7 +29,8 @@ builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions>(options =>
 
 builder.Services
     .AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 5 * 1024 * 1024);
 
 // =========================
 // BUILD

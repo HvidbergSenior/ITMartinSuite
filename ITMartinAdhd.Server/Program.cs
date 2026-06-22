@@ -9,7 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 // RAZOR
 // =========================
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 5 * 1024 * 1024);
 
 builder.Services.AddSingleton<ToastService>();
 builder.Services.AddHostedService<ItemCleanupService>();
@@ -60,6 +61,15 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+
+var photoDir = app.Configuration["AdhdSettings:PhotoDir"] ?? "/app/data/photos";
+Directory.CreateDirectory(photoDir);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(photoDir),
+    RequestPath = "/photos"
+});
+
 app.UseAntiforgery();
 
 // =========================

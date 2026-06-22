@@ -4,10 +4,16 @@ window.familyApp = {
 
     capturePhoto: async () => {
         const video = document.getElementById('task-video');
+        let w = video.videoWidth, h = video.videoHeight;
+        const MAX = 1024;
+        if (w > MAX || h > MAX) {
+            const ratio = Math.min(MAX / w, MAX / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+        }
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
         return canvas.toDataURL('image/jpeg', 0.8).replace('data:image/jpeg;base64,', '');
     },
 

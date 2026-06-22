@@ -30,6 +30,10 @@
             @foreach (var item in _items)
             {
                 <div class="item-card" @key="item.Id">
+                    @if (!string.IsNullOrWhiteSpace(item.PhotoPath))
+                    {
+                        <img class="item-thumb" src="@item.PhotoPath" alt="@item.Name" />
+                    }
                     <div class="item-main">
                         <div class="item-name">@item.Name</div>
                         <div class="item-location">@item.Location</div>

@@ -67,16 +67,25 @@ window.webcam = {
         const cropW = Math.round(guideRect.width * scaleX);
         const cropH = Math.round(guideRect.height * scaleY);
 
+        // Cap crop at 1280px longest side to keep payload manageable
+        const MAX = 1280;
+        let dw = cropW, dh = cropH;
+        if (dw > MAX || dh > MAX) {
+            const ratio = Math.min(MAX / dw, MAX / dh);
+            dw = Math.round(dw * ratio);
+            dh = Math.round(dh * ratio);
+        }
+
         const canvas = document.createElement("canvas");
-        canvas.width = cropW;
-        canvas.height = cropH;
+        canvas.width  = dw;
+        canvas.height = dh;
 
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(this.video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+        ctx.drawImage(this.video, cropX, cropY, cropW, cropH, 0, 0, dw, dh);
 
-        console.log("CAPTURED", cropW, cropH);
+        console.log("CAPTURED", dw, dh);
 
-        return { image: canvas.toDataURL("image/jpeg", 0.92) };
+        return { image: canvas.toDataURL("image/jpeg", 0.88) };
     },
 
     stop() {

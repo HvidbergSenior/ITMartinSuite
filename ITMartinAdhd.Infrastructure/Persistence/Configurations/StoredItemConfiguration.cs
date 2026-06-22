@@ -12,6 +12,7 @@ public sealed class StoredItemConfiguration : IEntityTypeConfiguration<StoredIte
         builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
         builder.Property(x => x.Location).IsRequired().HasMaxLength(500);
         builder.Property(x => x.Notes).HasMaxLength(1000);
+        builder.Property(x => x.PhotoPath).HasMaxLength(500);
         builder.HasIndex(x => x.UpdatedAt);
         builder.HasIndex(x => x.Name);
     }

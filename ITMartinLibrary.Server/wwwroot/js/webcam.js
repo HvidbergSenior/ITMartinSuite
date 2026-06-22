@@ -61,16 +61,28 @@ window.webcam = {
         // Brief pause for autofocus to settle
         await new Promise(x => setTimeout(x, 500));
 
+        let w = this.video.videoWidth;
+        let h = this.video.videoHeight;
+        if (!w || !h) throw new Error("Video not ready");
+
+        // Cap at 1536px longest side — enough for book cover text, keeps payload under 1MB
+        const MAX = 1536;
+        if (w > MAX || h > MAX) {
+            const ratio = Math.min(MAX / w, MAX / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+        }
+
         const canvas = document.createElement("canvas");
-        canvas.width  = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
+        canvas.width  = w;
+        canvas.height = h;
 
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(this.video, 0, 0, w, h);
 
-        console.log("CAPTURED", canvas.width, "x", canvas.height);
+        console.log("CAPTURED", w, "x", h);
 
-        return { image: canvas.toDataURL("image/jpeg", 0.95) };
+        return { image: canvas.toDataURL("image/jpeg", 0.88) };
     },
 
     stop() {

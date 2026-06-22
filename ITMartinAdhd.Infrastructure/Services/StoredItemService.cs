@@ -3,16 +3,20 @@ using ITMartinAdhd.Application.Models;
 using ITMartinAdhd.Domain.Entities;
 using ITMartinAdhd.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace ITMartinAdhd.Infrastructure.Services;
 
 public sealed class StoredItemService : IStoredItemService
 {
     private readonly AdhdDbContext _db;
+    private readonly string _photoDir;
 
-    public StoredItemService(AdhdDbContext db)
+    public StoredItemService(AdhdDbContext db, IConfiguration config)
     {
         _db = db;
+        _photoDir = config["AdhdSettings:PhotoDir"] ?? "/app/data/photos";
+        Directory.CreateDirectory(_photoDir);
     }
 
     public async Task<List<StoredItemModel>> GetRecentAsync(int count = 20)
@@ -37,7 +41,7 @@ public sealed class StoredItemService : IStoredItemService
             .ToListAsync();
     }
 
-    public async Task<StoredItemModel> SaveAsync(string name, string location, string? notes = null)
+    public async Task<StoredItemModel> SaveAsync(string name, string location, string? notes = null, byte[]? photo = null)
     {
         var now = DateTime.UtcNow;
 
@@ -49,6 +53,8 @@ public sealed class StoredItemService : IStoredItemService
             existing.Location = location;
             existing.Notes = notes;
             existing.UpdatedAt = now;
+            if (photo is not null)
+                existing.PhotoPath = await SavePhotoAsync(existing.Id, photo);
             await _db.SaveChangesAsync();
             return ToModel(existing);
         }
@@ -64,7 +70,22 @@ public sealed class StoredItemService : IStoredItemService
 
         _db.StoredItems.Add(item);
         await _db.SaveChangesAsync();
+
+        if (photo is not null)
+        {
+            item.PhotoPath = await SavePhotoAsync(item.Id, photo);
+            await _db.SaveChangesAsync();
+        }
+
         return ToModel(item);
+    }
+
+    private async Task<string> SavePhotoAsync(int id, byte[] bytes)
+    {
+        var fileName = $"{id}.jpg";
+        var path = Path.Combine(_photoDir, fileName);
+        await File.WriteAllBytesAsync(path, bytes);
+        return $"/photos/{fileName}";
     }
 
     public async Task UpdateLocationAsync(int id, string location)
@@ -82,6 +103,12 @@ public sealed class StoredItemService : IStoredItemService
         var item = await _db.StoredItems.FindAsync(id);
         if (item is null) return;
 
+        if (item.PhotoPath is not null)
+        {
+            var file = Path.Combine(_photoDir, Path.GetFileName(item.PhotoPath));
+            if (File.Exists(file)) File.Delete(file);
+        }
+
         _db.StoredItems.Remove(item);
         await _db.SaveChangesAsync();
     }
@@ -92,6 +119,7 @@ public sealed class StoredItemService : IStoredItemService
         Name = x.Name,
         Location = x.Location,
         Notes = x.Notes,
+        PhotoPath = x.PhotoPath,
         StoredAt = x.StoredAt,
         UpdatedAt = x.UpdatedAt,
     };

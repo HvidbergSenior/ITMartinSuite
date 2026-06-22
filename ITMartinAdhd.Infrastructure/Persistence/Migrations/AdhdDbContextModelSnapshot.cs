@@ -37,6 +37,10 @@ namespace ITMartinAdhd.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PhotoPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("StoredAt")
                         .HasColumnType("TEXT");
 

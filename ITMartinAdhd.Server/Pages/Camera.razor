@@ -133,6 +133,7 @@
     private bool _isProcessing;
     private bool _isSaving;
     private string? _previewImage;
+    private byte[]? _capturedBytes;
     private string? _errorMessage;
     private ParsedItemModel? _parsed;
     private string _editName = "";
@@ -185,7 +186,7 @@
             var capture = await JS.InvokeAsync<CameraCaptureResult>("finditCamera.capture");
 
             var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
-            var bytes = Convert.FromBase64String(clean);
+            _capturedBytes = Convert.FromBase64String(clean);
 
             _previewImage = capture.Image;
             _state = CameraState.Analyzing;
@@ -193,7 +194,7 @@
 
             await JS.InvokeVoidAsync("finditCamera.stop");
 
-            _parsed = await ClaudeService.AnalyzeItemPhotoAsync(bytes, "image/jpeg");
+            _parsed = await ClaudeService.AnalyzeItemPhotoAsync(_capturedBytes, "image/jpeg");
 
             _editName = _parsed.ItemName;
             _editLocation = _parsed.Location;
@@ -218,7 +219,7 @@
         _isSaving = true;
         StateHasChanged();
 
-        await StoredItemService.SaveAsync(_editName.Trim(), _editLocation.Trim());
+        await StoredItemService.SaveAsync(_editName.Trim(), _editLocation.Trim(), photo: _capturedBytes);
         Navigation.NavigateTo("/");
     }
 
@@ -226,6 +227,7 @@
     {
         _state = CameraState.Viewfinder;
         _previewImage = null;
+        _capturedBytes = null;
         _parsed = null;
         StateHasChanged();
         await StartCamera();

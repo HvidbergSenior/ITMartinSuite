@@ -6,6 +6,7 @@ public sealed class StoredItem
     public string Name { get; set; } = "";
     public string Location { get; set; } = "";
     public string? Notes { get; set; }
+    public string? PhotoPath { get; set; }
     public DateTime StoredAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
