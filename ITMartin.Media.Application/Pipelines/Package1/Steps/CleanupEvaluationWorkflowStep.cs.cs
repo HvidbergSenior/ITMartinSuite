@@ -107,6 +107,13 @@ public sealed class CleanupEvaluationWorkflowStep
                     }
                 }
 
+                foreach (var mediaFile in state.MediaFiles
+                             .Where(f => f.ExportSubFolder != "Duplicates"))
+                {
+                    if (IsDeleteCandidate(mediaFile))
+                        mediaFile.ExportSubFolder = "DeleteCandidates";
+                }
+
                 var result =
                     _cleanupResultBuilder.Run(
                         state.MediaFiles);
@@ -126,5 +133,19 @@ public sealed class CleanupEvaluationWorkflowStep
                 await Task.CompletedTask;
             },
             _logger);
+    }
+
+    private static bool IsDeleteCandidate(MediaFile file)
+    {
+        // Video too short to be meaningful
+        if (file.Duration.HasValue && file.Duration.Value.TotalSeconds < 3)
+            return true;
+
+        // Tiny image — likely icon, thumbnail, or web asset
+        if (file.Width.HasValue && file.Height.HasValue &&
+            file.Width.Value < 150 && file.Height.Value < 150)
+            return true;
+
+        return false;
     }
 }

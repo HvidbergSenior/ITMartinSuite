@@ -82,16 +82,21 @@ public class LibraryExportService
                             category,
                             safeYear.ToString(),
                             monthFolder)
-                        : !file.IsDateReliable
+                        : file.ExportSubFolder == "DeleteCandidates"
                             ? Path.Combine(
                                 root,
-                                "Undated",
+                                "DeleteCandidates",
                                 category)
-                            : Path.Combine(
-                                root,
-                                category,
-                                safeYear.ToString(),
-                                monthFolder);
+                            : !file.IsDateReliable
+                                ? Path.Combine(
+                                    root,
+                                    "Undated",
+                                    category)
+                                : Path.Combine(
+                                    root,
+                                    category,
+                                    safeYear.ToString(),
+                                    monthFolder);
 
                 Directory.CreateDirectory(
                     targetDir);
@@ -195,7 +200,10 @@ public class LibraryExportService
                 "Documents",
                 "Audio",
                 "Memes",
-                "Screenshots"
+                "Screenshots",
+                "DeleteCandidates",
+                "Duplicates",
+                "Undated"
             };
 
         foreach (var folder in baseFolders)
