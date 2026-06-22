@@ -1,4 +1,5 @@
 @page "/library/scan-book"
+@page "/library/scan-media"
 
 @using ITMartinLibrary.Application.Services
 @using ITMartinLibrary.Domain.Entities
@@ -13,14 +14,8 @@
         <div class="scan-hero-card">
             <div class="library-row">
                 <div>
-                    <h1>📚 Scan Books</h1>
-                    <p class="hero-text">Scan barcodes — items are added or stock incremented automatically.</p>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <button class="btn @(_cameraMode ? "btn-warning" : "btn-outline-secondary")"
-                            @onclick="ToggleCameraMode">
-                        @(_cameraMode ? "📷 Camera ON" : "📷 Use Camera")
-                    </button>
+                    <h1>📷 Scan Item</h1>
+                    <p class="hero-text">Books, DVDs, and Blu-rays — point the barcode at the frame.</p>
                 </div>
                 @if (_sessionCount > 0)
                 {
@@ -32,26 +27,23 @@
             </div>
         </div>
 
-        @if (_cameraMode)
-        {
-            <div class="camera-scan-wrapper mt-3">
-                <video id="barcode-video" autoplay muted playsinline webkit-playsinline
-                       style="width:100%; border-radius:16px; background:black;"></video>
-                <div class="camera-scan-hint">Point camera at barcode — auto detects</div>
+        <div class="camera-wrapper mt-3">
+            <video id="barcode-video" autoplay muted playsinline webkit-playsinline></video>
+            <div class="scan-guide-box">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
                 @if (!string.IsNullOrWhiteSpace(_cameraStatus))
                 {
-                    <div class="alert alert-dark mt-2">@_cameraStatus</div>
+                    <div class="scan-guide-status">@_cameraStatus</div>
                 }
             </div>
-        }
-        else
-        {
-            <input @ref="barcodeInput"
-                   @bind="Barcode"
-                   @bind:event="oninput"
-                   class="form-control scan-input"
-                   placeholder="Ready for book scan..." />
-        }
+            <div class="scan-guide-hint">Hold barcode inside the frame</div>
+        </div>
+
+        <input @ref="_barcodeInput" @bind="_barcode" @bind:event="oninput"
+               class="scan-hidden-input" tabindex="-1" autocomplete="off" />
 
         @if (_error is not null)
         {
@@ -76,7 +68,9 @@
                                 {
                                     <div class="text-muted" style="font-size:13px;">@entry.Item.AuthorOrDirector</div>
                                 }
-                                <div class="text-muted" style="font-size:12px;">@entry.Item.Barcode</div>
+                                <div class="text-muted" style="font-size:12px;">
+                                    @entry.Item.Barcode · @entry.Item.Type
+                                </div>
                             </div>
                             <div class="recent-scan-right">
                                 <div class="item-status-badge @GetStatusClass(entry.Item.LookupStatus)">
@@ -96,6 +90,80 @@
 </div>
 
 <style>
+    .camera-wrapper {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        background: black;
+        aspect-ratio: 4/3;
+        max-height: 55vh;
+    }
+
+    .camera-wrapper video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .scan-guide-box {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -56%);
+        width: 78%;
+        height: 100px;
+        border-radius: 6px;
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.48);
+    }
+
+    .corner {
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-color: #fff;
+        border-style: solid;
+    }
+
+    .corner.tl { top: -2px; left: -2px;  border-width: 3px 0 0 3px; border-radius: 5px 0 0 0; }
+    .corner.tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 5px 0 0; }
+    .corner.bl { bottom: -2px; left: -2px;  border-width: 0 0 3px 3px; border-radius: 0 0 0 5px; }
+    .corner.br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 5px 0; }
+
+    .scan-guide-status {
+        position: absolute;
+        bottom: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #4ade80;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .scan-guide-hint {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.6);
+        color: rgba(255,255,255,0.85);
+        padding: 5px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        backdrop-filter: blur(4px);
+    }
+
+    .scan-hidden-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+        width: 1px;
+        height: 1px;
+    }
+
     .recent-scan-row {
         display: flex;
         justify-content: space-between;
@@ -104,9 +172,7 @@
         border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
-    .recent-scan-row:last-child {
-        border-bottom: none;
-    }
+    .recent-scan-row:last-child { border-bottom: none; }
 
     .recent-scan-title {
         font-weight: 600;
@@ -125,37 +191,14 @@
         font-size: 13px;
         color: var(--text-muted);
     }
-
-    .camera-scan-wrapper {
-        position: relative;
-        border-radius: 16px;
-        overflow: hidden;
-        background: black;
-        max-height: 50vh;
-    }
-
-    .camera-scan-hint {
-        position: absolute;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,.7);
-        color: white;
-        padding: 6px 16px;
-        border-radius: 999px;
-        font-size: 13px;
-        font-weight: 600;
-        white-space: nowrap;
-    }
 </style>
 
 @code {
-    private string barcode = "";
+    private string _barcode = "";
     private string? _error;
-    private bool isProcessing;
+    private bool _isProcessing;
     private int _sessionCount;
-    private ElementReference barcodeInput;
-    private bool _cameraMode;
+    private ElementReference _barcodeInput;
     private string? _cameraStatus;
     private DotNetObjectReference<ScanBook>? _dotNetRef;
 
@@ -164,87 +207,66 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_cameraMode) await StopCamera();
+        try { await JS.InvokeVoidAsync("barcodeScanner.stop"); } catch { }
         _dotNetRef?.Dispose();
     }
 
-    private async Task ToggleCameraMode()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        _cameraMode = !_cameraMode;
+        if (!firstRender) return;
+        _dotNetRef = DotNetObjectReference.Create(this);
+        _cameraStatus = "Starting camera...";
         StateHasChanged();
-        if (_cameraMode)
+        try
         {
-            await Task.Delay(200);
-            _dotNetRef ??= DotNetObjectReference.Create(this);
-            _cameraStatus = "Starting camera...";
             await JS.InvokeVoidAsync("barcodeScanner.start", "barcode-video", _dotNetRef);
-            _cameraStatus = "Point at barcode";
+            _cameraStatus = null;
         }
-        else
+        catch
         {
-            await StopCamera();
+            _cameraStatus = "Camera unavailable";
         }
-    }
-
-    private async Task StopCamera()
-    {
-        try { await JS.InvokeVoidAsync("barcodeScanner.stop"); } catch { }
-        _cameraStatus = null;
+        StateHasChanged();
     }
 
     [JSInvokable]
     public async Task OnBarcodeDetected(string code)
     {
-        if (isProcessing || string.IsNullOrWhiteSpace(code)) return;
-        barcode = code;
-        _cameraStatus = $"Detected: {code}";
+        if (_isProcessing || string.IsNullOrWhiteSpace(code)) return;
+        _barcode = code;
+        _cameraStatus = code;
         await ProcessScan();
     }
 
     private string Barcode
     {
-        get => barcode;
+        get => _barcode;
         set
         {
-            barcode = value;
-
-            if (!isProcessing &&
-                barcode.Length == 13 &&
-                (barcode.StartsWith("978") || barcode.StartsWith("979")))
-            {
+            _barcode = value;
+            if (!_isProcessing && _barcode.Length is 12 or 13)
                 _ = ProcessScan();
-            }
         }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        await barcodeInput.FocusAsync();
     }
 
     private async Task ProcessScan()
     {
-        if (isProcessing)
-            return;
-
-        isProcessing = true;
+        if (_isProcessing) return;
+        _isProcessing = true;
         _error = null;
 
         try
         {
-            var scannedCode = barcode;
-            var (item, isNew) = await InventoryService.ScanOrIncrementAsync(scannedCode);
+            var code = _barcode;
+            var (item, isNew) = await InventoryService.ScanOrIncrementAsync(code);
 
             _sessionCount++;
             _recentScans.Insert(0, new ScanEntry(item, isNew));
+            if (_recentScans.Count > 10) _recentScans.RemoveAt(_recentScans.Count - 1);
 
-            if (_recentScans.Count > 10)
-                _recentScans.RemoveAt(_recentScans.Count - 1);
-
-            barcode = "";
-
+            _barcode = "";
+            _cameraStatus = null;
             await InvokeAsync(StateHasChanged);
-            await barcodeInput.FocusAsync();
         }
         catch (Exception ex)
         {
@@ -253,16 +275,16 @@
         }
         finally
         {
-            isProcessing = false;
+            _isProcessing = false;
         }
     }
 
     private string GetStatusClass(string? status) => status switch
     {
-        "Completed" => "status-completed",
-        "Processing" => "status-processing",
-        "Pending" => "status-pending",
+        "Completed"             => "status-completed",
+        "Processing"            => "status-processing",
+        "Pending"               => "status-pending",
         "Pending Manual Review" => "status-review",
-        _ => "status-pending"
+        _                       => "status-pending"
     };
 }
