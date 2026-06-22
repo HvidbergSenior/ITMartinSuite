@@ -1,0 +1,35 @@
+@implements IDisposable
+@inject ToastService Toast
+
+@if (_message is not null)
+{
+    <div class="curator-toast curator-toast--@_type">@_message</div>
+}
+
+@code {
+    private string? _message;
+    private string  _type = "info";
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized() =>
+        Toast.OnShow += HandleShow;
+
+    private void HandleShow(string msg, string type)
+    {
+        _message = msg;
+        _type    = type;
+        _timer?.Dispose();
+        _timer = new System.Threading.Timer(_ =>
+        {
+            _message = null;
+            InvokeAsync(StateHasChanged);
+        }, null, 3000, Timeout.Infinite);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Toast.OnShow -= HandleShow;
+        _timer?.Dispose();
+    }
+}

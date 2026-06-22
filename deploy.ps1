@@ -11,6 +11,7 @@ $NasFile_Base = "/volume1/homes/MartinHvidberg/martinsuite-magic"
 net use * /persistent:yes 2>$null | Out-Null
 
 $ServiceMap = @{
+    "curator-web"       = @{ Dockerfile = "ITMartin.Curator.Server/Dockerfile";       Context = "." }
     "magic-web"         = @{ Dockerfile = "ITMartin.Magic.Server/Dockerfile";        Context = "." }
     "filesorter-web"    = @{ Dockerfile = "ITMartinFileSorter.Server/Dockerfile";         Context = "." }
     "filesorter-worker" = @{ Dockerfile = "ITMartinFileSorter.Worker/Dockerfile";         Context = "." }

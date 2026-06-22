@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+@inject ToastService Toast
+
+<div class="app-shell">
+
+    <header class="app-header">
+        <div class="header-title">
+            <span class="header-icon">✂️</span>
+            Curator
+        </div>
+        <nav class="header-nav">
+            <NavLink href="/" Match="NavLinkMatch.All">Inbox</NavLink>
+            <NavLink href="/files">Files</NavLink>
+        </nav>
+    </header>
+
+    <main class="app-main">
+        @Body
+    </main>
+
+    <CuratorToast />
+
+</div>

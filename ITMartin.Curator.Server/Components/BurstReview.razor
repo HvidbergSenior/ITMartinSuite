@@ -1,0 +1,75 @@
+@inject ILogger<BurstReview> Logger
+
+<div class="burst-groups">
+    @foreach (var group in Suggestion.BurstGroups)
+    {
+        <div class="burst-group">
+            <div class="burst-ts text-muted">@group.Timestamp.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss")</div>
+            <div class="burst-files">
+                @foreach (var file in group.Files)
+                {
+                    var thumb = BuildThumb(file);
+                    var isKept = group.KeptFile == file;
+
+                    <div class="burst-file @(isKept ? "burst-kept" : "")"
+                         @onclick="() => group.KeptFile = isKept ? null : file">
+                        @if (!string.IsNullOrEmpty(thumb))
+                        {
+                            <img src="@thumb" alt="@Path.GetFileName(file)" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="thumb-icon">📷</div>
+                        }
+                        <div class="burst-file-name">@Path.GetFileName(file)</div>
+                        @if (isKept) { <div class="burst-keep-badge">Keep</div> }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<div class="text-muted" style="font-size:12px;margin-bottom:12px">
+    Click a photo to mark it as the one to keep. The rest will be deleted.
+</div>
+
+<div class="suggestion-actions">
+    <button class="btn btn-primary"
+            @onclick="ApplyAsync"
+            disabled="@(!Suggestion.BurstGroups.Any(g => g.KeptFile != null))">
+        Delete extras
+    </button>
+    <button class="btn btn-secondary" @onclick="() => OnDismissed.InvokeAsync()">Skip</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Suggestion Suggestion { get; set; } = null!;
+    [Parameter] public string RootPath { get; set; } = "";
+    [Parameter] public EventCallback OnApplied   { get; set; }
+    [Parameter] public EventCallback OnDismissed { get; set; }
+
+    private string BuildThumb(string filePath)
+    {
+        if (string.IsNullOrEmpty(RootPath)) return "";
+        var dir       = Path.GetDirectoryName(filePath) ?? "";
+        var thumbPath = Path.Combine(dir, "thumbnails", Path.GetFileNameWithoutExtension(filePath) + ".jpg");
+        var source    = File.Exists(thumbPath) ? thumbPath : filePath;
+        var rel       = Path.GetRelativePath(RootPath, source).Replace("\\", "/");
+        return $"/libraryfiles/{rel}";
+    }
+
+    private async Task ApplyAsync()
+    {
+        foreach (var group in Suggestion.BurstGroups.Where(g => g.KeptFile != null))
+        {
+            foreach (var file in group.Files.Where(f => f != group.KeptFile))
+            {
+                try { File.Delete(file); }
+                catch (Exception ex) { Logger.LogWarning(ex, "Delete failed: {File}", file); }
+            }
+        }
+
+        await OnApplied.InvokeAsync();
+    }
+}

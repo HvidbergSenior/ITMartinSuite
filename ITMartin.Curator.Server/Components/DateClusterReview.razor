@@ -1,0 +1,48 @@
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Entities
+
+<div style="margin-bottom:12px">
+    <label class="text-muted" style="font-size:13px;display:block;margin-bottom:6px">Collection name</label>
+    <input class="home-input" style="width:280px"
+           @bind="_name" placeholder="e.g. Summer 2024" />
+</div>
+
+<div class="suggestion-actions">
+    <button class="btn btn-primary"
+            @onclick="ApplyAsync"
+            disabled="@string.IsNullOrWhiteSpace(_name)">
+        Create collection
+    </button>
+    <button class="btn btn-secondary" @onclick="() => OnDismissed.InvokeAsync()">Skip</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Suggestion Suggestion { get; set; } = null!;
+    [Parameter, EditorRequired] public ICollectionStore CollectionStore { get; set; } = null!;
+    [Parameter] public EventCallback OnApplied   { get; set; }
+    [Parameter] public EventCallback OnDismissed { get; set; }
+
+    private string _name = "";
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(_name))
+            _name = Suggestion.Title.Replace("Create a collection for ", "").TrimEnd('?');
+    }
+
+    private async Task ApplyAsync()
+    {
+        var name = _name.Trim();
+        if (string.IsNullOrEmpty(name)) return;
+
+        var collections = await CollectionStore.LoadAsync();
+        var col = new MediaCollection
+        {
+            Name      = name,
+            FilePaths = Suggestion.AffectedFiles.ToList(),
+        };
+        collections.Add(col);
+        await CollectionStore.SaveAsync(collections);
+        await OnApplied.InvokeAsync();
+    }
+}

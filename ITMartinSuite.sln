@@ -142,6 +142,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMarket.Server", "IT
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinFileSorter.Gallery.Server", "ITMartinFileSorter.Gallery.Server\ITMartinFileSorter.Gallery.Server.csproj", "{319B4DCA-6B7A-4852-8051-4C095CD69758}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.Curator.Server", "ITMartin.Curator.Server\ITMartin.Curator.Server.csproj", "{54DC15E5-7F00-46E5-A22F-4AACA451F9D6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -419,5 +421,9 @@ Global
 		{319B4DCA-6B7A-4852-8051-4C095CD69758}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{319B4DCA-6B7A-4852-8051-4C095CD69758}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{319B4DCA-6B7A-4852-8051-4C095CD69758}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54DC15E5-7F00-46E5-A22F-4AACA451F9D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54DC15E5-7F00-46E5-A22F-4AACA451F9D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54DC15E5-7F00-46E5-A22F-4AACA451F9D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54DC15E5-7F00-46E5-A22F-4AACA451F9D6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

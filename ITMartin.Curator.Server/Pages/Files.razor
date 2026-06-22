@@ -1,0 +1,299 @@
+@page "/files"
+
+@using ITMartin.Media.Contracts.Contracts.Constants
+@using ITMartin.Media.Contracts.Contracts.Runtime.Enums
+@using ITMartin.Media.Contracts.Contracts.Runtime.Helpers
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@inject ICollectionStore CollectionStore
+@inject IConfiguration Configuration
+@inject NavigationManager Navigation
+@inject ToastService Toast
+@inject SuggestionEngine Engine
+@inject ILogger<Files> Logger
+
+<PageTitle>Curator — Files</PageTitle>
+
+<div class="files-shell">
+
+    <!-- ── LEFT: browser ──────────────────────────────────── -->
+    <div class="files-browser">
+
+        <div class="browser-header">
+            <button class="btn btn-sm btn-secondary" @onclick="GoBack" disabled="@(!CanGoBack)">← Back</button>
+            <button class="btn btn-sm btn-secondary" @onclick="GoToRoot">📁 Root</button>
+            <span class="browser-path text-muted" title="@_currentPath">@_currentPath</span>
+        </div>
+
+        @if (_folders.Any())
+        {
+            <div class="browser-folders">
+                @foreach (var f in _folders)
+                {
+                    <div class="folder-chip" @onclick="() => OpenFolder(f.FullPath)">
+                        📁 @f.Name
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="file-grid">
+            @foreach (var file in _files)
+            {
+                <div class="file-card">
+
+                    <div class="file-thumb">
+                        @if (file.Type == MediaType.Image && !string.IsNullOrEmpty(file.ThumbnailUrl))
+                        {
+                            <img src="@file.ThumbnailUrl" alt="@file.Name" loading="lazy" />
+                        }
+                        else if (file.Type == MediaType.Video)
+                        {
+                            <div class="thumb-icon">▶</div>
+                        }
+                        else
+                        {
+                            <div class="thumb-icon">📄</div>
+                        }
+                    </div>
+
+                    @if (file.IsRenaming)
+                    {
+                        <input class="rename-input"
+                               value="@file.EditName"
+                               @onchange="e => file.EditName = e.Value?.ToString() ?? file.Name"
+                               @onkeydown="e => OnRenameKey(e, file)"
+                               @onblur="() => CommitRename(file)" />
+                    }
+                    else
+                    {
+                        <div class="file-name" title="Click to rename" @onclick="() => StartRename(file)">
+                            @file.Name
+                        </div>
+                    }
+
+                    <div class="file-meta text-muted">
+                        @file.CreatedAt?.ToLocalTime().ToString("dd MMM yyyy")
+                    </div>
+
+                </div>
+            }
+        </div>
+
+        @if (!_folders.Any() && !_files.Any())
+        {
+            <div class="browser-empty">
+                <div style="font-size:36px">📭</div>
+                <div>Empty folder</div>
+            </div>
+        }
+
+    </div>
+
+    <!-- ── RIGHT: quick actions ───────────────────────────── -->
+    <div class="files-sidebar">
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Quick rename</div>
+            <div class="text-muted" style="font-size:12px;margin-bottom:8px">
+                Auto-rename generic names in this folder
+            </div>
+            <button class="btn btn-sm btn-primary" @onclick="QuickRenameFolder" disabled="@(!CanQuickRename)">
+                Rename generic files here
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Current folder</div>
+            <div class="text-muted" style="font-size:12px">
+                @_files.Count file@(_files.Count == 1 ? "" : "s")
+                · @_genericCount generic name@(_genericCount == 1 ? "" : "s")
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+    private string _root        = "";
+    private string _currentPath = "";
+    private List<FolderVm> _folders = [];
+    private List<FileVm>   _files   = [];
+    private List<MediaCollection> _collections = [];
+    private int _genericCount;
+
+    [Parameter, SupplyParameterFromQuery] public string? path { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _root = Configuration["MediaSettings:LibraryRoot"] ?? "";
+        _ = LoadCollectionsAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        var target = string.IsNullOrWhiteSpace(path) ? _root : path;
+        if (!string.IsNullOrEmpty(target)) LoadFolder(target);
+    }
+
+    private async Task LoadCollectionsAsync()
+    {
+        _collections = await CollectionStore.LoadAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void LoadFolder(string folderPath)
+    {
+        if (!Directory.Exists(folderPath)) return;
+        _currentPath = folderPath;
+
+        _folders = Directory.EnumerateDirectories(folderPath)
+            .Select(d => new FolderVm { Name = Path.GetFileName(d), FullPath = d })
+            .OrderBy(f => f.Name)
+            .ToList();
+
+        _files = Directory.EnumerateFiles(folderPath)
+            .Where(MediaDisplayHelper.IsDisplayable)
+            .Select(CreateFileVm)
+            .OrderByDescending(f => f.CreatedAt)
+            .ToList();
+
+        _genericCount = _files.Count(f =>
+        {
+            var nameOnly = Path.GetFileNameWithoutExtension(f.Name);
+            return SuggestionEngine.IsGenericNamePublic(nameOnly);
+        });
+    }
+
+    private bool CanGoBack =>
+        !string.Equals(_currentPath, _root, StringComparison.OrdinalIgnoreCase);
+
+    private bool CanQuickRename => _genericCount > 0;
+
+    private void OpenFolder(string p) =>
+        Navigation.NavigateTo($"/files?path={Uri.EscapeDataString(p)}");
+
+    private void GoBack()
+    {
+        var parent = Directory.GetParent(_currentPath);
+        if (parent != null) Navigation.NavigateTo($"/files?path={Uri.EscapeDataString(parent.FullName)}");
+    }
+
+    private void GoToRoot() => Navigation.NavigateTo("/files");
+
+    // ── Rename ──────────────────────────────────────────────────────────────
+
+    private void StartRename(FileVm file)
+    {
+        file.EditName   = file.Name;
+        file.IsRenaming = true;
+    }
+
+    private void OnRenameKey(KeyboardEventArgs e, FileVm file)
+    {
+        if (e.Key == "Enter")  CommitRename(file);
+        if (e.Key == "Escape") { file.IsRenaming = false; file.EditName = file.Name; }
+    }
+
+    private void CommitRename(FileVm file)
+    {
+        file.IsRenaming = false;
+        var newName = file.EditName?.Trim();
+        if (string.IsNullOrWhiteSpace(newName) || newName == file.Name) { file.EditName = file.Name; return; }
+
+        var dir     = Path.GetDirectoryName(file.Path) ?? "";
+        var newPath = Path.Combine(dir, newName);
+
+        if (File.Exists(newPath)) { file.EditName = file.Name; return; }
+
+        try
+        {
+            File.Move(file.Path, newPath);
+
+            foreach (var col in _collections)
+            {
+                var idx = col.FilePaths.IndexOf(file.Path);
+                if (idx >= 0) col.FilePaths[idx] = newPath;
+            }
+            _ = CollectionStore.SaveAsync(_collections);
+
+            file.Path         = newPath;
+            file.Name         = newName;
+            file.EditName     = newName;
+            file.ThumbnailUrl = BuildThumbUrl(newPath);
+            Toast.Show("Renamed ✓", "success");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Rename failed");
+            file.EditName = file.Name;
+        }
+    }
+
+    private async Task QuickRenameFolder()
+    {
+        var genericFiles = _files
+            .Where(f => SuggestionEngine.IsGenericNamePublic(Path.GetFileNameWithoutExtension(f.Name)))
+            .Select(f => f.Path)
+            .ToList();
+
+        var preview = Engine.BuildRenamePreview(genericFiles, _root);
+
+        foreach (var item in preview)
+        {
+            var newPath = Path.Combine(item.Folder, item.NewName);
+            if (!File.Exists(item.OldPath) || File.Exists(newPath)) continue;
+            try { File.Move(item.OldPath, newPath); }
+            catch (Exception ex) { Logger.LogWarning(ex, "Quick rename failed: {Path}", item.OldPath); }
+        }
+
+        Toast.Show($"Renamed {preview.Count} files ✓", "success");
+        LoadFolder(_currentPath);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private FileVm CreateFileVm(string filePath)
+    {
+        var info = new FileInfo(filePath);
+        var ext  = Path.GetExtension(filePath).ToLowerInvariant();
+        var type =
+            MediaExtensions.ImageExtensions.Contains(ext) ? MediaType.Image
+            : MediaExtensions.VideoExtensions.Contains(ext) ? MediaType.Video
+            : MediaExtensions.AudioExtensions.Contains(ext) ? MediaType.Audio
+            : MediaType.Document;
+
+        return new FileVm
+        {
+            Path         = filePath,
+            Name         = info.Name,
+            EditName     = info.Name,
+            Type         = type,
+            CreatedAt    = info.LastWriteTimeUtc,
+            ThumbnailUrl = BuildThumbUrl(filePath),
+        };
+    }
+
+    private string BuildThumbUrl(string filePath)
+    {
+        if (string.IsNullOrEmpty(_root)) return "";
+        var dir       = Path.GetDirectoryName(filePath) ?? "";
+        var thumbPath = Path.Combine(dir, "thumbnails", Path.GetFileNameWithoutExtension(filePath) + ".jpg");
+        var source    = File.Exists(thumbPath) ? thumbPath : filePath;
+        var rel       = Path.GetRelativePath(_root, source).Replace("\\", "/");
+        return $"/libraryfiles/{rel}";
+    }
+
+    private sealed class FolderVm { public string Name = ""; public string FullPath = ""; }
+
+    private sealed class FileVm
+    {
+        public string    Path         { get; set; } = "";
+        public string    Name         { get; set; } = "";
+        public string    EditName     { get; set; } = "";
+        public bool      IsRenaming   { get; set; }
+        public MediaType Type         { get; set; }
+        public DateTime? CreatedAt    { get; set; }
+        public string    ThumbnailUrl { get; set; } = "";
+    }
+}

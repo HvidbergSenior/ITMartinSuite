@@ -1,0 +1,17 @@
+@using ITMartin.Curator.Server.Layout
+
+<Router AppAssembly="typeof(Routes).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(CuratorLayout)" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="typeof(CuratorLayout)">
+            <div class="page-container" style="text-align:center;padding:80px 0">
+                <div style="font-size:48px">🔍</div>
+                <h2 style="margin:16px 0 8px">Page not found</h2>
+                <a href="/">Back to inbox</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

@@ -1,0 +1,159 @@
+@page "/"
+
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@inject SuggestionEngine Engine
+@inject ICollectionStore CollectionStore
+@inject IConfiguration Configuration
+@inject ToastService Toast
+@inject ILogger<Index> Logger
+
+<PageTitle>Curator — Inbox</PageTitle>
+
+<div class="page-container">
+
+    <div class="inbox-header">
+        <div>
+            <h1 class="inbox-title">Suggestion Inbox</h1>
+            <div class="text-muted" style="font-size:13px;margin-top:2px;">
+                Smart suggestions based on your library files
+            </div>
+        </div>
+        <button class="btn btn-primary" @onclick="ScanAsync" disabled="@_scanning">
+            @if (_scanning) { <span class="spinner"></span> } else { <span>🔍</span> }
+            @(_scanning ? _progress : "Scan library")
+        </button>
+    </div>
+
+    @if (!_scanned && !_scanning)
+    {
+        <div class="inbox-empty">
+            <div style="font-size:56px;margin-bottom:16px">🎬</div>
+            <div style="font-size:18px;font-weight:600;margin-bottom:8px">Ready to curate</div>
+            <div class="text-muted">Click <strong>Scan library</strong> to analyse your files and get suggestions.</div>
+        </div>
+    }
+    else if (_scanning)
+    {
+        <div class="inbox-empty">
+            <div class="spinner" style="width:40px;height:40px;border-width:4px;margin:0 auto 16px"></div>
+            <div class="text-muted">@_progress</div>
+        </div>
+    }
+    else if (_suggestions.Count == 0)
+    {
+        <div class="inbox-empty">
+            <div style="font-size:56px;margin-bottom:16px">✅</div>
+            <div style="font-size:18px;font-weight:600;margin-bottom:8px">All clear!</div>
+            <div class="text-muted">No suggestions found. Your library looks great.</div>
+        </div>
+    }
+    else
+    {
+        <div class="suggestion-list">
+            @foreach (var s in _suggestions.Where(s => !s.IsDismissed))
+            {
+                <div class="suggestion-card">
+
+                    <div class="suggestion-head" @onclick="() => s.IsExpanded = !s.IsExpanded">
+                        <div class="suggestion-icon">@s.Icon</div>
+                        <div class="suggestion-info">
+                            <div class="suggestion-title">@s.Title</div>
+                            <div class="suggestion-desc text-muted">@s.Description</div>
+                        </div>
+                        <div class="suggestion-chevron">@(s.IsExpanded ? "▲" : "▼")</div>
+                    </div>
+
+                    @if (s.IsExpanded)
+                    {
+                        <div class="suggestion-body">
+                            @switch (s.Type)
+                            {
+                                case SuggestionType.RenameGeneric:
+                                    <RenamePreview Suggestion="s"
+                                                   OnApplied="() => OnSuggestionApplied(s)"
+                                                   OnDismissed="() => s.IsDismissed = true" />
+                                    break;
+
+                                case SuggestionType.BurstShots:
+                                    <BurstReview Suggestion="s"
+                                                 RootPath="@_root"
+                                                 OnApplied="() => OnSuggestionApplied(s)"
+                                                 OnDismissed="() => s.IsDismissed = true" />
+                                    break;
+
+                                case SuggestionType.DuplicateFiles:
+                                    <DuplicateReview Suggestion="s"
+                                                     OnApplied="() => OnSuggestionApplied(s)"
+                                                     OnDismissed="() => s.IsDismissed = true" />
+                                    break;
+
+                                case SuggestionType.GroupByDate:
+                                    <DateClusterReview Suggestion="s"
+                                                       CollectionStore="@CollectionStore"
+                                                       OnApplied="() => OnSuggestionApplied(s)"
+                                                       OnDismissed="() => s.IsDismissed = true" />
+                                    break;
+
+                                default:
+                                    <div class="text-muted" style="padding:12px 0">Coming soon.</div>
+                                    <button class="btn btn-sm btn-secondary" @onclick="() => s.IsDismissed = true">Skip</button>
+                                    break;
+                            }
+                        </div>
+                    }
+
+                </div>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<Suggestion> _suggestions = [];
+    private bool   _scanning;
+    private bool   _scanned;
+    private string _progress = "";
+    private string _root = "";
+
+    protected override void OnInitialized()
+    {
+        _root = Configuration["MediaSettings:LibraryRoot"] ?? "";
+    }
+
+    private async Task ScanAsync()
+    {
+        _scanning = true;
+        _suggestions.Clear();
+        _scanned  = false;
+        StateHasChanged();
+
+        try
+        {
+            var progress = new Progress<string>(msg =>
+            {
+                _progress = msg;
+                InvokeAsync(StateHasChanged);
+            });
+
+            _suggestions = await Engine.AnalyzeAsync(progress);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Scan failed");
+            Toast.Show("Scan failed: " + ex.Message, "danger");
+        }
+        finally
+        {
+            _scanning = false;
+            _scanned  = true;
+            StateHasChanged();
+        }
+    }
+
+    private void OnSuggestionApplied(Suggestion s)
+    {
+        s.IsDismissed = true;
+        Toast.Show("Done ✓", "success");
+    }
+}

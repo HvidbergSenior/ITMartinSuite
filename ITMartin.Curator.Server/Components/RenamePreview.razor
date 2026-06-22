@@ -1,0 +1,93 @@
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@inject ICollectionStore CollectionStore
+@inject ILogger<RenamePreview> Logger
+
+@if (!_confirmed)
+{
+    <div class="rename-table-wrap">
+        <table class="rename-table">
+            <thead>
+                <tr><th>Current name</th><th></th><th>New name</th><th>Folder</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Preview)
+                {
+                    <tr>
+                        <td class="old-name">@item.OldName</td>
+                        <td class="arrow">→</td>
+                        <td class="new-name">@item.NewName</td>
+                        <td class="folder text-muted">…@TrimFolder(item.Folder)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (Suggestion.AffectedFiles.Count > Preview.Count)
+        {
+            <div class="text-muted" style="font-size:12px;padding:6px 0">
+                Showing @Preview.Count of @Suggestion.AffectedFiles.Count files
+            </div>
+        }
+    </div>
+
+    <div class="suggestion-actions">
+        <button class="btn btn-primary" @onclick="ApplyAsync">
+            Rename @Suggestion.AffectedFiles.Count file@(Suggestion.AffectedFiles.Count == 1 ? "" : "s")
+        </button>
+        <button class="btn btn-secondary" @onclick="() => OnDismissed.InvokeAsync()">Skip</button>
+    </div>
+}
+else
+{
+    <div class="text-muted">✓ Renamed @_renamedCount files.</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public Suggestion Suggestion { get; set; } = null!;
+    [Parameter] public EventCallback OnApplied   { get; set; }
+    [Parameter] public EventCallback OnDismissed { get; set; }
+
+    private bool _confirmed;
+    private int  _renamedCount;
+
+    private IReadOnlyList<RenamePreviewItem> Preview =>
+        Suggestion.RenamePreview.Take(50).ToList();
+
+    private async Task ApplyAsync()
+    {
+        var collections = await CollectionStore.LoadAsync();
+
+        foreach (var item in Suggestion.RenamePreview)
+        {
+            var newPath = Path.Combine(item.Folder, item.NewName);
+            if (!File.Exists(item.OldPath) || File.Exists(newPath)) continue;
+
+            try
+            {
+                File.Move(item.OldPath, newPath);
+                _renamedCount++;
+
+                foreach (var col in collections)
+                {
+                    var idx = col.FilePaths.IndexOf(item.OldPath);
+                    if (idx >= 0) col.FilePaths[idx] = newPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Rename failed: {Old}", item.OldPath);
+            }
+        }
+
+        await CollectionStore.SaveAsync(collections);
+        _confirmed = true;
+        await OnApplied.InvokeAsync();
+    }
+
+    private static string TrimFolder(string folder)
+    {
+        var parts = folder.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return parts.Length > 3
+            ? string.Join("/", parts[^3..])
+            : folder.Replace("\\", "/");
+    }
+}

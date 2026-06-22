@@ -1,0 +1,59 @@
+@inject ILogger<DuplicateReview> Logger
+
+<div class="dup-groups">
+    @foreach (var group in Suggestion.DuplicateGroups)
+    {
+        <div class="dup-group">
+            <div class="dup-name text-muted">@group.FileName</div>
+            @foreach (var path in group.Paths)
+            {
+                <div class="dup-path">
+                    <span title="@path">…@TrimPath(path)</span>
+                    @if (_deleteConfirm == path)
+                    {
+                        <button class="btn btn-sm btn-danger"   @onclick="() => DeleteAsync(path, group)">Delete</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => _deleteConfirm = null">Cancel</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => _deleteConfirm = path">🗑</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<div class="suggestion-actions">
+    <button class="btn btn-secondary" @onclick="() => OnDismissed.InvokeAsync()">Dismiss</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Suggestion Suggestion { get; set; } = null!;
+    [Parameter] public EventCallback OnApplied   { get; set; }
+    [Parameter] public EventCallback OnDismissed { get; set; }
+
+    private string? _deleteConfirm;
+
+    private async Task DeleteAsync(string path, DuplicateGroup group)
+    {
+        try
+        {
+            File.Delete(path);
+            group.Paths.Remove(path);
+            Suggestion.AffectedFiles.Remove(path);
+        }
+        catch (Exception ex) { Logger.LogWarning(ex, "Delete failed: {Path}", path); }
+
+        _deleteConfirm = null;
+
+        if (Suggestion.DuplicateGroups.All(g => g.Paths.Count <= 1))
+            await OnApplied.InvokeAsync();
+    }
+
+    private static string TrimPath(string path)
+    {
+        var parts = path.Replace("\\", "/").Split('/');
+        return parts.Length > 4 ? string.Join("/", parts[^4..]) : path.Replace("\\", "/");
+    }
+}

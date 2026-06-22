@@ -1,0 +1,22 @@
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f1117" />
+    <base href="/" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Shared.css" />
+    <link rel="stylesheet" href="css/Curator.css" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body>
+<Routes @rendermode="InteractiveServer" />
+<script src="_framework/blazor.web.js"></script>
+<div id="components-reconnect-modal">
+    <span class="reconnect-msg">🔄 Reconnecting...</span>
+    <span class="reconnect-failed-msg">😴 Connection lost — <button onclick="location.reload()">Reload</button></span>
+</div>
+</body>
+</html>
