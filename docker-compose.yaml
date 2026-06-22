@@ -59,6 +59,7 @@ services:
       - MediaSettings__LibraryRoot=/library
       - ConnectionStrings__MediaDb=Data Source=/library/.media.db
       - Apps__GalleryUrl=https://gallery.itmartin.dk
+      - Apps__CuratorUrl=https://gallery.itmartin.dk
 
     volumes:
       - /volume1/docker/filesorter/incoming:/data

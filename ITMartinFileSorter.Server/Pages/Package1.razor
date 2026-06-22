@@ -1,93 +1,301 @@
-﻿@page "/package1"
+@page "/package1"
 
+@using System.Text.Json
 @using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1
+@using ITMartin.Media.Infrastructure.Persistence
+@using ITMartin.Media.Infrastructure.Persistence.Entities
+@using Microsoft.EntityFrameworkCore
+
+@implements IDisposable
 
 @inject IPackage1Client Package1Client
 @inject IConfiguration Configuration
+@inject IDbContextFactory<MediaDbContext> DbFactory
 @inject ILogger<Package1> Logger
 
 <PageTitle>Package 1</PageTitle>
 
-<h3>📦 Package 1</h3>
+<div class="p1-page">
 
-<div class="mb-3">
-    <label>Source Folder</label>
-
-    <input class="form-control"
-           @bind="FolderPath" />
-</div>
-
-<button class="btn btn-success"
-        @onclick="StartPackage1">
-    Start Package1
-</button>
-
-@if (!string.IsNullOrWhiteSpace(Status))
-{
-    <div class="mt-3">
-        @Status
+    <div class="p1-header">
+        <div>
+            <h1 class="p1-title">📦 Package 1</h1>
+            <div class="p1-subtitle">Discover · Deduplicate · Organise · Thumbnail</div>
+        </div>
     </div>
-}
 
-@code {
-
-    private string FolderPath = "";
-
-    private string Status = "";
-
-    protected override void OnInitialized()
+    @if (_running is null && !_justStarted)
     {
-        var source =
-            Configuration[
-                "MediaSettings:SourceRoot"];
-
-        if (!string.IsNullOrWhiteSpace(source))
-        {
-            FolderPath = source;
-        }
+        <div class="p1-card">
+            <div class="p1-field">
+                <label class="p1-label">Source folder</label>
+                <input class="p1-input" @bind="_folderPath" placeholder="/data" />
+            </div>
+            <button class="p1-btn-start" @onclick="Start" disabled="@string.IsNullOrWhiteSpace(_folderPath)">
+                ▶ Start Package 1
+            </button>
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="p1-error">@_error</div>
+            }
+        </div>
     }
 
-    private async Task StartPackage1()
+    @if (_running is not null || _justStarted)
     {
+        <div class="p1-card p1-card--running">
+
+            <div class="p1-status-row">
+                <span class="p1-badge p1-badge--running">● Running</span>
+                <span class="p1-step">@(_running?.CurrentStep ?? "Starting…")</span>
+            </div>
+
+            @if (_running?.ProgressTotal > 0)
+            {
+                var pct = (int)((double)_running.ProgressCurrent! / _running.ProgressTotal * 100);
+                <div class="p1-progress-wrap">
+                    <div class="p1-progress-bar" style="width:@pct%"></div>
+                </div>
+                <div class="p1-progress-text">
+                    @_running.ProgressCurrent / @_running.ProgressTotal &nbsp;·&nbsp; @pct%
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_running.ProgressItem))
+                {
+                    <div class="p1-file-name">@_running.ProgressItem</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(_running.ProgressData))
+                {
+                    var counts = JsonSerializer.Deserialize<Dictionary<string, int>>(_running.ProgressData);
+                    if (counts is { Count: > 0 })
+                    {
+                        <div class="p1-chips">
+                            @foreach (var (type, count) in counts.OrderByDescending(x => x.Value))
+                            {
+                                <span class="p1-chip">@TypeIcon(type) @type <strong>@count</strong></span>
+                            }
+                        </div>
+                    }
+                }
+            }
+
+            <div class="p1-meta">
+                Started @_running?.StartedAtUtc.ToString("HH:mm:ss") UTC
+                &nbsp;·&nbsp;
+                Running @FormatDuration(DateTime.UtcNow - (_running?.StartedAtUtc ?? DateTime.UtcNow))
+            </div>
+
+        </div>
+    }
+
+    @if (_lastCompleted is not null && _running is null)
+    {
+        var duration = _lastCompleted.CompletedAtUtc.HasValue
+            ? FormatDuration(_lastCompleted.CompletedAtUtc.Value - _lastCompleted.StartedAtUtc)
+            : "–";
+
+        <div class="p1-card p1-card--done">
+            <div class="p1-done-icon">✅</div>
+            <div class="p1-done-title">Package 1 complete</div>
+            <div class="p1-done-meta">Finished in @duration</div>
+            <div class="p1-done-actions">
+                <a href="@_curatorUrl" class="p1-btn-curator" target="_blank">
+                    🎬 Open Curator →
+                </a>
+                <button class="p1-btn-again" @onclick="Reset">Run again</button>
+            </div>
+        </div>
+    }
+
+    @if (_recent.Count > 0)
+    {
+        <div class="p1-card" style="margin-top:16px;">
+            <div class="p1-section-title">Recent runs</div>
+            <div class="p1-history">
+                @foreach (var r in _recent)
+                {
+                    <div class="p1-history-row">
+                        <span class="p1-badge p1-badge--@r.Status.ToLower()">@r.Status</span>
+                        <span class="p1-history-name">@r.WorkflowName</span>
+                        <span class="p1-history-time">@r.StartedAtUtc.ToString("dd MMM HH:mm")</span>
+                        @if (r.CompletedAtUtc.HasValue)
+                        {
+                            <span class="p1-history-dur">@FormatDuration(r.CompletedAtUtc.Value - r.StartedAtUtc)</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+<style>
+    .p1-page { padding: 20px 16px 60px; max-width: 700px; margin: 0 auto; color: #f0f0f0; }
+
+    .p1-header { margin-bottom: 24px; }
+    .p1-title { font-size: 28px; font-weight: 900; margin: 0; }
+    .p1-subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+    .p1-card {
+        background: rgba(255,255,255,.04);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    .p1-card--running { border-color: rgba(59,130,246,.4); background: rgba(59,130,246,.04); }
+    .p1-card--done    { border-color: rgba(34,197,94,.4);  background: rgba(34,197,94,.04); text-align: center; }
+
+    .p1-field { margin-bottom: 16px; }
+    .p1-label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+    .p1-input {
+        width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+        border-radius: 10px; padding: 10px 14px; color: white; font-size: 14px; outline: none; font-family: monospace;
+    }
+    .p1-input:focus { border-color: #3b82f6; }
+
+    .p1-btn-start {
+        width: 100%; padding: 14px; border-radius: 12px; border: none;
+        background: #2563eb; color: white; font-size: 16px; font-weight: 700; cursor: pointer;
+    }
+    .p1-btn-start:disabled { opacity: 0.4; cursor: default; }
+    .p1-btn-start:hover:not(:disabled) { background: #1d4ed8; }
+
+    .p1-error { margin-top: 12px; color: #f87171; font-size: 13px; }
+
+    .p1-status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .p1-step { font-size: 15px; font-weight: 600; }
+
+    .p1-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+    .p1-badge--running    { background: rgba(59,130,246,.2);  color: #60a5fa; }
+    .p1-badge--completed  { background: rgba(34,197,94,.2);   color: #4ade80; }
+    .p1-badge--failed     { background: rgba(248,113,113,.2); color: #f87171; }
+
+    .p1-progress-wrap { height: 8px; background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
+    .p1-progress-bar  { height: 100%; background: #3b82f6; border-radius: 999px; transition: width 0.4s ease; }
+    .p1-progress-text { font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
+    .p1-file-name { font-size: 12px; color: #64748b; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 12px; }
+
+    .p1-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .p1-chip { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 4px 12px; font-size: 12px; }
+
+    .p1-meta { font-size: 12px; color: #64748b; }
+
+    .p1-done-icon  { font-size: 48px; margin-bottom: 8px; }
+    .p1-done-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .p1-done-meta  { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+    .p1-done-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .p1-btn-curator {
+        padding: 12px 24px; border-radius: 12px; background: #16a34a; color: white;
+        font-size: 15px; font-weight: 700; text-decoration: none;
+    }
+    .p1-btn-curator:hover { background: #15803d; }
+    .p1-btn-again {
+        padding: 12px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,.15);
+        background: transparent; color: #94a3b8; font-size: 14px; cursor: pointer;
+    }
+    .p1-btn-again:hover { border-color: rgba(255,255,255,.3); color: white; }
+
+    .p1-section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+
+    .p1-history { display: flex; flex-direction: column; gap: 8px; }
+    .p1-history-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .p1-history-name { flex: 1; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .p1-history-time { color: #475569; white-space: nowrap; }
+    .p1-history-dur  { color: #475569; white-space: nowrap; }
+</style>
+
+@code {
+    private string _folderPath = "";
+    private string _error = "";
+    private bool _justStarted;
+    private string _curatorUrl = "#";
+
+    private WorkflowInstanceEntity? _running;
+    private WorkflowInstanceEntity? _lastCompleted;
+    private List<WorkflowInstanceEntity> _recent = [];
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _folderPath = Configuration["MediaSettings:SourceRoot"] ?? "/data";
+        _curatorUrl = Configuration["Apps:CuratorUrl"] ?? "#";
+        await Refresh();
+        _timer = new Timer(async _ =>
+        {
+            await Refresh();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private async Task Refresh()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        _running = await db.WorkflowInstances
+            .Where(x => x.Status == "Running")
+            .OrderByDescending(x => x.StartedAtUtc)
+            .FirstOrDefaultAsync();
+
+        if (_running is not null)
+            _justStarted = false;
+
+        _recent = await db.WorkflowInstances
+            .Where(x => x.Status != "Running")
+            .OrderByDescending(x => x.StartedAtUtc)
+            .Take(5)
+            .ToListAsync();
+
+        _lastCompleted = _justStarted ? null : _recent.FirstOrDefault(x => x.Status == "Completed");
+    }
+
+    private async Task Start()
+    {
+        _error = "";
         try
         {
-            Status = "Starting Package1...";
-
-            await Package1Client.StartAsync(
-                new StartPackage1Request
-                {
-                    SourceLibraryPath =
-                        FolderPath,
-
-                    WorkingDirectory =
-                        Path.Combine(
-                            FolderPath,
-                            ".package1"),
-
-                    EnableDeduplication =
-                        true,
-
-                    EnableAiClassification =
-                        false,
-
-                    EnableOcr =
-                        false,
-
-                    Profile =
-                        "Package1"
-                },
-                CancellationToken.None);
-
-            Status = "Package1 started";
+            _justStarted = true;
+            await Package1Client.StartAsync(new StartPackage1Request
+            {
+                SourceLibraryPath    = _folderPath,
+                WorkingDirectory     = Path.Combine(_folderPath, ".package1"),
+                EnableDeduplication  = true,
+                EnableAiClassification = false,
+                EnableOcr            = false,
+                Profile              = "Package1"
+            }, CancellationToken.None);
         }
         catch (Exception ex)
         {
-            Logger.LogError(
-                ex,
-                "Failed to start Package1");
-
-            Status = ex.Message;
+            _justStarted = false;
+            _error = ex.Message;
+            Logger.LogError(ex, "Failed to start Package1");
         }
     }
+
+    private void Reset()
+    {
+        _lastCompleted = null;
+        _justStarted = false;
+    }
+
+    private static string TypeIcon(string type) => type switch
+    {
+        "Image"    => "📷",
+        "Video"    => "🎬",
+        "Audio"    => "🎵",
+        "Document" => "📄",
+        _          => "❓"
+    };
+
+    private static string FormatDuration(TimeSpan ts)
+    {
+        if (ts.TotalHours >= 1)  return $"{(int)ts.TotalHours}h {ts.Minutes}m";
+        if (ts.TotalMinutes >= 1) return $"{ts.Minutes}m {ts.Seconds}s";
+        return $"{ts.Seconds}s";
+    }
+
+    public void Dispose() => _timer?.Dispose();
 }
