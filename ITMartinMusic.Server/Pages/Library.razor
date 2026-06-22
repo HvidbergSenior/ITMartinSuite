@@ -69,6 +69,10 @@
             <button class="lib-btn-save" @onclick="SaveSong" disabled="@(string.IsNullOrWhiteSpace(_newTitle))">
                 Save Song
             </button>
+            @if (!string.IsNullOrEmpty(_saveError))
+            {
+                <div style="color:#f87171;font-size:13px;margin-top:8px">@_saveError</div>
+            }
         </div>
     }
 
@@ -229,22 +233,32 @@
 
     private void ToggleAdd() => _adding = !_adding;
 
-    private void OpenSong(Guid id) => Nav.NavigateTo($"/song/{id}");
+    private void OpenSong(Guid id) => Nav.NavigateTo($"/song/{id}", forceLoad: true);
+
+    private string _saveError = "";
 
     private async Task SaveSong()
     {
-        var song = new Song
+        _saveError = "";
+        try
         {
-            Title      = _newTitle.Trim(),
-            FilePath   = _newFile,
-            Key        = _newKey,
-            Tempo      = _newTempo,
-            ChordChart = _newChords,
-            Lyrics     = _newLyrics,
-        };
+            var song = new Song
+            {
+                Title      = _newTitle.Trim(),
+                FilePath   = _newFile,
+                Key        = _newKey,
+                Tempo      = _newTempo,
+                ChordChart = _newChords,
+                Lyrics     = _newLyrics,
+            };
 
-        Db.Songs.Add(song);
-        await Db.SaveChangesAsync();
-        Nav.NavigateTo($"/song/{song.Id}");
+            Db.Songs.Add(song);
+            await Db.SaveChangesAsync();
+            Nav.NavigateTo($"/song/{song.Id}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _saveError = ex.Message;
+        }
     }
 }
