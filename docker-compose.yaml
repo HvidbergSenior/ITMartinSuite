@@ -305,6 +305,35 @@ services:
       - martinnet
 
   # =========================================================
+  # MAGIC COLLECTION (read-only collection viewer)
+  # =========================================================
+
+  magic-collection-web:
+    container_name: magic-collection-web
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartin.MagicCollection.Server/Dockerfile
+
+    ports:
+      - "8098:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__MagicDb=Host=magic-postgres;Port=5432;Database=magic;Username=postgres;Password=magic
+
+    depends_on:
+      - magic-postgres
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # RECEIPT
   # =========================================================
 

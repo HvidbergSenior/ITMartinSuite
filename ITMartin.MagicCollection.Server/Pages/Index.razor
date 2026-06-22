@@ -1,0 +1,155 @@
+@page "/"
+@rendermode InteractiveServer
+
+@inject IMagicCardRepository CardRepository
+@inject IPriceAlertRepository AlertRepository
+
+<PageTitle>My Collection — Prices</PageTitle>
+
+<div class="collection-page">
+
+    <div class="collection-header">
+        <div>
+            <h1 class="collection-title">My Collection</h1>
+            <div class="collection-subtitle">Card prices &amp; collection value</div>
+        </div>
+    </div>
+
+    @if (_alerts.Any())
+    {
+        <div class="alerts-panel mt-2 mb-3">
+            <div style="font-size:13px; font-weight:700; color:#fbbf24; margin-bottom:8px;">📈 Price Alerts</div>
+            @foreach (var alert in _alerts)
+            {
+                <div class="alert-row">
+                    <div class="alert-info">
+                        <span class="alert-name">@alert.CardName</span>
+                        <span class="alert-set">@alert.SetCode.ToUpperInvariant()</span>
+                    </div>
+                    <div class="alert-prices">
+                        <span class="alert-old">€@alert.OldPrice.ToString("F2")</span>
+                        <span class="alert-arrow">→</span>
+                        <span class="alert-new">€@alert.NewPrice.ToString("F2")</span>
+                        <span class="alert-delta">+€@alert.Delta.ToString("F2")</span>
+                    </div>
+                    <button class="alert-dismiss" @onclick="() => DismissAlert(alert)">✕</button>
+                </div>
+            }
+        </div>
+    }
+
+    @if (_cards is null)
+    {
+        <div class="text-muted">Loading...</div>
+    }
+    else
+    {
+        <div class="collection-stats">
+            <div class="col-stat">
+                <div class="col-stat-value">@_cards.Count</div>
+                <div class="col-stat-label">Unique Cards</div>
+            </div>
+            <div class="col-stat">
+                <div class="col-stat-value">@_cards.Sum(c => c.Quantity)</div>
+                <div class="col-stat-label">Total Copies</div>
+            </div>
+            <div class="col-stat highlight">
+                <div class="col-stat-value">€@_totalValue.ToString("F2")</div>
+                <div class="col-stat-label">Collection Value</div>
+            </div>
+        </div>
+
+        <div class="content-card mt-3" style="padding:12px 16px; display:flex; gap:10px; flex-wrap:wrap;">
+            <input class="inv-search" style="flex:1;"
+                   type="search" placeholder="Search name or set..."
+                   @bind="_search" @bind:event="oninput" />
+            <select class="inv-sort" @bind="_sortBy">
+                <option value="value">Highest value</option>
+                <option value="name">Name A–Z</option>
+                <option value="qty">Most copies</option>
+                <option value="recent">Recently scanned</option>
+            </select>
+        </div>
+
+        @if (_filtered.Any())
+        {
+            <div class="col-list mt-3">
+                @foreach (var card in _filtered)
+                {
+                    <div class="col-row">
+                        <div class="col-info">
+                            <div class="col-name">@card.Name</div>
+                            <div class="col-meta">
+                                @card.SetCode.ToUpperInvariant()
+                                · #@card.CollectorNumber
+                                · ×@card.Quantity
+                                · Last: @card.LastSeenAt.ToLocalTime().ToString("dd MMM yyyy")
+                            </div>
+                        </div>
+                        <div class="col-prices">
+                            @if (card.EurPrice.HasValue)
+                            {
+                                <div class="col-price-eur">€@card.EurPrice.Value.ToString("F2")</div>
+                                <div class="col-price-total">×@card.Quantity = €@((card.EurPrice.Value * card.Quantity).ToString("F2"))</div>
+                            }
+                            else
+                            {
+                                <div class="col-price-na">—</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="content-card mt-3" style="text-align:center; padding:40px;">
+                <div style="font-size:48px; margin-bottom:12px;">🃏</div>
+                <div class="text-muted">@(_cards.Any() ? "No cards match." : "No cards in collection yet.")</div>
+            </div>
+        }
+    }
+
+</div>
+
+@code {
+    private List<MagicCard>? _cards;
+    private List<PriceAlert> _alerts = [];
+    private string _search = "";
+    private string _sortBy = "value";
+
+    private decimal _totalValue => (_cards ?? []).Sum(c => (c.EurPrice ?? 0) * c.Quantity);
+
+    private IEnumerable<MagicCard> _filtered
+    {
+        get
+        {
+            var q = (_cards ?? []).AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(_search))
+                q = q.Where(c =>
+                    c.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                    c.SetCode.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+            return _sortBy switch
+            {
+                "name"   => q.OrderBy(c => c.Name),
+                "qty"    => q.OrderByDescending(c => c.Quantity),
+                "recent" => q.OrderByDescending(c => c.LastSeenAt),
+                _        => q.OrderByDescending(c => (c.EurPrice ?? 0) * c.Quantity)
+            };
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cards  = (await CardRepository.GetAllAsync()).ToList();
+        _alerts = await AlertRepository.GetActiveAsync();
+    }
+
+    private async Task DismissAlert(PriceAlert alert)
+    {
+        await AlertRepository.DismissAsync(alert.Id);
+        _alerts.Remove(alert);
+    }
+}

@@ -26,6 +26,9 @@ $ServiceMap = @{
     "receipt-web"       = @{ Dockerfile = "ITMartin.Receipt.Server/Dockerfile";      Context = "." }
     "library-web"       = @{ Dockerfile = "ITMartinLibrary.Server/Dockerfile";       Context = "." }
     "adhd-web"          = @{ Dockerfile = "ITMartinAdhd.Server/Dockerfile";          Context = "." }
+    "magic-collection-web" = @{ Dockerfile = "ITMartin.MagicCollection.Server/Dockerfile"; Context = "." }
+    "family-web"        = @{ Dockerfile = "ITMartinFamily.Server/Dockerfile";        Context = "." }
+    "market-web"        = @{ Dockerfile = "ITMartinMarket.Server/Dockerfile";        Context = "." }
     "bartab-web"        = @{ Dockerfile = "ITMartinBarTab.Server/Dockerfile";        Context = "." }
     "auction-web"       = @{ Dockerfile = "ITMartinAuction.Server/Dockerfile";       Context = "." }
     "testhub-web"       = @{ Dockerfile = "ITMartinTestHub.Server/Dockerfile";       Context = "." }
