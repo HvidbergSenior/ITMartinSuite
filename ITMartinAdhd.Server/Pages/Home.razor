@@ -45,11 +45,15 @@
                         </div>
                         <div class="item-meta">
                             <span class="item-time">@item.TimeAgo</span>
-                            <button class="btn-icon btn-delete"
-                                    title="Delete"
-                                    @onclick="() => DeleteItem(item.Id)">
-                                ×
-                            </button>
+                            @if (_deleteConfirmId == item.Id)
+                            {
+                                <button class="btn-icon btn-delete-confirm" title="Confirm delete" @onclick="() => ConfirmDelete(item.Id)">✓</button>
+                                <button class="btn-icon btn-delete-cancel"  title="Cancel"         @onclick="CancelDelete">✕</button>
+                            }
+                            else
+                            {
+                                <button class="btn-icon btn-delete" title="Delete" @onclick="() => AskDelete(item.Id)">×</button>
+                            }
                         </div>
                     </div>
                 }
@@ -155,11 +159,15 @@
                         </div>
                         <div class="item-meta">
                             <span class="item-time">@item.TimeAgo</span>
-                            <button class="btn-icon btn-delete"
-                                    title="Delete"
-                                    @onclick="() => DeleteItem(item.Id)">
-                                ×
-                            </button>
+                            @if (_deleteConfirmId == item.Id)
+                            {
+                                <button class="btn-icon btn-delete-confirm" title="Confirm delete" @onclick="() => ConfirmDelete(item.Id)">✓</button>
+                                <button class="btn-icon btn-delete-cancel"  title="Cancel"         @onclick="CancelDelete">✕</button>
+                            }
+                            else
+                            {
+                                <button class="btn-icon btn-delete" title="Delete" @onclick="() => AskDelete(item.Id)">×</button>
+                            }
                         </div>
                     </div>
                 }
@@ -185,6 +193,8 @@
     private bool _isSaving;
     private bool _savedFlash;
     private string _errorMessage = "";
+    private int? _deleteConfirmId;
+    private CancellationTokenSource? _searchCts;
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,7 +211,17 @@
             return;
         }
 
-        _searchResults = await StoredItemService.SearchAsync(_searchQuery);
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            _searchResults = await StoredItemService.SearchAsync(_searchQuery);
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
     }
 
     private async Task OnLogKeyDown(KeyboardEventArgs e)
@@ -266,8 +286,12 @@
         }
     }
 
-    private async Task DeleteItem(int id)
+    private void AskDelete(int id) => _deleteConfirmId = id;
+    private void CancelDelete() => _deleteConfirmId = null;
+
+    private async Task ConfirmDelete(int id)
     {
+        _deleteConfirmId = null;
         await StoredItemService.DeleteAsync(id);
         _recentItems.RemoveAll(x => x.Id == id);
         _searchResults.RemoveAll(x => x.Id == id);

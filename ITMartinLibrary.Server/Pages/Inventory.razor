@@ -14,7 +14,16 @@
         <div class="inv-header">
             <div>
                 <h1 class="inv-title">Inventory</h1>
-                <div class="inv-subtitle">@_filtered.Count of @_all.Count items</div>
+                <div class="inv-subtitle">
+            @if (_filtered.Count > 100)
+            {
+                <span>Viser 100 af @_filtered.Count (@_all.Count i alt)</span>
+            }
+            else
+            {
+                <span>@_filtered.Count af @_all.Count</span>
+            }
+        </div>
             </div>
             <a href="/library" class="btn btn-secondary">← Dashboard</a>
         </div>
@@ -68,7 +77,7 @@
         else
         {
             <div class="inv-list">
-                @foreach (var item in _filtered)
+                @foreach (var item in _filtered.Take(100))
                 {
                     <div class="inv-row">
 

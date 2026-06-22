@@ -11,6 +11,7 @@
 @inject BankTransactionCsvService CsvService
 @inject NavigationManager Nav
 @inject IJSRuntime Js
+@inject ToastService Toast
 
 <div class="budget-container">
 
@@ -145,14 +146,15 @@
             var newTransactions =
                 await CsvService.ImportAsync(stream);
 
-            _message =
+            var msg =
                 newTransactions.Any()
-
                     ? $"✔ Imported {newTransactions.Count} transactions"
-
                     : "No new transactions (duplicates skipped)";
 
-            await Task.Delay(500);
+            _message = msg;
+            Toast.Show(msg, "success");
+
+            await Task.Delay(1500);
 
             Nav.NavigateTo("/", true);
         }

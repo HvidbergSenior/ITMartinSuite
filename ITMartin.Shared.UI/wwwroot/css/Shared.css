@@ -2,20 +2,20 @@
    THEME TOKENS
 ========================= */
 :root {
-    --bg-main: #0b0b0b;
-    --bg-card: #17181c;
-    --bg-soft: #1f2229;
+    --bg-main: #0f1117;
+    --bg-card: #171a26;
+    --bg-soft: #21253a;
 
-    --text-main: #f3f4f6;
-    --text-muted: #9ca3af;
+    --text-main: #f0f0f0;
+    --text-muted: #8890a6;
 
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
+    --accent: #6366f1;
+    --accent-hover: #4f52d4;
 
     --success: #22c55e;
     --danger: #ef4444;
 
-    --border: #2d2d2d;
+    --border: #2a2d3d;
 
     --radius-sm: 10px;
     --radius-md: 16px;
@@ -34,9 +34,9 @@
 html, body {
     margin: 0;
     padding: 0;
-    background: radial-gradient(circle at top, #111 0%, #0b0b0b 60%);
+    background: var(--bg-main);
     color: var(--text-main);
-    font-family: system-ui, -apple-system, Helvetica, Arial, sans-serif;
+    font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
 
 /* =========================
@@ -49,14 +49,66 @@ html, body {
 }
 
 .app-header {
-    padding: 16px 24px;
-    /* Push content below iPhone notch / Dynamic Island in standalone PWA mode */
-    padding-top: max(16px, env(safe-area-inset-top));
+    padding: 14px 24px;
+    padding-top: max(14px, env(safe-area-inset-top));
     padding-left: max(24px, env(safe-area-inset-left));
     padding-right: max(24px, env(safe-area-inset-right));
-    background: #111;
+    background: var(--bg-card);
     border-bottom: 1px solid var(--border);
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.app-header .page-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.header-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.header-nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: .85rem;
+    font-weight: 500;
+    padding: .3rem .7rem;
+    border-radius: 7px;
+    transition: color .15s, background .15s;
+}
+
+.header-nav a:hover,
+.header-nav a.active {
+    color: var(--text-main);
+    background: rgba(255,255,255,.07);
 }
 
 .app-main {

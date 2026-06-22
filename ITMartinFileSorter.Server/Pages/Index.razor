@@ -66,6 +66,13 @@
                 CurrentItem="@CurrentFileName"
                 LoadingText="Processing media..."
                 Icon="📂" />
+
+            @if (_waitingSeconds > 0)
+            {
+                <div class="scan-waiting-msg">
+                    ⏳ Waiting for worker to finish… @_waitingSeconds s
+                </div>
+            }
         }
 
         @if (ShowSummary)
@@ -212,6 +219,8 @@
 
     private string ErrorMessage = "";
 
+    private int _waitingSeconds;
+
     private Package1ScanResult? ScanResult;
 
     private int ProgressPercent =>
@@ -336,8 +345,12 @@
                 Configuration[
                     "MediaSettings:LibraryRoot"];
 
+            _waitingSeconds = 0;
             for (var i = 0; i < 300; i++)
             {
+                _waitingSeconds = i + 1;
+                await InvokeAsync(StateHasChanged);
+
                 var manifestPath =
                     Path.Combine(
                         exportRoot!,
@@ -353,6 +366,7 @@
                                 CancellationToken.None);
 
                     IsScanning = false;
+                    _waitingSeconds = 0;
 
                     await InvokeAsync(
                         StateHasChanged);

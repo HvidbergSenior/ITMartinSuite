@@ -1,12 +1,18 @@
 ﻿<div class="app-header">
     <div class="page-container">
         <div class="header-title">
-            📁 ITMartins FileSorter
+            @if (!string.IsNullOrWhiteSpace(Icon)) { <span class="header-icon">@Icon</span> }
+            @Title
         </div>
+        @if (ChildContent is not null)
+        {
+            <div class="header-actions">@ChildContent</div>
+        }
     </div>
 </div>
 
 @code {
     [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Icon  { get; set; } = "";
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

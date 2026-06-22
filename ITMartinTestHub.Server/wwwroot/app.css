@@ -7,12 +7,12 @@
     --accent:  #6366f1;
     --accent2: #4f52d4;
     --text:    #f0f0f0;
-    --muted:   #7a7f9a;
+    --muted:   #8890a6;
     --radius:  14px;
-    --danger:  #e74c3c;
-    --success: #2ecc71;
-    --pass:    #2ecc71;
-    --fail:    #e74c3c;
+    --danger:  #ef4444;
+    --success: #22c55e;
+    --pass:    #22c55e;
+    --fail:    #ef4444;
     --skip:    #f39c12;
 }
 
@@ -201,6 +201,8 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 .step-editor-expected    { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
 .step-editor-actions { display: flex; gap: .3rem; align-items: center; flex-shrink: 0; }
 .add-step-form { background: var(--bg3); border-radius: 10px; padding: .85rem; display: flex; flex-direction: column; gap: .6rem; }
+.step-bulk-input { resize: vertical; font-family: inherit; line-height: 1.5; }
+.add-step-hint { font-size: .76rem; color: var(--muted); }
 
 /* Assignment table */
 .assignments-table { display: flex; flex-direction: column; gap: .4rem; }

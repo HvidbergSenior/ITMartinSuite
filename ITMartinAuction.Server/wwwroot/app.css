@@ -4,14 +4,14 @@
     --bg:      #0f1117;
     --bg2:     #1a1d27;
     --bg3:     #23263a;
-    --accent:  #f5a623;
-    --accent2: #e8960f;
+    --accent:  #6366f1;
+    --accent2: #4f52d4;
     --text:    #f0f0f0;
-    --muted:   #7a7f9a;
+    --muted:   #8890a6;
     --radius:  14px;
-    --danger:  #e74c3c;
-    --success: #2ecc71;
-    --sold:    #f5a623;
+    --danger:  #ef4444;
+    --success: #22c55e;
+    --sold:    #22c55e;
 }
 
 body {

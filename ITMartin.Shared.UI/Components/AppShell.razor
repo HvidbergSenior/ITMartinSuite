@@ -1,19 +1,22 @@
 ﻿<div class="app-shell">
 
     <header class="app-header">
-        <div class="header-title">ITMartins FileSorter</div>
+        <div class="page-container">
+            <div class="header-title">
+                @if (!string.IsNullOrWhiteSpace(Icon)) { <span class="header-icon">@Icon</span> }
+                @Title
+            </div>
+        </div>
     </header>
 
     <main class="app-main">
         @ChildContent
     </main>
 
-    <footer class="app-footer">
-        © 2026 FileSorter
-    </footer>
-
 </div>
 
 @code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Icon  { get; set; } = "";
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

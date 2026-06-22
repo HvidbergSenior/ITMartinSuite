@@ -1,10 +1,16 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <main>
-        <article class="content px-4">
-            @Body
-        </article>
-        <ToastContainer />
+<div class="app-shell">
+
+    <header class="app-header">
+        <div class="page-container">
+            <div class="header-title">📚 Library</div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        @Body
     </main>
+    <ToastContainer />
+
 </div>

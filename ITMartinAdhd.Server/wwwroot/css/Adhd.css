@@ -4,14 +4,14 @@
    ============================================= */
 
 :root {
-    --adhd-bg: #0d0d14;
-    --adhd-surface: #16161f;
-    --adhd-surface-2: #1e1e2a;
-    --adhd-border: #2a2a3a;
-    --adhd-accent: #7c6af7;
-    --adhd-accent-dark: #5b4fd4;
-    --adhd-text: #f0f0f8;
-    --adhd-muted: #888899;
+    --adhd-bg: #0f1117;
+    --adhd-surface: #171a26;
+    --adhd-surface-2: #21253a;
+    --adhd-border: #2a2d3d;
+    --adhd-accent: #6366f1;
+    --adhd-accent-dark: #4f52d4;
+    --adhd-text: #f0f0f0;
+    --adhd-muted: #8890a6;
     --adhd-success: #22c55e;
     --adhd-danger: #ef4444;
     --adhd-radius: 14px;
@@ -714,3 +714,5 @@ body {
 .toast-error   { background:#ef4444; color:white; }
 .toast-info    { background:#3b82f6; color:white; }
 @keyframes toast-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.btn-delete-confirm { background:none; border:none; color:#22c55e; font-size:1rem; cursor:pointer; padding:.1rem .3rem; font-weight:700; }
+.btn-delete-cancel  { background:none; border:none; color:#ef4444; font-size:1rem; cursor:pointer; padding:.1rem .3rem; }

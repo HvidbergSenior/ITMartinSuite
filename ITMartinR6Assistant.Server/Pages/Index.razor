@@ -15,10 +15,11 @@
         </div>
     </div>
 
-    @if (_maps.Count == 0)
+    @if (_loading)
     {
-        <div class="content-card">
-            Loading maps...
+        <div class="content-card" style="text-align:center;padding:40px 20px;">
+            <div style="font-size:32px;margin-bottom:10px;">⏳</div>
+            <div>Loading maps…</div>
         </div>
     }
     else
@@ -45,10 +46,12 @@
 @code {
 
     private List<string> _maps = [];
+    private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
         _maps = await RecommendationService.GetMaps();
+        _loading = false;
     }
 
     private void GoToMap(string map)

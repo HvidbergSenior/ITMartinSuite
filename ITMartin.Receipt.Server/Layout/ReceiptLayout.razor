@@ -2,13 +2,16 @@
 
 <div class="app-shell">
     <header class="app-header">
-        <div class="header-title">
-            🧾 Receipt Scanner
+        <div class="page-container">
+            <div class="header-title">
+                <span class="header-icon">🧾</span>
+                Receipt Scanner
+            </div>
+            <nav class="header-nav">
+                <a href="/">Dashboard</a>
+                <a href="/scanner">Scan</a>
+            </nav>
         </div>
-        <nav class="header-nav">
-            <a href="/">Dashboard</a>
-            <a href="/scanner">Scan</a>
-        </nav>
     </header>
 
     <main class="app-main">
@@ -16,7 +19,4 @@
     </main>
     <ToastContainer />
 
-    <div class="app-footer">
-        &copy; @DateTime.Now.Year Receipt Scanner
-    </div>
 </div>

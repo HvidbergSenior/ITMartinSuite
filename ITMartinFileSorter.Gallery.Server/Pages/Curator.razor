@@ -10,6 +10,7 @@
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 @inject ILogger<Curator> Logger
+@inject ToastService Toast
 
 <div class="curator-root">
 
@@ -490,6 +491,8 @@
             file.Name = newName;
             file.EditName = newName;
             file.ThumbnailUrl = BuildThumbnailUrl(newPath);
+
+            Toast.Show("Omdøbt ✓");
         }
         catch (Exception ex)
         {

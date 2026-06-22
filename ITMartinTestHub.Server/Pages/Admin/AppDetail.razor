@@ -77,20 +77,18 @@ else
             <!-- Add step form -->
             <div class="add-step-form">
                 <div class="form-row">
-                    <label class="home-label">Instruction</label>
-                    <input class="home-input" @bind="_newInstruction"
-                           placeholder="Open the app and create a new session"
-                           maxlength="300" />
+                    <label class="home-label">Add steps — one per line</label>
+                    <textarea class="home-input step-bulk-input"
+                              @bind="_newBulkSteps"
+                              placeholder="Open the app&#10;Create a new session&#10;Invite a participant"
+                              rows="4"></textarea>
                 </div>
-                <div class="form-row">
-                    <label class="home-label">Expected result (optional)</label>
-                    <input class="home-input" @bind="_newExpected"
-                           placeholder="Session appears with a 6-char code"
-                           maxlength="300" />
+                <div class="add-step-hint">
+                    Each non-empty line becomes one step. Press Enter between steps.
                 </div>
-                <button class="btn-primary btn-sm" @onclick="AddStep"
-                        disabled="@string.IsNullOrWhiteSpace(_newInstruction)">
-                    + Add step
+                <button class="btn-primary btn-sm" @onclick="AddSteps"
+                        disabled="@(_bulkLineCount == 0)">
+                    + Add @(_bulkLineCount == 1 ? "1 step" : $"{_bulkLineCount} steps")
                 </button>
             </div>
         </div>
@@ -102,9 +100,11 @@ else
     [Parameter] public Guid AppId { get; set; }
 
     private AppEntry? _app;
-    private string    _newInstruction = "";
-    private string?   _newExpected;
+    private string    _newBulkSteps = "";
     private bool      _saved;
+
+    private int _bulkLineCount =>
+        _newBulkSteps.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
 
     protected override async Task OnInitializedAsync() =>
         _app = await Svc.GetAppAsync(AppId);
@@ -118,12 +118,19 @@ else
         _saved = false;
     }
 
-    private async Task AddStep()
+    private async Task AddSteps()
     {
-        if (string.IsNullOrWhiteSpace(_newInstruction)) return;
-        await Svc.AddStepAsync(AppId, _newInstruction.Trim(), _newExpected?.Trim());
-        _newInstruction = "";
-        _newExpected    = null;
+        var lines = _newBulkSteps
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .ToList();
+
+        if (lines.Count == 0) return;
+
+        foreach (var line in lines)
+            await Svc.AddStepAsync(AppId, line, null);
+
+        _newBulkSteps = "";
         _app = await Svc.GetAppAsync(AppId);
     }
 
