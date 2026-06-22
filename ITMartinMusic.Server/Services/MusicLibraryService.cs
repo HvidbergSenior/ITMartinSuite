@@ -18,18 +18,37 @@ public sealed class MusicLibraryService
             return [];
 
         var all = AudioExt.Concat(VideoExt).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var results = new List<string>();
 
-        return Directory
-            .EnumerateFiles(_root, "*", new EnumerationOptions
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(_root, "*", SearchOption.TopDirectoryOnly))
             {
-                RecurseSubdirectories = true,
-                IgnoreInaccessible    = true,
-                AttributesToSkip      = FileAttributes.Hidden | FileAttributes.System
-            })
-            .Where(f => all.Contains(Path.GetExtension(f)))
-            .Select(f => Path.GetRelativePath(_root, f).Replace('\\', '/'))
-            .OrderBy(f => f)
-            .ToList();
+                if (all.Contains(Path.GetExtension(file)))
+                    results.Add(Path.GetRelativePath(_root, file).Replace('\\', '/'));
+            }
+
+            foreach (var dir in Directory.EnumerateDirectories(_root))
+            {
+                var name = Path.GetFileName(dir);
+                if (name.StartsWith('@') || name.StartsWith('#') || name.StartsWith('.'))
+                    continue;
+
+                try
+                {
+                    foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+                    {
+                        if (all.Contains(Path.GetExtension(file)))
+                            results.Add(Path.GetRelativePath(_root, file).Replace('\\', '/'));
+                    }
+                }
+                catch { /* skip inaccessible subdirectories */ }
+            }
+        }
+        catch { /* skip if root is inaccessible */ }
+
+        results.Sort();
+        return results;
     }
 
     public bool IsVideo(string relativePath) =>
