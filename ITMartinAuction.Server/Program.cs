@@ -31,9 +31,11 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
+var photosPath = "/app/data/photos";
+Directory.CreateDirectory(photosPath);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider("/app/data/photos"),
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(photosPath),
     RequestPath  = "/photos"
 });
 

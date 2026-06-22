@@ -259,8 +259,27 @@ else
     {
         _session = await Svc.GetByCodeAsync(Code);
         if (_session is null) return;
-
         _activeItem = _session.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _session is null) return;
+
+        // JS interop + SignalR must run after first render (interactive mode only)
+        var isHost   = await JS.InvokeAsync<string?>("auction.getItem", $"host_{Code.ToUpper()}");
+        _isHost = isHost == "1";
+
+        var savedName = await JS.InvokeAsync<string?>("auction.getItem", $"name_{Code.ToUpper()}");
+        if (!string.IsNullOrWhiteSpace(savedName))
+        {
+            _me = _session.Bidders.FirstOrDefault(b =>
+                string.Equals(b.Name, savedName, StringComparison.OrdinalIgnoreCase));
+            if (_me is null)
+                _me = await Svc.JoinAsync(Code, savedName);
+        }
+
+        _bidAmount = MinBid;
 
         _hub = new HubConnectionBuilder()
             .WithUrl(Nav.ToAbsoluteUri("/hubs/auction"))
@@ -320,26 +339,6 @@ else
 
         await _hub.StartAsync();
         await _hub.InvokeAsync("JoinSession", Code.ToUpper());
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender || _session is null) return;
-
-        var isHost = await JS.InvokeAsync<string?>("auction.getItem", $"host_{Code.ToUpper()}");
-        _isHost = isHost == "1";
-
-        var savedName = await JS.InvokeAsync<string?>("auction.getItem", $"name_{Code.ToUpper()}");
-        if (!string.IsNullOrWhiteSpace(savedName))
-        {
-            _me = _session.Bidders.FirstOrDefault(b =>
-                string.Equals(b.Name, savedName, StringComparison.OrdinalIgnoreCase));
-
-            if (_me is null)
-                _me = await Svc.JoinAsync(Code, savedName);
-        }
-
-        _bidAmount = MinBid;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -398,7 +397,12 @@ else
     {
         if (_hub is not null)
         {
-            await _hub.InvokeAsync("LeaveSession", Code.ToUpper());
+            try
+            {
+                if (_hub.State == HubConnectionState.Connected)
+                    await _hub.InvokeAsync("LeaveSession", Code.ToUpper());
+            }
+            catch { }
             await _hub.DisposeAsync();
         }
     }
