@@ -1,0 +1,249 @@
+@page "/"
+@using ITMartinMusic.Server.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject MusicDbContext Db
+@inject MusicLibraryService Lib
+@inject NavigationManager Nav
+
+<PageTitle>Martin Musik</PageTitle>
+
+<div class="lib-page">
+
+    <div class="lib-header">
+        <div>
+            <h1 class="lib-title">🎵 Martin Musik</h1>
+            <div class="lib-subtitle">Your songs · Your practice</div>
+        </div>
+        <button class="lib-btn-add" @onclick="ToggleAdd">@(_adding ? "✕ Cancel" : "+ New Song")</button>
+    </div>
+
+    @if (_adding)
+    {
+        <div class="lib-new-card">
+            <h2 class="lib-new-title">Add Song</h2>
+
+            <div class="lib-field">
+                <label>Title</label>
+                <input @bind="_newTitle" placeholder="My Song" class="lib-input" />
+            </div>
+
+            <div class="lib-field">
+                <label>File <span class="lib-hint">(from MartinMusik)</span></label>
+                <select @bind="_newFile" class="lib-input">
+                    <option value="">— pick a file —</option>
+                    @foreach (var f in _files)
+                    {
+                        <option value="@f">@f</option>
+                    }
+                </select>
+            </div>
+
+            <div class="lib-row">
+                <div class="lib-field">
+                    <label>Key</label>
+                    <select @bind="_newKey" class="lib-input">
+                        @foreach (var k in Keys)
+                        {
+                            <option value="@k">@k</option>
+                        }
+                    </select>
+                </div>
+                <div class="lib-field">
+                    <label>BPM <span class="lib-hint">(optional)</span></label>
+                    <input @bind="_newTempo" type="number" placeholder="120" class="lib-input" />
+                </div>
+            </div>
+
+            <div class="lib-field">
+                <label>Chord chart <span class="lib-hint">(e.g. Am G F E — one line per section)</span></label>
+                <textarea @bind="_newChords" rows="4" placeholder="Verse: Am G F E — Chorus: C G Am F" class="lib-input lib-textarea" />
+            </div>
+
+            <div class="lib-field">
+                <label>Lyrics</label>
+                <textarea @bind="_newLyrics" rows="8" placeholder="Write your lyrics here..." class="lib-input lib-textarea" />
+            </div>
+
+            <button class="lib-btn-save" @onclick="SaveSong" disabled="@(string.IsNullOrWhiteSpace(_newTitle))">
+                Save Song
+            </button>
+        </div>
+    }
+
+    <div class="lib-search-row">
+        <input @bind="_search" @bind:event="oninput" placeholder="Search songs…" class="lib-search" />
+    </div>
+
+    @if (!_songs.Any())
+    {
+        <div class="lib-empty">No songs yet — add your first one above.</div>
+    }
+    else
+    {
+        <div class="lib-grid">
+            @foreach (var song in Filtered)
+            {
+                <div class="lib-card" @onclick="() => OpenSong(song.Id)">
+                    <div class="lib-card-icon">@(Lib.IsVideo(song.FilePath) ? "🎬" : "🎵")</div>
+                    <div class="lib-card-body">
+                        <div class="lib-card-title">@song.Title</div>
+                        <div class="lib-card-meta">
+                            @if (!string.IsNullOrEmpty(song.Key))
+                            {
+                                <span class="lib-key-badge">@song.Key</span>
+                            }
+                            @if (song.Tempo.HasValue)
+                            {
+                                <span class="lib-tempo">@song.Tempo BPM</span>
+                            }
+                        </div>
+                        <div class="lib-card-date">
+                            @if (song.PracticeEntries.Count > 0)
+                            {
+                                <span>Last practiced @song.PracticeEntries.Max(p => p.LoggedAt).ToString("dd MMM yyyy")</span>
+                            }
+                            else
+                            {
+                                <span class="lib-no-practice">Not practiced yet</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="lib-card-arrow">›</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+
+    .musik-root { min-height: 100vh; background: #0f1117; }
+
+    .lib-page { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    .lib-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+    .lib-title { font-size: 32px; font-weight: 900; margin: 0; }
+    .lib-subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+    .lib-btn-add {
+        background: #2563eb; color: white; border: none; border-radius: 10px;
+        padding: 10px 18px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .lib-btn-add:hover { background: #1d4ed8; }
+
+    .lib-new-card {
+        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+        border-radius: 16px; padding: 24px; margin-bottom: 24px;
+    }
+    .lib-new-title { font-size: 18px; font-weight: 800; margin: 0 0 20px; }
+
+    .lib-field { margin-bottom: 14px; }
+    .lib-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+    .lib-hint { font-weight: 400; color: #475569; }
+    .lib-row { display: flex; gap: 12px; }
+    .lib-row .lib-field { flex: 1; }
+
+    .lib-input {
+        width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+        border-radius: 10px; padding: 10px 14px; color: white; font-size: 14px; outline: none;
+    }
+    .lib-input:focus { border-color: #3b82f6; }
+    .lib-textarea { resize: vertical; font-family: monospace; min-height: 80px; }
+    select.lib-input option { background: #1e2530; }
+
+    .lib-btn-save {
+        width: 100%; padding: 13px; border-radius: 12px; border: none;
+        background: #16a34a; color: white; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px;
+    }
+    .lib-btn-save:disabled { opacity: .4; cursor: default; }
+    .lib-btn-save:hover:not(:disabled) { background: #15803d; }
+
+    .lib-search-row { margin-bottom: 20px; }
+    .lib-search {
+        width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+        border-radius: 12px; padding: 12px 16px; color: white; font-size: 15px; outline: none;
+    }
+    .lib-search:focus { border-color: #3b82f6; }
+
+    .lib-empty { text-align: center; color: #475569; padding: 60px 0; font-size: 16px; }
+
+    .lib-grid { display: flex; flex-direction: column; gap: 10px; }
+
+    .lib-card {
+        display: flex; align-items: center; gap: 14px;
+        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+        border-radius: 14px; padding: 16px 18px; cursor: pointer; transition: border-color .15s;
+    }
+    .lib-card:hover { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.06); }
+    .lib-card-icon { font-size: 28px; }
+    .lib-card-body { flex: 1; }
+    .lib-card-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .lib-card-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .lib-key-badge {
+        background: rgba(59,130,246,.2); color: #60a5fa;
+        border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700;
+    }
+    .lib-tempo { font-size: 12px; color: #64748b; }
+    .lib-card-date { font-size: 12px; color: #475569; }
+    .lib-no-practice { color: #374151; }
+    .lib-card-arrow { font-size: 22px; color: #374151; }
+</style>
+
+@code {
+    private List<Song> _songs = [];
+    private IReadOnlyList<string> _files = [];
+    private string _search = "";
+    private bool _adding;
+
+    private string _newTitle = "";
+    private string _newFile  = "";
+    private string _newKey   = "Am";
+    private int?   _newTempo;
+    private string _newChords = "";
+    private string _newLyrics = "";
+
+    private static readonly string[] Keys =
+    [
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+        "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"
+    ];
+
+    private IEnumerable<Song> Filtered =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _songs
+            : _songs.Where(s => s.Title.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _songs = await Db.Songs
+            .Include(s => s.PracticeEntries)
+            .OrderByDescending(s => s.UpdatedAt)
+            .ToListAsync();
+
+        _files = Lib.GetAllFiles();
+    }
+
+    private void ToggleAdd() => _adding = !_adding;
+
+    private void OpenSong(Guid id) => Nav.NavigateTo($"/song/{id}");
+
+    private async Task SaveSong()
+    {
+        var song = new Song
+        {
+            Title      = _newTitle.Trim(),
+            FilePath   = _newFile,
+            Key        = _newKey,
+            Tempo      = _newTempo,
+            ChordChart = _newChords,
+            Lyrics     = _newLyrics,
+        };
+
+        Db.Songs.Add(song);
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo($"/song/{song.Id}");
+    }
+}

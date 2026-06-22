@@ -47,7 +47,7 @@ public sealed class ClaudeImageAnalysisService
         },
     };
 
-    private readonly AnthropicClient _client;
+    private readonly AnthropicClient? _client;
     private readonly ILogger<ClaudeImageAnalysisService> _logger;
 
     public ClaudeImageAnalysisService(
@@ -58,10 +58,8 @@ public sealed class ClaudeImageAnalysisService
 
         var apiKey = configuration["Claude:ApiKey"];
 
-        if (string.IsNullOrWhiteSpace(apiKey))
-            throw new InvalidOperationException("Missing Claude API key");
-
-        _client = new AnthropicClient { ApiKey = apiKey };
+        if (!string.IsNullOrWhiteSpace(apiKey))
+            _client = new AnthropicClient { ApiKey = apiKey };
     }
 
     public async Task<AiAnalysisResult> AnalyzeImageAsync(string filePath)
@@ -104,6 +102,9 @@ public sealed class ClaudeImageAnalysisService
                     }
                 ]
             };
+
+            if (_client is null)
+                return Empty();
 
             var response = await _client.Messages.Create(request);
 

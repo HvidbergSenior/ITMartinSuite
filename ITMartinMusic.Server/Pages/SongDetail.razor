@@ -1,0 +1,514 @@
+@page "/song/{Id:guid}"
+@using ITMartinMusic.Server.Data
+@using Microsoft.EntityFrameworkCore
+
+@inject MusicDbContext Db
+@inject MusicLibraryService Library
+@inject ChordService Chords
+@inject AiCoachService Ai
+@inject NavigationManager Nav
+
+<PageTitle>@(_song?.Title ?? "Song")</PageTitle>
+
+@if (_song is null)
+{
+    <div style="padding:40px;color:#64748b">Loading…</div>
+}
+else
+{
+<div class="sp-page">
+
+    <!-- Header -->
+    <div class="sp-header">
+        <a href="/" class="sp-back">← Library</a>
+        @if (!_editingMeta)
+        {
+            <div class="sp-header-center">
+                <h1 class="sp-title">@_song.Title</h1>
+                <div class="sp-meta-row">
+                    @if (!string.IsNullOrEmpty(_song.Key))
+                    {
+                        <span class="sp-key-badge">@CurrentKey</span>
+                    }
+                    @if (_song.Tempo.HasValue)
+                    {
+                        <span class="sp-tempo">@_song.Tempo BPM</span>
+                    }
+                </div>
+            </div>
+            <button class="sp-btn-ghost" @onclick="() => _editingMeta = true">✏️</button>
+        }
+        else
+        {
+            <div class="sp-meta-edit">
+                <input @bind="_editTitle" class="sp-meta-input" placeholder="Title" />
+                <select @bind="_editKey" class="sp-meta-input sp-meta-select">
+                    @foreach (var k in Keys)
+                    {
+                        <option value="@k">@k</option>
+                    }
+                </select>
+                <input @bind="_editTempo" type="number" class="sp-meta-input sp-meta-bpm" placeholder="BPM" />
+                <button class="sp-btn-primary" @onclick="SaveMeta">Save</button>
+                <button class="sp-btn-ghost" @onclick="() => _editingMeta = false">Cancel</button>
+            </div>
+        }
+    </div>
+
+    <!-- Body: two columns -->
+    <div class="sp-body">
+
+        <!-- LEFT: player + chords -->
+        <div class="sp-left">
+
+            <!-- Player -->
+            <div class="sp-player-card">
+                @if (!string.IsNullOrEmpty(_song.FilePath) && Library.Exists(_song.FilePath))
+                {
+                    @if (Library.IsVideo(_song.FilePath))
+                    {
+                        <video src="/stream?path=@Uri.EscapeDataString(_song.FilePath)"
+                               controls class="sp-video" preload="metadata" />
+                    }
+                    else
+                    {
+                        <audio src="/stream?path=@Uri.EscapeDataString(_song.FilePath)"
+                               controls class="sp-audio" preload="metadata" />
+                    }
+                }
+                else
+                {
+                    <div class="sp-no-file">
+                        No file linked · <span class="sp-link" @onclick="() => _editingMeta = true">Edit song to add one</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Chord chart -->
+            <div class="sp-chords-card">
+                <div class="sp-section-header">
+                    <span class="sp-section-label">Chords</span>
+                    <div class="sp-transpose">
+                        <button class="sp-t-btn" @onclick="() => AdjustTranspose(-1)">−</button>
+                        <span class="sp-t-val">@(_transpose == 0 ? "0" : (_transpose > 0 ? $"+{_transpose}" : $"{_transpose}"))</span>
+                        <button class="sp-t-btn" @onclick="() => AdjustTranspose(1)">+</button>
+                        @if (_transpose != 0)
+                        {
+                            <button class="sp-t-reset" @onclick="() => _transpose = 0">Reset</button>
+                        }
+                    </div>
+                    <button class="sp-btn-ghost sp-small" @onclick="() => _editingChords = !_editingChords">
+                        @(_editingChords ? "Done" : "✏️")
+                    </button>
+                </div>
+
+                @if (_editingChords)
+                {
+                    <textarea @bind="_editChords" rows="8" class="sp-chord-edit" placeholder="Verse:\nAm  G  F  E" />
+                    <button class="sp-btn-primary sp-btn-full" @onclick="SaveChords">Save chords</button>
+                }
+                else if (string.IsNullOrWhiteSpace(_song.ChordChart))
+                {
+                    <div class="sp-empty-hint">No chords yet · click ✏️ to add</div>
+                }
+                else
+                {
+                    <div class="sp-chord-chart">
+                        @foreach (var line in TransposedChart.Split('\n'))
+                        {
+                            <div class="sp-chord-line">
+                                @if (string.IsNullOrWhiteSpace(line))
+                                {
+                                    <br />
+                                }
+                                else if (line.Trim().EndsWith(':'))
+                                {
+                                    <span class="sp-chord-section">@line.Trim()</span>
+                                }
+                                else
+                                {
+                                    @foreach (var token in line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        @if (ChordService.IsChordToken(token))
+                                        {
+                                            <span class="sp-chord-box">@token</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="sp-chord-text">@token</span>
+                                        }
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- RIGHT: lyrics -->
+        <div class="sp-right">
+            <div class="sp-lyrics-card">
+                <div class="sp-section-header">
+                    <span class="sp-section-label">Lyrics</span>
+                    <div class="sp-lyric-actions">
+                        @if (!_editingLyrics)
+                        {
+                            <button class="sp-btn-ghost sp-small" @onclick="StartEditLyrics">✏️ Edit</button>
+                            @if (Ai.IsAvailable)
+                            {
+                                <button class="sp-btn-ghost sp-small" @onclick="ToggleAi">🤖 Coach</button>
+                            }
+                        }
+                        else
+                        {
+                            <button class="sp-btn-primary sp-small" @onclick="SaveLyrics">Save</button>
+                            <button class="sp-btn-ghost sp-small" @onclick="CancelEditLyrics">Cancel</button>
+                        }
+                    </div>
+                </div>
+
+                @if (_editingLyrics)
+                {
+                    <textarea @bind="_editLyrics" rows="20" class="sp-lyrics-edit" placeholder="Write your lyrics here…" />
+                    @if (Ai.IsAvailable)
+                    {
+                        <div class="sp-ai-row">
+                            <input @bind="_aiInstruction" placeholder="e.g. make the chorus punchier…" class="sp-ai-input" />
+                            <button class="sp-btn-primary" @onclick="ImproveLyrics" disabled="@_aiLoading">
+                                @(_aiLoading ? "…" : "AI ✨")
+                            </button>
+                        </div>
+                    }
+                }
+                else if (string.IsNullOrWhiteSpace(_song.Lyrics))
+                {
+                    <div class="sp-empty-hint">No lyrics yet · click ✏️ Edit to add</div>
+                }
+                else
+                {
+                    <div class="sp-lyrics-display">
+                        @foreach (var line in _song.Lyrics.Split('\n'))
+                        {
+                            @if (string.IsNullOrWhiteSpace(line))
+                            {
+                                <div class="sp-lyric-blank"></div>
+                            }
+                            else
+                            {
+                                <div class="sp-lyric-line">@line</div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- AI coach panel -->
+            @if (_showAi)
+            {
+                <div class="sp-ai-card">
+                    <div class="sp-section-header">
+                        <span class="sp-section-label">🤖 AI Coach</span>
+                        <button class="sp-btn-ghost sp-small" @onclick="ToggleAi">✕</button>
+                    </div>
+                    @if (_aiLoading)
+                    {
+                        <div class="sp-ai-loading">Thinking…</div>
+                    }
+                    else if (!string.IsNullOrEmpty(_aiResponse))
+                    {
+                        <div class="sp-ai-response">@_aiResponse</div>
+                    }
+                    else
+                    {
+                        <button class="sp-btn-primary sp-btn-full" @onclick="RunCoach">Get feedback on this song</button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Practice log -->
+    <div class="sp-practice-card">
+        <div class="sp-section-header">
+            <span class="sp-section-label">Practice Log</span>
+            <button class="sp-btn-ghost sp-small" @onclick="() => _addingPractice = !_addingPractice">
+                @(_addingPractice ? "✕" : "+ Log session")
+            </button>
+        </div>
+
+        @if (_addingPractice)
+        {
+            <div class="sp-log-form">
+                <div class="sp-rating-row">
+                    @for (var i = 1; i <= 5; i++)
+                    {
+                        var star = i;
+                        <span class="sp-star @(star <= _newRating ? "sp-star--on" : "")"
+                              @onclick="() => _newRating = star">★</span>
+                    }
+                </div>
+                <textarea @bind="_newPracticeNotes" rows="3" class="sp-log-input" placeholder="How did it go? What needs work?" />
+                <button class="sp-btn-primary" @onclick="SavePractice">Save</button>
+            </div>
+        }
+
+        @if (!_song.PracticeEntries.Any())
+        {
+            <div class="sp-empty-hint">No sessions logged yet.</div>
+        }
+        else
+        {
+            <div class="sp-log-list">
+                @foreach (var entry in _song.PracticeEntries.OrderByDescending(p => p.LoggedAt))
+                {
+                    <div class="sp-log-entry">
+                        <div class="sp-log-top">
+                            <span class="sp-log-stars">@string.Concat(Enumerable.Repeat("★", entry.Rating))@string.Concat(Enumerable.Repeat("☆", 5 - entry.Rating))</span>
+                            <span class="sp-log-date">@entry.LoggedAt.ToString("dd MMM yyyy · HH:mm")</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(entry.Notes))
+                        {
+                            <div class="sp-log-notes">@entry.Notes</div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+</div>
+}
+
+<style>
+    .sp-page { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; color: #f0f0f0; }
+
+    .sp-header {
+        display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .sp-back { color: #64748b; text-decoration: none; font-size: 14px; white-space: nowrap; }
+    .sp-back:hover { color: #f0f0f0; }
+    .sp-header-center { flex: 1; }
+    .sp-title { font-size: 26px; font-weight: 900; margin: 0 0 4px; }
+    .sp-meta-row { display: flex; gap: 8px; align-items: center; }
+    .sp-key-badge { background: rgba(59,130,246,.2); color: #60a5fa; border-radius: 999px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
+    .sp-tempo { font-size: 13px; color: #64748b; }
+
+    .sp-meta-edit { display: flex; gap: 8px; align-items: center; flex: 1; flex-wrap: wrap; }
+    .sp-meta-input { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 8px; padding: 8px 12px; color: white; font-size: 14px; outline: none; }
+    .sp-meta-select { cursor: pointer; }
+    .sp-meta-select option { background: #1e2530; }
+    .sp-meta-bpm { width: 80px; }
+
+    .sp-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @@media (max-width: 700px) { .sp-body { grid-template-columns: 1fr; } }
+
+    .sp-left { display: flex; flex-direction: column; gap: 16px; }
+    .sp-right { display: flex; flex-direction: column; gap: 16px; }
+
+    .sp-player-card, .sp-chords-card, .sp-lyrics-card, .sp-ai-card, .sp-practice-card {
+        background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+        border-radius: 16px; padding: 18px;
+    }
+
+    .sp-video { width: 100%; border-radius: 10px; max-height: 280px; background: #000; }
+    .sp-audio { width: 100%; }
+    .sp-no-file { color: #475569; font-size: 14px; text-align: center; padding: 20px 0; }
+    .sp-link { color: #60a5fa; cursor: pointer; }
+
+    .sp-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .sp-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #64748b; flex: 1; }
+
+    .sp-transpose { display: flex; align-items: center; gap: 4px; }
+    .sp-t-btn { background: rgba(255,255,255,.1); border: none; color: white; border-radius: 6px; width: 28px; height: 28px; font-size: 16px; cursor: pointer; }
+    .sp-t-btn:hover { background: rgba(255,255,255,.2); }
+    .sp-t-val { font-size: 13px; font-weight: 700; min-width: 28px; text-align: center; color: #60a5fa; }
+    .sp-t-reset { background: none; border: none; color: #64748b; font-size: 12px; cursor: pointer; }
+    .sp-t-reset:hover { color: white; }
+
+    .sp-chord-edit, .sp-lyrics-edit, .sp-log-input {
+        width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+        border-radius: 10px; padding: 10px 14px; color: white; font-size: 14px; outline: none;
+        resize: vertical; font-family: monospace; margin-bottom: 8px;
+    }
+    .sp-chord-edit:focus, .sp-lyrics-edit:focus, .sp-log-input:focus { border-color: #3b82f6; }
+
+    .sp-chord-chart { display: flex; flex-direction: column; gap: 6px; }
+    .sp-chord-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 20px; }
+    .sp-chord-section { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+    .sp-chord-box {
+        background: rgba(59,130,246,.2); border: 1px solid rgba(59,130,246,.4);
+        color: #93c5fd; border-radius: 8px; padding: 6px 12px;
+        font-size: 16px; font-weight: 800; font-family: monospace;
+    }
+    .sp-chord-text { color: #94a3b8; font-size: 14px; }
+
+    .sp-lyrics-display { display: flex; flex-direction: column; max-height: 500px; overflow-y: auto; }
+    .sp-lyric-line { font-size: 15px; line-height: 1.7; color: #e2e8f0; }
+    .sp-lyric-blank { height: 12px; }
+
+    .sp-lyric-actions { display: flex; gap: 6px; }
+    .sp-ai-row { display: flex; gap: 8px; }
+    .sp-ai-input { flex: 1; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 8px 12px; color: white; font-size: 13px; outline: none; }
+    .sp-ai-loading { color: #64748b; text-align: center; padding: 20px 0; }
+    .sp-ai-response { font-size: 14px; line-height: 1.6; color: #cbd5e1; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+
+    .sp-btn-primary { background: #2563eb; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .sp-btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .sp-btn-primary:disabled { opacity: .4; cursor: default; }
+    .sp-btn-ghost { background: rgba(255,255,255,.07); color: #94a3b8; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+    .sp-btn-ghost:hover { background: rgba(255,255,255,.12); color: white; }
+    .sp-btn-full { width: 100%; padding: 12px; }
+    .sp-small { font-size: 12px; padding: 5px 10px; }
+
+    .sp-empty-hint { color: #475569; font-size: 13px; font-style: italic; padding: 12px 0; }
+
+    .sp-log-form { margin-bottom: 16px; }
+    .sp-rating-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .sp-star { font-size: 24px; color: #374151; cursor: pointer; transition: color .1s; }
+    .sp-star--on { color: #f59e0b; }
+    .sp-star:hover { color: #fbbf24; }
+
+    .sp-log-list { display: flex; flex-direction: column; gap: 10px; }
+    .sp-log-entry { background: rgba(255,255,255,.03); border-radius: 10px; padding: 12px; }
+    .sp-log-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .sp-log-stars { color: #f59e0b; font-size: 14px; }
+    .sp-log-date { font-size: 11px; color: #475569; }
+    .sp-log-notes { font-size: 13px; color: #94a3b8; }
+</style>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private Song? _song;
+    private int _transpose;
+
+    private bool _editingMeta;
+    private string _editTitle = "";
+    private string _editKey   = "";
+    private int?   _editTempo;
+
+    private bool   _editingChords;
+    private string _editChords = "";
+
+    private bool   _editingLyrics;
+    private string _editLyrics = "";
+
+    private bool   _showAi;
+    private bool   _aiLoading;
+    private string _aiResponse  = "";
+    private string _aiInstruction = "";
+
+    private bool   _addingPractice;
+    private int    _newRating = 3;
+    private string _newPracticeNotes = "";
+
+    private static readonly string[] Keys =
+    [
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+        "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m", "Am", "A#m", "Bm"
+    ];
+
+    private string CurrentKey => Chords.TransposeKey(_song?.Key ?? "", _transpose);
+
+    private string TransposedChart =>
+        Chords.TransposeChart(_song?.ChordChart ?? "", _transpose);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _song = await Db.Songs
+            .Include(s => s.PracticeEntries)
+            .FirstOrDefaultAsync(s => s.Id == Id);
+
+        if (_song is not null)
+        {
+            _editTitle  = _song.Title;
+            _editKey    = _song.Key;
+            _editTempo  = _song.Tempo;
+            _editChords = _song.ChordChart;
+            _editLyrics = _song.Lyrics;
+        }
+    }
+
+    private void AdjustTranspose(int delta) => _transpose = Math.Clamp(_transpose + delta, -11, 11);
+
+    private async Task SaveMeta()
+    {
+        if (_song is null) return;
+        _song.Title     = _editTitle.Trim();
+        _song.Key       = _editKey;
+        _song.Tempo     = _editTempo;
+        _song.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+        _editingMeta = false;
+    }
+
+    private async Task SaveChords()
+    {
+        if (_song is null) return;
+        _song.ChordChart = _editChords;
+        _song.UpdatedAt  = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+        _editingChords = false;
+    }
+
+    private void StartEditLyrics()
+    {
+        _editLyrics    = _song?.Lyrics ?? "";
+        _editingLyrics = true;
+    }
+
+    private void CancelEditLyrics() => _editingLyrics = false;
+
+    private async Task SaveLyrics()
+    {
+        if (_song is null) return;
+        _song.Lyrics    = _editLyrics;
+        _song.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+        _editingLyrics = false;
+    }
+
+    private void ToggleAi()
+    {
+        _showAi = !_showAi;
+        _aiResponse = "";
+    }
+
+    private async Task RunCoach()
+    {
+        if (_song is null) return;
+        _aiLoading = true;
+        _aiResponse = await Ai.CoachAsync(_song);
+        _aiLoading = false;
+    }
+
+    private async Task ImproveLyrics()
+    {
+        if (string.IsNullOrWhiteSpace(_aiInstruction)) return;
+        _aiLoading = true;
+        var improved = await Ai.ImproveLyricsAsync(_editLyrics, _aiInstruction);
+        if (!string.IsNullOrEmpty(improved))
+            _editLyrics = improved;
+        _aiLoading = false;
+        _aiInstruction = "";
+    }
+
+    private async Task SavePractice()
+    {
+        if (_song is null) return;
+        var entry = new PracticeEntry
+        {
+            SongId = _song.Id,
+            Rating = _newRating,
+            Notes  = _newPracticeNotes,
+        };
+        Db.PracticeEntries.Add(entry);
+        await Db.SaveChangesAsync();
+
+        _song.PracticeEntries.Add(entry);
+        _addingPractice   = false;
+        _newPracticeNotes = "";
+        _newRating        = 3;
+    }
+}
