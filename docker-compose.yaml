@@ -174,7 +174,7 @@ services:
       - ConnectionStrings__MediaDb=Data Source=/library/.media.db
 
     volumes:
-      - /volume1/docker/filesorter/library/mie:/library:ro
+      - /volume1/docker/filesorter/jobs:/library:ro
 
     restart: unless-stopped
 
@@ -536,58 +536,6 @@ services:
 
     volumes:
       - /volume1/docker/filesorter/library/hvidberg:/library:ro
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-
-  gallery-anders:
-    container_name: gallery-anders
-
-    build:
-      context: .
-      dockerfile: ./ITMartinFileSorter.Gallery.Server/Dockerfile
-
-    env_file:
-      - magic.env
-
-    ports:
-      - "8100:8080"
-
-    environment:
-      - ASPNETCORE_URLS=http://+:8080
-      - MediaSettings__LibraryRoot=/library
-      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
-
-    volumes:
-      - /volume1/docker/filesorter/jobs/anders:/library:ro
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-
-  gallery-birthe:
-    container_name: gallery-birthe
-
-    build:
-      context: .
-      dockerfile: ./ITMartinFileSorter.Gallery.Server/Dockerfile
-
-    env_file:
-      - magic.env
-
-    ports:
-      - "8101:8080"
-
-    environment:
-      - ASPNETCORE_URLS=http://+:8080
-      - MediaSettings__LibraryRoot=/library
-      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
-
-    volumes:
-      - /volume1/docker/filesorter/jobs/birthe:/library:ro
 
     restart: unless-stopped
 

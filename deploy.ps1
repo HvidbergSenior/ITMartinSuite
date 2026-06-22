@@ -21,8 +21,6 @@ $ServiceMap = @{
     "gallery-mie"           = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
     "gallery-hvidbergfamily" = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
     "gallery-hvidberg"      = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
-    "gallery-anders"        = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
-    "gallery-birthe"        = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
     "budget-web"        = @{ Dockerfile = "ITMartinBudget.Server/Dockerfile";        Context = "." }
     "r6assistant-web"   = @{ Dockerfile = "ITMartinR6Assistant.Server/Dockerfile";   Context = "." }
     "receipt-web"       = @{ Dockerfile = "ITMartin.Receipt.Server/Dockerfile";      Context = "." }
