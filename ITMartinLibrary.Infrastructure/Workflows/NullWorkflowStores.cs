@@ -26,4 +26,5 @@ internal sealed class NullWorkflowInstanceStore : IWorkflowInstanceStore
     public Task MarkFailedAsync(Guid workflowId, string reason, CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task<bool> ExistsAsync(Guid workflowId, CancellationToken cancellationToken = default) => Task.FromResult(false);
     public Task<IReadOnlyCollection<Guid>> GetRecoverableWorkflowIdsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyCollection<Guid>>([]);
+    public Task SetProgressAsync(Guid workflowId, int current, int total, string? item = null, IReadOnlyDictionary<string, int>? counts = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
