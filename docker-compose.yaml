@@ -455,6 +455,58 @@ services:
     networks:
       - martinnet
 
+  gallery-hvidberg:
+    container_name: gallery-hvidberg
+
+    build:
+      context: .
+      dockerfile: ./ITMartinFileSorter.Gallery.Server/Dockerfile
+
+    env_file:
+      - magic.env
+
+    ports:
+      - "8094:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - MediaSettings__LibraryRoot=/library
+      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
+
+    volumes:
+      - /volume1/docker/filesorter/library/hvidberg:/library:ro
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  bartab-web:
+    container_name: bartab-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinBarTab.Server/Dockerfile
+
+    env_file:
+      - magic.env
+
+    ports:
+      - "8095:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__BarTabDb=Data Source=/app/db/bartab.db
+
+    volumes:
+      - /volume1/docker/martinsuite/bartab/db:/app/db
+      - /volume1/docker/martinsuite/bartab/photos:/app/data/photos
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
   # =========================================================
   # AUCTION
   # =========================================================
@@ -467,7 +519,7 @@ services:
       dockerfile: ./ITMartinAuction.Server/Dockerfile
 
     ports:
-      - "8094:8080"
+      - "8096:8080"
 
     environment:
       - ASPNETCORE_URLS=http://+:8080
