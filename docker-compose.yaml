@@ -174,7 +174,7 @@ services:
       - ConnectionStrings__MediaDb=Data Source=/library/.media.db
 
     volumes:
-      - /volume1/docker/filesorter/library/mie:/library:ro
+      - /volume1/docker/filesorter/jobs/mie:/library:ro
 
     restart: unless-stopped
 
