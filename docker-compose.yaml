@@ -89,6 +89,12 @@ services:
     volumes:
       - /volume1/docker/filesorter/incoming:/data
       - /volume1/docker/filesorter/library:/library
+      - /volume1/docker/filesorter/jobs:/jobs
+
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
 
     depends_on:
       - rabbitmq
