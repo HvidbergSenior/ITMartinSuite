@@ -35,7 +35,7 @@
     {
         <div class="section-title">
             Active round: <strong>@_activeRound.Name</strong>
-            <button class="btn-text btn-sm" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}"))">
+            <button class="btn-text btn-sm" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}", forceLoad: true))">
                 Manage →
             </button>
         </div>
@@ -89,7 +89,7 @@
     <div class="rounds-list">
         @foreach (var r in _rounds)
         {
-            <div class="rounds-row" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{r.Id}"))">
+            <div class="rounds-row" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{r.Id}", forceLoad: true))">
                 <div>
                     <span class="rounds-name">@r.Name</span>
                     @if (!r.IsActive) { <span class="badge-archived">Archived</span> }
@@ -105,7 +105,7 @@
     <div class="apps-grid">
         @foreach (var a in _apps)
         {
-            <div class="app-card" @onclick="@(() => Nav.NavigateTo($"/admin/apps/{a.Id}"))">
+            <div class="app-card" @onclick="@(() => Nav.NavigateTo($"/admin/apps/{a.Id}", forceLoad: true))">
                 <div class="app-card-icon">@a.Icon</div>
                 <div class="app-card-info">
                     <div class="app-card-name">@a.Name</div>
