@@ -1,6 +1,7 @@
 using ITMartin.Ai;
 using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartinFileSorter.Gallery.Server;
+using ITMartinFileSorter.Gallery.Server.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
@@ -20,6 +21,7 @@ builder.Services
 
 builder.Services.AddFileSorterCore();
 builder.Services.AddAi();
+builder.Services.AddSingleton<ToastService>();
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();

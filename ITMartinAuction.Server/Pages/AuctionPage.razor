@@ -4,6 +4,7 @@
 @inject AuctionService Svc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ToastService Toast
 @implements IAsyncDisposable
 
 @if (_session is null)
@@ -348,6 +349,7 @@ else
         _me = await Svc.JoinAsync(Code, _nameInput.Trim());
         await JS.InvokeVoidAsync("auction.setItem", $"name_{Code.ToUpper()}", _me.Name);
         _bidAmount = MinBid;
+        Toast.Show($"Velkommen, {_me.Name}! 👋", "info");
         await InvokeAsync(StateHasChanged);
     }
 
@@ -359,10 +361,12 @@ else
         try
         {
             await Svc.PlaceBidAsync(Code, _activeItem.Id, _me.Id, _bidAmount);
+            Toast.Show($"Bud på {_bidAmount:0} kr afgivet ✓");
         }
         catch (Exception ex)
         {
             _bidError = ex.Message;
+            Toast.Show(ex.Message, "error");
         }
         finally
         {

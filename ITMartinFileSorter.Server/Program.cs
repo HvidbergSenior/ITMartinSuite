@@ -2,6 +2,7 @@
 using ITMartin.Ai;
 using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartinFileSorter.Server;
+using ITMartinFileSorter.Server.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
@@ -31,6 +32,7 @@ builder.Services.AddMediaInfrastructureCore(builder.Configuration);
 builder.Services.AddFileSorterCore();
 builder.Services.AddFileSorterServer();
 builder.Services.AddAi();
+builder.Services.AddSingleton<ToastService>();
 
 // =========================
 // SIGNALR (after Core so SignalR publisher overrides the null default)

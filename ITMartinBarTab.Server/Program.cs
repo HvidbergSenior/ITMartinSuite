@@ -22,6 +22,7 @@ builder.Services.AddScoped<DrinkVisionService>();
 builder.Services.AddHostedService<SessionCleanupService>();
 
 builder.Services.AddSingleton<ConcurrencyService>();
+builder.Services.AddSingleton<ToastService>();
 builder.Services.AddScoped<CircuitHandler, ConcurrencyCircuitHandler>();
 
 var app = builder.Build();

@@ -1,6 +1,7 @@
 using ITMartinFamily.Infrastructure;
 using ITMartinFamily.Server.Components;
 using ITMartinFamily.Server.Hubs;
+using ITMartinFamily.Server.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddSignalR();
 builder.Services.AddFamilyInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<ToastService>();
 
 var app = builder.Build();
 

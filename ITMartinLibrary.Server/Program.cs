@@ -3,6 +3,7 @@ using ITMartinLibrary.Application;
 using ITMartinLibrary.Infrastructure;
 using ITMartinLibrary.Infrastructure.Services;
 using ITMartinLibrary.Server;
+using ITMartinLibrary.Server.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLibraryApplication();
 builder.Services.AddLibraryInfrastructure(builder.Configuration);
 builder.Services.AddAi();
+builder.Services.AddSingleton<ToastService>();
 
 builder.Services.AddHostedService<BarcodeEnrichmentWorker>();
 

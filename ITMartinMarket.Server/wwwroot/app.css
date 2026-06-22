@@ -27,3 +27,23 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+/* ── Reconnection banner ─────────────────────────── */
+#components-reconnect-modal { display:none; position:fixed; top:0; left:0; right:0; z-index:9999; padding:.5rem 1rem; text-align:center; font-weight:600; font-size:.875rem; }
+#components-reconnect-modal .reconnect-msg { display:none; }
+#components-reconnect-modal .reconnect-failed-msg { display:none; }
+#components-reconnect-modal.components-reconnect-show { display:block; background:#f59e0b; color:#1a1a1a; }
+#components-reconnect-modal.components-reconnect-show .reconnect-msg { display:inline; }
+#components-reconnect-modal.components-reconnect-failed,
+#components-reconnect-modal.components-reconnect-rejected { display:block; background:#dc2626; color:white; }
+#components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg,
+#components-reconnect-modal.components-reconnect-rejected .reconnect-failed-msg { display:inline; }
+.reconnect-failed-msg button { background:none; border:none; color:inherit; font-weight:700; text-decoration:underline; cursor:pointer; font-size:inherit; }
+
+/* ── Toast notifications ─────────────────────────── */
+.toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9998; display:flex; flex-direction:column; gap:.5rem; pointer-events:none; }
+.toast { padding:.65rem 1.1rem; border-radius:10px; font-weight:600; font-size:.875rem; animation:toast-in .2s ease; max-width:280px; pointer-events:auto; }
+.toast-success { background:#22c55e; color:white; }
+.toast-error   { background:#ef4444; color:white; }
+.toast-info    { background:#3b82f6; color:white; }
+@keyframes toast-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }

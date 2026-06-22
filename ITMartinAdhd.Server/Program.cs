@@ -1,5 +1,6 @@
 using ITMartinAdhd.Infrastructure;
 using ITMartinAdhd.Infrastructure.Persistence;
+using ITMartinAdhd.Server.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 // =========================
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddSingleton<ToastService>();
 
 // =========================
 // DATABASE

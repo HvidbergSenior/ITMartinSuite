@@ -14,6 +14,7 @@ var dbPath = builder.Configuration.GetConnectionString("TestHubDb")
 
 builder.Services.AddDbContext<TestHubDbContext>(o => o.UseSqlite(dbPath));
 builder.Services.AddScoped<TestHubService>();
+builder.Services.AddSingleton<ToastService>();
 
 var app = builder.Build();
 

@@ -2,12 +2,14 @@ using ITMartinMarket.Application.Interfaces;
 using ITMartinMarket.Infrastructure;
 using ITMartinMarket.Server.Components;
 using ITMartinMarket.Server.Hubs;
+using ITMartinMarket.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddSignalR();
 builder.Services.AddMarketInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<ToastService>();
 
 var app = builder.Build();
 

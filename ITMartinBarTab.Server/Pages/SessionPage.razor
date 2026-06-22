@@ -4,6 +4,7 @@
 @inject SessionService SessionSvc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ToastService Toast
 @implements IAsyncDisposable
 
 @if (_session is null)
@@ -192,9 +193,24 @@ else
 
     private async Task SetShare(Guid drinkId, Guid participantId, ShareType share)
     {
-        await SessionSvc.UpdateShareAsync(Code, drinkId, participantId, share);
-        _session = await SessionSvc.GetByCodeAsync(Code);
+        // Optimistic update — apply locally first so the button feels instant
+        var drink = _session?.Drinks.FirstOrDefault(d => d.Id == drinkId);
+        var existing = drink?.Shares.FirstOrDefault(s => s.ParticipantId == participantId);
+        var prev = existing?.Share ?? ShareType.None;
+        if (existing is not null) existing.Share = share;
         StateHasChanged();
+
+        try
+        {
+            await SessionSvc.UpdateShareAsync(Code, drinkId, participantId, share);
+        }
+        catch
+        {
+            // Revert on failure
+            if (existing is not null) existing.Share = prev;
+            Toast.Show("Kunne ikke gemme andel", "error");
+            StateHasChanged();
+        }
     }
 
     private async Task SendChat()

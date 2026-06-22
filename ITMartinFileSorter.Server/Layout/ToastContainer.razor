@@ -1,0 +1,16 @@
+@using ITMartinFileSorter.Server.Services
+@implements IDisposable
+@inject ToastService Toast
+
+<div class="toast-container">
+    @foreach (var t in Toast.Toasts)
+    {
+        <div class="toast toast-@t.Type" @key="t.Id">@t.Text</div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toast.OnChange += Refresh;
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Toast.OnChange -= Refresh;
+}

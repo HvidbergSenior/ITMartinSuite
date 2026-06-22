@@ -4,6 +4,7 @@ using ITMartinBudget.Application.Services;
 using ITMartinBudget.Infrastructure;
 using ITMartinBudget.Infrastructure.Services;
 using ITMartinBudget.Server;
+using ITMartinBudget.Server.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,8 @@ var builder = WebApplication.CreateBuilder(args);
 // =========================
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddSingleton<ToastService>();
 
 // =========================
 // DATABASE

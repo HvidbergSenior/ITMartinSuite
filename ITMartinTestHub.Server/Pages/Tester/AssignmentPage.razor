@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject TestHubService Svc
 @inject NavigationManager Nav
+@inject ToastService Toast
 
 @if (_assignment is null)
 {
@@ -194,6 +195,13 @@ else
         await Svc.RecordResultAsync(AssignmentId, stepId, status, note);
         await Reload();
 
+        var icon = status switch { StepStatus.Pass => "✓", StepStatus.Fail => "✗", _ => "→" };
+        var type = status switch { StepStatus.Pass => "success", StepStatus.Fail => "error", _ => "info" };
+        Toast.Show($"Trin registreret {icon}", type);
+
+        if (_assignment?.CompletedAt.HasValue == true)
+            Toast.Show("Alle trin gennemført! 🎉");
+
         // Auto-advance to next unanswered step
         var nextPending = _assignment?.App?.Steps
             .FirstOrDefault(s => !_assignment.Results.Any(r => r.TestStepId == s.Id));
@@ -205,6 +213,7 @@ else
         var result = _assignment?.Results.FirstOrDefault(r => r.TestStepId == stepId);
         if (result is null) return;
         await Svc.RecordResultAsync(AssignmentId, stepId, result.Status, _notes.GetValueOrDefault(stepId));
+        Toast.Show("Note gemt ✓");
         await Reload();
     }
 
@@ -213,6 +222,7 @@ else
         if (string.IsNullOrWhiteSpace(_feedbackText) || _assignment is null) return;
         await Svc.AddFeedbackAsync(AssignmentId, _assignment.AppEntryId,
             _assignment.TesterId, _feedbackText.Trim(), _feedbackType);
+        Toast.Show("Feedback sendt ✓");
         _feedbackText = "";
         await Reload();
     }

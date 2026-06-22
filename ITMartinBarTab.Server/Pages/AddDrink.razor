@@ -4,6 +4,7 @@
 @inject DrinkVisionService VisionSvc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ToastService Toast
 
 <div class="add-page">
     <div class="add-header">
@@ -188,6 +189,7 @@
         }
 
         await SessionSvc.AddDrinkAsync(Code, _participant.Id, _description, _price, _isRound, photoPath, _shares);
+        Toast.Show("Drink tilføjet ✓");
         Nav.NavigateTo($"/session/{Code}", forceLoad: true);
     }
 

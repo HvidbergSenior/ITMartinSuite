@@ -16,6 +16,7 @@ builder.Services.AddDbContext<AuctionDbContext>(o => o.UseSqlite(dbPath));
 builder.Services.AddSignalR();
 builder.Services.AddScoped<AuctionService>();
 builder.Services.AddHostedService<CleanupService>();
+builder.Services.AddSingleton<ToastService>();
 
 var app = builder.Build();
 

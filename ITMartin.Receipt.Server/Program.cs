@@ -3,6 +3,7 @@ using ITMartin.OCR;
 using ITMartin.Receipt.Application;
 using ITMartin.Receipt.Infrastructure;
 using ITMartin.Receipt.Server;
+using ITMartin.Receipt.Server.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,7 @@ builder.Services.AddReceiptApplication();
 builder.Services.AddReceiptInfrastructure(builder.Configuration);
 builder.Services.AddAi();
 builder.Services.AddOcr();
+builder.Services.AddSingleton<ToastService>();
 
 // =========================
 // SIGNALR
