@@ -1,23 +1,24 @@
-using ITMartin.IndexServer.Components;
-using ITMartin.IndexServer.Services;
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-builder.Services.AddSingleton<ToastService>();
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error");
-}
-
+app.UseDefaultFiles();
 app.UseStaticFiles();
-app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapGet("/api/links", (IConfiguration cfg) => Results.Ok(new
+{
+    fileSorter      = cfg["Apps:FileSorterUrl"] ?? "#",
+    gallery         = cfg["Apps:GalleryUrl"]    ?? "#",
+    budget          = cfg["Apps:BudgetUrl"]      ?? "#",
+    receipt         = cfg["Apps:ReceiptUrl"]     ?? "#",
+    magic           = cfg["Apps:MagicUrl"]       ?? "#",
+    library         = cfg["Apps:LibraryUrl"]     ?? "#",
+    family          = cfg["Apps:FamilyUrl"]      ?? "#",
+    adhd            = cfg["Apps:AdhdUrl"]        ?? "#",
+    bartab          = cfg["Apps:BarTabUrl"]      ?? "#",
+    auction         = cfg["Apps:AuctionUrl"]     ?? "#",
+    market          = cfg["Apps:MarketUrl"]      ?? "#",
+    testHub         = cfg["Apps:TestHubUrl"]     ?? "#",
+}));
 
 app.Run();

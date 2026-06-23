@@ -14,19 +14,38 @@ builder.Services.AddMagicPersistence(connectionString);
 builder.Services.AddScoped<IMagicCardRepository, MagicCardRepository>();
 builder.Services.AddScoped<IPriceAlertRepository, PriceAlertRepository>();
 
-builder.Services
-    .AddRazorComponents()
-    .AddInteractiveServerComponents();
-
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
-    app.UseExceptionHandler("/Error");
-
+app.UseDefaultFiles();
 app.UseStaticFiles();
-app.UseAntiforgery();
 
-app.MapRazorComponents<ITMartin.MagicCollection.Server.App>()
-    .AddInteractiveServerRenderMode();
+app.MapGet("/api/collection", async (IMagicCardRepository cards, IPriceAlertRepository alerts) =>
+{
+    var allCards   = (await cards.GetAllAsync()).ToList();
+    var allAlerts  = await alerts.GetActiveAsync();
+    var totalValue = allCards.Sum(c => (c.EurPrice ?? 0) * c.Quantity);
+
+    return Results.Ok(new
+    {
+        totalValue,
+        cards  = allCards.Select(c => new
+        {
+            c.Id, c.Name, c.SetCode, c.CollectorNumber, c.Quantity,
+            eurPrice   = c.EurPrice,
+            totalEur   = c.EurPrice.HasValue ? c.EurPrice.Value * c.Quantity : (decimal?)null,
+            lastSeenAt = c.LastSeenAt,
+        }),
+        alerts = allAlerts.Select(a => new
+        {
+            a.Id, a.CardName, a.SetCode, a.OldPrice, a.NewPrice, a.Delta, a.DetectedAt
+        }),
+    });
+});
+
+app.MapPost("/api/alerts/{id:guid}/dismiss", async (Guid id, IPriceAlertRepository alerts) =>
+{
+    await alerts.DismissAsync(id);
+    return Results.Ok();
+});
 
 app.Run();
