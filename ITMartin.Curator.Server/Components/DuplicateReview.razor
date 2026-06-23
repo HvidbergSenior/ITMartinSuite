@@ -30,6 +30,7 @@
 
 @code {
     [Parameter, EditorRequired] public Suggestion Suggestion { get; set; } = null!;
+    [Parameter, EditorRequired] public string    RootPath   { get; set; } = "";
     [Parameter] public EventCallback OnApplied   { get; set; }
     [Parameter] public EventCallback OnDismissed { get; set; }
 
@@ -39,16 +40,25 @@
     {
         try
         {
-            File.Delete(path);
+            MoveToTrash(path);
             group.Paths.Remove(path);
             Suggestion.AffectedFiles.Remove(path);
         }
-        catch (Exception ex) { Logger.LogWarning(ex, "Delete failed: {Path}", path); }
+        catch (Exception ex) { Logger.LogWarning(ex, "Trash failed: {Path}", path); }
 
         _deleteConfirm = null;
 
         if (Suggestion.DuplicateGroups.All(g => g.Paths.Count <= 1))
             await OnApplied.InvokeAsync();
+    }
+
+    private void MoveToTrash(string filePath)
+    {
+        var trashDir = Path.Combine(RootPath, "_trash");
+        Directory.CreateDirectory(trashDir);
+        var stamp    = DateTime.Now.ToString("yyyyMMdd_HHmmssff");
+        var destName = $"{stamp}_{Path.GetFileName(filePath)}";
+        File.Move(filePath, Path.Combine(trashDir, destName));
     }
 
     private static string TrimPath(string path)

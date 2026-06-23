@@ -83,6 +83,7 @@
 
                                 case SuggestionType.DuplicateFiles:
                                     <DuplicateReview Suggestion="s"
+                                                     RootPath="@_root"
                                                      OnApplied="() => OnSuggestionApplied(s)"
                                                      OnDismissed="() => s.IsDismissed = true" />
                                     break;
