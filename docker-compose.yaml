@@ -675,6 +675,7 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - MusicSettings__Root=/musik
+      - MusicSettings__AccessCode=sommer2025
       - ConnectionStrings__MusicDb=Data Source=/app/data/musik.db
 
     volumes:

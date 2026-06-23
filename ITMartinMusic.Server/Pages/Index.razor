@@ -1,0 +1,100 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IConfiguration Config
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Martin Musik</PageTitle>
+
+@if (!_checked)
+{
+    <div style="min-height:100vh;background:#0a0d14"></div>
+}
+else
+{
+    <div style="min-height:100vh;background:#0a0d14;display:flex;align-items:center;justify-content:center;padding:24px">
+        <div style="width:100%;max-width:360px">
+
+            <div style="text-align:center;margin-bottom:40px">
+                <div style="font-size:56px;margin-bottom:16px">🎵</div>
+                <h1 style="font-size:28px;font-weight:900;color:#f0f0f0;margin:0 0 8px">Martin Musik</h1>
+                <div style="font-size:15px;color:#64748b">Lyt, sammenlign og giv feedback</div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+
+                <input style="@_inputStyle"
+                       placeholder="Dit navn"
+                       @bind="_name"
+                       @bind:event="oninput" />
+
+                <input style="@_inputStyle"
+                       type="password"
+                       placeholder="Adgangskode"
+                       @bind="_code"
+                       @bind:event="oninput"
+                       @onkeydown="OnKey" />
+
+                @if (_error)
+                {
+                    <div style="color:#ef4444;font-size:13px;text-align:center">
+                        Forkert adgangskode
+                    </div>
+                }
+
+                <button style="@_btnStyle"
+                        @onclick="JoinAsync"
+                        disabled="@(string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_code))">
+                    Kom ind
+                </button>
+
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool   _checked;
+    private string _name  = "";
+    private string _code  = "";
+    private bool   _error;
+
+    private const string _inputStyle =
+        "background:#111827;border:1px solid #1f2937;color:#f0f0f0;" +
+        "border-radius:12px;padding:14px 16px;font-size:16px;outline:none;" +
+        "width:100%;box-sizing:border-box";
+
+    private const string _btnStyle =
+        "background:#3b82f6;color:white;border:none;border-radius:12px;" +
+        "padding:14px;font-size:16px;font-weight:700;cursor:pointer;width:100%";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var saved = await JS.InvokeAsync<string?>("localStorage.getItem", "musik_name");
+        if (!string.IsNullOrWhiteSpace(saved))
+        {
+            Nav.NavigateTo("/songs");
+            return;
+        }
+        _checked = true;
+        StateHasChanged();
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") _ = JoinAsync();
+    }
+
+    private async Task JoinAsync()
+    {
+        var expected = Config["MusicSettings:AccessCode"] ?? "";
+        if (!string.Equals(_code.Trim(), expected, StringComparison.OrdinalIgnoreCase))
+        {
+            _error = true;
+            return;
+        }
+        await JS.InvokeVoidAsync("localStorage.setItem", "musik_name", _name.Trim());
+        Nav.NavigateTo("/songs");
+    }
+}

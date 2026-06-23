@@ -11,6 +11,7 @@ builder.Services.AddDbContext<MusicDbContext>(o =>
     o.UseSqlite(builder.Configuration.GetConnectionString("MusicDb")
         ?? "Data Source=/app/data/musik.db"));
 
+builder.Services.AddSingleton<MusicBroadcastService>();
 builder.Services.AddScoped<MusicLibraryService>();
 builder.Services.AddScoped<ChordService>();
 builder.Services.AddScoped<AiCoachService>();
@@ -21,6 +22,15 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<MusicDbContext>();
     db.Database.EnsureCreated();
+    // Safe for existing DBs — creates table only if missing
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS SongComments (
+            Id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            SongKey   TEXT NOT NULL DEFAULT '',
+            Name      TEXT NOT NULL DEFAULT '',
+            Text      TEXT NOT NULL DEFAULT '',
+            CreatedAt TEXT NOT NULL DEFAULT ''
+        )");
 }
 
 if (!app.Environment.IsDevelopment())
@@ -51,10 +61,40 @@ app.MapGet("/stream", (string path, HttpContext ctx) =>
         ".mov"  => "video/quicktime",
         ".m4v"  => "video/mp4",
         ".webm" => "video/webm",
+        ".jpg"  => "image/jpeg",
+        ".jpeg" => "image/jpeg",
+        ".png"  => "image/png",
+        ".gif"  => "image/gif",
+        ".webp" => "image/webp",
+        ".heic" => "image/heic",
         _       => "application/octet-stream"
     };
 
     return Results.File(full, mime, enableRangeProcessing: true);
+});
+
+app.MapPost("/upload-lyrics", async (HttpRequest req, IConfiguration cfg) =>
+{
+    var root = cfg["MusicSettings:Root"] ?? "/musik";
+    var lyricsDir = Path.Combine(root, "lyrics");
+    Directory.CreateDirectory(lyricsDir);
+
+    var form = await req.ReadFormAsync();
+    var file = form.Files.GetFile("file");
+    var key  = form["key"].ToString();
+
+    if (file is null || string.IsNullOrWhiteSpace(key))
+        return Results.BadRequest();
+
+    var ext  = Path.GetExtension(file.FileName).ToLowerInvariant();
+    if (!new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic" }.Contains(ext))
+        return Results.BadRequest("Not an image");
+
+    var dest = Path.Combine(lyricsDir, key + ext);
+    await using var stream = File.Create(dest);
+    await file.CopyToAsync(stream);
+
+    return Results.Ok(new { path = $"lyrics/{key}{ext}" });
 });
 
 app.MapRazorComponents<ITMartinMusic.Server.App>()
