@@ -105,7 +105,7 @@ public sealed class ThumbnailWorkflowStep
                     thumbnailDirectory,
                     $"{Path.GetFileNameWithoutExtension(thumbnailSource)}.jpg");
 
-            await ExecuteOperationAsync(
+            var ok = await ExecuteOperationAsync(
                 "GenerateThumbnail",
                 file.FileName,
                 async () =>
@@ -118,6 +118,9 @@ public sealed class ThumbnailWorkflowStep
                                 cancellationToken);
                 },
                 _logger);
+
+            if (!ok)
+                state.FailedFiles.Add(new FailedFile { FilePath = file.FullPath, Step = Name, Error = "Thumbnail generation failed" });
         }
     }
 }

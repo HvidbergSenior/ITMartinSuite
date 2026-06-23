@@ -1,177 +1,348 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="da">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a0d14">
-<title>My Collection</title>
+<title>Magic Pris</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:16px 16px 60px}
+body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:0 0 80px}
 
-.page-title{font-size:26px;font-weight:900;margin-bottom:4px}
-.page-sub{font-size:13px;color:#64748b;margin-bottom:20px}
+/* Header */
+.hdr{padding:16px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.06)}
+.hdr-icon{font-size:26px}
+.hdr-title{font-size:20px;font-weight:900}
+.hdr-sub{font-size:12px;color:#64748b;margin-top:2px}
 
-/* Stats */
-.stats{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-.stat{flex:1;min-width:100px;background:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px 16px;text-align:center}
-.stat-value{font-size:22px;font-weight:900}
-.stat-label{font-size:11px;color:#64748b;margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
-.stat.highlight .stat-value{color:#22c55e}
+/* Camera */
+.cam-wrap{position:relative;background:#050709;overflow:hidden}
+#camVideo{width:100%;max-height:240px;object-fit:cover;display:block}
+.cam-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:12px}
+.cam-btn{background:rgba(255,255,255,.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,.3);border-radius:50%;width:60px;height:60px;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.cam-btn:active{background:rgba(255,255,255,.3)}
+.cam-start{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;color:#64748b;font-size:14px}
+.cam-start-icon{font-size:40px}
+#camCanvas{display:none}
+.snap-preview{width:100%;max-height:200px;object-fit:contain;display:none;background:#050709}
 
-/* Alerts */
-.alerts{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:14px 16px;margin-bottom:20px}
-.alerts-title{font-size:13px;font-weight:700;color:#fbbf24;margin-bottom:10px}
-.alert-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #374151}
-.alert-row:last-child{border-bottom:none}
-.alert-info{flex:1}
-.alert-name{font-size:14px;font-weight:600}
-.alert-set{font-size:12px;color:#64748b;margin-left:6px}
-.alert-prices{display:flex;align-items:center;gap:6px;font-size:13px}
-.alert-old{color:#64748b;text-decoration:line-through}
-.alert-new{color:#22c55e;font-weight:700}
-.alert-delta{color:#22c55e;font-size:11px}
-.alert-dismiss{background:none;border:none;color:#64748b;cursor:pointer;font-size:16px;padding:4px}
+/* Search section */
+.search-wrap{padding:14px 16px;display:flex;gap:8px;align-items:center}
+.search-input{flex:1;background:#111827;border:1px solid #1f2937;color:#f0f0f0;border-radius:12px;padding:12px 14px;font-size:16px;outline:none}
+.search-input::placeholder{color:#374151}
+.search-input:focus{border-color:#6366f1}
+.search-btn{background:#6366f1;border:none;color:#fff;border-radius:12px;padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
+.search-btn:active{background:#4f46e5}
+.search-btn:disabled{background:#1f2937;color:#374151;cursor:default}
 
-/* Toolbar */
-.toolbar{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap}
-.search{flex:1;min-width:160px;background:#0a0d14;border:1px solid #1f2937;color:#f0f0f0;border-radius:8px;padding:9px 12px;font-size:15px;outline:none}
-.search::placeholder{color:#4b5563}
-.search:focus{border-color:#3b82f6}
-.sort-select{background:#0a0d14;border:1px solid #1f2937;color:#f0f0f0;border-radius:8px;padding:9px 10px;font-size:13px;outline:none;cursor:pointer}
+/* Result */
+.result{padding:0 16px 8px;display:none}
+.result-card{background:#111827;border:1px solid #1f2937;border-radius:18px;overflow:hidden}
+.result-img-wrap{position:relative;background:#050709;display:flex;justify-content:center;padding:16px}
+.result-img{max-height:300px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.result-rarity{position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.06em}
+.rarity-common{background:rgba(100,116,139,.2);color:#94a3b8;border:1px solid rgba(100,116,139,.3)}
+.rarity-uncommon{background:rgba(148,163,184,.15);color:#cbd5e1;border:1px solid rgba(148,163,184,.3)}
+.rarity-rare{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.25)}
+.rarity-mythic{background:rgba(251,146,60,.12);color:#fb923c;border:1px solid rgba(251,146,60,.3)}
+.result-info{padding:16px 18px}
+.result-name{font-size:20px;font-weight:900;margin-bottom:4px}
+.result-set{font-size:13px;color:#94a3b8;margin-bottom:14px}
+.result-type{font-size:12px;color:#64748b;margin-bottom:14px}
+.price-row{display:flex;align-items:flex-end;gap:16px;margin-bottom:18px}
+.price-eur{font-size:42px;font-weight:900;color:#22c55e;line-height:1}
+.price-eur-label{font-size:12px;color:#64748b;margin-bottom:6px}
+.price-usd{font-size:18px;font-weight:700;color:#64748b}
+.price-usd-label{font-size:11px;color:#374151;margin-bottom:4px}
+.price-foil{font-size:12px;color:#a78bfa;margin-top:4px}
+.save-btn{width:100%;background:#22c55e;border:none;color:#fff;font-size:16px;font-weight:800;border-radius:12px;padding:14px;cursor:pointer;letter-spacing:.02em}
+.save-btn:active{background:#16a34a}
+.save-btn:disabled{background:#1f2937;color:#374151;cursor:default}
+.save-ok{text-align:center;color:#22c55e;font-size:14px;font-weight:700;padding:10px 0 0;display:none}
 
-/* Card list */
-.card-list{display:flex;flex-direction:column;gap:8px}
-.card-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#111827;border:1px solid #1f2937;border-radius:12px;padding:12px 14px}
-.card-info{}
-.card-name{font-size:14px;font-weight:700}
-.card-meta{font-size:11px;color:#64748b;margin-top:3px}
-.card-price{text-align:right;flex-shrink:0}
-.card-eur{font-size:15px;font-weight:700;color:#22c55e}
-.card-total{font-size:11px;color:#4b5563;margin-top:2px}
-.card-na{font-size:14px;color:#374151}
+/* Error */
+.error-msg{margin:0 16px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px 14px;font-size:14px;color:#f87171;display:none}
 
-.loading{text-align:center;padding:60px 20px;color:#4b5563;font-size:15px}
-.empty{text-align:center;padding:40px 20px;color:#4b5563}
+/* Loading */
+.spinner{display:none;text-align:center;padding:24px;color:#64748b;font-size:14px}
+
+/* Saved list */
+.saved-section{padding:20px 16px 0}
+.saved-header{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.saved-header::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.06)}
+.saved-list{display:flex;flex-direction:column;gap:8px}
+.saved-row{display:flex;align-items:center;gap:12px;background:#111827;border:1px solid #1f2937;border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s}
+.saved-row:active{border-color:#6366f1}
+.saved-icon{font-size:22px;flex-shrink:0}
+.saved-info{flex:1;min-width:0}
+.saved-name{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.saved-meta{font-size:11px;color:#64748b;margin-top:2px}
+.saved-price{font-size:16px;font-weight:800;color:#22c55e;flex-shrink:0}
+.saved-qty{font-size:11px;color:#64748b;text-align:right;margin-top:2px}
+.saved-empty{text-align:center;padding:32px 16px;color:#374151;font-size:14px}
 </style>
 </head>
 <body>
 
-<div class="page-title">My Collection</div>
-<div class="page-sub">Card prices &amp; collection value</div>
-
-<div id="alertsPanel" style="display:none">
-  <div class="alerts">
-    <div class="alerts-title">📈 Price Alerts</div>
-    <div id="alertsList"></div>
+<div class="hdr">
+  <div class="hdr-icon">🃏</div>
+  <div>
+    <div class="hdr-title">Magic Pris</div>
+    <div class="hdr-sub">Slå op og gem kortpriser</div>
   </div>
 </div>
 
-<div class="stats">
-  <div class="stat"><div class="stat-value" id="statCards">—</div><div class="stat-label">Unique Cards</div></div>
-  <div class="stat"><div class="stat-value" id="statCopies">—</div><div class="stat-label">Total Copies</div></div>
-  <div class="stat highlight"><div class="stat-value" id="statValue">—</div><div class="stat-label">Collection Value</div></div>
+<!-- Camera -->
+<div class="cam-wrap" id="camWrap">
+  <div class="cam-start" id="camStart" onclick="startCamera()">
+    <div class="cam-start-icon">📷</div>
+    <div>Tryk for at åbne kamera</div>
+  </div>
+  <video id="camVideo" autoplay playsinline muted style="display:none"></video>
+  <canvas id="camCanvas"></canvas>
+  <img id="snapPreview" class="snap-preview" alt="">
+  <div class="cam-overlay" id="camOverlay" style="display:none">
+    <button class="cam-btn" onclick="capture()" title="Tag billede">📸</button>
+  </div>
 </div>
 
-<div class="toolbar">
-  <input class="search" id="search" type="search" placeholder="Search name or set…" autocomplete="off">
-  <select class="sort-select" id="sortBy">
-    <option value="value">Highest value</option>
-    <option value="name">Name A–Z</option>
-    <option value="qty">Most copies</option>
-    <option value="recent">Recently scanned</option>
-  </select>
+<!-- Search -->
+<div class="search-wrap">
+  <input class="search-input" id="searchInput" type="search" placeholder="Kortets navn…" autocomplete="off"
+    autocorrect="off" autocapitalize="words">
+  <button class="search-btn" id="lookupBtn" onclick="lookup()">Slå op</button>
 </div>
 
-<div id="loading" class="loading">Loading…</div>
-<div class="card-list" id="cardList"></div>
+<div class="error-msg" id="errorMsg"></div>
+<div class="spinner" id="spinner">Henter fra Scryfall…</div>
+
+<!-- Result -->
+<div class="result" id="result">
+  <div class="result-card">
+    <div class="result-img-wrap">
+      <img class="result-img" id="resultImg" src="" alt="">
+      <span class="result-rarity" id="resultRarity"></span>
+    </div>
+    <div class="result-info">
+      <div class="result-name" id="resultName"></div>
+      <div class="result-set"  id="resultSet"></div>
+      <div class="result-type" id="resultType"></div>
+      <div class="price-row">
+        <div>
+          <div class="price-eur-label">EUR pris</div>
+          <div class="price-eur" id="resultEur">—</div>
+          <div class="price-foil" id="resultFoil" style="display:none"></div>
+        </div>
+        <div>
+          <div class="price-usd-label">USD</div>
+          <div class="price-usd" id="resultUsd">—</div>
+        </div>
+      </div>
+      <button class="save-btn" id="saveBtn" onclick="save()">💾 Gem kort</button>
+      <div class="save-ok" id="saveOk">✓ Gemt!</div>
+    </div>
+  </div>
+</div>
+
+<!-- Saved -->
+<div class="saved-section">
+  <div class="saved-header">Gemte kort</div>
+  <div class="saved-list" id="savedList">
+    <div class="saved-empty" id="savedEmpty">Ingen kort gemt endnu</div>
+  </div>
+</div>
 
 <script>
-let allCards  = [];
-let allAlerts = [];
+let currentCard = null;
 
-init();
+// ── Camera ──────────────────────────────────────────────────────────────
+let stream = null;
 
-async function init() {
-  const res = await fetch('/api/collection');
-  const data = await res.json();
-  allCards  = data.cards;
-  allAlerts = data.alerts;
-
-  document.getElementById('statCards').textContent  = allCards.length;
-  document.getElementById('statCopies').textContent = allCards.reduce((s,c)=>s+c.quantity,0);
-  document.getElementById('statValue').textContent  = '€' + data.totalValue.toFixed(2);
-
-  renderAlerts();
-  document.getElementById('loading').style.display = 'none';
-  renderCards();
-}
-
-function renderAlerts() {
-  if (!allAlerts.length) return;
-  document.getElementById('alertsPanel').style.display = '';
-  document.getElementById('alertsList').innerHTML = allAlerts.map(a => `
-    <div class="alert-row" id="alert-${a.id}">
-      <div class="alert-info">
-        <span class="alert-name">${esc(a.cardName)}</span>
-        <span class="alert-set">${esc(a.setCode.toUpperCase())}</span>
-      </div>
-      <div class="alert-prices">
-        <span class="alert-old">€${a.oldPrice.toFixed(2)}</span>
-        <span>→</span>
-        <span class="alert-new">€${a.newPrice.toFixed(2)}</span>
-        <span class="alert-delta">+€${a.delta.toFixed(2)}</span>
-      </div>
-      <button class="alert-dismiss" onclick="dismissAlert('${a.id}')">✕</button>
-    </div>`).join('');
-}
-
-async function dismissAlert(id) {
-  await fetch(`/api/alerts/${id}/dismiss`, { method: 'POST' });
-  allAlerts = allAlerts.filter(a => a.id !== id);
-  document.getElementById('alertsPanel').style.display = allAlerts.length ? '' : 'none';
-  renderAlerts();
-}
-
-function renderCards() {
-  const q    = document.getElementById('search').value.trim().toLowerCase();
-  const sort = document.getElementById('sortBy').value;
-
-  let cards = allCards;
-  if (q) cards = cards.filter(c =>
-    c.name.toLowerCase().includes(q) || c.setCode.toLowerCase().includes(q));
-
-  cards = [...cards].sort((a,b) => {
-    if (sort === 'name')   return a.name.localeCompare(b.name);
-    if (sort === 'qty')    return b.quantity - a.quantity;
-    if (sort === 'recent') return new Date(b.lastSeenAt) - new Date(a.lastSeenAt);
-    return (b.totalEur??0) - (a.totalEur??0);
-  });
-
-  const el = document.getElementById('cardList');
-  if (!cards.length) {
-    el.innerHTML = '<div class="empty">🃏 No cards match.</div>';
-    return;
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const vid = document.getElementById('camVideo');
+    vid.srcObject = stream;
+    vid.style.display = 'block';
+    document.getElementById('camStart').style.display  = 'none';
+    document.getElementById('snapPreview').style.display = 'none';
+    document.getElementById('camOverlay').style.display = 'flex';
+  } catch (e) {
+    document.getElementById('camStart').innerHTML =
+      '<div style="font-size:28px">🚫</div><div>Kamera ikke tilgængeligt</div>';
   }
-  el.innerHTML = cards.map(c => `
-    <div class="card-row">
-      <div class="card-info">
-        <div class="card-name">${esc(c.name)}</div>
-        <div class="card-meta">${esc(c.setCode.toUpperCase())} · #${esc(c.collectorNumber)} · ×${c.quantity} · ${fmtDate(c.lastSeenAt)}</div>
-      </div>
-      <div class="card-price">
-        ${c.eurPrice != null
-          ? `<div class="card-eur">€${c.eurPrice.toFixed(2)}</div><div class="card-total">×${c.quantity} = €${c.totalEur.toFixed(2)}</div>`
-          : '<div class="card-na">—</div>'}
-      </div>
-    </div>`).join('');
 }
 
-document.getElementById('search').addEventListener('input', renderCards);
-document.getElementById('sortBy').addEventListener('change', renderCards);
+function capture() {
+  const vid = document.getElementById('camVideo');
+  const canvas = document.getElementById('camCanvas');
+  canvas.width  = vid.videoWidth;
+  canvas.height = vid.videoHeight;
+  canvas.getContext('2d').drawImage(vid, 0, 0);
 
-function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function fmtDate(iso) { return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+  const preview = document.getElementById('snapPreview');
+  preview.src = canvas.toDataURL('image/jpeg', 0.85);
+  preview.style.display = 'block';
+  vid.style.display = 'none';
+  document.getElementById('camOverlay').style.display = 'none';
+
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+// ── Lookup ───────────────────────────────────────────────────────────────
+async function lookup() {
+  const name = document.getElementById('searchInput').value.trim();
+  if (!name) return;
+
+  setError('');
+  document.getElementById('result').style.display  = 'none';
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('lookupBtn').disabled    = true;
+  document.getElementById('saveOk').style.display  = 'none';
+  currentCard = null;
+
+  try {
+    const res = await fetch('/api/lookup?name=' + encodeURIComponent(name));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setError(err.error ?? 'Kortet blev ikke fundet. Tjek stavning og prøv igen.');
+      return;
+    }
+    const card = await res.json();
+    currentCard = card;
+    renderResult(card);
+  } catch (e) {
+    setError('Fejl ved opslag. Er du online?');
+  } finally {
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('lookupBtn').disabled    = false;
+  }
+}
+
+function renderResult(c) {
+  document.getElementById('resultImg').src     = c.imageUrl ?? '';
+  document.getElementById('resultName').textContent = c.name;
+  document.getElementById('resultSet').textContent  =
+    (c.setName ?? c.setCode.toUpperCase()) + ' · #' + c.collectorNumber;
+  document.getElementById('resultType').textContent = c.typeLine ?? '';
+
+  document.getElementById('resultEur').textContent =
+    c.eurPrice != null ? '€' + c.eurPrice.toFixed(2) : '—';
+  document.getElementById('resultUsd').textContent =
+    c.usdPrice != null ? '$' + c.usdPrice.toFixed(2) : '—';
+
+  const foilEl = document.getElementById('resultFoil');
+  if (c.eurFoil != null) {
+    foilEl.textContent = 'Foil: €' + c.eurFoil.toFixed(2);
+    foilEl.style.display = '';
+  } else {
+    foilEl.style.display = 'none';
+  }
+
+  const rarEl = document.getElementById('resultRarity');
+  rarEl.textContent = rarityLabel(c.rarity);
+  rarEl.className   = 'result-rarity rarity-' + (c.rarity ?? 'common');
+
+  document.getElementById('saveBtn').disabled  = false;
+  document.getElementById('result').style.display = '';
+}
+
+// ── Save ─────────────────────────────────────────────────────────────────
+async function save() {
+  if (!currentCard) return;
+  document.getElementById('saveBtn').disabled = true;
+
+  try {
+    await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scryfallId:      currentCard.scryfallId,
+        name:            currentCard.name,
+        setCode:         currentCard.setCode,
+        collectorNumber: currentCard.collectorNumber,
+        eurPrice:        currentCard.eurPrice,
+        usdPrice:        currentCard.usdPrice,
+      })
+    });
+    document.getElementById('saveOk').style.display = '';
+    loadSaved();
+  } catch (e) {
+    setError('Fejl ved gemning.');
+    document.getElementById('saveBtn').disabled = false;
+  }
+}
+
+// ── Saved list ───────────────────────────────────────────────────────────
+async function loadSaved() {
+  try {
+    const res   = await fetch('/api/saved');
+    const cards = await res.json();
+    const list  = document.getElementById('savedList');
+    const empty = document.getElementById('savedEmpty');
+
+    if (!cards.length) {
+      empty.style.display = '';
+      list.innerHTML = '';
+      list.appendChild(empty);
+      return;
+    }
+
+    empty.style.display = 'none';
+    list.innerHTML = cards.map(c => `
+      <div class="saved-row" onclick="fillSearch(${JSON.stringify(c.name)})">
+        <div class="saved-icon">🃏</div>
+        <div class="saved-info">
+          <div class="saved-name">${esc(c.name)}</div>
+          <div class="saved-meta">${esc(c.setCode.toUpperCase())} · #${esc(c.collectorNumber)} · ${fmtDate(c.lastSeenAt)}</div>
+        </div>
+        <div>
+          <div class="saved-price">${c.eurPrice != null ? '€'+c.eurPrice.toFixed(2) : '—'}</div>
+          <div class="saved-qty">×${c.quantity}</div>
+        </div>
+      </div>`).join('');
+  } catch (e) {}
+}
+
+function fillSearch(name) {
+  document.getElementById('searchInput').value = name;
+  lookup();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function setError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent    = msg;
+  el.style.display  = msg ? '' : 'none';
+}
+
+function rarityLabel(r) {
+  if (r === 'mythic')   return 'Mythic';
+  if (r === 'rare')     return 'Rare';
+  if (r === 'uncommon') return 'Uncommon';
+  return 'Common';
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('da-DK', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') lookup();
+});
+
+loadSaved();
 </script>
 </body>
 </html>

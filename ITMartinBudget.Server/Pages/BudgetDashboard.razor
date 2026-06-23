@@ -1,546 +1,155 @@
-﻿@page "/budget-dashboard"
+@page "/"
+@rendermode InteractiveServer
 @using ITMartinBudget.Application.Extensions
 @using ITMartinBudget.Application.Interfaces
 @using ITMartinBudget.Application.Models
-@using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
 
 @inject IDashboardService DashboardService
 
 <PageTitle>Familieøkonomi</PageTitle>
 
-<div class="budget-container">
-</div>
+@if (_loading)
+{
+    <div style="padding:48px;color:var(--muted)">Indlæser...</div>
+}
+else
+{
+    var months = Math.Max(1, Dashboard.MonthsLoaded);
+    var monthlyIncome = Dashboard.TotalIncome / months;
+    var monthlyExpenses = Math.Abs(Dashboard.TotalExpenses) / months;
+    var monthlyNet = Dashboard.NetAmount / months;
+
+    var now = DateTime.Now;
+    var currentMonthTx = Dashboard.Transactions
+        .Where(x => x.Date.Month == now.Month && x.Date.Year == now.Year)
+        .ToList();
+
     <div class="stack">
 
         <div>
-
-            <h1 class="page-title">
-                Familieøkonomi
-            </h1>
-
+            <h1 class="page-title">Familieøkonomi</h1>
             <div class="meta">
-                Live overblik over familiens økonomi
+                @now.ToString("MMMM yyyy", new System.Globalization.CultureInfo("da-DK"))
+                &nbsp;·&nbsp; snit over @months måneder
             </div>
-
         </div>
-        
+
         <div class="financial-overview-card">
-
             <div class="financial-item income">
-
-                <div class="financial-label">
-                    Indkomst
-                </div>
-
-                <div class="financial-value">
-                    @Dashboard.TotalIncome.ToString("N0") kr.
-                </div>
-
+                <div class="financial-label">Månedlig indkomst</div>
+                <div class="financial-value">@monthlyIncome.ToString("N0") kr.</div>
             </div>
-            
             <div class="financial-item expense">
-
-                <div class="financial-label">
-                    Udgifter
-                </div>
-
-                <div class="financial-value">
-                    @Dashboard.TotalExpenses.ToString("N0") kr.
-                </div>
-
+                <div class="financial-label">Månedlige udgifter</div>
+                <div class="financial-value">@monthlyExpenses.ToString("N0") kr.</div>
             </div>
-            
             <div class="financial-item result">
-
-                <div class="financial-label">
-                    @(Dashboard.NetAmount >= 0
-                        ? "Overskud"
-                        : "Underskud")
-                </div>
-
-                <div class="financial-value">
-                    @Dashboard.NetAmount.ToString("N0") kr.
-                </div>
-
-            </div>
-            @{
-                var expensePercentage =
-                    Dashboard.TotalIncome == 0
-                        ? 0
-                        : Dashboard.TotalExpenses /
-                        Dashboard.TotalIncome * 100;
-            }
-
-            <div class="financial-progress">
-
-                <div class="financial-progress-bar">
-
-                    <div class="financial-progress-expense"
-                         style="width:@expensePercentage%">
-                    </div>
-
-                    <div class="financial-progress-income"
-                         style="width:@(100-expensePercentage)%">
-                    </div>
-
-                </div>
-
-                <div class="financial-progress-labels">
-
-                    <span class="income-label">
-                        +@Dashboard.TotalIncome.ToString("N0") kr.
-                    </span>
-
-                    <span class="expense-label">
-                        -@Dashboard.TotalExpenses.ToString("N0") kr.
-                    </span>
-
-                </div>
-
-                <div class="financial-progress-summary">
-
-                    @expensePercentage.ToString("N1")%
-                    af indkomsten bruges
-
-                </div>
-
+                <div class="financial-label">@(monthlyNet >= 0 ? "Overskud" : "Underskud") /md</div>
+                <div class="financial-value">@monthlyNet.ToString("N0") kr.</div>
             </div>
         </div>
-        
-        @if (UncategorizedTransactions.Any())
-        {
-            <div class="transaction-section">
 
-                <h2 class="transaction-section-title">
-                    Ukategoriserede transaktioner
-                </h2>
-
-                <div class="transaction-list">
-
-                    @foreach (var tx in UncategorizedTransactions.Take(50))
-                    {
-                        <div class="transaction-row">
-
-                            <div class="transaction-date">
-                                @tx.Date.ToString("dd/MM/yyyy")
-                            </div>
-
-                            <div class="transaction-description">
-
-                                <div class="transaction-title">
-                                    @tx.Title
-                                </div>
-
-                                <div class="transaction-category">
-                                    @tx.Description
-                                </div>
-
-                            </div>
-
-                            <div class="transaction-amount @(tx.Amount >= 0 ? "positive" : "negative")">
-
-                                @tx.Amount.ToString("N0") kr.
-
-                            </div>
-
-                        </div>
-                    }
-
-                </div>
-
-            </div>
-        }
-        @if (RecurringTransactions.Any())
-        {
-            <div class="transaction-section">
-
-                <h2 class="transaction-section-title">
-                    Kommende faste betalinger
-                </h2>
-
-                <div class="transaction-list">
-
-                    @foreach (var recurring in RecurringTransactions)
-                    {
-                        <div class="transaction-row">
-
-                            <div class="transaction-description">
-
-                                <div class="transaction-title">
-                                    @recurring.Title
-                                </div>
-
-                                <div class="transaction-category">
-                                    @GetRecurringText(
-                                        recurring.RecurringIntervalMonths)
-                                </div>
-
-                            </div>
-
-                            <div class="transaction-amount negative">
-                                @Math.Abs(recurring.Amount).ToString("N0") kr.
-                            </div>
-
-                        </div>
-                    }
-
-                </div>
-
-            </div>
-        }
-           <div class="budget-columns">
-
-    <div class="budget-column">
-
-        <div class="budget-column-header income">
-            💰 Indkomster
-        </div>
-
-        @foreach (var group in Dashboard.BudgetGroupSummaries
-                     .Where(x => x.Total > 0)
-                     .OrderByDescending(x => x.Total))
-        {
-            <div class="category-summary-card clickable-card"
-                 @onclick="() => ToggleBudgetGroup(group.BudgetGroup)">
-
-                @{
-                    var percent =
-                        TotalSpending == 0
-                            ? 0
-                            : group.DisplayAmount /
-                            TotalSpending * 100;
-                }
-
-                <div class="category-summary-top">
-
-                    <div>
-
-                        <div class="category-summary-title">
-                            @group.BudgetGroup.ToDisplayName()
-                        </div>
-
-                        <div class="meta">
-                            @group.TransactionCount transaktioner
-                            •
-                            @GetSourceCount(group.BudgetGroup) kilder
-                        </div>
-
-                    </div>
-
-                    <div class="category-summary-count">
-                        @GetPeriodAmount(group)
-                    </div>
-
-                </div>
-
-                <div class="category-summary-amount positive">
-                    @group.Total.ToString("N0") kr.
-                </div>
-                
-                @if (ExpandedBudgetGroup == group.BudgetGroup)
+        <div>
+            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:16px">Kategorier denne måned</h2>
+            <div style="display:flex;flex-direction:column;gap:16px">
+                @foreach (var cat in _categories)
                 {
-                    <div style="padding:20px;color:white">
+                    var summary = Dashboard.BudgetGroupSummaries
+                        .FirstOrDefault(x => x.BudgetGroup == cat.Group);
+                    var monthlyAvg = summary != null ? Math.Abs(summary.Total) / months : 0m;
 
-                        @foreach (var grouped in Dashboard.Transactions
-                                      .Where(x => x.BudgetGroup == group.BudgetGroup)
-                                      .GroupBy(x =>
-                                          !string.IsNullOrWhiteSpace(x.Title)
-                                              ? x.Title
-                                              : x.Description)
-                                      .OrderByDescending(x => Math.Abs(x.Sum(y => y.Amount))))
-                        {
-                            var totalAmount =
-                                grouped.Sum(x => Math.Abs(x.Amount));
+                    var thisMonthSpent = currentMonthTx
+                        .Where(x => x.BudgetGroup == cat.Group)
+                        .Sum(x => Math.Abs(x.Amount));
 
-                            var averageAmount =
-                                grouped.Average(x => Math.Abs(x.Amount));
+                    var pct = monthlyAvg > 0
+                        ? (double)(thisMonthSpent / monthlyAvg * 100m)
+                        : 0.0;
+                    var pctCapped = Math.Min(pct, 100.0);
+                    var over = thisMonthSpent > monthlyAvg && monthlyAvg > 0;
 
-                            var latest =
-                                grouped.OrderByDescending(x => x.Date)
-                                    .First();
+                    <div class="category-summary-card">
 
-                            <div class="transaction-detail-row">
-
-                                <div>
-
-                                    <div class="transaction-title">
-                                        @grouped.Key
-                                    </div>
-
-                                    <div class="meta">
-                                        @grouped.Count() betalinger
-                                        •
-                                        @GetRecurringText(grouped.Count())
-                                    </div>
-
-                                    <div class="meta">
-                                        @averageAmount.ToString("N0") kr/stk
-                                    </div>
-
-                                    <div class="meta">
-                                        Senest:
-                                        @latest.Date.ToString("dd/MM/yyyy")
-                                    </div>
-
-                                </div>
-
-                                <div class="transaction-amount">
-                                    @totalAmount.ToString("N0") kr.
-                                </div>
-
+                        <div class="category-summary-top">
+                            <div class="category-summary-title">@cat.Label</div>
+                            <div class="meta" style="white-space:nowrap">
+                                snit @monthlyAvg.ToString("N0") kr/md
                             </div>
-                        }                    </div>
-                }
-            </div>
-        }
-
-    </div>
-
-    <div class="budget-column">
-
-       
-        <div class="budget-column-header expense">
-            💸 Udgifter
-        </div>
-
-        @foreach (var group in Dashboard.BudgetGroupSummaries
-                     .Where(x => x.Total < 0)
-                     .OrderByDescending(x => x.DisplayAmount))
-        {
-            <div class="category-summary-card clickable-card"
-                 @onclick="() => ToggleBudgetGroup(group.BudgetGroup)">
-
-                @{
-                    var percent =
-                        TotalSpending == 0
-                            ? 0
-                            : group.Expenses /
-                            TotalSpending * 100;
-                }
-
-                <div class="category-summary-top">
-
-                    <div>
-
-                        <div class="category-summary-title">
-                            @group.BudgetGroup.ToDisplayName()
                         </div>
 
-                        <div class="meta">
-                            @group.TransactionCount transaktioner
-                            •
-                            @GetSourceCount(group.BudgetGroup) kilder
+                        <div class="category-summary-amount @(over ? "negative" : "positive")">
+                            @thisMonthSpent.ToString("N0") kr.
                         </div>
+                        <div class="meta" style="margin-top:4px">denne måned</div>
 
-                        <div class="category-summary-count">
-                            @GetPeriodAmount(group)
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="category-summary-amount negative">
-                    @group.DisplayAmount.ToString("N0") kr.
-                </div>
-                @if (ExpandedBudgetGroup == group.BudgetGroup)
-                {
-                    <div style="padding:20px;color:white">
-
-                        @foreach (var grouped in Dashboard.Transactions
-                                      .Where(x => x.BudgetGroup == group.BudgetGroup)
-                                      .GroupBy(x =>
-                                          !string.IsNullOrWhiteSpace(x.Title)
-                                              ? x.Title
-                                              : x.Description)
-                                      .OrderByDescending(x => Math.Abs(x.Sum(y => y.Amount))))
+                        @if (monthlyAvg > 0)
                         {
-                            var totalAmount =
-                                grouped.Sum(x => Math.Abs(x.Amount));
-
-                            var averageAmount =
-                                grouped.Average(x => Math.Abs(x.Amount));
-
-                            var latest =
-                                grouped
-                                    .OrderByDescending(x => x.Date)
-                                    .First();
-
-                               
-                                <div class="transaction-detail-row">
-
-                                    <div>
-
-                                        <div class="transaction-title">
-                                            @grouped.Key
-                                        </div>
-
-                                        <div class="meta">
-                                            @grouped.Count() betalinger
-                                            •
-                                            @GetRecurringText(grouped.Count())
-                                        </div>
-
-                                        <div class="meta">
-                                            @averageAmount.ToString("N0") kr/stk
-                                        </div>
-
-                                        <div class="meta">
-                                            Senest:
-                                            @latest.Date.ToString("dd/MM/yyyy")
-                                        </div>
-
-                                    </div>
-
-                                    <div class="transaction-amount">
-                                        @totalAmount.ToString("N0") kr.
-                                    </div>
-
+                            <div style="margin-top:16px">
+                                <div style="height:10px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)">
+                                    <div style="height:100%;border-radius:999px;width:@pctCapped.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)%;background:@(over ? "var(--red)" : "var(--green)");transition:width .3s ease"></div>
                                 </div>
+                                <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px;color:var(--muted)">
+                                    <span>@pct.ToString("N0")% af månedlig snit</span>
+                                    @if (over)
+                                    {
+                                        <span style="color:var(--red)">@((thisMonthSpent - monthlyAvg).ToString("N0")) kr. over</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:var(--green)">@((monthlyAvg - thisMonthSpent).ToString("N0")) kr. tilbage</span>
+                                    }
+                                </div>
+                            </div>
                         }
 
                     </div>
                 }
-
             </div>
-        }
+        </div>
+
+        <div>
+            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:16px">Seneste transaktioner</h2>
+            <div class="transaction-list">
+                @foreach (var tx in Dashboard.Transactions
+                    .OrderByDescending(x => x.Date)
+                    .Take(25))
+                {
+                    var isIncome = tx.Amount >= 0;
+                    <div class="transaction-row @(isIncome ? "income" : "expense")">
+                        <div class="transaction-date">@tx.Date.ToString("dd/MM")</div>
+                        <div class="transaction-description">
+                            <div class="transaction-title">
+                                @(!string.IsNullOrWhiteSpace(tx.Title) ? tx.Title : tx.Description)
+                            </div>
+                            <div class="transaction-category">@tx.BudgetGroup.ToDisplayName()</div>
+                        </div>
+                        <div class="transaction-amount @(isIncome ? "positive" : "negative")">
+                            @tx.Amount.ToString("N0") kr.
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
 
     </div>
+}
 
-</div>
-
-        </div>
 @code {
-    private DashboardViewModel Dashboard =
-        new();
-    private BudgetGroup? ExpandedBudgetGroup;
-    private decimal TotalSpending =>
-        Dashboard.BudgetGroupSummaries
-            .Sum(x => x.Expenses);
-    private List<BankTransaction>
-        UncategorizedTransactions =>
-        Dashboard.Transactions
-            .Where(x =>
-                x.BudgetGroup ==
-                BudgetGroup.Uncategorized)
-            .ToList();
-    private List<BankTransaction> RecurringTransactions =>
-        Dashboard.Transactions
-            .Where(x =>
-                x.RecurringIntervalMonths > 0)
-            .GroupBy(x => x.Title)
-            .Select(x =>
-                x.OrderByDescending(y => y.Date)
-                    .First())
-            .OrderByDescending(x =>
-                Math.Abs(x.Amount))
-            .ToList();
-    private string GetFrequency(
-        BudgetGroup budgetGroup)
-    {
-        var transactions =
-            Dashboard.Transactions
-                .Where(x =>
-                    x.BudgetGroup ==
-                    budgetGroup)
-                .OrderBy(x => x.Date)
-                .ToList();
+    private DashboardViewModel Dashboard = new();
+    private bool _loading = true;
 
-        if (transactions.Count < 2)
-        {
-            return "Uregelmæssig";
-        }
+    private record CategoryDef(BudgetGroup Group, string Label);
 
-        var intervals =
-            transactions
-                .Zip(
-                    transactions.Skip(1),
-                    (a, b) =>
-                        (b.Date - a.Date)
-                        .TotalDays)
-                .ToList();
+    private readonly CategoryDef[] _categories =
+    [
+        new(BudgetGroup.EverydayGrocery, "Dagligvarer"),
+        new(BudgetGroup.RestaurantCafe, "Restaurant & Cafe"),
+    ];
 
-        var avg =
-            intervals.Average();
-
-        return avg switch
-        {
-            <= 40 => "Månedlig",
-            <= 110 => "Kvartalsvis",
-            <= 150 => "Hver 4. måned",
-            <= 220 => "Halvårlig",
-            <= 450 => "Årlig",
-            _ => "Uregelmæssig"
-        };
-    }
-    private string GetPeriodAmount(
-        BudgetGroupSummary group)
-    {
-        var amount =
-            group.DisplayAmount;
-
-        return GetFrequency(
-                group.BudgetGroup) switch
-            {
-                "Månedlig" =>
-                    $"{amount / Math.Max(1, Dashboard.MonthsLoaded):N0} kr/md",
-
-                "Kvartalsvis" =>
-                    $"{amount / 4:N0} kr/kvartal",
-
-                "Hver 4. måned" =>
-                    $"{amount / 3:N0} kr/4 mdr",
-
-                "Halvårlig" =>
-                    $"{amount / 2:N0} kr/halvår",
-
-                "Årlig" =>
-                    $"{amount:N0} kr/år",
-
-                _ =>
-                    $"{amount:N0} kr"
-            };
-    }
     protected override async Task OnInitializedAsync()
     {
-        Dashboard =
-            await DashboardService
-                .BuildDashboardAsync();
-    }
-    private void ToggleBudgetGroup(
-        BudgetGroup budgetGroup)
-    {
-        ExpandedBudgetGroup =
-            ExpandedBudgetGroup == budgetGroup
-                ? null
-                : budgetGroup;
-    }
-    private static string GetRecurringText(
-        decimal months)
-    {
-        return months switch
-        {
-            0.5m => "To om måneden",
-            1 => "Månedlig",
-            3 => "Kvartalsvis",
-            4 => "Hver 4. måned",
-            6 => "Halvårlig",
-            12 => "Årlig",
-            _ => $"{months} måneder"
-        };
-    }
-    
-    private int GetSourceCount(
-        BudgetGroup budgetGroup)
-    {
-        return Dashboard.Transactions
-            .Where(x => x.BudgetGroup == budgetGroup)
-            .Select(x =>
-                !string.IsNullOrWhiteSpace(x.Title)
-                    ? x.Title
-                    : x.Description)
-            .Distinct()
-            .Count();
+        Dashboard = await DashboardService.BuildDashboardAsync();
+        _loading = false;
     }
 }

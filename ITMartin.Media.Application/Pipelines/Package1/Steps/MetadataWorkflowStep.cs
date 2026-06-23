@@ -105,7 +105,7 @@ public sealed class MetadataWorkflowStep
                     cancellationToken: cancellationToken);
             }
 
-            await ExecuteOperationAsync(
+            var ok = await ExecuteOperationAsync(
                 "ExtractMetadata",
                 file.FileName,
                 async () =>
@@ -159,6 +159,9 @@ public sealed class MetadataWorkflowStep
                     await Task.CompletedTask;
                 },
                 _logger);
+
+            if (!ok)
+                state.FailedFiles.Add(new FailedFile { FilePath = file.FullPath, Step = Name, Error = "Metadata extraction failed" });
         }
     }
 }

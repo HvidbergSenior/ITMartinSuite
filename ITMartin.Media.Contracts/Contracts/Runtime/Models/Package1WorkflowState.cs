@@ -1,5 +1,12 @@
 ﻿namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
+public sealed class FailedFile
+{
+    public string FilePath { get; set; } = string.Empty;
+    public string Step { get; set; } = string.Empty;
+    public string Error { get; set; } = string.Empty;
+}
+
 public sealed class Package1WorkflowState
 {
     public string RootPath { get; set; } = string.Empty;
@@ -7,6 +14,8 @@ public sealed class Package1WorkflowState
     public List<MediaFile> MediaFiles { get; set; } = [];
 
     public List<DuplicateGroup> DuplicateGroups { get; set; } = [];
+
+    public List<FailedFile> FailedFiles { get; set; } = [];
 
     public Package1CleanupResult? CleanupResult { get; set; }
 

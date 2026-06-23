@@ -179,9 +179,9 @@ else
                                             <input style="flex:1;background:#0a0d14;border:1px solid #1f2937;color:#f0f0f0;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;min-width:0"
                                                    placeholder="Skriv en kommentar..."
                                                    value="@draft"
-                                                   @oninput="e => SetDraft(song.Key, e.Value?.ToString() ?? "")"
+                                                   @oninput="e => SetDraft(song.Key, e.Value?.ToString() ?? string.Empty)"
                                                    @onkeydown="e => OnCommentKey(e, song.Key)" />
-                                            <button style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:14px;flex-shrink:0;opacity:@(string.IsNullOrWhiteSpace(draft) ? "0.4" : "1")"
+                                            <button style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:14px;flex-shrink:0;opacity:@(string.IsNullOrWhiteSpace(draft) ? 0.4 : 1)"
                                                     @onclick="() => PostCommentAsync(song.Key)"
                                                     disabled="@(string.IsNullOrWhiteSpace(draft))">
                                                 Send

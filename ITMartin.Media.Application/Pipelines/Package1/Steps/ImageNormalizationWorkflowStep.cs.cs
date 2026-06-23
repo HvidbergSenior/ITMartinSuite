@@ -62,7 +62,7 @@ public sealed class ImageNormalizationWorkflowStep
                 total,
                 file.FileName);
 
-            await ExecuteOperationAsync(
+            var ok = await ExecuteOperationAsync(
                 "NormalizeImage",
                 file.FileName,
                 async () =>
@@ -83,6 +83,9 @@ public sealed class ImageNormalizationWorkflowStep
                         file.NormalizedPath);
                 },
                 _logger);
+
+            if (!ok)
+                state.FailedFiles.Add(new FailedFile { FilePath = file.FullPath, Step = Name, Error = "Image normalization failed" });
         }
     }
 }

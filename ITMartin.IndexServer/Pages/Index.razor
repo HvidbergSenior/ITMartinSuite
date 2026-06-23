@@ -1,98 +1,316 @@
 @page "/"
-
 @using Microsoft.AspNetCore.Components.Web
-@using ITMartin.Shared.UI.Components
 @inject IConfiguration Config
 
 <PageTitle>ITMartin Suite</PageTitle>
 
-<div class="page-container">
+<div class="idx-page">
 
-    <div style="margin-bottom: 28px;">
-        <h1 style="font-size:32px; font-weight:800; margin:0 0 8px;">ITMartin Suite</h1>
-        <div class="text-muted">Launch your tools from one place.</div>
+    <div class="idx-hero">
+        <div class="idx-hero-inner">
+            <div class="idx-logo">⚡</div>
+            <h1 class="idx-title">ITMartin Suite</h1>
+            <p class="idx-sub">Alle dine apps samlet ét sted — byg til dig og dem du kender</p>
+        </div>
     </div>
 
-    <div class="suite-grid">
-
-        <div class="content-card">
-            <div class="suite-card-title">🎬 FileSorter</div>
-            <div class="suite-card-desc">Organize, scan and export media files</div>
-            <a href="@Config["Apps:FileSorterUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+    @* ── MEDIER & FILER ───────────────────────────────────── *@
+    <div class="idx-category">
+        <div class="idx-cat-header">
+            <div class="idx-cat-line"></div>
+            <span class="idx-cat-label">Medier &amp; Filer</span>
+            <div class="idx-cat-line"></div>
         </div>
+        <div class="idx-grid">
 
-        <div class="content-card">
-            <div class="suite-card-title">💰 Budget</div>
-            <div class="suite-card-desc">Personal and family budget management</div>
-            <a href="@Config["Apps:BudgetUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+            <a class="idx-card" href="@Config["Apps:FileSorterUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a1f35 0%, #0d3b6e 100%)">
+                    <div class="idx-preview-icon">🗂️</div>
+                    <div class="idx-preview-label">FileSorter</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">FileSorter</div>
+                    <div class="idx-card-desc">Sorter og organiser dine mediefiler automatisk med AI-klassificering. Scanner mapper, finder dubletter og eksporterer struktureret til dit bibliotek.</div>
+                    <div class="idx-card-tag">Billeder · Video · AI</div>
+                    <div class="idx-card-url">@Config["Apps:FileSorterUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="@Config["Apps:GalleryUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a2820 0%, #0d4a2e 100%)">
+                    <div class="idx-preview-icon">🖼️</div>
+                    <div class="idx-preview-label">Galleri</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Galleri</div>
+                    <div class="idx-card-desc">Gennemse og del dit billedgalleri. Støtter billeder og videoer, organiseret efter år og kategori. Kan deles med familie og venner via privat URL.</div>
+                    <div class="idx-card-tag">Billeder · Video · Deling</div>
+                    <div class="idx-card-url">@Config["Apps:GalleryUrl"]</div>
+                </div>
+            </a>
+
         </div>
+    </div>
 
-        <div class="content-card">
-            <div class="suite-card-title">🃏 Magic</div>
-            <div class="suite-card-desc">MTG card scanner and collection manager</div>
-            <a href="@Config["Apps:MagicUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+    @* ── MUSIK ────────────────────────────────────────────── *@
+    <div class="idx-category">
+        <div class="idx-cat-header">
+            <div class="idx-cat-line"></div>
+            <span class="idx-cat-label">Musik</span>
+            <div class="idx-cat-line"></div>
         </div>
+        <div class="idx-grid">
 
-        <div class="content-card">
-            <div class="suite-card-title">🧾 Receipt</div>
-            <div class="suite-card-desc">Photograph grocery receipts and extract clean item lists</div>
-            <a href="@Config["Apps:ReceiptUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+            <a class="idx-card" href="http://10.0.0.126:8101" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1e1030 0%, #4a1a7a 100%)">
+                    <div class="idx-preview-icon">🎵</div>
+                    <div class="idx-preview-label">Martin Musik</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Martin Musik</div>
+                    <div class="idx-card-desc">Øv dine egne sange med afspiller, tekst og akkorder synkroniseret. Transponer akkorder med ét tryk, og få AI-coaching til forbedring af tekster og fremførelse.</div>
+                    <div class="idx-card-tag">Musik · Akkorder · AI Coach</div>
+                    <div class="idx-card-url">10.0.0.126:8101</div>
+                </div>
+            </a>
+
         </div>
+    </div>
 
-        <div class="content-card">
-            <div class="suite-card-title">📚 Library</div>
-            <div class="suite-card-desc">Scan and manage books, DVDs and cartoons</div>
-            <a href="@Config["Apps:LibraryUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+    @* ── ØKONOMI ──────────────────────────────────────────── *@
+    <div class="idx-category">
+        <div class="idx-cat-header">
+            <div class="idx-cat-line"></div>
+            <span class="idx-cat-label">Økonomi</span>
+            <div class="idx-cat-line"></div>
         </div>
+        <div class="idx-grid">
 
-        <div class="content-card">
-            <div class="suite-card-title">🧠 FindIt</div>
-            <div class="suite-card-desc">ADHD helper — remember where you put things</div>
-            <a href="@Config["Apps:AdhdUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+            <a class="idx-card" href="@Config["Apps:BudgetUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a2a10 0%, #2d5a1a 100%)">
+                    <div class="idx-preview-icon">💰</div>
+                    <div class="idx-preview-label">Budget</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Budget</div>
+                    <div class="idx-card-desc">Hold styr på din personlige og familiens økonomi. Registrer udgifter, sæt budgetmål og få overblik over dine forbrug måned for måned.</div>
+                    <div class="idx-card-tag">Økonomi · Familie · Oversigt</div>
+                    <div class="idx-card-url">@Config["Apps:BudgetUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="@Config["Apps:ReceiptUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a2010 0%, #3d5a0a 100%)">
+                    <div class="idx-preview-icon">🧾</div>
+                    <div class="idx-preview-label">Kvittering</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Kvittering</div>
+                    <div class="idx-card-desc">Tag et billede af din dagligvarekvittering og lad AI udtrække en ren vareliste. Saml og søg i alle dine kvitteringer på ét sted.</div>
+                    <div class="idx-card-tag">Kvitteringer · AI · Dagligvarer</div>
+                    <div class="idx-card-url">@Config["Apps:ReceiptUrl"]</div>
+                </div>
+            </a>
+
         </div>
+    </div>
 
-        <div class="content-card">
-            <div class="suite-card-title">🏠 Family</div>
-            <div class="suite-card-desc">Daily task board — add, claim and complete tasks together</div>
-            <a href="@Config["Apps:FamilyUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+    @* ── SAMLINGER ────────────────────────────────────────── *@
+    <div class="idx-category">
+        <div class="idx-cat-header">
+            <div class="idx-cat-line"></div>
+            <span class="idx-cat-label">Samlinger</span>
+            <div class="idx-cat-line"></div>
         </div>
+        <div class="idx-grid">
 
-        <div class="content-card">
-            <div class="suite-card-title">🏪 Marketplace</div>
-            <div class="suite-card-desc">Buy and sell items — bid, message, mark sold</div>
-            <a href="@Config["Apps:MarketUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+            <a class="idx-card" href="@Config["Apps:MagicUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #200a0a 0%, #6b1a1a 100%)">
+                    <div class="idx-preview-icon">🃏</div>
+                    <div class="idx-preview-label">Magic</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Magic</div>
+                    <div class="idx-card-desc">Scan og administrer din Magic: The Gathering kortsamling. Brug kamera til at registrere kort, se samlingsværdi og søg i alle dine kort.</div>
+                    <div class="idx-card-tag">MTG · Samling · Scanner</div>
+                    <div class="idx-card-url">@Config["Apps:MagicUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="@Config["Apps:LibraryUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #0a1a30 0%, #1a3a6a 100%)">
+                    <div class="idx-preview-icon">📚</div>
+                    <div class="idx-preview-label">Bibliotek</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Bibliotek</div>
+                    <div class="idx-card-desc">Registrer og hold styr på din samling af bøger, DVD'er og tegneserier. Scan stregkoder og hent automatisk info om titler og forfattere.</div>
+                    <div class="idx-card-tag">Bøger · DVD · Tegneserier</div>
+                    <div class="idx-card-url">@Config["Apps:LibraryUrl"]</div>
+                </div>
+            </a>
+
         </div>
+    </div>
 
-        <div class="content-card">
-            <div class="suite-card-title">🖼️ Gallery</div>
-            <div class="suite-card-desc">Browse and curate your media library</div>
-            <a href="@Config["Apps:GalleryUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+    @* ── FAMILIE & FÆLLESSKAB ─────────────────────────────── *@
+    <div class="idx-category">
+        <div class="idx-cat-header">
+            <div class="idx-cat-line"></div>
+            <span class="idx-cat-label">Familie &amp; Fællesskab</span>
+            <div class="idx-cat-line"></div>
         </div>
+        <div class="idx-grid">
 
-        <div class="content-card">
-            <div class="suite-card-title">🍺 BarTab</div>
-            <div class="suite-card-desc">Track drinks and tabs at the bar</div>
-            <a href="@Config["Apps:BarTabUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+            <a class="idx-card" href="@Config["Apps:FamilyUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a1020 0%, #4a2060 100%)">
+                    <div class="idx-preview-icon">🏠</div>
+                    <div class="idx-preview-label">Familie</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Familie</div>
+                    <div class="idx-card-desc">Fælles opgavetavle for hele familien. Tilføj, tag og afslut opgaver sammen. Alle kan se hvad der mangler og hvem der gør hvad.</div>
+                    <div class="idx-card-tag">Familie · Opgaver · Planlægning</div>
+                    <div class="idx-card-url">@Config["Apps:FamilyUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="@Config["Apps:AdhdUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a2030 0%, #1a4060 100%)">
+                    <div class="idx-preview-icon">🧠</div>
+                    <div class="idx-preview-label">FindIt</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">FindIt</div>
+                    <div class="idx-card-desc">Husk hvor du lagde tingene. Tag et billede og beskriv en genstand — find den igen med en hurtig søgning. Perfekt til dem der glemmer tingenes plads.</div>
+                    <div class="idx-card-tag">ADHD · Huskeseddel · Genstande</div>
+                    <div class="idx-card-url">@Config["Apps:AdhdUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="http://10.0.0.126:8102" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #101a20 0%, #1a3a50 100%)">
+                    <div class="idx-preview-icon">🤝</div>
+                    <div class="idx-preview-label">Club</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Club</div>
+                    <div class="idx-card-desc">Fælles platform for grupper og foreninger. Del vigtige dokumenter med læsekvittering, planlæg begivenheder, sæt opgaver og skriv opslag — alt samlet ét sted.</div>
+                    <div class="idx-card-tag">Forening · Dokumenter · Kalender</div>
+                    <div class="idx-card-url">10.0.0.126:8102</div>
+                </div>
+            </a>
+
         </div>
+    </div>
 
-        <div class="content-card">
-            <div class="suite-card-title">🔨 Auction</div>
-            <div class="suite-card-desc">Run live auctions with bidding and items</div>
-            <a href="@Config["Apps:AuctionUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+    @* ── SJOV & UNDERHOLDNING ─────────────────────────────── *@
+    <div class="idx-category">
+        <div class="idx-cat-header">
+            <div class="idx-cat-line"></div>
+            <span class="idx-cat-label">Sjov &amp; Underholdning</span>
+            <div class="idx-cat-line"></div>
         </div>
+        <div class="idx-grid">
 
-        <div class="content-card">
-            <div class="suite-card-title">🧪 TestHub</div>
-            <div class="suite-card-desc">Coordinate app testing rounds and feedback</div>
-            <a href="@Config["Apps:TestHubUrl"]" class="btn btn-primary" target="_blank">Open App</a>
+            <a class="idx-card" href="@Config["Apps:BarTabUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a1500 0%, #5a4500 100%)">
+                    <div class="idx-preview-icon">🍺</div>
+                    <div class="idx-preview-label">BarTab</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">BarTab</div>
+                    <div class="idx-card-desc">Hold styr på drinks og regninger til fester og arrangementer. Opret deltagere, registrer forbrug og se hvem der skylder hvad.</div>
+                    <div class="idx-card-tag">Bar · Drinks · Regninger</div>
+                    <div class="idx-card-url">@Config["Apps:BarTabUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="@Config["Apps:AuctionUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #1a0a00 0%, #5a2000 100%)">
+                    <div class="idx-preview-icon">🔨</div>
+                    <div class="idx-preview-label">Auktion</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Auktion</div>
+                    <div class="idx-card-desc">Afhold live auktioner med realtidsbud. Opret genstande med billeder og startbud — deltagere byder fra deres telefon og vinder ved højeste bud.</div>
+                    <div class="idx-card-tag">Auktion · Bud · Live</div>
+                    <div class="idx-card-url">@Config["Apps:AuctionUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="@Config["Apps:MarketUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #001a10 0%, #004a30 100%)">
+                    <div class="idx-preview-icon">🏪</div>
+                    <div class="idx-preview-label">Marked</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Marked</div>
+                    <div class="idx-card-desc">Køb og sælg ting i dit netværk. Upload billeder, sæt en pris eller byd-knap, og kommuniker direkte med sælger. Markér som solgt når handlen er i hus.</div>
+                    <div class="idx-card-tag">Køb · Salg · Netværk</div>
+                    <div class="idx-card-url">@Config["Apps:MarketUrl"]</div>
+                </div>
+            </a>
+
         </div>
+    </div>
 
-        <div class="content-card">
-            <div class="suite-card-title">🎵 Chord Finder</div>
-            <div class="suite-card-desc">Detect chords from MP3 files</div>
-            <button class="btn btn-secondary" disabled>Coming Soon</button>
-        </div>
-
+    <div class="idx-footer">
+        Bygget af Martin Hvidberg · Kørende på dit eget NAS
     </div>
 
 </div>
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0a0d14; color: #f0f0f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    .idx-page { max-width: 1100px; margin: 0 auto; padding: 0 16px 60px; }
+
+    .idx-hero { text-align: center; padding: 60px 16px 48px; }
+    .idx-hero-inner { max-width: 600px; margin: 0 auto; }
+    .idx-logo { font-size: 52px; margin-bottom: 16px; }
+    .idx-title { font-size: 40px; font-weight: 900; margin: 0 0 12px; letter-spacing: -.02em; }
+    .idx-sub { font-size: 17px; color: #64748b; margin: 0; line-height: 1.5; }
+
+    .idx-category { margin-bottom: 48px; }
+
+    .idx-cat-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .idx-cat-line { flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+    .idx-cat-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; }
+
+    .idx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+    .idx-card {
+        display: flex; flex-direction: column;
+        background: rgba(255,255,255,.03);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 18px; overflow: hidden;
+        text-decoration: none; color: inherit;
+        transition: border-color .15s, transform .15s;
+    }
+    .idx-card:hover { border-color: rgba(255,255,255,.2); transform: translateY(-2px); }
+
+    .idx-preview {
+        position: relative; height: 140px;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 8px;
+    }
+    .idx-preview-icon { font-size: 48px; filter: drop-shadow(0 4px 12px rgba(0,0,0,.4)); }
+    .idx-preview-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.5); letter-spacing: .04em; }
+
+    .idx-card-body { padding: 16px 18px 20px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .idx-card-name { font-size: 17px; font-weight: 800; }
+    .idx-card-desc { font-size: 13px; color: #94a3b8; line-height: 1.6; flex: 1; }
+    .idx-card-tag { font-size: 11px; color: #475569; font-weight: 600; }
+    .idx-card-url { font-size: 11px; color: #1e40af; font-family: monospace; margin-top: 4px; word-break: break-all; }
+
+    .idx-footer { text-align: center; font-size: 13px; color: #1e293b; padding: 32px 0 16px; }
+
+    @@media (max-width: 600px) {
+        .idx-title { font-size: 28px; }
+        .idx-grid { grid-template-columns: 1fr; }
+        .idx-hero { padding: 40px 0 32px; }
+    }
+</style>

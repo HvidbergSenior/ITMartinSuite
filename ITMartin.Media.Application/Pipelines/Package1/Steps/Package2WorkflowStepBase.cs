@@ -15,7 +15,7 @@ public abstract class Package1WorkflowStepBase
         CancellationToken cancellationToken = default)
         where TState : class;
 
-    protected static async Task ExecuteOperationAsync(
+    protected static async Task<bool> ExecuteOperationAsync(
         string operationName,
         string itemName,
         Func<Task> operation,
@@ -52,6 +52,8 @@ public abstract class Package1WorkflowStepBase
                 itemName,
                 operationName,
                 stopwatch.Elapsed);
+
+            return true;
         }
         catch (Exception ex)
         {
@@ -71,7 +73,7 @@ public abstract class Package1WorkflowStepBase
                 operationName,
                 stopwatch.Elapsed);
 
-            throw;
+            return false;
         }
     }
 

@@ -76,7 +76,7 @@ public sealed class HashWorkflowStep
                 continue;
             }
 
-            await ExecuteOperationAsync(
+            var ok = await ExecuteOperationAsync(
                 "HashFile",
                 file.FileName,
                 async () =>
@@ -90,6 +90,9 @@ public sealed class HashWorkflowStep
                     await Task.CompletedTask;
                 },
                 _logger);
+
+            if (!ok)
+                state.FailedFiles.Add(new FailedFile { FilePath = file.FullPath, Step = Name, Error = "Hash failed" });
         }
     }
 }

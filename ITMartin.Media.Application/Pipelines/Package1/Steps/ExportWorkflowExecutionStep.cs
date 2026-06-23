@@ -115,6 +115,15 @@ public sealed class ExportWorkflowExecutionStep
                     exportRoot,
                     manifest,
                     cancellationToken);
+
+                if (state.FailedFiles.Count > 0)
+                {
+                    var failedFilesPath = Path.Combine(exportRoot, "_failed_files.txt");
+                    var lines = state.FailedFiles
+                        .Select(f => $"[{f.Step}] {f.FilePath} — {f.Error}");
+                    await File.WriteAllLinesAsync(failedFilesPath, lines, cancellationToken);
+                    _logger.LogWarning("{Count} files failed processing — see {Path}", state.FailedFiles.Count, failedFilesPath);
+                }
             },
             _logger);
     }

@@ -150,6 +150,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLibrary.Search.Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMusic.Server", "ITMartinMusic.Server\ITMartinMusic.Server.csproj", "{3301296B-994E-4371-9595-07D34CE2617A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinClub.Server", "ITMartinClub.Server\ITMartinClub.Server.csproj", "{5D37D8D2-2F03-4BBC-98B0-E40B82B91183}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -435,5 +437,9 @@ Global
 		{3301296B-994E-4371-9595-07D34CE2617A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3301296B-994E-4371-9595-07D34CE2617A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3301296B-994E-4371-9595-07D34CE2617A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D37D8D2-2F03-4BBC-98B0-E40B82B91183}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D37D8D2-2F03-4BBC-98B0-E40B82B91183}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D37D8D2-2F03-4BBC-98B0-E40B82B91183}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D37D8D2-2F03-4BBC-98B0-E40B82B91183}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
