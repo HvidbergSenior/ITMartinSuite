@@ -600,6 +600,33 @@ services:
       - martinnet
 
   # =========================================================
+  # CLUB — Group organizer (multi-tenant)
+  # =========================================================
+
+  club-web:
+    container_name: club-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinClub.Server/Dockerfile
+
+    ports:
+      - "8102:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__ClubDb=Data Source=/app/data/club.db
+      - ClubSettings__DocsRoot=/app/data/documents
+
+    volumes:
+      - /volume1/docker/martinsuite/club/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # MUSIK
   # =========================================================
 

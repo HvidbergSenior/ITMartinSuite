@@ -1,0 +1,142 @@
+@page "/g/{slug}/admin"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_group == null) { <div class="club-loading">Gruppen findes ikke.</div> }
+else if (!_authed)
+{
+    <div class="admin-lock">
+        <div class="admin-lock-card">
+            <div style="font-size:40px;margin-bottom:12px">🔒</div>
+            <h2>Admin — @_group.Name</h2>
+            <input @bind="_pinInput" type="password" placeholder="Admin PIN" class="admin-input" maxlength="20" />
+            @if (_pinError) { <div class="admin-error">Forkert PIN.</div> }
+            <button class="admin-btn" @onclick="Unlock">Unlock</button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="club-page">
+        <div class="club-header">
+            <div><div class="club-name">@_group.Name — Admin</div></div>
+            <a class="admin-back" href="/g/@Slug">← Tilbage</a>
+        </div>
+
+        <div class="admin-body">
+
+            <div class="admin-section">
+                <div class="admin-section-title">Gruppeinfo</div>
+                <div class="admin-info-row"><span>Slug:</span><code>/g/@_group.Slug</code></div>
+                <div class="admin-info-row"><span>Invitationskode:</span><code>@_group.InviteCode</code></div>
+                <div class="admin-info-row"><span>Oprettet:</span><span>@_group.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span></div>
+            </div>
+
+            <div class="admin-section">
+                <div class="admin-section-title">Medlemmer (@_members.Count)</div>
+                @foreach (var m in _members)
+                {
+                    <div class="admin-member-row">
+                        <span>@m.Name</span>
+                        <span class="admin-member-date">Tilmeldt @m.JoinedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                        <button class="admin-del-btn" @onclick="() => RemoveMemberAsync(m.Id)">Fjern</button>
+                    </div>
+                }
+            </div>
+
+            <div class="admin-section admin-danger">
+                <div class="admin-section-title">Ryd data</div>
+                <button class="admin-danger-btn" @onclick="ClearPostsAsync">Ryd alle opslag</button>
+                <button class="admin-danger-btn" @onclick="ClearCompletedTasksAsync">Ryd udførte opgaver</button>
+            </div>
+
+        </div>
+    </div>
+}
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
+    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
+    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .club-name { font-size: 18px; font-weight: 900; }
+    .admin-back { font-size: 13px; color: #3b82f6; text-decoration: none; }
+    .admin-lock { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .admin-lock-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; max-width: 360px; width: 100%; text-align: center; }
+    .admin-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; margin-bottom: 12px; }
+    .admin-input:focus { border-color: #3b82f6; }
+    .admin-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #2563eb; color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .admin-error { color: #f87171; font-size: 13px; margin-bottom: 10px; }
+    .admin-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+    .admin-section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 16px; }
+    .admin-section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+    .admin-info-row { display: flex; gap: 12px; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .admin-info-row:last-child { border-bottom: none; }
+    .admin-info-row span:first-child { color: #64748b; min-width: 140px; }
+    .admin-info-row code { background: rgba(255,255,255,.08); border-radius: 6px; padding: 2px 8px; font-size: 13px; }
+    .admin-member-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 14px; }
+    .admin-member-row:last-child { border-bottom: none; }
+    .admin-member-row span:first-child { flex: 1; font-weight: 600; }
+    .admin-member-date { font-size: 12px; color: #64748b; }
+    .admin-del-btn { background: transparent; border: 1px solid rgba(248,113,113,.3); border-radius: 6px; color: #f87171; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+    .admin-del-btn:hover { background: rgba(248,113,113,.1); }
+    .admin-danger { border-color: rgba(248,113,113,.2); }
+    .admin-danger-btn { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; color: #f87171; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 10px; margin-top: 4px; }
+    .admin-danger-btn:hover { background: rgba(248,113,113,.2); }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Group? _group;
+    private bool _loaded, _authed, _pinError;
+    private string _pinInput = "";
+    private List<Member> _members = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private void Unlock()
+    {
+        if (_pinInput == _group!.AdminPin) { _authed = true; _ = LoadMembersAsync(); }
+        else _pinError = true;
+    }
+
+    private async Task LoadMembersAsync()
+    {
+        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+        StateHasChanged();
+    }
+
+    private async Task RemoveMemberAsync(Guid memberId)
+    {
+        var member = await Db.Members.Include(m => m.Sessions).Include(m => m.Posts).Include(m => m.DocumentReads)
+            .FirstOrDefaultAsync(m => m.Id == memberId);
+        if (member == null) return;
+        Db.Members.Remove(member);
+        await Db.SaveChangesAsync();
+        await LoadMembersAsync();
+    }
+
+    private async Task ClearPostsAsync()
+    {
+        var posts = await Db.Posts.Where(p => p.GroupId == _group!.Id).ToListAsync();
+        Db.Posts.RemoveRange(posts);
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task ClearCompletedTasksAsync()
+    {
+        var done = await Db.Assignments.Where(a => a.GroupId == _group!.Id && a.IsCompleted).ToListAsync();
+        Db.Assignments.RemoveRange(done);
+        await Db.SaveChangesAsync();
+    }
+}

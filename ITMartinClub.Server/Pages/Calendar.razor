@@ -1,0 +1,168 @@
+@page "/g/{slug}/calendar"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <div class="club-header">
+            <div><div class="club-name">@_group!.Name</div><div class="club-member-name">@_member.Name</div></div>
+        </div>
+        <div class="club-nav">
+            <a class="club-nav-item" href="/g/@Slug">🏠 Hjem</a>
+            <a class="club-nav-item" href="/g/@Slug/docs">📄 Dokumenter</a>
+            <a class="club-nav-item active" href="/g/@Slug/calendar">📅 Kalender</a>
+            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
+            <a class="club-nav-item" href="/g/@Slug/board">💬 Opslagstavle</a>
+        </div>
+
+        <div class="cal-body">
+            <div class="cal-toolbar">
+                <h2 class="cal-title">Kalender</h2>
+                <button class="cal-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Tilføj")</button>
+            </div>
+
+            @if (_adding)
+            {
+                <div class="cal-form">
+                    <div class="cal-field"><label>Titel</label><input @bind="_newTitle" class="cal-input" maxlength="120" /></div>
+                    <div class="cal-row">
+                        <div class="cal-field"><label>Dato & tid</label><input @bind="_newDate" type="datetime-local" class="cal-input" /></div>
+                        <div class="cal-field"><label>Sted (valgfrit)</label><input @bind="_newLocation" class="cal-input" maxlength="100" /></div>
+                    </div>
+                    <div class="cal-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newDesc" rows="2" class="cal-input cal-textarea" /></div>
+                    <button class="cal-save-btn" @onclick="AddEventAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle))">Gem begivenhed</button>
+                </div>
+            }
+
+            <div class="cal-section-label">Kommende</div>
+            @if (!_upcoming.Any()) { <div class="cal-empty">Ingen kommende begivenheder.</div> }
+            @foreach (var ev in _upcoming)
+            {
+                <div class="cal-event">
+                    <div class="cal-event-header">
+                        <div class="cal-event-date">@ev.EventDate.ToLocalTime().ToString("dddd d. MMMM yyyy, HH:mm", new System.Globalization.CultureInfo("da-DK"))</div>
+                        <button class="cal-del-btn" @onclick="() => DeleteEventAsync(ev.Id)">✕</button>
+                    </div>
+                    <div class="cal-event-title">@ev.Title</div>
+                    @if (!string.IsNullOrEmpty(ev.Location)) { <div class="cal-event-loc">📍 @ev.Location</div> }
+                    @if (!string.IsNullOrEmpty(ev.Description)) { <div class="cal-event-desc">@ev.Description</div> }
+                    <div class="cal-event-by">Oprettet af @ev.CreatedByName</div>
+                </div>
+            }
+
+            @if (_past.Any())
+            {
+                <div class="cal-section-label" style="margin-top:24px">Tidligere</div>
+                @foreach (var ev in _past)
+                {
+                    <div class="cal-event cal-event-past">
+                        <div class="cal-event-date">@ev.EventDate.ToLocalTime().ToString("d. MMMM yyyy")</div>
+                        <div class="cal-event-title">@ev.Title</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
+    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
+    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .club-name { font-size: 20px; font-weight: 900; }
+    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .club-nav { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
+    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
+    .cal-body { padding: 16px; }
+    .cal-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .cal-title { font-size: 18px; font-weight: 800; margin: 0; }
+    .cal-add-btn { background: #2563eb; color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .cal-form { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .cal-field { margin-bottom: 12px; }
+    .cal-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .cal-row { display: flex; gap: 12px; }
+    .cal-row .cal-field { flex: 1; }
+    .cal-input { width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 14px; color: white; font-size: 14px; outline: none; }
+    .cal-input:focus { border-color: #3b82f6; }
+    .cal-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .cal-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .cal-save-btn:disabled { opacity: .4; cursor: default; }
+    .cal-section-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .cal-empty { color: #374151; font-size: 14px; padding: 12px 0; }
+    .cal-event { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .cal-event-past { opacity: .5; }
+    .cal-event-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .cal-event-date { font-size: 12px; color: #3b82f6; font-weight: 700; margin-bottom: 4px; }
+    .cal-event-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .cal-event-loc { font-size: 13px; color: #64748b; margin-bottom: 4px; }
+    .cal-event-desc { font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
+    .cal-event-by { font-size: 11px; color: #374151; }
+    .cal-del-btn { background: transparent; border: none; color: #374151; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+    .cal-del-btn:hover { color: #f87171; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private bool _adding;
+    private string _newTitle = "";
+    private DateTime _newDate = DateTime.Now.AddDays(7);
+    private string _newLocation = "";
+    private string _newDesc = "";
+    private List<CalendarEvent> _upcoming = [];
+    private List<CalendarEvent> _past = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
+        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group).FirstOrDefaultAsync(s => s.Id == sid);
+        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        await RefreshAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        var now = DateTime.UtcNow;
+        var all = await Db.Events.Where(e => e.GroupId == _group!.Id).OrderBy(e => e.EventDate).ToListAsync();
+        _upcoming = all.Where(e => e.EventDate >= now).ToList();
+        _past = all.Where(e => e.EventDate < now).OrderByDescending(e => e.EventDate).Take(5).ToList();
+    }
+
+    private async Task AddEventAsync()
+    {
+        Db.Events.Add(new CalendarEvent
+        {
+            GroupId = _group!.Id,
+            Title = _newTitle.Trim(),
+            EventDate = _newDate.ToUniversalTime(),
+            Location = string.IsNullOrWhiteSpace(_newLocation) ? null : _newLocation.Trim(),
+            Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
+            CreatedByName = _member!.Name,
+        });
+        await Db.SaveChangesAsync();
+        _newTitle = ""; _newLocation = ""; _newDesc = ""; _adding = false;
+        await RefreshAsync();
+    }
+
+    private async Task DeleteEventAsync(Guid id)
+    {
+        var ev = await Db.Events.FindAsync(id);
+        if (ev != null) { Db.Events.Remove(ev); await Db.SaveChangesAsync(); await RefreshAsync(); }
+    }
+}

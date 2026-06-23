@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Club</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script>
+        window.clubJs = {
+            getSession: () => localStorage.getItem('club_session'),
+            setSession: (v) => localStorage.setItem('club_session', v),
+            clearSession: () => localStorage.removeItem('club_session'),
+            scrollToBottom: (id) => {
+                var el = document.getElementById(id);
+                if (el) el.scrollTop = el.scrollHeight;
+            }
+        };
+    </script>
+    <div id="components-reconnect-modal">
+        <span class="reconnect-msg">Forbinder igen...</span>
+        <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+    </div>
+</body>
+</html>

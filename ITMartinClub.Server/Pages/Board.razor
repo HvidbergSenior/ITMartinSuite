@@ -1,0 +1,181 @@
+@page "/g/{slug}/board"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubBroadcastService Broadcast
+@implements IDisposable
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <div class="club-header">
+            <div><div class="club-name">@_group!.Name</div><div class="club-member-name">@_member.Name</div></div>
+        </div>
+        <div class="club-nav">
+            <a class="club-nav-item" href="/g/@Slug">🏠 Hjem</a>
+            <a class="club-nav-item" href="/g/@Slug/docs">📄 Dokumenter</a>
+            <a class="club-nav-item" href="/g/@Slug/calendar">📅 Kalender</a>
+            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
+            <a class="club-nav-item active" href="/g/@Slug/board">💬 Opslagstavle</a>
+        </div>
+
+        <div class="board-body">
+            <div class="board-header-row">
+                <h2 class="board-title">Opslagstavle</h2>
+                <div class="board-limit-info">Max @MaxPostsPerDay opslag pr. dag pr. person</div>
+            </div>
+
+            <div class="board-compose">
+                <textarea @bind="_newContent" @bind:event="oninput" placeholder="Skriv et opslag..." class="board-textarea" maxlength="500" rows="3" />
+                <div class="board-compose-footer">
+                    <span class="board-char">@_newContent.Length/500</span>
+                    @if (_postsLeftToday < MaxPostsPerDay)
+                    {
+                        <span class="board-quota">@_postsLeftToday opslag tilbage i dag</span>
+                    }
+                    <button class="board-post-btn" @onclick="PostAsync"
+                            disabled="@(string.IsNullOrWhiteSpace(_newContent) || _postsLeftToday == 0)">
+                        Send
+                    </button>
+                </div>
+                @if (_postsLeftToday == 0)
+                {
+                    <div class="board-limit-warn">Du har brugt dine @MaxPostsPerDay opslag for i dag.</div>
+                }
+            </div>
+
+            <div class="board-posts" id="board-posts">
+                @if (!_posts.Any())
+                {
+                    <div class="board-empty">Ingen opslag endnu — skriv det første!</div>
+                }
+                @foreach (var p in _posts)
+                {
+                    <div class="board-post @(p.MemberId == _member.Id ? "board-post-mine" : "")">
+                        <div class="board-post-header">
+                            <span class="board-post-author">@p.Member.Name</span>
+                            <span class="board-post-time">@p.PostedAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
+                            @if (p.MemberId == _member.Id)
+                            {
+                                <button class="board-del" @onclick="() => DeletePostAsync(p.Id)">✕</button>
+                            }
+                        </div>
+                        <div class="board-post-content">@p.Content</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
+    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
+    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .club-name { font-size: 20px; font-weight: 900; }
+    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .club-nav { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
+    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
+    .board-body { padding: 16px; }
+    .board-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .board-title { font-size: 18px; font-weight: 800; margin: 0; }
+    .board-limit-info { font-size: 12px; color: #374151; }
+    .board-compose { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 14px; margin-bottom: 20px; }
+    .board-textarea { width: 100%; background: transparent; border: none; color: white; font-size: 15px; outline: none; resize: none; font-family: inherit; }
+    .board-compose-footer { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+    .board-char { font-size: 12px; color: #374151; }
+    .board-quota { font-size: 12px; color: #f59e0b; flex: 1; }
+    .board-post-btn { background: #2563eb; color: white; border: none; border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
+    .board-post-btn:disabled { opacity: .4; cursor: default; }
+    .board-post-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .board-limit-warn { font-size: 13px; color: #f87171; margin-top: 8px; }
+    .board-posts { display: flex; flex-direction: column; gap: 10px; }
+    .board-empty { text-align: center; color: #374151; padding: 40px 0; font-size: 15px; }
+    .board-post { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 12px 14px; }
+    .board-post-mine { border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.06); }
+    .board-post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .board-post-author { font-size: 13px; font-weight: 700; color: #60a5fa; }
+    .board-post-time { font-size: 12px; color: #374151; flex: 1; }
+    .board-post-content { font-size: 15px; white-space: pre-wrap; word-break: break-word; }
+    .board-del { background: transparent; border: none; color: #374151; cursor: pointer; font-size: 12px; padding: 2px 4px; }
+    .board-del:hover { color: #f87171; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private const int MaxPostsPerDay = 3;
+
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private string _newContent = "";
+    private int _postsLeftToday;
+    private List<BulletinPost> _posts = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
+        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group).FirstOrDefaultAsync(s => s.Id == sid);
+        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        Broadcast.Subscribe(_group.Id, OnBroadcast);
+        await RefreshAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _posts = await Db.Posts
+            .Include(p => p.Member)
+            .Where(p => p.GroupId == _group!.Id)
+            .OrderByDescending(p => p.PostedAt)
+            .Take(50)
+            .ToListAsync();
+
+        var todayUtc = DateTime.UtcNow.Date;
+        var todayCount = await Db.Posts
+            .CountAsync(p => p.GroupId == _group!.Id && p.MemberId == _member!.Id && p.PostedAt >= todayUtc);
+        _postsLeftToday = Math.Max(0, MaxPostsPerDay - todayCount);
+    }
+
+    private async Task PostAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newContent) || _postsLeftToday == 0) return;
+        Db.Posts.Add(new BulletinPost
+        {
+            GroupId = _group!.Id,
+            MemberId = _member!.Id,
+            Content = _newContent.Trim(),
+        });
+        await Db.SaveChangesAsync();
+        _newContent = "";
+        await RefreshAsync();
+        Broadcast.Broadcast(_group.Id);
+        StateHasChanged();
+    }
+
+    private async Task DeletePostAsync(Guid id)
+    {
+        var p = await Db.Posts.FindAsync(id);
+        if (p != null && p.MemberId == _member!.Id)
+        {
+            Db.Posts.Remove(p);
+            await Db.SaveChangesAsync();
+            await RefreshAsync();
+            Broadcast.Broadcast(_group.Id);
+        }
+    }
+
+    private void OnBroadcast() => InvokeAsync(async () => { await RefreshAsync(); StateHasChanged(); });
+    public void Dispose() { if (_group != null) Broadcast.Unsubscribe(_group.Id, OnBroadcast); }
+}

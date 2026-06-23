@@ -1,0 +1,237 @@
+@page "/g/{slug}"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubBroadcastService Broadcast
+@implements IDisposable
+
+@if (!_loaded)
+{
+    <div class="club-loading">Indlæser...</div>
+}
+else if (_member == null)
+{
+    <div class="club-loading">Omdirigerer...</div>
+}
+else
+{
+    <div class="club-page">
+        <div class="club-header">
+            <div>
+                <div class="club-name">@_group!.Name</div>
+                <div class="club-member-name">Hej, @_member.Name 👋</div>
+            </div>
+            <button class="club-leave-btn" @onclick="LeaveAsync">Log ud</button>
+        </div>
+
+        <div class="club-nav">
+            <a class="club-nav-item active" href="/g/@Slug">🏠 Hjem</a>
+            <a class="club-nav-item" href="/g/@Slug/docs">
+                📄 Dokumenter
+                @if (_unreadCount > 0) { <span class="club-badge">@_unreadCount</span> }
+            </a>
+            <a class="club-nav-item" href="/g/@Slug/calendar">📅 Kalender</a>
+            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
+            <a class="club-nav-item" href="/g/@Slug/board">💬 Opslagstavle</a>
+        </div>
+
+        <div class="club-sections">
+
+            @if (_unreadCount > 0)
+            {
+                <div class="club-alert" @onclick='() => Nav.NavigateTo($"/g/{Slug}/docs")'>
+                    <span>📄</span>
+                    <span>@_unreadCount @(_unreadCount == 1 ? "nyt dokument" : "nye dokumenter") — tryk for at se</span>
+                </div>
+            }
+
+            <div class="club-section">
+                <div class="club-section-title">Kommende begivenheder</div>
+                @if (!_upcomingEvents.Any())
+                {
+                    <div class="club-empty">Ingen kommende begivenheder.</div>
+                }
+                @foreach (var ev in _upcomingEvents)
+                {
+                    <div class="club-event-row">
+                        <div class="club-event-date">@ev.EventDate.ToString("dd MMM")</div>
+                        <div>
+                            <div class="club-event-title">@ev.Title</div>
+                            @if (!string.IsNullOrEmpty(ev.Location))
+                            {
+                                <div class="club-event-loc">📍 @ev.Location</div>
+                            }
+                        </div>
+                    </div>
+                }
+                <a class="club-see-all" href="/g/@Slug/calendar">Se alle →</a>
+            </div>
+
+            <div class="club-section">
+                <div class="club-section-title">Åbne opgaver</div>
+                @if (!_openTasks.Any())
+                {
+                    <div class="club-empty">Ingen åbne opgaver.</div>
+                }
+                @foreach (var t in _openTasks)
+                {
+                    <div class="club-task-row">
+                        <div class="club-task-title">@t.Title</div>
+                        <div class="club-task-meta">
+                            @if (!string.IsNullOrEmpty(t.AssignedToName)) { <span>👤 @t.AssignedToName</span> }
+                            @if (t.DueDate.HasValue) { <span>📅 @t.DueDate.Value.ToString("dd MMM")</span> }
+                        </div>
+                    </div>
+                }
+                <a class="club-see-all" href="/g/@Slug/tasks">Se alle →</a>
+            </div>
+
+            <div class="club-section">
+                <div class="club-section-title">Seneste opslag</div>
+                @if (!_recentPosts.Any())
+                {
+                    <div class="club-empty">Ingen opslag endnu.</div>
+                }
+                @foreach (var p in _recentPosts)
+                {
+                    <div class="club-post-row">
+                        <div class="club-post-author">@p.Member.Name</div>
+                        <div class="club-post-content">@p.Content</div>
+                        <div class="club-post-time">@p.PostedAt.ToLocalTime().ToString("dd MMM HH:mm")</div>
+                    </div>
+                }
+                <a class="club-see-all" href="/g/@Slug/board">Gå til opslagstavlen →</a>
+            </div>
+
+        </div>
+    </div>
+}
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; font-size: 16px; }
+    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
+    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .club-name { font-size: 20px; font-weight: 900; }
+    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .club-leave-btn { background: transparent; border: 1px solid rgba(255,255,255,.15); border-radius: 8px; color: #64748b; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+    .club-leave-btn:hover { border-color: rgba(255,255,255,.3); color: #94a3b8; }
+    .club-nav { display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
+    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
+    .club-badge { background: #ef4444; color: white; border-radius: 999px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
+    .club-sections { padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+    .club-alert { display: flex; align-items: center; gap: 10px; background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3); border-radius: 12px; padding: 14px 16px; cursor: pointer; font-size: 14px; font-weight: 600; color: #93c5fd; }
+    .club-alert:hover { background: rgba(59,130,246,.25); }
+    .club-section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 16px; }
+    .club-section-title { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+    .club-empty { font-size: 13px; color: #374151; padding: 8px 0; }
+    .club-see-all { display: block; font-size: 12px; color: #3b82f6; text-decoration: none; margin-top: 12px; }
+    .club-see-all:hover { text-decoration: underline; }
+    .club-event-row { display: flex; gap: 14px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .club-event-row:last-of-type { border-bottom: none; }
+    .club-event-date { font-size: 12px; font-weight: 700; color: #3b82f6; min-width: 44px; padding-top: 2px; }
+    .club-event-title { font-size: 14px; font-weight: 600; }
+    .club-event-loc { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .club-task-row { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .club-task-row:last-of-type { border-bottom: none; }
+    .club-task-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .club-task-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; }
+    .club-post-row { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .club-post-row:last-of-type { border-bottom: none; }
+    .club-post-author { font-size: 12px; font-weight: 700; color: #60a5fa; margin-bottom: 3px; }
+    .club-post-content { font-size: 14px; margin-bottom: 3px; }
+    .club-post-time { font-size: 11px; color: #374151; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private int _unreadCount;
+    private List<CalendarEvent> _upcomingEvents = [];
+    private List<Assignment> _openTasks = [];
+    private List<BulletinPost> _recentPosts = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
+        if (!Guid.TryParse(sessionId, out var sid))
+        {
+            Nav.NavigateTo($"/g/{Slug}/join");
+            return;
+        }
+
+        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group)
+            .FirstOrDefaultAsync(s => s.Id == sid);
+
+        if (session == null || session.Member.Group.Slug != Slug)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join");
+            return;
+        }
+
+        _member = session.Member;
+        _group = session.Member.Group;
+
+        await RefreshAsync();
+        Broadcast.Subscribe(_group.Id, OnBroadcast);
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        var now = DateTime.UtcNow;
+
+        _unreadCount = await Db.Documents
+            .Where(d => d.GroupId == _group!.Id && !d.Reads.Any(r => r.MemberId == _member!.Id))
+            .CountAsync();
+
+        _upcomingEvents = await Db.Events
+            .Where(e => e.GroupId == _group!.Id && e.EventDate >= now)
+            .OrderBy(e => e.EventDate)
+            .Take(3)
+            .ToListAsync();
+
+        _openTasks = await Db.Assignments
+            .Where(a => a.GroupId == _group!.Id && !a.IsCompleted)
+            .OrderBy(a => a.DueDate)
+            .Take(3)
+            .ToListAsync();
+
+        _recentPosts = await Db.Posts
+            .Include(p => p.Member)
+            .Where(p => p.GroupId == _group!.Id)
+            .OrderByDescending(p => p.PostedAt)
+            .Take(3)
+            .ToListAsync();
+    }
+
+    private void OnBroadcast() => InvokeAsync(async () =>
+    {
+        await RefreshAsync();
+        StateHasChanged();
+    });
+
+    private async Task LeaveAsync()
+    {
+        await JS.InvokeVoidAsync("clubJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join");
+    }
+
+    public void Dispose()
+    {
+        if (_group != null) Broadcast.Unsubscribe(_group.Id, OnBroadcast);
+    }
+}

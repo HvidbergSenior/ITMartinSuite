@@ -1,0 +1,86 @@
+@page "/"
+@page "/create"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+
+<div class="create-wrap">
+    <div class="create-card">
+        <div style="font-size:48px;margin-bottom:12px">🤝</div>
+        <h1 class="create-title">Opret gruppe</h1>
+        <p class="create-sub">Én gruppe · Alle samlet ét sted</p>
+
+        @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
+
+        <div class="create-field"><label>Gruppenavn</label><input @bind="_name" placeholder="Lions Club Horsens" class="create-input" maxlength="100" /></div>
+        <div class="create-field"><label>URL-slug <span class="create-hint">(kun bogstaver og -)</span></label><input @bind="_slug" placeholder="lions-horsens" class="create-input" maxlength="40" /></div>
+        <div class="create-field"><label>Beskrivelse (valgfrit)</label><input @bind="_desc" class="create-input" maxlength="200" /></div>
+        <div class="create-row">
+            <div class="create-field"><label>Invitationskode</label><input @bind="_invite" placeholder="hemmelig kode" class="create-input" maxlength="40" /></div>
+            <div class="create-field"><label>Admin PIN</label><input @bind="_pin" type="password" placeholder="kun for admin" class="create-input" maxlength="20" /></div>
+        </div>
+        <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">@(_creating ? "Opretter..." : "Opret gruppe")</button>
+    </div>
+</div>
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .create-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .create-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 480px; text-align: center; }
+    .create-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; }
+    .create-sub { font-size: 14px; color: #64748b; margin: 0 0 28px; }
+    .create-field { text-align: left; margin-bottom: 14px; }
+    .create-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .create-hint { font-weight: 400; color: #475569; }
+    .create-row { display: flex; gap: 12px; }
+    .create-row .create-field { flex: 1; }
+    .create-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 14px; outline: none; }
+    .create-input:focus { border-color: #3b82f6; }
+    .create-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .create-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .create-btn:disabled { opacity: .5; cursor: default; }
+    .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f87171; margin-bottom: 16px; text-align: left; }
+</style>
+
+@code {
+    private string _name = "", _slug = "", _desc = "", _invite = "", _pin = "";
+    private string? _error;
+    private bool _creating;
+
+    private async Task CreateAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv et gruppenavn."; return; }
+        if (string.IsNullOrWhiteSpace(_slug)) { _error = "Skriv en URL-slug."; return; }
+        if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en invitationskode."; return; }
+        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv en admin PIN."; return; }
+
+        var cleanSlug = _slug.ToLower().Trim().Replace(" ", "-");
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cleanSlug, @"^[a-z0-9\-]+$"))
+        {
+            _error = "Slug må kun indeholde bogstaver, tal og bindestreg.";
+            return;
+        }
+
+        if (await Db.Groups.AnyAsync(g => g.Slug == cleanSlug))
+        {
+            _error = "Denne slug er allerede i brug.";
+            return;
+        }
+
+        _creating = true;
+        StateHasChanged();
+
+        Db.Groups.Add(new Group
+        {
+            Slug = cleanSlug,
+            Name = _name.Trim(),
+            Description = _desc.Trim(),
+            InviteCode = _invite.Trim(),
+            AdminPin = _pin.Trim(),
+        });
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo($"/g/{cleanSlug}/join");
+    }
+}

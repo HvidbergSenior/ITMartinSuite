@@ -1,0 +1,263 @@
+@page "/g/{slug}/docs"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubBroadcastService Broadcast
+@implements IDisposable
+
+@if (!_loaded)
+{
+    <div class="club-loading">Indlæser...</div>
+}
+else if (_member == null)
+{
+    <div class="club-loading">Omdirigerer...</div>
+}
+else
+{
+    <div class="club-page">
+        <div class="club-header">
+            <div>
+                <div class="club-name">@_group!.Name</div>
+                <div class="club-member-name">@_member.Name</div>
+            </div>
+        </div>
+        <div class="club-nav">
+            <a class="club-nav-item" href="/g/@Slug">🏠 Hjem</a>
+            <a class="club-nav-item active" href="/g/@Slug/docs">📄 Dokumenter</a>
+            <a class="club-nav-item" href="/g/@Slug/calendar">📅 Kalender</a>
+            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
+            <a class="club-nav-item" href="/g/@Slug/board">💬 Opslagstavle</a>
+        </div>
+
+        <div class="doc-body">
+            <div class="doc-toolbar">
+                <h2 class="doc-title">Dokumenter</h2>
+                <button class="doc-upload-btn" @onclick="() => _uploading = !_uploading">
+                    @(_uploading ? "✕ Annuller" : "+ Upload dokument")
+                </button>
+            </div>
+
+            @if (_uploading)
+            {
+                <div class="doc-upload-card">
+                    <div class="doc-field">
+                        <label>Titel</label>
+                        <input @bind="_newTitle" placeholder="Hvad er dokumentet?" class="doc-input" maxlength="120" />
+                    </div>
+                    <div class="doc-field">
+                        <label>Fil (PDF, Word, billede mm.)</label>
+                        <InputFile OnChange="OnFileSelected" class="doc-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt" />
+                    </div>
+                    @if (!string.IsNullOrEmpty(_uploadError))
+                    {
+                        <div class="doc-error">@_uploadError</div>
+                    }
+                    <button class="doc-save-btn" @onclick="UploadAsync" disabled="@(_uploading && _selectedFile == null || string.IsNullOrWhiteSpace(_newTitle))">
+                        @(_saving ? "Uploader..." : "Upload")
+                    </button>
+                </div>
+            }
+
+            @if (!_docs.Any())
+            {
+                <div class="doc-empty">Ingen dokumenter endnu. Upload det første!</div>
+            }
+            @foreach (var doc in _docs)
+            {
+                var isRead = doc.Reads.Any(r => r.MemberId == _member.Id);
+                <div class="doc-row @(isRead ? "" : "doc-unread")" @onclick="() => OpenDocAsync(doc)">
+                    <div class="doc-icon">@FileIcon(doc.OriginalFileName)</div>
+                    <div class="doc-info">
+                        <div class="doc-doc-title">
+                            @if (!isRead) { <span class="doc-new-badge">NYT</span> }
+                            @doc.Title
+                        </div>
+                        <div class="doc-meta">@doc.OriginalFileName · @doc.UploadedByName · @doc.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</div>
+                        <div class="doc-reads">
+                            @{
+                                var readers = doc.Reads.Select(r => r.Member.Name).ToList();
+                                var nonReaders = _allMembers.Where(m => !doc.Reads.Any(r => r.MemberId == m.Id)).Select(m => m.Name).ToList();
+                            }
+                            @if (readers.Any())
+                            {
+                                <span class="doc-read-yes">✓ @string.Join(", ", readers)</span>
+                            }
+                            @if (nonReaders.Any())
+                            {
+                                <span class="doc-read-no">⏳ @string.Join(", ", nonReaders)</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="doc-arrow">↓</div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
+    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
+    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .club-name { font-size: 20px; font-weight: 900; }
+    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .club-nav { display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
+    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
+    .doc-body { padding: 16px; }
+    .doc-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .doc-title { font-size: 18px; font-weight: 800; margin: 0; }
+    .doc-upload-btn { background: #2563eb; color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .doc-upload-btn:hover { background: #1d4ed8; }
+    .doc-upload-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .doc-field { margin-bottom: 14px; }
+    .doc-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+    .doc-input { width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 14px; color: white; font-size: 14px; outline: none; }
+    .doc-input:focus { border-color: #3b82f6; }
+    .doc-file-input { color: #94a3b8; font-size: 13px; }
+    .doc-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .doc-save-btn:disabled { opacity: .4; cursor: default; }
+    .doc-save-btn:hover:not(:disabled) { background: #15803d; }
+    .doc-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #f87171; margin-bottom: 12px; }
+    .doc-empty { text-align: center; color: #374151; padding: 60px 0; font-size: 15px; }
+    .doc-row { display: flex; align-items: flex-start; gap: 14px; padding: 14px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.07); margin-bottom: 8px; cursor: pointer; background: rgba(255,255,255,.03); transition: background .15s; }
+    .doc-row:hover { background: rgba(255,255,255,.06); }
+    .doc-unread { border-color: rgba(59,130,246,.3); background: rgba(59,130,246,.05); }
+    .doc-icon { font-size: 28px; }
+    .doc-info { flex: 1; }
+    .doc-doc-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .doc-new-badge { background: #2563eb; color: white; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+    .doc-meta { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+    .doc-reads { font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+    .doc-read-yes { color: #4ade80; }
+    .doc-read-no { color: #64748b; }
+    .doc-arrow { font-size: 18px; color: #374151; padding-top: 4px; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private bool _uploading;
+    private bool _saving;
+    private string _newTitle = "";
+    private IBrowserFile? _selectedFile;
+    private string _uploadError = "";
+    private List<Document> _docs = [];
+    private List<Member> _allMembers = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
+        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+
+        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group)
+            .FirstOrDefaultAsync(s => s.Id == sid);
+        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+
+        _member = session.Member;
+        _group = session.Member.Group;
+        await RefreshAsync();
+        Broadcast.Subscribe(_group.Id, OnBroadcast);
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _docs = await Db.Documents
+            .Include(d => d.Reads).ThenInclude(r => r.Member)
+            .Where(d => d.GroupId == _group!.Id)
+            .OrderByDescending(d => d.UploadedAt)
+            .ToListAsync();
+
+        _allMembers = await Db.Members.Where(m => m.GroupId == _group!.Id).ToListAsync();
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e) => _selectedFile = e.File;
+
+    private async Task OpenDocAsync(Document doc)
+    {
+        if (!doc.Reads.Any(r => r.MemberId == _member!.Id))
+        {
+            Db.DocumentReads.Add(new DocumentRead { DocumentId = doc.Id, MemberId = _member!.Id });
+            await Db.SaveChangesAsync();
+            Broadcast.Broadcast(_group!.Id);
+        }
+        await JS.InvokeVoidAsync("open", $"/download/{doc.Id}", "_blank");
+    }
+
+    private async Task UploadAsync()
+    {
+        _uploadError = "";
+        if (_selectedFile == null) { _uploadError = "Vælg en fil."; return; }
+        if (string.IsNullOrWhiteSpace(_newTitle)) { _uploadError = "Skriv en titel."; return; }
+        if (_selectedFile.Size > 10 * 1024 * 1024) { _uploadError = "Filen er for stor (max 10 MB)."; return; }
+
+        _saving = true;
+        StateHasChanged();
+
+        try
+        {
+            var dir = Path.Combine("/app/data/documents", _group!.Id.ToString());
+            Directory.CreateDirectory(dir);
+            var ext = Path.GetExtension(_selectedFile.Name);
+            var stored = $"{Guid.NewGuid()}{ext}";
+            var path = Path.Combine(dir, stored);
+
+            await using var fs = new FileStream(path, FileMode.Create);
+            await _selectedFile.OpenReadStream(10 * 1024 * 1024).CopyToAsync(fs);
+
+            var doc = new Document
+            {
+                GroupId = _group.Id,
+                Title = _newTitle.Trim(),
+                OriginalFileName = _selectedFile.Name,
+                StoredFileName = stored,
+                UploadedByName = _member!.Name,
+            };
+            Db.Documents.Add(doc);
+            await Db.SaveChangesAsync();
+            Broadcast.Broadcast(_group.Id);
+
+            _newTitle = "";
+            _selectedFile = null;
+            _uploading = false;
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            _uploadError = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string FileIcon(string fileName) => Path.GetExtension(fileName).ToLower() switch
+    {
+        ".pdf" => "📕",
+        ".doc" or ".docx" => "📘",
+        ".xls" or ".xlsx" => "📗",
+        ".ppt" or ".pptx" => "📙",
+        ".jpg" or ".jpeg" or ".png" => "🖼️",
+        _ => "📄"
+    };
+
+    private void OnBroadcast() => InvokeAsync(async () => { await RefreshAsync(); StateHasChanged(); });
+    public void Dispose() { if (_group != null) Broadcast.Unsubscribe(_group.Id, OnBroadcast); }
+}
