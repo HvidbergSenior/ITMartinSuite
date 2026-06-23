@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0a0d14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>FindIt</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+
+  /* Header */
+  .header{position:sticky;top:0;z-index:50;background:rgba(10,13,20,.97);border-bottom:1px solid #1f2937;padding:12px 16px}
+  .header-title{font-size:20px;font-weight:900;margin-bottom:10px;color:#f0f0f0}
+  .search-wrap{position:relative}
+  .search-input{width:100%;background:#111827;border:1px solid #1f2937;color:#f0f0f0;border-radius:12px;padding:11px 40px 11px 14px;font-size:16px;outline:none}
+  .search-input::placeholder{color:#4b5563}
+  .search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#4b5563;font-size:18px;cursor:pointer;display:none;line-height:1}
+
+  /* Content */
+  .content{padding:16px 16px 100px}
+  .section-label{font-size:11px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+
+  /* Item cards */
+  .items{display:flex;flex-direction:column;gap:10px}
+  .item-card{background:#111827;border:1px solid #1f2937;border-radius:14px;overflow:hidden;display:flex;align-items:stretch;cursor:pointer;transition:border-color .15s}
+  .item-card:active{border-color:#3b82f6}
+  .item-photo{width:80px;min-height:80px;flex-shrink:0;object-fit:cover;background:#0a0d14;display:flex;align-items:center;justify-content:center;color:#4b5563;font-size:28px}
+  .item-photo img{width:80px;height:80px;object-fit:cover}
+  .item-body{padding:12px;flex:1;min-width:0}
+  .item-name{font-size:15px;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item-location{font-size:13px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item-notes{font-size:12px;color:#6b7280;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item-date{font-size:11px;color:#374151;margin-top:6px}
+
+  /* Empty state */
+  .empty{text-align:center;padding:60px 20px;color:#4b5563}
+  .empty-icon{font-size:48px;margin-bottom:12px}
+  .empty-text{font-size:15px}
+
+  /* FAB */
+  .fab{position:fixed;bottom:24px;right:20px;width:56px;height:56px;background:#3b82f6;border:none;border-radius:50%;color:white;font-size:28px;cursor:pointer;box-shadow:0 4px 20px rgba(59,130,246,.4);z-index:40;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+  .fab:active{transform:scale(.92)}
+
+  /* Sheet */
+  .sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s}
+  .sheet-overlay.open{opacity:1;pointer-events:all}
+  .sheet{position:fixed;bottom:0;left:0;right:0;background:#111827;border-radius:20px 20px 0 0;padding:20px 20px 40px;z-index:70;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);max-height:90vh;overflow-y:auto}
+  .sheet.open{transform:translateY(0)}
+  .sheet-handle{width:36px;height:4px;background:#374151;border-radius:2px;margin:0 auto 20px}
+  .sheet-title{font-size:18px;font-weight:800;margin-bottom:20px}
+
+  .form-field{margin-bottom:14px}
+  .form-label{font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:block}
+  .form-input{width:100%;background:#0a0d14;border:1px solid #1f2937;color:#f0f0f0;border-radius:10px;padding:12px 14px;font-size:16px;outline:none;font-family:inherit}
+  .form-input:focus{border-color:#3b82f6}
+  .form-input::placeholder{color:#4b5563}
+
+  .photo-btn{width:100%;background:#0a0d14;border:2px dashed #1f2937;color:#6b7280;border-radius:10px;padding:20px;font-size:14px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .photo-btn:active{border-color:#3b82f6}
+  .photo-preview{width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-top:8px;display:none}
+
+  .btn-submit{width:100%;background:#3b82f6;color:white;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px}
+  .btn-submit:disabled{opacity:.4}
+  .btn-submit:active{opacity:.8}
+
+  /* Detail sheet */
+  .detail-photo{width:100%;max-height:280px;object-fit:cover;border-radius:12px;margin-bottom:16px}
+  .detail-name{font-size:22px;font-weight:900;margin-bottom:8px}
+  .detail-location{font-size:15px;color:#9ca3af;margin-bottom:8px}
+  .detail-notes{font-size:14px;color:#6b7280;margin-bottom:16px;line-height:1.6}
+  .detail-date{font-size:12px;color:#374151;margin-bottom:20px}
+  .btn-delete{width:100%;background:#1f2937;color:#ef4444;border:1px solid #374151;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">FindIt 🔍</div>
+  <div class="search-wrap">
+    <input class="search-input" id="searchInput" type="search" placeholder="Søg på navn, sted eller noter..." autocomplete="off">
+    <button class="search-clear" id="searchClear">✕</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="section-label" id="sectionLabel">Seneste</div>
+  <div class="items" id="itemList"></div>
+</div>
+
+<button class="fab" id="fab">+</button>
+
+<!-- Add sheet -->
+<div class="sheet-overlay" id="addOverlay"></div>
+<div class="sheet" id="addSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Tilføj ting</div>
+  <div class="form-field">
+    <label class="form-label">Hvad er det? *</label>
+    <input class="form-input" id="addName" placeholder="fx Nøgler, Medicin, Pung..." autocomplete="off">
+  </div>
+  <div class="form-field">
+    <label class="form-label">Hvor ligger det? *</label>
+    <input class="form-input" id="addLocation" placeholder="fx Hænger ved hoveddøren..." autocomplete="off">
+  </div>
+  <div class="form-field">
+    <label class="form-label">Noter (valgfrit)</label>
+    <input class="form-input" id="addNotes" placeholder="Ekstra detaljer..." autocomplete="off">
+  </div>
+  <div class="form-field">
+    <label class="form-label">Foto (valgfrit)</label>
+    <label class="photo-btn" for="photoInput">
+      <span style="font-size:28px">📷</span>
+      <span id="photoLabel">Tag billede eller vælg fra galleri</span>
+    </label>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+    <img class="photo-preview" id="photoPreview" alt="">
+  </div>
+  <button class="btn-submit" id="addSubmit" disabled>Gem</button>
+</div>
+
+<!-- Detail sheet -->
+<div class="sheet-overlay" id="detailOverlay"></div>
+<div class="sheet" id="detailSheet">
+  <div class="sheet-handle"></div>
+  <img class="detail-photo" id="detailPhoto" alt="" style="display:none">
+  <div class="detail-name" id="detailName"></div>
+  <div class="detail-location" id="detailLocation"></div>
+  <div class="detail-notes" id="detailNotes"></div>
+  <div class="detail-date" id="detailDate"></div>
+  <button class="btn-delete" id="detailDelete">🗑 Slet</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let items = [];
+let searchTimer;
+let currentDetailId;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadRecent();
+
+// ── Search ────────────────────────────────────────────────────────────────────
+$('searchInput').addEventListener('input', e => {
+  const q = e.target.value.trim();
+  $('searchClear').style.display = q ? 'block' : 'none';
+  clearTimeout(searchTimer);
+  if (!q) { loadRecent(); return; }
+  searchTimer = setTimeout(() => search(q), 250);
+});
+
+$('searchClear').addEventListener('click', () => {
+  $('searchInput').value = '';
+  $('searchClear').style.display = 'none';
+  loadRecent();
+});
+
+// ── FAB / Add sheet ───────────────────────────────────────────────────────────
+$('fab').addEventListener('click', openAdd);
+$('addOverlay').addEventListener('click', closeAdd);
+
+$('addName').addEventListener('input', validateAdd);
+$('addLocation').addEventListener('input', validateAdd);
+
+$('photoInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $('photoLabel').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = $('photoPreview');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+});
+
+$('addSubmit').addEventListener('click', submitAdd);
+
+// ── Detail sheet ──────────────────────────────────────────────────────────────
+$('detailOverlay').addEventListener('click', closeDetail);
+$('detailDelete').addEventListener('click', deleteItem);
+
+// ── Functions ─────────────────────────────────────────────────────────────────
+async function loadRecent() {
+  $('sectionLabel').textContent = 'Seneste';
+  const res = await fetch('/api/items/recent');
+  items = await res.json();
+  render(items);
+}
+
+async function search(q) {
+  $('sectionLabel').textContent = `Resultater for "${q}"`;
+  const res = await fetch('/api/items/search?q=' + encodeURIComponent(q));
+  items = await res.json();
+  render(items);
+}
+
+function render(list) {
+  const el = $('itemList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Ingen ting fundet</div></div>';
+    return;
+  }
+  el.innerHTML = list.map(item => `
+    <div class="item-card" onclick="openDetail(${item.id})">
+      <div class="item-photo">
+        ${item.hasPhoto
+          ? `<img src="/photos/${item.id}" onerror="this.parentElement.innerHTML='📦'" alt="">`
+          : '📦'}
+      </div>
+      <div class="item-body">
+        <div class="item-name">${esc(item.name)}</div>
+        <div class="item-location">📍 ${esc(item.location)}</div>
+        ${item.notes ? `<div class="item-notes">${esc(item.notes)}</div>` : ''}
+        <div class="item-date">${fmtDate(item.updatedAt)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function openDetail(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  currentDetailId = id;
+
+  const photo = $('detailPhoto');
+  if (item.hasPhoto) {
+    photo.src = `/photos/${id}`;
+    photo.style.display = 'block';
+  } else {
+    photo.style.display = 'none';
+  }
+  $('detailName').textContent = item.name;
+  $('detailLocation').textContent = '📍 ' + item.location;
+  $('detailNotes').textContent = item.notes || '';
+  $('detailNotes').style.display = item.notes ? 'block' : 'none';
+  $('detailDate').textContent = 'Gemt ' + fmtDate(item.updatedAt);
+
+  $('detailOverlay').classList.add('open');
+  $('detailSheet').classList.add('open');
+}
+
+function closeDetail() {
+  $('detailOverlay').classList.remove('open');
+  $('detailSheet').classList.remove('open');
+}
+
+async function deleteItem() {
+  if (!currentDetailId) return;
+  if (!confirm('Slet denne ting?')) return;
+  await fetch('/api/items/' + currentDetailId, { method: 'DELETE' });
+  closeDetail();
+  const q = $('searchInput').value.trim();
+  q ? search(q) : loadRecent();
+}
+
+function openAdd() {
+  $('addName').value = '';
+  $('addLocation').value = '';
+  $('addNotes').value = '';
+  $('photoInput').value = '';
+  $('photoLabel').textContent = 'Tag billede eller vælg fra galleri';
+  $('photoPreview').style.display = 'none';
+  $('addSubmit').disabled = true;
+  $('addOverlay').classList.add('open');
+  $('addSheet').classList.add('open');
+  setTimeout(() => $('addName').focus(), 300);
+}
+
+function closeAdd() {
+  $('addOverlay').classList.remove('open');
+  $('addSheet').classList.remove('open');
+}
+
+function validateAdd() {
+  const ok = $('addName').value.trim() && $('addLocation').value.trim();
+  $('addSubmit').disabled = !ok;
+}
+
+async function submitAdd() {
+  const name     = $('addName').value.trim();
+  const location = $('addLocation').value.trim();
+  const notes    = $('addNotes').value.trim();
+  const photo    = $('photoInput').files[0];
+  if (!name || !location) return;
+
+  $('addSubmit').disabled = true;
+  $('addSubmit').textContent = 'Gemmer...';
+
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('location', location);
+  if (notes)  fd.append('notes', notes);
+  if (photo)  fd.append('photo', photo);
+
+  await fetch('/api/items', { method: 'POST', body: fd });
+
+  $('addSubmit').textContent = 'Gem';
+  closeAdd();
+  loadRecent();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60)   return 'Lige nu';
+  if (diff < 3600) return Math.floor(diff/60) + ' min siden';
+  if (diff < 86400) return Math.floor(diff/3600) + ' timer siden';
+  if (diff < 604800) return Math.floor(diff/86400) + ' dage siden';
+  return d.toLocaleDateString('da-DK');
+}
+</script>
+</body>
+</html>
