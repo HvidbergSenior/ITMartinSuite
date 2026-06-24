@@ -25,7 +25,8 @@
         @foreach (var f in Filtered)
         {
             var hasSong = _songKeys.Contains(f.RelativePath);
-            <div class="song-row @(hasSong ? "" : "song-row--new")" @onclick="() => Open(f)">
+            var href = $"/studio/{Uri.EscapeDataString(Library.SafeKey(f.RelativePath))}?file={Uri.EscapeDataString(f.RelativePath)}";
+            <a class="song-row @(hasSong ? "" : "song-row--new")" href="@href">
                 <div class="song-row-icon">@(Library.IsVideo(f.RelativePath) ? "🎬" : "🎵")</div>
                 <div class="song-row-info">
                     <div class="song-row-title">@f.Title</div>
@@ -36,7 +37,7 @@
                     <span class="song-row-badge">✓</span>
                 }
                 <div class="song-row-arrow">›</div>
-            </div>
+            </a>
         }
     </div>
 
@@ -63,12 +64,6 @@
         _songs = await Db.Songs.ToListAsync();
         _songKeys = _songs.Select(s => s.SourceFile).ToHashSet();
         StateHasChanged();
-    }
-
-    private void Open(SourceFile f)
-    {
-        var key = Library.SafeKey(f.RelativePath);
-        Nav.NavigateTo($"/studio/{Uri.EscapeDataString(key)}?file={Uri.EscapeDataString(f.RelativePath)}");
     }
 
     private async Task Logout()

@@ -106,6 +106,8 @@ html, body {
     padding: 14px 16px;
     cursor: pointer;
     transition: border-color .15s;
+    text-decoration: none;
+    color: inherit;
 }
 .song-row:hover { border-color: rgba(255,255,255,.2); }
 .song-row--new { border-color: rgba(59,130,246,.25); }
