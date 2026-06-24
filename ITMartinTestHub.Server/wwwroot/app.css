@@ -150,6 +150,9 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 
 .complete-badge { background: rgba(46,204,113,.1); border: 1px solid rgba(46,204,113,.3); border-radius: 8px; padding: .6rem; text-align: center; font-size: .82rem; color: var(--success); }
 
+.install-tip { background: rgba(251,191,36,.08); border-bottom: 1px solid rgba(251,191,36,.2); padding: .6rem 1rem; font-size: .85rem; color: #fbbf24; flex-shrink: 0; }
+.install-tip strong { color: #fde68a; }
+
 /* ── ADMIN ── */
 .admin-page { max-width: 900px; margin: 0 auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
 .admin-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }

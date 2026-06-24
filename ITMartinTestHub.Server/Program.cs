@@ -23,8 +23,27 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<TestHubDbContext>();
     db.Database.EnsureCreated();
 
-    // Add Purpose column if it doesn't exist yet (EnsureCreated won't migrate existing DBs)
+    // Manual migrations — EnsureCreated won't alter existing schemas
     try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Assignments\" ADD COLUMN \"Purpose\" TEXT NULL"); }
+    catch { }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "Feedbacks" (
+                "Id"               TEXT NOT NULL CONSTRAINT "PK_Feedbacks" PRIMARY KEY,
+                "TestAssignmentId" TEXT NOT NULL DEFAULT '',
+                "AppEntryId"       TEXT NOT NULL DEFAULT '',
+                "TesterId"         TEXT NOT NULL DEFAULT '',
+                "Text"             TEXT NOT NULL DEFAULT '',
+                "Type"             INTEGER NOT NULL DEFAULT 1,
+                "CreatedAt"        TEXT NOT NULL DEFAULT '0001-01-01 00:00:00'
+            )
+            """);
+    }
+    catch { }
+
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Feedbacks\" ADD COLUMN \"TesterId\" TEXT NOT NULL DEFAULT ''"); }
     catch { }
 
     await SeedService.SeedAppsAsync(db);
