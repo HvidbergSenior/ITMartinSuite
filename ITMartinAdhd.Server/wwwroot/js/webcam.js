@@ -12,71 +12,100 @@ window.webcam = {
 
             this.stop();
 
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: { ideal: "environment" },
-                    width:  { ideal: 4096 },
-                    height: { ideal: 2160 },
-                    frameRate: { ideal: 30 }
-                },
-                audio: false
-            });
+            var constraintSets = [
+                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+                { video: { facingMode: "environment" }, audio: false },
+                { video: true, audio: false }
+            ];
 
-            const track = this.stream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities?.();
-            const settings = track.getSettings?.();
-            console.log("TRACK CAPABILITIES", capabilities);
-            console.log("TRACK SETTINGS", settings);
-
-            if (capabilities?.torch) {
+            this.stream = null;
+            var lastError = null;
+            for (var i = 0; i < constraintSets.length; i++) {
                 try {
-                    await track.applyConstraints({ advanced: [{ torch: true }] });
-                    console.log("TORCH ON");
-                } catch {}
+                    this.stream = await this._getUserMedia(constraintSets[i]);
+                    break;
+                } catch (e) {
+                    lastError = e;
+                    console.warn("Camera attempt " + i + " failed", e.name, e.message);
+                }
             }
+            if (!this.stream) throw lastError || new Error("Could not access camera");
 
-            if (capabilities?.focusMode) {
-                try {
-                    await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-                } catch {}
+            var track = this.stream.getVideoTracks()[0];
+            if (track) {
+                var capabilities = track.getCapabilities ? track.getCapabilities() : null;
+                var settings = track.getSettings ? track.getSettings() : null;
+                console.log("TRACK CAPABILITIES", capabilities);
+                console.log("TRACK SETTINGS", settings);
+
+                if (capabilities && capabilities.torch) {
+                    try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch (e) {}
+                }
+                if (capabilities && capabilities.focusMode) {
+                    try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch (e) {}
+                }
             }
 
             this.video.srcObject = this.stream;
             this.video.autoplay = true;
             this.video.muted = true;
             this.video.playsInline = true;
+            this.video.setAttribute("autoplay", "");
+            this.video.setAttribute("muted", "");
+            this.video.setAttribute("playsinline", "");
+            this.video.setAttribute("webkit-playsinline", "");
 
             await this.video.play();
             console.log("CAMERA READY", this.video.videoWidth, "x", this.video.videoHeight);
         } catch (err) {
-            console.error("CAMERA FAILED", err);
+            console.error("CAMERA FAILED", err.name, err.message);
             throw err;
         }
+    },
+
+    _getUserMedia: function(constraints) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            return navigator.mediaDevices.getUserMedia(constraints);
+        }
+        var legacyGUM = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        if (legacyGUM) {
+            return new Promise(function(resolve, reject) {
+                legacyGUM.call(navigator, constraints, resolve, reject);
+            });
+        }
+        return Promise.reject(new Error("getUserMedia not supported on this device"));
     },
 
     async capture() {
         if (!this.video || !this.stream)
             throw new Error("Camera not started");
 
-        // Brief pause for autofocus to settle
-        await new Promise(x => setTimeout(x, 500));
+        await new Promise(function(x) { setTimeout(x, 500); });
 
-        const canvas = document.createElement("canvas");
-        canvas.width  = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
+        var w = this.video.videoWidth;
+        var h = this.video.videoHeight;
+        if (!w || !h) throw new Error("Video not ready");
 
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+        var MAX = 1536;
+        if (w > MAX || h > MAX) {
+            var ratio = Math.min(MAX / w, MAX / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+        }
 
-        console.log("CAPTURED", canvas.width, "x", canvas.height);
+        var canvas = document.createElement("canvas");
+        canvas.width  = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(this.video, 0, 0, w, h);
 
+        console.log("CAPTURED", w, "x", h);
         return { image: canvas.toDataURL("image/jpeg", 0.95) };
     },
 
-    stop() {
+    stop: function() {
         try {
             if (!this.stream) return;
-            this.stream.getTracks().forEach(t => t.stop());
+            this.stream.getTracks().forEach(function(t) { t.stop(); });
             this.stream = null;
             console.log("CAMERA STOPPED");
         } catch (e) {

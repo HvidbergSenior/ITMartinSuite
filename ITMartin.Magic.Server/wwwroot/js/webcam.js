@@ -9,105 +9,73 @@
     // =========================================
 
     async start() {
-
         try {
+            this.video = document.getElementById("video");
 
-            this.video =
-                document.getElementById("video");
-            
-            if (!this.video) {
-
-                throw new Error(
-                    "VIDEO ELEMENT NOT FOUND");
-            }
+            if (!this.video)
+                throw new Error("VIDEO ELEMENT NOT FOUND");
 
             this.stop();
 
-            this.stream =
-                await navigator.mediaDevices
-                    .getUserMedia({
+            var constraintSets = [
+                { video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false },
+                { video: { facingMode: "environment" }, audio: false },
+                { video: true, audio: false }
+            ];
 
-                        video: {
-                            facingMode: {
-                                ideal: "environment"
-                            },
-                            width: {
-                                ideal: 2560
-                            },
-                            height: {
-                                ideal: 1440
-                            }
-                        },
-
-                        audio: false
-                    });
-            const track =
-                this.stream
-                    .getVideoTracks()[0];
-
-            const capabilities =
-                track.getCapabilities?.();
-
-            if (capabilities?.torch)
-            {
-                try
-                {
-                    await track.applyConstraints({
-                        advanced: [
-                            {
-                                torch: true
-                            }
-                        ]
-                    });
-                }
-                catch
-                {
+            this.stream = null;
+            var lastError = null;
+            for (var i = 0; i < constraintSets.length; i++) {
+                try {
+                    this.stream = await this._getUserMedia(constraintSets[i]);
+                    break;
+                } catch (e) {
+                    lastError = e;
+                    console.warn("Camera attempt " + i + " failed", e.name, e.message);
                 }
             }
-            if (capabilities?.focusMode)
-            {
-                try
-                {
-                    await track.applyConstraints({
-                        advanced: [
-                            {
-                                focusMode: "continuous"
-                            }
-                        ]
-                    });
+            if (!this.stream) throw lastError || new Error("Could not access camera");
+
+            var track = this.stream.getVideoTracks()[0];
+            if (track) {
+                var capabilities = track.getCapabilities ? track.getCapabilities() : null;
+                if (capabilities && capabilities.torch) {
+                    try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch (e) {}
                 }
-                catch
-                {
+                if (capabilities && capabilities.focusMode) {
+                    try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch (e) {}
                 }
+                console.log("TRACK SETTINGS", track.getSettings ? track.getSettings() : null);
             }
 
-            console.log(
-                "TRACK SETTINGS",
-                track.getSettings());
-            this.video.srcObject =
-                this.stream;
-
+            this.video.srcObject = this.stream;
             this.video.autoplay = true;
             this.video.muted = true;
             this.video.playsInline = true;
+            this.video.setAttribute("autoplay", "");
+            this.video.setAttribute("muted", "");
+            this.video.setAttribute("playsinline", "");
+            this.video.setAttribute("webkit-playsinline", "");
 
             await this.video.play();
-            console.log(
-                "VIDEO SIZE",
-                this.video.videoWidth,
-                this.video.videoHeight);
-            console.log(
-                "CAMERA READY");
-            
-        }
-        catch (err) {
-
-            console.error(
-                "CAMERA FAILED",
-                err);
-
+            console.log("CAMERA READY", this.video.videoWidth, this.video.videoHeight);
+        } catch (err) {
+            console.error("CAMERA FAILED", err.name, err.message);
             throw err;
         }
+    },
+
+    _getUserMedia: function(constraints) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            return navigator.mediaDevices.getUserMedia(constraints);
+        }
+        var legacyGUM = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        if (legacyGUM) {
+            return new Promise(function(resolve, reject) {
+                legacyGUM.call(navigator, constraints, resolve, reject);
+            });
+        }
+        return Promise.reject(new Error("getUserMedia not supported on this device"));
     },
 
     // =========================================
