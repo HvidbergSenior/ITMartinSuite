@@ -1,0 +1,19 @@
+{
+  "name": "Martin Library Search",
+  "short_name": "LibrarySearch",
+  "description": "Søg i bøger identificeret fra scannede bogreoler",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
