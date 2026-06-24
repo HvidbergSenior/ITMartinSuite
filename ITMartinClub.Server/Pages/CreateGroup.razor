@@ -72,15 +72,23 @@
         _creating = true;
         StateHasChanged();
 
-        Db.Groups.Add(new Group
+        try
         {
-            Slug = cleanSlug,
-            Name = _name.Trim(),
-            Description = _desc.Trim(),
-            InviteCode = _invite.Trim(),
-            AdminPin = _pin.Trim(),
-        });
-        await Db.SaveChangesAsync();
-        Nav.NavigateTo($"/g/{cleanSlug}/join");
+            Db.Groups.Add(new Group
+            {
+                Slug = cleanSlug,
+                Name = _name.Trim(),
+                Description = _desc.Trim(),
+                InviteCode = _invite.Trim(),
+                AdminPin = _pin.Trim(),
+            });
+            await Db.SaveChangesAsync();
+            Nav.NavigateTo($"/g/{cleanSlug}/join", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Noget gik galt: {ex.Message}";
+            _creating = false;
+        }
     }
 }
