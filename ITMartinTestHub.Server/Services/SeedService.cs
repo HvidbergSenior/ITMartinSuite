@@ -79,11 +79,11 @@ public static class SeedService
     {
         ["Library Scan"] =
         [
-            (1, "Åbn appen", "Kameraet starter automatisk og 'Scan Hylde'-skærmen vises"),
-            (2, "Peg kameraet mod en bogreol", "Kamerabilledet viser hylden klart og tydeligt"),
-            (3, "Tryk på 'Capture Shelf'", "Spinner vises med teksten 'Analyzing shelf…'"),
-            (4, "Vent på at analysen er færdig", "Resultater vises under 'Recent Scans' med bognavne og forfattere"),
-            (5, "Scan endnu en hylde og bekræft at den vises som Shelf 2", "Andet scan vises øverst på listen med korrekt hyldenummer"),
+            (1, "Åbn appen", "Kameraet starter og 'Scan hylde 1'-knappen vises"),
+            (2, "Peg kameraet mod en bogreol og tryk 'Scan hylde 1'", "Et grønt 'Hylde 1 ✓'-mærke vises og knappen skifter til 'Scan hylde 2'"),
+            (3, "Scan endnu en hylde ved at trykke 'Scan hylde 2'", "Et grønt 'Hylde 2 ✓'-mærke tilføjes ved siden af det første"),
+            (4, "Tryk 'Færdig – analyser 2 hylde(r)'", "Spinner vises med teksten 'Analyserer 2 hylde(r)…' mens AI behandler begge"),
+            (5, "Vent på at analysen er færdig", "Grøn besked vises: '✓ 2 hylde(r) gemt. Find bøgerne i Søg Bøger ↗'"),
         ],
         ["Library Search"] =
         [

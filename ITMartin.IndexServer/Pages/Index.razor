@@ -61,7 +61,7 @@
         </div>
         <div class="idx-grid">
 
-            <a class="idx-card" href="http://10.0.0.126:8101" target="_blank">
+            <a class="idx-card" href="@Config["Apps:MusikUrl"]" target="_blank">
                 <div class="idx-preview" style="background: linear-gradient(135deg, #1e1030 0%, #4a1a7a 100%)">
                     <div class="idx-preview-icon">🎵</div>
                     <div class="idx-preview-label">Martin Musik</div>
@@ -70,7 +70,7 @@
                     <div class="idx-card-name">Martin Musik</div>
                     <div class="idx-card-desc">Øv dine egne sange med afspiller, tekst og akkorder synkroniseret. Transponer akkorder med ét tryk, og få AI-coaching til forbedring af tekster og fremførelse.</div>
                     <div class="idx-card-tag">Musik · Akkorder · AI Coach</div>
-                    <div class="idx-card-url">10.0.0.126:8101</div>
+                    <div class="idx-card-url">@Config["Apps:MusikUrl"]</div>
                 </div>
             </a>
 
@@ -140,13 +140,26 @@
             <a class="idx-card" href="@Config["Apps:LibraryUrl"]" target="_blank">
                 <div class="idx-preview" style="background: linear-gradient(135deg, #0a1a30 0%, #1a3a6a 100%)">
                     <div class="idx-preview-icon">📚</div>
-                    <div class="idx-preview-label">Bibliotek</div>
+                    <div class="idx-preview-label">Scan Bøger</div>
                 </div>
                 <div class="idx-card-body">
-                    <div class="idx-card-name">Bibliotek</div>
-                    <div class="idx-card-desc">Registrer og hold styr på din samling af bøger, DVD'er og tegneserier. Scan stregkoder og hent automatisk info om titler og forfattere.</div>
-                    <div class="idx-card-tag">Bøger · DVD · Tegneserier</div>
+                    <div class="idx-card-name">Scan Bøger</div>
+                    <div class="idx-card-desc">Scan en hel bogreol med kameraet — AI identificerer automatisk bøgerne og registrerer dem i dit bibliotek.</div>
+                    <div class="idx-card-tag">Bøger · AI · Kamera</div>
                     <div class="idx-card-url">@Config["Apps:LibraryUrl"]</div>
+                </div>
+            </a>
+
+            <a class="idx-card" href="@Config["Apps:LibrarySearchUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #0a1520 0%, #0a3050 100%)">
+                    <div class="idx-preview-icon">🔍</div>
+                    <div class="idx-preview-label">Søg Bøger</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">Søg Bøger</div>
+                    <div class="idx-card-desc">Søg i alle bøger identificeret fra scannede bogreoler. Find hurtigt en titel eller forfatter på tværs af hele samlingen.</div>
+                    <div class="idx-card-tag">Bøger · Søgning · Samling</div>
+                    <div class="idx-card-url">@Config["Apps:LibrarySearchUrl"]</div>
                 </div>
             </a>
 
@@ -188,7 +201,7 @@
                 </div>
             </a>
 
-            <a class="idx-card" href="http://10.0.0.126:8102" target="_blank">
+            <a class="idx-card" href="@Config["Apps:ClubUrl"]" target="_blank">
                 <div class="idx-preview" style="background: linear-gradient(135deg, #101a20 0%, #1a3a50 100%)">
                     <div class="idx-preview-icon">🤝</div>
                     <div class="idx-preview-label">Club</div>
@@ -197,7 +210,7 @@
                     <div class="idx-card-name">Club</div>
                     <div class="idx-card-desc">Fælles platform for grupper og foreninger. Del vigtige dokumenter med læsekvittering, planlæg begivenheder, sæt opgaver og skriv opslag — alt samlet ét sted.</div>
                     <div class="idx-card-tag">Forening · Dokumenter · Kalender</div>
-                    <div class="idx-card-url">10.0.0.126:8102</div>
+                    <div class="idx-card-url">@Config["Apps:ClubUrl"]</div>
                 </div>
             </a>
 
@@ -249,6 +262,31 @@
                     <div class="idx-card-desc">Køb og sælg ting i dit netværk. Upload billeder, sæt en pris eller byd-knap, og kommuniker direkte med sælger. Markér som solgt når handlen er i hus.</div>
                     <div class="idx-card-tag">Køb · Salg · Netværk</div>
                     <div class="idx-card-url">@Config["Apps:MarketUrl"]</div>
+                </div>
+            </a>
+
+        </div>
+    </div>
+
+    @* ── KVALITETSSIKRING ─────────────────────────────────── *@
+    <div class="idx-category">
+        <div class="idx-cat-header">
+            <div class="idx-cat-line"></div>
+            <span class="idx-cat-label">Kvalitetssikring</span>
+            <div class="idx-cat-line"></div>
+        </div>
+        <div class="idx-grid">
+
+            <a class="idx-card" href="@Config["Apps:TestHubUrl"]" target="_blank">
+                <div class="idx-preview" style="background: linear-gradient(135deg, #0a1a10 0%, #1a4020 100%)">
+                    <div class="idx-preview-icon">🧪</div>
+                    <div class="idx-preview-label">TestHub</div>
+                </div>
+                <div class="idx-card-body">
+                    <div class="idx-card-name">TestHub</div>
+                    <div class="idx-card-desc">Koordiner manuelle tests af alle ITMartin-apps. Opret testrunder, tildel opgaver og følg feedback og resultater — alt ét sted.</div>
+                    <div class="idx-card-tag">Test · Kvalitet · Feedback</div>
+                    <div class="idx-card-url">@Config["Apps:TestHubUrl"]</div>
                 </div>
             </a>
 

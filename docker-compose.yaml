@@ -18,17 +18,20 @@ services:
 
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - Apps__FileSorterUrl=https://filesorter.ITMartin.dk
-      - Apps__BudgetUrl=https://budget.ITMartin.dk
-      - Apps__MagicUrl=https://magic.ITMartin.dk
+      - Apps__FileSorterUrl=https://filesorter.itmartin.dk
+      - Apps__BudgetUrl=https://budget.itmartin.dk
+      - Apps__MagicUrl=https://magic-card-pricing.itmartin.dk
       - Apps__ReceiptUrl=https://kvittering.itmartin.dk
-      - Apps__LibraryUrl=https://library.ITMartin.dk
-      - Apps__AdhdUrl=https://adhd.ITMartin.dk
-      - Apps__FamilyUrl=https://family.ITMartin.dk
-      - Apps__MarketUrl=https://market.ITMartin.dk
+      - Apps__LibraryUrl=https://scan-books.itmartin.dk
+      - Apps__LibrarySearchUrl=https://search-books.itmartin.dk
+      - Apps__AdhdUrl=https://adhd.itmartin.dk
+      - Apps__FamilyUrl=https://family.itmartin.dk
+      - Apps__MarketUrl=https://market.itmartin.dk
       - Apps__GalleryUrl=https://gallery.itmartin.dk
       - Apps__BarTabUrl=https://bartab.itmartin.dk
       - Apps__AuctionUrl=https://auction.itmartin.dk
+      - Apps__MusikUrl=https://musik.itmartin.dk
+      - Apps__ClubUrl=https://lions-club.itmartin.dk
       - Apps__TestHubUrl=https://test.itmartin.dk
 
     restart: unless-stopped

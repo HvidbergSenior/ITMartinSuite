@@ -19,7 +19,7 @@
 
         <div class="scan-hero-card">
             <h1>📷 Scan bogreol</h1>
-            <p class="hero-text">Peg kameraet mod en hylde og tryk Scan.</p>
+            <p class="hero-text">Scan én hylde ad gangen. Tryk Færdig når alle hylder er fotograferet.</p>
         </div>
 
         <div class="shelf-camera-wrap mt-3">
@@ -34,18 +34,42 @@
                 {
                     <div class="shelf-overlay">
                         <div class="shelf-spinner"></div>
-                        <div class="shelf-overlay-text">Analyserer hylde…</div>
+                        <div class="shelf-overlay-text">Analyserer @_pendingImages.Count hylde(r)…</div>
                     </div>
                 }
             }
         </div>
 
-        <div class="mt-3" style="display:flex;justify-content:center">
+        @if (_pendingImages.Count > 0)
+        {
+            <div class="shelf-pending-row mt-3">
+                @for (var i = 0; i < _pendingImages.Count; i++)
+                {
+                    <span class="shelf-badge">Hylde @(i + 1) ✓</span>
+                }
+            </div>
+        }
+
+        <div class="mt-3 scan-actions">
             <button class="btn btn-primary btn-lg"
                     @onclick="CaptureAsync"
                     disabled="@(_state != PageState.Ready || _cameraError != null)">
-                @(_state == PageState.Analyzing ? "Analyserer…" : "Scan hylde")
+                @if (_pendingImages.Count == 0)
+                {
+                    <text>Scan hylde 1</text>
+                }
+                else
+                {
+                    <text>Scan hylde @(_pendingImages.Count + 1)</text>
+                }
             </button>
+
+            @if (_pendingImages.Count > 0 && _state == PageState.Ready)
+            {
+                <button class="btn btn-success btn-lg" @onclick="FinishAsync">
+                    Færdig – analyser @_pendingImages.Count hylde(r)
+                </button>
+            }
         </div>
 
         @if (_error != null)
@@ -53,42 +77,10 @@
             <div class="alert alert-danger mt-3">@_error</div>
         }
 
-        @if (_recentShelves.Any())
+        @if (_done)
         {
-            <div class="content-card mt-4">
-                <h4 class="mb-3">Seneste scanninger</h4>
-                @foreach (var shelf in _recentShelves)
-                {
-                    <div class="shelf-result">
-                        <div class="shelf-result-header">
-                            <span class="shelf-result-label">Hylde @shelf.ShelfNumber</span>
-                            <span class="text-muted" style="font-size:12px">@shelf.ScannedAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
-                        </div>
-                        @if (shelf.Books.Any())
-                        {
-                            <ul class="shelf-book-list">
-                                @foreach (var book in shelf.Books.Take(12))
-                                {
-                                    <li>
-                                        <span class="shelf-book-title">@book.Title</span>
-                                        @if (!string.IsNullOrWhiteSpace(book.Author))
-                                        {
-                                            <span class="text-muted"> — @book.Author</span>
-                                        }
-                                    </li>
-                                }
-                                @if (shelf.Books.Count > 12)
-                                {
-                                    <li class="text-muted">…og @(shelf.Books.Count - 12) til</li>
-                                }
-                            </ul>
-                        }
-                        else
-                        {
-                            <div class="text-muted" style="font-size:13px;padding:6px 0">Ingen genstande identificeret</div>
-                        }
-                    </div>
-                }
+            <div class="alert alert-success mt-3">
+                ✓ @_savedCount hylde(r) gemt. Find bøgerne i <a href="@SearchUrl">Søg Bøger ↗</a>
             </div>
         }
 
@@ -145,51 +137,50 @@
         animation: shelf-spin .8s linear infinite;
     }
     @@keyframes shelf-spin { to { transform: rotate(360deg); } }
-    .shelf-result {
-        border: 1px solid rgba(255,255,255,.08);
-        border-radius: 10px;
-        padding: 14px 16px;
-        margin-bottom: 10px;
-    }
-    .shelf-result-header {
+
+    .shelf-pending-row {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
     }
-    .shelf-result-label {
-        font-weight: 700;
-        font-size: 14px;
+    .shelf-badge {
+        background: rgba(34,197,94,.15);
+        border: 1px solid rgba(34,197,94,.3);
+        color: #4ade80;
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 13px;
+        font-weight: 600;
     }
-    .shelf-book-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+
+    .scan-actions {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 10px;
+        align-items: center;
     }
-    .shelf-book-list li {
-        font-size: 13px;
-    }
-    .shelf-book-title {
-        font-weight: 500;
+
+    .alert-success a {
+        color: #86efac;
     }
 </style>
 
 @code {
+    private const string SearchUrl = "https://search-books.itmartin.dk";
+
     private enum PageState { Starting, Ready, Analyzing }
 
     private PageState _state = PageState.Starting;
     private string? _cameraError;
     private string? _error;
-    private List<ScannedShelf> _recentShelves = [];
+    private readonly List<string> _pendingImages = [];
+    private bool _done;
+    private int _savedCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-
-        await LoadRecentAsync();
 
         try
         {
@@ -209,58 +200,78 @@
         try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
     }
 
-    private async Task LoadRecentAsync()
-    {
-        var all = await ShelfRepo.GetAllWithBooksAsync(default);
-        _recentShelves = [.. all.OrderByDescending(x => x.ScannedAt).Take(5)];
-        await InvokeAsync(StateHasChanged);
-    }
-
     private async Task CaptureAsync()
     {
         if (_state != PageState.Ready) return;
 
-        _state = PageState.Analyzing;
         _error = null;
         StateHasChanged();
 
         try
         {
             var capture = await JS.InvokeAsync<CaptureResult>("webcam.capture");
-            var base64  = capture.Image.Replace("data:image/jpeg;base64,", "");
-            var bytes   = Convert.FromBase64String(base64);
+            var base64 = capture.Image.Replace("data:image/jpeg;base64,", "");
+            var bytes = Convert.FromBase64String(base64);
 
-            var folder  = Path.Combine(Directory.GetCurrentDirectory(), "data", "shelves");
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "shelves");
             Directory.CreateDirectory(folder);
             var imgPath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
             await File.WriteAllBytesAsync(imgPath, bytes);
 
-            var result = await ShelfRecognition.AnalyzeAsync(imgPath, CancellationToken.None);
+            _pendingImages.Add(imgPath);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
 
-            var existing   = await ShelfRepo.GetAllWithBooksAsync(default);
+    private async Task FinishAsync()
+    {
+        if (_pendingImages.Count == 0 || _state != PageState.Ready) return;
+
+        _state = PageState.Analyzing;
+        _error = null;
+        _done = false;
+        StateHasChanged();
+
+        try
+        {
+            var existing = await ShelfRepo.GetAllWithBooksAsync(default);
             var nextNumber = existing.Count == 0 ? 1 : existing.Max(x => x.ShelfNumber) + 1;
 
-            var shelf = new ScannedShelf
+            var shelves = new List<ScannedShelf>();
+            foreach (var imgPath in _pendingImages)
             {
-                ShelfNumber = nextNumber,
-                ImagePath   = imgPath,
-                ScannedAt   = DateTime.UtcNow,
-                Books       = (result?.Items ?? [])
-                    .Where(i => !string.IsNullOrWhiteSpace(i.Title))
-                    .Select(i => new ShelfBook
-                    {
-                        Title  = i.Title  ?? "",
-                        Author = i.Author ?? "",
-                        BBoxX  = i.BBoxX  ?? 0,
-                        BBoxY  = i.BBoxY  ?? 0,
-                        BBoxW  = i.BBoxW  ?? 0,
-                        BBoxH  = i.BBoxH  ?? 0,
-                    })
-                    .ToList()
-            };
+                var result = await ShelfRecognition.AnalyzeAsync(imgPath, CancellationToken.None);
+                shelves.Add(new ScannedShelf
+                {
+                    ShelfNumber = nextNumber++,
+                    ImagePath = imgPath,
+                    ScannedAt = DateTime.UtcNow,
+                    Books = (result?.Items ?? [])
+                        .Where(i => !string.IsNullOrWhiteSpace(i.Title))
+                        .Select(i => new ShelfBook
+                        {
+                            Title = i.Title ?? "",
+                            Author = i.Author ?? "",
+                            BBoxX = i.BBoxX ?? 0,
+                            BBoxY = i.BBoxY ?? 0,
+                            BBoxW = i.BBoxW ?? 0,
+                            BBoxH = i.BBoxH ?? 0,
+                        })
+                        .ToList()
+                });
+            }
 
-            await ShelfRepo.AddShelvesAsync([shelf], CancellationToken.None);
-            await LoadRecentAsync();
+            await ShelfRepo.AddShelvesAsync(shelves, CancellationToken.None);
+            _savedCount = shelves.Count;
+            _pendingImages.Clear();
+            _done = true;
         }
         catch (Exception ex)
         {
