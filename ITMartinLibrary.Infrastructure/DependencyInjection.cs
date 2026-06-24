@@ -20,6 +20,7 @@ public static class DependencyInjection
     {
         var connectionString =
             configuration.GetConnectionString("DefaultConnection")
+            ?? configuration.GetConnectionString("LibraryDb")
             ?? "Data Source=library.db";
 
         services.AddDbContext<LibraryDbContext>(

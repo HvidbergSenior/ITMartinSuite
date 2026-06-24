@@ -1,90 +1,93 @@
 @page "/"
 @page "/library"
-@page "/library/scan-book"
-@page "/library/scan-media"
 
-@using ITMartinLibrary.Application.Services
+@using ITMartin.Ai.Interfaces
+@using ITMartinLibrary.Application.Interfaces
 @using ITMartinLibrary.Domain.Entities
 @using Microsoft.JSInterop
-@inject InventoryService InventoryService
+
 @inject IJSRuntime JS
+@inject IScannedShelfRepository ShelfRepo
+@inject ILibraryShelfRecognitionService ShelfRecognition
 @implements IAsyncDisposable
+
+<PageTitle>Library — Scan Shelf</PageTitle>
 
 <div class="library-page">
     <div class="page-container">
 
         <div class="scan-hero-card">
-            <div class="library-row">
-                <div>
-                    <h1>📷 Scan Item</h1>
-                    <p class="hero-text">Books, DVDs, and Blu-rays — point the barcode at the frame.</p>
-                </div>
-                @if (_sessionCount > 0)
+            <h1>📷 Scan Bookcase</h1>
+            <p class="hero-text">Point the camera at a shelf and tap Capture.</p>
+        </div>
+
+        <div class="shelf-camera-wrap mt-3">
+            @if (_cameraError != null)
+            {
+                <div class="shelf-cam-error">@_cameraError</div>
+            }
+            else
+            {
+                <video id="video" autoplay muted playsinline webkit-playsinline></video>
+                @if (_state == PageState.Analyzing)
                 {
-                    <div class="content-card stat-card" style="min-width:100px; text-align:center;">
-                        <h3>@_sessionCount</h3>
-                        <p>Scanned</p>
+                    <div class="shelf-overlay">
+                        <div class="shelf-spinner"></div>
+                        <div class="shelf-overlay-text">Analyzing shelf…</div>
                     </div>
                 }
-            </div>
+            }
         </div>
 
-        <div class="camera-wrapper mt-3">
-            <video id="barcode-video" autoplay muted playsinline webkit-playsinline></video>
-            <div class="scan-guide-box">
-                <div class="corner tl"></div>
-                <div class="corner tr"></div>
-                <div class="corner bl"></div>
-                <div class="corner br"></div>
-                @if (!string.IsNullOrWhiteSpace(_cameraStatus))
-                {
-                    <div class="scan-guide-status">@_cameraStatus</div>
-                }
-            </div>
-            <div class="scan-guide-hint">Hold barcode inside the frame</div>
+        <div class="mt-3" style="display:flex;justify-content:center">
+            <button class="btn btn-primary btn-lg"
+                    @onclick="CaptureAsync"
+                    disabled="@(_state != PageState.Ready || _cameraError != null)">
+                @(_state == PageState.Analyzing ? "Analyzing…" : "Capture Shelf")
+            </button>
         </div>
 
-        <input @ref="_barcodeInput" @bind="_barcode" @bind:event="oninput"
-               class="scan-hidden-input" tabindex="-1" autocomplete="off" />
-
-        @if (_error is not null)
+        @if (_error != null)
         {
             <div class="alert alert-danger mt-3">@_error</div>
         }
 
-        @if (_recentScans.Count > 0)
+        @if (_recentShelves.Any())
         {
             <div class="content-card mt-4">
-                <h4 class="mb-3">Recently Scanned</h4>
-                <div class="stack">
-                    @foreach (var entry in _recentScans)
-                    {
-                        <div class="recent-scan-row">
-                            <div>
-                                <div class="recent-scan-title">
-                                    @(string.IsNullOrWhiteSpace(entry.Item.Title) || entry.Item.Title == "Untitled"
-                                        ? entry.Item.Barcode
-                                        : entry.Item.Title)
-                                </div>
-                                @if (!string.IsNullOrWhiteSpace(entry.Item.AuthorOrDirector))
-                                {
-                                    <div class="text-muted" style="font-size:13px;">@entry.Item.AuthorOrDirector</div>
-                                }
-                                <div class="text-muted" style="font-size:12px;">
-                                    @entry.Item.Barcode · @entry.Item.Type
-                                </div>
-                            </div>
-                            <div class="recent-scan-right">
-                                <div class="item-status-badge @GetStatusClass(entry.Item.LookupStatus)">
-                                    @entry.Item.LookupStatus
-                                </div>
-                                <div class="recent-scan-action">
-                                    @(entry.IsNew ? "Added" : $"Qty: {entry.Item.Quantity}")
-                                </div>
-                            </div>
+                <h4 class="mb-3">Recent Scans</h4>
+                @foreach (var shelf in _recentShelves)
+                {
+                    <div class="shelf-result">
+                        <div class="shelf-result-header">
+                            <span class="shelf-result-label">Shelf @shelf.ShelfNumber</span>
+                            <span class="text-muted" style="font-size:12px">@shelf.ScannedAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
                         </div>
-                    }
-                </div>
+                        @if (shelf.Books.Any())
+                        {
+                            <ul class="shelf-book-list">
+                                @foreach (var book in shelf.Books.Take(12))
+                                {
+                                    <li>
+                                        <span class="shelf-book-title">@book.Title</span>
+                                        @if (!string.IsNullOrWhiteSpace(book.Author))
+                                        {
+                                            <span class="text-muted"> — @book.Author</span>
+                                        }
+                                    </li>
+                                }
+                                @if (shelf.Books.Count > 12)
+                                {
+                                    <li class="text-muted">…and @(shelf.Books.Count - 12) more</li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <div class="text-muted" style="font-size:13px;padding:6px 0">No items identified</div>
+                        }
+                    </div>
+                }
             </div>
         }
 
@@ -92,201 +95,182 @@
 </div>
 
 <style>
-    .camera-wrapper {
+    .shelf-camera-wrap {
         position: relative;
         border-radius: 16px;
         overflow: hidden;
-        background: black;
+        background: #111;
         aspect-ratio: 4/3;
         max-height: 55vh;
     }
-
-    .camera-wrapper video {
+    .shelf-camera-wrap video {
         width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
     }
-
-    .scan-guide-box {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -56%);
-        width: 78%;
-        height: 100px;
-        border-radius: 6px;
-        box-shadow: 0 0 0 9999px rgba(0,0,0,0.48);
-    }
-
-    .corner {
-        position: absolute;
-        width: 22px;
-        height: 22px;
-        border-color: #fff;
-        border-style: solid;
-    }
-
-    .corner.tl { top: -2px; left: -2px;  border-width: 3px 0 0 3px; border-radius: 5px 0 0 0; }
-    .corner.tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 5px 0 0; }
-    .corner.bl { bottom: -2px; left: -2px;  border-width: 0 0 3px 3px; border-radius: 0 0 0 5px; }
-    .corner.br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 5px 0; }
-
-    .scan-guide-status {
-        position: absolute;
-        bottom: -30px;
-        left: 50%;
-        transform: translateX(-50%);
-        color: #4ade80;
-        font-size: 13px;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-
-    .scan-guide-hint {
-        position: absolute;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.6);
-        color: rgba(255,255,255,0.85);
-        padding: 5px 16px;
-        border-radius: 999px;
-        font-size: 13px;
-        font-weight: 600;
-        white-space: nowrap;
-        backdrop-filter: blur(4px);
-    }
-
-    .scan-hidden-input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-        width: 1px;
-        height: 1px;
-    }
-
-    .recent-scan-row {
+    .shelf-cam-error {
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 200px;
+        color: rgba(255,255,255,.5);
+        font-size: 14px;
+        padding: 24px;
+        text-align: center;
     }
-
-    .recent-scan-row:last-child { border-bottom: none; }
-
-    .recent-scan-title {
-        font-weight: 600;
-        font-size: 15px;
-    }
-
-    .recent-scan-right {
+    .shelf-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,.65);
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
-        gap: 6px;
-        white-space: nowrap;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
     }
-
-    .recent-scan-action {
+    .shelf-overlay-text {
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    .shelf-spinner {
+        width: 44px;
+        height: 44px;
+        border: 3px solid rgba(255,255,255,.2);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: shelf-spin .8s linear infinite;
+    }
+    @@keyframes shelf-spin { to { transform: rotate(360deg); } }
+    .shelf-result {
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+    }
+    .shelf-result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .shelf-result-label {
+        font-weight: 700;
+        font-size: 14px;
+    }
+    .shelf-book-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .shelf-book-list li {
         font-size: 13px;
-        color: var(--text-muted);
+    }
+    .shelf-book-title {
+        font-weight: 500;
     }
 </style>
 
 @code {
-    private string _barcode = "";
+    private enum PageState { Starting, Ready, Analyzing }
+
+    private PageState _state = PageState.Starting;
+    private string? _cameraError;
     private string? _error;
-    private bool _isProcessing;
-    private int _sessionCount;
-    private ElementReference _barcodeInput;
-    private string? _cameraStatus;
-    private DotNetObjectReference<ScanBook>? _dotNetRef;
-
-    private readonly record struct ScanEntry(InventoryItem Item, bool IsNew);
-    private List<ScanEntry> _recentScans = new();
-
-    public async ValueTask DisposeAsync()
-    {
-        try { await JS.InvokeVoidAsync("barcodeScanner.stop"); } catch { }
-        _dotNetRef?.Dispose();
-    }
+    private List<ScannedShelf> _recentShelves = [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        _dotNetRef = DotNetObjectReference.Create(this);
-        _cameraStatus = "Starting camera...";
-        StateHasChanged();
+
+        await LoadRecentAsync();
+
         try
         {
-            await JS.InvokeVoidAsync("barcodeScanner.start", "barcode-video", _dotNetRef);
-            _cameraStatus = null;
+            await JS.InvokeVoidAsync("webcam.start");
+            _state = PageState.Ready;
         }
-        catch
+        catch (Exception ex)
         {
-            _cameraStatus = "Camera unavailable";
+            _cameraError = $"Camera unavailable: {ex.Message}";
         }
+
         StateHasChanged();
     }
 
-    [JSInvokable]
-    public async Task OnBarcodeDetected(string code)
+    public async ValueTask DisposeAsync()
     {
-        if (_isProcessing || string.IsNullOrWhiteSpace(code)) return;
-        _barcode = code;
-        _cameraStatus = code;
-        await ProcessScan();
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
     }
 
-    private string Barcode
+    private async Task LoadRecentAsync()
     {
-        get => _barcode;
-        set
-        {
-            _barcode = value;
-            if (!_isProcessing && _barcode.Length is 12 or 13)
-                _ = ProcessScan();
-        }
+        var all = await ShelfRepo.GetAllWithBooksAsync(default);
+        _recentShelves = [.. all.OrderByDescending(x => x.ScannedAt).Take(5)];
+        await InvokeAsync(StateHasChanged);
     }
 
-    private async Task ProcessScan()
+    private async Task CaptureAsync()
     {
-        if (_isProcessing) return;
-        _isProcessing = true;
+        if (_state != PageState.Ready) return;
+
+        _state = PageState.Analyzing;
         _error = null;
+        StateHasChanged();
 
         try
         {
-            var code = _barcode;
-            var (item, isNew) = await InventoryService.ScanOrIncrementAsync(code);
+            var capture = await JS.InvokeAsync<CaptureResult>("webcam.capture");
+            var base64  = capture.Image.Replace("data:image/jpeg;base64,", "");
+            var bytes   = Convert.FromBase64String(base64);
 
-            _sessionCount++;
-            _recentScans.Insert(0, new ScanEntry(item, isNew));
-            if (_recentScans.Count > 10) _recentScans.RemoveAt(_recentScans.Count - 1);
+            var folder  = Path.Combine(Directory.GetCurrentDirectory(), "data", "shelves");
+            Directory.CreateDirectory(folder);
+            var imgPath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+            await File.WriteAllBytesAsync(imgPath, bytes);
 
-            _barcode = "";
-            _cameraStatus = null;
-            await InvokeAsync(StateHasChanged);
+            var result = await ShelfRecognition.AnalyzeAsync(imgPath, CancellationToken.None);
+
+            var existing   = await ShelfRepo.GetAllWithBooksAsync(default);
+            var nextNumber = existing.Count == 0 ? 1 : existing.Max(x => x.ShelfNumber) + 1;
+
+            var shelf = new ScannedShelf
+            {
+                ShelfNumber = nextNumber,
+                ImagePath   = imgPath,
+                ScannedAt   = DateTime.UtcNow,
+                Books       = (result?.Items ?? [])
+                    .Where(i => !string.IsNullOrWhiteSpace(i.Title))
+                    .Select(i => new ShelfBook
+                    {
+                        Title  = i.Title  ?? "",
+                        Author = i.Author ?? "",
+                        BBoxX  = i.BBoxX  ?? 0,
+                        BBoxY  = i.BBoxY  ?? 0,
+                        BBoxW  = i.BBoxW  ?? 0,
+                        BBoxH  = i.BBoxH  ?? 0,
+                    })
+                    .ToList()
+            };
+
+            await ShelfRepo.AddShelvesAsync([shelf], CancellationToken.None);
+            await LoadRecentAsync();
         }
         catch (Exception ex)
         {
             _error = ex.Message;
-            await InvokeAsync(StateHasChanged);
         }
         finally
         {
-            _isProcessing = false;
+            _state = PageState.Ready;
+            StateHasChanged();
         }
     }
 
-    private string GetStatusClass(string? status) => status switch
-    {
-        "Completed"             => "status-completed",
-        "Processing"            => "status-processing",
-        "Pending"               => "status-pending",
-        "Pending Manual Review" => "status-review",
-        _                       => "status-pending"
-    };
+    private sealed class CaptureResult { public string Image { get; set; } = ""; }
 }

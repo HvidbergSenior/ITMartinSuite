@@ -117,12 +117,12 @@
 
                     <div class="lightbox-section-label">Move to</div>
                     <div class="lightbox-actions">
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Screenshots")">📱 Screenshots</button>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Memes")">😂 Memes</button>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Images")">🖼️ Images</button>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Videos")">🎬 Videos</button>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Duplicates")">🔁 Duplicates</button>
-                        <button class="btn btn-sm btn-danger"    @onclick="() => Reclassify(_preview, "DeleteCandidates")">🗑️ Delete?</button>
+                        <button class="btn btn-sm btn-secondary" @onclick='() => Reclassify(_preview!, "Screenshots")'>📱 Screenshots</button>
+                        <button class="btn btn-sm btn-secondary" @onclick='() => Reclassify(_preview!, "Memes")'>😂 Memes</button>
+                        <button class="btn btn-sm btn-secondary" @onclick='() => Reclassify(_preview!, "Images")'>🖼️ Images</button>
+                        <button class="btn btn-sm btn-secondary" @onclick='() => Reclassify(_preview!, "Videos")'>🎬 Videos</button>
+                        <button class="btn btn-sm btn-secondary" @onclick='() => Reclassify(_preview!, "Duplicates")'>🔁 Duplicates</button>
+                        <button class="btn btn-sm btn-danger"    @onclick='() => Reclassify(_preview!, "DeleteCandidates")'>🗑️ Delete?</button>
                     </div>
 
                     <div class="lightbox-section-label" style="margin-top:16px">Rename</div>
