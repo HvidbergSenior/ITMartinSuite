@@ -32,6 +32,7 @@ public static class SeedService
             new AppEntry { Name = "Library Search",  Icon = "🔍", Url = "https://search-books.itmartin.dk",    Description = "Søg i bøger identificeret fra scannede bogreoler",          SortOrder = 15 },
             new AppEntry { Name = "Club",            Icon = "🏛️", Url = "https://lions-club.itmartin.dk",       Description = "Gruppeorganisator med opslagstavle, kalender og dokumenter", SortOrder = 16 },
             new AppEntry { Name = "Magic Scan",      Icon = "🃏", Url = "https://magic-card-pricing.itmartin.dk", Description = "AI-drevet MTG-kortscanner med prisopslag",              SortOrder = 17 },
+            new AppEntry { Name = "TestHub",          Icon = "🧪", Url = "https://test.itmartin.dk",               Description = "Test-app til kvalitetstestning af ITMartin-apps",       SortOrder = 18 },
         };
 
         var toAdd = apps.Where(a => !existingNames.Contains(a.Name)).ToList();
@@ -114,6 +115,14 @@ public static class SeedService
             (3, "Tryk på en genstand for at se detaljer", "Detailvisning åbnes med placering og eventuelle noter"),
             (4, "Rediger placeringen på en eksisterende genstand", "Den nye placering gemmes og vises korrekt"),
             (5, "Søg efter en genstand ved navn", "Korrekte søgeresultater vises"),
+        ],
+        ["TestHub"] =
+        [
+            (1, "Åbn appen og skriv dit navn", "Forsiden vises med din tester-profil og dine aktive testopgaver"),
+            (2, "Åbn en testopgave", "Opgavesiden vises med formålsbar øverst, testrin til venstre og 'Fejl & ideer' til højre"),
+            (3, "Marker et trin som OK og et trin som Fejl", "OK-trin får grønt flueben, fejl-trin får rødt kryds – næste trin åbnes automatisk"),
+            (4, "Tilføj en fejlrapport via 'Fejl & ideer'", "Feedback gemmes og vises i listen nedenfor med navn og tidspunkt"),
+            (5, "Fuldfør alle trin og bekræft at 'Test færdig' vises", "'Test færdig'-banneret vises med tidsstempel"),
         ],
     };
 
