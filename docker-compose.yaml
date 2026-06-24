@@ -746,6 +746,9 @@ services:
   musik-studio-web:
     container_name: musik-studio-web
 
+    env_file:
+      - magic.env
+
     build:
       context: .
       dockerfile: ./ITMartinMusikStudio.Server/Dockerfile
