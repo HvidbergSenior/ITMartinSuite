@@ -22,7 +22,7 @@
             {
                 <div class="camera-start-panel">
                     <div class="camera-start-icon">📷</div>
-                    <div class="camera-start-text">Starting camera...</div>
+                    <div class="camera-start-text">Starter kamera...</div>
                 </div>
             }
             else
@@ -37,17 +37,17 @@
 
                 <div class="camera-guide-overlay">
                     <div class="camera-guide-top">
-                        Show the <strong>item</strong> and <strong>where it is</strong>
+                        Vis <strong>genstanden</strong> og <strong>hvor den er</strong>
                     </div>
                     <div class="camera-guide-frame"></div>
                     <div class="camera-guide-bottom">
                         @if (_isProcessing)
                         {
-                            <span>Capturing...</span>
+                            <span>Optager...</span>
                         }
                         else
                         {
-                            <span>Tap anywhere to capture</span>
+                            <span>Tryk hvor som helst for at optage</span>
                         }
                     </div>
                 </div>
@@ -60,7 +60,7 @@
             <div class="camera-error">
                 @_errorMessage
                 <button class="btn-secondary" style="margin-top:12px" @onclick="StartCamera" @onclick:stopPropagation>
-                    Try again
+                    Prøv igen
                 </button>
             </div>
         }
@@ -75,7 +75,7 @@
             }
             <div class="analyzing-overlay">
                 <div class="analyzing-spinner"></div>
-                <div class="analyzing-text">Identifying item...</div>
+                <div class="analyzing-text">Identificerer genstand...</div>
             </div>
         </div>
     }
@@ -92,18 +92,18 @@
             @if (_parsed is { Success: true })
             {
                 <div class="result-card">
-                    <div class="result-label">Item</div>
+                    <div class="result-label">Genstand</div>
                     <input class="log-input" type="text" @bind="_editName" />
 
-                    <div class="result-label" style="margin-top:12px">Location</div>
+                    <div class="result-label" style="margin-top:12px">Placering</div>
                     <input class="log-input" type="text" @bind="_editLocation" />
 
                     <div class="result-actions">
-                        <button class="btn-secondary" @onclick="Retake">Retake</button>
+                        <button class="btn-secondary" @onclick="Retake">Tag igen</button>
                         <button class="btn-primary"
                                 @onclick="Save"
                                 disabled="@(_isSaving || string.IsNullOrWhiteSpace(_editName) || string.IsNullOrWhiteSpace(_editLocation))">
-                            @(_isSaving ? "Saving..." : "Save")
+                            @(_isSaving ? "Gemmer..." : "Gem")
                         </button>
                     </div>
                 </div>
@@ -111,11 +111,11 @@
             else
             {
                 <div class="result-card result-failed">
-                    <div class="result-failed-text">Could not identify item or location</div>
-                    <div class="result-failed-sub">Try again — step back so both the item and its surroundings are visible</div>
+                    <div class="result-failed-text">Kunne ikke identificere genstand eller placering</div>
+                    <div class="result-failed-sub">Prøv igen – træd tilbage så genstanden og dens omgivelser er synlige</div>
                     <div class="result-actions">
-                        <button class="btn-secondary" @onclick="Retake">Retake</button>
-                        <button class="btn-secondary" @onclick="GoHome">Manual</button>
+                        <button class="btn-secondary" @onclick="Retake">Tag igen</button>
+                        <button class="btn-secondary" @onclick="GoHome">Manuel</button>
                     </div>
                 </div>
             }
@@ -167,7 +167,7 @@
         catch
         {
             _cameraStarted = false;
-            _errorMessage = "Camera access denied — allow camera permissions and tap Try again.";
+            _errorMessage = "Kameraadgang nægtet – tillad kameratilladelser og tryk Prøv igen.";
         }
 
         StateHasChanged();
@@ -202,7 +202,7 @@
         }
         catch
         {
-            _errorMessage = "Capture failed — tap Try again.";
+            _errorMessage = "Optagelse mislykkedes – tryk Prøv igen.";
             _state = CameraState.Viewfinder;
         }
         finally

@@ -8,25 +8,25 @@
     <div class="home-card">
         <div class="home-logo">🧪</div>
         <h1 class="home-title">TestHub</h1>
-        <p class="home-sub">Quality testing for all ITMartin apps</p>
+        <p class="home-sub">Kvalitetstest for alle ITMartin apps</p>
 
         <div class="home-section">
-            <label class="home-label">I'm a tester</label>
+            <label class="home-label">Jeg er tester</label>
             <input class="home-input"
                    @bind="_name" @bind:event="oninput"
-                   placeholder="Enter your name"
+                   placeholder="Skriv dit navn"
                    maxlength="40"
                    @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(EnterAsTester); })" />
             <button class="btn-primary" @onclick="EnterAsTester"
                     disabled="@string.IsNullOrWhiteSpace(_name)">
-                See my assignments
+                Se mine opgaver
             </button>
         </div>
 
-        <div class="home-divider">or</div>
+        <div class="home-divider">eller</div>
 
         <button class="btn-secondary" @onclick="@(() => Nav.NavigateTo("/admin", forceLoad: true))">
-            🔧 Admin dashboard
+            🔧 Admin
         </button>
 
         <a class="guide-link" href="/guide">📲 Sådan installerer du appen</a>

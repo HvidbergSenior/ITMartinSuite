@@ -12,7 +12,7 @@
     <div class="search-section">
         <input class="search-input"
                type="search"
-               placeholder="Where is my...?"
+               placeholder="Hvor er min/mit...?"
                value="@_searchQuery"
                @oninput="OnSearchChanged"
                autocomplete="off"
@@ -26,8 +26,8 @@
             {
                 <div class="empty-state">
                     <div class="empty-icon">?</div>
-                    <div class="empty-text">Nothing found for "@_searchQuery"</div>
-                    <div class="empty-sub">Log it below if you just put it somewhere</div>
+                    <div class="empty-text">Intet fundet for "@_searchQuery"</div>
+                    <div class="empty-sub">Registrer det herunder, hvis du lige har lagt det et sted</div>
                 </div>
             }
             else
@@ -65,29 +65,29 @@
         <div class="camera-shortcut">
             <a href="/camera" class="btn-camera-shortcut">
                 <span class="camera-shortcut-icon">📷</span>
-                <span>Take a photo to log item</span>
+                <span>Tag et foto for at registrere genstand</span>
             </a>
         </div>
 
         <div class="log-section">
             <div class="log-card">
-                <div class="log-title">Log item manually</div>
+                <div class="log-title">Registrer manuelt</div>
 
                 @if (_showAiInput)
                 {
                     <div class="ai-mode">
                         <textarea class="ai-textarea"
-                                  placeholder='Describe it: "put my keys on the kitchen counter"'
+                                  placeholder='Beskriv det: "mine nøgler ligger på køkkenbordet"'
                                   @bind="_aiInput"
                                   rows="2"></textarea>
                         <div class="log-actions">
                             <button class="btn-secondary" @onclick="() => _showAiInput = false">
-                                Manual
+                                Manuel
                             </button>
                             <button class="btn-primary"
                                     @onclick="ParseAndLog"
                                     disabled="@(_isSaving || string.IsNullOrWhiteSpace(_aiInput))">
-                                @(_isSaving ? "Saving..." : "Save")
+                                @(_isSaving ? "Gemmer..." : "Gem")
                             </button>
                         </div>
                     </div>
@@ -97,26 +97,26 @@
                     <div class="manual-mode">
                         <input class="log-input"
                                type="text"
-                               placeholder="What? (keys, glasses, passport...)"
+                               placeholder="Hvad? (nøgler, briller, pas...)"
                                @bind="_itemName"
                                @onkeydown="OnLogKeyDown" />
                         <input class="log-input"
                                type="text"
-                               placeholder="Where? (kitchen counter, car, desk...)"
+                               placeholder="Hvor? (køkkenbord, bil, skrivebord...)"
                                @bind="_itemLocation"
                                @onkeydown="OnLogKeyDown" />
                         <input class="log-input log-input-notes"
                                type="text"
-                               placeholder="Notes (optional)"
+                               placeholder="Noter (valgfrit)"
                                @bind="_itemNotes" />
                         <div class="log-actions">
                             <button class="btn-secondary" @onclick="() => _showAiInput = true">
-                                AI input
+                                AI-input
                             </button>
                             <button class="btn-primary"
                                     @onclick="SaveManual"
                                     disabled="@(_isSaving || string.IsNullOrWhiteSpace(_itemName) || string.IsNullOrWhiteSpace(_itemLocation))">
-                                @(_isSaving ? "Saving..." : "Save")
+                                @(_isSaving ? "Gemmer..." : "Gem")
                             </button>
                         </div>
                     </div>
@@ -124,7 +124,7 @@
 
                 @if (_savedFlash)
                 {
-                    <div class="save-flash">Saved!</div>
+                    <div class="save-flash">Gemt!</div>
                 }
 
                 @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -135,13 +135,13 @@
         </div>
 
         <div class="recent-section">
-            <div class="recent-title">Recent</div>
+            <div class="recent-title">Seneste</div>
 
             @if (_recentItems.Count == 0)
             {
                 <div class="empty-state">
-                    <div class="empty-text">Nothing logged yet</div>
-                    <div class="empty-sub">Log your first item above</div>
+                    <div class="empty-text">Intet registreret endnu</div>
+                    <div class="empty-sub">Registrer din første genstand herover</div>
                 </div>
             }
             else
@@ -251,7 +251,7 @@
 
         if (!parsed.Success || string.IsNullOrWhiteSpace(parsed.ItemName) || string.IsNullOrWhiteSpace(parsed.Location))
         {
-            _errorMessage = "Could not understand that. Try: \"my keys are on the kitchen counter\"";
+            _errorMessage = "Kunne ikke forstå det. Prøv: \"mine nøgler er på køkkenbordet\"";
             _isSaving = false;
             return;
         }

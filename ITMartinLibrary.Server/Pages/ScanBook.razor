@@ -1,5 +1,6 @@
 @page "/"
 @page "/library"
+@page "/library/bookcase"
 
 @using ITMartin.Ai.Interfaces
 @using ITMartinLibrary.Application.Interfaces
@@ -11,14 +12,14 @@
 @inject ILibraryShelfRecognitionService ShelfRecognition
 @implements IAsyncDisposable
 
-<PageTitle>Library — Scan Shelf</PageTitle>
+<PageTitle>Bogsamling – Scan hylde</PageTitle>
 
 <div class="library-page">
     <div class="page-container">
 
         <div class="scan-hero-card">
-            <h1>📷 Scan Bookcase</h1>
-            <p class="hero-text">Point the camera at a shelf and tap Capture.</p>
+            <h1>📷 Scan bogreol</h1>
+            <p class="hero-text">Peg kameraet mod en hylde og tryk Scan.</p>
         </div>
 
         <div class="shelf-camera-wrap mt-3">
@@ -33,7 +34,7 @@
                 {
                     <div class="shelf-overlay">
                         <div class="shelf-spinner"></div>
-                        <div class="shelf-overlay-text">Analyzing shelf…</div>
+                        <div class="shelf-overlay-text">Analyserer hylde…</div>
                     </div>
                 }
             }
@@ -43,7 +44,7 @@
             <button class="btn btn-primary btn-lg"
                     @onclick="CaptureAsync"
                     disabled="@(_state != PageState.Ready || _cameraError != null)">
-                @(_state == PageState.Analyzing ? "Analyzing…" : "Capture Shelf")
+                @(_state == PageState.Analyzing ? "Analyserer…" : "Scan hylde")
             </button>
         </div>
 
@@ -55,12 +56,12 @@
         @if (_recentShelves.Any())
         {
             <div class="content-card mt-4">
-                <h4 class="mb-3">Recent Scans</h4>
+                <h4 class="mb-3">Seneste scanninger</h4>
                 @foreach (var shelf in _recentShelves)
                 {
                     <div class="shelf-result">
                         <div class="shelf-result-header">
-                            <span class="shelf-result-label">Shelf @shelf.ShelfNumber</span>
+                            <span class="shelf-result-label">Hylde @shelf.ShelfNumber</span>
                             <span class="text-muted" style="font-size:12px">@shelf.ScannedAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
                         </div>
                         @if (shelf.Books.Any())
@@ -78,13 +79,13 @@
                                 }
                                 @if (shelf.Books.Count > 12)
                                 {
-                                    <li class="text-muted">…and @(shelf.Books.Count - 12) more</li>
+                                    <li class="text-muted">…og @(shelf.Books.Count - 12) til</li>
                                 }
                             </ul>
                         }
                         else
                         {
-                            <div class="text-muted" style="font-size:13px;padding:6px 0">No items identified</div>
+                            <div class="text-muted" style="font-size:13px;padding:6px 0">Ingen genstande identificeret</div>
                         }
                     </div>
                 }
@@ -197,7 +198,7 @@
         }
         catch (Exception ex)
         {
-            _cameraError = $"Camera unavailable: {ex.Message}";
+            _cameraError = $"Kamera ikke tilgængeligt: {ex.Message}";
         }
 
         StateHasChanged();

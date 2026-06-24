@@ -6,8 +6,8 @@
 <div class="home-page">
     <div class="home-card">
         <div class="home-logo">🔐</div>
-        <h1 class="home-title">Admin Access</h1>
-        <p class="home-sub">TestHub admin area</p>
+        <h1 class="home-title">Admin-adgang</h1>
+        <p class="home-sub">TestHub admin</p>
 
         <div class="home-section">
             <input class="home-input" type="password"
@@ -16,13 +16,13 @@
                    @onkeydown="@(e => { if (e.Key == "Enter") InvokeAsync(Submit); })" />
             <button class="btn-primary" @onclick="Submit"
                     disabled="@(string.IsNullOrWhiteSpace(_pin) || _loading)">
-                @(_loading ? "Checking…" : "Enter")
+                @(_loading ? "Checker…" : "Log ind")
             </button>
         </div>
 
         @if (_error)
         {
-            <p class="home-error">Wrong PIN — try again</p>
+            <p class="home-error">Forkert PIN – prøv igen</p>
         }
     </div>
 </div>

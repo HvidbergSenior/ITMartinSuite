@@ -29,7 +29,7 @@
             </h1>
 
             <div class="scanner-subtitle">
-                AI powered printing detection
+                AI-drevet kortgenkendelse
             </div>
 
         </div>
@@ -38,7 +38,7 @@
     <div class="scanner-setup">
 
         <label class="form-label">
-            Set Selection
+            Sæt
         </label>
 
         <div class="form-check mb-2">
@@ -49,7 +49,7 @@
                    @onchange="() => NoSetSymbol = false" />
 
             <label class="form-check-label">
-                Select Set
+                Vælg sæt
             </label>
         </div>
 
@@ -61,21 +61,21 @@
                    @onchange="() => NoSetSymbol = true" />
 
             <label class="form-check-label">
-                Card Has No Set Symbol
+                Kort uden sætsymbol
             </label>
         </div>
 
         @if (!NoSetSymbol)
         {
             <input class="form-control mb-2"
-                   placeholder="Search set..."
+                   placeholder="Søg sæt..."
                    @bind="_setSearch" />
 
             <select class="form-select"
                     @bind="_selectedSetCode">
 
                 <option value="">
-                    Select a set...
+                    Vælg et sæt...
                 </option>
 
                 @foreach (var set in FilteredSets.Take(50))
@@ -92,19 +92,19 @@
     @if (NoSetSymbol)
     {
         <div class="alert alert-info mt-2">
-            Scanning cards without set symbols.
+            Scanner kort uden sætsymboler.
         </div>
     }
     else if (string.IsNullOrWhiteSpace(_selectedSetCode))
     {
         <div class="alert alert-warning mt-2">
-            Select a set before scanning.
+            Vælg venligst et sæt inden scanning.
         </div>
     }
     else
     {
         <div class="alert alert-success mt-2">
-            Scanning set: @_selectedSetCode.ToUpperInvariant()
+            Scanner sæt: @_selectedSetCode.ToUpperInvariant()
         </div>
     }
    
@@ -118,7 +118,7 @@
                         disabled="@(
                                   string.IsNullOrWhiteSpace(_selectedSetCode)
                                   && !NoSetSymbol)">
-                    Start Camera
+                    Start kamera
                 </button>
 
             </div>
@@ -136,7 +136,7 @@
             <div class="scanner-guide">
 
                 <div class="guide-text">
-                    Align card inside frame
+                    Placer kort inden for rammen
                 </div>
 
             </div>
@@ -167,7 +167,7 @@
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="() => Capture()"
                 disabled="@(_isProcessing || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
-            @(_isProcessing ? "Scanning..." : "Scan Card")
+            @(_isProcessing ? "Scanner..." : "Scan kort")
         </button>
 
     </div>
@@ -238,7 +238,7 @@
         <div class="mt-4">
 
             <h5>
-                Captured Image
+                Taget billede
             </h5>
 
             <img src="@_capturedImage"
@@ -351,7 +351,7 @@
 
                     if (!result.Failed && result.ScryfallMatchResult is { } m)
                     {
-                        _detectedText = $"Scanned: {m.Name}";
+                        _detectedText = $"Scannet: {m.Name}";
                     }
                     else if (result.Failed)
                     {
@@ -378,14 +378,14 @@
         if (_disposed) return;
         if (!background && (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))
         {
-            _detectedText = "Please select a set or choose 'No Set Symbol'.";
+            _detectedText = "Vælg et sæt eller 'Kort uden sætsymbol'.";
             return;
         }
         if (!_cameraStarted) return;
 
         try
         {
-            if (!background) { _isProcessing = true; _scanResult = null; _detectedText = "Capturing..."; StateHasChanged(); }
+            if (!background) { _isProcessing = true; _scanResult = null; _detectedText = "Optager..."; StateHasChanged(); }
 
             CameraCaptureResult capture;
             try { capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture"); }

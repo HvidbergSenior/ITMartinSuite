@@ -22,11 +22,11 @@ else
         <div class="detail-section">
             <div class="section-title">App info</div>
             <div class="form-row">
-                <label class="home-label">Icon</label>
+                <label class="home-label">Ikon</label>
                 <input class="home-input" style="max-width:80px" @bind="_app.Icon" maxlength="4" />
             </div>
             <div class="form-row">
-                <label class="home-label">Name</label>
+                <label class="home-label">Navn</label>
                 <input class="home-input" @bind="_app.Name" maxlength="60" />
             </div>
             <div class="form-row">
@@ -34,16 +34,16 @@ else
                 <input class="home-input" @bind="_app.Url" maxlength="200" type="url" />
             </div>
             <div class="form-row">
-                <label class="home-label">Description</label>
+                <label class="home-label">Beskrivelse</label>
                 <input class="home-input" @bind="_app.Description" maxlength="200" />
             </div>
-            <button class="btn-primary btn-sm" @onclick="SaveApp">Save</button>
-            @if (_saved) { <span class="save-confirm">✓ Saved</span> }
+            <button class="btn-primary btn-sm" @onclick="SaveApp">Gem</button>
+            @if (_saved) { <span class="save-confirm">✓ Gemt</span> }
         </div>
 
         <!-- Test steps -->
         <div class="detail-section">
-            <div class="section-title">Test steps (@_app.Steps.Count)</div>
+            <div class="section-title">Testrin (@_app.Steps.Count)</div>
 
             <div class="steps-editor">
                 @foreach (var step in _app.Steps)
@@ -70,25 +70,25 @@ else
 
                 @if (!_app.Steps.Any())
                 {
-                    <div class="muted">No steps yet — add the first one below.</div>
+                    <div class="muted">Ingen trin endnu – tilføj det første herunder.</div>
                 }
             </div>
 
             <!-- Add step form -->
             <div class="add-step-form">
                 <div class="form-row">
-                    <label class="home-label">Add steps — one per line</label>
+                    <label class="home-label">Tilføj trin – ét pr. linje</label>
                     <textarea class="home-input step-bulk-input"
                               @bind="_newBulkSteps"
                               placeholder="Open the app&#10;Create a new session&#10;Invite a participant"
                               rows="4"></textarea>
                 </div>
                 <div class="add-step-hint">
-                    Each non-empty line becomes one step. Press Enter between steps.
+                    Hvert trin skrives på én linje.
                 </div>
                 <button class="btn-primary btn-sm" @onclick="AddSteps"
                         disabled="@(_bulkLineCount == 0)">
-                    + Add @(_bulkLineCount == 1 ? "1 step" : $"{_bulkLineCount} steps")
+                    + Tilføj @(_bulkLineCount == 1 ? "1 trin" : $"{_bulkLineCount} trin")
                 </button>
             </div>
         </div>

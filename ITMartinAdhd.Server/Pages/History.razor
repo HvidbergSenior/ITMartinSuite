@@ -11,7 +11,7 @@
     <div class="search-section">
         <input class="search-input"
                type="search"
-               placeholder="Search all items..."
+               placeholder="Søg alle genstande..."
                value="@_query"
                @oninput="OnSearch"
                autocomplete="off" />
@@ -22,7 +22,7 @@
         @if (_items.Count == 0)
         {
             <div class="empty-state">
-                <div class="empty-text">Nothing here yet</div>
+                <div class="empty-text">Intet her endnu</div>
             </div>
         }
         else

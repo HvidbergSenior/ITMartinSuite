@@ -17,9 +17,9 @@
             </div>
             <div>
                 <div class="header-name">@_tester.Name</div>
-                <div class="header-sub">Your test assignments</div>
+                <div class="header-sub">Dine testopgaver</div>
             </div>
-            <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Switch</button>
+            <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Skift</button>
             <a class="guide-link-small" href="/guide" title="Installer appen">📲</a>
         </div>
 
@@ -27,8 +27,8 @@
         {
             <div class="empty-state">
                 <div style="font-size:3rem">🎉</div>
-                <p>No active assignments — you're all caught up!</p>
-                <p class="muted">Ask the admin to assign you to a test round.</p>
+                <p>Ingen aktive opgaver – du er opdateret!</p>
+                <p class="muted">Bed admin om at tildele dig en testrunde.</p>
             </div>
         }
         else
@@ -55,11 +55,11 @@
                             <div class="assignment-meta">
                                 @if (complete)
                                 {
-                                    <span class="badge-done">✓ Complete</span>
+                                    <span class="badge-done">✓ Færdig</span>
                                 }
                                 else
                                 {
-                                    <span>@done / @total steps done</span>
+                                    <span>@done / @total trin gennemført</span>
                                 }
                             </div>
                         </div>

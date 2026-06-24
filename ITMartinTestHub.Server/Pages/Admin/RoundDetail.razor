@@ -19,13 +19,13 @@ else
             </div>
             @if (_round.IsActive)
             {
-                <button class="btn-secondary btn-sm" @onclick="Archive">Archive round</button>
+                <button class="btn-secondary btn-sm" @onclick="Archive">Arkiver runde</button>
             }
         </div>
 
         <!-- Assignments table -->
         <div class="detail-section">
-            <div class="section-title">Assignments (@_round.Assignments.Count)</div>
+            <div class="section-title">Opgaver (@_round.Assignments.Count)</div>
 
             <div class="assignments-table">
                 @foreach (var a in _round.Assignments.OrderBy(x => x.App?.SortOrder))
@@ -52,7 +52,7 @@ else
                         </div>
                         <div class="ar-actions">
                             <button class="btn-text" @onclick="@(() => Nav.NavigateTo($"/test/{a.Id}", forceLoad: true))">
-                                View →
+                                Se →
                             </button>
                             @if (_round.IsActive)
                             {
@@ -64,7 +64,7 @@ else
                 }
                 @if (!_round.Assignments.Any())
                 {
-                    <div class="muted">No assignments yet.</div>
+                    <div class="muted">Ingen opgaver endnu.</div>
                 }
             </div>
         </div>
@@ -73,7 +73,7 @@ else
         @if (_round.IsActive)
         {
             <div class="detail-section">
-                <div class="section-title">Add assignment</div>
+                <div class="section-title">Tilføj opgave</div>
 
                 <div class="form-row">
                     <label class="home-label">App</label>
@@ -105,7 +105,7 @@ else
                 </div>
 
                 <div class="form-row">
-                    <label class="home-label">Or add new tester</label>
+                    <label class="home-label">Eller tilføj ny tester</label>
                     <div style="display:flex;gap:.5rem">
                         <input class="home-input" @bind="_newTesterName"
                                placeholder="Eigil" maxlength="40" />
@@ -118,7 +118,7 @@ else
 
                 <button class="btn-primary btn-sm" @onclick="AddAssignment"
                         disabled="@(_newAppId == Guid.Empty || _newTesterId == Guid.Empty)">
-                    + Assign
+                    + Tildel
                 </button>
             </div>
         }

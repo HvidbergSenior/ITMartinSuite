@@ -5,21 +5,21 @@
 @using ITMartinLibrary.Domain.Entities
 @inject IScannedShelfRepository ShelfRepo
 
-<PageTitle>Library Search</PageTitle>
+<PageTitle>Bogsamling – Søg</PageTitle>
 
 <div class="library-page">
     <div class="page-container">
 
         <div class="inv-header">
             <div>
-                <h1 class="inv-title">📚 Library Search</h1>
+                <h1 class="inv-title">📚 Bogsamling</h1>
                 <div class="inv-subtitle">@_subtitle</div>
             </div>
         </div>
 
         <div class="content-card inv-toolbar">
             <input class="inv-search" type="search"
-                   placeholder="Search title or author…"
+                   placeholder="Søg titel eller forfatter…"
                    @bind="_search" @bind:event="oninput" />
 
             <div class="inv-filter-row">
@@ -37,14 +37,14 @@
         {
             <div class="content-card" style="text-align:center;padding:48px 20px;">
                 <div style="font-size:48px;margin-bottom:12px;">📷</div>
-                <div class="text-muted">No shelves scanned yet. Use the Library app to scan a bookcase.</div>
+                <div class="text-muted">Ingen hylder scannet endnu. Brug scan-appen til at scanne en bogreol.</div>
             </div>
         }
         else if (_filtered.Count == 0)
         {
             <div class="content-card" style="text-align:center;padding:48px 20px;">
                 <div style="font-size:48px;margin-bottom:12px;">🔍</div>
-                <div class="text-muted">No items match your search.</div>
+                <div class="text-muted">Ingen elementer matcher din søgning.</div>
             </div>
         }
         else
@@ -63,7 +63,7 @@
                                 <div class="inv-item-sub">@book.Author</div>
                             }
                             <div class="inv-item-meta">
-                                <span>Shelf @shelf.ShelfNumber</span>
+                                <span>Hylde @shelf.ShelfNumber</span>
                                 <span>@shelf.ScannedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
                             </div>
                         </div>
@@ -117,14 +117,14 @@
 @code {
     private List<(ShelfBook Book, ScannedShelf Shelf)> _allBooks = [];
     private string _search     = "";
-    private string _typeFilter = "All";
+    private string _typeFilter = "Alle";
 
-    private static readonly string[] _typeOptions = ["All", "Book", "Comic", "DVD", "Bluray"];
+    private static readonly string[] _typeOptions = ["Alle", "Bog", "Tegneserie", "DVD", "Bluray"];
 
     private string _subtitle =>
-        _allBooks.Count == 0 ? "No shelves scanned yet"
-        : _filtered.Count == _allBooks.Count ? $"{_allBooks.Count} items across {_shelfCount} shelf scan{(_shelfCount == 1 ? "" : "s")}"
-        : $"{_filtered.Count} of {_allBooks.Count} items";
+        _allBooks.Count == 0 ? "Ingen hylder scannet endnu"
+        : _filtered.Count == _allBooks.Count ? $"{_allBooks.Count} elementer på {_shelfCount} hylde{(_shelfCount == 1 ? "" : "r")}"
+        : $"{_filtered.Count} af {_allBooks.Count} elementer";
 
     private int _shelfCount;
 

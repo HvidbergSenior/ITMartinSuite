@@ -11,9 +11,9 @@
             <div class="admin-title">🧪 TestHub Admin</div>
         </div>
         <div class="admin-header-actions">
-            <button class="btn-secondary btn-sm" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Home</button>
-            <button class="btn-primary   btn-sm" @onclick="CreateRound">+ New round</button>
-            <button class="btn-text      btn-sm" @onclick="Logout">🔓 Logout</button>
+            <button class="btn-secondary btn-sm" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Forside</button>
+            <button class="btn-primary   btn-sm" @onclick="CreateRound">+ Ny runde</button>
+            <button class="btn-text      btn-sm" @onclick="Logout">🔓 Log ud</button>
         </div>
     </div>
 
@@ -25,10 +25,10 @@
     @if (_creating)
     {
         <div class="inline-form">
-            <input class="home-input" @bind="_newRoundName" placeholder="Annual Test — June 2026" maxlength="80" />
+            <input class="home-input" @bind="_newRoundName" placeholder="Årstest — Juni 2026" maxlength="80" />
             <button class="btn-primary btn-sm" @onclick="SaveRound"
-                    disabled="@string.IsNullOrWhiteSpace(_newRoundName)">Create</button>
-            <button class="btn-text" @onclick="() => _creating = false">Cancel</button>
+                    disabled="@string.IsNullOrWhiteSpace(_newRoundName)">Opret</button>
+            <button class="btn-text" @onclick="() => _creating = false">Annuller</button>
         </div>
     }
 
@@ -36,9 +36,9 @@
     @if (_activeRound is not null)
     {
         <div class="section-title">
-            Active round: <strong>@_activeRound.Name</strong>
+            Aktiv runde: <strong>@_activeRound.Name</strong>
             <button class="btn-text btn-sm" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}", forceLoad: true))">
-                Manage →
+                Administrer →
             </button>
         </div>
 
@@ -77,9 +77,9 @@
 
             @if (!_activeRound.Assignments.Any())
             {
-                <div class="muted">No assignments yet.
+                <div class="muted">Ingen opgaver endnu.
                     <button class="btn-text" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{_activeRound.Id}", forceLoad: true))">
-                        Add some →
+                        Tilføj →
                     </button>
                 </div>
             }
@@ -87,14 +87,14 @@
     }
 
     <!-- All rounds -->
-    <div class="section-title" style="margin-top:2rem">All rounds</div>
+    <div class="section-title" style="margin-top:2rem">Alle runder</div>
     <div class="rounds-list">
         @foreach (var r in _rounds)
         {
             <div class="rounds-row" @onclick="@(() => Nav.NavigateTo($"/admin/rounds/{r.Id}", forceLoad: true))">
                 <div>
                     <span class="rounds-name">@r.Name</span>
-                    @if (!r.IsActive) { <span class="badge-archived">Archived</span> }
+                    @if (!r.IsActive) { <span class="badge-archived">Arkiveret</span> }
                 </div>
                 <div class="rounds-row-actions" @onclick:stopPropagation>
                     <span class="rounds-date">@r.CreatedAt.ToString("dd MMM yyyy")</span>
@@ -110,11 +110,11 @@
                 </div>
             </div>
         }
-        @if (!_rounds.Any()) { <div class="muted">No rounds yet.</div> }
+        @if (!_rounds.Any()) { <div class="muted">Ingen runder endnu.</div> }
     </div>
 
     <!-- Apps -->
-    <div class="section-title" style="margin-top:2rem">Apps &amp; test steps</div>
+    <div class="section-title" style="margin-top:2rem">Apps &amp; testrin</div>
     <div class="apps-grid">
         @foreach (var a in _apps)
         {
@@ -122,7 +122,7 @@
                 <div class="app-card-icon">@a.Icon</div>
                 <div class="app-card-info">
                     <div class="app-card-name">@a.Name</div>
-                    <div class="app-card-steps">@a.Steps.Count step(s)</div>
+                    <div class="app-card-steps">@a.Steps.Count trin</div>
                 </div>
                 <div class="app-card-arrow">›</div>
             </div>
@@ -148,7 +148,7 @@
     </div>
 
     <!-- Recent feedback -->
-    <div class="section-title" style="margin-top:2rem">Recent feedback</div>
+    <div class="section-title" style="margin-top:2rem">Seneste feedback</div>
     <div class="feedback-feed">
         @foreach (var f in _recentFeedback)
         {
@@ -163,7 +163,7 @@
                 <span class="feed-time">@f.CreatedAt.ToString("dd MMM HH:mm")</span>
             </div>
         }
-        @if (!_recentFeedback.Any()) { <div class="muted">No feedback yet.</div> }
+        @if (!_recentFeedback.Any()) { <div class="muted">Ingen feedback endnu.</div> }
     </div>
 </div>
 

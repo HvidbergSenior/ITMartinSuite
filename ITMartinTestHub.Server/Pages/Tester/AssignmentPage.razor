@@ -20,7 +20,7 @@ else
                 <span class="test-app-name">@_assignment.App?.Name</span>
             </div>
             <a class="btn-open-app" href="@_assignment.App?.Url" target="_blank">
-                Open app ↗
+                Åbn app ↗
             </a>
         </div>
 
@@ -37,7 +37,7 @@ else
             <!-- Steps panel -->
             <div class="steps-panel">
                 <div class="panel-title">
-                    Test steps
+                    Testrin
                     <span class="step-counter">@_doneCount / @_totalCount</span>
                 </div>
 
@@ -61,7 +61,7 @@ else
                                 @if (!string.IsNullOrWhiteSpace(step.ExpectedResult))
                                 {
                                     <div class="step-expected">
-                                        <span class="step-expected-label">Expected:</span>
+                                        <span class="step-expected-label">Forventet:</span>
                                         @step.ExpectedResult
                                     </div>
                                 }
@@ -70,22 +70,22 @@ else
                                     <button class="btn-pass  @(result?.Status == StepStatus.Pass ? "active" : "")"
                                             @onclick:stopPropagation
                                             @onclick="() => RecordResult(step.Id, StepStatus.Pass)">
-                                        ✓ Pass
+                                        ✓ OK
                                     </button>
                                     <button class="btn-fail  @(result?.Status == StepStatus.Fail ? "active" : "")"
                                             @onclick:stopPropagation
                                             @onclick="() => RecordResult(step.Id, StepStatus.Fail)">
-                                        ✗ Fail
+                                        ✗ Fejl
                                     </button>
                                     <button class="btn-skip  @(result?.Status == StepStatus.Skip ? "active" : "")"
                                             @onclick:stopPropagation
                                             @onclick="() => RecordResult(step.Id, StepStatus.Skip)">
-                                        → Skip
+                                        → Spring over
                                     </button>
                                 </div>
 
                                 <textarea class="step-note"
-                                          placeholder="Optional note…"
+                                          placeholder="Tilføj note…"
                                           @bind="_notes[step.Id]"
                                           @bind:event="oninput"
                                           rows="2"
@@ -96,7 +96,7 @@ else
                                     <button class="btn-save-note"
                                             @onclick:stopPropagation
                                             @onclick="() => SaveNote(step.Id)">
-                                        Save note
+                                        Gem note
                                     </button>
                                 }
 
@@ -112,14 +112,14 @@ else
 
             <!-- Feedback panel -->
             <div class="feedback-panel">
-                <div class="panel-title">Ideas &amp; Bugs</div>
+                <div class="panel-title">Fejl &amp; ideer</div>
 
                 <div class="feedback-type-row">
                     @foreach (var ft in new[] { FeedbackType.Bug, FeedbackType.Idea, FeedbackType.Comment })
                     {
                         <button class="feedback-type-btn @(_feedbackType == ft ? "active" : "")"
                                 @onclick="() => _feedbackType = ft">
-                            @FeedbackIcon(ft) @ft
+                            @FeedbackIcon(ft) @FeedbackLabel(ft)
                         </button>
                     }
                 </div>
@@ -133,7 +133,7 @@ else
                 <button class="btn-feedback"
                         @onclick="AddFeedback"
                         disabled="@string.IsNullOrWhiteSpace(_feedbackText)">
-                    Add @_feedbackType.ToString().ToLower()
+                    Indsend @FeedbackLabel(_feedbackType).ToLower()
                 </button>
 
                 <div class="feedback-list">
@@ -142,7 +142,7 @@ else
                         <div class="feedback-item">
                             <div class="feedback-item-header">
                                 <span class="feedback-type-badge type-@f.Type.ToString().ToLower()">
-                                    @FeedbackIcon(f.Type) @f.Type
+                                    @FeedbackIcon(f.Type) @FeedbackLabel(f.Type)
                                 </span>
                                 <span class="feedback-item-who" style="color:@(f.Tester?.Color ?? "#999")">
                                     @f.Tester?.Name
@@ -156,7 +156,7 @@ else
 
                 @if (_assignment.CompletedAt.HasValue)
                 {
-                    <div class="complete-badge">✓ Test complete · @_assignment.CompletedAt.Value.ToString("dd MMM HH:mm")</div>
+                    <div class="complete-badge">✓ Test færdig · @_assignment.CompletedAt.Value.ToString("dd MMM HH:mm")</div>
                 }
             </div>
         </div>
@@ -262,20 +262,28 @@ else
         _                    => "?"
     };
 
+    private static string FeedbackLabel(FeedbackType t) => t switch
+    {
+        FeedbackType.Bug     => "Fejl",
+        FeedbackType.Idea    => "Idé",
+        FeedbackType.Comment => "Kommentar",
+        _                    => "?"
+    };
+
     private string FeedbackPlaceholder() => _feedbackType switch
     {
-        FeedbackType.Bug     => "Describe what went wrong…",
-        FeedbackType.Idea    => "Share an improvement idea…",
-        FeedbackType.Comment => "Any other comment…",
+        FeedbackType.Bug     => "Beskriv hvad der gik galt…",
+        FeedbackType.Idea    => "Del en forbedringsidé…",
+        FeedbackType.Comment => "Øvrige kommentarer…",
         _                    => ""
     };
 
     private static string TimeAgo(DateTime dt)
     {
         var diff = DateTime.UtcNow - dt;
-        if (diff.TotalMinutes < 2)  return "just now";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
-        if (diff.TotalHours   < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalMinutes < 2)  return "lige nu";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} min siden";
+        if (diff.TotalHours   < 24) return $"{(int)diff.TotalHours} t siden";
         return dt.ToString("dd MMM");
     }
 }
