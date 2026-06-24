@@ -13,7 +13,6 @@
         @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
 
         <div class="create-field"><label>Gruppenavn</label><input @bind="_name" placeholder="Lions Club Horsens" class="create-input" maxlength="100" /></div>
-        <div class="create-field"><label>URL-slug <span class="create-hint">(kun bogstaver og -)</span></label><input @bind="_slug" placeholder="lions-horsens" class="create-input" maxlength="40" /></div>
         <div class="create-field"><label>Beskrivelse (valgfrit)</label><input @bind="_desc" class="create-input" maxlength="200" /></div>
         <div class="create-row">
             <div class="create-field"><label>Invitationskode</label><input @bind="_invite" placeholder="hemmelig kode" class="create-input" maxlength="40" /></div>
@@ -44,7 +43,7 @@
 </style>
 
 @code {
-    private string _name = "", _slug = "", _desc = "", _invite = "", _pin = "";
+    private string _name = "", _desc = "", _invite = "", _pin = "";
     private string? _error;
     private bool _creating;
 
@@ -52,21 +51,19 @@
     {
         _error = null;
         if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv et gruppenavn."; return; }
-        if (string.IsNullOrWhiteSpace(_slug)) { _error = "Skriv en URL-slug."; return; }
         if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en invitationskode."; return; }
         if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv en admin PIN."; return; }
 
-        var cleanSlug = _slug.ToLower().Trim().Replace(" ", "-");
-        if (!System.Text.RegularExpressions.Regex.IsMatch(cleanSlug, @"^[a-z0-9\-]+$"))
-        {
-            _error = "Slug må kun indeholde bogstaver, tal og bindestreg.";
-            return;
-        }
+        var cleanSlug = System.Text.RegularExpressions.Regex
+            .Replace(_name.ToLower().Trim().Replace(" ", "-"), @"[^a-z0-9\-]", "");
+        if (string.IsNullOrWhiteSpace(cleanSlug)) { _error = "Gruppenavnet kan ikke bruges som adresse."; return; }
 
-        if (await Db.Groups.AnyAsync(g => g.Slug == cleanSlug))
+        // Make slug unique if already taken
+        var baseSlug = cleanSlug;
+        var counter = 2;
+        while (await Db.Groups.AnyAsync(g => g.Slug == cleanSlug))
         {
-            _error = "Denne slug er allerede i brug.";
-            return;
+            cleanSlug = $"{baseSlug}-{counter++}";
         }
 
         _creating = true;

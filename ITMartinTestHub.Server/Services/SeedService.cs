@@ -94,11 +94,11 @@ public static class SeedService
         ],
         ["Club"] =
         [
-            (1, "Åbn appen", "Appen indlæses og viser gruppeliste eller tilmeldingsskærm"),
-            (2, "Tilmeld dig eller gå ind i en eksisterende gruppe", "Gruppens forside vises med korrekt medlemsantal"),
-            (3, "Åbn Opslagstavlen", "Opslagstavlen med opgaver eller aktiviteter vises"),
-            (4, "Åbn Kalenderen", "Kalendervisning indlæses med begivenheder eller tom tilstand"),
-            (5, "Åbn Dokumenter", "Dokumentliste eller upload-mulighed vises"),
+            (1, "Åbn appen og opret en gruppe med navn, beskrivelse, invitationskode og admin PIN", "Gruppen oprettes og du sendes automatisk til tilmeldingssiden – ingen URL-slug skal indtastes"),
+            (2, "Tilmeld dig gruppen med dit navn og invitationskoden", "Gruppens forside vises med dit navn som medlem"),
+            (3, "Åbn Opslagstavlen og opret et opslag", "Opslaget vises på tavlen med navn og tidspunkt"),
+            (4, "Åbn Kalenderen og opret en begivenhed", "Begivenheden vises i kalenderen"),
+            (5, "Åbn Dokumenter og upload eller se dokumenter", "Dokumentlisten vises korrekt"),
         ],
         ["Magic Scan"] =
         [
