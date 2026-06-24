@@ -138,12 +138,13 @@ public static class SeedService
 
         foreach (var app in apps)
         {
-            var def = ManagedSteps[app.Name];
-            var firstExpected = def[0].Instruction;
-            var firstActual   = app.Steps.OrderBy(s => s.Order).FirstOrDefault()?.Instruction;
+            var def        = ManagedSteps[app.Name];
+            var firstDef   = def[0];
+            var firstActual = app.Steps.OrderBy(s => s.Order).FirstOrDefault();
 
-            // Skip if already seeded with the correct Danish steps
-            if (firstActual == firstExpected && app.Steps.Count == def.Count) continue;
+            if (firstActual?.Instruction    == firstDef.Instruction &&
+                firstActual?.ExpectedResult == firstDef.Expected    &&
+                app.Steps.Count             == def.Count) continue;
 
             db.Steps.RemoveRange(app.Steps);
             db.Steps.AddRange(def.Select(d => new TestStep
