@@ -110,11 +110,11 @@ public static class SeedService
         ],
         ["FindIt"] =
         [
-            (1, "Åbn appen", "Forsiden vises med liste over gemte genstande eller en tom tilstand"),
-            (2, "Opret en ny genstand (f.eks. 'Nøgler') og angiv en placering", "Genstanden gemmes og vises på listen"),
-            (3, "Tryk på en genstand for at se detaljer", "Detailvisning åbnes med placering og eventuelle noter"),
-            (4, "Rediger placeringen på en eksisterende genstand", "Den nye placering gemmes og vises korrekt"),
-            (5, "Søg efter en genstand ved navn", "Korrekte søgeresultater vises"),
+            (1, "Åbn appen og tryk på 📷-knappen", "Kameraet starter og vejledningsskærmen vises"),
+            (2, "Peg kameraet mod en genstand (f.eks. nøgler, briller eller tegnebog) og tryk for at optage", "AI analyserer billedet og foreslår automatisk genstandens navn og placering"),
+            (3, "Bekræft eller ret navn og placering og tryk 'Gem'", "Genstanden gemmes og vises på forsiden med et thumbnail af billedet"),
+            (4, "Gå tilbage til forsiden og søg efter genstanden ved navn", "Søgeresultatet vises med billede-thumbnail, navn og placering"),
+            (5, "Registrer en genstand manuelt via tekstfeltet uden foto", "Genstanden gemmes og vises på listen uden thumbnail"),
         ],
         ["TestHub"] =
         [
