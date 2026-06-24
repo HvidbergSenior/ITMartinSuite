@@ -111,7 +111,7 @@ app.MapGet("/photos/{id:int}", async (int id, AdhdDbContext db, IConfiguration c
     var item = await db.StoredItems.FindAsync(id);
     if (item?.PhotoPath is null) return Results.NotFound();
     var dir  = cfg["AdhdSettings:PhotoDir"] ?? "/app/data/photos";
-    var full = Path.Combine(dir, item.PhotoPath);
+    var full = Path.Combine(dir, Path.GetFileName(item.PhotoPath));
     if (!File.Exists(full)) return Results.NotFound();
     var mime = Path.GetExtension(full).ToLowerInvariant() switch
     {

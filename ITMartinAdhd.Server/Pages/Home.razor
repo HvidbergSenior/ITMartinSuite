@@ -35,6 +35,10 @@
                 @foreach (var item in _searchResults)
                 {
                     <div class="item-card" @key="item.Id">
+                        @if (item.PhotoPath != null)
+                        {
+                            <img class="item-thumb" src="/photos/@item.Id" alt="@item.Name" />
+                        }
                         <div class="item-main">
                             <div class="item-name">@item.Name</div>
                             <div class="item-location">@item.Location</div>
@@ -149,6 +153,10 @@
                 @foreach (var item in _recentItems)
                 {
                     <div class="item-card" @key="item.Id">
+                        @if (item.PhotoPath != null)
+                        {
+                            <img class="item-thumb" src="/photos/@item.Id" alt="@item.Name" />
+                        }
                         <div class="item-main">
                             <div class="item-name">@item.Name</div>
                             <div class="item-location">@item.Location</div>
