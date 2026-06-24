@@ -189,6 +189,9 @@ else
         _assignment = await Svc.GetAssignmentAsync(AssignmentId);
         if (_assignment is not null)
         {
+            foreach (var step in _assignment.App?.Steps ?? [])
+                _notes.TryAdd(step.Id, "");
+
             foreach (var r in _assignment.Results.Where(r => !string.IsNullOrWhiteSpace(r.Note)))
                 _notes[r.TestStepId] = r.Note!;
 
