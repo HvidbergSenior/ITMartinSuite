@@ -61,12 +61,41 @@ public sealed class MediaRulesWorkflowStep
         }
     }
 
+    private static readonly string[] ScreenshotKeywords =
+        ["screenshot", "screen shot", "screen_shot", "skærmbillede", "bildschirmfoto", "capture_", "captura"];
+
+    private static readonly string[] MemeKeywords =
+        ["fb_img_", "received_", "tumblr_", "meme", "funny_", "ifunny"];
+
+    private static void ClassifyImageSubCategory(MediaFile mediaFile)
+    {
+        if (mediaFile.Type != MediaType.Image) return;
+
+        var nameLower = Path.GetFileNameWithoutExtension(mediaFile.FileName).ToLowerInvariant();
+
+        if (ScreenshotKeywords.Any(k => nameLower.Contains(k)))
+        {
+            mediaFile.SubCategory = MediaSubCategory.Screenshot;
+            return;
+        }
+
+        if (MemeKeywords.Any(k => nameLower.Contains(k)))
+        {
+            mediaFile.SubCategory = MediaSubCategory.Meme;
+            return;
+        }
+
+        mediaFile.SubCategory = MediaSubCategory.OtherImage;
+    }
+
     private void ApplyRules(
     MediaFile mediaFile)
 {
     var extension =
         mediaFile.Extension
             .ToLowerInvariant();
+
+    ClassifyImageSubCategory(mediaFile);
 
     switch (extension)
     {

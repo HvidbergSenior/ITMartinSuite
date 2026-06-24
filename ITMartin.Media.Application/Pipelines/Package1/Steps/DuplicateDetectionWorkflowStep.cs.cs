@@ -78,6 +78,13 @@ public sealed class DuplicateDetectionWorkflowStep
                         .BuildDuplicateGroups(
                             state.MediaFiles);
 
+                foreach (var group in state.DuplicateGroups)
+                {
+                    // Keep the first (oldest by path), mark the rest as duplicates
+                    foreach (var dup in group.Files.Skip(1))
+                        dup.ExportSubFolder = "Duplicates";
+                }
+
                 _logger.LogInformation(
                     """
                     Duplicate detection completed
