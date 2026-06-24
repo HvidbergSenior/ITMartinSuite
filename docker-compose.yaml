@@ -743,6 +743,31 @@ services:
     networks:
       - martinnet
 
+  musik-studio-web:
+    container_name: musik-studio-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinMusikStudio.Server/Dockerfile
+
+    ports:
+      - "8105:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__StudioDb=Data Source=/app/data/studio.db
+      - StudioSettings__AccessCode=martin
+      - StudioSettings__MusicRoot=/musik
+
+    volumes:
+      - /volume1/MartinMusik:/musik
+      - /volume1/docker/martinsuite/musikstudio/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
   # =========================================================
   # WORKERS
   # =========================================================

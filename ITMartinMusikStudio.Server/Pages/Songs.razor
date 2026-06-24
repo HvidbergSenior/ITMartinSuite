@@ -1,0 +1,79 @@
+@page "/songs"
+@rendermode InteractiveServer
+@inject StudioLibraryService Library
+@inject StudioDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Songs — Studio</PageTitle>
+
+<div class="songs-page">
+
+    <div class="songs-header">
+        <div>
+            <h1 class="songs-title">🎸 Studio</h1>
+            <p class="songs-sub">@_sourceFiles.Count files · @_songs.Count songs in DB</p>
+        </div>
+        <button class="btn-ghost" @onclick="Logout">Log ud</button>
+    </div>
+
+    <input class="songs-search" type="search" placeholder="Søg..."
+           value="@_query" @oninput="e => _query = e.Value?.ToString() ?? string.Empty" />
+
+    <div class="songs-list">
+        @foreach (var f in Filtered)
+        {
+            var hasSong = _songKeys.Contains(f.RelativePath);
+            <div class="song-row @(hasSong ? "" : "song-row--new")" @onclick="() => Open(f)">
+                <div class="song-row-icon">@(Library.IsVideo(f.RelativePath) ? "🎬" : "🎵")</div>
+                <div class="song-row-info">
+                    <div class="song-row-title">@f.Title</div>
+                    <div class="song-row-path">@f.RelativePath</div>
+                </div>
+                @if (hasSong)
+                {
+                    <span class="song-row-badge">✓</span>
+                }
+                <div class="song-row-arrow">›</div>
+            </div>
+        }
+    </div>
+
+</div>
+
+@code {
+    private List<SourceFile> _sourceFiles = [];
+    private List<StudioSong> _songs = [];
+    private HashSet<string> _songKeys = [];
+    private string _query = "";
+
+    private IEnumerable<SourceFile> Filtered =>
+        string.IsNullOrWhiteSpace(_query)
+            ? _sourceFiles
+            : _sourceFiles.Where(f => f.Title.Contains(_query, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var ok = await JS.InvokeAsync<string?>("localStorage.getItem", "studio_auth");
+        if (ok != "1") { Nav.NavigateTo("/"); return; }
+
+        _sourceFiles = Library.GetSourceFiles();
+        _songs = await Db.Songs.ToListAsync();
+        _songKeys = _songs.Select(s => s.SourceFile).ToHashSet();
+        StateHasChanged();
+    }
+
+    private void Open(SourceFile f)
+    {
+        var key = Library.SafeKey(f.RelativePath);
+        Nav.NavigateTo($"/studio/{Uri.EscapeDataString(key)}?file={Uri.EscapeDataString(f.RelativePath)}");
+    }
+
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", "studio_auth");
+        Nav.NavigateTo("/");
+    }
+}

@@ -36,6 +36,7 @@ $ServiceMap = @{
     "club-web"              = @{ Dockerfile = "ITMartinClub.Server/Dockerfile";                    Context = "." }
     "magazine-web"          = @{ Dockerfile = "ITMartinMagazine.Server/Dockerfile";                Context = "." }
     "magazine-search-web"   = @{ Dockerfile = "ITMartinMagazine.Search.Server/Dockerfile";         Context = "." }
+    "musik-studio-web"      = @{ Dockerfile = "ITMartinMusikStudio.Server/Dockerfile";               Context = "." }
     "image-processor"       = @{ Dockerfile = "ITMartinImageProcessor.Worker/Dockerfile"; Context = "ITMartinImageProcessor.Worker" }
 }
 

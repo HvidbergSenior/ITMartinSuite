@@ -1,0 +1,647 @@
+@page "/studio/{SongKey}"
+@rendermode InteractiveServer
+@inject StudioDbContext Db
+@inject StudioLibraryService Library
+@inject ChordAiService ChordAi
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>@(_song?.Title ?? SongKey) — Studio</PageTitle>
+
+@if (_song is null && !_loading)
+{
+    <div class="studio-init">
+        <p>Opretter sang...</p>
+    </div>
+}
+else if (_song is not null)
+{
+<div class="studio-page">
+
+    <!-- Top bar -->
+    <div class="studio-topbar">
+        <a href="/songs" class="topbar-back">← Sange</a>
+        <div class="topbar-title">@_song.Title</div>
+        <div class="topbar-meta">
+            <select class="meta-select" value="@_song.MusicKey" @onchange="OnKeyChanged">
+                @foreach (var k in MusicKeys)
+                { <option value="@k">@k</option> }
+            </select>
+            <input class="meta-bpm" type="number" placeholder="BPM"
+                   value="@_song.Tempo" @onchange="OnTempoChanged" />
+        </div>
+    </div>
+
+    <div class="studio-body">
+
+        <!-- LEFT: Player + Recording -->
+        <div class="studio-left">
+
+            <!-- Player -->
+            <div class="studio-card">
+                <div class="card-label">🎬 Kilde</div>
+                @if (Library.Exists(_song.SourceFile))
+                {
+                    @if (Library.IsVideo(_song.SourceFile))
+                    {
+                        <video src="/stream?path=@Uri.EscapeDataString(_song.SourceFile)"
+                               controls class="player-video" preload="metadata" />
+                    }
+                    else
+                    {
+                        <audio src="/stream?path=@Uri.EscapeDataString(_song.SourceFile)"
+                               controls class="player-audio" preload="metadata" />
+                    }
+                }
+                else
+                {
+                    <div class="no-file">Fil ikke fundet: @_song.SourceFile</div>
+                }
+            </div>
+
+            <!-- Chord chart -->
+            <div class="studio-card">
+                <div class="card-header">
+                    <div class="card-label">🎸 Akkorder</div>
+                    <div class="card-actions">
+                        <div class="transpose-row">
+                            <button class="t-btn" @onclick="() => AdjustT(-1)">−</button>
+                            <span class="t-val">@(_transpose == 0 ? "0" : (_transpose > 0 ? $"+{_transpose}" : $"{_transpose}"))t</span>
+                            <button class="t-btn" @onclick="() => AdjustT(1)">+</button>
+                        </div>
+                        @if (ChordAi.IsAvailable)
+                        {
+                            <button class="btn-ai" @onclick="AiChords" disabled="@_aiLoading">
+                                @(_aiLoading ? "..." : "🤖 AI")
+                            </button>
+                        }
+                        <button class="btn-ghost-sm" @onclick='() => _photoTarget = "chords"'>📷</button>
+                    </div>
+                </div>
+                <textarea class="chord-editor" rows="10"
+                          value="@_chordEdit"
+                          @oninput="e => { _chordEdit = e.Value?.ToString() ?? _chordEdit; AutoSave(); }"
+                          placeholder="Verse: Am G F E&#10;Chorus: C G Am F&#10;Bridge: Dm Am E Am"></textarea>
+                @if (!string.IsNullOrWhiteSpace(_chordEdit) && _transpose != 0)
+                {
+                    <div class="chord-preview">
+                        <div class="card-label-sm">Transponeret (@TransposedKey):</div>
+                        @foreach (var line in TransposedChart.Split('\n'))
+                        {
+                            <div class="chord-line">
+                                @if (line.Trim().EndsWith(':'))
+                                { <span class="chord-section">@line</span> }
+                                else
+                                {
+                                    @foreach (var tok in line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        @if (IsChord(tok)) { <span class="chord-box">@tok</span> }
+                                        else { <span class="chord-txt"> @tok </span> }
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Recording -->
+            <div class="studio-card">
+                <div class="card-header">
+                    <div class="card-label">🎙 Optagelse</div>
+                    @if (_recordings.Any())
+                    {
+                        <span class="rec-count">@_recordings.Count take(s)</span>
+                    }
+                </div>
+
+                <div class="rec-controls">
+                    @if (!_recording)
+                    {
+                        <button class="btn-record" @onclick="StartRecording">⏺ Optag</button>
+                    }
+                    else
+                    {
+                        <button class="btn-stop" @onclick="StopRecording">⏹ Stop (@_recTimer s)</button>
+                    }
+                </div>
+
+                @if (_recordings.Any())
+                {
+                    <div class="rec-list">
+                        @foreach (var r in _recordings)
+                        {
+                            <div class="rec-item">
+                                <div class="rec-item-info">
+                                    <span class="rec-item-name">@r.Name</span>
+                                    <span class="rec-item-date">@r.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                </div>
+                                <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" class="rec-player" />
+                                <div class="rec-item-actions">
+                                    <button class="btn-publish" @onclick="() => Publish(r)" title="Publicér til public app">
+                                        🚀 Publicér
+                                    </button>
+                                    <button class="btn-delete-sm" @onclick="() => DeleteRecording(r)">🗑</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+        </div>
+
+        <!-- RIGHT: Lyrics + Notes -->
+        <div class="studio-right">
+
+            <!-- Lyrics -->
+            <div class="studio-card">
+                <div class="card-header">
+                    <div class="card-label">📝 Tekst / Lyrics</div>
+                    <button class="btn-ghost-sm" @onclick='() => _photoTarget = "lyrics"'>📷 Fra foto</button>
+                </div>
+                <textarea class="lyrics-editor" rows="22"
+                          value="@_lyricsEdit"
+                          @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; AutoSave(); }"
+                          placeholder="Skriv teksten her... eller brug 📷 til at scanne et foto"></textarea>
+            </div>
+
+            <!-- Notes -->
+            <div class="studio-card">
+                <div class="card-header">
+                    <div class="card-label">📋 Noter</div>
+                    <button class="btn-ghost-sm" @onclick='() => _photoTarget = "notes"'>📷 Fra foto</button>
+                </div>
+                <textarea class="notes-editor" rows="6"
+                          value="@_notesEdit"
+                          @oninput="e => { _notesEdit = e.Value?.ToString() ?? _notesEdit; AutoSave(); }"
+                          placeholder="Dine egne noter, idéer, pointer..."></textarea>
+            </div>
+
+            <!-- AI Helper -->
+            @if (ChordAi.IsAvailable)
+            {
+            <div class="studio-card">
+                <div class="card-label">🧠 AI Hjælp</div>
+                <div class="ai-tabs">
+                    <button class="ai-tab @(_aiTab == "rim" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("rim")'>🎵 Rim</button>
+                    <button class="ai-tab @(_aiTab == "spil" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("spil")'>🎸🎹 Spil</button>
+                    <button class="ai-tab @(_aiTab == "sang" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("sang")'>🎤 Sang</button>
+                </div>
+
+                @if (_aiTab == "rim")
+                {
+                    <div class="ai-rim">
+                        <input class="ai-rim-input" type="text" placeholder="Et ord eller en linje du sidder fast på..."
+                               value="@_rimInput"
+                               @oninput="e => _rimInput = e.Value?.ToString() ?? string.Empty"
+                               @onkeydown="OnRimKey" />
+                        <button class="btn-ai-full" @onclick="AiRim" disabled="@(_aiHelperLoading || string.IsNullOrWhiteSpace(_rimInput))">
+                            @(_aiHelperLoading ? "..." : "Få forslag →")
+                        </button>
+                    </div>
+                }
+                else if (_aiTab == "spil")
+                {
+                    <div class="ai-action-row">
+                        <p class="ai-action-desc">Baseret på dine akkorder og tempo</p>
+                        <button class="btn-ai-full" @onclick="AiSpil" disabled="@_aiHelperLoading">
+                            @(_aiHelperLoading ? "..." : "Vis guitar & piano mønstre →")
+                        </button>
+                    </div>
+                }
+                else if (_aiTab == "sang")
+                {
+                    <div class="ai-action-row">
+                        <p class="ai-action-desc">Fraseringer, åndedræt, dynamik og melodi</p>
+                        <button class="btn-ai-full" @onclick="AiSang" disabled="@_aiHelperLoading">
+                            @(_aiHelperLoading ? "..." : "Vis sangguide →")
+                        </button>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(_aiHelperResult))
+                {
+                    <div class="ai-result">
+                        <pre class="ai-result-text">@_aiHelperResult</pre>
+                        <button class="ai-result-clear" @onclick="ClearAiHelper">✕</button>
+                    </div>
+                }
+            </div>
+            }
+
+        </div>
+    </div>
+
+    @if (_saveStatus is not null)
+    {
+        <div class="save-toast">@_saveStatus</div>
+    }
+</div>
+}
+
+<!-- Photo capture overlay -->
+@if (_photoTarget is not null)
+{
+    <div class="photo-overlay">
+        <div class="photo-panel">
+            <div class="photo-header">
+                <span>📷 Foto → @PhotoTargetLabel</span>
+                <button class="photo-close" @onclick="ClosePhoto">✕</button>
+            </div>
+
+            @if (!_cameraOn)
+            {
+                <div class="photo-choose">
+                    <button class="btn-primary" @onclick="OpenCamera">📷 Åbn kamera</button>
+                    <label class="btn-ghost-file">
+                        🖼 Vælg billede
+                        <InputFile OnChange="OnFileSelected" accept="image/*" style="display:none" />
+                    </label>
+                </div>
+            }
+            else
+            {
+                <video id="photo-video" autoplay muted playsinline webkit-playsinline class="photo-video"></video>
+                <div class="photo-cam-actions">
+                    <button class="btn-capture" @onclick="CapturePhoto">🔵 Tag billede</button>
+                    <button class="btn-ghost-sm" @onclick="CloseCamera">✕ Luk kamera</button>
+                </div>
+            }
+
+            @if (_photoAnalyzing)
+            {
+                <div class="photo-analyzing">
+                    <div class="spinner"></div>
+                    <span>Claude analyserer...</span>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_photoResult))
+            {
+                <div class="photo-result">
+                    <div class="photo-result-label">Resultat (kan redigeres):</div>
+                    <textarea class="photo-result-text" rows="8"
+                              value="@_photoResult"
+                              @oninput="e => _photoResult = e.Value?.ToString() ?? string.Empty"></textarea>
+                    <div class="photo-result-actions">
+                        <button class="btn-primary" @onclick="ApplyPhotoResult">✓ Brug dette</button>
+                        <button class="btn-ghost-sm" @onclick="ClearPhotoResult">Ryd</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string SongKey { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "file")] public string? FileParam { get; set; }
+
+    private StudioSong? _song;
+    private bool _loading = true;
+
+    private string _chordEdit = "";
+    private string _lyricsEdit = "";
+    private string _notesEdit = "";
+    private int _transpose;
+
+    private bool _aiLoading;
+    private string? _saveStatus;
+    private System.Timers.Timer? _saveTimer;
+    private System.Timers.Timer? _recTimer_t;
+    private int _recTimer;
+
+    private bool _recording;
+    private List<RecordingFile> _recordings = [];
+
+    private string? _photoTarget;
+    private bool _cameraOn;
+    private bool _photoAnalyzing;
+    private string _photoResult = "";
+
+    private string _aiTab = "rim";
+    private string _rimInput = "";
+    private bool _aiHelperLoading;
+    private string _aiHelperResult = "";
+
+    private static readonly string[] MusicKeys =
+    [
+        "C","C#","D","D#","E","F","F#","G","G#","A","A#","B",
+        "Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"
+    ];
+
+    private string PhotoTargetLabel => _photoTarget switch
+    {
+        "lyrics" => "Tekst",
+        "chords" => "Akkorder",
+        "notes"  => "Noter",
+        _ => ""
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var existing = await Db.Songs.FirstOrDefaultAsync(s => s.Key == SongKey);
+        if (existing is not null)
+        {
+            _song = existing;
+        }
+        else
+        {
+            var sourceFile = FileParam ?? "";
+            _song = new StudioSong
+            {
+                Key        = SongKey,
+                Title      = ToTitle(SongKey),
+                SourceFile = sourceFile,
+            };
+            Db.Songs.Add(_song);
+            await Db.SaveChangesAsync();
+        }
+
+        _chordEdit  = _song.ChordChart;
+        _lyricsEdit = _song.Lyrics;
+        _notesEdit  = _song.Notes;
+        _loading    = false;
+
+        _recordings = Library.GetRecordings(SongKey);
+    }
+
+    private static string ToTitle(string key) =>
+        string.Join(" ",
+            key.Replace("_", " ").Replace("-", " ")
+               .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+               .Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w[1..] : w));
+
+    // ── Auto-save with debounce ────────────────────────────────────────────────
+
+    private void AutoSave()
+    {
+        if (_song is null) return;
+        _song.ChordChart = _chordEdit;
+        _song.Lyrics     = _lyricsEdit;
+        _song.Notes      = _notesEdit;
+
+        _saveTimer?.Dispose();
+        _saveTimer = new System.Timers.Timer(1200) { AutoReset = false };
+        _saveTimer.Elapsed += async (_, _) =>
+        {
+            _song.UpdatedAt = DateTime.UtcNow;
+            await Db.SaveChangesAsync();
+            _saveStatus = "Gemt ✓";
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(1500);
+            _saveStatus = null;
+            await InvokeAsync(StateHasChanged);
+        };
+        _saveTimer.Start();
+    }
+
+    private void OnKeyChanged(ChangeEventArgs e)
+    {
+        if (_song is null) return;
+        _song.MusicKey = e.Value?.ToString() ?? _song.MusicKey;
+        AutoSave();
+    }
+
+    private void OnTempoChanged(ChangeEventArgs e)
+    {
+        if (_song is null) return;
+        _song.Tempo = int.TryParse(e.Value?.ToString(), out var t) ? t : (int?)null;
+        AutoSave();
+    }
+
+    // ── Transpose ─────────────────────────────────────────────────────────────
+
+    private void AdjustT(int d) => _transpose = Math.Clamp(_transpose + d, -11, 11);
+
+    private string TransposedKey => TransposeNote(_song?.MusicKey ?? "Am", _transpose);
+
+    private string TransposedChart =>
+        string.Join("\n", _chordEdit.Split('\n').Select(line =>
+            string.Join(" ", line.Split(' ').Select(tok =>
+                IsChord(tok) ? TransposeNote(tok, _transpose) : tok))));
+
+    private static readonly string[] Notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    private static readonly string[] NotesFlat = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+
+    private static string TransposeNote(string note, int semitones)
+    {
+        if (semitones == 0) return note;
+        var minor = note.EndsWith('m') && note.Length > 1;
+        var root  = minor ? note[..^1] : note;
+        var idx   = Array.IndexOf(Notes, root);
+        if (idx < 0) idx = Array.IndexOf(NotesFlat, root);
+        if (idx < 0) return note;
+        var newIdx = ((idx + semitones) % 12 + 12) % 12;
+        return Notes[newIdx] + (minor ? "m" : "");
+    }
+
+    private static bool IsChord(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token) || token.EndsWith(':')) return false;
+        var root = token.TrimEnd('m', '7', '9', 'j', 'a', 's', 'u', '+', 'd', 'i', '/', '2', '4', '5', '6');
+        return Notes.Contains(root) || NotesFlat.Contains(root);
+    }
+
+    // ── AI chords ─────────────────────────────────────────────────────────────
+
+    private async Task AiChords()
+    {
+        if (_song is null) return;
+        _aiLoading = true;
+        var result = await ChordAi.SuggestChordsAsync(_song.Title, _song.MusicKey, _song.Tempo, _lyricsEdit);
+        if (!string.IsNullOrEmpty(result))
+        {
+            _chordEdit = result;
+            AutoSave();
+        }
+        _aiLoading = false;
+    }
+
+    // ── Recording ─────────────────────────────────────────────────────────────
+
+    private async Task StartRecording()
+    {
+        _recording = true;
+        _recTimer = 0;
+        _recTimer_t = new System.Timers.Timer(1000) { AutoReset = true };
+        _recTimer_t.Elapsed += async (_, _) =>
+        {
+            _recTimer++;
+            await InvokeAsync(StateHasChanged);
+        };
+        _recTimer_t.Start();
+        await JS.InvokeVoidAsync("studio.startRecording", SongKey);
+    }
+
+    private async Task StopRecording()
+    {
+        _recTimer_t?.Stop();
+        _recTimer_t?.Dispose();
+        _recording = false;
+        _recTimer = 0;
+        await JS.InvokeVoidAsync("studio.stopRecording");
+        await Task.Delay(800);
+        _recordings = Library.GetRecordings(SongKey);
+    }
+
+    private async Task Publish(RecordingFile r)
+    {
+        using var http = new HttpClient();
+        var baseUrl = Nav.BaseUri.TrimEnd('/');
+        await http.PostAsJsonAsync($"{baseUrl}/api/publish/{SongKey}",
+            new { relativePath = r.RelativePath });
+        _saveStatus = $"🚀 Publiceret!";
+        await Task.Delay(2000);
+        _saveStatus = null;
+    }
+
+    private async Task DeleteRecording(RecordingFile r)
+    {
+        using var http = new HttpClient();
+        var baseUrl = Nav.BaseUri.TrimEnd('/');
+        await http.DeleteAsync($"{baseUrl}/api/recording?path={Uri.EscapeDataString(r.RelativePath)}");
+        _recordings = Library.GetRecordings(SongKey);
+    }
+
+    // ── Photo capture ─────────────────────────────────────────────────────────
+
+    private async Task OpenCamera()
+    {
+        _cameraOn = true;
+        StateHasChanged();
+        await Task.Delay(100);
+        await JS.InvokeVoidAsync("studio.startCamera", "photo-video");
+    }
+
+    private async Task CloseCamera()
+    {
+        _cameraOn = false;
+        await JS.InvokeVoidAsync("studio.stopCamera");
+    }
+
+    private async Task CapturePhoto()
+    {
+        var result = await JS.InvokeAsync<string>("studio.capturePhoto", "photo-video");
+        await CloseCamera();
+        await AnalyzePhoto(result, "image/jpeg");
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        using var ms = new MemoryStream();
+        await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+        await stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var mime = file.ContentType.StartsWith("image/") ? file.ContentType : "image/jpeg";
+        await AnalyzePhoto(base64, mime);
+    }
+
+    private async Task AnalyzePhoto(string base64, string mime)
+    {
+        _photoAnalyzing = true;
+        _photoResult = "";
+        StateHasChanged();
+
+        try
+        {
+            string result;
+            if (_photoTarget == "chords")
+                result = await ChordAi.ExtractChordsFromImageAsync(base64, mime);
+            else
+                result = await ChordAi.ExtractTextFromImageAsync(base64, mime);
+
+            _photoResult = result;
+        }
+        catch (Exception ex)
+        {
+            _photoResult = $"Fejl: {ex.Message}";
+        }
+        finally
+        {
+            _photoAnalyzing = false;
+        }
+    }
+
+    private async Task<string> ExtractTextFromImageAsync(string base64, string mime)
+    {
+        return await ChordAi.ExtractTextFromImageAsync(base64, mime);
+    }
+
+    private void ApplyPhotoResult()
+    {
+        if (string.IsNullOrEmpty(_photoResult)) return;
+        switch (_photoTarget)
+        {
+            case "lyrics":
+                _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit)
+                    ? _photoResult
+                    : _lyricsEdit + "\n\n" + _photoResult;
+                break;
+            case "chords":
+                _chordEdit = string.IsNullOrWhiteSpace(_chordEdit)
+                    ? _photoResult
+                    : _chordEdit + "\n\n" + _photoResult;
+                break;
+            case "notes":
+                _notesEdit = string.IsNullOrWhiteSpace(_notesEdit)
+                    ? _photoResult
+                    : _notesEdit + "\n\n" + _photoResult;
+                break;
+        }
+        AutoSave();
+        ClosePhoto();
+    }
+
+    private void ClearPhotoResult() => _photoResult = string.Empty;
+
+    // ── AI Helper ─────────────────────────────────────────────────────────────
+
+    private void SelectAiTab(string tab) { _aiTab = tab; _aiHelperResult = ""; }
+    private void ClearAiHelper() => _aiHelperResult = "";
+
+    private async Task OnRimKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AiRim();
+    }
+
+    private async Task AiRim()
+    {
+        if (string.IsNullOrWhiteSpace(_rimInput)) return;
+        _aiHelperLoading = true;
+        _aiHelperResult = "";
+        _aiHelperResult = await ChordAi.GetRhymeSuggestionsAsync(_rimInput, _lyricsEdit);
+        _aiHelperLoading = false;
+    }
+
+    private async Task AiSpil()
+    {
+        if (_song is null) return;
+        _aiHelperLoading = true;
+        _aiHelperResult = "";
+        _aiHelperResult = await ChordAi.GetInstrumentTipsAsync(_chordEdit, _song.Tempo, _song.MusicKey);
+        _aiHelperLoading = false;
+    }
+
+    private async Task AiSang()
+    {
+        if (_song is null) return;
+        _aiHelperLoading = true;
+        _aiHelperResult = "";
+        _aiHelperResult = await ChordAi.GetSingingTipsAsync(_song.Title, _lyricsEdit, _chordEdit, _song.Tempo, _song.MusicKey);
+        _aiHelperLoading = false;
+    }
+
+    private void ClosePhoto()
+    {
+        if (_cameraOn) _ = CloseCamera();
+        _photoTarget = null;
+        _photoResult = "";
+        _cameraOn = false;
+        _photoAnalyzing = false;
+    }
+}

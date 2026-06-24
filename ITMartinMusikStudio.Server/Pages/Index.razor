@@ -1,0 +1,57 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IConfiguration Config
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Musik Studio</PageTitle>
+
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-icon">🎸</div>
+        <h1 class="login-title">Musik Studio</h1>
+        <p class="login-sub">Martin's private workspace</p>
+
+        <input class="login-input" type="password" placeholder="Adgangskode"
+               value="@_code"
+               @oninput="e => _code = e.Value?.ToString() ?? string.Empty"
+               @onkeydown="OnKey" />
+
+        @if (_error)
+        {
+            <div class="login-error">Forkert kode</div>
+        }
+
+        <button class="login-btn" @onclick="Enter"
+                disabled="@string.IsNullOrWhiteSpace(_code)">
+            Kom ind →
+        </button>
+    </div>
+</div>
+
+@code {
+    private string _code = "";
+    private bool _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var ok = await JS.InvokeAsync<string?>("localStorage.getItem", "studio_auth");
+        if (ok == "1") Nav.NavigateTo("/songs");
+        else StateHasChanged();
+    }
+
+    private void OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") _ = Enter(); }
+
+    private async Task Enter()
+    {
+        var expected = Config["StudioSettings:AccessCode"] ?? "studio";
+        if (!string.Equals(_code.Trim(), expected, StringComparison.OrdinalIgnoreCase))
+        {
+            _error = true;
+            return;
+        }
+        await JS.InvokeVoidAsync("localStorage.setItem", "studio_auth", "1");
+        Nav.NavigateTo("/songs");
+    }
+}
