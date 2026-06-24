@@ -219,6 +219,17 @@ public sealed class TestHubService(TestHubDbContext db)
         await db.SaveChangesAsync();
     }
 
+    // ── Reset ─────────────────────────────────────────────────────────────
+
+    public async Task ClearAllRoundsAsync()
+    {
+        db.Feedbacks.RemoveRange(await db.Feedbacks.ToListAsync());
+        db.Results.RemoveRange(await db.Results.ToListAsync());
+        db.Assignments.RemoveRange(await db.Assignments.ToListAsync());
+        db.Rounds.RemoveRange(await db.Rounds.ToListAsync());
+        await db.SaveChangesAsync();
+    }
+
     // ── Dashboard ─────────────────────────────────────────────────────────
 
     public Task<TestRound?> GetActiveRoundAsync() =>

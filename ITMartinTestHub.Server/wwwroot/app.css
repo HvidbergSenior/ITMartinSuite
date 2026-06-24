@@ -245,3 +245,36 @@ select.home-input { appearance: auto; }
 .toast-error   { background:#ef4444; color:white; }
 .toast-info    { background:#3b82f6; color:white; }
 @keyframes toast-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── Guide link ──────────────────────────────── */
+.guide-link { display:block; text-align:center; margin-top:1rem; color:var(--muted); font-size:.85rem; text-decoration:none; }
+.guide-link:hover { color:var(--fg); }
+.guide-link-small { color:var(--muted); font-size:1.1rem; text-decoration:none; line-height:1; padding:.25rem; }
+.guide-link-small:hover { color:var(--fg); }
+
+/* ── Setup guide page ────────────────────────── */
+.guide-page { max-width:540px; margin:0 auto; padding:1.5rem 1rem 3rem; }
+.guide-header { margin-bottom:1.5rem; }
+.guide-title { font-size:1.4rem; font-weight:700; margin:.5rem 0 .5rem; }
+.guide-intro { color:var(--muted); font-size:.9rem; line-height:1.65; margin:0; }
+.guide-tabs { display:flex; gap:.5rem; margin-bottom:1.5rem; }
+.guide-tab { flex:1; padding:.7rem; border-radius:10px; border:2px solid #333; background:transparent; color:var(--fg); font-size:.95rem; font-weight:600; cursor:pointer; transition:all .15s; }
+.guide-tab.active { background:var(--accent); border-color:var(--accent); color:white; }
+.guide-steps { display:flex; flex-direction:column; gap:.75rem; }
+.guide-step { display:flex; gap:1rem; background:var(--bg2); border-radius:12px; padding:1rem 1.1rem; align-items:flex-start; }
+.guide-step-done { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.25); }
+.guide-step-warning { background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.25); }
+.guide-step-num { width:32px; height:32px; border-radius:50%; background:var(--bg3); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem; flex-shrink:0; }
+.guide-step-done .guide-step-num { background:#22c55e; color:white; }
+.guide-step-warning .guide-step-num { background:#f59e0b; color:white; }
+.guide-step-title { font-weight:700; font-size:.9rem; margin-bottom:.3rem; }
+.guide-step-desc { font-size:.845rem; color:var(--muted); line-height:1.65; }
+.guide-step-desc strong { color:var(--fg); }
+.guide-footer { margin-top:2rem; text-align:center; }
+
+/* ── Danger zone ─────────────────────────────── */
+.danger-title { color:#f87171 !important; }
+.danger-zone { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); border-radius:10px; padding:1rem 1.1rem; display:flex; flex-direction:column; gap:.75rem; }
+.danger-desc { margin:0; font-size:.875rem; color:var(--muted); }
+.btn-danger-outline { background:transparent; border:1.5px solid #f87171; color:#f87171; border-radius:8px; padding:.45rem .9rem; font-size:.85rem; font-weight:600; cursor:pointer; transition:all .15s; }
+.btn-danger-outline:hover { background:#f87171; color:white; }

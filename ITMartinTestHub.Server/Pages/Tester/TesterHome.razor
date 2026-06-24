@@ -20,6 +20,7 @@
                 <div class="header-sub">Your test assignments</div>
             </div>
             <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Switch</button>
+            <a class="guide-link-small" href="/guide" title="Installer appen">📲</a>
         </div>
 
         @if (!_assignments.Any())

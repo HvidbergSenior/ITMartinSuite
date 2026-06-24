@@ -1,0 +1,149 @@
+@page "/guide"
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+
+<div class="guide-page">
+
+    <div class="guide-header">
+        <button class="btn-text" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">← Tilbage</button>
+        <h1 class="guide-title">📲 Sådan installerer du appen</h1>
+        <p class="guide-intro">
+            Du kan gemme TestHub som en app på din telefon — det er gratis og tager kun 30 sekunder.
+            Når du har gjort det, virker den ligesom en rigtig app med sit eget ikon.
+        </p>
+    </div>
+
+    <div class="guide-tabs">
+        <button class="guide-tab @(_tab == "android" ? "active" : "")" @onclick='() => _tab = "android"'>
+            🤖 Android
+        </button>
+        <button class="guide-tab @(_tab == "iphone" ? "active" : "")" @onclick='() => _tab = "iphone"'>
+            🍎 iPhone
+        </button>
+    </div>
+
+    @if (_tab == "android")
+    {
+        <div class="guide-steps">
+            <div class="guide-step">
+                <div class="guide-step-num">1</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Åbn Chrome på din Android</div>
+                    <div class="guide-step-desc">
+                        Sørg for at du bruger <strong>Chrome</strong> (ikonet er en cirkel med blå, rød, gul og grøn farve).
+                        Gå til adressen <strong>test.itmartin.dk</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-step-num">2</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Tryk på de tre prikker øverst til højre ⋮</div>
+                    <div class="guide-step-desc">
+                        Se øverst til højre i Chrome — der er tre lodrette prikker. Tryk på dem.
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-step-num">3</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Vælg "Tilføj til startskærm"</div>
+                    <div class="guide-step-desc">
+                        En menu åbner sig. Scroll lidt ned og tryk på <strong>"Tilføj til startskærm"</strong>.
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-step-num">4</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Tryk "Tilføj"</div>
+                    <div class="guide-step-desc">
+                        En lille boks dukker op med et ikon. Tryk blot på <strong>"Tilføj"</strong>.
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step guide-step-done">
+                <div class="guide-step-num">✓</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Klar! Appen ligger nu på startskærmen</div>
+                    <div class="guide-step-desc">
+                        Gå tilbage til din startskærm og find TestHub-ikonet. Tryk på det for at åbne appen.
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="guide-steps">
+            <div class="guide-step guide-step-warning">
+                <div class="guide-step-num">!</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Vigtigt: Du skal bruge Safari</div>
+                    <div class="guide-step-desc">
+                        Dette virker <strong>kun i Safari</strong> — ikke i Chrome eller andre browsere.
+                        Safari er den blå kompas-app, som følger med iPhone.
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-step-num">1</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Åbn Safari på din iPhone</div>
+                    <div class="guide-step-desc">
+                        Find Safari og gå til adressen <strong>test.itmartin.dk</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-step-num">2</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Tryk på del-knappen nederst i midten</div>
+                    <div class="guide-step-desc">
+                        Kig ned i midten af skærmen og find knappen med en firkant og en pil, der peger opad
+                        <strong> ↑</strong>. Tryk på den.
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-step-num">3</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Find og tryk "Føj til hjemmeskærm"</div>
+                    <div class="guide-step-desc">
+                        En menu skydes op. Scroll ned i menuen og find
+                        <strong>"Føj til hjemmeskærm"</strong>. Tryk på det.
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step">
+                <div class="guide-step-num">4</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Tryk "Tilføj" øverst til højre</div>
+                    <div class="guide-step-desc">
+                        En ny skærm viser ikon og navn. Tryk på <strong>"Tilføj"</strong> i øverste højre hjørne.
+                    </div>
+                </div>
+            </div>
+            <div class="guide-step guide-step-done">
+                <div class="guide-step-num">✓</div>
+                <div class="guide-step-body">
+                    <div class="guide-step-title">Klar! Appen ligger nu på hjemmeskærmen</div>
+                    <div class="guide-step-desc">
+                        Gå tilbage til din hjemmeskærm og find TestHub-ikonet. Tryk på det for at åbne appen.
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="guide-footer">
+        <button class="btn-primary" @onclick="@(() => Nav.NavigateTo("/", forceLoad: true))">
+            Gå til TestHub →
+        </button>
+    </div>
+
+</div>
+
+@code {
+    private string _tab = "android";
+}

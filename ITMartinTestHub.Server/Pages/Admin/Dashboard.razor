@@ -129,6 +129,24 @@
         }
     </div>
 
+    <!-- Nulstil testdata -->
+    <div class="section-title danger-title" style="margin-top:2rem">Nulstil testdata</div>
+    <div class="danger-zone">
+        <p class="danger-desc">Sletter alle runder, opgaver, resultater og feedback. Beholder apps, trin og testere.</p>
+        @if (_clearConfirm)
+        {
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+                <span style="color:#f87171;font-size:.875rem">Er du sikker? Dette kan ikke fortrydes.</span>
+                <button class="btn-icon-sm danger" @onclick="ConfirmClear">✓ Ja, slet alt</button>
+                <button class="btn-icon-sm"        @onclick='() => _clearConfirm = false'>✕ Annuller</button>
+            </div>
+        }
+        else
+        {
+            <button class="btn-danger-outline btn-sm" @onclick='() => _clearConfirm = true'>🗑 Nulstil alt testdata</button>
+        }
+    </div>
+
     <!-- Recent feedback -->
     <div class="section-title" style="margin-top:2rem">Recent feedback</div>
     <div class="feedback-feed">
@@ -159,6 +177,7 @@
     private string _newRoundName  = "";
     private string _newRoundError = "";
     private Guid?  _deleteConfirmRoundId;
+    private bool   _clearConfirm;
 
     protected override async Task OnInitializedAsync()
     {
@@ -187,6 +206,15 @@
 
     private void AskDeleteRound(Guid id)   => _deleteConfirmRoundId = id;
     private void CancelDeleteRound()       => _deleteConfirmRoundId = null;
+
+    private async Task ConfirmClear()
+    {
+        _clearConfirm = false;
+        await Svc.ClearAllRoundsAsync();
+        _activeRound    = null;
+        _rounds         = [];
+        _recentFeedback = [];
+    }
 
     private async Task ConfirmDeleteRound(Guid id)
     {
