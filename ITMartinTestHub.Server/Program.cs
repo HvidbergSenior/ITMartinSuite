@@ -28,6 +28,7 @@ using (var scope = app.Services.CreateScope())
     catch { }
 
     await SeedService.SeedAppsAsync(db);
+    await SeedService.UpdateAppUrlsAsync(db);
     await SeedService.SeedStepsAsync(db);
 }
 

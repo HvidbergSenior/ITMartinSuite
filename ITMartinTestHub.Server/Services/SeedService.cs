@@ -23,15 +23,15 @@ public static class SeedService
             new AppEntry { Name = "BarTab",          Icon = "🍺", Url = "https://bartab.itmartin.dk",           Description = "Grupperegning med AI-drinks",          SortOrder = 6  },
             new AppEntry { Name = "Auction",         Icon = "🔨", Url = "https://auction.itmartin.dk",          Description = "Live-budgivning for samleobjekter",    SortOrder = 7  },
             new AppEntry { Name = "Magic",           Icon = "✨", Url = "https://magic.itmartin.dk",            Description = "AI-kortscanner",                       SortOrder = 8  },
-            new AppEntry { Name = "FindIt",          Icon = "📍", Url = "https://adhd.itmartin.dk",             Description = "Placerings-tracker for genstande",     SortOrder = 9  },
+            new AppEntry { Name = "FindIt",          Icon = "📍", Url = "https://adhd.itmartin.dk",            Description = "Placerings-tracker for genstande",     SortOrder = 9  },
             new AppEntry { Name = "Family Planner",  Icon = "👨‍👩‍👧", Url = "https://family.itmartin.dk",           Description = "Familieplanlægning og koordinering",  SortOrder = 10 },
             new AppEntry { Name = "Market",          Icon = "🛍️", Url = "https://market.itmartin.dk",           Description = "Markedsplads",                         SortOrder = 11 },
             new AppEntry { Name = "R6 Assistant",    Icon = "🎮", Url = "https://r6.itmartin.dk",               Description = "Rainbow Six Siege-assistent",          SortOrder = 12 },
             new AppEntry { Name = "Portal",          Icon = "🏠", Url = "https://martin.itmartin.dk",           Description = "Hovedportal og indeks",                SortOrder = 13 },
-            new AppEntry { Name = "Library Scan",    Icon = "📷", Url = "https://library.itmartin.dk",          Description = "Scan en bogreol med kameraet – AI identificerer bøgerne", SortOrder = 14 },
-            new AppEntry { Name = "Library Search",  Icon = "🔍", Url = "https://library-search.itmartin.dk",  Description = "Søg i bøger identificeret fra scannede bogreoler",        SortOrder = 15 },
-            new AppEntry { Name = "Club",            Icon = "🏛️", Url = "https://club.itmartin.dk",             Description = "Gruppeorganisator med opslagstavle, kalender og dokumenter", SortOrder = 16 },
-            new AppEntry { Name = "Magic Scan",      Icon = "🃏", Url = "https://magic.itmartin.dk",            Description = "AI-drevet MTG-kortscanner med prisopslag",               SortOrder = 17 },
+            new AppEntry { Name = "Library Scan",    Icon = "📷", Url = "https://scan-books.itmartin.dk",       Description = "Scan en bogreol med kameraet – AI identificerer bøgerne",   SortOrder = 14 },
+            new AppEntry { Name = "Library Search",  Icon = "🔍", Url = "https://search-books.itmartin.dk",    Description = "Søg i bøger identificeret fra scannede bogreoler",          SortOrder = 15 },
+            new AppEntry { Name = "Club",            Icon = "🏛️", Url = "https://lions-club.itmartin.dk",       Description = "Gruppeorganisator med opslagstavle, kalender og dokumenter", SortOrder = 16 },
+            new AppEntry { Name = "Magic Scan",      Icon = "🃏", Url = "https://magic-card-pricing.itmartin.dk", Description = "AI-drevet MTG-kortscanner med prisopslag",              SortOrder = 17 },
         };
 
         var toAdd = apps.Where(a => !existingNames.Contains(a.Name)).ToList();
@@ -39,6 +39,35 @@ public static class SeedService
 
         db.Apps.AddRange(toAdd);
         await db.SaveChangesAsync();
+    }
+
+    // ── Correct URLs for existing apps ───────────────────────────────────
+
+    private static readonly Dictionary<string, string> CorrectUrls = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Library Scan"]   = "https://scan-books.itmartin.dk",
+        ["Library Search"] = "https://search-books.itmartin.dk",
+        ["Club"]           = "https://lions-club.itmartin.dk",
+        ["Magic Scan"]     = "https://magic-card-pricing.itmartin.dk",
+        ["FindIt"]         = "https://adhd.itmartin.dk",
+    };
+
+    public static async Task UpdateAppUrlsAsync(TestHubDbContext db)
+    {
+        var names = CorrectUrls.Keys.ToList();
+        var apps  = await db.Apps.Where(a => names.Contains(a.Name)).ToListAsync();
+
+        var changed = false;
+        foreach (var app in apps)
+        {
+            if (CorrectUrls.TryGetValue(app.Name, out var url) && app.Url != url)
+            {
+                app.Url  = url;
+                changed = true;
+            }
+        }
+
+        if (changed) await db.SaveChangesAsync();
     }
 
     // ── Managed test steps (Danish, always kept in sync) ─────────────────
