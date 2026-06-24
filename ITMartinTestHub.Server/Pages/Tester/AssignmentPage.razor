@@ -24,6 +24,14 @@ else
             </a>
         </div>
 
+        @if (!string.IsNullOrWhiteSpace(_assignment.Purpose))
+        {
+            <div class="purpose-bar">
+                <span class="purpose-label">🎯 Formål</span>
+                <span class="purpose-text">@_assignment.Purpose</span>
+            </div>
+        }
+
         <div class="test-body">
 
             <!-- Steps panel -->

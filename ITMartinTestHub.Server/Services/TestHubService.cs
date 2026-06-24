@@ -122,7 +122,7 @@ public sealed class TestHubService(TestHubDbContext db)
 
     // ── Assignments ───────────────────────────────────────────────────────
 
-    public async Task<TestAssignment> CreateAssignmentAsync(Guid roundId, Guid appId, Guid testerId)
+    public async Task<TestAssignment> CreateAssignmentAsync(Guid roundId, Guid appId, Guid testerId, string? purpose = null)
     {
         var existing = await db.Assignments.FirstOrDefaultAsync(a =>
             a.TestRoundId == roundId && a.AppEntryId == appId && a.TesterId == testerId);
@@ -132,7 +132,8 @@ public sealed class TestHubService(TestHubDbContext db)
         {
             TestRoundId = roundId,
             AppEntryId  = appId,
-            TesterId    = testerId
+            TesterId    = testerId,
+            Purpose     = string.IsNullOrWhiteSpace(purpose) ? null : purpose.Trim()
         };
         db.Assignments.Add(assignment);
         await db.SaveChangesAsync();

@@ -98,6 +98,13 @@ else
                 </div>
 
                 <div class="form-row">
+                    <label class="home-label">Formål (vises for testeren)</label>
+                    <input class="home-input" @bind="_newPurpose"
+                           placeholder="F.eks. bekræft at grundflowet virker"
+                           maxlength="200" />
+                </div>
+
+                <div class="form-row">
                     <label class="home-label">Or add new tester</label>
                     <div style="display:flex;gap:.5rem">
                         <input class="home-input" @bind="_newTesterName"
@@ -127,6 +134,7 @@ else
     private Guid              _newAppId;
     private Guid              _newTesterId;
     private string            _newTesterName = "";
+    private string            _newPurpose    = "";
 
     protected override async Task OnInitializedAsync() => await Reload();
 
@@ -149,8 +157,9 @@ else
     private async Task AddAssignment()
     {
         if (_newAppId == Guid.Empty || _newTesterId == Guid.Empty) return;
-        await Svc.CreateAssignmentAsync(RoundId, _newAppId, _newTesterId);
+        await Svc.CreateAssignmentAsync(RoundId, _newAppId, _newTesterId, _newPurpose);
         _newAppId = _newTesterId = Guid.Empty;
+        _newPurpose = "";
         await Reload();
     }
 

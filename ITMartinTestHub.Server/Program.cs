@@ -22,7 +22,13 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<TestHubDbContext>();
     db.Database.EnsureCreated();
+
+    // Add Purpose column if it doesn't exist yet (EnsureCreated won't migrate existing DBs)
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Assignments\" ADD COLUMN \"Purpose\" TEXT NULL"); }
+    catch { }
+
     await SeedService.SeedAppsAsync(db);
+    await SeedService.SeedStepsAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())
