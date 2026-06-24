@@ -33,8 +33,10 @@ $ServiceMap = @{
     "testhub-web"       = @{ Dockerfile = "ITMartinTestHub.Server/Dockerfile";       Context = "." }
     "index-web"         = @{ Dockerfile = "ITMartin.IndexServer/Dockerfile";         Context = "." }
     "musik-web"         = @{ Dockerfile = "ITMartinMusic.Server/Dockerfile";         Context = "." }
-    "club-web"          = @{ Dockerfile = "ITMartinClub.Server/Dockerfile";          Context = "." }
-    "image-processor"   = @{ Dockerfile = "ITMartinImageProcessor.Worker/Dockerfile"; Context = "ITMartinImageProcessor.Worker" }
+    "club-web"              = @{ Dockerfile = "ITMartinClub.Server/Dockerfile";                    Context = "." }
+    "magazine-web"          = @{ Dockerfile = "ITMartinMagazine.Server/Dockerfile";                Context = "." }
+    "magazine-search-web"   = @{ Dockerfile = "ITMartinMagazine.Search.Server/Dockerfile";         Context = "." }
+    "image-processor"       = @{ Dockerfile = "ITMartinImageProcessor.Worker/Dockerfile"; Context = "ITMartinImageProcessor.Worker" }
 }
 
 if (-not $ServiceMap.ContainsKey($Service)) {

@@ -691,6 +691,59 @@ services:
       - martinnet
 
   # =========================================================
+  # MAGAZINE SCANNER
+  # =========================================================
+
+  magazine-web:
+    container_name: magazine-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinMagazine.Server/Dockerfile
+
+    env_file:
+      - magic.env
+
+    ports:
+      - "8103:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__MagazineDb=Data Source=/app/data/magazine.db
+      - MagazineSettings__ImagesRoot=/app/data/images
+
+    volumes:
+      - /volume1/docker/martinsuite/magazine/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  magazine-search-web:
+    container_name: magazine-search-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinMagazine.Search.Server/Dockerfile
+
+    ports:
+      - "8104:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__MagazineDb=Data Source=/app/data/magazine.db
+      - MagazineSettings__ImagesRoot=/app/data/images
+
+    volumes:
+      - /volume1/docker/martinsuite/magazine/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # WORKERS
   # =========================================================
 

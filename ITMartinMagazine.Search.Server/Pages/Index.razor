@@ -1,0 +1,201 @@
+@page "/"
+@inject MagazineDbContext Db
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+
+<PageTitle>Magazine Collection</PageTitle>
+
+<div class="search-page">
+
+    <div class="search-header">
+        <span class="search-title">📚 Magazine Collection</span>
+        <button class="lang-btn" @onclick="ToggleLang">@(Lang == "da" ? "EN" : "DA")</button>
+    </div>
+
+    <div class="filters-bar">
+        <input class="search-input" type="search" placeholder="@T("Søg titel...", "Search title...")"
+               value="@_query" @oninput="OnSearchInput" />
+
+        <div class="filter-pills">
+            <button class="pill @(ActiveValue == null ? "active" : "")" @onclick='() => SetValue(null)'>
+                @T("Alle", "All") (@_all.Count)
+            </button>
+            <button class="pill valuable @(ActiveValue == "Valuable" ? "active" : "")" @onclick='() => SetValue("Valuable")'>
+                🔴 @T("Værdifulde", "Valuable") (@_valuableCount)
+            </button>
+            <button class="pill @(ActiveValue == "Interesting" ? "active" : "")" @onclick='() => SetValue("Interesting")'>
+                🟡 @T("Interessante", "Interesting") (@_interestingCount)
+            </button>
+        </div>
+
+        <div class="filter-pills">
+            <button class="pill @(ActiveCountry == null ? "active" : "")" @onclick='() => SetCountry(null)'>
+                @T("Alle lande", "All")
+            </button>
+            <button class="pill @(ActiveCountry == "Danish" ? "active" : "")" @onclick='() => SetCountry("Danish")'>🇩🇰</button>
+            <button class="pill @(ActiveCountry == "American" ? "active" : "")" @onclick='() => SetCountry("American")'>🇺🇸</button>
+            <button class="pill @(ActiveCountry == "English" ? "active" : "")" @onclick='() => SetCountry("English")'>🇬🇧</button>
+            <button class="pill @(ActiveCountry == "Other" ? "active" : "")" @onclick='() => SetCountry("Other")'>🌍</button>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="loading-wrap">
+            <div class="spinner"></div>
+        </div>
+    }
+    else if (_filtered.Count == 0)
+    {
+        <div class="empty-wrap">
+            <p>@T("Ingen blade fundet", "No magazines found")</p>
+        </div>
+    }
+    else
+    {
+        <div class="mag-grid">
+            @foreach (var m in _filtered)
+            {
+                <div class="mag-card @GetCardClass(m.ValueRating)" @onclick="() => SelectEntry(m)">
+                    @if (m.CoverImagePath is not null)
+                    {
+                        <div class="card-cover">
+                            <img src="/covers/@m.CoverImagePath" alt="@m.Title" loading="lazy" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card-cover no-img">📰</div>
+                    }
+                    <div class="card-body">
+                        <div class="card-value">@ValueEmoji(m.ValueRating)</div>
+                        <div class="card-title">@m.Title</div>
+                        <div class="card-meta">@m.IssueDate @(m.Year > 0 ? $"({m.Year})" : "")</div>
+                        <div class="card-flags">
+                            <span>@CountryFlag(m.Country)</span>
+                            <span class="card-cond">@m.Condition</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (_selected is not null)
+    {
+        <div class="detail-overlay" @onclick="CloseDetail">
+            <div class="detail-panel" @onclick:stopPropagation>
+                <button class="detail-close" @onclick="CloseDetail">✕</button>
+
+                @if (_selected.CoverImagePath is not null)
+                {
+                    <img class="detail-img" src="/covers/@_selected.CoverImagePath" alt="@_selected.Title" />
+                }
+
+                <h2 class="detail-title">@_selected.Title</h2>
+                <p class="detail-meta">@_selected.IssueDate @(_selected.Year > 0 ? $"({_selected.Year})" : "")</p>
+
+                <div class="detail-badges">
+                    <span class="badge">@CountryFlag(_selected.Country) @_selected.Country</span>
+                    <span class="badge">@ValueEmoji(_selected.ValueRating) @_selected.ValueRating</span>
+                    <span class="badge">@_selected.Condition</span>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_selected.Publisher))
+                {
+                    <p class="detail-field"><strong>@T("Udgiver", "Publisher"):</strong> @_selected.Publisher</p>
+                }
+
+                @if (!string.IsNullOrEmpty(_selected.AiReasoning))
+                {
+                    <p class="detail-field"><em>@_selected.AiReasoning</em></p>
+                }
+
+                @if (!string.IsNullOrEmpty(_selected.Notes))
+                {
+                    <p class="detail-field"><strong>@T("Noter", "Notes"):</strong> @_selected.Notes</p>
+                }
+
+                <p class="detail-scanned">@T("Scannet", "Scanned"): @_selected.ScannedAt.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</p>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private string Lang { get; set; } = "da";
+    private string T(string da, string en) => Lang == "da" ? da : en;
+    private void ToggleLang() => Lang = Lang == "da" ? "en" : "da";
+
+    private bool _loading = true;
+    private string _query = "";
+    private string? ActiveValue;
+    private string? ActiveCountry;
+
+    private List<MagazineEntry> _all = new();
+    private List<MagazineEntry> _filtered = new();
+    private MagazineEntry? _selected;
+
+    private int _valuableCount;
+    private int _interestingCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _all = await Db.Magazines
+            .OrderByDescending(m => m.ScannedAt)
+            .ToListAsync();
+
+        _valuableCount = _all.Count(m => m.ValueRating == "Valuable");
+        _interestingCount = _all.Count(m => m.ValueRating == "Interesting");
+
+        _loading = false;
+        ApplyFilter();
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+        ApplyFilter();
+    }
+
+    private void SetValue(string? v) { ActiveValue = v; ApplyFilter(); }
+    private void SetCountry(string? c) { ActiveCountry = c; ApplyFilter(); }
+
+    private void ApplyFilter()
+    {
+        _filtered = _all
+            .Where(m => string.IsNullOrWhiteSpace(_query) ||
+                        m.Title.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
+                        m.Publisher.Contains(_query, StringComparison.OrdinalIgnoreCase))
+            .Where(m => ActiveValue == null || m.ValueRating == ActiveValue)
+            .Where(m => ActiveCountry == null || m.Country == ActiveCountry)
+            .ToList();
+    }
+
+    private void SelectEntry(MagazineEntry e) => _selected = e;
+    private void CloseDetail() => _selected = null;
+
+    private static string GetCardClass(string valueRating) => valueRating switch
+    {
+        "Valuable" => "card-valuable",
+        "Interesting" => "card-interesting",
+        _ => ""
+    };
+
+    private static string ValueEmoji(string v) => v switch
+    {
+        "Valuable" => "🔴",
+        "Interesting" => "🟡",
+        "Common" => "⚪",
+        _ => "❓"
+    };
+
+    private static string CountryFlag(string c) => c switch
+    {
+        "Danish" => "🇩🇰",
+        "American" => "🇺🇸",
+        "English" => "🇬🇧",
+        _ => "🌍"
+    };
+}

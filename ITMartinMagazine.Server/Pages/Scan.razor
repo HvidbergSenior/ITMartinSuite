@@ -1,0 +1,317 @@
+@page "/"
+@using ITMartin.Ai.Interfaces
+@using ITMartin.Ai.Models
+@inject IJSRuntime JS
+@inject IMagazineIdentificationService AiService
+@inject MagazineDbContext Db
+@inject IConfiguration Config
+@rendermode InteractiveServer
+
+<PageTitle>Magazine Scanner</PageTitle>
+
+<div class="scan-page">
+
+    <div class="scan-header">
+        <span class="scan-title">📰 Magazine Scanner</span>
+        <button class="lang-btn" @onclick="ToggleLang">@(Lang == "da" ? "EN" : "DA")</button>
+    </div>
+
+    @if (_phase == Phase.Camera)
+    {
+        <div class="camera-wrap">
+            <video id="video" autoplay muted playsinline webkit-playsinline></video>
+
+            @if (_cameraError is not null)
+            {
+                <div class="cam-error">⚠️ @_cameraError</div>
+            }
+        </div>
+
+        <div class="scan-actions">
+            @if (!_cameraStarted)
+            {
+                <button class="btn-primary" @onclick="StartCamera">
+                    📷 @T("Start kamera", "Start Camera")
+                </button>
+            }
+            else
+            {
+                <button class="btn-capture" @onclick="Capture">
+                    🔵 @T("Tag billede", "Take Photo")
+                </button>
+            }
+        </div>
+    }
+
+    @if (_phase == Phase.Analyzing)
+    {
+        <div class="analyzing-wrap">
+            <div class="spinner"></div>
+            <p class="analyzing-text">@T("Analyserer forsiden...", "Analyzing cover...")</p>
+        </div>
+    }
+
+    @if (_phase == Phase.Editing && _form is not null)
+    {
+        <div class="edit-wrap">
+            <h2 class="edit-heading">@T("Kontrollér oplysninger", "Check Details")</h2>
+
+            <div class="field-group">
+                <label>@T("Titel", "Title")</label>
+                <input class="field-input" @bind="_form.Title" />
+            </div>
+
+            <div class="field-group">
+                <label>@T("Udgave", "Issue")</label>
+                <input class="field-input" @bind="_form.IssueDate" placeholder="e.g. April 1952" />
+            </div>
+
+            <div class="field-row">
+                <div class="field-group half">
+                    <label>@T("År", "Year")</label>
+                    <input class="field-input" type="number" @bind="_form.Year" />
+                </div>
+
+                <div class="field-group half">
+                    <label>@T("Land", "Country")</label>
+                    <select class="field-input" @bind="_form.Country">
+                        <option value="Danish">🇩🇰 @T("Dansk", "Danish")</option>
+                        <option value="American">🇺🇸 @T("Amerikansk", "American")</option>
+                        <option value="English">🇬🇧 @T("Engelsk", "English")</option>
+                        <option value="Other">🌍 @T("Andet", "Other")</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-group half">
+                    <label>@T("Stand", "Condition")</label>
+                    <select class="field-input" @bind="_form.Condition">
+                        <option value="Mint">@T("Perfekt", "Mint")</option>
+                        <option value="Good">@T("God", "Good")</option>
+                        <option value="Fair">@T("Rimelig", "Fair")</option>
+                        <option value="Poor">@T("Dårlig", "Poor")</option>
+                    </select>
+                </div>
+
+                <div class="field-group half">
+                    <label>@T("Værdi", "Value")</label>
+                    <select class="field-input" @bind="_form.ValueRating">
+                        <option value="Unknown">❓ @T("Ukendt", "Unknown")</option>
+                        <option value="Common">⚪ @T("Almindelig", "Common")</option>
+                        <option value="Interesting">🟡 @T("Interessant", "Interesting")</option>
+                        <option value="Valuable">🔴 @T("Værdifuld", "Valuable")</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <label>@T("Udgiver", "Publisher")</label>
+                <input class="field-input" @bind="_form.Publisher" />
+            </div>
+
+            <div class="field-group">
+                <label>@T("AI-vurdering", "AI Assessment")</label>
+                <textarea class="field-input field-reasoning" readonly>@_form.AiReasoning</textarea>
+            </div>
+
+            <div class="field-group">
+                <label>@T("Egne noter", "Your Notes")</label>
+                <textarea class="field-input" @bind="_form.Notes" rows="3" placeholder="@T("Valgfrie noter...", "Optional notes...")"></textarea>
+            </div>
+
+            @if (_saveError is not null)
+            {
+                <div class="save-error">⚠️ @_saveError</div>
+            }
+
+            <div class="edit-actions">
+                <button class="btn-secondary" @onclick="Discard">
+                    🗑 @T("Spring over", "Discard")
+                </button>
+                <button class="btn-primary" @onclick="Save" disabled="@_saving">
+                    @if (_saving)
+                    {
+                        <span>@T("Gemmer...", "Saving...")</span>
+                    }
+                    else
+                    {
+                        <span>💾 @T("Gem", "Save")</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (_phase == Phase.Saved)
+    {
+        <div class="saved-wrap">
+            <div class="saved-icon">✅</div>
+            <p class="saved-text">@T("Gemt!", "Saved!")</p>
+            <p class="saved-sub">@_lastSavedTitle</p>
+            <button class="btn-primary" @onclick="NextMagazine">
+                📷 @T("Næste blad", "Next Magazine")
+            </button>
+        </div>
+    }
+
+</div>
+
+@code {
+    private enum Phase { Camera, Analyzing, Editing, Saved }
+
+    private Phase _phase = Phase.Camera;
+    private bool _cameraStarted;
+    private string? _cameraError;
+    private string? _saveError;
+    private bool _saving;
+    private string? _lastSavedTitle;
+    private string? _capturedImagePath;
+
+    private FormModel? _form;
+
+    public string Lang { get; private set; } = "da";
+
+    private string T(string da, string en) => Lang == "da" ? da : en;
+
+    private void ToggleLang()
+    {
+        Lang = Lang == "da" ? "en" : "da";
+    }
+
+    private async Task StartCamera()
+    {
+        try
+        {
+            _cameraError = null;
+            await JS.InvokeVoidAsync("webcam.start");
+            _cameraStarted = true;
+        }
+        catch (Exception ex)
+        {
+            _cameraError = ex.Message;
+        }
+    }
+
+    private async Task Capture()
+    {
+        try
+        {
+            _phase = Phase.Analyzing;
+            StateHasChanged();
+
+            var result = await JS.InvokeAsync<CaptureResult>("webcam.capture");
+
+            await JS.InvokeVoidAsync("webcam.stop");
+            _cameraStarted = false;
+
+            // Save image to disk
+            var imageData = result.Image.Replace("data:image/jpeg;base64,", "")
+                                        .Replace("data:image/png;base64,", "");
+            var bytes = Convert.FromBase64String(imageData);
+            var imagesRoot = Config["MagazineSettings:ImagesRoot"] ?? "/app/data/images";
+            var filename = $"{Guid.NewGuid():N}.jpg";
+            _capturedImagePath = Path.Combine(imagesRoot, filename);
+            await File.WriteAllBytesAsync(_capturedImagePath, bytes);
+
+            // AI analysis
+            var aiResult = await AiService.IdentifyAsync(_capturedImagePath);
+
+            _form = new FormModel
+            {
+                Title = aiResult?.Title ?? "",
+                IssueDate = aiResult?.IssueDate ?? "",
+                Year = aiResult?.Year ?? DateTime.Now.Year,
+                Publisher = aiResult?.Publisher ?? "",
+                Country = aiResult?.Country ?? "Other",
+                Condition = aiResult?.Condition ?? "Good",
+                ValueRating = aiResult?.ValueRating ?? "Unknown",
+                AiReasoning = aiResult?.AiReasoning ?? "",
+                CoverImageFilename = filename
+            };
+
+            _phase = Phase.Editing;
+        }
+        catch (Exception ex)
+        {
+            _cameraError = ex.Message;
+            _phase = Phase.Camera;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_form is null) return;
+        _saving = true;
+        _saveError = null;
+        try
+        {
+            var entry = new MagazineEntry
+            {
+                Title = _form.Title,
+                IssueDate = _form.IssueDate,
+                Year = _form.Year,
+                Publisher = _form.Publisher,
+                Country = _form.Country,
+                Condition = _form.Condition,
+                ValueRating = _form.ValueRating,
+                AiReasoning = _form.AiReasoning,
+                CoverImagePath = _form.CoverImageFilename,
+                Notes = _form.Notes,
+                ScannedAt = DateTime.UtcNow
+            };
+
+            Db.Magazines.Add(entry);
+            await Db.SaveChangesAsync();
+
+            _lastSavedTitle = $"{_form.Title} ({_form.IssueDate})";
+            _form = null;
+            _capturedImagePath = null;
+            _phase = Phase.Saved;
+        }
+        catch (Exception ex)
+        {
+            _saveError = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Discard()
+    {
+        if (_capturedImagePath is not null && File.Exists(_capturedImagePath))
+            File.Delete(_capturedImagePath);
+        _form = null;
+        _capturedImagePath = null;
+        _cameraStarted = false;
+        _phase = Phase.Camera;
+    }
+
+    private void NextMagazine()
+    {
+        _lastSavedTitle = null;
+        _cameraStarted = false;
+        _phase = Phase.Camera;
+    }
+
+    private class FormModel
+    {
+        public string Title { get; set; } = "";
+        public string IssueDate { get; set; } = "";
+        public int Year { get; set; }
+        public string Publisher { get; set; } = "";
+        public string Country { get; set; } = "Other";
+        public string Condition { get; set; } = "Good";
+        public string ValueRating { get; set; } = "Unknown";
+        public string AiReasoning { get; set; } = "";
+        public string Notes { get; set; } = "";
+        public string CoverImageFilename { get; set; } = "";
+    }
+
+    private class CaptureResult
+    {
+        public string Image { get; set; } = "";
+    }
+}

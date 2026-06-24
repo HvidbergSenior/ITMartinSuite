@@ -11,6 +11,10 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddSingleton<
+            IMagazineIdentificationService,
+            ClaudeMagazineIdentificationService>();
+
+        services.AddSingleton<
             IMagicCardRecognitionService,
             ClaudeMagicCardRecognitionService>();
 
