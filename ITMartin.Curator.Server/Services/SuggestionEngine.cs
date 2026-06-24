@@ -29,9 +29,9 @@ public sealed class SuggestionEngine(IConfiguration config)
     private static readonly Regex YearPattern  = new(@"^\d{4}$",    RegexOptions.Compiled);
     private static readonly Regex MonthPattern = new(@"^\d{2}-\w+$", RegexOptions.Compiled);
 
-    public async Task<List<Suggestion>> AnalyzeAsync(IProgress<string>? progress = null)
+    public async Task<List<Suggestion>> AnalyzeAsync(IProgress<string>? progress = null, string? rootOverride = null)
     {
-        var root = config["MediaSettings:LibraryRoot"] ?? "";
+        var root = rootOverride ?? config["MediaSettings:LibraryRoot"] ?? "";
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
             return [];
 

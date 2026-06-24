@@ -24,6 +24,14 @@
         </button>
     </div>
 
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <label style="font-size:13px;color:var(--text-muted);white-space:nowrap">📁 Path</label>
+        <input style="flex:1;font-family:monospace;font-size:13px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-main);outline:none"
+               @bind="_root" @bind:event="oninput"
+               disabled="@_scanning"
+               placeholder="/library" />
+    </div>
+
     @if (!_scanned && !_scanning)
     {
         <div class="inbox-empty">
@@ -137,7 +145,7 @@
                 InvokeAsync(StateHasChanged);
             });
 
-            _suggestions = await Engine.AnalyzeAsync(progress);
+            _suggestions = await Engine.AnalyzeAsync(progress, string.IsNullOrWhiteSpace(_root) ? null : _root);
         }
         catch (Exception ex)
         {
