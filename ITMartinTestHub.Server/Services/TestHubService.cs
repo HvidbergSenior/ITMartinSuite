@@ -152,8 +152,9 @@ public sealed class TestHubService(TestHubDbContext db)
           .Include(a => a.App)
           .Include(a => a.Round)
           .Include(a => a.Results)
-          .Where(a => a.TesterId == testerId && a.Round!.IsActive)
-          .OrderBy(a => a.App!.SortOrder)
+          .Where(a => a.TesterId == testerId)
+          .OrderByDescending(a => a.Round!.IsActive)
+          .ThenBy(a => a.App!.SortOrder)
           .ToListAsync();
 
     public Task<TestAssignment?> GetAssignmentAsync(Guid id) =>

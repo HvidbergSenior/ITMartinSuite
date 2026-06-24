@@ -48,7 +48,10 @@
 
                         <div class="assignment-info">
                             <div class="assignment-name">@a.App?.Name</div>
-                            <div class="assignment-round">@a.Round?.Name</div>
+                            <div class="assignment-round">
+                                @a.Round?.Name
+                                @if (a.Round?.IsActive == false) { <span style="color:#f87171;font-size:.7rem;margin-left:4px">(afsluttet)</span> }
+                            </div>
                             <div class="progress-bar-wrap">
                                 <div class="progress-bar" style="width:@pct%"></div>
                             </div>

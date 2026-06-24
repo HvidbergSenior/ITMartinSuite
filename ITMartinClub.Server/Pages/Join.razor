@@ -100,18 +100,26 @@
         _joining = true;
         StateHasChanged();
 
-        var member = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == _group.Id && m.Name == _name.Trim());
-        if (member == null)
+        try
         {
-            member = new Member { GroupId = _group.Id, Name = _name.Trim() };
-            Db.Members.Add(member);
+            var member = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == _group.Id && m.Name == _name.Trim());
+            if (member == null)
+            {
+                member = new Member { GroupId = _group.Id, Name = _name.Trim() };
+                Db.Members.Add(member);
+            }
+
+            var session = new MemberSession { MemberId = member.Id };
+            Db.Sessions.Add(session);
+            await Db.SaveChangesAsync();
+
+            await JS.InvokeVoidAsync("clubJs.setSession", session.Id.ToString());
+            Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
         }
-
-        var session = new MemberSession { MemberId = member.Id };
-        Db.Sessions.Add(session);
-        await Db.SaveChangesAsync();
-
-        await JS.InvokeVoidAsync("clubJs.setSession", session.Id.ToString());
-        Nav.NavigateTo($"/g/{Slug}");
+        catch (Exception ex)
+        {
+            _error = $"Noget gik galt: {ex.Message}";
+            _joining = false;
+        }
     }
 }

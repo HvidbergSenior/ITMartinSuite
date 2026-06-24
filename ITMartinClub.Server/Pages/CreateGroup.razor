@@ -14,9 +14,15 @@
 
         <div class="create-field"><label>Gruppenavn</label><input @bind="_name" placeholder="Lions Club Horsens" class="create-input" maxlength="100" /></div>
         <div class="create-field"><label>Beskrivelse (valgfrit)</label><input @bind="_desc" class="create-input" maxlength="200" /></div>
-        <div class="create-row">
-            <div class="create-field"><label>Invitationskode</label><input @bind="_invite" placeholder="hemmelig kode" class="create-input" maxlength="40" /></div>
-            <div class="create-field"><label>Admin PIN</label><input @bind="_pin" type="password" placeholder="kun for admin" class="create-input" maxlength="20" /></div>
+        <div class="create-field">
+            <label>Adgangskode til gruppen</label>
+            <input @bind="_invite" placeholder="f.eks. lions2025" class="create-input" maxlength="40" />
+            <div class="create-hint-text">Den kode som nye medlemmer skal bruge for at tilmelde sig gruppen.</div>
+        </div>
+        <div class="create-field">
+            <label>Din personlige PIN</label>
+            <input @bind="_pin" type="password" placeholder="min. 4 cifre" class="create-input" maxlength="20" />
+            <div class="create-hint-text">Kun du kender den — bruges til at ændre gruppeindstillinger og redigere indhold.</div>
         </div>
         <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">@(_creating ? "Opretter..." : "Opret gruppe")</button>
     </div>
@@ -31,9 +37,7 @@
     .create-sub { font-size: 14px; color: #64748b; margin: 0 0 28px; }
     .create-field { text-align: left; margin-bottom: 14px; }
     .create-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
-    .create-hint { font-weight: 400; color: #475569; }
-    .create-row { display: flex; gap: 12px; }
-    .create-row .create-field { flex: 1; }
+    .create-hint-text { font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4; }
     .create-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 14px; outline: none; }
     .create-input:focus { border-color: #3b82f6; }
     .create-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
@@ -51,8 +55,8 @@
     {
         _error = null;
         if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv et gruppenavn."; return; }
-        if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en invitationskode."; return; }
-        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv en admin PIN."; return; }
+        if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en adgangskode til gruppen."; return; }
+        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din personlige PIN."; return; }
 
         var cleanSlug = System.Text.RegularExpressions.Regex
             .Replace(_name.ToLower().Trim().Replace(" ", "-"), @"[^a-z0-9\-]", "");

@@ -120,6 +120,32 @@ else
                         disabled="@(_newAppId == Guid.Empty || _newTesterId == Guid.Empty)">
                     + Tildel
                 </button>
+
+                <hr style="border-color:rgba(255,255,255,.08);margin:1.5rem 0" />
+
+                <div class="section-title" style="font-size:.8rem;color:#64748b;margin-bottom:.75rem">Hurtig tilføj alle apps</div>
+                <div class="form-row">
+                    <label class="home-label">Tester til alle apps</label>
+                    <select class="home-input" @bind="_bulkTesterId">
+                        <option value="">— vælg tester —</option>
+                        @foreach (var t in _testers)
+                        {
+                            <option value="@t.Id">@t.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="home-label">Formål (valgfrit, samme for alle)</label>
+                    <input class="home-input" @bind="_bulkPurpose" placeholder="Bekræft at grundflowet virker" maxlength="200" />
+                </div>
+                <button class="btn-secondary btn-sm" @onclick="AddAllApps"
+                        disabled="@(_bulkTesterId == Guid.Empty)">
+                    ⚡ Tilføj alle apps med testrin
+                </button>
+                @if (!string.IsNullOrEmpty(_bulkResult))
+                {
+                    <div style="margin-top:.5rem;font-size:.8rem;color:#4ade80">@_bulkResult</div>
+                }
             </div>
         }
     </div>
@@ -135,6 +161,9 @@ else
     private Guid              _newTesterId;
     private string            _newTesterName = "";
     private string            _newPurpose    = "";
+    private Guid              _bulkTesterId;
+    private string            _bulkPurpose   = "";
+    private string            _bulkResult    = "";
 
     protected override async Task OnInitializedAsync() => await Reload();
 
@@ -166,6 +195,27 @@ else
     private async Task DeleteAssignment(Guid id)
     {
         await Svc.DeleteAssignmentAsync(id);
+        await Reload();
+    }
+
+    private async Task AddAllApps()
+    {
+        if (_bulkTesterId == Guid.Empty) return;
+
+        var appsWithSteps = _apps.Where(a => a.Steps.Count > 0).ToList();
+        var alreadyAssigned = _round?.Assignments.Select(a => a.AppEntryId).ToHashSet() ?? [];
+
+        var added = 0;
+        foreach (var app in appsWithSteps)
+        {
+            if (alreadyAssigned.Contains(app.Id)) continue;
+            await Svc.CreateAssignmentAsync(RoundId, app.Id, _bulkTesterId, _bulkPurpose);
+            added++;
+        }
+
+        _bulkResult = added == 0
+            ? "Alle apps er allerede tilføjet."
+            : $"✓ {added} app{(added == 1 ? "" : "s")} tilføjet.";
         await Reload();
     }
 

@@ -20,6 +20,18 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
     db.Database.EnsureCreated();
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "MemberSessions" (
+                "Id"        TEXT NOT NULL CONSTRAINT "PK_MemberSessions" PRIMARY KEY,
+                "MemberId"  TEXT NOT NULL DEFAULT '',
+                "CreatedAt" TEXT NOT NULL DEFAULT '0001-01-01 00:00:00'
+            )
+            """);
+    }
+    catch { }
 }
 
 if (!app.Environment.IsDevelopment())
