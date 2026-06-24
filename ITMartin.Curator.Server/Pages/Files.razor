@@ -41,7 +41,7 @@
             {
                 <div class="file-card">
 
-                    <div class="file-thumb">
+                    <div class="file-thumb" @onclick="() => OpenPreview(file)" style="cursor:pointer">
                         @if (file.Type == MediaType.Image && !string.IsNullOrEmpty(file.ThumbnailUrl))
                         {
                             <img src="@file.ThumbnailUrl" alt="@file.Name" loading="lazy" />
@@ -89,6 +89,58 @@
 
     </div>
 
+    <!-- ── LIGHTBOX ──────────────────────────────────────── -->
+    @if (_preview != null)
+    {
+        <div class="lightbox-backdrop" @onclick="ClosePreview">
+            <div class="lightbox-box" @onclick:stopPropagation="true">
+
+                <div class="lightbox-media">
+                    @if (_preview.Type == MediaType.Image)
+                    {
+                        <img src="@_preview.ImageUrl" alt="@_preview.Name" class="lightbox-img" />
+                    }
+                    else if (_preview.Type == MediaType.Video)
+                    {
+                        <video src="@_preview.ImageUrl" controls class="lightbox-img"></video>
+                    }
+                    else
+                    {
+                        <div style="font-size:64px;text-align:center;padding:40px">📄</div>
+                    }
+                </div>
+
+                <div class="lightbox-panel">
+                    <div class="lightbox-name">@_preview.Name</div>
+                    <div class="lightbox-path text-muted">@_preview.Path</div>
+                    <div class="lightbox-date text-muted">@_preview.CreatedAt?.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
+
+                    <div class="lightbox-section-label">Move to</div>
+                    <div class="lightbox-actions">
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Screenshots")">📱 Screenshots</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Memes")">😂 Memes</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Images")">🖼️ Images</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Videos")">🎬 Videos</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Reclassify(_preview, "Duplicates")">🔁 Duplicates</button>
+                        <button class="btn btn-sm btn-danger"    @onclick="() => Reclassify(_preview, "DeleteCandidates")">🗑️ Delete?</button>
+                    </div>
+
+                    <div class="lightbox-section-label" style="margin-top:16px">Rename</div>
+                    <div style="display:flex;gap:6px">
+                        <input class="rename-input" style="flex:1"
+                               value="@_preview.EditName"
+                               @onchange="e => _preview.EditName = e.Value?.ToString() ?? _preview.Name"
+                               @onkeydown="e => OnLightboxRenameKey(e)" />
+                        <button class="btn btn-sm btn-secondary" @onclick="CommitLightboxRename">OK</button>
+                    </div>
+
+                    <button class="btn btn-sm btn-secondary" style="margin-top:16px;width:100%" @onclick="ClosePreview">✓ Keep / Close</button>
+                </div>
+
+            </div>
+        </div>
+    }
+
     <!-- ── RIGHT: quick actions ───────────────────────────── -->
     <div class="files-sidebar">
 
@@ -121,6 +173,10 @@
     private List<FileVm>   _files   = [];
     private List<MediaCollection> _collections = [];
     private int _genericCount;
+    private FileVm? _preview;
+
+    private static readonly HashSet<string> KnownCategories = new(StringComparer.OrdinalIgnoreCase)
+        { "Images", "Videos", "Audio", "Documents", "Memes", "Screenshots", "Duplicates", "DeleteCandidates", "Undated" };
 
     [Parameter, SupplyParameterFromQuery] public string? path { get; set; }
 
@@ -251,6 +307,66 @@
         LoadFolder(_currentPath);
     }
 
+    // ── Preview / Reclassify ────────────────────────────────────────────────
+
+    private void OpenPreview(FileVm file)
+    {
+        file.EditName = file.Name;
+        _preview = file;
+    }
+
+    private void ClosePreview() => _preview = null;
+
+    private void Reclassify(FileVm file, string newCategory)
+    {
+        var dir   = Path.GetDirectoryName(file.Path) ?? "";
+        var parts = dir.Split('/');
+        var idx   = Array.FindLastIndex(parts, p => KnownCategories.Contains(p));
+
+        if (idx < 0) { Toast.Show("Can't find category segment in path", "danger"); return; }
+
+        parts[idx] = newCategory;
+        var newDir  = string.Join("/", parts);
+        var newPath = Path.Combine(newDir, Path.GetFileName(file.Path));
+
+        if (file.Path == newPath) { ClosePreview(); return; }
+        if (File.Exists(newPath)) { Toast.Show("A file with that name already exists in the target", "danger"); return; }
+
+        try
+        {
+            Directory.CreateDirectory(newDir);
+            File.Move(file.Path, newPath);
+
+            foreach (var col in _collections)
+            {
+                var i = col.FilePaths.IndexOf(file.Path);
+                if (i >= 0) col.FilePaths[i] = newPath;
+            }
+            _ = CollectionStore.SaveAsync(_collections);
+
+            _files.Remove(file);
+            _preview = null;
+            Toast.Show($"Moved to {newCategory} ✓", "success");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Reclassify failed");
+            Toast.Show("Move failed: " + ex.Message, "danger");
+        }
+    }
+
+    private void OnLightboxRenameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")  CommitLightboxRename();
+        if (e.Key == "Escape") { if (_preview != null) _preview.EditName = _preview.Name; }
+    }
+
+    private void CommitLightboxRename()
+    {
+        if (_preview == null) return;
+        CommitRename(_preview);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private FileVm CreateFileVm(string filePath)
@@ -271,6 +387,7 @@
             Type         = type,
             CreatedAt    = info.LastWriteTimeUtc,
             ThumbnailUrl = BuildThumbUrl(filePath),
+            ImageUrl     = BuildFileUrl(filePath),
         };
     }
 
@@ -281,6 +398,13 @@
         var thumbPath = Path.Combine(dir, "thumbnails", Path.GetFileNameWithoutExtension(filePath) + ".jpg");
         var source    = File.Exists(thumbPath) ? thumbPath : filePath;
         var rel       = Path.GetRelativePath(_root, source).Replace("\\", "/");
+        return $"/libraryfiles/{rel}";
+    }
+
+    private string BuildFileUrl(string filePath)
+    {
+        if (string.IsNullOrEmpty(_root)) return "";
+        var rel = Path.GetRelativePath(_root, filePath).Replace("\\", "/");
         return $"/libraryfiles/{rel}";
     }
 
@@ -295,5 +419,6 @@
         public MediaType Type         { get; set; }
         public DateTime? CreatedAt    { get; set; }
         public string    ThumbnailUrl { get; set; } = "";
+        public string    ImageUrl     { get; set; } = "";
     }
 }
