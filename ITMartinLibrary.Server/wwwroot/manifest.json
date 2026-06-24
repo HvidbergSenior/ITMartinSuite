@@ -1,9 +1,19 @@
 {
-  "name": "Martin Library",
-  "short_name": "Library",
+  "name": "Martin Library Scan",
+  "short_name": "LibraryScan",
+  "description": "Scan bogreoler med kameraet – AI identificerer bøgerne",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0a0a0f",
   "theme_color": "#0a0a0f",
-  "start_url": "/library/bookcase",
-  "scope": "/"
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
