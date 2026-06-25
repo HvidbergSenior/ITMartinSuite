@@ -27,7 +27,6 @@ services:
       - Apps__AdhdUrl=https://adhd.itmartin.dk
       - Apps__FamilyUrl=https://family.itmartin.dk
       - Apps__MarketUrl=https://market.itmartin.dk
-      - Apps__GalleryUrl=https://gallery.itmartin.dk
       - Apps__BarTabUrl=https://bartab.itmartin.dk
       - Apps__AuctionUrl=https://auction.itmartin.dk
       - Apps__MusikUrl=https://musik.itmartin.dk
@@ -135,36 +134,8 @@ services:
       - martinnet
 
   # =========================================================
-  # GALLERY  →  gallery.itmartin.dk
-  # Read-only viewer: Library, Viewer, Collections, Curator
+  # GALLERY  →  Mie's gallery (only active gallery)
   # =========================================================
-
-  gallery-web:
-    container_name: gallery-web
-
-    build:
-      context: .
-      dockerfile: ./ITMartinFileSorter.Gallery.Server/Dockerfile
-
-    env_file:
-      - magic.env
-
-    ports:
-      - "8090:8080"
-
-    environment:
-      - ASPNETCORE_URLS=http://+:8080
-      - MediaSettings__LibraryRoot=/library
-      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
-
-    volumes:
-      - /volume1/docker/filesorter/library/martin:/library:ro
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-
 
   gallery-mie:
     container_name: gallery-mie
@@ -186,32 +157,6 @@ services:
 
     volumes:
       - /volume1/docker/filesorter/library/mie:/library:ro
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-
-  gallery-hvidbergfamily:
-    container_name: gallery-hvidbergfamily
-
-    build:
-      context: .
-      dockerfile: ./ITMartinFileSorter.Gallery.Server/Dockerfile
-
-    env_file:
-      - magic.env
-
-    ports:
-      - "8093:8080"
-
-    environment:
-      - ASPNETCORE_URLS=http://+:8080
-      - MediaSettings__LibraryRoot=/library
-      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
-
-    volumes:
-      - /volume1/docker/filesorter/library/hvidbergfamily:/library:ro
 
     restart: unless-stopped
 
@@ -356,6 +301,7 @@ services:
 
   magic-collection-web:
     container_name: magic-collection-web
+    profiles: [manual]
 
     env_file:
       - magic.env
@@ -496,32 +442,6 @@ services:
 
     volumes:
       - /volume1/docker/martinsuite/adhd/data:/app/data
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-
-  gallery-hvidberg:
-    container_name: gallery-hvidberg
-
-    build:
-      context: .
-      dockerfile: ./ITMartinFileSorter.Gallery.Server/Dockerfile
-
-    env_file:
-      - magic.env
-
-    ports:
-      - "8094:8080"
-
-    environment:
-      - ASPNETCORE_URLS=http://+:8080
-      - MediaSettings__LibraryRoot=/library
-      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
-
-    volumes:
-      - /volume1/docker/filesorter/library/hvidberg:/library:ro
 
     restart: unless-stopped
 
