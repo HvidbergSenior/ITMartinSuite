@@ -133,11 +133,25 @@
     @* ── Recording (all tabs) ── *@
     <div class="sh-section tut-rec-section">
         <h2 class="sh-section-title">⏺ Optag din øvelse</h2>
-        <p class="tut-rec-hint">Optag mens du øver — hør dig selv bagefter</p>
+
+        @if (!_recording)
+        {
+            <div class="tut-rec-mode">
+                <button class="tut-mode-btn @(!_videoMode ? "active" : "")" @onclick='() => _videoMode = false'>🎙 Lyd</button>
+                <button class="tut-mode-btn @(_videoMode ? "active" : "")"  @onclick='() => _videoMode = true'>📹 Video</button>
+            </div>
+        }
+
         @if (!string.IsNullOrEmpty(_recError))
         {
             <div class="sh-rec-error">@_recError</div>
         }
+
+        @if (_recording && _videoMode)
+        {
+            <video id="tut-cam" autoplay muted playsinline class="tut-cam-preview"></video>
+        }
+
         @if (!_recording)
         {
             <button class="sh-btn-rec" @onclick="StartRec">⏺ Start optagelse</button>
@@ -146,16 +160,17 @@
         {
             <button class="sh-btn-rec sh-btn-stop" @onclick="StopRec">⏹ Stop (@_recSec s)</button>
         }
+
         @if (_recordings.Count > 0)
         {
             <div class="sh-rec-header">Dine optagelser</div>
             <div class="sh-recordings">
-                @foreach (var (b64, i) in _recordings.Select((r, i) => (r, i + 1)))
+                @foreach (var (rec, i) in _recordings.Select((r, i) => (r, i + 1)))
                 {
                     <div class="sh-recording-row">
-                        <span class="sh-rec-label">Øvelse @i</span>
-                        <button class="sh-btn-play" @onclick="() => PlayRec(b64)">▶ Afspil</button>
-                        <button class="sh-btn-del"  @onclick="() => _recordings.Remove(b64)">✕</button>
+                        <span class="sh-rec-label">@(rec.HasVideo ? "📹" : "🎙") Øvelse @i</span>
+                        <button class="sh-btn-play" @onclick="() => PlayRec(rec)">▶ Afspil</button>
+                        <button class="sh-btn-del"  @onclick="() => _recordings.Remove(rec)">✕</button>
                     </div>
                 }
             </div>
@@ -169,10 +184,13 @@
     private string? _openId;
 
     private bool _recording;
+    private bool _videoMode;
     private int _recSec;
     private System.Timers.Timer? _recTimer;
     private string _recError = "";
-    private List<string> _recordings = new();
+    private List<Recording> _recordings = new();
+
+    private record Recording(string Data, bool HasVideo);
 
     private void Toggle(string id) => _openId = _openId == id ? null : id;
 
@@ -180,17 +198,21 @@
     {
         _recError = "";
         _recSec = 0;
-        _recTimer = new System.Timers.Timer(1000) { AutoReset = true };
-        _recTimer.Elapsed += async (_, _) => { _recSec++; await InvokeAsync(StateHasChanged); };
-        _recTimer.Start();
         _recording = true;
-        try { await JS.InvokeVoidAsync("musicHelper.startRecording"); }
+        StateHasChanged();
+
+        try
+        {
+            // Pass video element id and mode; JS returns actual hasVideo (may fall back to audio)
+            _videoMode = await JS.InvokeAsync<bool>("musicHelper.startRecording", "tut-cam", _videoMode);
+            _recTimer = new System.Timers.Timer(1000) { AutoReset = true };
+            _recTimer.Elapsed += async (_, _) => { _recSec++; await InvokeAsync(StateHasChanged); };
+            _recTimer.Start();
+        }
         catch (JSException ex)
         {
-            _recTimer?.Stop(); _recTimer?.Dispose();
-            _recording = false; _recSec = 0;
-            _recError = $"Mikrofon ikke tilgængelig: {ex.Message}";
-            await InvokeAsync(StateHasChanged);
+            _recording = false;
+            _recError = $"Mikrofon/kamera ikke tilgængeligt: {ex.Message}";
         }
     }
 
@@ -198,10 +220,13 @@
     {
         _recTimer?.Stop(); _recTimer?.Dispose();
         _recording = false;
-        var b64 = await JS.InvokeAsync<string>("musicHelper.stopRecording");
-        if (!string.IsNullOrEmpty(b64)) _recordings.Add(b64);
+        var result = await JS.InvokeAsync<RecResult>("musicHelper.stopRecording");
+        if (!string.IsNullOrEmpty(result?.Data))
+            _recordings.Add(new Recording(result.Data, result.HasVideo));
     }
 
-    private async Task PlayRec(string b64) =>
-        await JS.InvokeVoidAsync("musicHelper.playBase64Audio", b64);
+    private async Task PlayRec(Recording rec) =>
+        await JS.InvokeVoidAsync("musicHelper.playRecording", rec.Data, rec.HasVideo);
+
+    private record RecResult(string Data, bool HasVideo);
 }

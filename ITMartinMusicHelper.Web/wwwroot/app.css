@@ -529,3 +529,28 @@ h1:focus { outline: none; }
 
 .tut-rec-section { margin-top: 1rem; }
 .tut-rec-hint { color: #888; font-size: .88rem; margin: -.5rem 0 .75rem; }
+
+.tut-rec-mode { display: flex; gap: .5rem; margin-bottom: .75rem; }
+.tut-mode-btn {
+    flex: 1;
+    background: #1a1a28;
+    border: 2px solid #2a2a40;
+    border-radius: 10px;
+    color: #888;
+    font-size: .95rem;
+    padding: .5rem;
+    cursor: pointer;
+    transition: all .15s;
+}
+.tut-mode-btn.active { border-color: #c03030; color: #ff6060; background: #1a1020; }
+
+.tut-cam-preview {
+    width: 100%;
+    max-width: 400px;
+    border-radius: 12px;
+    background: #111;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    display: block;
+    margin: 0 auto .75rem;
+}
