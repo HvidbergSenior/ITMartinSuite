@@ -165,12 +165,12 @@
         {
             <div class="sh-rec-header">Dine optagelser</div>
             <div class="sh-recordings">
-                @foreach (var (rec, i) in _recordings.Select((r, i) => (r, i + 1)))
+                @foreach (var (idx, i) in _recordings.Select((r, i) => (r, i + 1)))
                 {
                     <div class="sh-recording-row">
-                        <span class="sh-rec-label">@(rec.HasVideo ? "📹" : "🎙") Øvelse @i</span>
-                        <button class="sh-btn-play" @onclick="() => PlayRec(rec)">▶ Afspil</button>
-                        <button class="sh-btn-del"  @onclick="() => _recordings.Remove(rec)">✕</button>
+                        <span class="sh-rec-label">⏺ Øvelse @i</span>
+                        <button class="sh-btn-play" @onclick="() => PlayRec(idx)">▶ Afspil</button>
+                        <button class="sh-btn-del"  @onclick="() => DeleteRec(idx)">✕</button>
                     </div>
                 }
             </div>
@@ -188,9 +188,7 @@
     private int _recSec;
     private System.Timers.Timer? _recTimer;
     private string _recError = "";
-    private List<Recording> _recordings = new();
-
-    private record Recording(string Data, bool HasVideo);
+    private List<int> _recordings = new();
 
     private void Toggle(string id) => _openId = _openId == id ? null : id;
 
@@ -221,13 +219,16 @@
     {
         _recTimer?.Stop(); _recTimer?.Dispose();
         _recording = false;
-        var result = await JS.InvokeAsync<RecResult>("musicHelper.stopRecording");
-        if (!string.IsNullOrEmpty(result?.Data))
-            _recordings.Add(new Recording(result.Data, result.HasVideo));
+        var idx = await JS.InvokeAsync<int>("musicHelper.stopRecording");
+        if (idx >= 0) _recordings.Add(idx);
     }
 
-    private async Task PlayRec(Recording rec) =>
-        await JS.InvokeVoidAsync("musicHelper.playRecording", rec.Data, rec.HasVideo);
+    private async Task PlayRec(int idx) =>
+        await JS.InvokeVoidAsync("musicHelper.playRecording", idx);
 
-    private record RecResult(string Data, bool HasVideo);
+    private async Task DeleteRec(int idx)
+    {
+        await JS.InvokeVoidAsync("musicHelper.deleteRecording", idx);
+        _recordings.Remove(idx);
+    }
 }

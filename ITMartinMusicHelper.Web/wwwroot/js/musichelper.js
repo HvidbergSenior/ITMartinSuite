@@ -5,6 +5,9 @@ window.musicHelper = (function () {
     var _stream = null;
     var _hasVideo = false;
 
+    // Recordings stored in JS memory — never sent to server
+    var _recordings = [];   // { url: string, hasVideo: bool }
+
     async function startRecording(videoElementId, useVideo) {
         _chunks = [];
         _hasVideo = false;
@@ -51,7 +54,7 @@ window.musicHelper = (function () {
 
     function stopRecording() {
         return new Promise(function (resolve) {
-            if (!_recorder) { resolve({ data: '', hasVideo: false }); return; }
+            if (!_recorder) { resolve(-1); return; }
             var rec = _recorder;
             var wasVideo = _hasVideo;
             _recorder = null;
@@ -62,36 +65,37 @@ window.musicHelper = (function () {
                 var blob = new Blob(_chunks, { type: mime });
                 _chunks = [];
                 if (_stream) { _stream.getTracks().forEach(function (t) { t.stop(); }); _stream = null; }
-                if (blob.size === 0) { resolve({ data: '', hasVideo: false }); return; }
+                if (blob.size === 0) { resolve(-1); return; }
 
-                var reader = new FileReader();
-                reader.onload = function () {
-                    resolve({ data: reader.result.split(',')[1], hasVideo: wasVideo });
-                };
-                reader.readAsDataURL(blob);
+                // Store in JS memory, return only the index — no data sent over SignalR
+                var url = URL.createObjectURL(blob);
+                var idx = _recordings.push({ url: url, hasVideo: wasVideo }) - 1;
+                resolve(idx);
             };
             rec.stop();
         });
     }
 
-    function playRecording(b64, hasVideo) {
-        var mime = hasVideo ? 'video/webm' : 'audio/webm';
-        var src = 'data:' + mime + ';base64,' + b64;
+    function playRecording(index) {
+        var rec = _recordings[index];
+        if (!rec) return;
 
-        // Remove any existing floating player
         var old = document.getElementById('mh-player');
         if (old) old.remove();
+        var oldClose = document.getElementById('mh-player-close');
+        if (oldClose) oldClose.remove();
 
-        var el = document.createElement(hasVideo ? 'video' : 'audio');
+        var el = document.createElement(rec.hasVideo ? 'video' : 'audio');
         el.id = 'mh-player';
-        el.src = src;
+        el.src = rec.url;
         el.controls = true;
         el.autoplay = true;
 
-        if (hasVideo) {
+        if (rec.hasVideo) {
             el.style.cssText = 'position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);' +
                 'width:min(360px,90vw);border-radius:12px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.5);background:#000;';
             var close = document.createElement('button');
+            close.id = 'mh-player-close';
             close.textContent = '✕';
             close.style.cssText = 'position:fixed;bottom:calc(5rem + min(202px,50vw));left:calc(50% + min(160px,43vw));' +
                 'transform:translateX(-50%);z-index:10000;background:#333;color:#fff;border:none;border-radius:50%;' +
@@ -102,8 +106,13 @@ window.musicHelper = (function () {
         }
 
         document.body.appendChild(el);
-        if (!hasVideo) el.play().catch(function (e) { console.error('Playback fejl', e); });
+        if (!rec.hasVideo) el.play().catch(function (e) { console.error('Playback fejl', e); });
     }
 
-    return { startRecording: startRecording, stopRecording: stopRecording, playRecording: playRecording };
+    function deleteRecording(index) {
+        var rec = _recordings[index];
+        if (rec) { URL.revokeObjectURL(rec.url); _recordings[index] = null; }
+    }
+
+    return { startRecording: startRecording, stopRecording: stopRecording, playRecording: playRecording, deleteRecording: deleteRecording };
 })();
