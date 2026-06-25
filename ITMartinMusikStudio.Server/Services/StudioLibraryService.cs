@@ -73,7 +73,8 @@ public sealed class StudioLibraryService
             .Select(f => new RecordingFile(
                 Path.GetRelativePath(Root, f).Replace('\\', '/'),
                 Path.GetFileNameWithoutExtension(f),
-                new FileInfo(f).CreationTimeUtc))
+                new FileInfo(f).CreationTimeUtc,
+                Path.GetFileNameWithoutExtension(f).StartsWith("vtake")))
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
     }
@@ -86,4 +87,4 @@ public sealed class StudioLibraryService
 }
 
 public record SourceFile(string RelativePath, string Title);
-public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt);
+public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo);

@@ -1,0 +1,102 @@
+@page "/"
+@inject RoomService Rooms
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>SangLeg 🎤</PageTitle>
+
+<div class="g-center">
+    <div class="g-join-card">
+        <div class="g-title-logo">🎤</div>
+        <h1 class="g-title">SangLeg</h1>
+        <p class="g-sub">Hvem kender sangen — og tør synge den?</p>
+
+        <div class="g-tabs">
+            <button class="g-tab @(_mode == "join" ? "active" : "")" @onclick='() => _mode = "join"'>Deltag</button>
+            <button class="g-tab @(_mode == "create" ? "active" : "")" @onclick='() => _mode = "create"'>Opret spil</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="g-error">@_error</div>
+        }
+
+        <div class="g-form">
+            <input class="g-input" placeholder="Dit navn" maxlength="20"
+                   @bind="_name" @bind:event="oninput" />
+
+            @if (_mode == "join")
+            {
+                <input class="g-input g-code-input" placeholder="Rumkode (f.eks. ABCD)"
+                       maxlength="4" @bind="_code" @bind:event="oninput"
+                       style="text-transform:uppercase;letter-spacing:.25em;font-size:1.4rem" />
+                <button class="g-btn" @onclick="JoinRoom"
+                        disabled="@(string.IsNullOrWhiteSpace(_name) || _code.Length < 4 || _busy)">
+                    @(_busy ? "Forbinder..." : "Gå ind →")
+                </button>
+            }
+            else
+            {
+                <button class="g-btn" @onclick="CreateRoom"
+                        disabled="@(string.IsNullOrWhiteSpace(_name) || _busy)">
+                    @(_busy ? "Opretter..." : "Opret rum →")
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _mode = "join";
+    private string _name = "";
+    private string _code = "";
+    private string _error = "";
+    private bool _busy;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // Restore name from localStorage
+        try
+        {
+            var n = await JS.InvokeAsync<string?>("localStorage.getItem", "sg_name");
+            if (!string.IsNullOrEmpty(n)) { _name = n; StateHasChanged(); }
+        }
+        catch { }
+    }
+
+    private async Task CreateRoom()
+    {
+        if (string.IsNullOrWhiteSpace(_name)) return;
+        _busy = true; _error = "";
+        var id = await GetOrCreatePlayerId();
+        await JS.InvokeVoidAsync("localStorage.setItem", "sg_name", _name.Trim());
+        var room = Rooms.Create(id, _name.Trim());
+        Nav.NavigateTo($"/room/{room.Code}", forceLoad: true);
+    }
+
+    private async Task JoinRoom()
+    {
+        if (string.IsNullOrWhiteSpace(_name) || _code.Length < 4) return;
+        _busy = true; _error = "";
+        var id = await GetOrCreatePlayerId();
+        await JS.InvokeVoidAsync("localStorage.setItem", "sg_name", _name.Trim());
+        var (ok, err) = Rooms.Join(_code.ToUpper(), id, _name.Trim());
+        if (!ok) { _error = err ?? "Fejl"; _busy = false; return; }
+        await Rooms.NotifyAsync(_code.ToUpper());
+        Nav.NavigateTo($"/room/{_code.ToUpper()}", forceLoad: true);
+    }
+
+    private async Task<string> GetOrCreatePlayerId()
+    {
+        try
+        {
+            var id = await JS.InvokeAsync<string?>("localStorage.getItem", "sg_pid");
+            if (!string.IsNullOrEmpty(id)) return id;
+        }
+        catch { }
+        var newId = Guid.NewGuid().ToString();
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "sg_pid", newId); } catch { }
+        return newId;
+    }
+}

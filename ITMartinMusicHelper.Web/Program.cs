@@ -1,8 +1,11 @@
 using ITMartinMusicHelper.Application.Interfaces;
 using ITMartinMusicHelper.Application.Services;
 using ITMartinMusicHelper.Web;
+using ITMartinMusicHelper.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<GuitarAiService>();
 
 // 🔥 Correct DI (interface → implementation)
 builder.Services.AddScoped<IChordService, ChordService>();

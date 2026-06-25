@@ -1,0 +1,74 @@
+@using ITMartinMusicHelper.Web.Data
+@using System.Text
+
+@((MarkupString)BuildSvg())
+
+@code {
+    [Parameter, EditorRequired] public ChordVoicing Voicing { get; set; } = default!;
+
+    // Pixel positions
+    private static double StringX(int s) => 18 + s * 14.8;
+    private static double FretY(int row) => 30 + row * 20;   // row 0 = nut/top
+
+    // Convert absolute fret number → diagram row (1-based, 1=first visual row)
+    private int ToRow(int absFret) => absFret - Voicing.StartFret + 1;
+
+    // Y center of a diagram row's fret space
+    private double DotY(int row) => FretY(row - 1) + 10;
+
+    private string BuildSvg()
+    {
+        var sb = new StringBuilder();
+        sb.Append("<svg viewBox=\"0 0 110 130\" class=\"chord-svg\" xmlns=\"http://www.w3.org/2000/svg\">");
+
+        // Chord label (the voicing display name)
+        sb.Append($"<text x=\"55\" y=\"14\" text-anchor=\"middle\" class=\"chord-label\">{Esc(Voicing.Label)}</text>");
+
+        // Start fret indicator (if not at nut)
+        if (Voicing.StartFret > 1)
+            sb.Append($"<text x=\"8\" y=\"42\" text-anchor=\"middle\" class=\"fret-num\">{Voicing.StartFret}fr</text>");
+
+        // Nut (thick bar at fret 1) or thin top line
+        if (Voicing.StartFret == 1)
+            sb.Append($"<rect x=\"{StringX(0):F1}\" y=\"30\" width=\"{StringX(5) - StringX(0):F1}\" height=\"4\" rx=\"1\" class=\"nut\" />");
+        else
+            sb.Append($"<line x1=\"{StringX(0):F1}\" y1=\"30\" x2=\"{StringX(5):F1}\" y2=\"30\" class=\"fret-line\" />");
+
+        // 4 fret lines below nut
+        for (int f = 1; f <= 4; f++)
+        {
+            var y = FretY(f);
+            sb.Append($"<line x1=\"{StringX(0):F1}\" y1=\"{y:F1}\" x2=\"{StringX(5):F1}\" y2=\"{y:F1}\" class=\"fret-line\" />");
+        }
+
+        // 6 string lines
+        for (int s = 0; s < 6; s++)
+            sb.Append($"<line x1=\"{StringX(s):F1}\" y1=\"30\" x2=\"{StringX(s):F1}\" y2=\"{FretY(4):F1}\" class=\"string-line\" />");
+
+        // Muted (X) and open (O) markers above strings
+        for (int s = 0; s < 6; s++)
+        {
+            var val = Voicing.Strings[s];
+            if (val < 0)
+                sb.Append($"<text x=\"{StringX(s):F1}\" y=\"26\" text-anchor=\"middle\" class=\"mute-x\">&#x2715;</text>");
+            else if (val == 0)
+                sb.Append($"<circle cx=\"{StringX(s):F1}\" cy=\"22\" r=\"4\" class=\"open-circle\" />");
+        }
+
+        // Fret dots for pressed strings
+        for (int s = 0; s < 6; s++)
+        {
+            var val = Voicing.Strings[s];
+            if (val < 1) continue;
+            var row = ToRow(val);
+            if (row < 1 || row > 4) continue;
+            sb.Append($"<circle cx=\"{StringX(s):F1}\" cy=\"{DotY(row):F1}\" r=\"7\" class=\"fret-dot\" />");
+        }
+
+        sb.Append("</svg>");
+        return sb.ToString();
+    }
+
+    private static string Esc(string s) =>
+        s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+}

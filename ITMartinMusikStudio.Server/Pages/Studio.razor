@@ -119,10 +119,21 @@ else if (_song is not null)
                 <div class="rec-controls">
                     @if (!_recording)
                     {
+                        <div class="rec-mode-toggle">
+                            <button class="rec-mode-btn @(_videoMode ? "" : "rec-mode-btn--active")"
+                                    @onclick='() => _videoMode = false'>🎙 Lyd</button>
+                            <button class="rec-mode-btn @(_videoMode ? "rec-mode-btn--active" : "")"
+                                    @onclick='() => _videoMode = true'>📹 Video</button>
+                        </div>
                         <button class="btn-record" @onclick="StartRecording">⏺ Optag</button>
                     }
                     else
                     {
+                        @if (_videoMode)
+                        {
+                            <video id="rec-preview" muted playsinline autoplay
+                                   style="width:100%;border-radius:8px;background:#000;margin-bottom:8px"></video>
+                        }
                         <button class="btn-stop" @onclick="StopRecording">⏹ Stop (@_recTimer s)</button>
                     }
                 </div>
@@ -134,10 +145,18 @@ else if (_song is not null)
                         {
                             <div class="rec-item">
                                 <div class="rec-item-info">
-                                    <span class="rec-item-name">@r.Name</span>
+                                    <span class="rec-item-name">@(r.IsVideo ? "📹" : "🎙") @r.Name</span>
                                     <span class="rec-item-date">@r.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
                                 </div>
-                                <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" class="rec-player" />
+                                @if (r.IsVideo)
+                                {
+                                    <video controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)"
+                                           class="rec-player" style="width:100%;border-radius:6px" />
+                                }
+                                else
+                                {
+                                    <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" class="rec-player" />
+                                }
                                 <div class="rec-item-actions">
                                     <button class="btn-publish" @onclick="() => Publish(r)" title="Publicér til public app">
                                         🚀 Publicér
@@ -314,6 +333,7 @@ else if (_song is not null)
     private int _recTimer;
 
     private bool _recording;
+    private bool _videoMode;
     private List<RecordingFile> _recordings = [];
 
     private string? _photoTarget;
@@ -473,7 +493,21 @@ else if (_song is not null)
             await InvokeAsync(StateHasChanged);
         };
         _recTimer_t.Start();
-        await JS.InvokeVoidAsync("studio.startRecording", SongKey);
+        try
+        {
+            await JS.InvokeVoidAsync("studio.startRecording", SongKey, _videoMode);
+        }
+        catch (JSException ex)
+        {
+            _recTimer_t?.Stop();
+            _recTimer_t?.Dispose();
+            _recTimer = 0;
+            _recording = false;
+            _saveStatus = _videoMode
+                ? "Ingen kamera fundet — prøv lydoptagelse i stedet"
+                : $"Mikrofon fejl: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task StopRecording()

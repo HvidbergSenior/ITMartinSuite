@@ -5,20 +5,35 @@ window.studio = (function() {
     var _micStream = null;
     var _camStream = null;
     var _songKey = null;
+    var _videoMode = false;
 
     // ── Recording ──────────────────────────────────────────────────────────────
 
-    function startRecording(songKey) {
+    function startRecording(songKey, videoMode) {
         _songKey = songKey;
+        _videoMode = !!videoMode;
         _chunks = [];
 
-        return navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        var constraints = _videoMode
+            ? { audio: true, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
+            : { audio: true, video: false };
+
+        return navigator.mediaDevices.getUserMedia(constraints)
             .then(function(stream) {
                 _micStream = stream;
 
-                var mimeType = "audio/webm";
+                if (_videoMode) {
+                    var preview = document.getElementById("rec-preview");
+                    if (preview) {
+                        preview.srcObject = stream;
+                        preview.muted = true;
+                        preview.play().catch(function() {});
+                    }
+                }
+
+                var mimeType = _videoMode ? "video/webm;codecs=vp8,opus" : "audio/webm";
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = "audio/ogg";
+                    mimeType = "video/webm";
                 }
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
                     mimeType = "";
@@ -28,16 +43,14 @@ window.studio = (function() {
                 _mediaRecorder = new MediaRecorder(stream, opts);
 
                 _mediaRecorder.ondataavailable = function(e) {
-                    if (e.data && e.data.size > 0) {
-                        _chunks.push(e.data);
-                    }
+                    if (e.data && e.data.size > 0) _chunks.push(e.data);
                 };
 
                 _mediaRecorder.start(500);
-                console.log("Recording started", mimeType);
+                console.log("Recording started", _videoMode ? "video" : "audio", mimeType);
             })
             .catch(function(err) {
-                console.error("Mic access failed", err.name, err.message);
+                console.error("Media access failed", err.name, err.message);
                 throw err;
             });
     }
@@ -46,8 +59,18 @@ window.studio = (function() {
         return new Promise(function(resolve) {
             if (!_mediaRecorder) { resolve(); return; }
 
-            _mediaRecorder.onstop = function() {
-                var blob = new Blob(_chunks, { type: _mediaRecorder.mimeType || "audio/webm" });
+            // Capture before nulling to avoid the null reference in onstop
+            var recorder = _mediaRecorder;
+            var capturedMime = recorder.mimeType || (_videoMode ? "video/webm" : "audio/webm");
+            var capturedKey = _songKey;
+            _mediaRecorder = null;
+
+            // Stop video preview
+            var preview = document.getElementById("rec-preview");
+            if (preview) preview.srcObject = null;
+
+            recorder.onstop = function() {
+                var blob = new Blob(_chunks, { type: capturedMime });
                 _chunks = [];
 
                 if (_micStream) {
@@ -55,11 +78,11 @@ window.studio = (function() {
                     _micStream = null;
                 }
 
-                if (!_songKey || blob.size === 0) { resolve(); return; }
+                if (!capturedKey || blob.size === 0) { resolve(); return; }
 
-                fetch("/api/recording/" + encodeURIComponent(_songKey), {
+                fetch("/api/recording/" + encodeURIComponent(capturedKey), {
                     method: "POST",
-                    headers: { "Content-Type": blob.type },
+                    headers: { "Content-Type": capturedMime },
                     body: blob
                 })
                 .then(function(r) { return r.json(); })
@@ -73,8 +96,7 @@ window.studio = (function() {
                 });
             };
 
-            _mediaRecorder.stop();
-            _mediaRecorder = null;
+            recorder.stop();
         });
     }
 

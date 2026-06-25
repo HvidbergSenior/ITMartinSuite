@@ -37,7 +37,7 @@
     {
         if (!firstRender) return;
         var ok = await JS.InvokeAsync<string?>("localStorage.getItem", "studio_auth");
-        if (ok == "1") Nav.NavigateTo("/songs");
+        if (ok == "1") Nav.NavigateTo("/songs", forceLoad: true);
         else StateHasChanged();
     }
 
@@ -52,6 +52,6 @@
             return;
         }
         await JS.InvokeVoidAsync("localStorage.setItem", "studio_auth", "1");
-        Nav.NavigateTo("/songs");
+        Nav.NavigateTo("/songs", forceLoad: true);
     }
 }

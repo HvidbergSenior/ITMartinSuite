@@ -7,6 +7,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Anthropic" Version="12.29.0" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
       <ProjectReference Include="..\ITMartinMusicHelper.Application\ITMartinMusicHelper.Application.csproj" />
       <ProjectReference Include="..\ITMartinMusicHelper.Infrastructure\ITMartinMusicHelper.Infrastructure.csproj" />

@@ -1,0 +1,207 @@
+@page "/tutorials"
+@inject IJSRuntime JS
+
+<PageTitle>Tutorials — Guitar, Piano & Sang</PageTitle>
+
+<div class="sh-wrap">
+
+    <div class="tut-header">
+        <h1 class="tut-title">Tutorials</h1>
+        <p class="tut-sub">Guitar · Piano · Sang</p>
+    </div>
+
+    @* ── Tab bar ── *@
+    <div class="tut-tabs">
+        <button class="tut-tab @(_tab == "guitar"  ? "active" : "")" @onclick='() => _tab = "guitar"'>🎸 Guitar</button>
+        <button class="tut-tab @(_tab == "piano"   ? "active" : "")" @onclick='() => _tab = "piano"'>🎹 Piano</button>
+        <button class="tut-tab @(_tab == "vocal"   ? "active" : "")" @onclick='() => _tab = "vocal"'>🎤 Sang</button>
+    </div>
+
+    @* ── Guitar ── *@
+    @if (_tab == "guitar")
+    {
+        <div class="tut-grid">
+            @foreach (var tut in TutorialLibrary.Guitar)
+            {
+                var open = _openId == tut.Id;
+                <div class="tut-card @(open ? "open" : "")">
+                    <button class="tut-card-head" @onclick="() => Toggle(tut.Id)">
+                        <span class="tut-card-icon">@tut.Icon</span>
+                        <span class="tut-card-title">@tut.Title</span>
+                        <span class="tut-chevron">@(open ? "▲" : "▼")</span>
+                    </button>
+                    @if (open)
+                    {
+                        <div class="tut-body">
+                            @foreach (var step in tut.Steps)
+                            {
+                                <div class="tut-step">
+                                    <h3 class="tut-step-title">@step.Title</h3>
+                                    <p class="tut-step-body">@step.Body</p>
+                                    @if (!string.IsNullOrEmpty(step.Pattern))
+                                    {
+                                        <div class="tut-pattern">@step.Pattern</div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(step.Example))
+                                    {
+                                        <div class="tut-example">💡 @step.Example</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @* ── Piano ── *@
+    @if (_tab == "piano")
+    {
+        <div class="tut-grid">
+            @foreach (var tut in TutorialLibrary.Piano)
+            {
+                var open = _openId == tut.Id;
+                <div class="tut-card @(open ? "open" : "")">
+                    <button class="tut-card-head" @onclick="() => Toggle(tut.Id)">
+                        <span class="tut-card-icon">@tut.Icon</span>
+                        <span class="tut-card-title">@tut.Title</span>
+                        <span class="tut-chevron">@(open ? "▲" : "▼")</span>
+                    </button>
+                    @if (open)
+                    {
+                        <div class="tut-body">
+                            @foreach (var step in tut.Steps)
+                            {
+                                <div class="tut-step">
+                                    <h3 class="tut-step-title">@step.Title</h3>
+                                    <p class="tut-step-body">@step.Body</p>
+                                    @if (!string.IsNullOrEmpty(step.Pattern))
+                                    {
+                                        <div class="tut-pattern">@step.Pattern</div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(step.Example))
+                                    {
+                                        <div class="tut-example">💡 @step.Example</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @* ── Vocal ── *@
+    @if (_tab == "vocal")
+    {
+        <div class="tut-grid">
+            @foreach (var ex in VocalLibrary.Warmups)
+            {
+                var open = _openId == ex.Id;
+                <div class="tut-card @(open ? "open" : "")">
+                    <button class="tut-card-head" @onclick="() => Toggle(ex.Id)">
+                        <span class="tut-card-icon">@ex.Icon</span>
+                        <div class="tut-card-title-group">
+                            <span class="tut-card-title">@ex.Title</span>
+                            <span class="tut-card-dur">⏱ @ex.Duration</span>
+                        </div>
+                        <span class="tut-chevron">@(open ? "▲" : "▼")</span>
+                    </button>
+                    @if (open)
+                    {
+                        <div class="tut-body">
+                            <p class="tut-step-body">@ex.Description</p>
+                            @if (!string.IsNullOrEmpty(ex.Pattern))
+                            {
+                                <div class="tut-pattern">@ex.Pattern</div>
+                            }
+                            <ol class="tut-steps-list">
+                                @foreach (var step in ex.Steps)
+                                {
+                                    <li class="tut-step-item">@step</li>
+                                }
+                            </ol>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @* ── Recording (all tabs) ── *@
+    <div class="sh-section tut-rec-section">
+        <h2 class="sh-section-title">⏺ Optag din øvelse</h2>
+        <p class="tut-rec-hint">Optag mens du øver — hør dig selv bagefter</p>
+        @if (!string.IsNullOrEmpty(_recError))
+        {
+            <div class="sh-rec-error">@_recError</div>
+        }
+        @if (!_recording)
+        {
+            <button class="sh-btn-rec" @onclick="StartRec">⏺ Start optagelse</button>
+        }
+        else
+        {
+            <button class="sh-btn-rec sh-btn-stop" @onclick="StopRec">⏹ Stop (@_recSec s)</button>
+        }
+        @if (_recordings.Count > 0)
+        {
+            <div class="sh-rec-header">Dine optagelser</div>
+            <div class="sh-recordings">
+                @foreach (var (b64, i) in _recordings.Select((r, i) => (r, i + 1)))
+                {
+                    <div class="sh-recording-row">
+                        <span class="sh-rec-label">Øvelse @i</span>
+                        <button class="sh-btn-play" @onclick="() => PlayRec(b64)">▶ Afspil</button>
+                        <button class="sh-btn-del"  @onclick="() => _recordings.Remove(b64)">✕</button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+</div>
+
+@code {
+    private string _tab = "guitar";
+    private string? _openId;
+
+    private bool _recording;
+    private int _recSec;
+    private System.Timers.Timer? _recTimer;
+    private string _recError = "";
+    private List<string> _recordings = new();
+
+    private void Toggle(string id) => _openId = _openId == id ? null : id;
+
+    private async Task StartRec()
+    {
+        _recError = "";
+        _recSec = 0;
+        _recTimer = new System.Timers.Timer(1000) { AutoReset = true };
+        _recTimer.Elapsed += async (_, _) => { _recSec++; await InvokeAsync(StateHasChanged); };
+        _recTimer.Start();
+        _recording = true;
+        try { await JS.InvokeVoidAsync("musicHelper.startRecording"); }
+        catch (JSException ex)
+        {
+            _recTimer?.Stop(); _recTimer?.Dispose();
+            _recording = false; _recSec = 0;
+            _recError = $"Mikrofon ikke tilgængelig: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task StopRec()
+    {
+        _recTimer?.Stop(); _recTimer?.Dispose();
+        _recording = false;
+        var b64 = await JS.InvokeAsync<string>("musicHelper.stopRecording");
+        if (!string.IsNullOrEmpty(b64)) _recordings.Add(b64);
+    }
+
+    private async Task PlayRec(string b64) =>
+        await JS.InvokeVoidAsync("musicHelper.playBase64Audio", b64);
+}

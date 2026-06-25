@@ -1,0 +1,469 @@
+@page "/room/{Code}"
+@implements IDisposable
+@inject RoomService Rooms
+@inject SongService Songs
+@inject ScoringService Scoring
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>SangLeg — @Code</PageTitle>
+
+@if (_room == null)
+{
+    <div class="g-center"><p class="g-sub">Rum ikke fundet. <a href="/">Gå tilbage</a></p></div>
+    return;
+}
+
+@* ══════════════════════════════════════════════════════ LOBBY *@
+@if (_room.Phase == GamePhase.Lobby)
+{
+    <div class="g-center">
+        <div class="g-lobby">
+            <div class="g-code-display">@Code</div>
+            <p class="g-sub">Åbn <strong>localhost:5300</strong> og skriv denne kode</p>
+            <div class="g-players">
+                @foreach (var p in _room.Players)
+                {
+                    <div class="g-player-chip">@p.Name @(p.IsHost ? "👑" : "")</div>
+                }
+            </div>
+            @if (_isHost)
+            {
+                <button class="g-btn g-btn-big" @onclick="StartGame"
+                        disabled="@(_room.Players.Count < 2)">
+                    🎮 Start spil (@_room.Players.Count spillere)
+                </button>
+                @if (_room.Players.Count < 2)
+                {
+                    <p class="g-hint">Vent på mindst 2 spillere</p>
+                }
+            }
+            else
+            {
+                <p class="g-hint">Venter på at @(_room.Players.FirstOrDefault(p => p.IsHost)?.Name ?? "vært") starter...</p>
+            }
+        </div>
+    </div>
+}
+
+@* ══════════════════════════════════════════════════════ COUNTDOWN *@
+@if (_room.Phase == GamePhase.Countdown)
+{
+    <div class="g-center g-countdown-screen">
+        <div class="g-round-badge">Sang @(_room.Active?.Number) / @GameRoom.TotalRounds</div>
+        <div class="g-big-count">@_countdown</div>
+        <p class="g-sub">Lyt godt efter...</p>
+    </div>
+}
+
+@* ══════════════════════════════════════════════════════ PLAYING *@
+@if (_room.Phase == GamePhase.Playing)
+{
+    <div class="g-play-screen">
+        <div class="g-round-badge">Sang @(_room.Active?.Number) / @GameRoom.TotalRounds</div>
+        <div class="g-music-anim">🎵</div>
+        <div class="g-scores-mini">
+            @foreach (var p in _room.Players.OrderByDescending(x => x.Score))
+            {
+                <span class="g-score-chip">@p.Name @p.Score</span>
+            }
+        </div>
+        <button class="g-buzz-btn" @onclick="BuzzIn">
+            🙋 JEG KENDER DEN!
+        </button>
+    </div>
+}
+
+@* ══════════════════════════════════════════════════════ BUZZED IN *@
+@if (_room.Phase == GamePhase.BuzzedIn && _room.Active != null)
+{
+    <div class="g-buzzed-screen">
+        <div class="g-round-badge">Sang @_room.Active.Number / @GameRoom.TotalRounds</div>
+        <div class="g-singer-name">🎤 @_room.Active.BuzzedPlayerName</div>
+        <div class="g-big-count">@_countdown</div>
+        <p class="g-sub">
+            @if (_isSinger) { <span>Du synger om lidt — lær teksten!</span> }
+            else { <span>@_room.Active.BuzzedPlayerName synger om lidt...</span> }
+        </p>
+        @if (!string.IsNullOrEmpty(_room.Active.Lyrics))
+        {
+            <div class="g-lyrics-box">
+                @foreach (var line in _room.Active.Lyrics.Split('\n'))
+                {
+                    <div class="g-lyric-line">@line</div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="g-no-lyrics">
+                <p>🎵 @_room.Active.SongTitle</p>
+                <p class="g-hint">Ingen sangtekst gemt — du ved ordene!</p>
+            </div>
+        }
+    </div>
+}
+
+@* ══════════════════════════════════════════════════════ PERFORMING *@
+@if (_room.Phase == GamePhase.Performing && _room.Active != null)
+{
+    <div class="g-perform-screen">
+        <div class="g-round-badge">Sang @_room.Active.Number / @GameRoom.TotalRounds</div>
+
+        @if (_isSinger)
+        {
+            <div class="g-singer-ui">
+                <video id="perf-preview" autoplay muted playsinline class="g-cam-preview"></video>
+                <div class="g-rec-indicator">⏺ OPTAGER</div>
+                @if (!string.IsNullOrEmpty(_room.Active.Lyrics))
+                {
+                    <div class="g-lyrics-scroll">
+                        @foreach (var line in _room.Active.Lyrics.Split('\n'))
+                        {
+                            <div class="g-lyric-line">@line</div>
+                        }
+                    </div>
+                }
+                <button class="g-btn g-btn-stop" @onclick="StopPerformance" disabled="@_scoring">
+                    @(_scoring ? "Analyserer..." : "⏹ Færdig")
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="g-audience-ui">
+                <div class="g-music-anim">🎤</div>
+                <div class="g-singer-name">@_room.Active.BuzzedPlayerName synger!</div>
+                @if (!string.IsNullOrEmpty(_room.Active.Lyrics))
+                {
+                    <div class="g-lyrics-scroll">
+                        @foreach (var line in _room.Active.Lyrics.Split('\n'))
+                        {
+                            <div class="g-lyric-line">@line</div>
+                        }
+                    </div>
+                }
+                <p class="g-hint">Syng med! 🎶</p>
+            </div>
+        }
+    </div>
+}
+
+@* ══════════════════════════════════════════════════════ ROUND RESULT *@
+@if (_room.Phase == GamePhase.RoundResult && _room.CompletedRounds.Any())
+{
+    var r = _room.CompletedRounds.Last();
+    <div class="g-result-screen">
+        <div class="g-round-badge">Sang @r.Number / @GameRoom.TotalRounds</div>
+        <div class="g-result-song">🎵 @r.SongTitle</div>
+        <div class="g-ai-title">@r.AiTitle</div>
+        <div class="g-singer-name">@r.SingerName</div>
+        <div class="g-scores-row">
+            <div class="g-score-box">
+                <div class="g-score-val">@r.CommitmentScore<span>/10</span></div>
+                <div class="g-score-lbl">Engagement</div>
+            </div>
+            <div class="g-score-box">
+                <div class="g-score-val">@r.PresenceScore<span>/10</span></div>
+                <div class="g-score-lbl">Tilstedeværelse</div>
+            </div>
+            <div class="g-score-box g-score-box--points">
+                <div class="g-score-val">+@r.PointsAwarded</div>
+                <div class="g-score-lbl">point</div>
+            </div>
+        </div>
+        <div class="g-ai-feedback">@r.AiFeedback</div>
+        @if (!string.IsNullOrEmpty(r.RecordingBase64))
+        {
+            <button class="g-btn g-btn-outline" @onclick="() => PlayRecording(r)">▶ Afspil performance</button>
+        }
+        <div class="g-leaderboard">
+            @foreach (var (p, i) in _room.Players.OrderByDescending(x => x.Score).Select((p, i) => (p, i)))
+            {
+                <div class="g-lb-row @(i == 0 ? "g-lb-row--first" : "")">
+                    <span class="g-lb-pos">@(i + 1).</span>
+                    <span class="g-lb-name">@p.Name</span>
+                    <span class="g-lb-score">@p.Score</span>
+                </div>
+            }
+        </div>
+        @if (_isHost)
+        {
+            <button class="g-btn" @onclick="NextRound">
+                @(_room.CompletedRounds.Count >= GameRoom.TotalRounds ? "🏆 Se resultater" : "▶ Næste sang")
+            </button>
+        }
+        else { <p class="g-hint">Venter på at værten starter næste sang...</p> }
+    </div>
+}
+
+@* ══════════════════════════════════════════════════════ GAME OVER *@
+@if (_room.Phase == GamePhase.GameOver)
+{
+    var winner = _room.Players.OrderByDescending(p => p.Score).First();
+    <div class="g-gameover-screen">
+        <div class="g-trophy">🏆</div>
+        <h1 class="g-winner">@winner.Name vinder!</h1>
+        <div class="g-final-scores">
+            @foreach (var (p, i) in _room.Players.OrderByDescending(x => x.Score).Select((p, i) => (p, i)))
+            {
+                <div class="g-lb-row @(i == 0 ? "g-lb-row--first" : "")">
+                    <span class="g-lb-pos">@("🥇🥈🥉"[Math.Min(i, 2)].ToString())</span>
+                    <span class="g-lb-name">@p.Name</span>
+                    <span class="g-lb-score">@p.Score point</span>
+                </div>
+            }
+        </div>
+        <h2 class="g-replay-title">🎬 Replay alle performances</h2>
+        <div class="g-replay-list">
+            @foreach (var r in _room.CompletedRounds)
+            {
+                <div class="g-replay-row">
+                    <div class="g-replay-info">
+                        <span class="g-replay-song">@r.SongTitle</span>
+                        <span class="g-replay-singer">@r.SingerName — @r.AiTitle</span>
+                    </div>
+                    <div class="g-replay-pts">+@r.PointsAwarded</div>
+                    @if (!string.IsNullOrEmpty(r.RecordingBase64))
+                    {
+                        <button class="g-btn-play" @onclick="() => PlayRecording(r)">▶</button>
+                    }
+                </div>
+            }
+        </div>
+        <a href="/" class="g-btn" style="display:inline-block;margin-top:1.5rem">Nyt spil</a>
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private GameRoom? _room;
+    private string _playerId = "";
+    private bool _isHost;
+    private bool _isSinger;
+    private bool _scoring;
+    private int _countdown;
+    private DotNetObjectReference<Room>? _dotnetRef;
+    private string _capturedPhoto = "";
+    private string? _lastJsPhase;
+    private bool _initialized;
+
+    protected override void OnInitialized()
+    {
+        Rooms.RoomChanged += OnRoomChanged;
+        _room = Rooms.Get(Code);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // One-time init: resolve player identity from localStorage
+        if (firstRender)
+        {
+            try
+            {
+                _playerId = await JS.InvokeAsync<string?>("localStorage.getItem", "sg_pid") ?? "";
+                if (string.IsNullOrEmpty(_playerId)) { Nav.NavigateTo("/", forceLoad: true); return; }
+                _isHost = _room?.HostPlayerId == _playerId;
+                _isSinger = _room?.Active?.BuzzedPlayerId == _playerId;
+                _dotnetRef = DotNetObjectReference.Create(this);
+                _initialized = true;
+                StateHasChanged();
+            }
+            catch { }
+        }
+
+        // Trigger JS whenever phase changes
+        if (_initialized && _room != null)
+        {
+            var phase = _room.Phase.ToString();
+            if (phase != _lastJsPhase)
+            {
+                _lastJsPhase = phase;
+                await TriggerPhaseJs();
+            }
+        }
+    }
+
+    private async Task OnRoomChanged(string code)
+    {
+        if (code != Code) return;
+        _room = Rooms.Get(Code);
+        _isSinger = _room?.Active?.BuzzedPlayerId == _playerId;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // ── Host actions ─────────────────────────────────────────────────────────
+
+    private async Task StartGame() { if (_isHost) await RunRound(); }
+
+    private async Task NextRound()
+    {
+        if (!_isHost || _room == null) return;
+        if (_room.CompletedRounds.Count >= GameRoom.TotalRounds)
+        {
+            _room.Phase = GamePhase.GameOver;
+            await Rooms.NotifyAsync(Code);
+            return;
+        }
+        await RunRound();
+    }
+
+    private async Task RunRound()
+    {
+        if (_room == null) return;
+        var songs = Songs.PickRandom(1, _room.UsedSongPaths);
+        if (songs.Count == 0) { _room.Phase = GamePhase.GameOver; await Rooms.NotifyAsync(Code); return; }
+
+        var song = songs[0];
+        _room.UsedSongPaths.Add(song.RelativePath);
+        _room.Active = new ActiveRound
+        {
+            Number = _room.CompletedRounds.Count + 1,
+            SongPath = song.RelativePath,
+            SongTitle = song.Title,
+            Lyrics = Songs.GetLyrics(song.RelativePath),
+        };
+        _room.Phase = GamePhase.Countdown;
+        await Rooms.NotifyAsync(Code);
+
+        await CountdownAsync(3, async () =>
+        {
+            _room.Phase = GamePhase.Playing;
+            await Rooms.NotifyAsync(Code);
+        });
+    }
+
+    // ── Player actions ───────────────────────────────────────────────────────
+
+    private async Task BuzzIn()
+    {
+        if (_room?.Phase != GamePhase.Playing) return;
+        var player = _room.Players.FirstOrDefault(p => p.Id == _playerId);
+        if (player == null) return;
+
+        _room.Active!.BuzzedPlayerId = _playerId;
+        _room.Active.BuzzedPlayerName = player.Name;
+        _room.Active.CountdownStart = DateTimeOffset.UtcNow;
+        _room.Phase = GamePhase.BuzzedIn;
+        await JS.InvokeVoidAsync("game.stopAudio");
+        await Rooms.NotifyAsync(Code);
+
+        await CountdownAsync(7, async () =>
+        {
+            if (_room.Phase != GamePhase.BuzzedIn) return;
+            _room.Active!.PerformanceStart = DateTimeOffset.UtcNow;
+            _room.Phase = GamePhase.Performing;
+            await Rooms.NotifyAsync(Code);
+        });
+    }
+
+    private async Task StopPerformance()
+    {
+        if (!_isSinger || _scoring) return;
+        _scoring = true;
+        StateHasChanged();
+        try
+        {
+            var result = await JS.InvokeAsync<PerformanceResult>("game.stopPerformance");
+            await JS.InvokeVoidAsync("game.stopAudio");
+
+            var score = await Scoring.ScorePerformanceAsync(
+                _room!.Active!.SongTitle, _room.Active.Lyrics,
+                result.Transcript, _capturedPhoto,
+                _room.Active.BuzzedPlayerName ?? "");
+
+            Rooms.AddPoints(_room, _playerId, score.Points);
+            _room.CompletedRounds.Add(new CompletedRound
+            {
+                Number = _room.Active.Number,
+                SongTitle = _room.Active.SongTitle,
+                SingerName = _room.Active.BuzzedPlayerName ?? "",
+                AiTitle = score.Title, AiFeedback = score.Feedback,
+                CommitmentScore = score.Commitment, PresenceScore = score.Presence,
+                PointsAwarded = score.Points,
+                RecordingBase64 = result.Recording,
+                RecordingMime = result.HasVideo ? "video/webm" : "audio/webm",
+                HasVideo = result.HasVideo,
+            });
+            _room.Phase = GamePhase.RoundResult;
+            await Rooms.NotifyAsync(Code);
+        }
+        finally { _scoring = false; _capturedPhoto = ""; }
+    }
+
+    [JSInvokable]
+    public async Task OnClipEnded()
+    {
+        if (_room?.Phase == GamePhase.Playing && _isHost)
+        {
+            _room.CompletedRounds.Add(new CompletedRound
+            {
+                Number = _room.Active?.Number ?? 0,
+                SongTitle = _room.Active?.SongTitle ?? "",
+                SingerName = "—", AiTitle = "Ingen sang denne runde",
+                AiFeedback = "Ingen turde synge! 😅",
+                CommitmentScore = 0, PresenceScore = 0, PointsAwarded = 0
+            });
+            _room.Phase = GamePhase.RoundResult;
+            await Rooms.NotifyAsync(Code);
+        }
+    }
+
+    [JSInvokable]
+    public Task OnPhotoCapture(string base64Jpeg)
+    {
+        _capturedPhoto = base64Jpeg;
+        return Task.CompletedTask;
+    }
+
+    // ── JS triggers ──────────────────────────────────────────────────────────
+
+    private async Task TriggerPhaseJs()
+    {
+        if (_room == null || _dotnetRef == null) return;
+        switch (_room.Phase)
+        {
+            case GamePhase.Playing:
+                var url = Songs.GetStreamUrl(_room.Active!.SongPath);
+                await JS.InvokeVoidAsync("game.playClip", url, 45, _dotnetRef);
+                break;
+            case GamePhase.Performing:
+                await JS.InvokeVoidAsync("game.stopAudio");
+                if (_isSinger)
+                {
+                    var perfUrl = Songs.GetStreamUrl(_room.Active!.SongPath);
+                    await JS.InvokeVoidAsync("game.restartClip", perfUrl, _dotnetRef);
+                    await JS.InvokeVoidAsync("game.startPerformance", "perf-preview", _dotnetRef);
+                }
+                break;
+        }
+    }
+
+    private async Task PlayRecording(CompletedRound r)
+    {
+        if (string.IsNullOrEmpty(r.RecordingBase64)) return;
+        await JS.InvokeVoidAsync("game.playRecording", r.RecordingBase64, r.RecordingMime);
+    }
+
+    private async Task CountdownAsync(int from, Func<Task> onDone)
+    {
+        _countdown = from;
+        await InvokeAsync(StateHasChanged);
+        for (int i = from - 1; i >= 0; i--)
+        {
+            await Task.Delay(1000);
+            _countdown = i;
+            await InvokeAsync(StateHasChanged);
+        }
+        await onDone();
+    }
+
+    public void Dispose()
+    {
+        Rooms.RoomChanged -= OnRoomChanged;
+        _dotnetRef?.Dispose();
+    }
+
+    private record PerformanceResult(string Recording, string Transcript, bool HasVideo);
+}

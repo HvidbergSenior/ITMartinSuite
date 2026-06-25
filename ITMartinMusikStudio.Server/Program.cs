@@ -65,7 +65,8 @@ app.MapPost("/api/recording/{songKey}", async (string songKey, HttpRequest req, 
     Directory.CreateDirectory(dir);
 
     var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-    var dest = Path.Combine(dir, $"take-{timestamp}.webm");
+    var prefix = req.ContentType?.Contains("video") == true ? "vtake" : "take";
+    var dest = Path.Combine(dir, $"{prefix}-{timestamp}.webm");
 
     await using var stream = File.Create(dest);
     await req.Body.CopyToAsync(stream);

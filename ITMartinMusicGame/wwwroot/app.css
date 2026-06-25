@@ -1,0 +1,371 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: #0a0a12;
+    color: #eeeef8;
+    height: 100%;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Shared ───────────────────────────────────────────── */
+
+.g-center {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.g-title-logo { font-size: 4rem; text-align: center; margin-bottom: .5rem; }
+.g-title { font-size: 2.2rem; font-weight: 800; text-align: center; color: #fff; }
+.g-sub { text-align: center; color: #888; font-size: 1rem; margin-top: .4rem; }
+.g-hint { text-align: center; color: #666; font-size: .88rem; margin-top: .5rem; }
+.g-error { background: #2a1010; border: 1px solid #6a2020; color: #ff8080; border-radius: 10px; padding: .6rem 1rem; text-align: center; margin: .5rem 0; font-size: .92rem; }
+
+.g-round-badge {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    background: #1e1e30;
+    border: 1px solid #3a3a60;
+    color: #888;
+    font-size: .8rem;
+    font-weight: 600;
+    padding: .3rem .7rem;
+    border-radius: 20px;
+}
+
+/* ── Buttons ──────────────────────────────────────────── */
+
+.g-btn {
+    display: block;
+    width: 100%;
+    background: #6c63ff;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 1rem;
+    cursor: pointer;
+    margin-top: .75rem;
+    transition: background .15s, transform .1s;
+    text-align: center;
+    text-decoration: none;
+}
+.g-btn:active { transform: scale(.97); }
+.g-btn:disabled { opacity: .45; cursor: default; }
+.g-btn:hover:not(:disabled) { background: #7c73ff; }
+.g-btn-big { font-size: 1.3rem; padding: 1.2rem; }
+.g-btn-stop { background: #c03030; }
+.g-btn-stop:hover:not(:disabled) { background: #e03030; }
+.g-btn-outline { background: none; border: 2px solid #6c63ff; color: #6c63ff; }
+.g-btn-outline:hover { background: #6c63ff; color: #fff; }
+.g-btn-play {
+    background: #2a3a2a;
+    border: none;
+    border-radius: 8px;
+    color: #80c080;
+    font-size: 1.1rem;
+    padding: .5rem .9rem;
+    cursor: pointer;
+}
+.g-btn-play:hover { background: #3a5a3a; }
+
+/* ── Join screen ──────────────────────────────────────── */
+
+.g-join-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+.g-tabs { display: flex; gap: .5rem; margin: 1.5rem 0 1rem; }
+.g-tab {
+    flex: 1;
+    background: none;
+    border: 2px solid #2a2a40;
+    border-radius: 10px;
+    color: #888;
+    font-size: 1rem;
+    padding: .55rem;
+    cursor: pointer;
+    transition: all .15s;
+}
+.g-tab.active { background: #6c63ff; border-color: #6c63ff; color: #fff; }
+
+.g-form { display: flex; flex-direction: column; gap: .4rem; }
+.g-input {
+    background: #1a1a28;
+    border: 2px solid #2a2a40;
+    border-radius: 12px;
+    color: #eeeef8;
+    font-size: 1.1rem;
+    padding: .85rem 1rem;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s;
+}
+.g-input:focus { border-color: #6c63ff; }
+.g-code-input { text-align: center; font-size: 1.5rem !important; font-weight: 700; letter-spacing: .3em !important; }
+
+/* ── Lobby ────────────────────────────────────────────── */
+
+.g-lobby { width: 100%; max-width: 420px; }
+.g-code-display {
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: .3em;
+    text-align: center;
+    color: #a0a0ff;
+    background: #1a1a28;
+    border: 2px solid #3a3a60;
+    border-radius: 16px;
+    padding: 1rem;
+    margin-bottom: .5rem;
+}
+.g-players { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: 1rem 0; }
+.g-player-chip {
+    background: #1e1e30;
+    border: 1px solid #3a3a60;
+    border-radius: 20px;
+    padding: .4rem .9rem;
+    font-size: .95rem;
+    color: #c8c8f0;
+}
+
+/* ── Countdown ────────────────────────────────────────── */
+
+.g-countdown-screen { position: relative; flex-direction: column; }
+.g-big-count {
+    font-size: 8rem;
+    font-weight: 900;
+    color: #6c63ff;
+    line-height: 1;
+    animation: pulse .9s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+/* ── Playing ──────────────────────────────────────────── */
+
+.g-play-screen {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    position: relative;
+    gap: 1.5rem;
+}
+
+.g-music-anim {
+    font-size: 5rem;
+    animation: bounce 1s ease-in-out infinite;
+}
+@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+
+.g-scores-mini { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }
+.g-score-chip {
+    background: #1e1e30;
+    border: 1px solid #3a3a60;
+    border-radius: 20px;
+    padding: .3rem .8rem;
+    font-size: .85rem;
+    color: #9090c0;
+}
+
+.g-buzz-btn {
+    background: linear-gradient(135deg, #e82060, #ff6030);
+    border: none;
+    border-radius: 20px;
+    color: #fff;
+    font-size: 1.6rem;
+    font-weight: 800;
+    padding: 1.4rem 2rem;
+    cursor: pointer;
+    box-shadow: 0 8px 32px #e8206040;
+    transition: transform .1s, box-shadow .1s;
+    width: 100%;
+    max-width: 380px;
+}
+.g-buzz-btn:active { transform: scale(.95); box-shadow: 0 4px 16px #e8206040; }
+
+/* ── Buzzed in ────────────────────────────────────────── */
+
+.g-buzzed-screen {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 4rem 1.5rem 2rem;
+    position: relative;
+    gap: 1rem;
+    overflow-y: auto;
+}
+
+.g-singer-name {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #fff;
+    text-align: center;
+}
+
+/* ── Lyrics ───────────────────────────────────────────── */
+
+.g-lyrics-box, .g-lyrics-scroll {
+    background: #0f0f1a;
+    border: 1px solid #2a2a50;
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    width: 100%;
+    max-width: 500px;
+    max-height: 45vh;
+    overflow-y: auto;
+}
+.g-lyric-line {
+    font-size: 1.05rem;
+    line-height: 1.9;
+    color: #d0d0f0;
+    border-bottom: 1px solid #1a1a30;
+    padding: .1rem 0;
+}
+.g-lyric-line:last-child { border-bottom: none; }
+.g-no-lyrics { text-align: center; padding: 1rem; color: #888; }
+
+/* ── Performing ───────────────────────────────────────── */
+
+.g-perform-screen {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3.5rem 1.5rem 2rem;
+    position: relative;
+    gap: 1rem;
+    overflow-y: auto;
+}
+
+.g-singer-ui, .g-audience-ui {
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .75rem;
+}
+
+.g-cam-preview {
+    width: 100%;
+    max-width: 360px;
+    border-radius: 14px;
+    background: #111;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+}
+
+.g-rec-indicator {
+    background: #c02020;
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    padding: .3rem .9rem;
+    border-radius: 20px;
+    animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* ── Round result ─────────────────────────────────────── */
+
+.g-result-screen {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3.5rem 1.5rem 2rem;
+    position: relative;
+    gap: 1rem;
+    overflow-y: auto;
+}
+
+.g-result-song { font-size: 1.1rem; color: #888; text-align: center; }
+.g-ai-title {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #a0a0ff;
+    text-align: center;
+    line-height: 1.2;
+}
+.g-scores-row { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+.g-score-box {
+    background: #1a1a28;
+    border: 1px solid #2a2a50;
+    border-radius: 14px;
+    padding: .75rem 1.25rem;
+    text-align: center;
+    min-width: 90px;
+}
+.g-score-box--points { border-color: #6c63ff; background: #1a1a38; }
+.g-score-val { font-size: 2rem; font-weight: 800; color: #fff; }
+.g-score-val span { font-size: 1rem; color: #888; }
+.g-score-lbl { font-size: .78rem; color: #888; margin-top: .2rem; text-transform: uppercase; letter-spacing: .05em; }
+
+.g-ai-feedback {
+    background: #111120;
+    border-left: 3px solid #6c63ff;
+    border-radius: 0 10px 10px 0;
+    padding: .75rem 1rem;
+    font-size: .95rem;
+    color: #c0c0e8;
+    line-height: 1.6;
+    max-width: 500px;
+    width: 100%;
+}
+
+.g-leaderboard { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: .4rem; margin-top: .5rem; }
+.g-lb-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    background: #1a1a28;
+    border: 1px solid #2a2a40;
+    border-radius: 12px;
+    padding: .55rem 1rem;
+}
+.g-lb-row--first { border-color: #ffd700; background: #1a1a20; }
+.g-lb-pos { font-size: .9rem; color: #888; width: 1.5rem; }
+.g-lb-name { flex: 1; font-weight: 600; }
+.g-lb-score { font-size: 1rem; font-weight: 700; color: #a0a0ff; }
+
+/* ── Game over ────────────────────────────────────────── */
+
+.g-gameover-screen {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1.5rem;
+    gap: 1rem;
+    overflow-y: auto;
+}
+.g-trophy { font-size: 5rem; text-align: center; }
+.g-winner { font-size: 2rem; font-weight: 800; color: #ffd700; text-align: center; }
+.g-final-scores { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: .4rem; }
+.g-replay-title { font-size: 1.1rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .06em; }
+.g-replay-list { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: .5rem; }
+.g-replay-row {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    background: #1a1a28;
+    border: 1px solid #2a2a40;
+    border-radius: 12px;
+    padding: .65rem 1rem;
+}
+.g-replay-info { flex: 1; display: flex; flex-direction: column; gap: .15rem; }
+.g-replay-song { font-size: .95rem; font-weight: 600; }
+.g-replay-singer { font-size: .8rem; color: #6c63ff; }
+.g-replay-pts { font-size: .9rem; font-weight: 700; color: #a0a0ff; white-space: nowrap; }

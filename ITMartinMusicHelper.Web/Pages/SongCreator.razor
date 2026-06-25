@@ -1,194 +1,251 @@
-﻿@page "/"
+@page "/"
+@inject GuitarAiService Ai
+@inject IJSRuntime JS
 
-@using ITMartinMusicHelper.Application.Helpers
-@using ITMartinMusicHelper.Application.Interfaces
-@using ITMartinMusicHelper.Domain.Entities
+<PageTitle>SongHelper — Skriv din sang</PageTitle>
 
-@inject IMelodyService MelodyService
-@inject IChordService ChordService
-@inject IPickingService PickingService
-@inject IStructureService StructureService
-@inject IPracticeService PracticeService
+<div class="sh-wrap">
 
-<div class="page-container">
-
-    <div class="song-flow">
-
-        <!-- SUMMARY -->
-        <div class="song-summary">
-            <div>
-                <div class="summary-label">Chord</div>
-                <div class="summary-value">
-                    @(selectedProgression != null
-                        ? string.Join(" - ", selectedProgression.Chords)
-                        : "—")
-                </div>
-            </div>
-
-            <div>
-                <div class="summary-label">Picking</div>
-                <div class="summary-value">
-                    @(selectedPattern?.Name ?? "—")
-                </div>
-            </div>
-
-            <div>
-                <div class="summary-label">Melody</div>
-                <div class="summary-value">
-                    @(selectedIdeaIds.Count > 0 ? $"{selectedIdeaIds.Count} ideas" : "—")
-                </div>
-            </div>
-
-            <div>
-                <div class="summary-label">Structure</div>
-                <div class="summary-value">
-                    @(selectedStructure?.Name ?? "—")
-                </div>
+    @* ── Phase 0: Mood selection ── *@
+    @if (_phase == Phase.Mood)
+    {
+        <div class="sh-hero">
+            <div class="sh-guitar-icon">🎸</div>
+            <h1 class="sh-title">Lad os skrive en sang</h1>
+            <p class="sh-sub">Hvad skal stemningen være?</p>
+            <div class="sh-moods">
+                <button class="sh-mood-btn" @onclick='() => StartSession("glad")'>😄 Glad</button>
+                <button class="sh-mood-btn" @onclick='() => StartSession("trist")'>😢 Trist</button>
+                <button class="sh-mood-btn" @onclick='() => StartSession("kraftfuld")'>🔥 Kraftfuld</button>
+                <button class="sh-mood-btn" @onclick='() => StartSession("rolig")'>🌙 Rolig</button>
             </div>
         </div>
+    }
 
-        <!-- STEP 1 -->
-        <div class="step">
-            <h2>1. Chord Progression</h2>
-
-            @foreach (var prog in progressions ?? [])
-            {
-                var active = selectedProgression == prog;
-
-                <div class="list-item @(active ? "active" : "")"
-                     @onclick="() => SelectProgression(prog)">
-
-                    <div>
-                        <div class="item-title">@prog.Name</div>
-                        <div class="item-sub">@prog.Mood</div>
-                    </div>
-
-                    <div class="item-preview">
-                        @string.Join(" - ", prog.Chords)
-                    </div>
-                </div>
-            }
+    @* ── Phase 1: Loading ── *@
+    @if (_phase == Phase.Loading)
+    {
+        <div class="sh-loading">
+            <div class="sh-spinner"></div>
+            <p>Finder en god plan til dig...</p>
         </div>
+    }
 
-        <!-- STEP 2 -->
-        @if (selectedProgression != null)
-        {
-            <div class="step">
-                <h2>2. Picking Pattern</h2>
+    @* ── Phase 2: Session ── *@
+    @if (_phase == Phase.Session && _session != null)
+    {
+        <div class="sh-session">
 
-                @foreach (var pattern in patterns ?? [])
-                {
-                    var active = selectedPattern == pattern;
-
-                    <div class="list-item @(active ? "active" : "")"
-                         @onclick="() => SelectPattern(pattern)">
-
-                        <div>
-                            <div class="item-title">@pattern.Name</div>
-                            <div class="item-sub">@pattern.Pattern</div>
-                        </div>
-                    </div>
-                }
+            <div class="sh-session-header">
+                <span class="sh-mood-tag">@_mood.ToUpper()</span>
+                <button class="sh-restart" @onclick="Restart">← ny stemning</button>
             </div>
-        }
 
-        <!-- STEP 3 -->
-        @if (selectedPattern != null && melodyIdeas != null)
-        {
-            <div class="step">
-                <h2>3. Melody Ideas</h2>
-
-                @foreach (var idea in melodyIdeas)
-                {
-                    var active = selectedIdeaIds.Contains(idea.Id);
-
-                    <div class="list-item @(active ? "active" : "")"
-                         @onclick="() => ToggleIdea(idea)">
-
-                        <div>
-                            <div class="item-title">@idea.Title</div>
-                            <div class="item-sub">@idea.Description</div>
+            @* Chord progression *@
+            <section class="sh-section">
+                <h2 class="sh-section-title">🎵 Akkorder</h2>
+                <div class="sh-chord-flow">
+                    @foreach (var chord in _session.Chords)
+                    {
+                        <div class="sh-chord-pill-wrap">
+                            <span class="sh-chord-pill">@ChordNames.DanishSymbol(chord)</span>
+                            <span class="sh-chord-full-name">@ChordNames.FullName(chord)</span>
                         </div>
-                    </div>
-                }
-            </div>
-        }
+                    }
+                </div>
+            </section>
 
-        <!-- STEP 4 -->
-        @if (selectedIdeaIds.Any() && structures != null)
-        {
-            <div class="step">
-                <h2>4. Song Structure</h2>
+            @* Strumming *@
+            <section class="sh-section">
+                <h2 class="sh-section-title">🥁 Strum-mønster</h2>
+                <div class="sh-strum">@_session.StrummingPattern</div>
+                <p class="sh-strum-desc">@_session.StrummingDescription</p>
+            </section>
 
-                @foreach (var structure in structures)
+            @* Chord diagrams *@
+            <section class="sh-section">
+                <h2 class="sh-section-title">🖐 Grebsbilleder</h2>
+                <p class="sh-hint">Tryk på en akkord for at skifte grebsform</p>
+                <div class="sh-chord-cards">
+                    @foreach (var chord in _session.Chords)
+                    {
+                        var voicings = ChordLibrary.GetVoicings(chord);
+                        var idx = _voicingIndex.GetValueOrDefault(chord, 0);
+                        var current = voicings.Length > 0 ? voicings[Math.Min(idx, voicings.Length - 1)] : null;
+                        <div class="sh-chord-card" @onclick="() => NextVoicing(chord, voicings.Length)">
+                            <div class="sh-chord-card-name">@ChordNames.DanishSymbol(chord)</div>
+                            <div class="sh-chord-card-full">@ChordNames.FullName(chord)</div>
+                            @if (current != null)
+                            {
+                                <ChordDiagram Voicing="current" />
+                                <div class="sh-voicing-tip">@current.Tip</div>
+                                <div class="sh-voicing-nav">@(idx + 1) / @voicings.Length  →</div>
+                                @if (_session.TransitionTips.TryGetValue(GetTransitionKey(chord), out var tt))
+                                {
+                                    <div class="sh-transition-tip">➡ @tt</div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+
+            @* Melody tips *@
+            <section class="sh-section">
+                <h2 class="sh-section-title">🎤 Melodi-tips</h2>
+                <ul class="sh-tips-list">
+                    @foreach (var tip in _session.MelodyTips)
+                    {
+                        <li class="sh-tip">@tip</li>
+                    }
+                </ul>
+                <div class="sh-general-tip">💡 @_session.GeneralTip</div>
+            </section>
+
+            @* More tips from AI *@
+            <section class="sh-section">
+                <button class="sh-btn-outline" @onclick="GetMoreTips" disabled="@_moreTipsLoading">
+                    @(_moreTipsLoading ? "Henter tips..." : "🤖 Få flere tips fra AI")
+                </button>
+                @if (!string.IsNullOrEmpty(_moreTips))
                 {
-                    var active = selectedStructure == structure;
+                    <div class="sh-more-tips">@_moreTips</div>
+                }
+            </section>
 
-                    <div class="list-item @(active ? "active" : "")"
-                         @onclick="() => SelectStructure(structure)">
-
-                        <div>
-                            <div class="item-title">@structure.Name</div>
-                            <div class="item-sub">
-                                @string.Join(" → ", structure.Sections)
+            @* Recording *@
+            <section class="sh-section">
+                <h2 class="sh-section-title">⏺ Optag din idé</h2>
+                @if (!string.IsNullOrEmpty(_recError))
+                {
+                    <div class="sh-rec-error">@_recError</div>
+                }
+                @if (!_recording)
+                {
+                    <button class="sh-btn-rec" @onclick="StartRecording">⏺ Start optagelse</button>
+                }
+                else
+                {
+                    <button class="sh-btn-rec sh-btn-stop" @onclick="StopRecording">⏹ Stop (@_recSeconds s)</button>
+                }
+                @if (_recordings.Count > 0)
+                {
+                    <h3 class="sh-rec-header">Dine optagelser</h3>
+                    <div class="sh-recordings">
+                        @foreach (var (b64, i) in _recordings.Select((r, i) => (r, i + 1)))
+                        {
+                            <div class="sh-recording-row">
+                                <span class="sh-rec-label">Idé @i</span>
+                                <button class="sh-btn-play" @onclick="() => PlayRecording(b64)">▶ Afspil</button>
+                                <button class="sh-btn-del" @onclick="() => DeleteRecording(b64)">✕</button>
                             </div>
-                        </div>
+                        }
                     </div>
                 }
-            </div>
-        }
+            </section>
 
-    </div>
+        </div>
+    }
 
 </div>
 
 @code {
-    private List<ChordProgression>? progressions;
-    private List<PickingPattern>? patterns;
-    private List<MelodyIdea>? melodyIdeas;
-    private HashSet<string> selectedIdeaIds = new();
-    private List<SongStructure>? structures;
-    private SongStructure? selectedStructure;
-    private ChordProgression? selectedProgression;
-    private PickingPattern? selectedPattern;
+    private enum Phase { Mood, Loading, Session }
+    private Phase _phase = Phase.Mood;
 
-    protected override void OnInitialized()
+    private string _mood = "";
+    private SongSession? _session;
+    private Dictionary<string, int> _voicingIndex = new();
+
+    private bool _recording;
+    private int _recSeconds;
+    private System.Timers.Timer? _recTimer;
+    private string _recError = "";
+    private List<string> _recordings = new();
+
+    private bool _moreTipsLoading;
+    private string _moreTips = "";
+
+    private async Task StartSession(string mood)
     {
-        progressions = ChordService.GetProgressions();
-        patterns = PickingService.GetPatterns();
-        structures = StructureService.GetStructures();
+        _mood = mood;
+        _phase = Phase.Loading;
+        StateHasChanged();
+
+        _session = await Ai.GenerateSessionAsync(mood);
+        _voicingIndex = _session.Chords.ToDictionary(c => c, _ => 0);
+        _phase = Phase.Session;
     }
 
-    private void SelectProgression(ChordProgression prog)
+    private void Restart()
     {
-        selectedProgression = prog;
-        selectedPattern = null;
-        melodyIdeas = null;
-        selectedIdeaIds.Clear();
-        selectedStructure = null;
+        _phase = Phase.Mood;
+        _session = null;
+        _voicingIndex.Clear();
+        _moreTips = "";
+        _recError = "";
     }
 
-    private void SelectPattern(PickingPattern pattern)
+    private void NextVoicing(string chord, int count)
     {
-        selectedPattern = pattern;
-
-        if (selectedProgression != null)
-            melodyIdeas = MelodyService.GetIdeas(selectedProgression.Chords);
-
-        selectedIdeaIds.Clear();
-        selectedStructure = null;
+        if (count == 0) return;
+        _voicingIndex[chord] = (_voicingIndex.GetValueOrDefault(chord, 0) + 1) % count;
     }
 
-    private void SelectStructure(SongStructure structure)
+    private string GetTransitionKey(string chord)
     {
-        selectedStructure = structure;
+        if (_session == null) return "";
+        var chords = _session.Chords;
+        var i = Array.IndexOf(chords, chord);
+        if (i < 0 || i >= chords.Length - 1) return "";
+        return $"{chords[i]}→{chords[i + 1]}";
     }
 
-    private void ToggleIdea(MelodyIdea idea)
+    private async Task StartRecording()
     {
-        if (selectedIdeaIds.Contains(idea.Id))
-            selectedIdeaIds.Remove(idea.Id);
-        else
-            selectedIdeaIds.Add(idea.Id);
+        _recError = "";
+        _recSeconds = 0;
+        _recTimer = new System.Timers.Timer(1000) { AutoReset = true };
+        _recTimer.Elapsed += async (_, _) => { _recSeconds++; await InvokeAsync(StateHasChanged); };
+        _recTimer.Start();
+        _recording = true;
+        try
+        {
+            await JS.InvokeVoidAsync("musicHelper.startRecording");
+        }
+        catch (JSException ex)
+        {
+            _recTimer?.Stop(); _recTimer?.Dispose();
+            _recording = false; _recSeconds = 0;
+            _recError = $"Mikrofon ikke tilgængelig: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task StopRecording()
+    {
+        _recTimer?.Stop(); _recTimer?.Dispose();
+        _recording = false;
+        var b64 = await JS.InvokeAsync<string>("musicHelper.stopRecording");
+        if (!string.IsNullOrEmpty(b64))
+            _recordings.Add(b64);
+    }
+
+    private async Task PlayRecording(string b64)
+    {
+        await JS.InvokeVoidAsync("musicHelper.playBase64Audio", b64);
+    }
+
+    private void DeleteRecording(string b64)
+    {
+        _recordings.Remove(b64);
+    }
+
+    private async Task GetMoreTips()
+    {
+        if (_session == null || _moreTipsLoading) return;
+        _moreTipsLoading = true;
+        _moreTips = await Ai.GetMoreTipsAsync(_session.Chords, _mood);
+        _moreTipsLoading = false;
     }
 }

@@ -57,8 +57,10 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var ok = await JS.InvokeAsync<string?>("localStorage.getItem", "studio_auth");
-        if (ok != "1") { Nav.NavigateTo("/"); return; }
+        string? ok;
+        try { ok = await JS.InvokeAsync<string?>("localStorage.getItem", "studio_auth"); }
+        catch { return; }
+        if (ok != "1") { Nav.NavigateTo("/", forceLoad: true); return; }
 
         _sourceFiles = Library.GetSourceFiles();
         _songs = await Db.Songs.ToListAsync();
