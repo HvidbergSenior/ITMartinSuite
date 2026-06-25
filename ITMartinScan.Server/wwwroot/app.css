@@ -1,0 +1,159 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    background: #000;
+    color: #111;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Camera ───────────────────────────────────────────── */
+
+.s-cam {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ── Capture button ───────────────────────────────────── */
+
+.s-capture-btn {
+    position: fixed;
+    bottom: max(2rem, env(safe-area-inset-bottom, 2rem));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    border: 4px solid rgba(255,255,255,0.5);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 0 0 6px #e0e0e0;
+    cursor: pointer;
+    z-index: 10;
+    transition: transform .1s;
+}
+.s-capture-btn:active { transform: translateX(-50%) scale(.92); }
+
+/* ── Analyzing overlay ────────────────────────────────── */
+
+.s-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    z-index: 20;
+}
+
+.s-spinner {
+    width: 52px;
+    height: 52px;
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.s-overlay-txt {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+}
+
+/* ── Result sheet ─────────────────────────────────────── */
+
+.s-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-radius: 22px 22px 0 0;
+    padding: 1rem 1.5rem max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+    z-index: 30;
+    box-shadow: 0 -6px 40px rgba(0,0,0,0.35);
+    max-height: 80dvh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.s-sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    align-self: center;
+    margin-bottom: .5rem;
+}
+
+.s-name {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #111;
+    line-height: 1.15;
+}
+
+.s-type {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6c63ff;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+.s-row {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-top: .25rem;
+}
+
+.s-price {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1a7a3a;
+}
+
+.s-year {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #888;
+}
+
+.s-producer {
+    font-size: 1rem;
+    color: #444;
+    font-weight: 500;
+}
+
+.s-extra {
+    font-size: .95rem;
+    color: #666;
+    line-height: 1.5;
+    padding-top: .25rem;
+    border-top: 1px solid #eee;
+}
+
+.s-again-btn {
+    margin-top: .75rem;
+    background: #111;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: .9rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background .15s;
+}
+.s-again-btn:active { background: #333; }

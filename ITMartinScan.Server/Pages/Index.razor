@@ -1,0 +1,177 @@
+@page "/"
+@inject IJSRuntime JS
+@inject IConfiguration Config
+@implements IAsyncDisposable
+
+<PageTitle>Scan</PageTitle>
+
+@* ── Live camera ────────────────────────────────────── *@
+<video id="cam" autoplay playsinline class="s-cam"></video>
+
+@* ── Analyzing overlay ──────────────────────────────── *@
+@if (_analyzing)
+{
+    <div class="s-overlay">
+        <div class="s-spinner"></div>
+        <div class="s-overlay-txt">Analyserer...</div>
+    </div>
+}
+
+@* ── Result sheet ───────────────────────────────────── *@
+@if (_result != null)
+{
+    <div class="s-sheet">
+        <div class="s-sheet-handle"></div>
+
+        @if (!string.IsNullOrEmpty(_result.Navn))
+        {
+            <div class="s-name">@_result.Navn</div>
+        }
+        @if (!string.IsNullOrEmpty(_result.Type))
+        {
+            <div class="s-type">@_result.Type</div>
+        }
+        <div class="s-row">
+            @if (!string.IsNullOrEmpty(_result.Pris))
+            {
+                <div class="s-price">@_result.Pris</div>
+            }
+            @if (!string.IsNullOrEmpty(_result.År))
+            {
+                <div class="s-year">@_result.År</div>
+            }
+        </div>
+        @if (!string.IsNullOrEmpty(_result.Producent))
+        {
+            <div class="s-producer">@_result.Producent</div>
+        }
+        @if (!string.IsNullOrEmpty(_result.Ekstra))
+        {
+            <div class="s-extra">@_result.Ekstra</div>
+        }
+
+        <button class="s-again-btn" @onclick="Reset">📸 Scan igen</button>
+    </div>
+}
+
+@* ── Capture button ─────────────────────────────────── *@
+@if (_result == null && !_analyzing)
+{
+    <button class="s-capture-btn" @onclick="Capture"></button>
+}
+
+@code {
+    private ScanResult? _result;
+    private bool _analyzing;
+
+    private const string Prompt =
+        "Du er en hjælper i en butik. Analyser dette billede og identificer produktet. " +
+        "Svar KUN med dette JSON uden forklaring:\n" +
+        "{\"navn\":\"produktets fulde navn\",\"type\":\"kategori fx Rodvin / Ol / Ost / Shampoo\"," +
+        "\"producent\":\"producent eller maerke\",\"aar\":\"aarstal hvis relevant ellers tom\"," +
+        "\"pris\":\"pris hvis synlig paa hylde/etiket ellers tom\"," +
+        "\"ekstra\":\"2-3 ord om druetype region alkohol procent eller andet relevant\"}\n" +
+        "Hvis du ikke kan identificere produktet, skriv hvad du KAN se.";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("scan.startCamera", "cam");
+    }
+
+    private async Task Capture()
+    {
+        _analyzing = true;
+        StateHasChanged();
+        try
+        {
+            var base64 = await JS.InvokeAsync<string>("scan.capture", "cam");
+            _result = await AnalyzeAsync(base64);
+        }
+        catch
+        {
+            _result = new ScanResult { Navn = "Kunne ikke analysere billedet", Ekstra = "Prøv igen med bedre lys." };
+        }
+        finally { _analyzing = false; }
+    }
+
+    private async Task Reset()
+    {
+        _result = null;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("scan.startCamera", "cam");
+    }
+
+    private async Task<ScanResult> AnalyzeAsync(string base64Jpeg)
+    {
+        var key = Config["Claude:ApiKey"] ?? "";
+        if (string.IsNullOrEmpty(key)) return new ScanResult { Navn = "Ingen API-nøgle konfigureret" };
+
+        using var http = new HttpClient();
+        http.DefaultRequestHeaders.Add("x-api-key", key);
+        http.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+
+        var body = new
+        {
+            model = "claude-haiku-4-5-20251001",
+            max_tokens = 400,
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = new object[]
+                    {
+                        new { type = "image", source = new { type = "base64", media_type = "image/jpeg", data = base64Jpeg } },
+                        new { type = "text", text = Prompt }
+                    }
+                }
+            }
+        };
+
+        var resp = await http.PostAsJsonAsync("https://api.anthropic.com/v1/messages", body);
+        var json = await resp.Content.ReadAsStringAsync();
+
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var text = doc.RootElement
+            .GetProperty("content")[0]
+            .GetProperty("text").GetString() ?? "";
+
+        if (text.Contains("```"))
+            text = string.Join("\n", text.Split('\n').Skip(1).TakeWhile(l => !l.StartsWith("```")));
+
+        using var r = System.Text.Json.JsonDocument.Parse(text.Trim());
+        var root = r.RootElement;
+        return new ScanResult
+        {
+            Navn     = TryGet(root, "navn"),
+            Type     = TryGet(root, "type"),
+            Producent = TryGet(root, "producent"),
+            År       = TryGet(root, "aar"),
+            Pris     = TryGet(root, "pris"),
+            Ekstra   = TryGet(root, "ekstra"),
+        };
+    }
+
+    private static string? TryGet(System.Text.Json.JsonElement el, string key)
+    {
+        if (el.TryGetProperty(key, out var v))
+        {
+            var s = v.GetString();
+            return string.IsNullOrWhiteSpace(s) ? null : s;
+        }
+        return null;
+    }
+
+    public async ValueTask DisposeAsync() => await JS.InvokeVoidAsync("scan.stopCamera");
+
+    private record ScanResult
+    {
+        public string? Navn { get; init; }
+        public string? Type { get; init; }
+        public string? Producent { get; init; }
+        public string? År { get; init; }
+        public string? Pris { get; init; }
+        public string? Ekstra { get; init; }
+    }
+}

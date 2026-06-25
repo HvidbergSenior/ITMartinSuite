@@ -756,7 +756,29 @@ services:
   #   receipt.YOURDOMAIN.com     →  http://receipt-web:8080
   #   library.YOURDOMAIN.com     →  http://library-web:8080
   #   martin.YOURDOMAIN.com      →  http://index-web:8080
+  #   scan.YOURDOMAIN.com        →  http://scan-web:8080
   # =========================================================
+
+  scan-web:
+    container_name: scan-web
+
+    build:
+      context: .
+      dockerfile: ./ITMartinScan.Server/Dockerfile
+
+    env_file:
+      - magic.env
+
+    ports:
+      - "8102:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
 
   cloudflared:
     image: cloudflare/cloudflared:latest
