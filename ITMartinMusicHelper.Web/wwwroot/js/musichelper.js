@@ -105,8 +105,22 @@ window.musicHelper = (function () {
             el.onended = function () { el.remove(); close.remove(); };
         }
 
+        if (!rec.hasVideo) {
+            el.style.cssText = 'position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);' +
+                'width:min(360px,90vw);z-index:9999;background:#1a1a28;border-radius:12px;';
+            var closeA = document.createElement('button');
+            closeA.id = 'mh-player-close';
+            closeA.textContent = '✕';
+            closeA.style.cssText = 'position:fixed;bottom:calc(5rem + 54px);left:calc(50% + min(160px,43vw));' +
+                'transform:translateX(-50%);z-index:10000;background:#333;color:#fff;border:none;border-radius:50%;' +
+                'width:32px;height:32px;cursor:pointer;font-size:1rem;';
+            closeA.onclick = function () { el.remove(); closeA.remove(); };
+            document.body.appendChild(closeA);
+            el.onended = function () { el.remove(); closeA.remove(); };
+        }
+
         document.body.appendChild(el);
-        if (!rec.hasVideo) el.play().catch(function (e) { console.error('Playback fejl', e); });
+        el.play().catch(function (e) { console.error('Playback fejl', e); });
     }
 
     function deleteRecording(index) {
