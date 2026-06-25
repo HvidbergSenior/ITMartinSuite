@@ -203,16 +203,17 @@
 
         try
         {
-            // Pass video element id and mode; JS returns actual hasVideo (may fall back to audio)
-            _videoMode = await JS.InvokeAsync<bool>("musicHelper.startRecording", "tut-cam", _videoMode);
+            // JS returns actual hasVideo (may fall back to audio-only); null means JS error
+            _videoMode = await JS.InvokeAsync<bool?>("musicHelper.startRecording", "tut-cam", _videoMode) ?? false;
             _recTimer = new System.Timers.Timer(1000) { AutoReset = true };
             _recTimer.Elapsed += async (_, _) => { _recSec++; await InvokeAsync(StateHasChanged); };
             _recTimer.Start();
         }
-        catch (JSException ex)
+        catch (Exception ex) when (ex is JSException || ex is InvalidOperationException)
         {
             _recording = false;
-            _recError = $"Mikrofon/kamera ikke tilgængeligt: {ex.Message}";
+            _recError = "Mikrofon ikke tilgængeligt — tjek at browseren har adgang.";
+            _ = ex;
         }
     }
 

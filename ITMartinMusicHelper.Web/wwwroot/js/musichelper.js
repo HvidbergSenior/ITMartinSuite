@@ -17,9 +17,12 @@ window.musicHelper = (function () {
             _stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (e) {
             if (useVideo) {
-                // Fall back to audio-only
-                _stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                useVideo = false;
+                try {
+                    _stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    useVideo = false;
+                } catch (e2) {
+                    throw e2;
+                }
             } else {
                 throw e;
             }
