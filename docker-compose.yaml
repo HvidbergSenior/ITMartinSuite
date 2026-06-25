@@ -438,40 +438,12 @@ services:
       - martinnet
 
   # =========================================================
-  # MARKETPLACE
-  # =========================================================
-
-  market-web:
-    container_name: market-web
-
-    env_file:
-      - magic.env
-
-    build:
-      context: .
-      dockerfile: ./ITMartinMarket.Server/Dockerfile
-
-    ports:
-      - "8089:8080"
-
-    environment:
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Data Source=/app/data/market.db
-
-    volumes:
-      - /volume1/docker/martinsuite/market/data:/app/data
-
-    restart: unless-stopped
-
-    networks:
-      - martinnet
-
-  # =========================================================
   # FAMILY PLANNER
   # =========================================================
 
   family-web:
     container_name: family-web
+    profiles: [manual]
 
     env_file:
       - magic.env
@@ -550,8 +522,13 @@ services:
     networks:
       - martinnet
 
+  # =========================================================
+  # ON-DEMAND — start manually: docker compose up -d <name>
+  # =========================================================
+
   bartab-web:
     container_name: bartab-web
+    profiles: [manual]
 
     build:
       context: .
@@ -577,12 +554,9 @@ services:
     networks:
       - martinnet
 
-  # =========================================================
-  # AUCTION
-  # =========================================================
-
   auction-web:
     container_name: auction-web
+    profiles: [manual]
 
     build:
       context: .
@@ -598,6 +572,32 @@ services:
     volumes:
       - /volume1/docker/martinsuite/auction/db:/app/db
       - /volume1/docker/martinsuite/auction/photos:/app/data/photos
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  market-web:
+    container_name: market-web
+    profiles: [manual]
+
+    env_file:
+      - magic.env
+
+    build:
+      context: .
+      dockerfile: ./ITMartinMarket.Server/Dockerfile
+
+    ports:
+      - "8089:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/market.db
+
+    volumes:
+      - /volume1/docker/martinsuite/market/data:/app/data
 
     restart: unless-stopped
 
@@ -664,6 +664,7 @@ services:
 
   musik-web:
     container_name: musik-web
+    profiles: [manual]
 
     build:
       context: .
