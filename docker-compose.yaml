@@ -45,6 +45,7 @@ services:
 
   filesorter-web:
     container_name: filesorter-web
+    profiles: [manual]
 
     build:
       context: .
@@ -76,6 +77,7 @@ services:
 
   filesorter-worker:
     container_name: filesorter-worker
+    profiles: [manual]
 
     build:
       context: .
@@ -108,6 +110,7 @@ services:
 
   curator-web:
     container_name: curator-web
+    profiles: [manual]
 
     build:
       context: .
@@ -221,6 +224,7 @@ services:
 
   budget-web:
     container_name: budget-web
+    profiles: [manual]
 
     build:
       context: .
@@ -249,6 +253,7 @@ services:
 
   r6assistant-web:
     container_name: r6assistant-web
+    profiles: [manual]
 
     build:
       context: .
@@ -324,6 +329,7 @@ services:
 
   library-search-web:
     container_name: library-search-web
+    profiles: [manual]
 
     build:
       context: .
@@ -697,6 +703,7 @@ services:
 
   magazine-web:
     container_name: magazine-web
+    profiles: [manual]
 
     build:
       context: .
@@ -723,6 +730,7 @@ services:
 
   magazine-search-web:
     container_name: magazine-search-web
+    profiles: [manual]
 
     build:
       context: .
@@ -746,6 +754,7 @@ services:
 
   musik-studio-web:
     container_name: musik-studio-web
+    profiles: [manual]
 
     env_file:
       - magic.env
@@ -778,6 +787,7 @@ services:
 
   image-processor:
     container_name: image-processor
+    profiles: [manual]
     build: ./ITMartinImageProcessor.Worker
 
     volumes:
@@ -797,6 +807,7 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
+    profiles: [manual]
 
     ports:
       - "5672:5672"
