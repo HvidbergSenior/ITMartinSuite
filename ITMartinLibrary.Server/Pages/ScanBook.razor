@@ -109,7 +109,7 @@
     .shelf-camera-wrap video {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
         display: block;
     }
     .shelf-cam-error {
@@ -201,18 +201,6 @@
         font-weight: 600;
         text-shadow: 0 1px 4px rgba(0,0,0,.9);
         letter-spacing: .02em;
-    }
-    .shelf-flash {
-        position: absolute;
-        inset: 0;
-        background: white;
-        pointer-events: none;
-        z-index: 20;
-        animation: shelf-flash-anim .35s ease-out forwards;
-    }
-    @@keyframes shelf-flash-anim {
-        from { opacity: 0.8; }
-        to   { opacity: 0; }
     }
 </style>
 

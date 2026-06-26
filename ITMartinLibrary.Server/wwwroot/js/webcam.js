@@ -139,8 +139,12 @@ window.webcam = {
         var wrap = document.querySelector('.shelf-camera-wrap');
         if (!wrap) return;
         var f = document.createElement('div');
-        f.className = 'shelf-flash';
+        f.style.cssText = 'position:absolute;inset:0;background:white;pointer-events:none;z-index:20;opacity:0.8;transition:opacity .35s ease-out;';
         wrap.appendChild(f);
+        // double rAF ensures browser paints before transition starts
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() { f.style.opacity = '0'; });
+        });
         setTimeout(function() { if (f.parentNode) f.remove(); }, 400);
     }
 };
