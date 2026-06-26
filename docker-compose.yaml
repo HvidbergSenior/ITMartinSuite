@@ -8,6 +8,7 @@ services:
 
   index-web:
     container_name: index-web
+    profiles: [manual]
 
     build:
       context: .
@@ -139,6 +140,7 @@ services:
 
   gallery-mie:
     container_name: gallery-mie
+    profiles: [manual]
 
     build:
       context: .
@@ -241,6 +243,7 @@ services:
 
   magic-web:
     container_name: magic-web
+    profiles: [manual]
 
     env_file:
       - magic.env
@@ -331,6 +334,7 @@ services:
 
   receipt-web:
     container_name: receipt-web
+    profiles: [manual]
 
     env_file:
       - magic.env
@@ -360,6 +364,7 @@ services:
 
   library-web:
     container_name: library-web
+    profiles: [manual]
 
     env_file:
       - magic.env
@@ -426,6 +431,7 @@ services:
 
   adhd-web:
     container_name: adhd-web
+    profiles: [manual]
 
     env_file:
       - magic.env
@@ -536,6 +542,7 @@ services:
 
   testhub-web:
     container_name: testhub-web
+    profiles: [manual]
 
     build:
       context: .
@@ -563,6 +570,7 @@ services:
 
   club-web:
     container_name: club-web
+    profiles: [manual]
 
     build:
       context: .
@@ -727,7 +735,6 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
-    profiles: [manual]
 
     ports:
       - "5672:5672"
@@ -761,6 +768,7 @@ services:
 
   scan-web:
     container_name: scan-web
+    profiles: [manual]
 
     build:
       context: .
