@@ -89,12 +89,16 @@ window.webcam = {
         // Brief pause for autofocus to settle
         await new Promise(function(x) { setTimeout(x, 500); });
 
-        var w = this.video.videoWidth;
-        var h = this.video.videoHeight;
-        if (!w || !h) throw new Error("Video not ready");
+        var rawW = this.video.videoWidth;
+        var rawH = this.video.videoHeight;
+        if (!rawW || !rawH) throw new Error("Video not ready");
+
+        // iPhone in portrait mode gives rawH > rawW — rotate 90° clockwise so books read left-to-right
+        var isPortrait = rawH > rawW;
 
         // Cap at 1536px longest side — enough for book cover text, keeps payload under 1MB
         var MAX = 1536;
+        var w = rawW, h = rawH;
         if (w > MAX || h > MAX) {
             var ratio = Math.min(MAX / w, MAX / h);
             w = Math.round(w * ratio);
@@ -102,13 +106,22 @@ window.webcam = {
         }
 
         var canvas = document.createElement("canvas");
-        canvas.width  = w;
-        canvas.height = h;
-
         var ctx = canvas.getContext("2d");
-        ctx.drawImage(this.video, 0, 0, w, h);
 
-        console.log("CAPTURED", w, "x", h);
+        if (isPortrait) {
+            // Swap dims and rotate 90° clockwise
+            canvas.width  = h;
+            canvas.height = w;
+            ctx.translate(h, 0);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(this.video, 0, 0, w, h);
+            console.log("CAPTURED (rotated)", h, "x", w);
+        } else {
+            canvas.width  = w;
+            canvas.height = h;
+            ctx.drawImage(this.video, 0, 0, w, h);
+            console.log("CAPTURED", w, "x", h);
+        }
 
         return { image: canvas.toDataURL("image/jpeg", 0.88) };
     },
@@ -139,7 +152,7 @@ window.webcam = {
         var wrap = document.querySelector('.shelf-camera-wrap');
         if (!wrap) return;
         var f = document.createElement('div');
-        f.style.cssText = 'position:absolute;inset:0;background:white;pointer-events:none;z-index:20;opacity:0.8;transition:opacity .35s ease-out;';
+        f.style.cssText = 'position:absolute;top:0;right:0;bottom:0;left:0;background:white;pointer-events:none;z-index:20;opacity:0.8;transition:opacity .35s ease-out;';
         wrap.appendChild(f);
         // double rAF ensures browser paints before transition starts
         requestAnimationFrame(function() {
