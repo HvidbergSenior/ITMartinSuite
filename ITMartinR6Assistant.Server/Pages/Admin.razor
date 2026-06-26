@@ -1,0 +1,231 @@
+@page "/admin"
+@layout R6AssistantLayout
+@inject IR6DataService DataService
+@inject SessionStateService Session
+@implements IDisposable
+
+<div class="admin-page">
+
+    @* Top toolbar *@
+    <div class="admin-toolbar">
+        <div class="admin-toolbar-title">ADMIN</div>
+        <div class="admin-toolbar-actions">
+            @if (Session.Map is not null)
+            {
+                <button class="admin-back-btn" @onclick="BackToMaps">Skift Map</button>
+            }
+            <button class="admin-reset-btn" @onclick="Reset">RESET</button>
+        </div>
+    </div>
+
+    @if (_gameData is null)
+    {
+        <div class="admin-loading">Loader data...</div>
+    }
+    else if (Session.Map is null)
+    {
+        @* MAP PICKER *@
+        <div class="admin-section-label">VÆLG MAP</div>
+        <div class="admin-map-grid">
+            @foreach (var map in _gameData.Maps)
+            {
+                var mapName = map.Name;
+                <button class="admin-map-card" @onclick="() => SelectMap(mapName)">
+                    @if (!string.IsNullOrEmpty(map.ImageUrl))
+                    {
+                        <img class="admin-map-img" src="@map.ImageUrl" alt="@map.Name" />
+                    }
+                    <div class="admin-map-name">@map.Name</div>
+                    <div class="admin-map-sites">@map.Sites.Count sites</div>
+                </button>
+            }
+        </div>
+    }
+    else
+    {
+        var currentMap = _gameData.Maps.FirstOrDefault(m => m.Name == Session.Map);
+
+        @if (Session.Site is null && currentMap is not null)
+        {
+            @* SITE PICKER *@
+            <div class="admin-section-label">@Session.Map — VÆLG SITE</div>
+            <div class="admin-site-grid">
+                @foreach (var site in currentMap.Sites)
+                {
+                    var siteName = site.Name;
+                    <button class="admin-site-btn" @onclick="() => SelectSite(siteName)">
+                        <div class="admin-site-floor">@site.Floor</div>
+                        <div class="admin-site-name">@site.Name</div>
+                    </button>
+                }
+            </div>
+        }
+        else if (Session.Site is not null)
+        {
+            var site = currentMap?.Sites.FirstOrDefault(s => s.Name == Session.Site);
+
+            @* STATUS BAR *@
+            <div class="admin-status-bar">
+                <div class="admin-status-map">@Session.Map</div>
+                <div class="admin-status-site">@Session.Site</div>
+                @if (site is not null)
+                {
+                    <div class="wr-badge @AdminWinRateClass(site)">@AdminWinRate(site)% @Session.Side WR</div>
+                }
+                <button class="admin-back-btn-sm" @onclick="BackToSites">Skift Site</button>
+            </div>
+
+            @* SIDE TOGGLE *@
+            <div class="admin-side-row">
+                <button class="admin-side-btn @(Session.Side == "Attack" ? "side-btn-atk-active" : "")"
+                        @onclick='() => Session.SetSide("Attack")'>ATK</button>
+                <button class="admin-side-btn @(Session.Side == "Defense" ? "side-btn-def-active" : "")"
+                        @onclick='() => Session.SetSide("Defense")'>DEF</button>
+            </div>
+
+            @if (site is not null)
+            {
+                @* BATTLE PLAN BUTTONS *@
+                <div class="admin-section-label">PLAN</div>
+                <div class="admin-plan-row">
+                    @foreach (var plan in site.BattlePlans.OrderBy(p => p.Number))
+                    {
+                        var planNum = plan.Number;
+                        var isActive = Session.ActivePlan == planNum;
+                        <button class="admin-plan-btn @(isActive ? "plan-btn-active" : "")"
+                                @onclick="() => SelectPlan(planNum)">
+                            <div class="admin-plan-num">@plan.Number</div>
+                            <div class="admin-plan-label">@plan.Label</div>
+                        </button>
+                    }
+                    @if (Session.ActivePlan.HasValue)
+                    {
+                        <button class="admin-plan-clear" @onclick="() => Session.SetActivePlan(null)">Ryd</button>
+                    }
+                </div>
+
+                @* ACTIVE PLAN PICKS *@
+                @if (Session.ActivePlan.HasValue)
+                {
+                    var activePlan = site.BattlePlans.FirstOrDefault(p => p.Number == Session.ActivePlan.Value);
+                    if (activePlan is not null)
+                    {
+                        <div class="plan-banner">
+                            <div class="plan-banner-label">PLAN @activePlan.Number — @activePlan.Label.ToUpper()</div>
+                            @if (!string.IsNullOrEmpty(activePlan.Note))
+                            {
+                                <div class="plan-banner-note">@activePlan.Note</div>
+                            }
+                        </div>
+                        <div class="picks-grid">
+                            @foreach (var pick in activePlan.Picks.Take(5))
+                            {
+                                var op = GetOperator(pick);
+                                var isBanned = Session.Bans.Contains(pick);
+                                <div class="pick-slot @(isBanned ? "pick-banned" : "")">
+                                    @if (op is not null)
+                                    {
+                                        <img class="pick-img" src="@op.ImageUrl" alt="@pick" onerror="this.style.display='none'" />
+                                    }
+                                    <div class="pick-name">@pick</div>
+                                    @if (isBanned)
+                                    {
+                                        <div class="pick-banned-overlay">BANNED</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+
+                @* BAN BOARD *@
+                <div class="ban-board-section">
+                    <div class="ban-board-title">BAN BOARD — klik for at toggle ban</div>
+                    <div class="ban-board-label">ATK</div>
+                    <div class="ban-board">
+                        @foreach (var op in _gameData.Operators.Where(o => o.Side == "Attack"))
+                        {
+                            var isBanned = Session.Bans.Contains(op.Name);
+                            var isRec = site.SuggestedBans.Contains(op.Name, StringComparer.OrdinalIgnoreCase);
+                            var isPick = site.AttackPicks.Contains(op.Name, StringComparer.OrdinalIgnoreCase);
+                            var opName = op.Name;
+                            <button class="op-tile op-tile-btn @(isBanned ? "op-banned" : "") @(isRec ? "op-rec-ban" : "") @(isPick && !isBanned ? "op-pick" : "")"
+                                    @onclick="() => Session.ToggleBan(opName)">
+                                <img class="op-img" src="@op.ImageUrl" alt="@op.Name" onerror="this.style.display='none'" />
+                                <div class="op-name">@op.Name</div>
+                                @if (isBanned)
+                                {
+                                    <div class="op-x">✕</div>
+                                }
+                            </button>
+                        }
+                    </div>
+                    <div class="ban-board-label">DEF</div>
+                    <div class="ban-board">
+                        @foreach (var op in _gameData.Operators.Where(o => o.Side == "Defense"))
+                        {
+                            var isBanned = Session.Bans.Contains(op.Name);
+                            var isRec = site.SuggestedBans.Contains(op.Name, StringComparer.OrdinalIgnoreCase);
+                            var isPick = site.DefensePicks.Contains(op.Name, StringComparer.OrdinalIgnoreCase);
+                            var opName = op.Name;
+                            <button class="op-tile op-tile-btn @(isBanned ? "op-banned" : "") @(isRec ? "op-rec-ban" : "") @(isPick && !isBanned ? "op-pick" : "")"
+                                    @onclick="() => Session.ToggleBan(opName)">
+                                <img class="op-img" src="@op.ImageUrl" alt="@op.Name" onerror="this.style.display='none'" />
+                                <div class="op-name">@op.Name</div>
+                                @if (isBanned)
+                                {
+                                    <div class="op-x">✕</div>
+                                }
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    }
+
+</div>
+
+@code {
+    private R6GameData? _gameData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.OnStateChanged += OnSessionChanged;
+        _gameData = await DataService.GetData();
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private void SelectMap(string name) => Session.SetMap(name);
+    private void SelectSite(string name) => Session.SetSite(name);
+    private void SelectPlan(int number)
+    {
+        if (Session.ActivePlan == number)
+            Session.SetActivePlan(null);
+        else
+            Session.SetActivePlan(number);
+    }
+    private void BackToMaps() => Session.Reset();
+    private void BackToSites()
+    {
+        if (Session.Map is not null)
+            Session.SetMap(Session.Map);
+    }
+    private void Reset() => Session.Reset();
+
+    private R6Operator? GetOperator(string name) =>
+        _gameData?.Operators.FirstOrDefault(o =>
+            string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private int AdminWinRate(BombSite site) =>
+        Session.Side == "Attack" ? site.AttackWinRate : (100 - site.AttackWinRate);
+
+    private string AdminWinRateClass(BombSite site)
+    {
+        var wr = AdminWinRate(site);
+        return wr > 52 ? "wr-green" : wr < 48 ? "wr-red" : "wr-yellow";
+    }
+
+    public void Dispose() => Session.OnStateChanged -= OnSessionChanged;
+}

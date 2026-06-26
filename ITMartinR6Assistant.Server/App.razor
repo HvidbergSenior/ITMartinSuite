@@ -1,11 +1,13 @@
-﻿@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d0d0d" />
     <base href="/" />
+    <title>R6 Assistant</title>
 
     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Shared.css" />
     <link rel="stylesheet" href="css/R6Assistant.css" />
@@ -19,9 +21,10 @@
 
 <script src="_framework/blazor.web.js"></script>
 
-    <div id="components-reconnect-modal">
-        <span class="reconnect-msg">🔄 Forbinder igen...</span>
-        <span class="reconnect-failed-msg">😴 Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
-    </div>
+<div id="components-reconnect-modal">
+    <span class="reconnect-msg">Forbinder igen...</span>
+    <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+</div>
+
 </body>
 </html>

@@ -1,0 +1,39 @@
+@page "/"
+@layout IntelLayout
+@inject IntelSessionService Session
+@implements IDisposable
+
+<div class="intel-page">
+
+    @if (Session.SelectedMap is null)
+    {
+        <div class="intel-waiting">
+            <div class="intel-waiting-icon">R6</div>
+            <div class="intel-waiting-title">Waiting for round to start...</div>
+            <div class="intel-waiting-sub">Admin selects map to begin</div>
+        </div>
+    }
+    else
+    {
+        <div class="floor-plan-wrapper">
+            <FloorPlanView AllowPlace="false" />
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Session.LiveNote))
+    {
+        <div class="live-note">@Session.LiveNote</div>
+    }
+
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Session.OnStateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.OnStateChanged -= OnStateChanged;
+}

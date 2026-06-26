@@ -1,0 +1,82 @@
+@page "/admin"
+@layout IntelLayout
+@inject IntelSessionService Session
+@inject IntelDataService DataService
+@implements IDisposable
+
+<div class="intel-page admin-page">
+
+    <section class="admin-section">
+        <div class="admin-section-title">Map</div>
+        <div class="map-grid">
+            @foreach (var map in DataService.GetMaps())
+            {
+                <button class="map-btn @(Session.SelectedMap == map.Name ? "active" : "")"
+                        @onclick="() => Session.SetMap(map.Name)">
+                    @map.Name
+                </button>
+            }
+        </div>
+        @if (Session.SelectedMap is not null)
+        {
+            <button class="intel-btn intel-btn-ghost" @onclick="() => Session.SetMap(null)">
+                Clear Map
+            </button>
+        }
+    </section>
+
+    <section class="admin-section">
+        <div class="admin-section-title">Live Note</div>
+        <div class="live-note-input-row">
+            <input class="intel-input"
+                   type="text"
+                   placeholder="Broadcast a note to all screens..."
+                   value="@_liveNoteInput"
+                   @oninput="OnNoteInput" />
+            <button class="intel-btn" @onclick="() => Session.SetLiveNote(string.Empty)">
+                Clear
+            </button>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Session.LiveNote))
+        {
+            <div class="live-note-preview">@Session.LiveNote</div>
+        }
+    </section>
+
+    <section class="admin-section">
+        <div class="admin-section-title">Markers</div>
+        <div class="admin-actions-row">
+            <button class="intel-btn intel-btn-danger" @onclick="Session.ClearFloorMarkers">
+                Clear Floor (@Session.ActiveFloor)
+            </button>
+            <button class="intel-btn intel-btn-danger" @onclick="Session.ClearMarkers">
+                Clear All Markers
+            </button>
+        </div>
+        <div class="marker-count-info">
+            @Session.Markers.Count marker(s) total,
+            @Session.Markers.Count(m => m.Floor == Session.ActiveFloor) on @Session.ActiveFloor
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private string _liveNoteInput = "";
+
+    protected override void OnInitialized()
+    {
+        _liveNoteInput = Session.LiveNote;
+        Session.OnStateChanged += OnStateChanged;
+    }
+
+    private void OnNoteInput(ChangeEventArgs e)
+    {
+        _liveNoteInput = e.Value?.ToString() ?? "";
+        Session.SetLiveNote(_liveNoteInput);
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.OnStateChanged -= OnStateChanged;
+}

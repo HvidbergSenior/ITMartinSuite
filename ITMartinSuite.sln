@@ -162,6 +162,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMusicGame", "ITMart
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinScan.Server", "ITMartinScan.Server\ITMartinScan.Server.csproj", "{62E44FAB-403F-4A74-9707-C1356BA90F46}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinR6Intel.Server", "ITMartinR6Intel.Server\ITMartinR6Intel.Server.csproj", "{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -471,5 +473,9 @@ Global
 		{62E44FAB-403F-4A74-9707-C1356BA90F46}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{62E44FAB-403F-4A74-9707-C1356BA90F46}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{62E44FAB-403F-4A74-9707-C1356BA90F46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

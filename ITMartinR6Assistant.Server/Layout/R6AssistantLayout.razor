@@ -1,21 +1,16 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<div class="app-shell">
+<div class="r6-shell">
 
-    <header class="app-header">
-        <div class="page-container">
-            <div class="header-title">
-                <span class="header-icon">🎯</span>
-                R6 Assistant
-            </div>
+    <header class="r6-app-header">
+        <div class="r6-header-inner">
+            <span class="r6-logo">R6</span>
+            <span class="r6-header-title">ASSISTANT</span>
         </div>
     </header>
 
-    <main class="app-main">
-        <div class="page-container">
-            @Body
-        </div>
+    <main class="r6-app-main">
+        @Body
     </main>
-    <ToastContainer />
 
 </div>

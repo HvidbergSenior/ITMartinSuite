@@ -1,5 +1,1 @@
-﻿namespace ITMartinR6Assistant.Domain;
-
-public class Class1
-{
-}
+// intentionally empty

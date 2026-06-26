@@ -1,21 +1,21 @@
 using ITMartinR6Assistant.Application;
-using ITMartinR6Assistant.Application.Services;
-using ITMartinR6Assistant.Infrastructure.Repositories;
+using ITMartinR6Assistant.Infrastructure;
+using ITMartinR6Assistant.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddScoped<RecommendationService>();
-builder.Services.AddScoped<IRecommendationRepository, JsonRecommendationRepository>();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+builder.Services.AddSingleton<IR6DataService, R6DataService>();
+builder.Services.AddSingleton<SessionStateService>();
 
 var app = builder.Build();
 
-app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseAntiforgery();
 
-app.MapGet("/api/maps", async (RecommendationService svc) =>
-    Results.Ok(await svc.GetMaps()));
-
-app.MapGet("/api/maps/{name}", async (string name, RecommendationService svc) =>
-    Results.Ok(await svc.GetRecommendations(name)));
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 app.Run();

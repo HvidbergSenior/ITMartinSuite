@@ -1,8 +1,8 @@
 using ITMartin.Ai;
 using ITMartinLibrary.Application;
 using ITMartinLibrary.Infrastructure;
-using ITMartinLibrary.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +25,16 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 
 app.UseStaticFiles();
+
+if (Directory.Exists("/data/shelves"))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider("/data/shelves"),
+        RequestPath  = "/shelf-images"
+    });
+}
+
 app.UseAntiforgery();
 
 app.MapRazorComponents<ITMartinLibrary.Search.Server.App>()

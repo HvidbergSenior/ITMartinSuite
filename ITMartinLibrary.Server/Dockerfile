@@ -14,7 +14,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 
 WORKDIR /app
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown -R app:app /app/data
 
 COPY --from=build /app/publish .
 

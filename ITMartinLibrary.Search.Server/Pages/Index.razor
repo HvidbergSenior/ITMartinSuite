@@ -60,6 +60,9 @@
                 {
                     <div class="inv-row">
                         <div class="inv-cover">
+                            <img src="/shelf-images/@System.IO.Path.GetFileName(shelf.ImagePath)"
+                                 class="inv-cover-img" loading="lazy"
+                                 onerror="this.style.display='none'" alt="" />
                             <div class="inv-cover-placeholder">📚</div>
                         </div>
                         <div class="inv-info">
@@ -71,6 +74,7 @@
                             <div class="inv-item-meta">
                                 <span>Hylde @shelf.ShelfNumber</span>
                                 <span>@shelf.ScannedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                                <span class="inv-type-badge">@DanishType(book.MediaType)</span>
                             </div>
                         </div>
                     </div>
@@ -109,16 +113,21 @@
         border: 1px solid rgba(255,255,255,.06); border-radius: 14px; padding: 12px 14px;
     }
     .inv-row:hover { background: linear-gradient(160deg, #252a35, #161a22); }
-    .inv-cover { flex-shrink: 0; width: 44px; height: 60px; border-radius: 6px; overflow: hidden; }
+    .inv-cover { flex-shrink: 0; width: 56px; height: 72px; border-radius: 6px; overflow: hidden; position: relative; }
     .inv-cover-placeholder {
         width: 100%; height: 100%; background: rgba(255,255,255,.06);
         border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px;
+    }
+    .inv-cover-img {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; border-radius: 6px;
     }
     .inv-info { flex: 1; min-width: 0; }
     .inv-item-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .inv-item-sub { font-size: 13px; color: var(--text-muted, #94a3b8); margin-top: 2px; }
     .inv-item-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px; font-size: 11px; color: var(--text-muted, #94a3b8); }
     .inv-count { font-size: 13px; color: var(--text-muted, #94a3b8); padding: 2px 0; }
+    .inv-type-badge { background: rgba(99,102,241,.18); color: #a5b4fc; border-radius: 4px; padding: 1px 6px; }
 </style>
 
 @code {
@@ -146,6 +155,16 @@
             .ToList();
     }
 
+    private static string DanishType(string t) => t switch
+    {
+        "Book"    => "Bog",
+        "Comic"   => "Tegneserie",
+        "Cartoon" => "Tegneserie",
+        "DVD"     => "DVD",
+        "Bluray"  => "Bluray",
+        _         => t
+    };
+
     private List<(ShelfBook, ScannedShelf)> ApplyFilters()
     {
         var q = _allBooks.AsEnumerable();
@@ -157,6 +176,15 @@
                 x.Book.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 x.Book.Author.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
+
+        q = _typeFilter switch
+        {
+            "Bog"        => q.Where(x => x.Book.MediaType == "Book"),
+            "Tegneserie" => q.Where(x => x.Book.MediaType is "Comic" or "Cartoon"),
+            "DVD"        => q.Where(x => x.Book.MediaType == "DVD"),
+            "Bluray"     => q.Where(x => x.Book.MediaType == "Bluray"),
+            _            => q
+        };
 
         return q.OrderBy(x => x.Book.Title, StringComparer.OrdinalIgnoreCase).ToList();
     }

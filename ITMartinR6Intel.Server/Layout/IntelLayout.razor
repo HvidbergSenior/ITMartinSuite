@@ -1,0 +1,50 @@
+@inherits LayoutComponentBase
+@inject IntelSessionService Session
+@inject IntelDataService DataService
+@implements IDisposable
+
+<div class="intel-shell">
+
+    <header class="intel-header">
+        <div class="intel-header-inner">
+            <span class="intel-logo">R6</span>
+            <span class="intel-header-title">INTEL</span>
+            @if (Session.SelectedMap is not null)
+            {
+                <span class="intel-header-map">— @Session.SelectedMap</span>
+            }
+        </div>
+        @if (Session.SelectedMap is not null)
+        {
+            var map = DataService.GetMap(Session.SelectedMap);
+            if (map is not null && map.Floors.Count > 0)
+            {
+                <div class="intel-floor-tabs">
+                    @foreach (var floor in map.Floors)
+                    {
+                        <button class="intel-floor-tab @(Session.ActiveFloor == floor.Label ? "active" : "")"
+                                @onclick="() => Session.SetFloor(floor.Label)">
+                            @floor.Label
+                        </button>
+                    }
+                </div>
+            }
+        }
+    </header>
+
+    <main class="intel-main">
+        @Body
+    </main>
+
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Session.OnStateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.OnStateChanged -= OnStateChanged;
+}

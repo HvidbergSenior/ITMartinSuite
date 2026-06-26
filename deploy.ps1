@@ -3,9 +3,21 @@ param(
     [string]$Service
 )
 
-$NasHost = "martinhvidberg@100.117.120.44"
-$NasPath = "~/martinsuite-magic"
+$NasUser      = "martinhvidberg"
+$NasLocal     = "10.0.0.126"
+$NasTailscale = "100.117.120.44"
+$NasPath      = "~/martinsuite-magic"
 $NasFile_Base = "/volume1/homes/MartinHvidberg/martinsuite-magic"
+
+# Pick whichever NAS IP responds first
+$NasIp = $null
+foreach ($ip in @($NasLocal, $NasTailscale)) {
+    $ok = (Test-NetConnection -ComputerName $ip -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue -ErrorAction SilentlyContinue)
+    if ($ok) { $NasIp = $ip; break }
+}
+if (-not $NasIp) { Write-Error "NAS not reachable on $NasLocal or $NasTailscale"; exit 1 }
+Write-Host "NAS reachable at $NasIp" -ForegroundColor DarkGray
+$NasHost = "$NasUser@$NasIp"
 
 # Reconnect persistent mapped drives (Z: may have dropped after reboot)
 net use * /persistent:yes 2>$null | Out-Null
@@ -22,6 +34,7 @@ $ServiceMap = @{
     "gallery-hvidberg"      = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile"; Context = "." }
     "budget-web"        = @{ Dockerfile = "ITMartinBudget.Server/Dockerfile";        Context = "." }
     "r6assistant-web"   = @{ Dockerfile = "ITMartinR6Assistant.Server/Dockerfile";   Context = "." }
+    "r6intel-web"       = @{ Dockerfile = "ITMartinR6Intel.Server/Dockerfile";       Context = "." }
     "receipt-web"       = @{ Dockerfile = "ITMartin.Receipt.Server/Dockerfile";      Context = "." }
     "library-web"          = @{ Dockerfile = "ITMartinLibrary.Server/Dockerfile";        Context = "." }
     "library-search-web"   = @{ Dockerfile = "ITMartinLibrary.Search.Server/Dockerfile"; Context = "." }
@@ -66,38 +79,20 @@ if (Test-Path "Z:\martinsuite-magic") {
     if ($LASTEXITCODE -ne 0) { exit 1 }
     Write-Host "    Done." -ForegroundColor Green
 } else {
-    $dest = "C:\Users\hvidb\SynologyDrive\martinsuite-magic\$tarName"
-    Write-Host "    Z: not available, saving to Synology Drive and waiting for sync..." -ForegroundColor Yellow
+    $dest = "$env:TEMP\$tarName"
+    Write-Host "    Z: not available, saving locally then SCP to NAS..." -ForegroundColor Yellow
     docker save -o $dest $imageName
     if ($LASTEXITCODE -ne 0) { exit 1 }
-
-    $timeout = 300
-    $elapsed = 0
-    $found = $false
-    while ($elapsed -lt $timeout) {
-        Start-Sleep -Seconds 5
-        $elapsed += 5
-        $check = (ssh $NasHost "test -f '$nasFile' && echo yes || echo no" 2>$null)
-        Write-Host "    ${elapsed}s - $check" -ForegroundColor DarkGray
-        if ($check -and $check.Trim() -eq "yes") { $found = $true; break }
-    }
-
-    if (-not $found) {
-        Write-Error "File did not appear on NAS after ${timeout}s. Check Synology Drive sync."
-        exit 1
-    }
+    scp -O $dest "${NasHost}:${nasFile}"
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+    Remove-Item $dest -Force
 }
 
 Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cyan
 ssh $NasHost "docker --context default load -i '$nasFile' && rm '$nasFile' && cd $NasPath && git fetch origin && git reset --hard origin/master && docker --context default compose up -d --force-recreate --timeout 10 $Service"
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
-# Cleanup — delete local tar and prune Docker build cache
-$localTar = "C:\Users\hvidb\SynologyDrive\martinsuite-magic\$tarName"
-if (Test-Path $localTar) {
-    Remove-Item $localTar -Force
-    Write-Host "    Deleted local tar." -ForegroundColor DarkGray
-}
+# Cleanup — prune Docker build cache
 Write-Host "[Cleanup] Pruning Docker builder cache..." -ForegroundColor DarkGray
 docker builder prune -f | Out-Null
 

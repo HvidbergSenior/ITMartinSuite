@@ -12,13 +12,25 @@
 #   nas-up filesorter
 #   nas-status
 
-$NAS = "martinhvidberg@100.117.120.44"
-$DIR = "/volume1/homes/MartinHvidberg/martinsuite-magic"
+$NasUser      = "martinhvidberg"
+$NasLocal     = "10.0.0.126"
+$NasTailscale = "100.117.120.44"
+$DIR          = "/volume1/homes/MartinHvidberg/martinsuite-magic"
+
+$NasIp = $null
+foreach ($ip in @($NasLocal, $NasTailscale)) {
+    $ok = (Test-NetConnection -ComputerName $ip -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue -ErrorAction SilentlyContinue)
+    if ($ok) { $NasIp = $ip; break }
+}
+if (-not $NasIp) { Write-Error "NAS not reachable on $NasLocal or $NasTailscale"; exit 1 }
+Write-Host "NAS reachable at $NasIp" -ForegroundColor DarkGray
+$NAS = "$NasUser@$NasIp"
 
 # Named groups — shortcuts for multi-container sets
 $Groups = @{
     "filesorter" = @("rabbitmq", "filesorter-web", "filesorter-worker")
     "magazine"   = @("magazine-web", "magazine-search-web")
+    "claude"     = @("library-web", "library-search-web", "curator-web", "magic-web", "filesorter-web", "receipt-web", "magazine-web", "budget-web")
 }
 
 # ── Always-on (no profile, started by docker compose up -d) ──────────────
@@ -75,6 +87,15 @@ function nas-status {
     ssh $NAS "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 }
 
+function nas-push-env {
+    Write-Host "Pushing magic.env to NAS and restarting all Claude services..." -ForegroundColor Cyan
+    scp magic.env "${NAS}:${DIR}/magic.env"
+    if ($LASTEXITCODE -ne 0) { Write-Error "SCP failed"; return }
+    $services = $Groups["claude"] -join " "
+    ssh $NAS "cd $DIR && docker compose up -d --force-recreate $services"
+    Write-Host "Done." -ForegroundColor Green
+}
+
 function nas-deploy {
     param([Parameter(Mandatory)][string]$Service)
     Write-Host "Deploying $Service (pull + build + up) ..." -ForegroundColor Green
@@ -87,7 +108,8 @@ if ($args.Count -ge 1) {
         "up"     { nas-up     $args[1] }
         "down"   { nas-down   $args[1] }
         "status" { nas-status }
-        "deploy" { nas-deploy $args[1] }
-        default  { Write-Host "Usage: .\nas.ps1 up|down|status|deploy [name]" }
+        "deploy"   { nas-deploy   $args[1] }
+        "push-env" { nas-push-env }
+        default    { Write-Host "Usage: .\nas.ps1 up|down|status|deploy|push-env [name]" }
     }
 }

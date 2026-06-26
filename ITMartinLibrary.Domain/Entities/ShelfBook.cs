@@ -11,4 +11,5 @@ public class ShelfBook
     public double BBoxY { get; set; }
     public double BBoxW { get; set; }
     public double BBoxH { get; set; }
+    public string MediaType { get; set; } = "Book";
 }

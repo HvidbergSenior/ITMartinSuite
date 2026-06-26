@@ -1,7 +1,1 @@
-﻿namespace ITMartinR6Assistant.Domain;
-
-public enum OperatorSide
-{
-    Attack,
-    Defense
-}
+// intentionally empty — replaced by R6Operator.Side string property

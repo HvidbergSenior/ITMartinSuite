@@ -1,62 +1,148 @@
-﻿@page "/"
+@page "/"
 @layout R6AssistantLayout
-@inject RecommendationService RecommendationService
-@inject NavigationManager NavigationManager
+@inject IR6DataService DataService
+@inject SessionStateService Session
+@implements IDisposable
 
-<div class="stack">
+<div class="session-page">
 
-    <div>
-        <h1>
-            Maps
-        </h1>
-
-        <div class="text-muted">
-            Select a map
-        </div>
-    </div>
-
-    @if (_loading)
+    @if (Session.Map is null)
     {
-        <div class="content-card" style="text-align:center;padding:40px 20px;">
-            <div style="font-size:32px;margin-bottom:10px;">⏳</div>
-            <div>Loading maps…</div>
+        <div class="waiting-screen">
+            <div class="waiting-icon">R6</div>
+            <div class="waiting-title">Venter på session...</div>
+            <div class="waiting-sub">Admin vælger map og site</div>
         </div>
     }
     else
     {
-        <div class="grid grid-3">
-
-            @foreach (var map in _maps)
+        @* Status bar *@
+        <div class="session-status-bar">
+            <div class="session-map-name">@Session.Map</div>
+            @if (Session.Site is not null)
             {
-                <button class="card btn-secondary"
-                        @onclick="() => GoToMap(map)">
-
-                    <h2>
-                        @map
-                    </h2>
-
-                </button>
+                <div class="session-site-name">@Session.Site</div>
+                <div class="wr-badge @WinRateClass">@WinRatePct% @Session.Side WR</div>
             }
-
+            <div class="session-side side-@Session.Side.ToLower()">@Session.Side.ToUpper()</div>
         </div>
+
+        @* Active plan picks *@
+        @if (Session.ActivePlan.HasValue && GetCurrentSite() is BombSite activeSite)
+        {
+            var plan = activeSite.BattlePlans.FirstOrDefault(p => p.Number == Session.ActivePlan.Value);
+            if (plan is not null)
+            {
+                <div class="plan-banner">
+                    <div class="plan-banner-label">PLAN @plan.Number — @plan.Label.ToUpper()</div>
+                    @if (!string.IsNullOrEmpty(plan.Note))
+                    {
+                        <div class="plan-banner-note">@plan.Note</div>
+                    }
+                </div>
+                <div class="picks-grid">
+                    @foreach (var pick in plan.Picks.Take(5))
+                    {
+                        var op = GetOperator(pick);
+                        var isBanned = Session.Bans.Contains(pick);
+                        <div class="pick-slot @(isBanned ? "pick-banned" : "")">
+                            @if (op is not null)
+                            {
+                                <img class="pick-img" src="@op.ImageUrl" alt="@pick" onerror="this.style.display='none'" />
+                            }
+                            <div class="pick-name">@pick</div>
+                            @if (isBanned)
+                            {
+                                <div class="pick-banned-overlay">BANNED</div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else if (Session.Site is null)
+        {
+            <div class="waiting-site">Venter på site valg...</div>
+        }
+
+        @* Operator ban board (read-only) *@
+        @if (_gameData is not null)
+        {
+            var currentSite = GetCurrentSite();
+            <div class="ban-board-section">
+                <div class="ban-board-title">BAN BOARD</div>
+                <div class="ban-board-label">ATK</div>
+                <div class="ban-board">
+                    @foreach (var op in _gameData.Operators.Where(o => o.Side == "Attack"))
+                    {
+                        var isBanned = Session.Bans.Contains(op.Name);
+                        var isRec = currentSite?.SuggestedBans.Contains(op.Name, StringComparer.OrdinalIgnoreCase) ?? false;
+                        <div class="op-tile @(isBanned ? "op-banned" : "") @(isRec ? "op-rec-ban" : "")">
+                            <img class="op-img" src="@op.ImageUrl" alt="@op.Name" onerror="this.style.display='none'" />
+                            <div class="op-name">@op.Name</div>
+                            @if (isBanned)
+                            {
+                                <div class="op-x">✕</div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="ban-board-label">DEF</div>
+                <div class="ban-board">
+                    @foreach (var op in _gameData.Operators.Where(o => o.Side == "Defense"))
+                    {
+                        var isBanned = Session.Bans.Contains(op.Name);
+                        var isRec = currentSite?.SuggestedBans.Contains(op.Name, StringComparer.OrdinalIgnoreCase) ?? false;
+                        <div class="op-tile @(isBanned ? "op-banned" : "") @(isRec ? "op-rec-ban" : "")">
+                            <img class="op-img" src="@op.ImageUrl" alt="@op.Name" onerror="this.style.display='none'" />
+                            <div class="op-name">@op.Name</div>
+                            @if (isBanned)
+                            {
+                                <div class="op-x">✕</div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
 
 </div>
 
 @code {
-
-    private List<string> _maps = [];
-    private bool _loading = true;
+    private R6GameData? _gameData;
 
     protected override async Task OnInitializedAsync()
     {
-        _maps = await RecommendationService.GetMaps();
-        _loading = false;
+        Session.OnStateChanged += OnSessionChanged;
+        _gameData = await DataService.GetData();
     }
 
-    private void GoToMap(string map)
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private BombSite? GetCurrentSite()
     {
-        NavigationManager.NavigateTo($"/map/{map}");
+        if (Session.Map is null || Session.Site is null || _gameData is null) return null;
+        return _gameData.Maps
+            .FirstOrDefault(m => m.Name == Session.Map)
+            ?.Sites.FirstOrDefault(s => s.Name == Session.Site);
     }
 
+    private int WinRatePct
+    {
+        get
+        {
+            var site = GetCurrentSite();
+            if (site is null) return 50;
+            return Session.Side == "Attack" ? site.AttackWinRate : (100 - site.AttackWinRate);
+        }
+    }
+
+    private string WinRateClass => WinRatePct > 52 ? "wr-green" : WinRatePct < 48 ? "wr-red" : "wr-yellow";
+
+    private R6Operator? GetOperator(string name) =>
+        _gameData?.Operators.FirstOrDefault(o =>
+            string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    public void Dispose() => Session.OnStateChanged -= OnSessionChanged;
 }

@@ -1,0 +1,31 @@
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <base href="/" />
+    <title>R6 Intel</title>
+
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Shared.css" />
+    <link rel="stylesheet" href="css/Intel.css" />
+
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+
+<Routes @rendermode="InteractiveServer" />
+
+<script src="_framework/blazor.web.js"></script>
+<script src="js/intel.js"></script>
+
+<div id="components-reconnect-modal">
+    <span class="reconnect-msg">Reconnecting...</span>
+    <span class="reconnect-failed-msg">Connection lost — <button onclick="location.reload()">Reload</button></span>
+</div>
+
+</body>
+</html>

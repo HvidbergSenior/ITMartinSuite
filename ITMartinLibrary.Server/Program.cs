@@ -67,10 +67,18 @@ using (var scope = app.Services.CreateScope())
             "BBoxY"           REAL    NOT NULL,
             "BBoxW"           REAL    NOT NULL,
             "BBoxH"           REAL    NOT NULL,
+            "MediaType"       TEXT    NOT NULL DEFAULT 'Book',
             CONSTRAINT "FK_ShelfBooks_ScannedShelves"
                 FOREIGN KEY ("ScannedShelfId") REFERENCES "ScannedShelves" ("Id") ON DELETE CASCADE
         )
         """);
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"ShelfBooks\" ADD COLUMN \"MediaType\" TEXT NOT NULL DEFAULT 'Book'");
+    }
+    catch { }
 }
 
 if (!app.Environment.IsDevelopment())

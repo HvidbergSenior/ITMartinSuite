@@ -1,5 +1,6 @@
 namespace ITMartinR6Assistant.Server.Services;
 
+// Kept for potential future use
 public sealed class ToastService
 {
     private readonly List<ToastMessage> _toasts = [];

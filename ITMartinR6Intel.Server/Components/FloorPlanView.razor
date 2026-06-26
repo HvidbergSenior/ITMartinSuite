@@ -1,0 +1,89 @@
+@inject IntelSessionService Session
+@inject IJSRuntime JS
+@inject IntelDataService DataService
+
+<div class="floor-plan-container" @ref="_mapDiv" @onclick="HandleClick">
+    @{
+        var map = Session.SelectedMap is not null ? DataService.GetMap(Session.SelectedMap) : null;
+        var floor = map?.Floors.FirstOrDefault(f => f.Label == Session.ActiveFloor);
+        var imageUrl = floor?.ImageUrl;
+    }
+
+    @if (!string.IsNullOrEmpty(imageUrl))
+    {
+        <img class="floor-plan-img" src="@imageUrl" alt="@Session.ActiveFloor floor plan" />
+    }
+    else
+    {
+        <div class="floor-plan-placeholder">
+            <span class="floor-plan-placeholder-text">@(Session.SelectedMap ?? "") — @Session.ActiveFloor</span>
+            <span class="floor-plan-placeholder-sub">No floor plan image set</span>
+        </div>
+    }
+
+    <div class="floor-plan-tap-zone"></div>
+
+    @foreach (var marker in Session.Markers.Where(m => m.Floor == Session.ActiveFloor))
+    {
+        var m = marker;
+        <div class="intel-marker marker-@m.Type.ToLower()"
+             style="left: @m.X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%; top: @m.Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%"
+             @onclick:stopPropagation="true"
+             @onclick="() => Session.RemoveMarker(m.Id)"
+             title="@m.Type — tap to remove">
+            @GetIcon(m.Type)
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool AllowPlace { get; set; }
+    [Parameter] public string SelectedType { get; set; } = "Enemy";
+
+    private ElementReference _mapDiv;
+
+    private async Task HandleClick(MouseEventArgs e)
+    {
+        if (!AllowPlace) return;
+
+        try
+        {
+            var pos = await JS.InvokeAsync<ClickPosition>(
+                "getRelativeClickPosition",
+                _mapDiv, e.ClientX, e.ClientY);
+
+            if (pos is null) return;
+
+            // Clamp to 0-100
+            var x = Math.Clamp(pos.X, 0, 100);
+            var y = Math.Clamp(pos.Y, 0, 100);
+
+            Session.AddMarker(new IntelMarker
+            {
+                Type = SelectedType,
+                X = x,
+                Y = y,
+                Floor = Session.ActiveFloor
+            });
+        }
+        catch
+        {
+            // JS interop failure — ignore silently
+        }
+    }
+
+    private static string GetIcon(string type) => type switch
+    {
+        "Enemy"   => "\U0001F480",
+        "Gadget"  => "\U0001F527",
+        "Caution" => "⚠️",
+        "Rotate"  => "\U0001F504",
+        _         => "?"
+    };
+
+    private class ClickPosition
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+}

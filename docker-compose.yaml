@@ -710,6 +710,24 @@ services:
       - martinnet
 
   # =========================================================
+  # R6 INTEL
+  # =========================================================
+
+  r6intel-web:
+    container_name: r6intel-web
+    profiles: [manual]
+    build:
+      context: .
+      dockerfile: ./ITMartinR6Intel.Server/Dockerfile
+    ports:
+      - "8093:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+    restart: unless-stopped
+    networks:
+      - martinnet
+
+  # =========================================================
   # WORKERS
   # =========================================================
 

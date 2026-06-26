@@ -1,0 +1,69 @@
+@page "/intel"
+@layout IntelLayout
+@inject IntelSessionService Session
+@implements IDisposable
+
+<div class="intel-page intel-control-page">
+
+    @if (Session.SelectedMap is null)
+    {
+        <div class="intel-waiting">
+            <div class="intel-waiting-icon">R6</div>
+            <div class="intel-waiting-title">Waiting for round to start...</div>
+            <div class="intel-waiting-sub">Admin selects map to begin</div>
+        </div>
+    }
+    else
+    {
+        <div class="marker-type-bar">
+            @foreach (var mt in _markerTypes)
+            {
+                <button class="marker-type-btn @(_selectedType == mt.Type ? "active" : "")"
+                        style="--marker-color: @mt.Color"
+                        @onclick="() => _selectedType = mt.Type">
+                    <span class="marker-type-icon">@mt.Icon</span>
+                    <span class="marker-type-label">@mt.Type</span>
+                </button>
+            }
+        </div>
+
+        <div class="floor-plan-wrapper">
+            <FloorPlanView AllowPlace="true" SelectedType="_selectedType" />
+        </div>
+
+        <div class="intel-control-actions">
+            <button class="intel-btn intel-btn-danger" @onclick="Session.ClearFloorMarkers">
+                Clear Floor
+            </button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Session.LiveNote))
+    {
+        <div class="live-note">@Session.LiveNote</div>
+    }
+
+</div>
+
+@code {
+    private string _selectedType = "Enemy";
+
+    private record MarkerTypeInfo(string Type, string Icon, string Color);
+
+    private readonly MarkerTypeInfo[] _markerTypes =
+    [
+        new("Enemy",   "\U0001F480", "#ef4444"),
+        new("Gadget",  "\U0001F527", "#f97316"),
+        new("Caution", "⚠️",  "#eab308"),
+        new("Rotate",  "\U0001F504", "#6b7280"),
+    ];
+
+    protected override void OnInitialized()
+    {
+        Session.OnStateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.OnStateChanged -= OnStateChanged;
+}
