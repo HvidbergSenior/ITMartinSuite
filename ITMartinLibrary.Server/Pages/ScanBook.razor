@@ -30,6 +30,16 @@
             else
             {
                 <video id="video" autoplay muted playsinline webkit-playsinline></video>
+                @if (_state == PageState.Ready)
+                {
+                    <div class="shelf-guide">
+                        <span class="shelf-corner shelf-corner-tl"></span>
+                        <span class="shelf-corner shelf-corner-tr"></span>
+                        <span class="shelf-corner shelf-corner-bl"></span>
+                        <span class="shelf-corner shelf-corner-br"></span>
+                        <div class="shelf-guide-tip">Hold kameraet vandret – fyld rammen med bogrygge</div>
+                    </div>
+                }
                 @if (_state == PageState.Analyzing)
                 {
                     <div class="shelf-overlay">
@@ -165,6 +175,45 @@
     .alert-success a {
         color: #86efac;
     }
+
+    .shelf-guide {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10;
+    }
+    .shelf-corner {
+        position: absolute;
+        width: 28px;
+        height: 28px;
+    }
+    .shelf-corner-tl { top: 8%; left: 6%; border-top: 3px solid rgba(255,255,255,.85); border-left: 3px solid rgba(255,255,255,.85); }
+    .shelf-corner-tr { top: 8%; right: 6%; border-top: 3px solid rgba(255,255,255,.85); border-right: 3px solid rgba(255,255,255,.85); }
+    .shelf-corner-bl { bottom: 18%; left: 6%; border-bottom: 3px solid rgba(255,255,255,.85); border-left: 3px solid rgba(255,255,255,.85); }
+    .shelf-corner-br { bottom: 18%; right: 6%; border-bottom: 3px solid rgba(255,255,255,.85); border-right: 3px solid rgba(255,255,255,.85); }
+    .shelf-guide-tip {
+        position: absolute;
+        bottom: 10%;
+        left: 0; right: 0;
+        text-align: center;
+        color: rgba(255,255,255,.9);
+        font-size: 12px;
+        font-weight: 600;
+        text-shadow: 0 1px 4px rgba(0,0,0,.9);
+        letter-spacing: .02em;
+    }
+    .shelf-flash {
+        position: absolute;
+        inset: 0;
+        background: white;
+        pointer-events: none;
+        z-index: 20;
+        animation: shelf-flash-anim .35s ease-out forwards;
+    }
+    @@keyframes shelf-flash-anim {
+        from { opacity: 0.8; }
+        to   { opacity: 0; }
+    }
 </style>
 
 @code {
@@ -220,6 +269,8 @@
             await File.WriteAllBytesAsync(imgPath, bytes);
 
             _pendingImages.Add(imgPath);
+            await JS.InvokeVoidAsync("webcam.flash");
+            await JS.InvokeVoidAsync("webcam.speak", $"Hylde {_pendingImages.Count} fotograferet");
         }
         catch (Exception ex)
         {

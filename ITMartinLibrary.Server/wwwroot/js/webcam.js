@@ -122,6 +122,26 @@ window.webcam = {
         } catch (e) {
             console.error("STOP CAMERA FAILED", e);
         }
+    },
+
+    speak: function(text) {
+        if (!window.speechSynthesis) return;
+        try {
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'da-DK';
+            u.rate = 0.9;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(u);
+        } catch (e) {}
+    },
+
+    flash: function() {
+        var wrap = document.querySelector('.shelf-camera-wrap');
+        if (!wrap) return;
+        var f = document.createElement('div');
+        f.className = 'shelf-flash';
+        wrap.appendChild(f);
+        setTimeout(function() { if (f.parentNode) f.remove(); }, 400);
     }
 };
 
