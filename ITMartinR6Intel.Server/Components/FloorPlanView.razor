@@ -2,7 +2,9 @@
 @inject IJSRuntime JS
 @inject IntelDataService DataService
 
-<div class="floor-plan-container" @ref="_mapDiv" @onclick="HandleClick">
+<div class="@(_containerClass)"
+     @ref="_mapDiv"
+     @onclick="HandleClick">
     @{
         var map = Session.SelectedMap is not null ? DataService.GetMap(Session.SelectedMap) : null;
         var floor = map?.Floors.FirstOrDefault(f => f.Label == Session.ActiveFloor);
@@ -26,25 +28,50 @@
     @foreach (var marker in Session.Markers.Where(m => m.Floor == Session.ActiveFloor))
     {
         var m = marker;
-        <div class="intel-marker marker-@m.Type.ToLower()"
-             style="left: @m.X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%; top: @m.Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%"
+        var isPlayer = IsPlayerType(m.Type);
+        var pIdx = isPlayer ? GetPlayerIndex(m.Type) : -1;
+        var playerName = pIdx >= 0 ? (Session.PlayerNames[pIdx] ?? "") : "";
+        var markerClass = "intel-marker marker-" + m.Type.ToLower() + (isPlayer ? " marker-player" : "");
+        var markerTitle = IsInteractive ? m.Type + " — tap to remove" : m.Type;
+        var styleLeft = m.X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+        var styleTop  = m.Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+        <div class="@markerClass"
+             style="left: @(styleLeft)%; top: @(styleTop)%"
              @onclick:stopPropagation="true"
-             @onclick="() => Session.RemoveMarker(m.Id)"
-             title="@m.Type — tap to remove">
-            @GetIcon(m.Type)
+             @onclick="() => OnMarkerClick(m.Id)"
+             title="@markerTitle">
+            @if (isPlayer)
+            {
+                <div class="player-marker-circle">@GetPlayerLabel(m.Type)</div>
+                @if (!string.IsNullOrEmpty(playerName))
+                {
+                    <div class="marker-player-label">@playerName</div>
+                }
+            }
+            else
+            {
+                @GetIcon(m.Type)
+            }
         </div>
     }
 </div>
 
 @code {
-    [Parameter] public bool AllowPlace { get; set; }
-    [Parameter] public string SelectedType { get; set; } = "Enemy";
+    [Parameter] public bool IsInteractive { get; set; }
+
+    private string _containerClass => "floor-plan-container" + (IsInteractive ? "" : " floor-plan-readonly");
 
     private ElementReference _mapDiv;
 
+    private void OnMarkerClick(Guid id)
+    {
+        if (!IsInteractive) return;
+        Session.RemoveMarker(id);
+    }
+
     private async Task HandleClick(MouseEventArgs e)
     {
-        if (!AllowPlace) return;
+        if (!IsInteractive) return;
 
         try
         {
@@ -54,13 +81,12 @@
 
             if (pos is null) return;
 
-            // Clamp to 0-100
             var x = Math.Clamp(pos.X, 0, 100);
             var y = Math.Clamp(pos.Y, 0, 100);
 
             Session.AddMarker(new IntelMarker
             {
-                Type = SelectedType,
+                Type = Session.ActiveMarkerMode,
                 X = x,
                 Y = y,
                 Floor = Session.ActiveFloor
@@ -72,12 +98,36 @@
         }
     }
 
+    private static bool IsPlayerType(string type) =>
+        type is "Player1" or "Player2" or "Player3" or "Player4" or "Player5";
+
+    private static int GetPlayerIndex(string type) => type switch
+    {
+        "Player1" => 0,
+        "Player2" => 1,
+        "Player3" => 2,
+        "Player4" => 3,
+        "Player5" => 4,
+        _ => -1
+    };
+
+    private static string GetPlayerLabel(string type) => type switch
+    {
+        "Player1" => "P1",
+        "Player2" => "P2",
+        "Player3" => "P3",
+        "Player4" => "P4",
+        "Player5" => "P5",
+        _ => "?"
+    };
+
     private static string GetIcon(string type) => type switch
     {
         "Enemy"   => "\U0001F480",
         "Gadget"  => "\U0001F527",
         "Caution" => "⚠️",
         "Rotate"  => "\U0001F504",
+        "Bomb"    => "\U0001F4A3",
         _         => "?"
     };
 

@@ -3,7 +3,7 @@
 @inject IntelSessionService Session
 @implements IDisposable
 
-<div class="intel-page">
+<div class="intel-page viewer-page">
 
     @if (Session.SelectedMap is null)
     {
@@ -15,8 +15,62 @@
     }
     else
     {
-        <div class="floor-plan-wrapper">
-            <FloorPlanView AllowPlace="false" />
+        <div class="viewer-layout">
+
+            <div class="viewer-floor-plan">
+                <div class="floor-plan-wrapper">
+                    <FloorPlanView IsInteractive="false" />
+                </div>
+            </div>
+
+            <div class="viewer-tactics">
+
+                <div class="viewer-section">
+                    <div class="viewer-section-title">BOMB CARRIER</div>
+                    <div class="viewer-bomb-carrier">
+                        @{
+                            var bcCarrier = Session.BombCarrier;
+                            var bcIdx = GetPlayerIndexFromId(bcCarrier);
+                            var bcName = bcIdx >= 0 ? (Session.PlayerNames[bcIdx] ?? "") : "";
+                        }
+                        @if (bcCarrier is not null)
+                        {
+                            <span class="player-dot player-dot-@(bcIdx + 1)">@bcCarrier</span>
+                            @if (!string.IsNullOrEmpty(bcName))
+                            {
+                                <span class="viewer-bomb-name"> — @bcName</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="viewer-dim">Not assigned</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="viewer-section">
+                    <div class="viewer-section-title">PLAYER POSITIONS</div>
+                    @for (var i = 0; i < 5; i++)
+                    {
+                        var idx = i;
+                        var pid = $"P{idx + 1}";
+                        var name = Session.PlayerNames[idx] ?? "";
+                        var role = Session.PlayerRoles[idx] ?? "";
+                        <div class="player-info-row">
+                            <div class="player-dot player-dot-@(idx + 1)">@pid</div>
+                            <div class="player-info-content">
+                                <div class="player-info-name">@pid@(string.IsNullOrEmpty(name) ? "" : $" — {name}")</div>
+                                @if (!string.IsNullOrEmpty(role))
+                                {
+                                    <div class="player-info-role">@role</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+            </div>
+
         </div>
     }
 
@@ -36,4 +90,11 @@
     private void OnStateChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose() => Session.OnStateChanged -= OnStateChanged;
+
+    private static int GetPlayerIndexFromId(string? pid)
+    {
+        if (pid is { Length: 2 } && pid[0] == 'P' && char.IsDigit(pid[1]))
+            return pid[1] - '1'; // P1->0, P2->1, ..., P5->4
+        return -1;
+    }
 }

@@ -18,17 +18,18 @@
         <div class="marker-type-bar">
             @foreach (var mt in _markerTypes)
             {
-                <button class="marker-type-btn @(_selectedType == mt.Type ? "active" : "")"
-                        style="--marker-color: @mt.Color"
-                        @onclick="() => _selectedType = mt.Type">
-                    <span class="marker-type-icon">@mt.Icon</span>
-                    <span class="marker-type-label">@mt.Type</span>
+                var m = mt;
+                <button class="marker-type-btn @(Session.ActiveMarkerMode == m.Type ? "active" : "")"
+                        style="--marker-color: @m.Color"
+                        @onclick="() => Session.SetActiveMarkerMode(m.Type)">
+                    <span class="marker-type-icon">@m.Icon</span>
+                    <span class="marker-type-label">@m.Type</span>
                 </button>
             }
         </div>
 
         <div class="floor-plan-wrapper">
-            <FloorPlanView AllowPlace="true" SelectedType="_selectedType" />
+            <FloorPlanView IsInteractive="true" />
         </div>
 
         <div class="intel-control-actions">
@@ -46,20 +47,24 @@
 </div>
 
 @code {
-    private string _selectedType = "Enemy";
-
     private record MarkerTypeInfo(string Type, string Icon, string Color);
 
     private readonly MarkerTypeInfo[] _markerTypes =
     [
         new("Enemy",   "\U0001F480", "#ef4444"),
         new("Gadget",  "\U0001F527", "#f97316"),
-        new("Caution", "⚠️",  "#eab308"),
+        new("Caution", "⚠️",         "#eab308"),
         new("Rotate",  "\U0001F504", "#6b7280"),
     ];
 
+    private static readonly HashSet<string> _intelTypeSet =
+        new() { "Enemy", "Gadget", "Caution", "Rotate" };
+
     protected override void OnInitialized()
     {
+        // Ensure we start in an intel-compatible mode (not a tactical mode set by admin)
+        if (!_intelTypeSet.Contains(Session.ActiveMarkerMode))
+            Session.SetActiveMarkerMode("Enemy");
         Session.OnStateChanged += OnStateChanged;
     }
 

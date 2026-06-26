@@ -11,6 +11,11 @@ public class IntelSessionService
     public List<IntelMarker> Markers { get; private set; } = [];
     public string LiveNote { get; private set; } = "";
 
+    public string?[] PlayerNames { get; private set; } = new string?[5]; // P1-P5 operator names
+    public string?[] PlayerRoles { get; private set; } = new string?[5]; // P1-P5 role text
+    public string? BombCarrier { get; private set; }                      // "P1", "P2", etc.
+    public string ActiveMarkerMode { get; private set; } = "Enemy";      // Enemy, Gadget, Caution, Rotate, Player1..Player5, Bomb
+
     public event Action? OnStateChanged;
 
     public void SetMap(string? map)
@@ -49,9 +54,45 @@ public class IntelSessionService
         Notify();
     }
 
+    public void ClearIntelMarkers()
+    {
+        lock (_lock) { Markers.RemoveAll(m => m.Type is "Enemy" or "Gadget" or "Caution" or "Rotate"); }
+        Notify();
+    }
+
+    public void ClearPositionMarkers()
+    {
+        lock (_lock) { Markers.RemoveAll(m => m.Type is "Player1" or "Player2" or "Player3" or "Player4" or "Player5" or "Bomb"); }
+        Notify();
+    }
+
     public void SetLiveNote(string note)
     {
         lock (_lock) { LiveNote = note; }
+        Notify();
+    }
+
+    public void SetPlayerName(int index, string? name)
+    {
+        lock (_lock) { PlayerNames[index] = name; }
+        Notify();
+    }
+
+    public void SetPlayerRole(int index, string? role)
+    {
+        lock (_lock) { PlayerRoles[index] = role; }
+        Notify();
+    }
+
+    public void SetBombCarrier(string? player)
+    {
+        lock (_lock) { BombCarrier = player; }
+        Notify();
+    }
+
+    public void SetActiveMarkerMode(string mode)
+    {
+        lock (_lock) { ActiveMarkerMode = mode; }
         Notify();
     }
 

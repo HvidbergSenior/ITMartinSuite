@@ -44,13 +44,51 @@
     </section>
 
     <section class="admin-section">
-        <div class="admin-section-title">Markers</div>
+        <div class="admin-section-title">Marker Mode</div>
+        <div class="marker-mode-grid">
+            <div class="marker-mode-row">
+                @foreach (var mt in _intelModes)
+                {
+                    var mode = mt;
+                    <button class="mode-btn mode-@mode.Mode.ToLower() @(Session.ActiveMarkerMode == mode.Mode ? "active" : "")"
+                            style="--mode-color: @mode.Color"
+                            @onclick="() => Session.SetActiveMarkerMode(mode.Mode)">
+                        @mode.Icon @mode.Label
+                    </button>
+                }
+            </div>
+            <div class="marker-mode-row">
+                @foreach (var mt in _tacticalModes)
+                {
+                    var mode = mt;
+                    <button class="mode-btn mode-@mode.Mode.ToLower() @(Session.ActiveMarkerMode == mode.Mode ? "active" : "")"
+                            style="--mode-color: @mode.Color"
+                            @onclick="() => Session.SetActiveMarkerMode(mode.Mode)">
+                        @mode.Icon @mode.Label
+                    </button>
+                }
+            </div>
+        </div>
+    </section>
+
+    @if (Session.SelectedMap is not null)
+    {
+        <div class="floor-plan-wrapper">
+            <FloorPlanView IsInteractive="true" />
+        </div>
+    }
+
+    <section class="admin-section">
+        <div class="admin-section-title">Clear Markers</div>
         <div class="admin-actions-row">
-            <button class="intel-btn intel-btn-danger" @onclick="Session.ClearFloorMarkers">
-                Clear Floor (@Session.ActiveFloor)
+            <button class="intel-btn intel-btn-ghost" @onclick="Session.ClearIntelMarkers">
+                Clear Intel
+            </button>
+            <button class="intel-btn intel-btn-ghost" @onclick="Session.ClearPositionMarkers">
+                Clear Positions
             </button>
             <button class="intel-btn intel-btn-danger" @onclick="Session.ClearMarkers">
-                Clear All Markers
+                Clear All
             </button>
         </div>
         <div class="marker-count-info">
@@ -59,10 +97,72 @@
         </div>
     </section>
 
+    <section class="admin-section">
+        <div class="admin-section-title">Bomb Carrier</div>
+        <div class="bomb-carrier-row">
+            <span class="admin-label">WHO HAS BOMB:</span>
+            <select class="intel-select" @bind="BombCarrierBinding">
+                <option value="">None</option>
+                <option value="P1">P1</option>
+                <option value="P2">P2</option>
+                <option value="P3">P3</option>
+                <option value="P4">P4</option>
+                <option value="P5">P5</option>
+            </select>
+        </div>
+    </section>
+
+    <section class="admin-section">
+        <div class="admin-section-title">Player Assignments</div>
+        @for (var i = 0; i < 5; i++)
+        {
+            var idx = i;
+            <div class="player-config-row">
+                <div class="player-badge player-badge-@(idx + 1)">P@(idx + 1)</div>
+                <input class="intel-input"
+                       type="text"
+                       placeholder="Operator name"
+                       value="@(Session.PlayerNames[idx] ?? "")"
+                       @oninput="e => Session.SetPlayerName(idx, e.Value?.ToString())" />
+                <input class="intel-input player-role-input"
+                       type="text"
+                       placeholder="Role / task"
+                       value="@(Session.PlayerRoles[idx] ?? "")"
+                       @oninput="e => Session.SetPlayerRole(idx, e.Value?.ToString())" />
+            </div>
+        }
+    </section>
+
 </div>
 
 @code {
     private string _liveNoteInput = "";
+
+    private record ModeInfo(string Mode, string Icon, string Label, string Color);
+
+    private readonly ModeInfo[] _intelModes =
+    [
+        new("Enemy",   "\U0001F480", "Enemy",   "#ef4444"),
+        new("Gadget",  "\U0001F527", "Gadget",  "#f97316"),
+        new("Caution", "⚠️",         "Caution", "#eab308"),
+        new("Rotate",  "\U0001F504", "Rotate",  "#6b7280"),
+    ];
+
+    private readonly ModeInfo[] _tacticalModes =
+    [
+        new("Player1", "P1", "P1", "#3b82f6"),
+        new("Player2", "P2", "P2", "#22c55e"),
+        new("Player3", "P3", "P3", "#a855f7"),
+        new("Player4", "P4", "P4", "#f97316"),
+        new("Player5", "P5", "P5", "#06b6d4"),
+        new("Bomb",    "\U0001F4A3", "Bomb", "#fbbf24"),
+    ];
+
+    private string BombCarrierBinding
+    {
+        get => Session.BombCarrier ?? "";
+        set => Session.SetBombCarrier(string.IsNullOrEmpty(value) ? null : value);
+    }
 
     protected override void OnInitialized()
     {

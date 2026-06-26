@@ -15,6 +15,13 @@
     --marker-gadget: #f97316;
     --marker-caution: #eab308;
     --marker-rotate: #6b7280;
+
+    --player1-color: #3b82f6;
+    --player2-color: #22c55e;
+    --player3-color: #a855f7;
+    --player4-color: #f97316;
+    --player5-color: #06b6d4;
+    --bomb-color: #fbbf24;
 }
 
 *, *::before, *::after {
@@ -506,3 +513,323 @@ html, body {
 #components-reconnect-modal.components-reconnect-show .reconnect-msg { display: block; }
 #components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg { display: block; }
 #components-reconnect-modal.components-reconnect-failed .reconnect-msg { display: none; }
+
+/* ============================================================
+   Player & Bomb markers
+   ============================================================ */
+
+.intel-marker.marker-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 44px; /* sets the layout size; actual circle is in child */
+}
+
+.player-marker-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 900;
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.25);
+    flex-shrink: 0;
+}
+
+.marker-player1 .player-marker-circle {
+    background: var(--player1-color);
+    box-shadow: 0 0 10px var(--player1-color), 0 0 20px color-mix(in srgb, var(--player1-color) 50%, transparent);
+}
+.marker-player2 .player-marker-circle {
+    background: var(--player2-color);
+    box-shadow: 0 0 10px var(--player2-color), 0 0 20px color-mix(in srgb, var(--player2-color) 50%, transparent);
+}
+.marker-player3 .player-marker-circle {
+    background: var(--player3-color);
+    box-shadow: 0 0 10px var(--player3-color), 0 0 20px color-mix(in srgb, var(--player3-color) 50%, transparent);
+}
+.marker-player4 .player-marker-circle {
+    background: var(--player4-color);
+    box-shadow: 0 0 10px var(--player4-color), 0 0 20px color-mix(in srgb, var(--player4-color) 50%, transparent);
+}
+.marker-player5 .player-marker-circle {
+    background: var(--player5-color);
+    box-shadow: 0 0 10px var(--player5-color), 0 0 20px color-mix(in srgb, var(--player5-color) 50%, transparent);
+}
+
+.marker-player-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 3px #000, 0 0 6px #000;
+    white-space: nowrap;
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    line-height: 1.2;
+    margin-top: 2px;
+}
+
+.intel-marker.marker-bomb {
+    font-size: 36px;
+    filter: drop-shadow(0 0 8px var(--bomb-color)) drop-shadow(0 0 16px var(--bomb-color));
+}
+
+/* ============================================================
+   Floor plan readonly (viewer)
+   ============================================================ */
+
+.floor-plan-readonly {
+    cursor: default;
+}
+
+/* ============================================================
+   Viewer layout (Index page)
+   ============================================================ */
+
+.viewer-page {
+    overflow: hidden;
+}
+
+.viewer-layout {
+    display: flex;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.viewer-floor-plan {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.viewer-tactics {
+    width: 280px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.viewer-section {
+    background: var(--intel-surface);
+    border: 1px solid var(--intel-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.viewer-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--intel-text-dim);
+}
+
+.viewer-bomb-carrier {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--intel-text);
+}
+
+.viewer-bomb-name {
+    color: var(--intel-accent);
+}
+
+.viewer-dim {
+    color: var(--intel-text-dim);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .viewer-layout {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .viewer-tactics {
+        width: 100%;
+    }
+}
+
+/* ============================================================
+   Player dots (shared by viewer and admin)
+   ============================================================ */
+
+.player-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.player-dot-1 { background: var(--player1-color); }
+.player-dot-2 { background: var(--player2-color); }
+.player-dot-3 { background: var(--player3-color); }
+.player-dot-4 { background: var(--player4-color); }
+.player-dot-5 { background: var(--player5-color); }
+
+/* ============================================================
+   Player info rows (viewer)
+   ============================================================ */
+
+.player-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--intel-border);
+}
+
+.player-info-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.player-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.player-info-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--intel-text);
+}
+
+.player-info-role {
+    font-size: 0.8rem;
+    color: var(--intel-text-dim);
+    line-height: 1.3;
+}
+
+/* ============================================================
+   Marker mode grid (admin)
+   ============================================================ */
+
+.marker-mode-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.marker-mode-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.mode-btn {
+    padding: 8px 14px;
+    background: var(--intel-bg);
+    border: 2px solid var(--intel-border);
+    border-radius: 6px;
+    color: var(--intel-text);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    touch-action: manipulation;
+    letter-spacing: 0.5px;
+}
+
+.mode-btn:hover {
+    background: #252525;
+}
+
+.mode-btn.active {
+    border-color: var(--mode-color, var(--intel-accent));
+    background: color-mix(in srgb, var(--mode-color, var(--intel-accent)) 18%, var(--intel-bg));
+    box-shadow: 0 0 10px color-mix(in srgb, var(--mode-color, var(--intel-accent)) 40%, transparent);
+    color: var(--mode-color, var(--intel-accent));
+}
+
+/* ============================================================
+   Player config rows (admin)
+   ============================================================ */
+
+.player-config-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.player-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.player-badge-1 { background: var(--player1-color); }
+.player-badge-2 { background: var(--player2-color); }
+.player-badge-3 { background: var(--player3-color); }
+.player-badge-4 { background: var(--player4-color); }
+.player-badge-5 { background: var(--player5-color); }
+
+.player-role-input {
+    flex: 2;
+}
+
+/* ============================================================
+   Bomb carrier row (admin)
+   ============================================================ */
+
+.bomb-carrier-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--intel-text-dim);
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.intel-select {
+    padding: 8px 12px;
+    background: var(--intel-bg);
+    border: 1px solid var(--intel-border);
+    border-radius: 6px;
+    color: var(--intel-text);
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.intel-select:focus {
+    border-color: var(--intel-accent);
+}
