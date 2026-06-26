@@ -21,6 +21,12 @@
             <input class="inv-search" type="search"
                    placeholder="Søg titel eller forfatter…"
                    @bind="_search" @bind:event="oninput" />
+            @if (!string.IsNullOrWhiteSpace(_search))
+            {
+                <div class="inv-count">
+                    @_filtered.Count resultat@(_filtered.Count == 1 ? "" : "er") for "<strong>@_search</strong>" — @_allBooks.Count bøger i alt
+                </div>
+            }
 
             <div class="inv-filter-row">
                 <div class="inv-chips">
@@ -112,6 +118,7 @@
     .inv-item-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .inv-item-sub { font-size: 13px; color: var(--text-muted, #94a3b8); margin-top: 2px; }
     .inv-item-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px; font-size: 11px; color: var(--text-muted, #94a3b8); }
+    .inv-count { font-size: 13px; color: var(--text-muted, #94a3b8); padding: 2px 0; }
 </style>
 
 @code {
@@ -151,6 +158,6 @@
                 x.Book.Author.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
-        return q.ToList();
+        return q.OrderBy(x => x.Book.Title, StringComparer.OrdinalIgnoreCase).ToList();
     }
 }
