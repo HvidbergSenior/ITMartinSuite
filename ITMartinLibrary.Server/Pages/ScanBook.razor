@@ -176,6 +176,47 @@
         color: #86efac;
     }
 
+    /* ── Landscape phone: fill the viewport so buttons stay visible ── */
+    @@media (orientation: landscape) and (max-height: 500px) {
+        .library-page {
+            min-height: 0;
+            height: 100vh;
+            height: 100dvh;
+            padding: 0 12px;
+            display: flex;
+            flex-direction: column;
+        }
+        .page-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 5px 0 max(6px, env(safe-area-inset-bottom));
+            gap: 5px;
+        }
+        .scan-hero-card { padding: 4px 10px !important; }
+        .scan-hero-card h1 { font-size: 15px !important; margin: 0 !important; }
+        .hero-text { display: none !important; }
+        .shelf-camera-wrap {
+            flex: 1;
+            min-height: 0;
+            max-height: none !important;
+            aspect-ratio: unset !important;
+            margin-top: 0 !important;
+            border-radius: 10px;
+        }
+        .shelf-pending-row { margin-top: 0 !important; }
+        .scan-actions {
+            flex-shrink: 0;
+            flex-direction: row !important;
+            justify-content: center;
+            gap: 10px;
+            padding-bottom: max(4px, env(safe-area-inset-bottom)) !important;
+            margin-top: 0 !important;
+        }
+        .mt-3 { margin-top: 0 !important; }
+    }
+
     .shelf-guide {
         position: absolute;
         inset: 0;
