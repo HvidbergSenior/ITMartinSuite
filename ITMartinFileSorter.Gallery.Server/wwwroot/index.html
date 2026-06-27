@@ -49,6 +49,20 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 /* Empty */
 .empty{text-align:center;padding:60px 20px;color:#4b5563;font-size:15px}
 
+/* ── LOGIN MODAL ─────────────── */
+#loginModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center}
+#loginModal.active{display:flex}
+.login-box{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:32px 28px;width:min(340px,90vw);display:flex;flex-direction:column;gap:16px}
+.login-title{font-size:20px;font-weight:800;text-align:center}
+.login-sub{font-size:14px;color:#6b7280;text-align:center}
+.login-input{background:#0a0d14;border:1px solid #374151;border-radius:10px;color:#f0f0f0;font-size:16px;padding:12px 14px;width:100%;outline:none}
+.login-input:focus{border-color:#3b82f6}
+.login-error{color:#ef4444;font-size:13px;text-align:center;min-height:18px}
+.login-btn{background:#3b82f6;border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:700;padding:13px;cursor:pointer;width:100%}
+.login-btn:active{background:#2563eb}
+.login-cancel{background:none;border:none;color:#6b7280;font-size:14px;cursor:pointer;text-align:center;padding:4px}
+.login-cancel:hover{color:#9ca3af}
+
 /* ── VIEWER ─────────────────── */
 #viewer{display:none;position:fixed;inset:0;background:#000;z-index:100;flex-direction:column}
 #viewer.active{display:flex}
@@ -76,13 +90,12 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="hdr-btn" id="btnGalleries" style="display:none">🏠 Gallerier</button>
     <button class="hdr-btn" id="btnBack" style="display:none">← Tilbage</button>
     <div class="hdr-title" id="hdrTitle">🖼️ Gallerier</div>
+    <button class="hdr-btn" id="btnLogout" style="display:none">Log ud</button>
   </div>
   <div class="content">
-    <!-- Gallery picker (shown when no gallery selected) -->
     <div id="galleryPicker">
       <div class="gallery-grid" id="galleryGrid"></div>
     </div>
-    <!-- File browser (shown when inside a gallery) -->
     <div id="fileBrowser" style="display:none">
       <div id="folderSection">
         <div class="section-label">Mapper</div>
@@ -94,6 +107,18 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
       </div>
       <div class="empty" id="emptyState" style="display:none">Ingen mediefiler her</div>
     </div>
+  </div>
+</div>
+
+<!-- Login modal -->
+<div id="loginModal">
+  <div class="login-box">
+    <div class="login-title" id="loginTitle">🔒 Log ind</div>
+    <div class="login-sub" id="loginSub">Indtast adgangskode</div>
+    <input class="login-input" id="loginInput" type="password" placeholder="Adgangskode" autocomplete="current-password">
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" id="loginBtn">Åbn galleri</button>
+    <button class="login-cancel" id="loginCancel">Annuller</button>
   </div>
 </div>
 
@@ -115,11 +140,13 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let currentGallery = null;   // null = home screen
+let currentGallery = null;
 let currentRelPath = '';
 let parentRelPath  = null;
 let playlist       = [];
 let playIdx        = 0;
+let pendingSlug    = null;
+let pendingName    = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadGalleries();
@@ -135,6 +162,7 @@ async function loadGalleries() {
   document.getElementById('fileBrowser').style.display   = 'none';
   document.getElementById('btnGalleries').style.display  = 'none';
   document.getElementById('btnBack').style.display       = 'none';
+  document.getElementById('btnLogout').style.display     = 'none';
   document.getElementById('hdrTitle').textContent        = '🖼️ Gallerier';
 
   const grid = document.getElementById('galleryGrid');
@@ -147,12 +175,74 @@ async function loadGalleries() {
     </div>`).join('');
 }
 
-function selectGallery(slug, name) {
+async function selectGallery(slug, name) {
+  // Try to browse — if 401 show login, else enter
+  const res = await fetch(`/api/browse?gallery=${encodeURIComponent(slug)}`);
+  if (res.status === 401) {
+    showLogin(slug, name);
+    return;
+  }
+  if (!res.ok) return;
   currentGallery = slug;
   document.getElementById('galleryPicker').style.display = 'none';
   document.getElementById('fileBrowser').style.display   = '';
-  loadBrowse('', name);
+  document.getElementById('btnLogout').style.display     = '';
+  const data = await res.json();
+  parentRelPath = data.parentRelPath;
+  renderBrowse(data, name);
 }
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+function showLogin(slug, name) {
+  pendingSlug = slug;
+  pendingName = name;
+  document.getElementById('loginTitle').textContent = '🔒 ' + name;
+  document.getElementById('loginInput').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginModal').classList.add('active');
+  setTimeout(() => document.getElementById('loginInput').focus(), 100);
+}
+
+function hideLogin() {
+  document.getElementById('loginModal').classList.remove('active');
+  pendingSlug = null;
+  pendingName = null;
+}
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginInput').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginCancel').addEventListener('click', hideLogin);
+
+async function doLogin() {
+  const pw  = document.getElementById('loginInput').value;
+  const err = document.getElementById('loginError');
+  err.textContent = '';
+  const res = await fetch('/api/login', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ gallery: pendingSlug, password: pw }),
+  });
+  if (res.ok) {
+    const slug = pendingSlug, name = pendingName;
+    hideLogin();
+    currentGallery = slug;
+    document.getElementById('galleryPicker').style.display = 'none';
+    document.getElementById('fileBrowser').style.display   = '';
+    document.getElementById('btnLogout').style.display     = '';
+    await loadBrowse('', name);
+  } else {
+    err.textContent = 'Forkert adgangskode';
+    document.getElementById('loginInput').select();
+  }
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  if (currentGallery) {
+    await fetch(`/api/logout?gallery=${encodeURIComponent(currentGallery)}`, { method: 'POST' });
+  }
+  loadGalleries();
+});
 
 // ── Browse ────────────────────────────────────────────────────────────────────
 async function loadBrowse(relPath, galleryName) {
@@ -161,6 +251,7 @@ async function loadBrowse(relPath, galleryName) {
   const url = `/api/browse?gallery=${encodeURIComponent(currentGallery)}` +
               (relPath ? `&path=${encodeURIComponent(relPath)}` : '');
   const res = await fetch(url);
+  if (res.status === 401) { loadGalleries(); return; }
   if (!res.ok) return;
   const data = await res.json();
   parentRelPath = data.parentRelPath;
@@ -170,15 +261,13 @@ async function loadBrowse(relPath, galleryName) {
 function renderBrowse(data, galleryName) {
   const { atRoot, folders, files } = data;
 
-  // Header
   const title = atRoot
     ? (galleryName || currentGallery)
     : currentRelPath.split('/').pop();
-  document.getElementById('hdrTitle').textContent        = title;
-  document.getElementById('btnGalleries').style.display  = '';
-  document.getElementById('btnBack').style.display       = atRoot ? 'none' : '';
+  document.getElementById('hdrTitle').textContent       = title;
+  document.getElementById('btnGalleries').style.display = '';
+  document.getElementById('btnBack').style.display      = atRoot ? 'none' : '';
 
-  // Folders
   const fg = document.getElementById('folderGrid');
   const fs = document.getElementById('folderSection');
   if (folders.length) {
@@ -196,7 +285,6 @@ function renderBrowse(data, galleryName) {
     fs.style.display = 'none';
   }
 
-  // Files
   const fg2 = document.getElementById('fileGrid');
   const fs2 = document.getElementById('fileSection');
   if (files.length) {

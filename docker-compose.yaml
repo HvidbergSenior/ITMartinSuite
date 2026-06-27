@@ -157,9 +157,11 @@ services:
       - Galleries__0__Slug=mie
       - Galleries__0__Name=Mie
       - Galleries__0__Path=/library/mie
+      - Galleries__0__Password=8670Låsby
       - Galleries__1__Slug=jespermette
       - Galleries__1__Name=Mette & Jesper
       - Galleries__1__Path=/library/jespermette
+      - Galleries__1__Password=2860Søborg
 
     volumes:
       - /volume1/docker/filesorter/library/mie:/library/mie:ro

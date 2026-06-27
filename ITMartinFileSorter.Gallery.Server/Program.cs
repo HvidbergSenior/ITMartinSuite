@@ -29,16 +29,41 @@ mime.Mappings[".wav"]  = "audio/wav";
 mime.Mappings[".flac"] = "audio/flac";
 mime.Mappings[".ogg"]  = "audio/ogg";
 
-// Load galleries from config (supports env var array syntax: Galleries__0__Slug etc.)
 var galleries = app.Configuration
     .GetSection("Galleries")
     .GetChildren()
     .Select(s => new GalleryDef(
-        Slug: s["Slug"] ?? "",
-        Name: s["Name"] ?? "",
-        Path: s["Path"] ?? ""))
+        Slug:     s["Slug"]     ?? "",
+        Name:     s["Name"]     ?? "",
+        Path:     s["Path"]     ?? "",
+        Password: s["Password"]))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
+
+// Guard static library files with cookie auth
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value ?? "";
+    if (path.StartsWith("/libraryfiles/", StringComparison.OrdinalIgnoreCase))
+    {
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            var slug = parts[1];
+            var g = galleries.FirstOrDefault(x => x.Slug == slug);
+            if (g is not null && !string.IsNullOrEmpty(g.Password))
+            {
+                var cookie = ctx.Request.Cookies[$"gallery_{slug}"];
+                if (cookie != g.Password)
+                {
+                    ctx.Response.StatusCode = 401;
+                    return;
+                }
+            }
+        }
+    }
+    await next();
+});
 
 // Mount static files per gallery slug
 foreach (var g in galleries)
@@ -57,10 +82,37 @@ foreach (var g in galleries)
 app.MapGet("/api/galleries", () =>
     galleries.Select(g => new { g.Slug, g.Name }));
 
-app.MapGet("/api/browse", (string gallery, string? path) =>
+app.MapPost("/api/login", (LoginRequest req, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == req.Gallery);
+    if (g is null) return Results.NotFound();
+    if (string.IsNullOrEmpty(g.Password) || g.Password == req.Password)
+    {
+        ctx.Response.Cookies.Append($"gallery_{req.Gallery}", req.Password ?? "", new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Strict,
+            MaxAge   = TimeSpan.FromDays(30),
+        });
+        return Results.Ok();
+    }
+    return Results.Unauthorized();
+});
+
+app.MapPost("/api/logout", (string gallery, HttpContext ctx) =>
+{
+    ctx.Response.Cookies.Delete($"gallery_{gallery}");
+    return Results.Ok();
+});
+
+app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
 {
     var g = galleries.FirstOrDefault(x => x.Slug == gallery);
     if (g is null) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
     var r       = g.Path;
     var current = string.IsNullOrWhiteSpace(path) ? r : Path.GetFullPath(Path.Combine(r, path));
 
@@ -104,10 +156,14 @@ app.MapGet("/api/browse", (string gallery, string? path) =>
     return Results.Ok(new { atRoot, parentRelPath = parentRel, folders, files });
 });
 
-app.MapGet("/api/playlist", (string gallery, string folder) =>
+app.MapGet("/api/playlist", (string gallery, string folder, HttpContext ctx) =>
 {
     var g = galleries.FirstOrDefault(x => x.Slug == gallery);
     if (g is null) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
     var r    = g.Path;
     var full = Path.GetFullPath(Path.Combine(r, folder));
 
@@ -167,5 +223,5 @@ static string? FolderCover(string dir, string r, string slug)
     return img is not null ? Web(img, r, slug) : null;
 }
 
-// Type declarations must come after all top-level statements and local functions
-record GalleryDef(string Slug, string Name, string Path);
+record GalleryDef(string Slug, string Name, string Path, string? Password);
+record LoginRequest(string Gallery, string Password);
