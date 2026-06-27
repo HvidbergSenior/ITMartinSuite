@@ -22,7 +22,9 @@ public static class MediaExtensions
         ".mkv",
         ".wmv",
         ".flv",
-        ".webm"
+        ".webm",
+        ".vob",
+        ".dat"
     ];
 
     public static readonly HashSet<string> DocumentExtensions =
@@ -31,7 +33,9 @@ public static class MediaExtensions
         ".doc",
         ".docx",
         ".txt",
-        ".rtf"
+        ".rtf",
+        ".ifo",
+        ".bup"
     ];
 
     public static readonly HashSet<string> AudioExtensions =

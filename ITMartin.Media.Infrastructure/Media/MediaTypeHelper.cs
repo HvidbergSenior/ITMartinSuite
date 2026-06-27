@@ -15,7 +15,9 @@ public static class MediaTypeHelper
             ".mpeg",
             ".mts",
             ".m2ts",
-            ".wmv"
+            ".wmv",
+            ".vob",
+            ".dat"
         ];
 
     private static readonly HashSet<string>
@@ -47,7 +49,9 @@ public static class MediaTypeHelper
             ".pdf",
             ".doc",
             ".docx",
-            ".txt"
+            ".txt",
+            ".ifo",
+            ".bup"
         ];
 
     public static bool IsVideo(
