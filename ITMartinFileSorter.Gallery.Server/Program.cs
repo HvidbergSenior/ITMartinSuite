@@ -138,8 +138,6 @@ app.Run();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-record GalleryDef(string Slug, string Name, string Path);
-
 static string  Ext(string f)           => Path.GetExtension(f).ToLowerInvariant();
 static bool    IsImg(string ext)       => ext is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" or ".heic" or ".avif";
 static bool    IsVid(string ext)       => ext is ".mp4" or ".mov" or ".mkv" or ".avi" or ".m4v" or ".webm" or ".wmv";
@@ -168,3 +166,6 @@ static string? FolderCover(string dir, string r, string slug)
     var img = Directory.EnumerateFiles(dir).FirstOrDefault(f => IsImg(Ext(f)));
     return img is not null ? Web(img, r, slug) : null;
 }
+
+// Type declarations must come after all top-level statements and local functions
+record GalleryDef(string Slug, string Name, string Path);
