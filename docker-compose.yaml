@@ -163,7 +163,7 @@ services:
 
     volumes:
       - /volume1/docker/filesorter/library/mie:/library/mie:ro
-      - /volume1/MetteJesper/ProcessedOutput:/library/jespermette:ro
+      - /volume1/docker/filesorter/library/mettejesper:/library/jespermette:ro
 
     restart: unless-stopped
 
