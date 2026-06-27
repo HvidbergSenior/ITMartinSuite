@@ -20,6 +20,15 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .content{padding:14px 14px 80px}
 .section-label{font-size:11px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.08em;margin:16px 0 10px}
 
+/* Gallery picker */
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:16px}
+.gallery-card{background:#111827;border:1px solid #1f2937;border-radius:14px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .1s}
+.gallery-card:active{border-color:#3b82f6;transform:scale(.97)}
+.gallery-card-cover{width:100%;aspect-ratio:1;object-fit:cover;background:#0a0d14;display:flex;align-items:center;justify-content:center;font-size:48px;color:#374151}
+.gallery-card-cover img{width:100%;height:100%;object-fit:cover}
+.gallery-card-info{padding:10px 12px}
+.gallery-card-name{font-size:15px;font-weight:700}
+
 /* Folder grid */
 .folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:6px}
 .folder-card{background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
@@ -61,23 +70,30 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 </head>
 <body>
 
-<!-- Browse view -->
+<!-- Browse / home view -->
 <div id="browse">
   <div class="hdr">
-    <button class="hdr-btn" id="btnHome" style="display:none">🏠</button>
+    <button class="hdr-btn" id="btnGalleries" style="display:none">🏠 Gallerier</button>
     <button class="hdr-btn" id="btnBack" style="display:none">← Tilbage</button>
-    <div class="hdr-title" id="hdrTitle">🖼️ Galleri</div>
+    <div class="hdr-title" id="hdrTitle">🖼️ Gallerier</div>
   </div>
   <div class="content">
-    <div id="folderSection">
-      <div class="section-label">Mapper</div>
-      <div class="folder-grid" id="folderGrid"></div>
+    <!-- Gallery picker (shown when no gallery selected) -->
+    <div id="galleryPicker">
+      <div class="gallery-grid" id="galleryGrid"></div>
     </div>
-    <div id="fileSection">
-      <div class="section-label">Billeder &amp; videoer</div>
-      <div class="file-grid" id="fileGrid"></div>
+    <!-- File browser (shown when inside a gallery) -->
+    <div id="fileBrowser" style="display:none">
+      <div id="folderSection">
+        <div class="section-label">Mapper</div>
+        <div class="folder-grid" id="folderGrid"></div>
+      </div>
+      <div id="fileSection">
+        <div class="section-label">Billeder &amp; videoer</div>
+        <div class="file-grid" id="fileGrid"></div>
+      </div>
+      <div class="empty" id="emptyState" style="display:none">Ingen mediefiler her</div>
     </div>
-    <div class="empty" id="emptyState" style="display:none">Ingen mediefiler her</div>
   </div>
 </div>
 
@@ -99,32 +115,68 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
+let currentGallery = null;   // null = home screen
 let currentRelPath = '';
 let parentRelPath  = null;
 let playlist       = [];
 let playIdx        = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-loadBrowse('');
+loadGalleries();
+
+// ── Gallery picker ────────────────────────────────────────────────────────────
+async function loadGalleries() {
+  currentGallery = null;
+  const res = await fetch('/api/galleries');
+  if (!res.ok) return;
+  const list = await res.json();
+
+  document.getElementById('galleryPicker').style.display = '';
+  document.getElementById('fileBrowser').style.display   = 'none';
+  document.getElementById('btnGalleries').style.display  = 'none';
+  document.getElementById('btnBack').style.display       = 'none';
+  document.getElementById('hdrTitle').textContent        = '🖼️ Gallerier';
+
+  const grid = document.getElementById('galleryGrid');
+  grid.innerHTML = list.map(g => `
+    <div class="gallery-card" onclick="selectGallery('${esc(g.slug)}','${esc(g.name)}')">
+      <div class="gallery-card-cover">🖼️</div>
+      <div class="gallery-card-info">
+        <div class="gallery-card-name">${esc(g.name)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function selectGallery(slug, name) {
+  currentGallery = slug;
+  document.getElementById('galleryPicker').style.display = 'none';
+  document.getElementById('fileBrowser').style.display   = '';
+  loadBrowse('', name);
+}
 
 // ── Browse ────────────────────────────────────────────────────────────────────
-async function loadBrowse(relPath) {
+async function loadBrowse(relPath, galleryName) {
+  if (!currentGallery) return;
   currentRelPath = relPath ?? '';
-  const url = relPath ? `/api/browse?path=${encodeURIComponent(relPath)}` : '/api/browse';
+  const url = `/api/browse?gallery=${encodeURIComponent(currentGallery)}` +
+              (relPath ? `&path=${encodeURIComponent(relPath)}` : '');
   const res = await fetch(url);
   if (!res.ok) return;
   const data = await res.json();
   parentRelPath = data.parentRelPath;
-  renderBrowse(data);
+  renderBrowse(data, galleryName);
 }
 
-function renderBrowse(data) {
+function renderBrowse(data, galleryName) {
   const { atRoot, folders, files } = data;
 
   // Header
-  document.getElementById('hdrTitle').textContent = atRoot ? '🖼️ Galleri' : currentRelPath.split('/').pop();
-  document.getElementById('btnBack').style.display = atRoot ? 'none' : '';
-  document.getElementById('btnHome').style.display = atRoot ? 'none' : '';
+  const title = atRoot
+    ? (galleryName || currentGallery)
+    : currentRelPath.split('/').pop();
+  document.getElementById('hdrTitle').textContent        = title;
+  document.getElementById('btnGalleries').style.display  = '';
+  document.getElementById('btnBack').style.display       = atRoot ? 'none' : '';
 
   // Folders
   const fg = document.getElementById('folderGrid');
@@ -164,7 +216,6 @@ function renderBrowse(data) {
                onerror="this.style.display='none';this.parentElement.querySelector('.file-overlay')||this.insertAdjacentHTML('afterend','<div class=file-overlay>🖼️</div>')" alt="">
         </div>`;
     }).join('');
-    // store the file list for the viewer (pre-fill playlist from browse data)
     playlist = files;
   } else {
     fs2.style.display = 'none';
@@ -176,10 +227,8 @@ function renderBrowse(data) {
 
 // ── Viewer ────────────────────────────────────────────────────────────────────
 async function openViewer(idx) {
-  // Load full playlist for this folder (may differ from browse subset)
-  const url = currentRelPath
-    ? `/api/playlist?folder=${encodeURIComponent(currentRelPath)}`
-    : '/api/playlist?folder=';
+  const url = `/api/playlist?gallery=${encodeURIComponent(currentGallery)}` +
+              `&folder=${encodeURIComponent(currentRelPath || '.')}`;
   const res = await fetch(url);
   if (res.ok) {
     const data = await res.json();
@@ -194,36 +243,34 @@ async function openViewer(idx) {
 function closeViewer() {
   document.getElementById('viewer').classList.remove('active');
   document.removeEventListener('keydown', onKey);
-  // clear media to stop playback
   const stage = document.getElementById('vStage');
   const media = stage.querySelector('video,audio');
   if (media) { media.pause(); media.src = ''; }
 }
 
-function goHome() { closeViewer(); loadBrowse(''); }
+function goHome() { closeViewer(); loadGalleries(); }
 
 function renderViewer() {
   if (!playlist.length) return;
   const f = playlist[playIdx];
 
-  document.getElementById('vTitle').textContent = f.name;
+  document.getElementById('vTitle').textContent   = f.name;
   document.getElementById('vCounter').textContent = `${playIdx + 1} / ${playlist.length}`;
 
   const stage = document.getElementById('vStage');
-  // remove old media
-  const old = stage.querySelector('.v-media, .v-audio-bg');
+  const old   = stage.querySelector('.v-media, .v-audio-bg');
   if (old) old.remove();
 
   let el;
   if (f.isVideo) {
     el = document.createElement('video');
-    el.className = 'v-media';
-    el.controls  = true;
-    el.autoplay  = true;
+    el.className   = 'v-media';
+    el.controls    = true;
+    el.autoplay    = true;
     el.playsinline = true;
-    el.preload   = 'metadata';
-    el.src       = f.webPath;
-    el.onclick   = e => e.stopPropagation();
+    el.preload     = 'metadata';
+    el.src         = f.webPath;
+    el.onclick     = e => e.stopPropagation();
   } else if (f.isAudio) {
     el = document.createElement('div');
     el.className = 'v-audio-bg';
@@ -236,17 +283,14 @@ function renderViewer() {
     el.onclick   = () => viewerNav(1);
   }
 
-  // insert before the nav zones
   stage.insertBefore(el, stage.querySelector('.v-zone.left'));
 }
 
 function viewerNav(delta) {
   if (!playlist.length) return;
-  // stop current media
   const stage = document.getElementById('vStage');
   const media = stage.querySelector('video, audio');
   if (media) { media.pause(); media.src = ''; }
-
   playIdx = ((playIdx + delta) + playlist.length) % playlist.length;
   renderViewer();
 }
@@ -257,9 +301,9 @@ function onKey(e) {
   if (e.key === 'Escape')     closeViewer();
 }
 
-// ── Navigation ────────────────────────────────────────────────────────────────
+// ── Navigation buttons ────────────────────────────────────────────────────────
 document.getElementById('btnBack').addEventListener('click', () => loadBrowse(parentRelPath ?? ''));
-document.getElementById('btnHome').addEventListener('click', () => loadBrowse(''));
+document.getElementById('btnGalleries').addEventListener('click', () => loadGalleries());
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function esc(s) {

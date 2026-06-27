@@ -135,11 +135,11 @@ services:
       - martinnet
 
   # =========================================================
-  # GALLERY  →  Mie's gallery (only active gallery)
+  # GALLERY  →  multi-tenant gallery (one container, all galleries)
   # =========================================================
 
-  gallery-mie:
-    container_name: gallery-mie
+  gallery-web:
+    container_name: gallery-web
     profiles: [manual]
 
     build:
@@ -154,11 +154,16 @@ services:
 
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - MediaSettings__LibraryRoot=/library
-      - ConnectionStrings__MediaDb=Data Source=/library/.media.db
+      - Galleries__0__Slug=mie
+      - Galleries__0__Name=Mie
+      - Galleries__0__Path=/library/mie
+      - Galleries__1__Slug=jespermette
+      - Galleries__1__Name=Mette & Jesper
+      - Galleries__1__Path=/library/jespermette
 
     volumes:
-      - /volume1/docker/filesorter/library/mie:/library:ro
+      - /volume1/docker/filesorter/library/mie:/library/mie:ro
+      - /volume1/MetteJesper/ProcessedOutput:/library/jespermette:ro
 
     restart: unless-stopped
 
