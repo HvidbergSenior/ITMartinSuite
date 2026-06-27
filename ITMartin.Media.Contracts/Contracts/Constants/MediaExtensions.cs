@@ -23,8 +23,7 @@ public static class MediaExtensions
         ".wmv",
         ".flv",
         ".webm",
-        ".vob",
-        ".dat"
+        ".vob"
     ];
 
     public static readonly HashSet<string> DocumentExtensions =

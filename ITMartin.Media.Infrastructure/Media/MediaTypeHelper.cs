@@ -16,8 +16,7 @@ public static class MediaTypeHelper
             ".mts",
             ".m2ts",
             ".wmv",
-            ".vob",
-            ".dat"
+            ".vob"
         ];
 
     private static readonly HashSet<string>

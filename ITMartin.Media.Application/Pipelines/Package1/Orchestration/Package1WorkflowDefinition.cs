@@ -14,6 +14,7 @@ public sealed class Package1WorkflowDefinition
         Steps { get; }
 
     public Package1WorkflowDefinition(
+        DvdJoinWorkflowStep dvdJoinWorkflowStep,
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
         MediaRulesWorkflowStep mediaRulesWorkflowStep,
         HashWorkflowStep hashWorkflowStep,
@@ -31,6 +32,8 @@ public sealed class Package1WorkflowDefinition
     {
         Steps =
         [
+            dvdJoinWorkflowStep,
+
             fileDiscoveryWorkflowStep,
 
             mediaRulesWorkflowStep,
