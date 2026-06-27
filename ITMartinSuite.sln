@@ -164,6 +164,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinScan.Server", "ITMa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinR6Intel.Server", "ITMartinR6Intel.Server\ITMartinR6Intel.Server.csproj", "{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.FamilieOverblik.Domain", "ITMartin.FamilieOverblik.Domain\ITMartin.FamilieOverblik.Domain.csproj", "{AB04937D-E8D4-4247-955A-1E96B09C8B48}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.FamilieOverblik.Infrastructure", "ITMartin.FamilieOverblik.Infrastructure\ITMartin.FamilieOverblik.Infrastructure.csproj", "{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinSuite.Maui", "ITMartinSuite.Maui\ITMartinSuite.Maui.csproj", "{1DD3221D-4146-4E11-85A9-13341264D3D7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -477,5 +483,17 @@ Global
 		{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CCC1334B-B4E0-48A0-BD68-D9F2731BAE86}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AB04937D-E8D4-4247-955A-1E96B09C8B48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AB04937D-E8D4-4247-955A-1E96B09C8B48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AB04937D-E8D4-4247-955A-1E96B09C8B48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AB04937D-E8D4-4247-955A-1E96B09C8B48}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

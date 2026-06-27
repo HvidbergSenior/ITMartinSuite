@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ITMartinSuite.Maui.ViewModels"
+    x:Class="ITMartinSuite.Maui.Views.CreateTaskPage"
+    x:DataType="vm:CreateTaskViewModel"
+    Title="Ny opgave"
+    BackgroundColor="#1a1a2e">
+
+    <VerticalStackLayout Spacing="16" Padding="20">
+
+        <!-- Photo preview / camera button -->
+        <Border
+            HeightRequest="220"
+            StrokeShape="RoundRectangle 16"
+            StrokeThickness="0"
+            BackgroundColor="#16213e">
+            <Grid>
+                <Image
+                    Source="{Binding PhotoPreview}"
+                    Aspect="AspectFill"
+                    IsVisible="{Binding PhotoPreview, Converter={StaticResource NotNullConverter}}" />
+                <VerticalStackLayout
+                    VerticalOptions="Center"
+                    HorizontalOptions="Center"
+                    Spacing="8"
+                    IsVisible="{Binding PhotoPreview, Converter={StaticResource NullConverter}}">
+                    <Label Text="📷" FontSize="48" HorizontalOptions="Center" />
+                    <Label Text="Tryk for at tage billede" TextColor="#aaaacc" FontSize="14" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Grid>
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding TakePhotoCommand}" />
+            </Border.GestureRecognizers>
+        </Border>
+
+        <!-- Note -->
+        <Border StrokeShape="RoundRectangle 12" StrokeThickness="0" BackgroundColor="#16213e" Padding="12,4">
+            <Entry
+                Placeholder="Kort note (valgfri)"
+                PlaceholderColor="#666688"
+                TextColor="White"
+                Text="{Binding Note}"
+                FontSize="16" />
+        </Border>
+
+        <!-- Type selector -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+            <Button
+                Grid.Column="0"
+                Text="Opgave"
+                BackgroundColor="{Binding SelectedType, Converter={StaticResource TypeSelectedColorConverter}, ConverterParameter=Task}"
+                TextColor="White"
+                CornerRadius="10"
+                Command="{Binding SetTypeCommand}"
+                CommandParameter="Task" />
+            <Button
+                Grid.Column="1"
+                Text="Tilbud"
+                BackgroundColor="{Binding SelectedType, Converter={StaticResource TypeSelectedColorConverter}, ConverterParameter=Offer}"
+                TextColor="White"
+                CornerRadius="10"
+                Command="{Binding SetTypeCommand}"
+                CommandParameter="Offer" />
+            <Button
+                Grid.Column="2"
+                Text="Info"
+                BackgroundColor="{Binding SelectedType, Converter={StaticResource TypeSelectedColorConverter}, ConverterParameter=Info}"
+                TextColor="White"
+                CornerRadius="10"
+                Command="{Binding SetTypeCommand}"
+                CommandParameter="Info" />
+        </Grid>
+
+        <!-- Post button -->
+        <Button
+            Text="Post"
+            FontSize="18"
+            FontAttributes="Bold"
+            HeightRequest="54"
+            BackgroundColor="#e94560"
+            TextColor="White"
+            CornerRadius="12"
+            Command="{Binding PostCommand}"
+            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBoolConverter}}" />
+
+    </VerticalStackLayout>
+</ContentPage>

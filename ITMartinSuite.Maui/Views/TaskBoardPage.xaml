@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ITMartinSuite.Maui.ViewModels"
+    xmlns:models="clr-namespace:ITMartinSuite.Maui.Models"
+    x:Class="ITMartinSuite.Maui.Views.TaskBoardPage"
+    x:DataType="vm:TaskBoardViewModel"
+    Title="I dag"
+    BackgroundColor="#1a1a2e">
+
+    <Grid>
+        <RefreshView
+            Command="{Binding LoadCommand}"
+            IsRefreshing="{Binding IsLoading}">
+
+            <CollectionView
+                ItemsSource="{Binding Tasks}"
+                EmptyView="Ingen opgaver i dag"
+                Margin="8">
+
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="8" VerticalItemSpacing="8" />
+                </CollectionView.ItemsLayout>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:FamilyTaskDto">
+                        <Grid RowDefinitions="180,Auto" RowSpacing="0">
+
+                            <!-- Photo / placeholder -->
+                            <Border Grid.Row="0" StrokeShape="RoundRectangle 12,12,0,0" StrokeThickness="0" BackgroundColor="#16213e">
+                                <Grid>
+                                    <Image
+                                        Aspect="AspectFill"
+                                        IsVisible="{Binding PhotoPath, Converter={StaticResource NotNullConverter}}" />
+                                    <Label
+                                        Text="📋"
+                                        FontSize="48"
+                                        HorizontalOptions="Center"
+                                        VerticalOptions="Center"
+                                        IsVisible="{Binding PhotoPath, Converter={StaticResource NullConverter}}" />
+
+                                    <!-- Type badge -->
+                                    <Border
+                                        Margin="8"
+                                        Padding="6,3"
+                                        HorizontalOptions="Start"
+                                        VerticalOptions="Start"
+                                        StrokeShape="RoundRectangle 8"
+                                        StrokeThickness="0"
+                                        BackgroundColor="{Binding Type, Converter={StaticResource TypeColorConverter}}">
+                                        <Label
+                                            Text="{Binding Type}"
+                                            TextColor="White"
+                                            FontSize="11"
+                                            FontAttributes="Bold" />
+                                    </Border>
+
+                                    <!-- Completed overlay -->
+                                    <Border
+                                        IsVisible="{Binding IsCompleted}"
+                                        BackgroundColor="#88000000"
+                                        StrokeShape="RoundRectangle 12,12,0,0"
+                                        StrokeThickness="0">
+                                        <Label
+                                            Text="✓"
+                                            TextColor="#44ff88"
+                                            FontSize="48"
+                                            HorizontalOptions="Center"
+                                            VerticalOptions="Center" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Info strip -->
+                            <Border Grid.Row="1" StrokeShape="RoundRectangle 0,0,12,12" StrokeThickness="0" BackgroundColor="#16213e" Padding="8,6">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label
+                                        Text="{Binding Note}"
+                                        TextColor="White"
+                                        FontSize="13"
+                                        IsVisible="{Binding Note, Converter={StaticResource NotNullConverter}}"
+                                        LineBreakMode="TailTruncation"
+                                        MaxLines="1" />
+                                    <Label
+                                        Text="{Binding StatusText}"
+                                        TextColor="#aaaacc"
+                                        FontSize="12"
+                                        IsVisible="{Binding StatusText, Converter={StaticResource NotEmptyConverter}}" />
+                                    <Label
+                                        Text="{Binding CreatedBy}"
+                                        TextColor="#666688"
+                                        FontSize="11" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+
+        <!-- FAB -->
+        <Button
+            Text="+"
+            FontSize="28"
+            FontAttributes="Bold"
+            WidthRequest="60"
+            HeightRequest="60"
+            CornerRadius="30"
+            BackgroundColor="#e94560"
+            TextColor="White"
+            HorizontalOptions="End"
+            VerticalOptions="End"
+            Margin="0,0,20,20"
+            Command="{Binding AddTaskCommand}" />
+    </Grid>
+</ContentPage>

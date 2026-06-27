@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ITMartinSuite.Maui.ViewModels"
+    x:Class="ITMartinSuite.Maui.Views.OnboardingPage"
+    x:DataType="vm:OnboardingViewModel"
+    Shell.NavBarIsVisible="False"
+    BackgroundColor="#1a1a2e">
+
+    <VerticalStackLayout
+        Spacing="20"
+        Padding="40"
+        VerticalOptions="Center">
+
+        <Label
+            Text="Hvem er du?"
+            FontSize="32"
+            FontAttributes="Bold"
+            TextColor="White"
+            HorizontalOptions="Center" />
+
+        <Label
+            Text="Vælg dit navn for at fortsætte"
+            FontSize="16"
+            TextColor="#aaaacc"
+            HorizontalOptions="Center"
+            Margin="0,0,0,20" />
+
+        <CollectionView ItemsSource="{Binding FamilyMembers}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                    <Button
+                        Text="{Binding .}"
+                        Margin="0,6"
+                        HeightRequest="60"
+                        FontSize="20"
+                        BackgroundColor="#16213e"
+                        TextColor="White"
+                        CornerRadius="12"
+                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:OnboardingViewModel}}, Path=SelectNameCommand}"
+                        CommandParameter="{Binding .}" />
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </VerticalStackLayout>
+</ContentPage>

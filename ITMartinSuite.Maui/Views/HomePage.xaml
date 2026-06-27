@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:ITMartinSuite.Maui.ViewModels"
+    xmlns:models="clr-namespace:ITMartinSuite.Maui.Models"
+    x:Class="ITMartinSuite.Maui.Views.HomePage"
+    x:DataType="vm:HomeViewModel"
+    Title="Martin Suite"
+    BackgroundColor="#0a0d14">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="0" Padding="0,0,0,32">
+
+            <!-- Hero -->
+            <VerticalStackLayout Padding="24,40,24,32" Spacing="8">
+                <Label Text="⚡" FontSize="44" HorizontalOptions="Center" />
+                <Label Text="Martin Suite" FontSize="28" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center" />
+                <Label Text="Alle dine apps samlet ét sted" FontSize="14" TextColor="#64748b" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Categories -->
+            <CollectionView ItemsSource="{Binding Categories}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:AppCategory">
+                        <VerticalStackLayout Padding="0,0,0,24">
+
+                            <!-- Category header -->
+                            <Label
+                                Text="{Binding Name}"
+                                FontSize="11"
+                                FontAttributes="Bold"
+                                TextColor="#64748b"
+                                CharacterSpacing="2"
+                                Margin="20,0,20,12" />
+
+                            <!-- Apps -->
+                            <CollectionView ItemsSource="{Binding Apps}">
+                                <CollectionView.ItemsLayout>
+                                    <LinearItemsLayout Orientation="Horizontal" ItemSpacing="12" />
+                                </CollectionView.ItemsLayout>
+                                <CollectionView.Header>
+                                    <BoxView WidthRequest="8" Color="Transparent" />
+                                </CollectionView.Header>
+                                <CollectionView.Footer>
+                                    <BoxView WidthRequest="8" Color="Transparent" />
+                                </CollectionView.Footer>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:AppEntry">
+                                        <Border
+                                            WidthRequest="160"
+                                            StrokeShape="RoundRectangle 16"
+                                            StrokeThickness="1"
+                                            Stroke="#ffffff14"
+                                            BackgroundColor="#ffffff08">
+                                            <Grid RowDefinitions="120,Auto">
+
+                                                <!-- Icon area -->
+                                                <Border
+                                                    Grid.Row="0"
+                                                    StrokeShape="RoundRectangle 16,16,0,0"
+                                                    StrokeThickness="0"
+                                                    BackgroundColor="{Binding GradientEnd}">
+                                                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="6">
+                                                        <Label Text="{Binding Icon}" FontSize="40" HorizontalOptions="Center" />
+                                                        <Label Text="{Binding Tags}" FontSize="9" TextColor="#ffffff44" HorizontalOptions="Center" HorizontalTextAlignment="Center" LineBreakMode="WordWrap" MaxLines="2" />
+                                                    </VerticalStackLayout>
+                                                </Border>
+
+                                                <!-- Info -->
+                                                <VerticalStackLayout Grid.Row="1" Padding="10,8,10,10" Spacing="3">
+                                                    <Label Text="{Binding Name}" FontSize="13" FontAttributes="Bold" TextColor="White" LineBreakMode="TailTruncation" />
+                                                    <Label Text="{Binding Description}" FontSize="11" TextColor="#94a3b8" LineBreakMode="TailTruncation" MaxLines="2" />
+                                                </VerticalStackLayout>
+
+                                            </Grid>
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HomeViewModel}}, Path=OpenAppCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
