@@ -106,6 +106,31 @@ else if (_song is not null)
                 }
             </div>
 
+            <!-- Guitar patterns -->
+            <div class="studio-card">
+                <div class="card-header">
+                    <div class="card-label">🎸 Guitarmønstre</div>
+                    <div class="card-actions">
+                        @if (ChordAi.IsAvailable)
+                        {
+                            <button class="btn-ai" @onclick="AiPatterns" disabled="@_patternsLoading">
+                                @(_patternsLoading ? "..." : "🤖 Generer")
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="card-label-sm" style="margin-bottom:4px">Fingerpicking (T i m a / strenge)</div>
+                <textarea class="chord-editor" rows="5"
+                          value="@_fingerpickEdit"
+                          @oninput="e => { _fingerpickEdit = e.Value?.ToString() ?? _fingerpickEdit; AutoSave(); }"
+                          placeholder="T  i  m  a  /  T  i  m  a&#10;6  2  3  1  /  6  2  3  1"></textarea>
+                <div class="card-label-sm" style="margin:8px 0 4px">Strumming (↓ ↑)</div>
+                <textarea class="chord-editor" rows="3"
+                          value="@_strumEdit"
+                          @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
+                          placeholder="↓  ↓↑  –  ↑↓↑&#10;1  2+  3  4+a"></textarea>
+            </div>
+
             <!-- Recording -->
             <div class="studio-card">
                 <div class="card-header">
@@ -178,7 +203,15 @@ else if (_song is not null)
             <div class="studio-card">
                 <div class="card-header">
                     <div class="card-label">📝 Tekst / Lyrics</div>
-                    <button class="btn-ghost-sm" @onclick='() => _photoTarget = "lyrics"'>📷 Fra foto</button>
+                    <div class="card-actions">
+                        @if (ChordAi.IsAvailable)
+                        {
+                            <button class="btn-ghost-sm" @onclick="AiLyrics" disabled="@_lyricsLoading">
+                                @(_lyricsLoading ? "..." : "🔍 Hent tekst")
+                            </button>
+                        }
+                        <button class="btn-ghost-sm" @onclick='() => _photoTarget = "lyrics"'>📷 Fra foto</button>
+                    </div>
                 </div>
                 <textarea class="lyrics-editor" rows="22"
                           value="@_lyricsEdit"
@@ -207,6 +240,7 @@ else if (_song is not null)
                     <button class="ai-tab @(_aiTab == "rim" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("rim")'>🎵 Rim</button>
                     <button class="ai-tab @(_aiTab == "spil" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("spil")'>🎸🎹 Spil</button>
                     <button class="ai-tab @(_aiTab == "sang" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("sang")'>🎤 Sang</button>
+                    <button class="ai-tab @(_aiTab == "toneart" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("toneart")'>🎹 Toneart</button>
                 </div>
 
                 @if (_aiTab == "rim")
@@ -236,6 +270,15 @@ else if (_song is not null)
                         <p class="ai-action-desc">Fraseringer, åndedræt, dynamik og melodi</p>
                         <button class="btn-ai-full" @onclick="AiSang" disabled="@_aiHelperLoading">
                             @(_aiHelperLoading ? "..." : "Vis sangguide →")
+                        </button>
+                    </div>
+                }
+                else if (_aiTab == "toneart")
+                {
+                    <div class="ai-action-row">
+                        <p class="ai-action-desc">Hvad er den bedste toneart at synge sangen i? Capo-position til guitar.</p>
+                        <button class="btn-ai-full" @onclick="AiToneart" disabled="@_aiHelperLoading">
+                            @(_aiHelperLoading ? "..." : "Find toneart →")
                         </button>
                     </div>
                 }
@@ -324,7 +367,12 @@ else if (_song is not null)
     private string _chordEdit = "";
     private string _lyricsEdit = "";
     private string _notesEdit = "";
+    private string _fingerpickEdit = "";
+    private string _strumEdit = "";
     private int _transpose;
+
+    private bool _patternsLoading;
+    private bool _lyricsLoading;
 
     private bool _aiLoading;
     private string? _saveStatus;
@@ -380,10 +428,12 @@ else if (_song is not null)
             await Db.SaveChangesAsync();
         }
 
-        _chordEdit  = _song.ChordChart;
-        _lyricsEdit = _song.Lyrics;
-        _notesEdit  = _song.Notes;
-        _loading    = false;
+        _chordEdit       = _song.ChordChart;
+        _lyricsEdit      = _song.Lyrics;
+        _notesEdit       = _song.Notes;
+        _fingerpickEdit  = _song.FingerpickPattern;
+        _strumEdit       = _song.StrumPattern;
+        _loading         = false;
 
         _recordings = Library.GetRecordings(SongKey);
     }
@@ -399,9 +449,11 @@ else if (_song is not null)
     private void AutoSave()
     {
         if (_song is null) return;
-        _song.ChordChart = _chordEdit;
-        _song.Lyrics     = _lyricsEdit;
-        _song.Notes      = _notesEdit;
+        _song.ChordChart        = _chordEdit;
+        _song.Lyrics            = _lyricsEdit;
+        _song.Notes             = _notesEdit;
+        _song.FingerpickPattern = _fingerpickEdit;
+        _song.StrumPattern      = _strumEdit;
 
         _saveTimer?.Dispose();
         _saveTimer = new System.Timers.Timer(1200) { AutoReset = false };
@@ -677,5 +729,49 @@ else if (_song is not null)
         _photoResult = "";
         _cameraOn = false;
         _photoAnalyzing = false;
+    }
+
+    // ── Guitar patterns ───────────────────────────────────────────────────────
+
+    private async Task AiPatterns()
+    {
+        if (_song is null) return;
+        _patternsLoading = true;
+        var (pick, strum) = await Task.WhenAll(
+            ChordAi.GetFingerpickPatternAsync(_song.Title, _chordEdit, _song.Tempo, _song.MusicKey),
+            ChordAi.GetStrumPatternAsync(_song.Title, _chordEdit, _song.Tempo, _song.MusicKey)
+        ).ContinueWith(t => (t.Result[0], t.Result[1]));
+        if (!string.IsNullOrEmpty(pick))  { _fingerpickEdit = pick;  }
+        if (!string.IsNullOrEmpty(strum)) { _strumEdit      = strum; }
+        AutoSave();
+        _patternsLoading = false;
+    }
+
+    // ── Fetch lyrics ──────────────────────────────────────────────────────────
+
+    private async Task AiLyrics()
+    {
+        if (_song is null) return;
+        _lyricsLoading = true;
+        var result = await ChordAi.GetLyricsForSongAsync(_song.Title);
+        if (!string.IsNullOrEmpty(result))
+        {
+            _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit)
+                ? result
+                : _lyricsEdit + "\n\n---\n\n" + result;
+            AutoSave();
+        }
+        _lyricsLoading = false;
+    }
+
+    // ── Toneart / key finder ──────────────────────────────────────────────────
+
+    private async Task AiToneart()
+    {
+        if (_song is null) return;
+        _aiHelperLoading = true;
+        _aiHelperResult = "";
+        _aiHelperResult = await ChordAi.GetKeyForVoiceAsync(_song.Title, _song.MusicKey, _lyricsEdit);
+        _aiHelperLoading = false;
     }
 }

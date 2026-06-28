@@ -202,6 +202,126 @@ public sealed class ChordAiService
         return "";
     }
 
+    public async Task<string> GetFingerpickPatternAsync(string title, string chordChart, int? tempo, string musicKey)
+    {
+        if (_client is null) return "";
+        var chart = string.IsNullOrWhiteSpace(chordChart) ? "ukendt" : chordChart;
+        var bpm = tempo.HasValue ? $"{tempo} BPM" : "";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 500,
+            System = """
+                You are a guitar teacher. Give a practical fingerpicking pattern for the song.
+                Use standard notation: T=thumb, i=index, m=middle, a=ring. Include string numbers (6=low E, 1=high e).
+                Show the repeating bar clearly. Give 2-3 lines of explanation. Danish is fine.
+                Keep it concise and directly usable.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Song: {title}\nKey: {musicKey}{(string.IsNullOrEmpty(bpm) ? "" : $"\nTempo: {bpm}")}\nChords:\n{chart}\n\nGive me a fingerpicking pattern for guitar."
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
+    public async Task<string> GetStrumPatternAsync(string title, string chordChart, int? tempo, string musicKey)
+    {
+        if (_client is null) return "";
+        var chart = string.IsNullOrWhiteSpace(chordChart) ? "ukendt" : chordChart;
+        var bpm = tempo.HasValue ? $"{tempo} BPM" : "";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 400,
+            System = """
+                You are a guitar teacher. Give a practical strumming pattern.
+                Use ↓ for down-strum, ↑ for up-strum, – for mute/skip. Show the beat count below the arrows.
+                Give 2-3 lines of explanation. Danish is fine. Keep it concise and directly usable.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Song: {title}\nKey: {musicKey}{(string.IsNullOrEmpty(bpm) ? "" : $"\nTempo: {bpm}")}\nChords:\n{chart}\n\nGive me a strumming pattern for guitar."
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
+    public async Task<string> GetKeyForVoiceAsync(string title, string currentKey, string lyrics)
+    {
+        if (_client is null) return "";
+        var lyricsHint = string.IsNullOrWhiteSpace(lyrics) ? "" : $"\n\nFirst lines:\n{string.Join("\n", lyrics.Split('\n').Take(6))}";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 500,
+            System = """
+                You are a singing coach and music theory expert.
+                Help the user find the best key to sing a song in.
+                Consider typical male baritone/tenor range (G2–C5) and female mezzo-soprano (A3–F5).
+                Be specific: name the key, say what the highest note is, suggest a capo position if on guitar.
+                Danish is fine. Keep it short and practical.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Song: \"{title}\"\nCurrent key in the app: {currentKey}{lyricsHint}\n\nWhat key should I sing this in? Give options for both a male and female voice, and suggest a guitar capo position."
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
+    public async Task<string> GetLyricsForSongAsync(string title)
+    {
+        if (_client is null) return "";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 1200,
+            System = """
+                You are helping a musician practice. Provide the lyrics for the requested song.
+                Format clearly with verse/chorus labels. If you don't know the song well, say so.
+                Return only the lyrics with section labels — no preamble, no commentary.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Please give me the lyrics for: {title}"
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
     public async Task<string> ExtractChordsFromImageAsync(string base64Image, string mediaType)
     {
         if (_client is null) return "";
