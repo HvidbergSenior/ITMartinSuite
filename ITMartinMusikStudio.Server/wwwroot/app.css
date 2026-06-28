@@ -603,3 +603,126 @@ html, body {
     padding: 2px 5px;
 }
 .ai-result-clear:hover { color: var(--text); }
+
+/* ── Section label ── */
+.section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin: 20px 0 10px;
+}
+
+/* ── Song cards (library home) ── */
+.song-cards { display: flex; flex-direction: column; gap: 8px; }
+.song-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color .15s;
+    text-decoration: none;
+    color: inherit;
+}
+.song-card:hover { border-color: rgba(255,255,255,.2); }
+.song-card--original { border-left: 3px solid var(--accent); }
+.song-card-icon { font-size: 26px; flex-shrink: 0; }
+.song-card-body { flex: 1; min-width: 0; }
+.song-card-title { font-size: 16px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.song-card-meta { font-size: 12px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.key-badge {
+    background: rgba(59,130,246,.15);
+    border: 1px solid rgba(59,130,246,.3);
+    color: #93c5fd;
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.song-card-arrow { color: var(--border); font-size: 20px; flex-shrink: 0; }
+
+/* ── Modal ── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.8);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.modal-title { font-size: 20px; font-weight: 800; }
+.modal-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 11px 14px;
+    width: 100%;
+    outline: none;
+}
+.modal-input:focus { border-color: var(--accent); }
+.modal-error { color: var(--red); font-size: 13px; }
+.modal-actions { display: flex; gap: 10px; }
+
+/* ── Editable topbar title + artist ── */
+.topbar-title-group { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.topbar-title-input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 17px;
+    font-weight: 800;
+    outline: none;
+    width: 100%;
+    padding: 2px 4px;
+    border-radius: 6px;
+}
+.topbar-title-input:hover { background: rgba(255,255,255,.06); }
+.topbar-title-input:focus { background: rgba(255,255,255,.08); }
+.topbar-artist-input {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    outline: none;
+    width: 100%;
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+.topbar-artist-input:hover { background: rgba(255,255,255,.05); }
+.topbar-artist-input:focus { background: rgba(255,255,255,.07); color: var(--text); }
+.topbar-artist-input::placeholder { color: #2d3748; }
+
+/* ── Recording mode toggle ── */
+.rec-mode-toggle { display: flex; gap: 4px; }
+.rec-mode-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .15s;
+}
+.rec-mode-btn:hover { border-color: rgba(255,255,255,.2); color: var(--text); }
+.rec-mode-btn--active { background: rgba(59,130,246,.15); border-color: var(--accent); color: #93c5fd; }

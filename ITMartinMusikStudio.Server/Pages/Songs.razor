@@ -6,53 +6,131 @@
 @inject IJSRuntime JS
 @using Microsoft.EntityFrameworkCore
 
-<PageTitle>Songs — Studio</PageTitle>
+<PageTitle>Studio — Sange</PageTitle>
 
 <div class="songs-page">
 
     <div class="songs-header">
         <div>
             <h1 class="songs-title">🎸 Studio</h1>
-            <p class="songs-sub">@_sourceFiles.Count files · @_songs.Count songs in DB</p>
+            <p class="songs-sub">@_songs.Count sange</p>
         </div>
-        <button class="btn-ghost" @onclick="Logout">Log ud</button>
+        <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn-primary" @onclick="ShowNewSong">＋ Ny sang</button>
+            <button class="btn-ghost" @onclick="Logout">Log ud</button>
+        </div>
     </div>
 
-    <input class="songs-search" type="search" placeholder="Søg..."
+    <input class="songs-search" type="search" placeholder="Søg sang eller artist..."
            value="@_query" @oninput="e => _query = e.Value?.ToString() ?? string.Empty" />
 
-    <div class="songs-list">
-        @foreach (var f in Filtered)
-        {
-            var hasSong = _songKeys.Contains(f.RelativePath);
-            var href = $"/studio/{Uri.EscapeDataString(Library.SafeKey(f.RelativePath))}?file={Uri.EscapeDataString(f.RelativePath)}";
-            <a class="song-row @(hasSong ? "" : "song-row--new")" href="@href">
-                <div class="song-row-icon">@(Library.IsVideo(f.RelativePath) ? "🎬" : "🎵")</div>
-                <div class="song-row-info">
-                    <div class="song-row-title">@f.Title</div>
-                    <div class="song-row-path">@f.RelativePath</div>
-                </div>
-                @if (hasSong)
-                {
-                    <span class="song-row-badge">✓</span>
-                }
-                <div class="song-row-arrow">›</div>
-            </a>
-        }
-    </div>
+    <!-- DB songs -->
+    @if (FilteredSongs.Any())
+    {
+        <div class="section-label">Mine sange</div>
+        <div class="song-cards">
+            @foreach (var s in FilteredSongs)
+            {
+                var isOriginal = string.IsNullOrWhiteSpace(s.SourceFile);
+                <a class="song-card @(isOriginal ? "song-card--original" : "")"
+                   href="/studio/@Uri.EscapeDataString(s.Key)">
+                    <div class="song-card-icon">@(isOriginal ? "✍️" : (Library.IsVideo(s.SourceFile) ? "🎬" : "🎵"))</div>
+                    <div class="song-card-body">
+                        <div class="song-card-title">@s.Title</div>
+                        <div class="song-card-meta">
+                            <span>@(string.IsNullOrWhiteSpace(s.Artist) ? "Eget" : s.Artist)</span>
+                            @if (!string.IsNullOrWhiteSpace(s.MusicKey))
+                            {
+                                <span class="key-badge">@s.MusicKey</span>
+                            }
+                            @if (s.Tempo.HasValue)
+                            {
+                                <span>@s.Tempo BPM</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="song-card-arrow">›</div>
+                </a>
+            }
+        </div>
+    }
+
+    <!-- Source files not yet in DB -->
+    @if (FilteredFiles.Any())
+    {
+        <div class="section-label" style="margin-top:28px">Kildefiler</div>
+        <div class="songs-list">
+            @foreach (var f in FilteredFiles)
+            {
+                var href = $"/studio/{Uri.EscapeDataString(Library.SafeKey(f.RelativePath))}?file={Uri.EscapeDataString(f.RelativePath)}";
+                <a class="song-row song-row--new" href="@href">
+                    <div class="song-row-icon">@(Library.IsVideo(f.RelativePath) ? "🎬" : "🎵")</div>
+                    <div class="song-row-info">
+                        <div class="song-row-title">@f.Title</div>
+                        <div class="song-row-path">@f.RelativePath</div>
+                    </div>
+                    <div class="song-row-arrow">›</div>
+                </a>
+            }
+        </div>
+    }
+
+    @if (!FilteredSongs.Any() && !FilteredFiles.Any())
+    {
+        <div style="text-align:center;padding:60px 20px;color:var(--muted)">
+            Ingen sange fundet
+        </div>
+    }
 
 </div>
 
+<!-- New song modal -->
+@if (_showNewSong)
+{
+    <div class="modal-overlay" @onclick="HideNewSong">
+        <div class="modal-box" @onclick:stopPropagation="true">
+            <div class="modal-title">＋ Ny sang</div>
+            <input class="modal-input" type="text" placeholder="Sangtitel *"
+                   @bind="_newTitle" @bind:event="oninput"
+                   @onkeydown="OnNewSongKey" />
+            <input class="modal-input" type="text" placeholder="Artist (blank = din egen sang)"
+                   @bind="_newArtist" @bind:event="oninput"
+                   @onkeydown="OnNewSongKey" />
+            @if (!string.IsNullOrEmpty(_newError))
+            {
+                <div class="modal-error">@_newError</div>
+            }
+            <div class="modal-actions">
+                <button class="btn-primary" @onclick="CreateSong"
+                        disabled="@string.IsNullOrWhiteSpace(_newTitle)">Opret</button>
+                <button class="btn-ghost" @onclick="HideNewSong">Annuller</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
-    private List<SourceFile> _sourceFiles = [];
     private List<StudioSong> _songs = [];
+    private List<SourceFile> _sourceFiles = [];
     private HashSet<string> _songKeys = [];
     private string _query = "";
+    private bool _showNewSong;
+    private string _newTitle = "";
+    private string _newArtist = "";
+    private string _newError = "";
 
-    private IEnumerable<SourceFile> Filtered =>
+    private IEnumerable<StudioSong> FilteredSongs =>
         string.IsNullOrWhiteSpace(_query)
-            ? _sourceFiles
-            : _sourceFiles.Where(f => f.Title.Contains(_query, StringComparison.OrdinalIgnoreCase));
+            ? _songs
+            : _songs.Where(s =>
+                s.Title.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
+                s.Artist.Contains(_query, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<SourceFile> FilteredFiles =>
+        _sourceFiles
+            .Where(f => !_songKeys.Contains(Library.SafeKey(f.RelativePath)))
+            .Where(f => string.IsNullOrWhiteSpace(_query) ||
+                        f.Title.Contains(_query, StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -63,9 +141,49 @@
         if (ok != "1") { Nav.NavigateTo("/", forceLoad: true); return; }
 
         _sourceFiles = Library.GetSourceFiles();
-        _songs = await Db.Songs.ToListAsync();
-        _songKeys = _songs.Select(s => s.SourceFile).ToHashSet();
+        _songs       = await Db.Songs.OrderBy(s => s.Title).ToListAsync();
+        _songKeys    = _songs.Select(s => s.Key).ToHashSet();
         StateHasChanged();
+    }
+
+    private void ShowNewSong()
+    {
+        _newTitle  = "";
+        _newArtist = "";
+        _newError  = "";
+        _showNewSong = true;
+    }
+
+    private void HideNewSong() => _showNewSong = false;
+
+    private async Task OnNewSongKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await CreateSong();
+        if (e.Key == "Escape") HideNewSong();
+    }
+
+    private async Task CreateSong()
+    {
+        var title = _newTitle.Trim();
+        if (string.IsNullOrWhiteSpace(title)) return;
+
+        var baseKey = title.ToLower()
+            .Replace(" ", "_")
+            .Replace("-", "_");
+        var key = baseKey;
+        if (_songKeys.Contains(key))
+            key = baseKey + "_" + Guid.NewGuid().ToString("N")[..4];
+
+        var song = new StudioSong
+        {
+            Key    = key,
+            Title  = title,
+            Artist = _newArtist.Trim(),
+        };
+        Db.Songs.Add(song);
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo($"/studio/{Uri.EscapeDataString(key)}", forceLoad: true);
     }
 
     private async Task Logout()

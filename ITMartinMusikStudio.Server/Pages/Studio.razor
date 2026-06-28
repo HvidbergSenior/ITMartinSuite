@@ -22,7 +22,12 @@ else if (_song is not null)
     <!-- Top bar -->
     <div class="studio-topbar">
         <a href="/songs" class="topbar-back">← Sange</a>
-        <div class="topbar-title">@_song.Title</div>
+        <div class="topbar-title-group">
+            <input class="topbar-title-input" value="@_song.Title"
+                   @onchange="e => { _song.Title = e.Value?.ToString() ?? _song.Title; AutoSave(); }" />
+            <input class="topbar-artist-input" value="@_song.Artist" placeholder="Artist / eget"
+                   @onchange="e => { _song.Artist = e.Value?.ToString() ?? string.Empty; AutoSave(); }" />
+        </div>
         <div class="topbar-meta">
             <select class="meta-select" value="@_song.MusicKey" @onchange="OnKeyChanged">
                 @foreach (var k in MusicKeys)

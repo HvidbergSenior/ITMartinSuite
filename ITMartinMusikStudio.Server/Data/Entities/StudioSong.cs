@@ -5,6 +5,7 @@ public class StudioSong
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Key { get; set; } = "";
     public string Title { get; set; } = "";
+    public string Artist { get; set; } = "";
     public string SourceFile { get; set; } = "";
     public string MusicKey { get; set; } = "Am";
     public int? Tempo { get; set; }

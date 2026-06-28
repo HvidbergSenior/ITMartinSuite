@@ -24,6 +24,7 @@ using (var scope = app.Services.CreateScope())
     // Add columns introduced after initial schema — safe to re-run (SQLite ignores duplicate column errors)
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN FingerpickPattern TEXT NOT NULL DEFAULT ''"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN StrumPattern TEXT NOT NULL DEFAULT ''"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN Artist TEXT NOT NULL DEFAULT ''"); } catch { }
 }
 
 if (!app.Environment.IsDevelopment())
