@@ -51,6 +51,15 @@
     private string? _error;
     private bool _creating;
 
+    protected override async Task OnInitializedAsync()
+    {
+        var host = new Uri(Nav.Uri).Host;        // e.g. "r6oldboyz.itmartin.dk"
+        var slug = host.Split('.')[0];            // e.g. "r6oldboyz"
+        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == slug);
+        if (group is not null)
+            Nav.NavigateTo($"/g/{group.Slug}", forceLoad: true);
+    }
+
     private async Task CreateAsync()
     {
         _error = null;

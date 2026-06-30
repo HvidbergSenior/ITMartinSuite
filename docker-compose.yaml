@@ -622,7 +622,6 @@ services:
 
   club-web:
     container_name: club-web
-    image: club-web
     profiles: [manual]
 
     build:
