@@ -32,6 +32,7 @@ services:
       - Apps__AuctionUrl=https://auction.itmartin.dk
       - Apps__MusikUrl=https://musik.itmartin.dk
       - Apps__ClubUrl=https://lions-club.itmartin.dk
+      - Apps__R6ClubUrl=https://r6oldboyz.itmartin.dk
       - Apps__TestHubUrl=https://test.itmartin.dk
       - Apps__GalleryUrl=https://gallery.itmartin.dk
       - Apps__CuratorUrl=https://curator.itmartin.dk
@@ -614,7 +615,9 @@ services:
       - martinnet
 
   # =========================================================
-  # CLUB — Group organizer (multi-tenant)
+  # CLUB — Group organizer (multi-tenant, one container for all clubs)
+  #   lions-club.itmartin.dk  →  http://club-web:8080
+  #   r6oldboyz.itmartin.dk   →  http://club-web:8080
   # =========================================================
 
   club-web:
