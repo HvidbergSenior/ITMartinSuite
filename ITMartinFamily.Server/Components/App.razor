@@ -5,14 +5,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <base href="/" />
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="app.css?v=2" />
     <link rel="stylesheet" href="ITMartinFamily.Server.styles.css" />
     <HeadOutlet />
 </head>
 
 <body>
     <Routes />
+    <script src="js/family.js?v=3"></script>
     <script src="_framework/blazor.web.js"></script>
+    <script>familyApp.registerServiceWorker();</script>
     <div id="components-reconnect-modal">
         <span class="reconnect-msg">🔄 Forbinder igen...</span>
         <span class="reconnect-failed-msg">😴 Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>

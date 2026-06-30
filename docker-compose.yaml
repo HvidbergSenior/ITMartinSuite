@@ -26,13 +26,23 @@ services:
       - Apps__LibraryUrl=https://scan-books.itmartin.dk
       - Apps__LibrarySearchUrl=https://search-books.itmartin.dk
       - Apps__AdhdUrl=https://adhd.itmartin.dk
-      - Apps__FamilyUrl=https://family.itmartin.dk
+      - Apps__FamilyUrl=https://familie.itmartin.dk
       - Apps__MarketUrl=https://market.itmartin.dk
       - Apps__BarTabUrl=https://bartab.itmartin.dk
       - Apps__AuctionUrl=https://auction.itmartin.dk
       - Apps__MusikUrl=https://musik.itmartin.dk
       - Apps__ClubUrl=https://lions-club.itmartin.dk
       - Apps__TestHubUrl=https://test.itmartin.dk
+      - Apps__GalleryUrl=https://gallery.itmartin.dk
+      - Apps__CuratorUrl=https://curator.itmartin.dk
+      - Apps__MusikStudioUrl=https://studio.itmartin.dk
+      - Apps__MagicCollectionUrl=https://magic-collection.itmartin.dk
+      - Apps__MagazineUrl=https://magazine.itmartin.dk
+      - Apps__MagazineSearchUrl=https://magazine-search.itmartin.dk
+      - Apps__ScanUrl=https://scan.itmartin.dk
+      - Apps__R6AssistantUrl=https://r6.itmartin.dk
+      - Apps__R6IntelUrl=https://r6intel.itmartin.dk
+      - Apps__ImageGenUrl=https://imagegen.itmartin.dk
 
     restart: unless-stopped
 
@@ -341,6 +351,7 @@ services:
 
   receipt-web:
     container_name: receipt-web
+    image: receipt-web
     profiles: [manual]
 
     env_file:
@@ -407,6 +418,7 @@ services:
 
   family-web:
     container_name: family-web
+    image: family-web
     profiles: [manual]
 
     env_file:
@@ -422,7 +434,7 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/family.db
-      - Family__Names=Mor,Far,Barn 1,Barn 2
+      - Family__Names=Martin,Vibz,Julius,Eigil,Bertil
 
     volumes:
       - /volume1/docker/martinsuite/family/data:/app/data
@@ -544,6 +556,36 @@ services:
       - martinnet
 
   # =========================================================
+  # IMAGE GENERATOR
+  # =========================================================
+
+  imagegen-web:
+    container_name: imagegen-web
+    profiles: [manual]
+
+    build:
+      context: .
+      dockerfile: ./ITMartinImageGen.Server/Dockerfile
+
+    env_file:
+      - magic.env
+
+    ports:
+      - "8107:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ImageStorage__Root=/app/data/images
+
+    volumes:
+      - /volume1/docker/martinsuite/imagegen/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # TESTHUB
   # =========================================================
 
@@ -577,6 +619,7 @@ services:
 
   club-web:
     container_name: club-web
+    image: club-web
     profiles: [manual]
 
     build:
@@ -793,6 +836,7 @@ services:
 
   scan-web:
     container_name: scan-web
+    image: martinsuite-scan-web
     profiles: [manual]
 
     build:
@@ -807,6 +851,9 @@ services:
 
     environment:
       - ASPNETCORE_URLS=http://+:8080
+
+    volumes:
+      - /volume1/docker/martinsuite/scan/data:/app/data
 
     restart: unless-stopped
 

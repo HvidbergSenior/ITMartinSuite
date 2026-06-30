@@ -1,39 +1,28 @@
-@page "/"
+@page "/f/{slug}"
 @rendermode InteractiveServer
 
 @using ITMartinFamily.Application.Interfaces
 @using ITMartinFamily.Domain.Entities
+@using ITMartinFamily.Infrastructure
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 
 @inject IDailyTaskRepository TaskRepo
+@inject FamilyDbContext Db
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
-@inject IConfiguration Config
+@inject ITMartinFamily.Application.Interfaces.IPushNotificationService PushService
 
 @implements IAsyncDisposable
 
-<PageTitle>Today's Tasks</PageTitle>
+<PageTitle>@(_family?.Name ?? "Familie")</PageTitle>
 
 <link rel="stylesheet" href="css/family.css" />
 
-@if (string.IsNullOrWhiteSpace(_myName))
+@if (!_ready)
 {
-    <div class="name-picker">
-        <div class="name-picker-card">
-            <h2>Who are you?</h2>
-            <div class="name-grid">
-                @foreach (var name in _familyNames)
-                {
-                    <button class="name-btn" @onclick="() => PickName(name)">@name</button>
-                }
-            </div>
-            <div style="margin-top:16px; display:flex; gap:8px;">
-                <input class="name-input" @bind="_customName" placeholder="Other name..." />
-                <button class="name-btn" @onclick="PickCustomName">Go</button>
-            </div>
-        </div>
-    </div>
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#64748b">Indlæser...</div>
 }
 else
 {
@@ -41,26 +30,30 @@ else
 
         <div class="family-header">
             <div>
-                <h1 class="family-title">Today</h1>
-                <div class="family-subtitle">@DateTime.Today.ToString("dddd d. MMMM") · Hi @_myName</div>
+                <h1 class="family-title">@(_family?.Name ?? "Familie")</h1>
+                <div class="family-subtitle">@DateTime.Today.ToString("dddd d. MMMM") · Hej @_myName</div>
             </div>
-            <button class="add-btn" @onclick="ToggleAdd">@(_showAdd ? "✕ Cancel" : "+ Add Task")</button>
+            <div style="display:flex;gap:8px;align-items:center">
+                <button class="add-btn" @onclick="ToggleAdd">@(_showAdd ? "✕ Annuller" : "+ Tilføj opgave")</button>
+                <button class="logout-btn" @onclick="Logout">↩</button>
+            </div>
         </div>
 
         @if (_showAdd)
         {
             <div class="add-panel">
-                <input class="task-input" @bind="_newNote" placeholder="What needs to be done?" />
+                <input class="task-input" @bind="_newNote" placeholder="Hvad skal gøres?" />
 
                 @if (!_cameraOpen)
                 {
-                    <button class="cam-btn" @onclick="OpenCamera">📷 Take Photo</button>
+                    <button class="cam-btn" @onclick="OpenCamera">📷 Tag foto</button>
                 }
                 else
                 {
                     <div style="position:relative;">
-                        <video id="task-video" autoplay muted playsinline style="width:100%;border-radius:12px;"></video>
-                        <button class="capture-btn" @onclick="CapturePhoto">Capture</button>
+                        <video id="task-video" autoplay muted playsinline webkit-playsinline
+                               style="width:100%;border-radius:12px;"></video>
+                        <button class="capture-btn" @onclick="CapturePhoto">Tag billede</button>
                     </div>
                 }
 
@@ -70,7 +63,7 @@ else
                 }
 
                 <button class="submit-btn" @onclick="AddTask" disabled="@_adding">
-                    @(_adding ? "Adding..." : "Add Task")
+                    @(_adding ? "Tilføjer..." : "Tilføj opgave")
                 </button>
             </div>
         }
@@ -79,7 +72,7 @@ else
         {
             <div class="empty-state">
                 <div style="font-size:56px;">✅</div>
-                <div>Nothing to do today!</div>
+                <div>Ingen opgaver i dag!</div>
             </div>
         }
         else
@@ -99,23 +92,23 @@ else
                             {
                                 <div class="task-note">@task.Note</div>
                             }
-                            <div class="task-meta">Added by @task.CreatedBy</div>
+                            <div class="task-meta">Tilføjet af @task.CreatedBy</div>
 
                             @if (task.CompletedAt.HasValue)
                             {
-                                <div class="task-status done">✅ Done by @task.ClaimedBy</div>
+                                <div class="task-status done">✅ Færdig af @task.ClaimedBy</div>
                             }
                             else if (!string.IsNullOrWhiteSpace(task.ClaimedBy))
                             {
-                                <div class="task-status claimed">@task.ClaimedBy is on it</div>
+                                <div class="task-status claimed">@task.ClaimedBy klarer det</div>
                                 @if (task.ClaimedBy == _myName)
                                 {
-                                    <button class="action-btn done-btn" @onclick="() => MarkDone(task)">Mark Done ✓</button>
+                                    <button class="action-btn done-btn" @onclick="() => MarkDone(task)">Markér færdig ✓</button>
                                 }
                             }
                             else
                             {
-                                <button class="action-btn claim-btn" @onclick="() => ClaimTask(task)">I'll do it</button>
+                                <button class="action-btn claim-btn" @onclick="() => ClaimTask(task)">Jeg tager den</button>
                             }
                         </div>
 
@@ -129,17 +122,38 @@ else
             </div>
         }
 
+        <!-- Chat -->
+        <div class="chat-panel">
+            <div class="chat-header">💬 Chat</div>
+            <div class="chat-messages" id="chat-messages">
+                @foreach (var m in _messages)
+                {
+                    <div class="chat-msg @(m.SenderName == _myName ? "chat-msg--mine" : "")">
+                        <span class="chat-sender">@m.SenderName</span>
+                        <span class="chat-text">@m.Text</span>
+                        <span class="chat-time">@m.SentAt.ToLocalTime().ToString("HH:mm")</span>
+                    </div>
+                }
+            </div>
+            <div class="chat-input-row">
+                <input class="chat-input" placeholder="Skriv en besked..." @bind="_chatInput"
+                       @bind:event="oninput" @onkeydown="OnChatKey" maxlength="500" />
+                <button class="chat-send" @onclick="SendChat"
+                        disabled="@string.IsNullOrWhiteSpace(_chatInput)">Send</button>
+            </div>
+        </div>
+
     </div>
 }
 
-<script src="js/family.js"></script>
-
 @code {
-    private string[] _familyNames = ["Mor", "Far", "Barn 1", "Barn 2"];
+    [Parameter] public string Slug { get; set; } = "";
 
+    private Family? _family;
+    private FamilyMember? _member;
     private string _myName = "";
-    private string _customName = "";
     private List<DailyTask> _tasks = [];
+    private bool _ready;
     private bool _showAdd;
     private bool _cameraOpen;
     private bool _adding;
@@ -147,23 +161,54 @@ else
     private string? _previewImage;
     private HubConnection? _hub;
 
+    private List<ChatMessage> _messages = [];
+    private string _chatInput = "";
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        var namesConfig = Config["Family:Names"];
-        if (!string.IsNullOrWhiteSpace(namesConfig))
-            _familyNames = namesConfig.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        // Validate session
+        var sessionStr = await JS.InvokeAsync<string?>("familyApp.getSession", Slug);
+        if (string.IsNullOrEmpty(sessionStr) || !Guid.TryParse(sessionStr, out var sessionId))
+        {
+            Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true);
+            return;
+        }
 
-        _myName = await JS.InvokeAsync<string>("familyApp.getName");
-        _tasks = await TaskRepo.GetTodayAsync();
+        var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId);
+        if (session == null) { Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true); return; }
 
+        _member = await Db.Members.FindAsync(session.MemberId);
+        if (_member == null) { Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true); return; }
+
+        _family = await Db.Families.FindAsync(_member.FamilyId);
+        if (_family?.Slug != Slug)
+        {
+            Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _myName   = _member.Name;
+        _tasks    = await TaskRepo.GetTodayAsync(_family.Id);
+        _messages = await Db.Chat
+            .Where(m => m.FamilyId == _family.Id)
+            .OrderByDescending(m => m.SentAt)
+            .Take(100)
+            .OrderBy(m => m.SentAt)
+            .ToListAsync();
+        _ready  = true;
+
+        var hubUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
+            ?.Split(';').FirstOrDefault()
+            ?.Replace("+", "localhost")
+            ?.Replace("*", "localhost")
+            ?? "http://localhost:8080";
         _hub = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/hubs/family"))
+            .WithUrl(hubUrl + "/hubs/family")
             .WithAutomaticReconnect()
             .Build();
 
-        _hub.On<DailyTask>("TaskAdded", task => { _tasks.Add(task); InvokeAsync(StateHasChanged); });
+        _hub.On<DailyTask>("TaskAdded",    task => { _tasks.Add(task); InvokeAsync(StateHasChanged); });
         _hub.On<Guid, string>("TaskClaimed", (id, by) =>
         {
             var t = _tasks.FirstOrDefault(x => x.Id == id);
@@ -182,21 +227,35 @@ else
             InvokeAsync(StateHasChanged);
         });
 
-        await _hub.StartAsync();
+        _hub.On<string, string, DateTime>("ChatReceived", (sender, text, sentAt) =>
+        {
+            _messages.Add(new ChatMessage { SenderName = sender, Text = text, SentAt = sentAt, FamilyId = _family!.Id });
+            InvokeAsync(async () => { StateHasChanged(); await JS.InvokeVoidAsync("familyApp.scrollChat"); });
+        });
+
+        try
+        {
+            await _hub.StartAsync();
+            await _hub.SendAsync("JoinFamily", Slug);
+        }
+        catch { /* real-time unavailable, page still works */ }
+
         StateHasChanged();
+        try { await JS.InvokeVoidAsync("familyApp.scrollChat"); } catch { }
+
+        await SetupPushAsync();
     }
 
-    private async Task PickName(string name)
+    private async Task SetupPushAsync()
     {
-        _myName = name;
-        await JS.InvokeVoidAsync("familyApp.setName", name);
-        StateHasChanged();
-    }
-
-    private async Task PickCustomName()
-    {
-        if (!string.IsNullOrWhiteSpace(_customName))
-            await PickName(_customName.Trim());
+        try
+        {
+            var permission = await JS.InvokeAsync<string>("familyApp.requestPushPermission");
+            if (permission != "granted") return;
+            var publicKey = PushService.GetPublicKey();
+            await JS.InvokeVoidAsync("familyApp.subscribeForPush", publicKey, _family!.Id, _myName);
+        }
+        catch { /* push not supported */ }
     }
 
     private void ToggleAdd()
@@ -209,26 +268,35 @@ else
     {
         _cameraOpen = true;
         StateHasChanged();
-        await Task.Delay(200);
         await JS.InvokeVoidAsync("familyApp.startCamera", "task-video");
     }
 
     private async Task CapturePhoto()
     {
-        _previewImage = await JS.InvokeAsync<string>("familyApp.capturePhoto");
-        await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
-        _cameraOpen = false;
+        try
+        {
+            _previewImage = await JS.InvokeAsync<string>("familyApp.capturePhoto");
+            await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
+            _cameraOpen = false;
+        }
+        catch (Exception ex)
+        {
+            _previewImage = null;
+            _cameraOpen = false;
+            _newNote = ex.Message;
+        }
+        StateHasChanged();
     }
 
     private async Task AddTask()
     {
         if (string.IsNullOrWhiteSpace(_newNote) && _previewImage is null) return;
+        if (_family is null) return;
 
         _adding = true;
         StateHasChanged();
 
         string? imagePath = null;
-
         if (_previewImage is not null)
         {
             var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "tasks");
@@ -239,17 +307,20 @@ else
 
         var task = new DailyTask
         {
-            Note = _newNote.Trim(),
+            FamilyId  = _family.Id,
+            Note      = _newNote.Trim(),
             ImagePath = imagePath,
             CreatedBy = _myName,
-            Date = DateOnly.FromDateTime(DateTime.Today)
+            Date      = DateOnly.FromDateTime(DateTime.Today)
         };
 
         await TaskRepo.AddAsync(task);
         _tasks.Add(task);
 
         if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskAdded", task);
+            await _hub.SendAsync("TaskAdded", Slug, task);
+
+        _ = PushService.SendToFamilyAsync(_family!.Id, _myName, "📋 Ny opgave", $"{_myName}: {task.Note}");
 
         _newNote = "";
         _previewImage = null;
@@ -263,10 +334,10 @@ else
         task.ClaimedBy = _myName;
         task.ClaimedAt = DateTime.UtcNow;
         await TaskRepo.UpdateAsync(task);
-
         if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskClaimed", task.Id, _myName);
-
+            await _hub.SendAsync("TaskClaimed", Slug, task.Id, _myName);
+        if (task.CreatedBy != _myName)
+            _ = PushService.SendToMemberAsync(_family!.Id, task.CreatedBy, "✋ Opgave taget", $"{_myName} klarer: {task.Note}");
         StateHasChanged();
     }
 
@@ -274,10 +345,10 @@ else
     {
         task.CompletedAt = DateTime.UtcNow;
         await TaskRepo.UpdateAsync(task);
-
         if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskCompleted", task.Id);
-
+            await _hub.SendAsync("TaskCompleted", Slug, task.Id);
+        if (task.CreatedBy != _myName)
+            _ = PushService.SendToMemberAsync(_family!.Id, task.CreatedBy, "✅ Opgave færdig", $"{_myName} er færdig: {task.Note}");
         StateHasChanged();
     }
 
@@ -285,11 +356,38 @@ else
     {
         _tasks.Remove(task);
         await TaskRepo.DeleteAsync(task.Id);
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.SendAsync("TaskDeleted", Slug, task.Id);
+        StateHasChanged();
+    }
+
+    private async Task OnChatKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SendChat(); }
+
+    private async Task SendChat()
+    {
+        var text = _chatInput.Trim();
+        if (string.IsNullOrEmpty(text) || _family is null) return;
+
+        var msg = new ChatMessage { FamilyId = _family.Id, SenderName = _myName, Text = text };
+        Db.Chat.Add(msg);
+        await Db.SaveChangesAsync();
+
+        _messages.Add(msg);
+        _chatInput = "";
 
         if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskDeleted", task.Id);
+            await _hub.SendAsync("SendChat", Slug, _myName, text);
 
+        _ = PushService.SendToFamilyAsync(_family!.Id, _myName, $"💬 {_myName}", text);
+
+        await JS.InvokeVoidAsync("familyApp.scrollChat");
         StateHasChanged();
+    }
+
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("familyApp.clearSession", Slug);
+        Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true);
     }
 
     public async ValueTask DisposeAsync()

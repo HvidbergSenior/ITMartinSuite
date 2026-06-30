@@ -1,22 +1,20 @@
-@page "/"
+@page "/history"
 
 @using ITMartin.Receipt.Application.Interfaces
 @using ITMartin.Receipt.Domain.Entities
 
 @inject IReceiptRepository ReceiptRepository
 
-<PageTitle>Receipt Dashboard</PageTitle>
+<PageTitle>Receipt History</PageTitle>
 
 <div class="page-container">
 
     <div class="scanner-header">
         <div>
-            <h1 class="scanner-title">Receipt Dashboard</h1>
+            <h1 class="scanner-title">Receipt History</h1>
             <div class="scanner-subtitle">All scanned receipts</div>
         </div>
-        <a href="/scanner" class="btn btn-success">
-            + Scan Receipt
-        </a>
+        <a href="/" class="btn btn-success">+ Scan Receipt</a>
     </div>
 
     @if (_transactions is null)
@@ -26,22 +24,18 @@
     else
     {
         <div class="dashboard-stats-grid">
-
             <div class="content-card stat-card">
                 <h3>@_transactions.Count</h3>
                 <p>Total Receipts</p>
             </div>
-
             <div class="content-card stat-card">
                 <h3>@_transactions.Select(x => x.Currency).Distinct().Count()</h3>
                 <p>Currencies</p>
             </div>
-
             <div class="content-card stat-card">
                 <h3>@_totalSpend.ToString("F2")</h3>
                 <p>Total Spend (DKK)</p>
             </div>
-
         </div>
 
         <div class="content-card" style="padding:12px 16px; margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">
@@ -58,42 +52,33 @@
         {
             <div class="content-card" style="text-align:center; padding:40px;">
                 <div style="font-size:48px; margin-bottom:12px;">🧾</div>
-                <div style="color:var(--text-muted);">@(_transactions.Any() ? "No receipts match your search." : "No receipts scanned yet. Go scan one!")</div>
+                <div style="color:var(--text-muted);">@(_transactions.Any() ? "No receipts match your search." : "No receipts scanned yet.")</div>
             </div>
         }
         else
         {
             <div class="stack mt-3">
-
                 @foreach (var tx in _filtered)
                 {
                     <div class="content-card receipt-history-card @(tx.IsTemplate ? "template-card" : "")">
-
                         <div class="receipt-history-row">
-
                             <div>
                                 <div class="receipt-history-merchant">
                                     @(string.IsNullOrWhiteSpace(tx.MerchantName) ? "Unknown Merchant" : tx.MerchantName)
-                                    @if (tx.IsTemplate)
-                                    {
-                                        <span class="template-badge">Template</span>
-                                    }
+                                    @if (tx.IsTemplate) { <span class="template-badge">Template</span> }
                                 </div>
                                 <div class="text-muted" style="font-size:13px; margin-top:4px;">
                                     @tx.ScannedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
                                     @if (tx.PurchaseDate.HasValue)
                                     {
-                                        <span> &middot; Purchased @tx.PurchaseDate.Value.ToString("dd MMM yyyy")</span>
+                                        <span> &middot; @tx.PurchaseDate.Value.ToString("dd MMM yyyy")</span>
                                     }
                                 </div>
                             </div>
-
                             <div style="display:flex; align-items:center; gap:12px;">
                                 @if (tx.TotalAmount.HasValue)
                                 {
-                                    <div class="receipt-history-total">
-                                        @tx.Currency @tx.TotalAmount.Value.ToString("F2")
-                                    </div>
+                                    <div class="receipt-history-total">@tx.Currency @tx.TotalAmount.Value.ToString("F2")</div>
                                 }
                                 <button class="btn btn-sm @(tx.IsTemplate ? "btn-warning" : "btn-outline-secondary")"
                                         @onclick="() => ToggleTemplate(tx)">
@@ -101,135 +86,58 @@
                                 </button>
                                 @if (_deleteConfirmId == tx.Id)
                                 {
-                                    <button class="btn btn-sm btn-danger"  @onclick="() => ConfirmDelete(tx.Id)">✓ Delete</button>
-                                    <button class="btn btn-sm btn-secondary" @onclick="CancelDelete">Cancel</button>
+                                    <button class="btn btn-sm btn-danger"     @onclick="() => ConfirmDelete(tx.Id)">✓ Delete</button>
+                                    <button class="btn btn-sm btn-secondary"  @onclick="CancelDelete">Cancel</button>
                                 }
                                 else
                                 {
                                     <button class="btn btn-sm btn-outline-danger" @onclick="() => AskDelete(tx.Id)">🗑</button>
                                 }
                             </div>
-
                         </div>
-
                         @if (tx.Items.Any())
                         {
                             <div class="receipt-history-items">
                                 @foreach (var item in tx.Items.Take(3))
                                 {
+                                    var net = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
                                     <div class="receipt-history-item">
                                         <span>@item.Description</span>
                                         @if (item.OriginalPrice.HasValue)
                                         {
-                                            var net = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
                                             <span>@tx.Currency @net.ToString("F2")</span>
                                         }
                                     </div>
                                 }
                                 @if (tx.Items.Count > 3)
                                 {
-                                    <div class="text-muted" style="font-size:12px; margin-top:4px;">
-                                        + @(tx.Items.Count - 3) more items
-                                    </div>
+                                    <div class="text-muted" style="font-size:12px; margin-top:4px;">+ @(tx.Items.Count - 3) more items</div>
                                 }
                             </div>
                         }
-
                     </div>
                 }
-
             </div>
         }
     }
-
 </div>
 
 <style>
-    .dashboard-stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-
-    .stat-card {
-        text-align: center;
-    }
-
-    .stat-card h3 {
-        font-size: 28px;
-        font-weight: 700;
-        margin: 0 0 4px;
-    }
-
-    .stat-card p {
-        margin: 0;
-        color: var(--text-muted);
-        font-size: 13px;
-    }
-
-    .receipt-history-card {
-        transition: transform 0.15s ease;
-    }
-
-    .receipt-history-card:hover {
-        transform: translateY(-2px);
-    }
-
-    .receipt-history-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .receipt-history-merchant {
-        font-size: 16px;
-        font-weight: 600;
-    }
-
-    .receipt-history-total {
-        font-size: 18px;
-        font-weight: 700;
-        color: var(--success);
-        white-space: nowrap;
-    }
-
-    .receipt-history-items {
-        margin-top: 12px;
-        border-top: 1px solid rgba(255,255,255,0.06);
-        padding-top: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .receipt-history-item {
-        display: flex;
-        justify-content: space-between;
-        font-size: 13px;
-        color: var(--text-muted);
-    }
-
-    .template-card {
-        border-color: rgba(245, 158, 11, 0.5) !important;
-    }
-
-    .template-badge {
-        font-size: 11px;
-        font-weight: 700;
-        background: rgba(245,158,11,.2);
-        color: #f59e0b;
-        border-radius: 999px;
-        padding: 2px 8px;
-        margin-left: 8px;
-        vertical-align: middle;
-    }
+    .dashboard-stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px; margin-bottom:24px; }
+    .stat-card { text-align:center; }
+    .stat-card h3 { font-size:28px; font-weight:700; margin:0 0 4px; }
+    .stat-card p { margin:0; color:var(--text-muted); font-size:13px; }
+    .receipt-history-card:hover { transform:translateY(-2px); }
+    .receipt-history-row { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; }
+    .receipt-history-merchant { font-size:16px; font-weight:600; }
+    .receipt-history-total { font-size:18px; font-weight:700; color:var(--success); white-space:nowrap; }
+    .receipt-history-items { margin-top:12px; border-top:1px solid rgba(255,255,255,.06); padding-top:10px; display:flex; flex-direction:column; gap:6px; }
+    .receipt-history-item { display:flex; justify-content:space-between; font-size:13px; color:var(--text-muted); }
+    .template-card { border-color:rgba(245,158,11,.5) !important; }
+    .template-badge { font-size:11px; font-weight:700; background:rgba(245,158,11,.2); color:#f59e0b; border-radius:999px; padding:2px 8px; margin-left:8px; vertical-align:middle; }
 </style>
 
 @code {
-
     private List<ReceiptTransaction>? _transactions;
     private decimal _totalSpend;
     private string _search = "";
@@ -268,5 +176,4 @@
             .Where(x => x.Currency == "DKK" && x.TotalAmount.HasValue)
             .Sum(x => x.TotalAmount!.Value);
     }
-
 }

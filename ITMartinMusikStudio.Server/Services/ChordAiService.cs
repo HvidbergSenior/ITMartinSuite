@@ -22,23 +22,25 @@ public sealed class ChordAiService
 
         var context = new System.Text.StringBuilder();
         context.Append($"Song title: {title}");
-        if (!string.IsNullOrWhiteSpace(musicKey)) context.Append($"\nKey: {musicKey}");
         if (tempo.HasValue) context.Append($"\nTempo: {tempo} BPM");
         if (!string.IsNullOrWhiteSpace(lyrics))
             context.Append($"\nFirst lines of lyrics:\n{string.Join("\n", lyrics.Split('\n').Take(8))}");
 
         var response = await _client.Messages.Create(new MessageCreateParams
         {
-            Model = Model.ClaudeHaiku4_5,
+            Model = Model.ClaudeSonnet4_6,
             MaxTokens = 600,
             System = """
                 You are a musician helping suggest chord progressions.
-                Reply with a chord chart in this format:
-                Verse: Am G F E
-                Chorus: C G Am F
-                Bridge: Dm Am E Am
-                Use only chord names, one section per line. Label sections clearly.
-                Keep it concise — one chord progression per section is enough.
+                If you recognise the song title and artist, use the ACTUAL chord structure from that song.
+                Each section (Verse, Chorus, Bridge) may have DIFFERENT chords — preserve that structure.
+                Include slash chords (inversions) exactly as they appear in the song — e.g. A/D, G/B, D/F# — do NOT simplify them to just the root chord.
+                If the song is unknown, suggest appropriate chords.
+                Use both major and minor chords as the song requires — do not default to all-minor or all-major.
+                Reply with a chord chart, one section per line, like this:
+                Verse: D A/D Bm A G D/G Em A
+                Chorus: G A F#m Bm G A D
+                Use only chord names. Label sections clearly. No explanatory text.
                 """,
             Messages =
             [
@@ -294,6 +296,69 @@ public sealed class ChordAiService
         return "";
     }
 
+    public async Task<string> GetChordFingeringAsync(string chord)
+    {
+        if (_client is null) return "";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 400,
+            System = """
+                You are a guitar teacher explaining how to play a single chord.
+                Always include:
+                1. Fret notation (6 digits, x=mute, 0=open, e.g. x02220 = Am), from low E to high e
+                2. Which fingers to use (1=index 2=middle 3=ring 4=pinky)
+                3. For slash chords (e.g. A/D): explain the bass note and how to voice it on guitar
+                4. One practical tip if the chord is tricky
+                Keep it short — 4-6 lines max. Danish is fine.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"How do I play this chord on guitar: {chord}"
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
+    public async Task<string> GetChordTransitionsAsync(string chordChart, string musicKey)
+    {
+        if (_client is null) return "";
+        var chart = string.IsNullOrWhiteSpace(chordChart) ? "ukendt" : chordChart;
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 700,
+            System = """
+                You are a guitar and piano teacher. For each chord transition in the song, suggest:
+                1. A passing note or short lick on guitar (e.g. "walk down: A - G# - G")
+                2. A piano voicing or arpeggio that bridges the two chords smoothly
+                Format as a list of transitions: Am → F: ... then Am → G: ...
+                Keep it short and practical. Danish is fine.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Key: {musicKey}\nChords/progression:\n{chart}\n\nSuggest passing notes and transitions between the chords — both guitar and piano."
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
     public async Task<string> GetLyricsForSongAsync(string title)
     {
         if (_client is null) return "";
@@ -303,16 +368,60 @@ public sealed class ChordAiService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 1200,
             System = """
-                You are helping a musician practice. Provide the lyrics for the requested song.
-                Format clearly with verse/chorus labels. If you don't know the song well, say so.
-                Return only the lyrics with section labels — no preamble, no commentary.
+                You are a music practice assistant helping a singer-guitarist learn songs.
+                Provide a practice sheet with the song structure and key lyric phrases to help them remember the song.
+                Format with section labels (Verse 1, Chorus, Bridge etc.), the opening line of each section,
+                and a note on the melody direction. This is a memory aid for practice, not a full transcription.
                 """,
             Messages =
             [
                 new()
                 {
                     Role = Role.User,
-                    Content = $"Please give me the lyrics for: {title}"
+                    Content = $"Give me a practice sheet for: {title}"
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
+    public async Task<string> AnnotateLyricsWithChordsAsync(string lyrics, string chordChart, string musicKey, string title, string artist)
+    {
+        if (_client is null) return "";
+
+        var songLabel = string.IsNullOrWhiteSpace(artist) ? title : $"{title} — {artist}";
+        var chordHint = string.IsNullOrWhiteSpace(chordChart)
+            ? "No chord chart provided — use your knowledge of the song."
+            : $"Chord chart:\n{chordChart}";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 2000,
+            System = """
+                You are a musician annotating lyrics with chord markers in UltimateGuitar format.
+                Insert [Chord] markers IMMEDIATELY before the syllable where the chord starts, with no space between the marker and the word.
+                Keep section labels (Verse:, Chorus:, Bridge: etc.) as plain text lines with no chord markers.
+                Empty lines between sections must remain as empty lines.
+                Return ONLY the annotated lyrics — no explanation, no intro text, nothing else.
+
+                Example output format:
+                Verse:
+                [Am]Yesterday, [G]all my [F]troubles seemed so [E]far away
+                [Am]Now it [G]looks as though they're [F]here to [E]stay
+
+                Chorus:
+                [C]I be[G]lieve in [Am]yesterday
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Song: {songLabel}\nKey: {musicKey}\n\n{chordHint}\n\nPlain lyrics to annotate:\n{lyrics}"
                 }
             ]
         });

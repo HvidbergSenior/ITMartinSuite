@@ -32,8 +32,10 @@
             @foreach (var s in FilteredSongs)
             {
                 var isOriginal = string.IsNullOrWhiteSpace(s.SourceFile);
-                <a class="song-card @(isOriginal ? "song-card--original" : "")"
-                   href="/studio/@Uri.EscapeDataString(s.Key)">
+                var songUrl = "/studio/" + Uri.EscapeDataString(s.Key);
+                <div class="song-card @(isOriginal ? "song-card--original" : "")"
+                     style="cursor:pointer;"
+                     @onclick="() => Nav.NavigateTo(songUrl, forceLoad: true)">
                     <div class="song-card-icon">@(isOriginal ? "✍️" : (Library.IsVideo(s.SourceFile) ? "🎬" : "🎵"))</div>
                     <div class="song-card-body">
                         <div class="song-card-title">@s.Title</div>
@@ -49,8 +51,10 @@
                             }
                         </div>
                     </div>
-                    <div class="song-card-arrow">›</div>
-                </a>
+                    <button @onclick:stopPropagation @onclick="() => DeleteSong(s)"
+                            style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px 8px;flex-shrink:0;"
+                            title="Slet sang">🗑</button>
+                </div>
             }
         </div>
     }
@@ -184,6 +188,17 @@
         await Db.SaveChangesAsync();
 
         Nav.NavigateTo($"/studio/{Uri.EscapeDataString(key)}", forceLoad: true);
+    }
+
+    private async Task DeleteSong(StudioSong song)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Slet '{song.Title}'?");
+        if (!confirmed) return;
+        Db.Songs.Remove(song);
+        await Db.SaveChangesAsync();
+        _songs.Remove(song);
+        _songKeys.Remove(song.Key);
+        StateHasChanged();
     }
 
     private async Task Logout()

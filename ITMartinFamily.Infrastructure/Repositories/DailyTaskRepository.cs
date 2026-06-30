@@ -6,9 +6,9 @@ namespace ITMartinFamily.Infrastructure.Repositories;
 
 public sealed class DailyTaskRepository(FamilyDbContext db) : IDailyTaskRepository
 {
-    public Task<List<DailyTask>> GetTodayAsync(CancellationToken ct = default)
+    public Task<List<DailyTask>> GetTodayAsync(Guid familyId, CancellationToken ct = default)
         => db.Tasks
-            .Where(t => t.Date == DateOnly.FromDateTime(DateTime.Today))
+            .Where(t => t.FamilyId == familyId && t.Date == DateOnly.FromDateTime(DateTime.Today))
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
 

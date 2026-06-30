@@ -1,0 +1,155 @@
+@page "/g/{slug}/chat"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubBroadcastService Broadcast
+@implements IAsyncDisposable
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <div class="club-header">
+            <div><div class="club-name">@_group!.Name</div><div class="club-member-name">@_member.Name</div></div>
+        </div>
+        <div class="club-nav">
+            <a class="club-nav-item" href="/g/@Slug">🏠 Hjem</a>
+            <a class="club-nav-item" href="/g/@Slug/docs">📄 Dokumenter</a>
+            <a class="club-nav-item" href="/g/@Slug/calendar">📅 Kalender</a>
+            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
+            <a class="club-nav-item" href="/g/@Slug/board">📌 Opslagstavle</a>
+            <a class="club-nav-item active" href="/g/@Slug/chat">💬 Chat</a>
+        </div>
+
+        <div class="chat-body">
+            <div class="chat-messages" id="chat-messages">
+                @foreach (var m in _messages)
+                {
+                    <div class="chat-msg @(m.MemberId == _member.Id ? "chat-msg-mine" : "")">
+                        @if (m.MemberId != _member.Id)
+                        {
+                            <div class="chat-sender">@m.SenderName</div>
+                        }
+                        <div class="chat-bubble">@m.Text</div>
+                        <div class="chat-time">@m.SentAt.ToLocalTime().ToString("HH:mm")</div>
+                    </div>
+                }
+            </div>
+            <div class="chat-input-row">
+                <input class="chat-input" placeholder="Skriv en besked..."
+                       @bind="_text" @bind:event="oninput"
+                       @onkeydown="OnKey" maxlength="500" />
+                <button class="chat-send" @onclick="SendAsync"
+                        disabled="@string.IsNullOrWhiteSpace(_text)">Send</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #94a3b8; }
+    .club-page { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; height: 100dvh; }
+    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); flex-shrink: 0; }
+    .club-name { font-size: 20px; font-weight: 900; }
+    .club-member-name { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+    .club-nav { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; flex-shrink: 0; }
+    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
+    .chat-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .chat-msg { display: flex; flex-direction: column; max-width: 75%; align-self: flex-start; }
+    .chat-msg-mine { align-self: flex-end; align-items: flex-end; }
+    .chat-sender { font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 3px; }
+    .chat-bubble { background: rgba(255,255,255,.12); border-radius: 16px 16px 16px 4px; padding: 10px 14px; font-size: 15px; line-height: 1.45; word-break: break-word; color: #f1f5f9; }
+    .chat-msg-mine .chat-bubble { background: #2563eb; border-radius: 16px 16px 4px 16px; color: #fff; }
+    .chat-time { font-size: 11px; color: #64748b; margin-top: 3px; }
+    .chat-input-row { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.08); flex-shrink: 0; }
+    .chat-input { flex: 1; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); border-radius: 12px; padding: 11px 14px; color: white; font-size: 15px; outline: none; }
+    .chat-input:focus { border-color: #3b82f6; }
+    .chat-send { background: #2563eb; border: none; border-radius: 12px; color: white; font-size: 15px; font-weight: 700; padding: 11px 20px; cursor: pointer; }
+    .chat-send:disabled { opacity: .4; cursor: default; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private string _text = "";
+    private List<ClubChatMessage> _messages = [];
+    private bool _scrollPending;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
+            if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+            var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group)
+                .FirstOrDefaultAsync(s => s.Id == sid);
+            if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+            _member = session.Member;
+            _group = session.Member.Group;
+            Broadcast.Subscribe(_group.Id, OnBroadcast);
+            await RefreshAsync();
+            _loaded = true;
+            _scrollPending = true;
+            StateHasChanged();
+        }
+        else if (_scrollPending)
+        {
+            _scrollPending = false;
+            try { await JS.InvokeVoidAsync("clubJs.scrollToBottom", "chat-messages"); } catch { }
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        _messages = await Db.Chat
+            .Where(m => m.GroupId == _group!.Id)
+            .OrderByDescending(m => m.SentAt)
+            .Take(100)
+            .OrderBy(m => m.SentAt)
+            .ToListAsync();
+    }
+
+    private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SendAsync(); }
+
+    private async Task SendAsync()
+    {
+        var text = _text.Trim();
+        if (string.IsNullOrEmpty(text) || _member == null || _group == null) return;
+
+        Db.Chat.Add(new ClubChatMessage
+        {
+            GroupId    = _group.Id,
+            MemberId   = _member.Id,
+            SenderName = _member.Name,
+            Text       = text
+        });
+        await Db.SaveChangesAsync();
+        _text = "";
+        await RefreshAsync();
+        _scrollPending = true;
+        Broadcast.Broadcast(_group.Id);
+        StateHasChanged();
+    }
+
+    private void OnBroadcast() => InvokeAsync(async () =>
+    {
+        await RefreshAsync();
+        _scrollPending = true;
+        StateHasChanged();
+    });
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_group != null) Broadcast.Unsubscribe(_group.Id, OnBroadcast);
+        await Task.CompletedTask;
+    }
+}

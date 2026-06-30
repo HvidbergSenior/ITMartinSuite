@@ -32,6 +32,17 @@ using (var scope = app.Services.CreateScope())
             """);
     }
     catch { }
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Chat" (
+            "Id"         TEXT NOT NULL PRIMARY KEY,
+            "GroupId"    TEXT NOT NULL,
+            "MemberId"   TEXT NOT NULL,
+            "SenderName" TEXT NOT NULL,
+            "Text"       TEXT NOT NULL,
+            "SentAt"     TEXT NOT NULL
+        )
+        """);
 }
 
 if (!app.Environment.IsDevelopment())

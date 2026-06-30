@@ -7,7 +7,7 @@ public class StudioSong
     public string Title { get; set; } = "";
     public string Artist { get; set; } = "";
     public string SourceFile { get; set; } = "";
-    public string MusicKey { get; set; } = "Am";
+    public string MusicKey { get; set; } = "C";
     public int? Tempo { get; set; }
     public string Lyrics { get; set; } = "";
     public string ChordChart { get; set; } = "";

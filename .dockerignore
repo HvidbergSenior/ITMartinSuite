@@ -32,3 +32,5 @@ input
 
 Dockerfile.*
 docker-compose.override.yml
+
+*.tar

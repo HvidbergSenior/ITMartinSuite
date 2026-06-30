@@ -1,5 +1,6 @@
 using ITMartinFamily.Application.Interfaces;
 using ITMartinFamily.Infrastructure.Repositories;
+using ITMartinFamily.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,9 @@ public static class DependencyInjection
 
         services.AddDbContext<FamilyDbContext>(o => o.UseSqlite(connectionString));
         services.AddScoped<IDailyTaskRepository, DailyTaskRepository>();
+        services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
+        services.AddScoped<IPushNotificationService, PushNotificationService>();
+        services.AddSingleton<VapidKeyProvider>();
 
         return services;
     }

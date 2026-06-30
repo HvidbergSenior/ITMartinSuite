@@ -30,8 +30,14 @@ else if (_song is not null)
         </div>
         <div class="topbar-meta">
             <select class="meta-select" value="@_song.MusicKey" @onchange="OnKeyChanged">
-                @foreach (var k in MusicKeys)
-                { <option value="@k">@k</option> }
+                <optgroup label="Dur (Major)">
+                    @foreach (var k in MajorKeys)
+                    { <option value="@k">@k</option> }
+                </optgroup>
+                <optgroup label="Mol (Minor)">
+                    @foreach (var k in MinorKeys)
+                    { <option value="@k">@k</option> }
+                </optgroup>
             </select>
             <input class="meta-bpm" type="number" placeholder="BPM"
                    value="@_song.Tempo" @onchange="OnTempoChanged" />
@@ -71,9 +77,9 @@ else if (_song is not null)
                     <div class="card-label">🎸 Akkorder</div>
                     <div class="card-actions">
                         <div class="transpose-row">
-                            <button class="t-btn" @onclick="() => AdjustT(-1)">−</button>
-                            <span class="t-val">@(_transpose == 0 ? "0" : (_transpose > 0 ? $"+{_transpose}" : $"{_transpose}"))t</span>
-                            <button class="t-btn" @onclick="() => AdjustT(1)">+</button>
+                            <span class="t-label">½t</span>
+                            <button class="t-btn" @onclick="() => AdjustT(-1)" title="Transponer ned en halvtone">−</button>
+                            <button class="t-btn" @onclick="() => AdjustT(1)"  title="Transponer op en halvtone">+</button>
                         </div>
                         @if (ChordAi.IsAvailable)
                         {
@@ -81,6 +87,7 @@ else if (_song is not null)
                                 @(_aiLoading ? "..." : "🤖 AI")
                             </button>
                         }
+                        <button class="btn-ghost-sm" @onclick="SimplifyChords" title="Fjern slash-akkorder (A/D → A)">简</button>
                         <button class="btn-ghost-sm" @onclick='() => _photoTarget = "chords"'>📷</button>
                     </div>
                 </div>
@@ -88,27 +95,6 @@ else if (_song is not null)
                           value="@_chordEdit"
                           @oninput="e => { _chordEdit = e.Value?.ToString() ?? _chordEdit; AutoSave(); }"
                           placeholder="Verse: Am G F E&#10;Chorus: C G Am F&#10;Bridge: Dm Am E Am"></textarea>
-                @if (!string.IsNullOrWhiteSpace(_chordEdit) && _transpose != 0)
-                {
-                    <div class="chord-preview">
-                        <div class="card-label-sm">Transponeret (@TransposedKey):</div>
-                        @foreach (var line in TransposedChart.Split('\n'))
-                        {
-                            <div class="chord-line">
-                                @if (line.Trim().EndsWith(':'))
-                                { <span class="chord-section">@line</span> }
-                                else
-                                {
-                                    @foreach (var tok in line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                                    {
-                                        @if (IsChord(tok)) { <span class="chord-box">@tok</span> }
-                                        else { <span class="chord-txt"> @tok </span> }
-                                    }
-                                }
-                            </div>
-                        }
-                    </div>
-                }
             </div>
 
             <!-- Guitar patterns -->
@@ -209,19 +195,55 @@ else if (_song is not null)
                 <div class="card-header">
                     <div class="card-label">📝 Tekst / Lyrics</div>
                     <div class="card-actions">
-                        @if (ChordAi.IsAvailable)
+                        @if (ChordAi.IsAvailable && !string.IsNullOrWhiteSpace(_lyricsEdit))
                         {
-                            <button class="btn-ghost-sm" @onclick="AiLyrics" disabled="@_lyricsLoading">
-                                @(_lyricsLoading ? "..." : "🔍 Hent tekst")
+                            <button class="btn-ai" @onclick="AiAnnotateChords" disabled="@_annotatingChords"
+                                    title="Indsæt [Akkord]-markører automatisk i teksten">
+                                @(_annotatingChords ? "..." : "🤖 Sæt akkorder")
                             </button>
                         }
+                        <button class="btn-ghost-sm" @onclick="SearchLyrics">🔍 Søg tekst</button>
                         <button class="btn-ghost-sm" @onclick='() => _photoTarget = "lyrics"'>📷 Fra foto</button>
                     </div>
                 </div>
-                <textarea class="lyrics-editor" rows="22"
+                <textarea class="lyrics-editor" rows="12"
                           value="@_lyricsEdit"
                           @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; AutoSave(); }"
-                          placeholder="Skriv teksten her... eller brug 📷 til at scanne et foto"></textarea>
+                          placeholder="Brug [Am]ord for akkorder over teksten&#10;[Am]I hope you don't mind [F]I hope you don't mind..."></textarea>
+
+                @if (HasInlineChords)
+                {
+                    <div class="chord-sheet-header">
+                        <span class="card-label-sm">Nodeark (@_song!.MusicKey)</span>
+                    </div>
+                    <div class="chord-sheet">
+                        @foreach (var line in _lyricsEdit.Split('\n'))
+                        {
+                            @if (string.IsNullOrWhiteSpace(line))
+                            {
+                                <div class="chord-sheet-spacer"></div>
+                            }
+                            else if (IsSectionLabel(line))
+                            {
+                                <div class="chord-sheet-section">@line.Trim('[', ']', ':', ' ')</div>
+                            }
+                            else
+                            {
+                                <div class="chord-sheet-line">
+                                    @foreach (var seg in ParseLyricLine(line))
+                                    {
+                                        <span class="lyric-seg">
+                                            <span class="lyric-chord-above">
+                                                @(seg.Chord ?? "")
+                                            </span>
+                                            <span class="lyric-word">@seg.Text</span>
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                }
             </div>
 
             <!-- Notes -->
@@ -245,7 +267,8 @@ else if (_song is not null)
                     <button class="ai-tab @(_aiTab == "rim" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("rim")'>🎵 Rim</button>
                     <button class="ai-tab @(_aiTab == "spil" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("spil")'>🎸🎹 Spil</button>
                     <button class="ai-tab @(_aiTab == "sang" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("sang")'>🎤 Sang</button>
-                    <button class="ai-tab @(_aiTab == "toneart" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("toneart")'>🎹 Toneart</button>
+                    <button class="ai-tab @(_aiTab == "toneart"  ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("toneart")'>🎹 Toneart</button>
+                    <button class="ai-tab @(_aiTab == "overgang" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("overgang")'>🎵 Overgang</button>
                 </div>
 
                 @if (_aiTab == "rim")
@@ -262,8 +285,17 @@ else if (_song is not null)
                 }
                 else if (_aiTab == "spil")
                 {
-                    <div class="ai-action-row">
-                        <p class="ai-action-desc">Baseret på dine akkorder og tempo</p>
+                    <div class="ai-rim">
+                        <input class="ai-rim-input" type="text" placeholder="Akkordnavn, fx A/D, F#m, Bm7, Cadd9..."
+                               value="@_chordLookup"
+                               @oninput="e => _chordLookup = e.Value?.ToString() ?? string.Empty"
+                               @onkeydown="OnChordLookupKey" />
+                        <button class="btn-ai-full" @onclick="AiChordLookup" disabled="@(_aiHelperLoading || string.IsNullOrWhiteSpace(_chordLookup))">
+                            @(_aiHelperLoading ? "..." : "Vis greb →")
+                        </button>
+                    </div>
+                    <div class="ai-action-row" style="margin-top:8px;">
+                        <p class="ai-action-desc">Mønstre for alle akkorder i sangen</p>
                         <button class="btn-ai-full" @onclick="AiSpil" disabled="@_aiHelperLoading">
                             @(_aiHelperLoading ? "..." : "Vis guitar & piano mønstre →")
                         </button>
@@ -284,6 +316,15 @@ else if (_song is not null)
                         <p class="ai-action-desc">Hvad er den bedste toneart at synge sangen i? Capo-position til guitar.</p>
                         <button class="btn-ai-full" @onclick="AiToneart" disabled="@_aiHelperLoading">
                             @(_aiHelperLoading ? "..." : "Find toneart →")
+                        </button>
+                    </div>
+                }
+                else if (_aiTab == "overgang")
+                {
+                    <div class="ai-action-row">
+                        <p class="ai-action-desc">Forslag til overgangs-noder og passing chords mellem akkorderne i sangen.</p>
+                        <button class="btn-ai-full" @onclick="AiOvergang" disabled="@_aiHelperLoading">
+                            @(_aiHelperLoading ? "..." : "Vis overgange →")
                         </button>
                     </div>
                 }
@@ -374,10 +415,8 @@ else if (_song is not null)
     private string _notesEdit = "";
     private string _fingerpickEdit = "";
     private string _strumEdit = "";
-    private int _transpose;
 
     private bool _patternsLoading;
-    private bool _lyricsLoading;
 
     private bool _aiLoading;
     private string? _saveStatus;
@@ -396,14 +435,14 @@ else if (_song is not null)
 
     private string _aiTab = "rim";
     private string _rimInput = "";
+    private string _chordLookup = "";
     private bool _aiHelperLoading;
     private string _aiHelperResult = "";
 
-    private static readonly string[] MusicKeys =
-    [
-        "C","C#","D","D#","E","F","F#","G","G#","A","A#","B",
-        "Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"
-    ];
+    private bool _annotatingChords;
+
+    private static readonly string[] MajorKeys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    private static readonly string[] MinorKeys = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"];
 
     private string PhotoTargetLabel => _photoTarget switch
     {
@@ -491,28 +530,38 @@ else if (_song is not null)
 
     // ── Transpose ─────────────────────────────────────────────────────────────
 
-    private void AdjustT(int d) => _transpose = Math.Clamp(_transpose + d, -11, 11);
-
-    private string TransposedKey => TransposeNote(_song?.MusicKey ?? "Am", _transpose);
-
-    private string TransposedChart =>
-        string.Join("\n", _chordEdit.Split('\n').Select(line =>
-            string.Join(" ", line.Split(' ').Select(tok =>
-                IsChord(tok) ? TransposeNote(tok, _transpose) : tok))));
+    private void AdjustT(int d)
+    {
+        if (d == 0 || _song is null) return;
+        _lyricsEdit    = TransposeChordsInText(_lyricsEdit, d);
+        _chordEdit     = TransposeChordsInText(_chordEdit, d);
+        _song.MusicKey = TransposeNote(_song.MusicKey, d);
+        AutoSave();
+    }
 
     private static readonly string[] Notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] NotesFlat = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
 
-    private static string TransposeNote(string note, int semitones)
+    private static string TransposeNote(string chord, int semitones)
     {
-        if (semitones == 0) return note;
-        var minor = note.EndsWith('m') && note.Length > 1;
-        var root  = minor ? note[..^1] : note;
-        var idx   = Array.IndexOf(Notes, root);
+        if (semitones == 0 || string.IsNullOrEmpty(chord)) return chord;
+        int rootLen = chord.Length > 1 && chord[1] is '#' or 'b' ? 2 : 1;
+        var root   = chord[..rootLen];
+        var suffix = chord[rootLen..];
+        var idx = Array.IndexOf(Notes, root);
         if (idx < 0) idx = Array.IndexOf(NotesFlat, root);
-        if (idx < 0) return note;
+        if (idx < 0) return chord;
         var newIdx = ((idx + semitones) % 12 + 12) % 12;
-        return Notes[newIdx] + (minor ? "m" : "");
+        return Notes[newIdx] + suffix;
+    }
+
+    private static string TransposeChordsInText(string text, int semitones)
+    {
+        if (string.IsNullOrEmpty(text) || semitones == 0) return text;
+        return System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"\[([A-G][^\]]*)\]",
+            m => "[" + TransposeNote(m.Groups[1].Value, semitones) + "]");
     }
 
     private static bool IsChord(string token)
@@ -709,6 +758,31 @@ else if (_song is not null)
         _aiHelperLoading = false;
     }
 
+    private void SimplifyChords()
+    {
+        // Replace slash chords (A/D, G/B, D/F#) with just the chord name before the slash
+        _chordEdit = System.Text.RegularExpressions.Regex.Replace(
+            _chordEdit,
+            @"([A-G][#b]?(?:maj|min|m|dim|aug|sus\d?|add\d|M|\d)*)/[A-G][#b]?",
+            m => m.Groups[1].Value);
+        AutoSave();
+        StateHasChanged();
+    }
+
+    private async Task OnChordLookupKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AiChordLookup();
+    }
+
+    private async Task AiChordLookup()
+    {
+        if (string.IsNullOrWhiteSpace(_chordLookup)) return;
+        _aiHelperLoading = true;
+        _aiHelperResult = "";
+        _aiHelperResult = await ChordAi.GetChordFingeringAsync(_chordLookup.Trim());
+        _aiHelperLoading = false;
+    }
+
     private async Task AiSpil()
     {
         if (_song is null) return;
@@ -752,21 +826,13 @@ else if (_song is not null)
         _patternsLoading = false;
     }
 
-    // ── Fetch lyrics ──────────────────────────────────────────────────────────
+    // ── Search lyrics (opens Google in browser — paste into textarea) ────────────
 
-    private async Task AiLyrics()
+    private async Task SearchLyrics()
     {
         if (_song is null) return;
-        _lyricsLoading = true;
-        var result = await ChordAi.GetLyricsForSongAsync(_song.Title);
-        if (!string.IsNullOrEmpty(result))
-        {
-            _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit)
-                ? result
-                : _lyricsEdit + "\n\n---\n\n" + result;
-            AutoSave();
-        }
-        _lyricsLoading = false;
+        var q = Uri.EscapeDataString(_song.Title + (string.IsNullOrWhiteSpace(_song.Artist) ? "" : " " + _song.Artist) + " lyrics");
+        await JS.InvokeVoidAsync("open", $"https://www.google.com/search?q={q}", "_blank");
     }
 
     // ── Toneart / key finder ──────────────────────────────────────────────────
@@ -778,5 +844,81 @@ else if (_song is not null)
         _aiHelperResult = "";
         _aiHelperResult = await ChordAi.GetKeyForVoiceAsync(_song.Title, _song.MusicKey, _lyricsEdit);
         _aiHelperLoading = false;
+    }
+
+    // ── Chord transitions ─────────────────────────────────────────────────────
+
+    private async Task AiOvergang()
+    {
+        if (_song is null) return;
+        _aiHelperLoading = true;
+        _aiHelperResult = "";
+        var chart = string.IsNullOrWhiteSpace(_chordEdit) ? ExtractChordsFromLyrics() : _chordEdit;
+        _aiHelperResult = await ChordAi.GetChordTransitionsAsync(chart, _song.MusicKey);
+        _aiHelperLoading = false;
+    }
+
+    private string ExtractChordsFromLyrics() =>
+        string.Join(" ", System.Text.RegularExpressions.Regex
+            .Matches(_lyricsEdit, @"\[([A-G][^\]]*)\]")
+            .Select(m => m.Groups[1].Value)
+            .Distinct());
+
+    // ── AI chord annotation ───────────────────────────────────────────────────
+
+    private async Task AiAnnotateChords()
+    {
+        if (_song is null || string.IsNullOrWhiteSpace(_lyricsEdit)) return;
+        _annotatingChords = true;
+        StateHasChanged();
+        try
+        {
+            var result = await ChordAi.AnnotateLyricsWithChordsAsync(
+                _lyricsEdit, _chordEdit, _song.MusicKey, _song.Title, _song.Artist);
+            if (!string.IsNullOrWhiteSpace(result))
+            {
+                _lyricsEdit = result;
+                AutoSave();
+            }
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = $"AI fejl: {ex.Message}";
+        }
+        finally
+        {
+            _annotatingChords = false;
+        }
+    }
+
+    // ── Chord+lyrics renderer ─────────────────────────────────────────────────
+
+    private bool HasInlineChords =>
+        !string.IsNullOrWhiteSpace(_lyricsEdit) &&
+        System.Text.RegularExpressions.Regex.IsMatch(_lyricsEdit, @"\[[A-G][^\]]*\]");
+
+    private static bool IsSectionLabel(string line)
+    {
+        var t = line.Trim();
+        if (t.EndsWith(':') && !System.Text.RegularExpressions.Regex.IsMatch(t, @"\[[A-G]")) return true;
+        if (!t.StartsWith('[')) return false;
+        var inner = t.TrimStart('[').Split(']')[0];
+        return inner.Contains(' ') || inner.Length == 0 || inner[0] is < 'A' or > 'G';
+    }
+
+    private IEnumerable<(string? Chord, string Text)> ParseLyricLine(string line)
+    {
+        var result = new List<(string?, string)>();
+        var rx = new System.Text.RegularExpressions.Regex(@"\[([A-G][^\]]*)\]([^\[]*)");
+        int last = 0;
+        foreach (System.Text.RegularExpressions.Match m in rx.Matches(line))
+        {
+            if (m.Index > last) result.Add((null, line[last..m.Index]));
+            result.Add((m.Groups[1].Value, m.Groups[2].Value));
+            last = m.Index + m.Length;
+        }
+        if (last < line.Length) result.Add((null, line[last..]));
+        if (!result.Any()) result.Add((null, line));
+        return result;
     }
 }

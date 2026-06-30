@@ -1,0 +1,92 @@
+@page "/"
+@rendermode InteractiveServer
+@inject FamilyDbContext Db
+@inject NavigationManager Nav
+@using ITMartinFamily.Domain.Entities
+@using ITMartinFamily.Infrastructure
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+
+<div class="create-wrap">
+    <div class="create-card">
+        <div style="font-size:48px;margin-bottom:12px">👨‍👩‍👧‍👦</div>
+        <h1 class="create-title">Opret familie</h1>
+        <p class="create-sub">Ét sted for hele familien</p>
+
+        @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
+
+        <div class="create-field">
+            <label>Familienavn</label>
+            <input @bind="_name" placeholder="Familie Hansen" class="create-input" maxlength="100" />
+        </div>
+        <div class="create-field">
+            <label>Adgangskode</label>
+            <input @bind="_password" type="password" placeholder="Vælg en kode" class="create-input" maxlength="40" />
+            <div class="create-hint">Alle familiemedlemmer bruger denne kode for at logge ind.</div>
+        </div>
+
+        <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">
+            @(_creating ? "Opretter..." : "Opret familie")
+        </button>
+
+        <div class="create-footer">Har du allerede en familie? Gå til <strong>familie.itmartin.dk/f/dit-familienavn/join</strong></div>
+    </div>
+</div>
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .create-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .create-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 480px; text-align: center; }
+    .create-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; }
+    .create-sub { font-size: 14px; color: #64748b; margin: 0 0 28px; }
+    .create-field { text-align: left; margin-bottom: 16px; }
+    .create-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+    .create-hint { font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4; }
+    .create-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; }
+    .create-input:focus { border-color: #3b82f6; }
+    .create-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .create-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .create-btn:disabled { opacity: .5; cursor: default; }
+    .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f87171; margin-bottom: 16px; text-align: left; }
+    .create-footer { margin-top: 24px; font-size: 12px; color: #475569; line-height: 1.5; }
+</style>
+
+@code {
+    private string _name = "", _password = "";
+    private string? _error;
+    private bool _creating;
+
+    private async Task CreateAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_name))     { _error = "Skriv et familienavn."; return; }
+        if (string.IsNullOrWhiteSpace(_password)) { _error = "Skriv en adgangskode."; return; }
+
+        var slug = System.Text.RegularExpressions.Regex
+            .Replace(_name.ToLower().Trim().Replace(" ", "-"), @"[^a-z0-9\-]", "");
+        if (string.IsNullOrWhiteSpace(slug)) { _error = "Familienavnet kan ikke bruges som adresse."; return; }
+
+        var baseSlug = slug;
+        var counter = 2;
+        while (await Db.Families.AnyAsync(f => f.Slug == slug))
+            slug = $"{baseSlug}-{counter++}";
+
+        _creating = true;
+        StateHasChanged();
+
+        try
+        {
+            Db.Families.Add(new Family { Slug = slug, Name = _name.Trim(), Password = _password.Trim() });
+            await Db.SaveChangesAsync();
+            Nav.NavigateTo($"/f/{slug}/join", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Noget gik galt: {ex.Message}";
+            _creating = false;
+        }
+    }
+}

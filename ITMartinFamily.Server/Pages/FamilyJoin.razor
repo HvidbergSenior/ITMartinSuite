@@ -1,0 +1,132 @@
+@page "/f/{slug}/join"
+@rendermode InteractiveServer
+@inject FamilyDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using ITMartinFamily.Domain.Entities
+@using ITMartinFamily.Infrastructure
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+
+<div class="join-wrap">
+    <div class="join-card">
+        <div class="join-logo">👨‍👩‍👧‍👦</div>
+        <h1 class="join-title">@(_family?.Name ?? "Familie")</h1>
+
+        @if (_error != null) { <div class="join-error">@_error</div> }
+
+        @if (!_loaded)
+        {
+            <div class="join-loading">Indlæser...</div>
+        }
+        else if (_family == null)
+        {
+            <div class="join-error">Familien findes ikke.</div>
+            <a href="/" class="join-btn" style="display:block;margin-top:16px;text-align:center;text-decoration:none">Opret familie</a>
+        }
+        else
+        {
+            <div class="join-field">
+                <label>Dit navn</label>
+                <input @bind="_name" placeholder="Fornavn" class="join-input" maxlength="60"
+                       @onkeydown="OnKey" />
+            </div>
+            <div class="join-field">
+                <label>Adgangskode</label>
+                <input @bind="_password" type="password" placeholder="Familiens kode" class="join-input"
+                       @onkeydown="OnKey" />
+            </div>
+            <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
+                @(_joining ? "Logger ind..." : "Log ind")
+            </button>
+        }
+    </div>
+</div>
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
+    .join-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .join-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px; text-align: center; }
+    .join-logo { font-size: 48px; margin-bottom: 12px; }
+    .join-title { font-size: 26px; font-weight: 900; margin: 0 0 28px; }
+    .join-field { text-align: left; margin-bottom: 16px; }
+    .join-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+    .join-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; }
+    .join-input:focus { border-color: #3b82f6; }
+    .join-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .join-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .join-btn:disabled { opacity: .5; cursor: default; }
+    .join-error { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f87171; margin-bottom: 16px; }
+    .join-loading { color: #64748b; padding: 20px 0; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Family? _family;
+    private string _name = "", _password = "";
+    private string? _error;
+    private bool _joining, _loaded;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var existing = await JS.InvokeAsync<string?>("familyApp.getSession", Slug);
+        if (!string.IsNullOrEmpty(existing) && Guid.TryParse(existing, out var sid))
+        {
+            var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Id == sid);
+            if (session is not null)
+            {
+                var member = await Db.Members.FindAsync(session.MemberId);
+                if (member is not null)
+                {
+                    var fam = await Db.Families.FindAsync(member.FamilyId);
+                    if (fam?.Slug == Slug) { Nav.NavigateTo($"/f/{Slug}", forceLoad: true); return; }
+                }
+            }
+        }
+
+        _family = await Db.Families.FirstOrDefaultAsync(f => f.Slug == Slug);
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await JoinAsync(); }
+
+    private async Task JoinAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_name))     { _error = "Skriv dit navn."; return; }
+        if (_family == null) return;
+        if (_password.Trim() != _family.Password) { _error = "Forkert adgangskode."; return; }
+
+        _joining = true;
+        StateHasChanged();
+
+        try
+        {
+            var member = await Db.Members.FirstOrDefaultAsync(m => m.FamilyId == _family.Id && m.Name == _name.Trim());
+            if (member == null)
+            {
+                member = new FamilyMember { FamilyId = _family.Id, Name = _name.Trim() };
+                Db.Members.Add(member);
+            }
+
+            var session = new FamilySession { MemberId = member.Id };
+            Db.Sessions.Add(session);
+            await Db.SaveChangesAsync();
+
+            await JS.InvokeVoidAsync("familyApp.setSession", Slug, session.Id.ToString());
+            Nav.NavigateTo($"/f/{Slug}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Noget gik galt: {ex.Message}";
+            _joining = false;
+        }
+    }
+}
