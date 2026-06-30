@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubBroadcastService Broadcast
+@inject ClubPushService PushService
 @implements IDisposable
 
 @if (!_loaded)
@@ -189,6 +190,13 @@ else
         Broadcast.Subscribe(_group.Id, OnBroadcast);
         _loaded = true;
         StateHasChanged();
+
+        try
+        {
+            var publicKey = PushService.GetPublicKey();
+            await JS.InvokeVoidAsync("clubJs.subscribePush", publicKey, _group.Id, _member.Name);
+        }
+        catch { }
     }
 
     private async Task RefreshAsync()

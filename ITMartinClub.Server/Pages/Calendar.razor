@@ -3,6 +3,7 @@
 @inject ClubDbContext Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ClubPushService PushService
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -147,10 +148,12 @@ else
 
     private async Task AddEventAsync()
     {
+        var title = _newTitle.Trim();
+        var dateStr = _newDate.ToString("d. MMM");
         Db.Events.Add(new CalendarEvent
         {
             GroupId = _group!.Id,
-            Title = _newTitle.Trim(),
+            Title = title,
             EventDate = _newDate.ToUniversalTime(),
             Location = string.IsNullOrWhiteSpace(_newLocation) ? null : _newLocation.Trim(),
             Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
@@ -159,6 +162,7 @@ else
         await Db.SaveChangesAsync();
         _newTitle = ""; _newLocation = ""; _newDesc = ""; _adding = false;
         await RefreshAsync();
+        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "📅 Ny begivenhed", $"{title} – {dateStr}");
     }
 
     private async Task DeleteEventAsync(Guid id)

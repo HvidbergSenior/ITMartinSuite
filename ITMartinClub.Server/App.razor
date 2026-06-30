@@ -16,14 +16,47 @@
     <script src="_framework/blazor.server.js"></script>
     <script>
         window.clubJs = {
-            getSession: () => localStorage.getItem('club_session'),
-            setSession: (v) => localStorage.setItem('club_session', v),
-            clearSession: () => localStorage.removeItem('club_session'),
-            scrollToBottom: (id) => {
-                var el = document.getElementById(id);
-                if (el) el.scrollTop = el.scrollHeight;
+            getSession:    () => localStorage.getItem('club_session'),
+            setSession:    (v) => localStorage.setItem('club_session', v),
+            clearSession:  () => localStorage.removeItem('club_session'),
+            scrollToBottom: (id) => { var el = document.getElementById(id); if (el) el.scrollTop = el.scrollHeight; },
+
+            registerSW: async function () {
+                if (!('serviceWorker' in navigator)) return;
+                try { await navigator.serviceWorker.register('/sw.js'); } catch (e) {}
+            },
+
+            subscribePush: async function (publicKey, groupId, memberName) {
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+                try {
+                    if (Notification.permission === 'default') await Notification.requestPermission();
+                    if (Notification.permission !== 'granted') return;
+                    var reg = await navigator.serviceWorker.ready;
+                    var existing = await reg.pushManager.getSubscription();
+                    var sub = existing || await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: clubJs._toBytes(publicKey)
+                    });
+                    var j = sub.toJSON();
+                    await fetch('/api/push/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ groupId, memberName, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth })
+                    });
+                } catch (e) {}
+            },
+
+            _toBytes: function (b64url) {
+                var pad = '='.repeat((4 - b64url.length % 4) % 4);
+                var b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+                var raw = atob(b64);
+                var arr = new Uint8Array(raw.length);
+                for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                return arr;
             }
         };
+
+        clubJs.registerSW();
     </script>
     <div id="components-reconnect-modal">
         <span class="reconnect-msg">Forbinder igen...</span>

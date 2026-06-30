@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubBroadcastService Broadcast
+@inject ClubPushService PushService
 @implements IAsyncDisposable
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
@@ -137,6 +138,7 @@ else
         await RefreshAsync();
         _scrollPending = true;
         Broadcast.Broadcast(_group.Id);
+        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, $"💬 {_member.Name}", text);
         StateHasChanged();
     }
 

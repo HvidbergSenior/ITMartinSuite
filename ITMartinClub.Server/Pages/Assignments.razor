@@ -3,6 +3,7 @@
 @inject ClubDbContext Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ClubPushService PushService
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
@@ -61,6 +62,10 @@ else
                                 @if (t.DueDate.HasValue) { <span class="@(t.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @t.DueDate.Value.ToString("dd MMM yyyy")</span> }
                                 <span>Oprettet af @t.CreatedByName</span>
                             </div>
+                            @if (string.IsNullOrEmpty(t.AssignedToName) || t.AssignedToName != _member!.Name)
+                            {
+                                <button class="task-take-btn" @onclick="() => TakeAsync(t.Id)">Jeg tager den 👋</button>
+                            }
                         </div>
                         <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
                     </div>
@@ -130,6 +135,8 @@ else
     .task-overdue { color: #f87171 !important; }
     .task-del-btn { background: transparent; border: none; color: #374151; cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
     .task-del-btn:hover { color: #f87171; }
+    .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+    .task-take-btn:hover { background: rgba(59,130,246,.1); }
 </style>
 
 @code {
@@ -166,10 +173,11 @@ else
 
     private async Task AddAsync()
     {
+        var title = _newTitle.Trim();
         Db.Assignments.Add(new Assignment
         {
             GroupId = _group!.Id,
-            Title = _newTitle.Trim(),
+            Title = title,
             Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
             AssignedToName = string.IsNullOrWhiteSpace(_newAssignedTo) ? null : _newAssignedTo,
             DueDate = _newDue?.ToUniversalTime(),
@@ -178,6 +186,17 @@ else
         await Db.SaveChangesAsync();
         _newTitle = ""; _newAssignedTo = ""; _newDesc = ""; _newDue = null; _adding = false;
         await RefreshAsync();
+        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "✅ Ny opgave", $"{_member.Name}: {title}");
+    }
+
+    private async Task TakeAsync(Guid id)
+    {
+        var t = await Db.Assignments.FindAsync(id);
+        if (t == null) return;
+        t.AssignedToName = _member!.Name;
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "👋 Opgave taget", $"{_member.Name} tager: {t.Title}");
     }
 
     private async Task CompleteAsync(Guid id)
@@ -187,6 +206,7 @@ else
         t.IsCompleted = true; t.CompletedAt = DateTime.UtcNow; t.CompletedByName = _member!.Name;
         await Db.SaveChangesAsync();
         await RefreshAsync();
+        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "✅ Opgave færdig", $"{_member.Name}: {t.Title}");
     }
 
     private async Task DeleteAsync(Guid id)

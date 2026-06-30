@@ -65,6 +65,10 @@ secrets.json
 # =========================================
 
 **/data/
+# Source code Data/ folders must not be excluded (case-insensitive match on Windows)
+!**/*.Server/Data/
+!**/*.Infrastructure/Data/
+!**/*.Web/Data/
 **/frames/
 **/debug/
 **/ocr/
