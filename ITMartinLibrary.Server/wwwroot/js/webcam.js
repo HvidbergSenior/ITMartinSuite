@@ -2,19 +2,27 @@ window.webcam = {
 
     video: null,
     stream: null,
+    _cssZoom: 1,
+    _hwZoom: false,
 
     async start() {
         try {
-            this.video = document.getElementById("video");
-
+            // Poll until video element appears — Blazor Server can invoke JS before DOM commits
+            this.video = null;
+            for (var attempt = 0; attempt < 30; attempt++) {
+                this.video = document.getElementById("video");
+                if (this.video) break;
+                await new Promise(function(r) { setTimeout(r, 50); });
+            }
             if (!this.video)
-                throw new Error("VIDEO ELEMENT NOT FOUND");
+                throw new Error("Video element not found after 1.5s");
 
             this.stop();
 
-            // Try progressively simpler constraints — old devices reject 4K or strict facingMode
+            // Try progressively simpler constraints — old devices reject high-res or strict facingMode
             var constraintSets = [
-                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+                { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                { video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false },
                 { video: { facingMode: "environment" }, audio: false },
                 { video: true, audio: false }
             ];
@@ -40,6 +48,10 @@ window.webcam = {
                 console.log("TRACK CAPABILITIES", capabilities);
                 console.log("TRACK SETTINGS", settings);
 
+                // Reset zoom to minimum on devices that default to a cropped/zoomed view (old Huawei)
+                if (capabilities && capabilities.zoom && capabilities.zoom.min != null) {
+                    try { await track.applyConstraints({ advanced: [{ zoom: capabilities.zoom.min }] }); console.log("ZOOM reset to", capabilities.zoom.min); } catch (e) {}
+                }
                 if (capabilities && capabilities.torch) {
                     try { await track.applyConstraints({ advanced: [{ torch: true }] }); console.log("TORCH ON"); } catch (e) {}
                 }
@@ -58,7 +70,7 @@ window.webcam = {
             this.video.setAttribute("playsinline", "");
             this.video.setAttribute("webkit-playsinline", "");
 
-            await this.video.play();
+            try { await this.video.play(); } catch(e) { console.warn("video.play() rejected, stream still attached", e.name); }
             console.log("CAMERA READY", this.video.videoWidth, "x", this.video.videoHeight);
         } catch (err) {
             console.error("CAMERA FAILED", err.name, err.message);
@@ -82,6 +94,35 @@ window.webcam = {
         return Promise.reject(new Error("getUserMedia not supported on this device"));
     },
 
+    async setZoom(level) {
+        this._cssZoom = level;
+        var track = this.stream && this.stream.getVideoTracks()[0];
+        if (track) {
+            var caps = track.getCapabilities ? track.getCapabilities() : null;
+            if (caps && caps.zoom && caps.zoom.max > 1) {
+                var hwLevel = Math.min(Math.max(level, caps.zoom.min), caps.zoom.max);
+                try {
+                    await track.applyConstraints({ advanced: [{ zoom: hwLevel }] });
+                    this._hwZoom = true;
+                    if (this.video) this.video.style.transform = '';
+                    console.log("HW ZOOM", hwLevel);
+                    return;
+                } catch(e) { console.warn("hw zoom failed", e); }
+            }
+        }
+        this._hwZoom = false;
+        if (this.video) {
+            if (level <= 1) {
+                this.video.style.transform = '';
+                this.video.style.transformOrigin = '';
+            } else {
+                this.video.style.transform = 'scale(' + level + ')';
+                this.video.style.transformOrigin = 'center center';
+            }
+        }
+        console.log("CSS ZOOM", level);
+    },
+
     async capture() {
         if (!this.video || !this.stream)
             throw new Error("Camera not started");
@@ -93,12 +134,22 @@ window.webcam = {
         var rawH = this.video.videoHeight;
         if (!rawW || !rawH) throw new Error("Video not ready");
 
+        // When using CSS zoom (no hardware), crop the centre of the frame to match what user sees
+        var srcX = 0, srcY = 0, srcW = rawW, srcH = rawH;
+        if (!this._hwZoom && this._cssZoom > 1) {
+            var z = this._cssZoom;
+            srcW = Math.round(rawW / z);
+            srcH = Math.round(rawH / z);
+            srcX = Math.round((rawW - srcW) / 2);
+            srcY = Math.round((rawH - srcH) / 2);
+        }
+
         // iPhone in portrait mode gives rawH > rawW — rotate 90° clockwise so books read left-to-right
         var isPortrait = rawH > rawW;
 
         // Cap at 1536px longest side — enough for book cover text, keeps payload under 1MB
         var MAX = 1536;
-        var w = rawW, h = rawH;
+        var w = srcW, h = srcH;
         if (w > MAX || h > MAX) {
             var ratio = Math.min(MAX / w, MAX / h);
             w = Math.round(w * ratio);
@@ -114,12 +165,12 @@ window.webcam = {
             canvas.height = w;
             ctx.translate(h, 0);
             ctx.rotate(Math.PI / 2);
-            ctx.drawImage(this.video, 0, 0, w, h);
+            ctx.drawImage(this.video, srcX, srcY, srcW, srcH, 0, 0, w, h);
             console.log("CAPTURED (rotated)", h, "x", w);
         } else {
             canvas.width  = w;
             canvas.height = h;
-            ctx.drawImage(this.video, 0, 0, w, h);
+            ctx.drawImage(this.video, srcX, srcY, srcW, srcH, 0, 0, w, h);
             console.log("CAPTURED", w, "x", h);
         }
 

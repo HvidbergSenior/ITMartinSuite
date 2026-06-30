@@ -22,7 +22,7 @@
             <p class="hero-text">Scan én hylde ad gangen. Tryk Færdig når alle hylder er fotograferet.</p>
         </div>
 
-        <div class="shelf-camera-wrap mt-3">
+        <div class="shelf-camera-wrap mt-3 @(_magnifierMode ? "magnifier-mode" : "")">
             @if (_cameraError != null)
             {
                 <div class="shelf-cam-error">@_cameraError</div>
@@ -30,21 +30,37 @@
             else
             {
                 <video id="video" autoplay muted playsinline webkit-playsinline></video>
-                @if (_state == PageState.Ready)
+                @if (_state == PageState.Ready && !_magnifierMode)
                 {
                     <div class="shelf-guide">
                         <span class="shelf-corner shelf-corner-tl"></span>
                         <span class="shelf-corner shelf-corner-tr"></span>
                         <span class="shelf-corner shelf-corner-bl"></span>
                         <span class="shelf-corner shelf-corner-br"></span>
-                        <div class="shelf-guide-tip">Hold telefonen vandret – fyld rammen med bogrygge</div>
+                        <div class="shelf-guide-tip">Fyld rammen med bogrygge – vandret giver flest bøger</div>
                     </div>
+                }
+                @if (_magnifierMode)
+                {
+                    <div class="magnifier-label">🔍 Forstørrelsesglas</div>
+                    <button class="magnifier-close-btn" @onclick="ToggleMagnifier">✕</button>
                 }
                 @if (_state == PageState.Analyzing)
                 {
                     <div class="shelf-overlay">
                         <div class="shelf-spinner"></div>
                         <div class="shelf-overlay-text">Analyserer @_pendingImages.Count hylde(r)…</div>
+                    </div>
+                }
+                @if (_state == PageState.Ready || _magnifierMode)
+                {
+                    <div class="zoom-strip">
+                        @foreach (var (z, lbl) in new[] { (0.125, "⅛×"), (0.25, "¼×"), (1.0, "1×"), (1.5, "1.5×"), (2.0, "2×"), (3.0, "3×") })
+                        {
+                            var zCopy = z;
+                            <button class="zoom-btn @(_zoomLevel == zCopy ? "zoom-active" : "")"
+                                    @onclick="() => SetZoomAsync(zCopy)">@lbl</button>
+                        }
                     </div>
                 }
             }
@@ -60,27 +76,37 @@
             </div>
         }
 
-        <div class="mt-3 scan-actions">
-            <button class="btn btn-primary btn-lg"
-                    @onclick="CaptureAsync"
-                    disabled="@(_state != PageState.Ready || _cameraError != null)">
-                @if (_pendingImages.Count == 0)
-                {
-                    <text>Scan hylde 1</text>
-                }
-                else
-                {
-                    <text>Scan hylde @(_pendingImages.Count + 1)</text>
-                }
-            </button>
+        @if (_cameraError == null && !_magnifierMode)
+        {
+            <div class="magnifier-toggle-row mt-2">
+                <button class="btn-magnifier" @onclick="ToggleMagnifier">🔍 Forstørrelsesglas</button>
+            </div>
+        }
 
-            @if (_pendingImages.Count > 0 && _state == PageState.Ready)
-            {
-                <button class="btn btn-success btn-lg" @onclick="FinishAsync">
-                    Færdig – analyser @_pendingImages.Count hylde(r)
+        @if (!_magnifierMode)
+        {
+            <div class="mt-3 scan-actions">
+                <button class="btn btn-primary btn-lg"
+                        @onclick="CaptureAsync"
+                        disabled="@(_state != PageState.Ready || _cameraError != null)">
+                    @if (_pendingImages.Count == 0)
+                    {
+                        <text>Scan hylde 1</text>
+                    }
+                    else
+                    {
+                        <text>Scan hylde @(_pendingImages.Count + 1)</text>
+                    }
                 </button>
-            }
-        </div>
+
+                @if (_pendingImages.Count > 0 && _state == PageState.Ready)
+                {
+                    <button class="btn btn-success btn-lg" @onclick="FinishAsync">
+                        Færdig – analyser @_pendingImages.Count hylde(r)
+                    </button>
+                }
+            </div>
+        }
 
         @if (_error != null)
         {
@@ -105,12 +131,106 @@
         background: #111;
         aspect-ratio: 4/3;
         max-height: 55vh;
+        transition: max-height .3s ease, aspect-ratio .3s ease;
+    }
+    .shelf-camera-wrap.magnifier-mode {
+        aspect-ratio: unset;
+        max-height: 70vh;
+        height: 70vh;
+        border-radius: 12px;
     }
     .shelf-camera-wrap video {
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: cover;
         display: block;
+        transition: transform .2s ease;
+    }
+
+    /* ── Zoom buttons ── */
+    .zoom-strip {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 6px;
+        z-index: 15;
+    }
+    .zoom-btn {
+        background: rgba(0,0,0,.55);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,.35);
+        border-radius: 20px;
+        padding: 5px 9px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+    .zoom-btn.zoom-active {
+        background: rgba(255,255,255,.25);
+        border-color: #fff;
+    }
+
+    /* ── Magnifier close button (top-right overlay) ── */
+    .magnifier-close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,.6);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,.4);
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* ── Magnifier label ── */
+    .magnifier-label {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,.5);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 20px;
+        pointer-events: none;
+        z-index: 15;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* ── Magnifier toggle button ── */
+    .magnifier-toggle-row {
+        display: flex;
+        justify-content: center;
+    }
+    .btn-magnifier {
+        background: rgba(255,255,255,.08);
+        color: rgba(255,255,255,.7);
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 20px;
+        padding: 6px 18px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+    .btn-magnifier-active {
+        background: rgba(255,200,0,.15);
+        color: #fcd34d;
+        border-color: rgba(252,211,77,.4);
     }
     .shelf-cam-error {
         display: flex;
@@ -228,13 +348,14 @@
         width: 28px;
         height: 28px;
     }
-    .shelf-corner-tl { top: 8%; left: 6%; border-top: 3px solid rgba(255,255,255,.85); border-left: 3px solid rgba(255,255,255,.85); }
-    .shelf-corner-tr { top: 8%; right: 6%; border-top: 3px solid rgba(255,255,255,.85); border-right: 3px solid rgba(255,255,255,.85); }
-    .shelf-corner-bl { bottom: 18%; left: 6%; border-bottom: 3px solid rgba(255,255,255,.85); border-left: 3px solid rgba(255,255,255,.85); }
-    .shelf-corner-br { bottom: 18%; right: 6%; border-bottom: 3px solid rgba(255,255,255,.85); border-right: 3px solid rgba(255,255,255,.85); }
+    /* Wide horizontal strip — matches a row of book spines */
+    .shelf-corner-tl { top: 25%; left: 4%; border-top: 3px solid rgba(255,255,255,.85); border-left: 3px solid rgba(255,255,255,.85); }
+    .shelf-corner-tr { top: 25%; right: 4%; border-top: 3px solid rgba(255,255,255,.85); border-right: 3px solid rgba(255,255,255,.85); }
+    .shelf-corner-bl { bottom: 25%; left: 4%; border-bottom: 3px solid rgba(255,255,255,.85); border-left: 3px solid rgba(255,255,255,.85); }
+    .shelf-corner-br { bottom: 25%; right: 4%; border-bottom: 3px solid rgba(255,255,255,.85); border-right: 3px solid rgba(255,255,255,.85); }
     .shelf-guide-tip {
         position: absolute;
-        bottom: 10%;
+        bottom: 8%;
         left: 0; right: 0;
         text-align: center;
         color: rgba(255,255,255,.9);
@@ -256,6 +377,8 @@
     private readonly List<string> _pendingImages = [];
     private bool _done;
     private int _savedCount;
+    private double _zoomLevel = 1.0;
+    private bool _magnifierMode;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -364,6 +487,19 @@
             _state = PageState.Ready;
             StateHasChanged();
         }
+    }
+
+    private async Task SetZoomAsync(double level)
+    {
+        _zoomLevel = level;
+        await JS.InvokeVoidAsync("webcam.setZoom", level);
+        StateHasChanged();
+    }
+
+    private void ToggleMagnifier()
+    {
+        _magnifierMode = !_magnifierMode;
+        StateHasChanged();
     }
 
     private sealed class CaptureResult { public string Image { get; set; } = ""; }

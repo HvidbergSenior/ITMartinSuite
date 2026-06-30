@@ -54,6 +54,7 @@ $Groups = @{
 #   filesorter-worker  — file sorter worker
 #   rabbitmq           — message broker (auto-started with filesorter)
 #   image-processor    — image worker
+#   imagegen-web       — AI image generator (port 8107)
 #   auction-web        — auction (testing soon)
 #   bartab-web         — bar tab (not in use yet)
 #   market-web         — marketplace (not in use yet)

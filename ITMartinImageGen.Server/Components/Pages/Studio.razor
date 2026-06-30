@@ -1,0 +1,234 @@
+@page "/"
+@rendermode InteractiveServer
+
+@inject FalAiService FalAi
+@inject ClaudePromptService Claude
+@inject ImageStorageService Storage
+
+<PageTitle>Billedgenerator</PageTitle>
+
+<div class="studio">
+
+    <div class="studio-header">
+        <div class="studio-logo">🎨</div>
+        <div>
+            <div class="studio-title">Billedgenerator</div>
+            <div class="studio-sub">Beskriv · Generér · Tilpas</div>
+        </div>
+    </div>
+
+    <div class="studio-body">
+
+        <!-- LEFT: Controls -->
+        <div class="studio-controls">
+
+            <!-- Step 1: Describe -->
+            <div class="ctrl-section">
+                <div class="ctrl-label">1 · Beskriv billedet</div>
+                <textarea class="ctrl-textarea" @bind="_description"
+                          placeholder="F.eks.: En mand der jonglerer med 3 bolde – rød, blå og grøn – hvid baggrund"
+                          rows="4" disabled="@_busy"></textarea>
+                <button class="btn btn-primary" @onclick="GenerateAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_description))">
+                    @if (_busy && _phase == Phase.Generating) { <span class="spinner"></span> } @("Generér billede")
+                </button>
+            </div>
+
+            @if (_currentImageUrl is not null)
+            {
+                <!-- Step 2: Feedback -->
+                <div class="ctrl-section">
+                    <div class="ctrl-label">2 · Hvad skal ændres?</div>
+                    <textarea class="ctrl-textarea" @bind="_feedback"
+                              placeholder="F.eks.: Boldene har forkerte farver – de skal alle være gule"
+                              rows="3" disabled="@_busy"></textarea>
+                    <button class="btn btn-secondary" @onclick="RefineAsync"
+                            disabled="@(_busy || string.IsNullOrWhiteSpace(_feedback))">
+                        @if (_busy && _phase == Phase.Refining) { <span class="spinner"></span> } @("Opdatér billede")
+                    </button>
+                </div>
+
+                <!-- Step 3: Person -->
+                <div class="ctrl-section">
+                    <div class="ctrl-label">3 · Brug en bestemt person</div>
+                    <label class="upload-btn">
+                        📷 @(_personFileName ?? "Upload foto af personen")
+                        <InputFile OnChange="OnPersonPhotoSelected" accept="image/*" style="display:none" />
+                    </label>
+                    @if (_personPhotoBytes is not null)
+                    {
+                        <button class="btn btn-secondary" @onclick="PersonSwapAsync" disabled="@_busy">
+                            @if (_busy && _phase == Phase.PersonSwap) { <span class="spinner"></span> } @("Sæt personen ind")
+                        </button>
+                    }
+                </div>
+            }
+
+            @if (_error is not null)
+            {
+                <div class="error-box">⚠️ @_error</div>
+            }
+
+            @if (_promptUsed is not null)
+            {
+                <details class="prompt-details">
+                    <summary>AI prompt</summary>
+                    <p>@_promptUsed</p>
+                </details>
+            }
+
+        </div>
+
+        <!-- RIGHT: Preview + history -->
+        <div class="studio-preview">
+
+            @if (_currentImageUrl is null && !_busy)
+            {
+                <div class="preview-empty">
+                    <div style="font-size:64px">🖼️</div>
+                    <div>Dit billede vises her</div>
+                </div>
+            }
+            else if (_busy && _currentImageUrl is null)
+            {
+                <div class="preview-empty">
+                    <div class="spinner-large"></div>
+                    <div>Genererer...</div>
+                </div>
+            }
+            else if (_currentImageUrl is not null)
+            {
+                <div class="preview-img-wrap">
+                    @if (_busy)
+                    {
+                        <div class="preview-loading-overlay"><div class="spinner-large"></div></div>
+                    }
+                    <img src="@_currentImageUrl" class="preview-img" alt="Genereret billede" />
+                </div>
+
+                <div class="preview-actions">
+                    <button class="btn btn-save" @onclick="SaveAsync" disabled="@_saving">
+                        @(_saving ? "Gemmer..." : _savedMessage ?? "💾 Gem billede")
+                    </button>
+                    <a class="btn btn-dl" href="@_currentImageUrl" target="_blank" download>
+                        ⬇ Download
+                    </a>
+                </div>
+            }
+
+            @if (_history.Count > 0)
+            {
+                <div class="history-strip">
+                    @foreach (var item in _history.AsEnumerable().Reverse())
+                    {
+                        <img src="@item.Url" class="history-thumb @(item.Url == _currentImageUrl ? "active" : "")"
+                             @onclick="() => SelectHistory(item)"
+                             title="@item.Prompt" alt="Historik" />
+                    }
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? _description;
+    private string? _feedback;
+    private string? _promptUsed;
+    private string? _currentImageUrl;
+    private string? _error;
+    private string? _savedMessage;
+    private string? _personFileName;
+
+    private byte[]? _personPhotoBytes;
+    private string? _personMimeType;
+
+    private bool _busy;
+    private bool _saving;
+
+    private enum Phase { Generating, Refining, PersonSwap }
+    private Phase _phase;
+
+    private record HistoryItem(string Url, string Prompt);
+    private readonly List<HistoryItem> _history = [];
+
+    private async Task GenerateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_description)) return;
+        _busy = true; _phase = Phase.Generating; _error = null; _savedMessage = null;
+        StateHasChanged();
+        try
+        {
+            _promptUsed     = await Claude.RefinePromptAsync(_description);
+            _currentImageUrl = await FalAi.GenerateAsync(_promptUsed);
+            _history.Add(new(_currentImageUrl, _promptUsed));
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; StateHasChanged(); }
+    }
+
+    private async Task RefineAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_feedback) || _currentImageUrl is null) return;
+        _busy = true; _phase = Phase.Refining; _error = null; _savedMessage = null;
+        StateHasChanged();
+        try
+        {
+            _promptUsed      = await Claude.AnalyzeAndRefineAsync(_currentImageUrl, _feedback, _promptUsed ?? "");
+            _currentImageUrl = await FalAi.GenerateAsync(_promptUsed);
+            _history.Add(new(_currentImageUrl, _promptUsed));
+            _feedback = "";
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; StateHasChanged(); }
+    }
+
+    private async Task PersonSwapAsync()
+    {
+        if (_personPhotoBytes is null || _promptUsed is null) return;
+        _busy = true; _phase = Phase.PersonSwap; _error = null; _savedMessage = null;
+        StateHasChanged();
+        try
+        {
+            _currentImageUrl = await FalAi.PersonSwapAsync(_promptUsed, _personPhotoBytes, _personMimeType ?? "image/jpeg");
+            _history.Add(new(_currentImageUrl, _promptUsed + " [person]"));
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; StateHasChanged(); }
+    }
+
+    private async Task OnPersonPhotoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        _personFileName = file.Name;
+        _personMimeType = file.ContentType;
+
+        using var ms = new MemoryStream();
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await stream.CopyToAsync(ms);
+        _personPhotoBytes = ms.ToArray();
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_currentImageUrl is null) return;
+        _saving = true; _savedMessage = null;
+        StateHasChanged();
+        try
+        {
+            var path = await Storage.SaveFromUrlAsync(_currentImageUrl);
+            _savedMessage = $"✅ Gemt: {Path.GetFileName(path)}";
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; StateHasChanged(); }
+    }
+
+    private void SelectHistory(HistoryItem item)
+    {
+        _currentImageUrl = item.Url;
+        _promptUsed      = item.Prompt;
+        _savedMessage    = null;
+        StateHasChanged();
+    }
+}
