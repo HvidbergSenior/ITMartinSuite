@@ -127,27 +127,6 @@ else
 
         <BottomNav Slug="@Slug" Active="opgaver" />
 
-        <!-- Chat -->
-        <div class="chat-panel">
-            <div class="chat-header">💬 Chat</div>
-            <div class="chat-messages" id="chat-messages">
-                @foreach (var m in _messages)
-                {
-                    <div class="chat-msg @(m.SenderName == _myName ? "chat-msg--mine" : "")">
-                        <span class="chat-sender">@m.SenderName</span>
-                        <span class="chat-text">@m.Text</span>
-                        <span class="chat-time">@m.SentAt.ToLocalTime().ToString("HH:mm")</span>
-                    </div>
-                }
-            </div>
-            <div class="chat-input-row">
-                <input class="chat-input" placeholder="Skriv en besked..." @bind="_chatInput"
-                       @bind:event="oninput" @onkeydown="OnChatKey" maxlength="500" />
-                <button class="chat-send" @onclick="SendChat"
-                        disabled="@string.IsNullOrWhiteSpace(_chatInput)">Send</button>
-            </div>
-        </div>
-
     </div>
 }
 
@@ -166,20 +145,13 @@ else
     private string? _previewImage;
     private HubConnection? _hub;
 
-    private List<ChatMessage> _messages = [];
-    private string _chatInput = "";
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        // Validate session
         var sessionStr = await JS.InvokeAsync<string?>("familyApp.getSession", Slug);
         if (string.IsNullOrEmpty(sessionStr) || !Guid.TryParse(sessionStr, out var sessionId))
-        {
-            Navigation.NavigateTo($"/{Slug}/join", forceLoad: true);
-            return;
-        }
+        { Navigation.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
 
         var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId);
         if (session == null) { Navigation.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
@@ -188,19 +160,10 @@ else
         if (_member == null) { Navigation.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
 
         _family = await Db.Families.FindAsync(_member.FamilyId);
-        if (_family?.Slug != Slug)
-        {
-            Navigation.NavigateTo($"/{Slug}/join", forceLoad: true);
-            return;
-        }
-        _myName   = _member.Name;
-        _tasks    = await TaskRepo.GetTodayAsync(_family.Id);
-        _messages = await Db.Chat
-            .Where(m => m.FamilyId == _family.Id)
-            .OrderByDescending(m => m.SentAt)
-            .Take(100)
-            .OrderBy(m => m.SentAt)
-            .ToListAsync();
+        if (_family?.Slug != Slug) { Navigation.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        _myName = _member.Name;
+        _tasks  = await TaskRepo.GetTodayAsync(_family.Id);
         _ready  = true;
 
         var hubUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
@@ -208,12 +171,13 @@ else
             ?.Replace("+", "localhost")
             ?.Replace("*", "localhost")
             ?? "http://localhost:8080";
+
         _hub = new HubConnectionBuilder()
             .WithUrl(hubUrl + "/hubs/family")
             .WithAutomaticReconnect()
             .Build();
 
-        _hub.On<DailyTask>("TaskAdded",    task => { _tasks.Add(task); InvokeAsync(StateHasChanged); });
+        _hub.On<DailyTask>("TaskAdded", task => { _tasks.Add(task); InvokeAsync(StateHasChanged); });
         _hub.On<Guid, string>("TaskClaimed", (id, by) =>
         {
             var t = _tasks.FirstOrDefault(x => x.Id == id);
@@ -232,22 +196,14 @@ else
             InvokeAsync(StateHasChanged);
         });
 
-        _hub.On<string, string, DateTime>("ChatReceived", (sender, text, sentAt) =>
-        {
-            _messages.Add(new ChatMessage { SenderName = sender, Text = text, SentAt = sentAt, FamilyId = _family!.Id });
-            InvokeAsync(async () => { StateHasChanged(); await JS.InvokeVoidAsync("familyApp.scrollChat"); });
-        });
-
         try
         {
             await _hub.StartAsync();
             await _hub.SendAsync("JoinFamily", Slug);
         }
-        catch { /* real-time unavailable, page still works */ }
+        catch { }
 
         StateHasChanged();
-        try { await JS.InvokeVoidAsync("familyApp.scrollChat"); } catch { }
-
         await SetupPushAsync();
     }
 
@@ -260,7 +216,7 @@ else
             var publicKey = PushService.GetPublicKey();
             await JS.InvokeVoidAsync("familyApp.subscribeForPush", publicKey, _family!.Id, _myName);
         }
-        catch { /* push not supported */ }
+        catch { }
     }
 
     private void ToggleAdd()
@@ -284,11 +240,10 @@ else
             await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
             _cameraOpen = false;
         }
-        catch (Exception ex)
+        catch
         {
             _previewImage = null;
             _cameraOpen = false;
-            _newNote = ex.Message;
         }
         StateHasChanged();
     }
@@ -366,8 +321,7 @@ else
             $"🚫 Ingen udsættelse! Enten gør {_myName} det nu, eller giver det til en anden.",
             $"😤 Du satte dit navn på det! Klar det – eller giv det til nogen der KAN."
         };
-        var msg = messages[Math.Abs(task.Id.GetHashCode()) % messages.Length];
-        Toast.Show(msg, "warn", 5000);
+        Toast.Show(messages[Math.Abs(task.Id.GetHashCode()) % messages.Length], "warn", 5000);
     }
 
     private async Task DeleteTask(DailyTask task)
@@ -376,29 +330,6 @@ else
         await TaskRepo.DeleteAsync(task.Id);
         if (_hub?.State == HubConnectionState.Connected)
             await _hub.SendAsync("TaskDeleted", Slug, task.Id);
-        StateHasChanged();
-    }
-
-    private async Task OnChatKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SendChat(); }
-
-    private async Task SendChat()
-    {
-        var text = _chatInput.Trim();
-        if (string.IsNullOrEmpty(text) || _family is null) return;
-
-        var msg = new ChatMessage { FamilyId = _family.Id, SenderName = _myName, Text = text };
-        Db.Chat.Add(msg);
-        await Db.SaveChangesAsync();
-
-        _messages.Add(msg);
-        _chatInput = "";
-
-        if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("SendChat", Slug, _myName, text);
-
-        _ = PushService.SendToFamilyAsync(_family!.Id, _myName, $"💬 {_myName}", text);
-
-        await JS.InvokeVoidAsync("familyApp.scrollChat");
         StateHasChanged();
     }
 
