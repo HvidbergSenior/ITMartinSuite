@@ -24,7 +24,7 @@
 
 <PageTitle>I dag</PageTitle>
 
-<link rel="stylesheet" href="css/family.css?v=8" />
+<link rel="stylesheet" href="css/family.css?v=9" />
 
 @if (!_ready)
 {
@@ -47,7 +47,7 @@ else
 
         <div class="tab-bar">
             <button class="tab-btn @(_tab == "opgaver" ? "active" : "")" @onclick='() => SetTab("opgaver")'>📋 Opgaver</button>
-            <button class="tab-btn @(_tab == "husk"    ? "active" : "")" @onclick='() => SetTab("husk")'>⚡ Husk i dag</button>
+            <button class="tab-btn @(_tab == "husk"    ? "active" : "")" @onclick='() => SetTab("husk")'>⏰ Påminder</button>
             <button class="tab-btn @(_tab == "findit"  ? "active" : "")" @onclick='() => SetTab("findit")'>📍 FindIt</button>
         </div>
 
@@ -162,21 +162,11 @@ else
                     </div>
                 }
 
-                @if (_showTimeInput)
-                {
-                    <div class="time-row">
-                        <span class="time-label">⏰ Påmind mig kl.</span>
-                        <input class="time-input" type="time" value="@_urgentTimeStr"
-                               @oninput="e => _urgentTimeStr = e.Value?.ToString() ?? string.Empty" />
-                        <button class="btn-text" @onclick="() => { _showTimeInput = false; _urgentTimeStr = string.Empty; }">Fjern</button>
-                    </div>
-                }
-                else if (!string.IsNullOrWhiteSpace(_urgentText) || !string.IsNullOrEmpty(_urgentPreview))
-                {
-                    <button class="btn-text-sm" @onclick="() => _showTimeInput = true">
-                        ⏰ Tilføj påmindelsestidspunkt
-                    </button>
-                }
+                <div class="time-row">
+                    <span class="time-label">⏰ Kl.</span>
+                    <input class="time-input" type="time" value="@_urgentTimeStr"
+                           @oninput="e => _urgentTimeStr = e.Value?.ToString() ?? string.Empty" />
+                </div>
             }
 
             @if (ActiveReminders.Count > 0)
@@ -190,16 +180,16 @@ else
                                 <img src="/reminder-photo/@r.Id" class="reminder-photo" />
                             }
                             <div class="reminder-content">
+                                @if (r.RemindAt.HasValue)
+                                {
+                                    <div class="reminder-time">@r.RemindAt.Value.ToLocalTime().ToString("HH:mm")</div>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(r.Text))
                                 {
                                     <div class="reminder-text">@r.Text</div>
                                 }
-                                @if (r.RemindAt.HasValue)
-                                {
-                                    <div class="reminder-time">⏰ @r.RemindAt.Value.ToLocalTime().ToString("HH:mm")</div>
-                                }
                             </div>
-                            <button class="btn-done" @onclick="() => DismissReminderAsync(r)">Klaret</button>
+                            <button class="btn-found" @onclick="() => DismissReminderAsync(r)">Aktivitet Overstået</button>
                         </div>
                     }
                 </div>
@@ -265,7 +255,7 @@ else
                                     <div class="findit-mini-name">@item.Name</div>
                                     <div class="findit-mini-loc">📍 @item.Location</div>
                                 </div>
-                                <button class="btn-found" @onclick="() => FoundItAsync(item)">Har det</button>
+                                <button class="btn-found" @onclick="() => FoundItAsync(item)">Taget igen</button>
                             </div>
                         }
                     </div>
@@ -301,7 +291,6 @@ else
     // Urgent
     private string _urgentText    = "";
     private string _urgentTimeStr = "";
-    private bool   _showTimeInput = false;
     private bool   _urgentCamera  = false;
     private string _urgentPreview = "";
 
@@ -524,7 +513,7 @@ else
             };
             await ReminderRepo.AddAsync(r);
             _reminders.Add(r);
-            _urgentText = ""; _urgentTimeStr = ""; _urgentPreview = ""; _showTimeInput = false;
+            _urgentText = ""; _urgentTimeStr = ""; _urgentPreview = "";
             StateHasChanged();
         }
         catch { }
