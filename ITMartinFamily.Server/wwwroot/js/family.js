@@ -41,10 +41,11 @@ window.familyApp = {
 
     pickPhoto: function() {
         return new Promise(function(resolve) {
-            var input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = function() {
+            var input = document.getElementById('photo-picker');
+            if (!input) { resolve(''); return; }
+            input.value = '';
+            function handler() {
+                input.removeEventListener('change', handler);
                 var file = input.files && input.files[0];
                 if (!file) { resolve(''); return; }
                 var reader = new FileReader();
@@ -53,12 +54,8 @@ window.familyApp = {
                 };
                 reader.onerror = function() { resolve(''); };
                 reader.readAsDataURL(file);
-            };
-            // Some browsers fire oncancel; others just do nothing — resolve empty after focus returns
-            window.addEventListener('focus', function handler() {
-                window.removeEventListener('focus', handler);
-                setTimeout(function() { if (!input.files || !input.files.length) resolve(''); }, 400);
-            }, { once: true });
+            }
+            input.addEventListener('change', handler);
             input.click();
         });
     },

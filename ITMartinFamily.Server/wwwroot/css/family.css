@@ -61,7 +61,35 @@ body {
 .family-page {
     max-width: 600px;
     margin: 0 auto;
-    padding: 24px 16px 80px;
+    padding: 24px 16px 32px;
+}
+
+/* ── Tab bar ────────────────────────────────────── */
+.tab-bar {
+    display: flex;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 20px;
+}
+.tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px 6px;
+    border-radius: 10px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+}
+.tab-btn.active {
+    background: #6366f1;
+    color: #fff;
 }
 
 .family-header {
