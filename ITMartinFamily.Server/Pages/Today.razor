@@ -10,6 +10,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Forms
 @using System.Globalization
 
 @inject IDailyTaskRepository          TaskRepo
@@ -34,8 +35,6 @@ else
 {
     <div class="family-page">
 
-        <!-- Hidden file input — always in DOM so iOS can find it -->
-        <input type="file" id="photo-picker" accept="image/*" style="display:none" />
 
         <div class="today-header">
             <div>
@@ -66,9 +65,11 @@ else
             }
             else
             {
+                <InputFile id="pick-task" style="display:none" accept="image/*"
+                           OnChange='e => OnFileSelected(e, "task")' />
                 <div class="add-row">
                     <button class="btn-camera" @onclick="OpenTaskCameraAsync" title="Tag billede">📷</button>
-                    <button class="btn-camera" @onclick="PickTaskPhotoAsync"  title="Vælg fra galleri">🖼️</button>
+                    <label for="pick-task" class="btn-camera" title="Vælg fra galleri">🖼️</label>
                     <input class="add-input" @bind="_taskText" @bind:event="oninput"
                            placeholder="Hvad skal gøres?" @onkeydown="OnTaskKey" />
                     <button class="btn-primary-sm" @onclick="AddTaskAsync"
@@ -144,9 +145,11 @@ else
             }
             else
             {
+                <InputFile id="pick-urgent" style="display:none" accept="image/*"
+                           OnChange='e => OnFileSelected(e, "urgent")' />
                 <div class="add-row">
                     <button class="btn-camera" @onclick="OpenUrgentCameraAsync" title="Tag billede">📷</button>
-                    <button class="btn-camera" @onclick="PickUrgentPhotoAsync"  title="Vælg fra galleri">🖼️</button>
+                    <label for="pick-urgent" class="btn-camera" title="Vælg fra galleri">🖼️</label>
                     <input class="add-input" @bind="_urgentText" @bind:event="oninput"
                            placeholder="Hvad skal du huske?" @onkeydown="OnUrgentKey" />
                     <button class="btn-primary-sm" @onclick="AddUrgentAsync"
@@ -225,9 +228,11 @@ else
                             <button class="btn-remove-photo" @onclick="() => _findItPreview = string.Empty">Fjern</button>
                         </div>
                     }
+                    <InputFile id="pick-findit" style="display:none" accept="image/*"
+                               OnChange='e => OnFileSelected(e, "findit")' />
                     <div class="add-row">
                         <button class="btn-camera" @onclick="OpenFindItCameraAsync" title="Tag billede">📷</button>
-                        <button class="btn-camera" @onclick="PickFindItPhotoAsync"  title="Vælg fra galleri">🖼️</button>
+                        <label for="pick-findit" class="btn-camera" title="Vælg fra galleri">🖼️</label>
                         <input class="add-input" @bind="_findItName" @bind:event="oninput"
                                placeholder="Hvad? (nøgler, pung...)" @onkeydown="OnFindItKey" />
                     </div>
@@ -407,9 +412,20 @@ else
         await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
         _taskCamera = false; StateHasChanged();
     }
-    private async Task PickTaskPhotoAsync()
+    private async Task OnFileSelected(InputFileChangeEventArgs e, string section)
     {
-        try { var b64 = await JS.InvokeAsync<string>("familyApp.pickPhoto"); if (!string.IsNullOrEmpty(b64)) { _taskPreview = b64; StateHasChanged(); } } catch { }
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var b64 = Convert.ToBase64String(ms.ToArray());
+            if (section == "task")   _taskPreview   = b64;
+            if (section == "urgent") _urgentPreview = b64;
+            if (section == "findit") _findItPreview = b64;
+            StateHasChanged();
+        }
+        catch { }
     }
 
     // ── Task add ──────────────────────────────────────────
@@ -485,10 +501,6 @@ else
         await JS.InvokeVoidAsync("familyApp.stopCamera", "urgent-video");
         _urgentCamera = false; StateHasChanged();
     }
-    private async Task PickUrgentPhotoAsync()
-    {
-        try { var b64 = await JS.InvokeAsync<string>("familyApp.pickPhoto"); if (!string.IsNullOrEmpty(b64)) { _urgentPreview = b64; StateHasChanged(); } } catch { }
-    }
 
     // ── Urgent note add ───────────────────────────────────
     private async Task OnUrgentKey(KeyboardEventArgs e) { if (e.Key == "Enter") await AddUrgentAsync(); }
@@ -541,10 +553,6 @@ else
     {
         await JS.InvokeVoidAsync("familyApp.stopCamera", "findit-video");
         _findItCamera = false; StateHasChanged();
-    }
-    private async Task PickFindItPhotoAsync()
-    {
-        try { var b64 = await JS.InvokeAsync<string>("familyApp.pickPhoto"); if (!string.IsNullOrEmpty(b64)) { _findItPreview = b64; StateHasChanged(); } } catch { }
     }
 
     // ── FindIt save ───────────────────────────────────────
