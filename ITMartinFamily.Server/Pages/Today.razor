@@ -12,16 +12,18 @@
 @using Microsoft.JSInterop
 @using System.Globalization
 
-@inject IDailyTaskRepository       TaskRepo
-@inject FamilyDbContext             Db
-@inject NavigationManager           Nav
-@inject IJSRuntime                  JS
+@inject IDailyTaskRepository        TaskRepo
+@inject IPersonalReminderRepository ReminderRepo
+@inject IFamilyStoredItemRepository StoredItemRepo
+@inject FamilyDbContext              Db
+@inject NavigationManager            Nav
+@inject IJSRuntime                   JS
 
 @implements IAsyncDisposable
 
 <PageTitle>I dag</PageTitle>
 
-<link rel="stylesheet" href="css/family.css?v=2" />
+<link rel="stylesheet" href="css/family.css?v=3" />
 
 @if (!_ready)
 {
@@ -39,7 +41,7 @@ else
             <button class="logout-btn" @onclick="Logout">↩</button>
         </div>
 
-        <!-- Tasks for today -->
+        <!-- Tasks -->
         <div class="today-tasks-wrap">
             <div class="today-tasks-header">
                 <span class="today-tasks-title">📋 Opgaver i dag</span>
@@ -84,6 +86,106 @@ else
             }
         </div>
 
+        <!-- Urgent notes -->
+        <div class="urgent-section">
+            <div class="section-label">⚡ Husk i dag</div>
+            <div class="urgent-add-row">
+                <input class="urgent-input" @bind="_urgentText" placeholder="Eks. Eksamen kl 12..."
+                       @onkeydown="OnUrgentKey" />
+                <input class="urgent-time-input" type="time" value="@_urgentTimeStr"
+                       @oninput="e => _urgentTimeStr = e.Value?.ToString() ?? string.Empty"
+                       title="Påmind mig 30 min før" />
+                <button class="urgent-add-btn" @onclick="AddUrgentAsync">+</button>
+            </div>
+            @if (_reminders.Any(r => !r.Done))
+            {
+                @foreach (var r in _reminders.Where(r => !r.Done).OrderBy(r => r.RemindAt ?? DateTime.MaxValue).ThenBy(r => r.CreatedAt))
+                {
+                    <div class="urgent-item">
+                        <div class="urgent-item-content">
+                            <span class="urgent-item-text">@r.Text</span>
+                            @if (r.RemindAt.HasValue)
+                            {
+                                <span class="urgent-time-badge">⏰ @r.RemindAt.Value.ToLocalTime().ToString("HH:mm")</span>
+                            }
+                        </div>
+                        <button class="urgent-done-btn" @onclick="() => DismissReminderAsync(r)">✓</button>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="urgent-empty">Intet ekstra at huske</div>
+            }
+        </div>
+
+        <!-- Mini FindIt -->
+        <div class="mini-findit-section">
+            <div class="section-label">📍 Hvad har du lagt fra dig?</div>
+
+            @if (_findItCamera)
+            {
+                <div class="findit-camera-wrap">
+                    <video id="today-findit-video" autoplay muted playsinline style="width:100%;border-radius:12px;max-height:220px;object-fit:cover;"></video>
+                    <div class="findit-camera-actions">
+                        <button class="capture-btn" @onclick="CaptureFindItPhotoAsync">📸 Tag billede</button>
+                        <button class="findit-cancel-btn" @onclick="CloseFindItCameraAsync">Annuller</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="findit-form">
+                    @if (!string.IsNullOrEmpty(_findItPreview))
+                    {
+                        <div class="findit-preview-wrap">
+                            <img src="data:image/jpeg;base64,@_findItPreview" class="findit-preview-img" />
+                            <button class="findit-remove-photo" @onclick="() => _findItPreview = string.Empty">✕</button>
+                        </div>
+                    }
+                    <div class="findit-inputs">
+                        <input class="findit-field" @bind="_findItName" placeholder="Hvad? (nøgler, pung, briller...)" @onkeydown="OnFindItKey" />
+                        <input class="findit-field" @bind="_findItLoc"  placeholder="Hvor? (skuffen, sofaen, bilen...)" @onkeydown="OnFindItKey" />
+                    </div>
+                    <div class="findit-form-actions">
+                        <button class="findit-camera-btn" @onclick="OpenFindItCameraAsync" title="Tag foto">📷</button>
+                        <button class="findit-save-btn" @onclick="SaveFindItAsync"
+                                disabled="@(string.IsNullOrWhiteSpace(_findItName) || string.IsNullOrWhiteSpace(_findItLoc))">
+                            Gem ✓
+                        </button>
+                    </div>
+                </div>
+            }
+
+            @if (_storedItems.Count > 0)
+            {
+                <div class="findit-list">
+                    @foreach (var item in _storedItems.Take(6))
+                    {
+                        <div class="findit-mini-card" @key="item.Id">
+                            @if (item.PhotoPath is not null && File.Exists(item.PhotoPath))
+                            {
+                                <img class="findit-mini-thumb" src="/findit-photo/@item.Id" alt="@item.Name" />
+                            }
+                            else
+                            {
+                                <div class="findit-mini-icon">📦</div>
+                            }
+                            <div class="findit-mini-body">
+                                <div class="findit-mini-name">@item.Name</div>
+                                <div class="findit-mini-loc">📍 @item.Location</div>
+                            </div>
+                            <button class="findit-found-btn" @onclick="() => FoundItAsync(item)">Fundet ✓</button>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="urgent-empty">Intet registreret</div>
+            }
+        </div>
+
     </div>
 
     <BottomNav Slug="@Slug" Active="today" />
@@ -93,10 +195,21 @@ else
     [Parameter] public string Slug { get; set; } = "";
 
     private Family?  _family;
+    private Guid     _familyId;
     private string   _myName = "";
     private bool     _ready;
 
-    private List<DailyTask> _tasks = [];
+    private List<DailyTask>        _tasks       = [];
+    private List<PersonalReminder> _reminders   = [];
+    private List<FamilyStoredItem> _storedItems = [];
+
+    private string _urgentText    = "";
+    private string _urgentTimeStr = "";
+
+    private bool   _findItCamera  = false;
+    private string _findItPreview = "";
+    private string _findItName    = "";
+    private string _findItLoc     = "";
 
     private HubConnection? _hub;
 
@@ -117,9 +230,12 @@ else
         _family = await Db.Families.FindAsync(member.FamilyId);
         if (_family?.Slug != Slug) { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
 
-        _myName = member.Name;
-        _tasks  = await TaskRepo.GetTodayAsync(_family.Id);
-        _ready  = true;
+        _familyId = _family.Id;
+        _myName   = member.Name;
+        _tasks       = await TaskRepo.GetTodayAsync(_familyId);
+        _reminders   = await ReminderRepo.GetTodayAsync(_familyId, _myName);
+        _storedItems = await StoredItemRepo.GetRecentAsync(_familyId, 20);
+        _ready       = true;
 
         var hubUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
             ?.Split(';').FirstOrDefault()
@@ -132,7 +248,7 @@ else
             .WithAutomaticReconnect()
             .Build();
 
-        _hub.On<DailyTask>("TaskAdded",     t    => { _tasks.Add(t); InvokeAsync(StateHasChanged); });
+        _hub.On<DailyTask>("TaskAdded",      t    => { _tasks.Add(t); InvokeAsync(StateHasChanged); });
         _hub.On<Guid, string>("TaskClaimed", (id, by) =>
         {
             var t = _tasks.FirstOrDefault(x => x.Id == id);
@@ -157,6 +273,7 @@ else
         StateHasChanged();
     }
 
+    // Task actions
     private async Task ClaimAsync(DailyTask task)
     {
         try
@@ -182,6 +299,95 @@ else
             StateHasChanged();
         }
         catch { }
+    }
+
+    // Urgent notes
+    private async Task OnUrgentKey(KeyboardEventArgs e) { if (e.Key == "Enter") await AddUrgentAsync(); }
+
+    private async Task AddUrgentAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_urgentText)) return;
+        DateTime? remindAt = null;
+        if (!string.IsNullOrEmpty(_urgentTimeStr) && TimeOnly.TryParse(_urgentTimeStr, out var t))
+            remindAt = DateTime.Today.Add(t.ToTimeSpan()).ToUniversalTime();
+
+        var r = new PersonalReminder
+        {
+            FamilyId   = _familyId,
+            MemberName = _myName,
+            Text       = _urgentText.Trim(),
+            RemindAt   = remindAt
+        };
+        await ReminderRepo.AddAsync(r);
+        _reminders.Add(r);
+        _urgentText    = "";
+        _urgentTimeStr = "";
+        StateHasChanged();
+    }
+
+    private async Task DismissReminderAsync(PersonalReminder r)
+    {
+        r.Done = true;
+        await ReminderRepo.UpdateAsync(r);
+        StateHasChanged();
+    }
+
+    // Mini FindIt
+    private async Task OnFindItKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SaveFindItAsync(); }
+
+    private async Task OpenFindItCameraAsync()
+    {
+        _findItCamera = true;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("familyApp.startCamera", "today-findit-video");
+    }
+
+    private async Task CaptureFindItPhotoAsync()
+    {
+        try
+        {
+            _findItPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto");
+            await JS.InvokeVoidAsync("familyApp.stopCamera", "today-findit-video");
+        }
+        catch { }
+        _findItCamera = false;
+        StateHasChanged();
+    }
+
+    private async Task CloseFindItCameraAsync()
+    {
+        await JS.InvokeVoidAsync("familyApp.stopCamera", "today-findit-video");
+        _findItCamera = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveFindItAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_findItName) || string.IsNullOrWhiteSpace(_findItLoc)) return;
+        string? photoPath = null;
+        if (!string.IsNullOrEmpty(_findItPreview))
+        {
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "findit-photos");
+            Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+            await File.WriteAllBytesAsync(path, Convert.FromBase64String(_findItPreview));
+            photoPath = path;
+        }
+        var saved = await StoredItemRepo.SaveAsync(_familyId, _findItName.Trim(), _findItLoc.Trim(), null, photoPath);
+        var ex = _storedItems.FirstOrDefault(x => x.Id == saved.Id);
+        if (ex is not null) _storedItems.Remove(ex);
+        _storedItems.Insert(0, saved);
+        _findItName    = "";
+        _findItLoc     = "";
+        _findItPreview = "";
+        StateHasChanged();
+    }
+
+    private async Task FoundItAsync(FamilyStoredItem item)
+    {
+        await StoredItemRepo.DeleteAsync(item.Id);
+        _storedItems.Remove(item);
+        StateHasChanged();
     }
 
     private async Task Logout()

@@ -63,7 +63,7 @@
                                @onkeydown="OnKey" />
                     }
                     <input class="join-input" type="password" @bind="_password"
-                           placeholder="Familiens adgangskode" @onkeydown="OnKey" />
+                           placeholder="Gruppens adgangskode" @onkeydown="OnKey" />
                     <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
                         @(_joining ? "Logger ind..." : "Kom ind")
                     </button>

@@ -85,15 +85,19 @@ using (var scope = app.Services.CreateScope())
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS Reminders (
-            Id         TEXT NOT NULL PRIMARY KEY,
-            FamilyId   TEXT NOT NULL,
-            MemberName TEXT NOT NULL,
-            Text       TEXT NOT NULL,
-            Date       TEXT NOT NULL,
-            Done       INTEGER NOT NULL DEFAULT 0,
-            CreatedAt  TEXT NOT NULL
+            Id               TEXT NOT NULL PRIMARY KEY,
+            FamilyId         TEXT NOT NULL,
+            MemberName       TEXT NOT NULL,
+            Text             TEXT NOT NULL,
+            Date             TEXT NOT NULL,
+            Done             INTEGER NOT NULL DEFAULT 0,
+            CreatedAt        TEXT NOT NULL,
+            RemindAt         TEXT,
+            NotificationSent INTEGER NOT NULL DEFAULT 0
         )
         """);
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Reminders ADD COLUMN RemindAt TEXT"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Reminders ADD COLUMN NotificationSent INTEGER NOT NULL DEFAULT 0"); } catch { }
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS StoredItems (

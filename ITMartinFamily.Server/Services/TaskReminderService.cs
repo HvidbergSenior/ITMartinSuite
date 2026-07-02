@@ -22,18 +22,14 @@ public sealed class TaskReminderService(IServiceScopeFactory scopeFactory, ILogg
                 await MaybeSendEveningReminder(now, ct);
                 await MaybeSendMorningReminder(now, ct);
                 await MaybeRunCleanup(now, ct);
+                await SendUrgentReminders(ct);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Task reminder check failed");
             }
 
-            // Sleep until the next whole hour
-            var next = DateTime.Now.AddHours(1);
-            next = new DateTime(next.Year, next.Month, next.Day, next.Hour, 0, 0);
-            var delay = next - DateTime.Now;
-            if (delay > TimeSpan.Zero)
-                await Task.Delay(delay, ct);
+            await Task.Delay(TimeSpan.FromMinutes(5), ct);
         }
     }
 
@@ -176,6 +172,35 @@ public sealed class TaskReminderService(IServiceScopeFactory scopeFactory, ILogg
         logger.LogInformation(
             "Nightly cleanup: {Items} FindIt items, {Tasks} tasks, {Reminders} reminders, {Sessions} sessions, {Chat} chat messages removed",
             staleItems.Count, oldTasks.Count, oldReminders.Count, oldSessions.Count, oldChat.Count);
+    }
+
+    // Every 5 min — send push when urgent reminder is 30 min away
+    private async Task SendUrgentReminders(CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db   = scope.ServiceProvider.GetRequiredService<FamilyDbContext>();
+        var push = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
+
+        var windowStart = DateTime.UtcNow.AddMinutes(25);
+        var windowEnd   = DateTime.UtcNow.AddMinutes(35);
+
+        var due = await db.Reminders
+            .Where(r => !r.Done && !r.NotificationSent
+                && r.RemindAt != null
+                && r.RemindAt >= windowStart && r.RemindAt <= windowEnd)
+            .ToListAsync(ct);
+
+        foreach (var r in due)
+        {
+            var localTime = r.RemindAt!.Value.ToLocalTime().ToString("HH:mm");
+            await push.SendToMemberAsync(r.FamilyId, r.MemberName,
+                $"⏰ Husk kl. {localTime}", r.Text);
+            r.NotificationSent = true;
+            logger.LogInformation("Urgent reminder sent to {Member}: {Text}", r.MemberName, r.Text);
+        }
+
+        if (due.Count > 0)
+            await db.SaveChangesAsync(ct);
     }
 
     private static void DeleteFile(string? path)
