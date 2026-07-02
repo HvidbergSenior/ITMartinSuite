@@ -170,7 +170,7 @@ else
         var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
         if (!Guid.TryParse(sessionId, out var sid))
         {
-            Nav.NavigateTo($"/g/{Slug}/join");
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
             return;
         }
 
@@ -179,7 +179,7 @@ else
 
         if (session == null || session.Member.Group.Slug != Slug)
         {
-            Nav.NavigateTo($"/g/{Slug}/join");
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
             return;
         }
 
@@ -236,7 +236,7 @@ else
     private async Task LeaveAsync()
     {
         await JS.InvokeVoidAsync("clubJs.clearSession");
-        Nav.NavigateTo($"/g/{Slug}/join");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
     }
 
     public void Dispose()

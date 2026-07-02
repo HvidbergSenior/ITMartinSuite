@@ -50,12 +50,13 @@
     private string _name = "", _desc = "", _invite = "", _pin = "";
     private string? _error;
     private bool _creating;
+    private string _slug = "";
 
     protected override async Task OnInitializedAsync()
     {
-        var host = new Uri(Nav.Uri).Host;        // e.g. "r6oldboyz.itmartin.dk"
-        var slug = host.Split('.')[0];            // e.g. "r6oldboyz"
-        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == slug);
+        var host = new Uri(Nav.Uri).Host;
+        _slug = host.Split('.')[0];
+        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == _slug);
         if (group is not null)
             Nav.NavigateTo($"/g/{group.Slug}", forceLoad: true);
     }
@@ -67,18 +68,6 @@
         if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en adgangskode til gruppen."; return; }
         if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din personlige PIN."; return; }
 
-        var cleanSlug = System.Text.RegularExpressions.Regex
-            .Replace(_name.ToLower().Trim().Replace(" ", "-"), @"[^a-z0-9\-]", "");
-        if (string.IsNullOrWhiteSpace(cleanSlug)) { _error = "Gruppenavnet kan ikke bruges som adresse."; return; }
-
-        // Make slug unique if already taken
-        var baseSlug = cleanSlug;
-        var counter = 2;
-        while (await Db.Groups.AnyAsync(g => g.Slug == cleanSlug))
-        {
-            cleanSlug = $"{baseSlug}-{counter++}";
-        }
-
         _creating = true;
         StateHasChanged();
 
@@ -86,14 +75,14 @@
         {
             Db.Groups.Add(new Group
             {
-                Slug = cleanSlug,
+                Slug = _slug,
                 Name = _name.Trim(),
                 Description = _desc.Trim(),
                 InviteCode = _invite.Trim(),
                 AdminPin = _pin.Trim(),
             });
             await Db.SaveChangesAsync();
-            Nav.NavigateTo($"/g/{cleanSlug}/join", forceLoad: true);
+            Nav.NavigateTo($"/g/{_slug}/join", forceLoad: true);
         }
         catch (Exception ex)
         {

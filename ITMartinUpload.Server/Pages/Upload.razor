@@ -1,0 +1,254 @@
+@page "/upload/{Slug}"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IConfiguration Config
+
+<PageTitle>Upload – @Slug – ITMartin</PageTitle>
+
+<div class="root">
+    <div class="header">
+        <div class="logo">📤</div>
+        <h1 class="title">Hej @Slug!</h1>
+        <p class="sub">Send dine filer til Martin's server – billeder, videoer, dokumenter</p>
+    </div>
+
+    <div class="dropzone" id="dz">
+        <div class="dz-icon">🗂️</div>
+        <div class="dz-text">Træk filer hertil</div>
+        <div class="dz-or">eller</div>
+        <label class="dz-btn">
+            Vælg filer fra din enhed
+            <input type="file" id="fi" multiple style="display:none" />
+        </label>
+        <div class="dz-hint">Alle filtyper · Billeder, videoer, dokumenter</div>
+    </div>
+
+    @if (_uploads.Count > 0)
+    {
+        <div class="section">
+            <div class="section-header">
+                <span class="section-label">Uploadkø</span>
+                <span class="section-meta">@DoneCount af @_uploads.Count filer · @ErrorCount fejl</span>
+            </div>
+            <div class="file-list">
+                @foreach (var f in _uploads)
+                {
+                    <div class="file-row @RowClass(f.Status)">
+                        <div class="file-status">@StatusIcon(f.Status)</div>
+                        <div class="file-body">
+                            <div class="file-name" title="@f.Name">@f.Name</div>
+                            <div class="file-meta">
+                                @FormatSize(f.Size)
+                                @if (f.Error != null)
+                                {
+                                    <span class="file-err"> · @f.Error</span>
+                                }
+                            </div>
+                            @if (f.Status == UploadStatus.Uploading)
+                            {
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width:@(f.Progress)%"></div>
+                                </div>
+                            }
+                            @if (f.Status == UploadStatus.Done)
+                            {
+                                <div class="bar-track">
+                                    <div class="bar-fill done" style="width:100%"></div>
+                                </div>
+                            }
+                        </div>
+                        <div class="file-pct">
+                            @if (f.Status == UploadStatus.Uploading)
+                            {
+                                <span>@(f.Progress)%</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (AllDone)
+            {
+                <div class="done-banner">
+                    ✅ @DoneCount fil@(DoneCount == 1 ? "" : "er") uploadet til Martin
+                    @if (ErrorCount > 0)
+                    {
+                        <span class="err-note"> · @ErrorCount mislykkedes</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @if (_existing.Count > 0)
+    {
+        <div class="section">
+            <div class="section-header">
+                <span class="section-label">Allerede uploadet</span>
+                <span class="section-meta">@_existing.Count filer · @FormatSize(_existing.Sum(f => f.Size))</span>
+            </div>
+            <div class="file-list">
+                @foreach (var f in _existing)
+                {
+                    <div class="file-row done">
+                        <div class="file-status">@FileIcon(f.Name)</div>
+                        <div class="file-body">
+                            <div class="file-name" title="@f.Name">@f.Name</div>
+                            <div class="file-meta">@FormatSize(f.Size) · @f.Modified.ToLocalTime().ToString("d. MMM yyyy")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (_loaded && _uploads.Count == 0 && _existing.Count == 0)
+    {
+        <div class="empty-hint">
+            📭 Ingen filer uploadet endnu – brug boksen ovenfor til at starte
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private enum UploadStatus { Queued, Uploading, Done, Error }
+    private record UploadFile(string Id, string Name, long Size, UploadStatus Status, int Progress, string? Error);
+    private record ExistingFile(string Name, long Size, DateTime Modified);
+    public record FileInfoJs(string Name, long Size);
+
+    private List<UploadFile> _uploads = [];
+    private List<ExistingFile> _existing = [];
+    private bool _loaded;
+    private string _uploadRoot = "/app/data";
+
+    private IJSObjectReference? _js;
+    private DotNetObjectReference<Upload>? _ref;
+
+    private int DoneCount => _uploads.Count(f => f.Status == UploadStatus.Done);
+    private int ErrorCount => _uploads.Count(f => f.Status == UploadStatus.Error);
+    private bool AllDone => _uploads.Count > 0 && _uploads.All(f => f.Status is UploadStatus.Done or UploadStatus.Error);
+
+    protected override void OnInitialized()
+    {
+        _uploadRoot = Config["UploadRoot"] ?? "/app/data";
+        LoadExisting();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ref = DotNetObjectReference.Create(this);
+        _js = await JS.InvokeAsync<IJSObjectReference>("import", "/upload.js");
+        await _js.InvokeVoidAsync("init", "dz", "fi", Slug, _ref);
+    }
+
+    [JSInvokable]
+    public async Task<string[]> AddFiles(FileInfoJs[] files)
+    {
+        var ids = files.Select(_ => Guid.NewGuid().ToString()).ToArray();
+        for (int i = 0; i < files.Length; i++)
+            _uploads.Add(new(ids[i], files[i].Name, files[i].Size, UploadStatus.Queued, 0, null));
+        await InvokeAsync(StateHasChanged);
+        return ids;
+    }
+
+    [JSInvokable]
+    public async Task OnStart(string id)
+    {
+        Patch(id, f => f with { Status = UploadStatus.Uploading });
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnProgress(string id, int pct)
+    {
+        Patch(id, f => f with { Status = UploadStatus.Uploading, Progress = pct });
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnDone(string id, bool ok, string error)
+    {
+        Patch(id, f => f with
+        {
+            Status = ok ? UploadStatus.Done : UploadStatus.Error,
+            Progress = 100,
+            Error = ok ? null : (string.IsNullOrEmpty(error) ? "Ukendt fejl" : error)
+        });
+        if (ok) LoadExisting();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Patch(string id, Func<UploadFile, UploadFile> fn)
+    {
+        var i = _uploads.FindIndex(f => f.Id == id);
+        if (i >= 0) _uploads[i] = fn(_uploads[i]);
+    }
+
+    private void LoadExisting()
+    {
+        try
+        {
+            var folder = Path.Combine(_uploadRoot, Slug.ToLowerInvariant());
+            if (!Directory.Exists(folder)) { _existing = []; _loaded = true; return; }
+            _existing = Directory.GetFiles(folder)
+                .Select(p => new System.IO.FileInfo(p))
+                .OrderByDescending(fi => fi.LastWriteTimeUtc)
+                .Select(fi => new ExistingFile(fi.Name, fi.Length, fi.LastWriteTimeUtc))
+                .ToList();
+        }
+        catch { _existing = []; }
+        _loaded = true;
+    }
+
+    private static string FormatSize(long b)
+    {
+        if (b < 1024) return $"{b} B";
+        if (b < 1024 * 1024) return $"{b / 1024.0:F1} KB";
+        if (b < 1024L * 1024 * 1024) return $"{b / (1024.0 * 1024):F1} MB";
+        return $"{b / (1024.0 * 1024 * 1024):F2} GB";
+    }
+
+    private static string StatusIcon(UploadStatus s)
+    {
+        return s switch
+        {
+            UploadStatus.Done => "✅",
+            UploadStatus.Error => "❌",
+            UploadStatus.Uploading => "⬆️",
+            _ => "⏳"
+        };
+    }
+
+    private static string RowClass(UploadStatus s)
+    {
+        return s switch
+        {
+            UploadStatus.Done => "done",
+            UploadStatus.Error => "err",
+            UploadStatus.Uploading => "active",
+            _ => ""
+        };
+    }
+
+    private static string FileIcon(string name)
+    {
+        return Path.GetExtension(name).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".heic" or ".heif" => "🖼️",
+            ".mp4" or ".mov" or ".avi" or ".mkv" or ".m4v" => "🎬",
+            ".mp3" or ".aac" or ".wav" or ".flac" or ".m4a" => "🎵",
+            ".pdf" => "📄",
+            ".zip" or ".rar" or ".7z" => "🗜️",
+            _ => "📎"
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_js is not null) await _js.DisposeAsync();
+        _ref?.Dispose();
+    }
+}

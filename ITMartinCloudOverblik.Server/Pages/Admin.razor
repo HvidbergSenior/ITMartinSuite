@@ -1,0 +1,187 @@
+@page "/admin"
+@rendermode InteractiveServer
+@inject CloudDbContext Db
+@inject IConfiguration Config
+
+@if (!_authed)
+{
+    <div class="auth-wrap">
+        <div class="auth-card">
+            <div style="font-size:40px;margin-bottom:12px">🔐</div>
+            <h2 class="auth-title">Admin</h2>
+            <input @bind="_pin" type="password" class="auth-input" placeholder="PIN-kode" @onkeydown="OnKey" />
+            @if (_authError != null) { <div class="auth-error">@_authError</div> }
+            <button class="auth-btn" @onclick="AuthAsync">Log ind</button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="admin-wrap">
+        <div class="admin-header">
+            <h1 class="admin-title">Sky-leads</h1>
+            <span class="admin-count">@_leads.Count @(_leads.Count == 1 ? "henvendelse" : "henvendelser")</span>
+        </div>
+
+        @if (_leads.Count == 0)
+        {
+            <div class="empty">Ingen henvendelser endnu.</div>
+        }
+        else
+        {
+            <div class="leads-grid">
+                @foreach (var lead in _leads.OrderByDescending(l => l.CreatedAt))
+                {
+                    <div class="lead-card @(lead.Contacted ? "done" : "")">
+                        <div class="lead-header">
+                            <div class="lead-name">@lead.Name</div>
+                            <div class="lead-date">@lead.CreatedAt.ToLocalTime().ToString("dd/MM/yy HH:mm")</div>
+                        </div>
+                        <div class="lead-contact">
+                            <a href="mailto:@lead.Email" class="lead-link">@lead.Email</a>
+                            @if (!string.IsNullOrEmpty(lead.Phone))
+                            {
+                                <a href="tel:@lead.Phone" class="lead-link">@lead.Phone</a>
+                            }
+                        </div>
+                        <div class="lead-stats">
+                            <span class="stat">👨‍👩‍👧 @lead.FamilySize pers.</span>
+                            <span class="stat cost">@lead.MonthlyCost.ToString("0") kr/md</span>
+                            @if (lead.MonthlySaving > 5)
+                            {
+                                <span class="stat save">spar @lead.MonthlySaving.ToString("0") kr/md</span>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(lead.ServicesJson) && lead.ServicesJson != "[]")
+                        {
+                            <div class="lead-services">
+                                @foreach (var item in ParseServices(lead.ServicesJson))
+                                {
+                                    if (item.Price > 0)
+                                    {
+                                        <span class="svc-tag">@item.Name · @item.Price.ToString("0") kr</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="svc-tag free">@item.Name · gratis</span>
+                                    }
+                                }
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(lead.Notes))
+                        {
+                            <div class="lead-notes">💬 @lead.Notes</div>
+                        }
+
+                        <div class="lead-footer">
+                            <label class="contacted-toggle">
+                                <input type="checkbox" checked="@lead.Contacted"
+                                       @onchange="e => ToggleContactedAsync(lead, (bool)(e.Value ?? false))" />
+                                <span>Kontaktet</span>
+                            </label>
+                            <button class="del-btn" @onclick="() => DeleteAsync(lead)">Slet</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0a0e18; color: #f0f4ff; font-family: -apple-system, sans-serif; }
+
+    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .auth-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 360px; text-align: center; }
+    .auth-title { font-size: 22px; font-weight: 800; margin: 0 0 20px; }
+    .auth-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; margin-bottom: 12px; }
+    .auth-input:focus { border-color: #3b82f6; }
+    .auth-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .auth-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #f87171; margin-bottom: 10px; }
+
+    .admin-wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 60px; }
+    .admin-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
+    .admin-title { font-size: 24px; font-weight: 900; }
+    .admin-count { font-size: 13px; color: #475569; }
+    .empty { color: #475569; padding: 40px 0; text-align: center; }
+
+    .leads-grid { display: flex; flex-direction: column; gap: 14px; }
+    .lead-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09); border-radius: 16px; padding: 18px 20px; }
+    .lead-card.done { opacity: .55; }
+    .lead-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .lead-name { font-size: 16px; font-weight: 700; }
+    .lead-date { font-size: 12px; color: #475569; }
+    .lead-contact { display: flex; gap: 14px; margin-bottom: 10px; }
+    .lead-link { color: #60a5fa; font-size: 13px; text-decoration: none; }
+    .lead-link:hover { text-decoration: underline; }
+    .lead-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .stat { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 3px 12px; font-size: 12px; color: #94a3b8; }
+    .stat.cost { background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.3); color: #93c5fd; }
+    .stat.save { background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.25); color: #4ade80; }
+    .lead-services { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .svc-tag { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); border-radius: 8px; padding: 3px 10px; font-size: 11px; color: #64748b; }
+    .svc-tag.free { color: #334155; }
+    .lead-notes { font-size: 13px; color: #64748b; font-style: italic; margin-bottom: 10px; }
+    .lead-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,.06); padding-top: 12px; margin-top: 4px; }
+    .contacted-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; cursor: pointer; }
+    .contacted-toggle input { accent-color: #22c55e; width: 15px; height: 15px; }
+    .del-btn { background: transparent; border: 1px solid rgba(239,68,68,.3); color: #f87171; border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+    .del-btn:hover { background: rgba(239,68,68,.1); }
+</style>
+
+@code {
+    private bool _authed;
+    private string _pin = "";
+    private string? _authError;
+    private List<AuditLead> _leads = [];
+
+    private record ParsedService(string Name, decimal Price);
+
+    // No initialization needed
+
+    private async Task AuthAsync()
+    {
+        var expected = Config["CloudAdmin:Pin"] ?? "sky2025";
+        if (_pin.Trim() != expected)
+        {
+            _authError = "Forkert PIN-kode.";
+            return;
+        }
+        _authed = true;
+        _leads = await Db.Leads.OrderByDescending(l => l.CreatedAt).ToListAsync();
+    }
+
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AuthAsync();
+    }
+
+    private async Task ToggleContactedAsync(AuditLead lead, bool value)
+    {
+        lead.Contacted = value;
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task DeleteAsync(AuditLead lead)
+    {
+        Db.Leads.Remove(lead);
+        await Db.SaveChangesAsync();
+        _leads.Remove(lead);
+    }
+
+    private static ParsedService[] ParseServices(string json)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            return doc.RootElement.EnumerateArray().Select(e => new ParsedService(
+                e.GetProperty("Name").GetString() ?? "",
+                e.GetProperty("Price").GetDecimal()
+            )).ToArray();
+        }
+        catch { return []; }
+    }
+}

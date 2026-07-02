@@ -153,9 +153,9 @@ else
     {
         if (!firstRender) return;
         var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
-        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group).FirstOrDefaultAsync(s => s.Id == sid);
-        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join"); return; }
+        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
         await RefreshAsync();

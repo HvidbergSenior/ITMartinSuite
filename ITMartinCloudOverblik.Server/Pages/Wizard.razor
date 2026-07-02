@@ -1,0 +1,523 @@
+@page "/"
+@rendermode InteractiveServer
+
+<div class="root">
+
+@if (_step == 0)
+{
+    <div class="intro-wrap">
+        <div class="intro-card">
+            <div class="intro-icon">☁️</div>
+            <h1 class="intro-title">Hvad koster din sky?</h1>
+            <p class="intro-sub">Svar på 3 hurtige spørgsmål og find ud af, hvad din familie betaler – og hvad I kan spare.</p>
+            <div class="intro-badges">
+                <span class="badge">Gratis</span>
+                <span class="badge">Ingen forpligtelse</span>
+                <span class="badge">2 min</span>
+            </div>
+            <button class="btn-primary" @onclick="() => _step = 1">Beregn nu →</button>
+            <div class="intro-foot">itmartin.dk · Martin Hvidberg · Digital Rådgiver</div>
+        </div>
+    </div>
+}
+
+else if (_step == 1)
+{
+    <div class="wizard-wrap">
+        <div class="wizard-card">
+            <div class="step-bar">
+                <div class="step-dot active">1</div>
+                <div class="step-line"></div>
+                <div class="step-dot">2</div>
+                <div class="step-line"></div>
+                <div class="step-dot">3</div>
+            </div>
+            <h2 class="wizard-title">Hvilke tjenester bruger I?</h2>
+            <p class="wizard-sub">Vælg alle der gælder for din familie</p>
+
+            <div class="section-label">Sky-lager (filer og fotos)</div>
+            <div class="service-grid">
+                @foreach (var svc in StorageServices)
+                {
+                    var isOn = _selected.Contains(svc.Id);
+                    <button class="@(isOn ? "svc-chip on" : "svc-chip")" @onclick="() => Toggle(svc.Id)">
+                        <span class="svc-icon">@svc.Emoji</span>
+                        <span class="svc-name">@svc.Name</span>
+                        @if (isOn) { <span class="svc-check">✓</span> }
+                    </button>
+                }
+            </div>
+
+            <div class="section-label" style="margin-top:20px">Underholdning og musik</div>
+            <div class="service-grid">
+                @foreach (var svc in StreamServices)
+                {
+                    var isOn = _selected.Contains(svc.Id);
+                    <button class="@(isOn ? "svc-chip on" : "svc-chip")" @onclick="() => Toggle(svc.Id)">
+                        <span class="svc-icon">@svc.Emoji</span>
+                        <span class="svc-name">@svc.Name</span>
+                        @if (isOn) { <span class="svc-check">✓</span> }
+                    </button>
+                }
+            </div>
+
+            <div class="section-label" style="margin-top:20px">Apps & spil</div>
+            <div class="service-grid">
+                @foreach (var svc in AppsServices)
+                {
+                    var isOn = _selected.Contains(svc.Id);
+                    <button class="@(isOn ? "svc-chip on" : "svc-chip")" @onclick="() => Toggle(svc.Id)">
+                        <span class="svc-icon">@svc.Emoji</span>
+                        <span class="svc-name">@svc.Name</span>
+                        @if (isOn) { <span class="svc-check">✓</span> }
+                    </button>
+                }
+            </div>
+
+            @if (_stepError != null) { <div class="form-error">@_stepError</div> }
+
+            <div class="btn-row" style="margin-top:28px">
+                <button class="btn-ghost" @onclick="() => _step = 0">← Tilbage</button>
+                <button class="btn-primary" @onclick="GoToStep2">Videre →</button>
+            </div>
+        </div>
+    </div>
+}
+
+else if (_step == 2)
+{
+    <div class="wizard-wrap">
+        <div class="wizard-card">
+            <div class="step-bar">
+                <div class="step-dot done">✓</div>
+                <div class="step-line active"></div>
+                <div class="step-dot active">2</div>
+                <div class="step-line"></div>
+                <div class="step-dot">3</div>
+            </div>
+            <h2 class="wizard-title">Hvad betaler I?</h2>
+            <p class="wizard-sub">Vælg det abonnement I har for hver tjeneste</p>
+
+            <div class="family-row">
+                <label class="field-label">Antal personer i familien</label>
+                <div class="size-control">
+                    <button class="size-btn" @onclick="() => SetFamilySize(Math.Max(1, _familySize - 1))">−</button>
+                    <span class="size-num">@_familySize @(_familySize == 1 ? "person" : "personer")</span>
+                    <button class="size-btn" @onclick="() => SetFamilySize(Math.Min(10, _familySize + 1))">+</button>
+                </div>
+            </div>
+
+            @foreach (var svc in SelectedServices)
+            {
+                var plans = _planPerPerson[svc.Id];
+                var svcId = svc.Id;
+                <div class="plan-service">
+                    <div class="plan-service-name">@svc.Emoji @svc.Name</div>
+                    @for (int p = 0; p < _familySize; p++)
+                    {
+                        var pi = p;
+                        <div class="person-plan-row">
+                            <span class="person-label">Person @(p + 1)</span>
+                            <select class="plan-select" value="@plans[pi]"
+                                    @onchange="e => _planPerPerson[svcId][pi] = e.Value is null ? 0 : int.Parse(e.Value.ToString()!)">
+                                <option value="0">Bruger ikke – 0 kr</option>
+                                @for (int i = 0; i < svc.Plans.Length; i++)
+                                {
+                                    var plan = svc.Plans[i];
+                                    var priceStr = plan.Price == 0 ? "gratis" : $"{plan.Price:0} kr/md";
+                                    <option value="@(i + 1)">@plan.Label – @priceStr</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="running-total">
+                <span>Samlet estimat</span>
+                <span class="total-num">@CurrentTotal.ToString("0") kr/md</span>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn-ghost" @onclick="() => _step = 1">← Tilbage</button>
+                <button class="btn-primary" @onclick="() => _step = 3">Beregn →</button>
+            </div>
+        </div>
+    </div>
+}
+
+else if (_step == 3)
+{
+    var storage = StorageCost;
+    var total   = CurrentTotal;
+    var saving  = Math.Max(0, storage - RecommendedStoragePrice);
+    var annualSaving = saving * 12;
+
+    <div class="wizard-wrap">
+        <div class="wizard-card wide">
+            <div class="step-bar">
+                <div class="step-dot done">✓</div>
+                <div class="step-line active"></div>
+                <div class="step-dot done">✓</div>
+                <div class="step-line active"></div>
+                <div class="step-dot active">3</div>
+            </div>
+            <h2 class="wizard-title">Jeres sky-regnskab</h2>
+
+            <div class="result-hero">
+                <div class="result-label">I betaler ca.</div>
+                <div class="result-amount">@total.ToString("0") kr<span class="result-unit">/md</span></div>
+                <div class="result-annual">= @((total * 12).ToString("0")) kr/år på sky-tjenester</div>
+            </div>
+
+            <div class="breakdown">
+                <div class="breakdown-title">Fordeling</div>
+                @foreach (var svc in SelectedServices)
+                {
+                    var svcTotal = _planPerPerson[svc.Id]
+                        .Where(idx => idx > 0)
+                        .Sum(idx => svc.Plans[idx - 1].Price);
+                    if (svcTotal == 0) continue;
+                    <div class="breakdown-row">
+                        <span>@svc.Emoji @svc.Name</span>
+                        <span>@svcTotal.ToString("0") kr</span>
+                    </div>
+                }
+                @{
+                    var freeCount = SelectedServices.Count(svc =>
+                        _planPerPerson[svc.Id].All(idx => idx == 0));
+                }
+                @if (freeCount > 0)
+                {
+                    <div class="breakdown-row free-row">
+                        <span>@freeCount tjeneste@(freeCount == 1 ? "" : "r") bruger I gratis</span>
+                        <span>0 kr</span>
+                    </div>
+                }
+                <div class="breakdown-total">
+                    <span>I alt pr. måned</span>
+                    <span>@total.ToString("0") kr</span>
+                </div>
+            </div>
+
+            @if (saving > 5)
+            {
+                <div class="saving-box">
+                    <div class="saving-icon">💡</div>
+                    <div class="saving-content">
+                        <div class="saving-title">Potentiel besparelse på fillageret</div>
+                        <div class="saving-text">
+                            I dag betaler I <strong>@storage.ToString("0") kr/md</strong> på sky-lager (filer og fotos).
+                            Med ét Google One 2&nbsp;TB familieabonnement (delt med op til 5 personer) ville det koste <strong>@RecommendedStoragePrice kr/md</strong>.
+                        </div>
+                        <div class="saving-highlight">
+                            Besparelse: <strong>@saving.ToString("0") kr/md = @annualSaving.ToString("0") kr/år</strong>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (total == 0)
+            {
+                <div class="saving-box neutral">
+                    <div class="saving-icon">🎉</div>
+                    <div class="saving-content">
+                        <div class="saving-title">I betaler ikke noget pt.</div>
+                        <div class="saving-text">Det er fint – men du bruger sandsynligvis gratis-niveauet, som kan løbe op, når telefonen er fuld. Martin kan hjælpe med en fremtidssikret plan.</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="saving-box neutral">
+                    <div class="saving-icon">✅</div>
+                    <div class="saving-content">
+                        <div class="saving-title">I betaler allerede fornuftigt</div>
+                        <div class="saving-text">Jeres sky-udgifter ser fornuftige ud. Martin kan alligevel hjælpe med at sikre, at alt er organiseret og sikkert gemt.</div>
+                    </div>
+                </div>
+            }
+
+            <div class="contact-section">
+                <h3 class="contact-title">ITMartin kan hjælpe dig</h3>
+                <p class="contact-sub">Få et gratis overblik og en plan for din familie – ingen binding, ingen forpligtelse.</p>
+
+                <div class="cta-cards">
+                    <a href="tel:+4531194730" class="cta-card">
+                        <span class="cta-icon">📞</span>
+                        <span class="cta-label">Ring</span>
+                        <span class="cta-value">31 19 47 30</span>
+                    </a>
+                    <a href="mailto:info@itmartin.dk" class="cta-card">
+                        <span class="cta-icon">✉️</span>
+                        <span class="cta-label">Skriv</span>
+                        <span class="cta-value">info@itmartin.dk</span>
+                    </a>
+                </div>
+
+                <div class="btn-row" style="margin-top:20px">
+                    <button class="btn-ghost" @onclick="() => _step = 2">← Tilbage</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+</div>
+
+<style>
+    .root { min-height: 100vh; background: #0a0e18; }
+
+    /* ── Intro ── */
+    .intro-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .intro-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 24px; padding: 52px 40px; width: 100%; max-width: 480px; text-align: center; }
+    .intro-icon { font-size: 64px; margin-bottom: 20px; }
+    .intro-title { font-size: 32px; font-weight: 900; color: #f0f4ff; margin-bottom: 14px; line-height: 1.15; }
+    .intro-sub { font-size: 16px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px; }
+    .intro-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+    .badge { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3); border-radius: 999px; padding: 4px 14px; font-size: 12px; color: #93c5fd; font-weight: 600; }
+    .intro-foot { font-size: 12px; color: #475569; margin-top: 28px; }
+
+    /* ── Wizard shell ── */
+    .wizard-wrap { min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px 60px; }
+    .wizard-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09); border-radius: 20px; padding: 36px 32px; width: 100%; max-width: 560px; }
+    .wizard-card.wide { max-width: 680px; }
+    .wizard-title { font-size: 22px; font-weight: 800; color: #f0f4ff; margin: 16px 0 6px; }
+    .wizard-sub { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+    /* ── Step bar ── */
+    .step-bar { display: flex; align-items: center; gap: 0; }
+    .step-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #334155; background: #0a0e18; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #475569; flex-shrink: 0; }
+    .step-dot.active { border-color: #3b82f6; color: #60a5fa; }
+    .step-dot.done { border-color: #22c55e; background: rgba(34,197,94,.15); color: #4ade80; font-size: 14px; }
+    .step-line { flex: 1; height: 2px; background: #1e293b; }
+    .step-line.active { background: #3b82f6; }
+
+    /* ── Service grid ── */
+    .section-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+    .service-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+    .svc-chip { background: rgba(255,255,255,.05); border: 1.5px solid rgba(255,255,255,.1); border-radius: 14px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: all .15s; position: relative; }
+    .svc-chip:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); }
+    .svc-chip.on { background: rgba(59,130,246,.12); border-color: #3b82f6; }
+    .svc-icon { font-size: 28px; }
+    .svc-name { font-size: 12px; font-weight: 600; color: #cbd5e1; }
+    .svc-check { position: absolute; top: 6px; right: 8px; color: #4ade80; font-size: 12px; font-weight: 900; }
+
+    /* ── Plans step ── */
+    .family-row { margin-bottom: 24px; }
+    .field-label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 10px; }
+    .size-control { display: flex; align-items: center; gap: 16px; }
+    .size-btn { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.15); background: rgba(255,255,255,.06); color: #f0f4ff; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+    .size-btn:hover { background: rgba(255,255,255,.12); }
+    .size-num { font-size: 18px; font-weight: 700; color: #f0f4ff; min-width: 110px; text-align: center; }
+    .plan-service { border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+    .plan-service-name { font-size: 14px; font-weight: 700; color: #94a3b8; margin-bottom: 10px; }
+    .person-plan-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .person-plan-row:last-child { margin-bottom: 0; }
+    .person-label { font-size: 12px; color: #475569; min-width: 58px; flex-shrink: 0; }
+    .plan-select { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; color: #f0f4ff; font-size: 13px; outline: none; }
+    .plan-select:focus { border-color: #3b82f6; }
+    .running-total { display: flex; justify-content: space-between; align-items: center; background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.25); border-radius: 12px; padding: 12px 16px; margin: 20px 0; }
+    .running-total span { font-size: 13px; color: #94a3b8; }
+    .total-num { font-size: 20px; font-weight: 800; color: #60a5fa !important; }
+
+    /* ── Results ── */
+    .result-hero { text-align: center; padding: 24px 0 20px; }
+    .result-label { font-size: 13px; color: #64748b; margin-bottom: 4px; }
+    .result-amount { font-size: 52px; font-weight: 900; color: #f0f4ff; line-height: 1; }
+    .result-unit { font-size: 24px; color: #64748b; }
+    .result-annual { font-size: 14px; color: #64748b; margin-top: 6px; }
+
+    .breakdown { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 16px 20px; margin: 16px 0; }
+    .breakdown-title { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 12px; }
+    .breakdown-row { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; padding: 4px 0; }
+    .free-row { color: #475569; font-style: italic; }
+    .breakdown-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: #f0f4ff; border-top: 1px solid rgba(255,255,255,.08); margin-top: 8px; padding-top: 10px; }
+
+    .saving-box { display: flex; gap: 14px; background: rgba(34,197,94,.07); border: 1px solid rgba(34,197,94,.2); border-radius: 14px; padding: 16px 18px; margin: 16px 0; }
+    .saving-box.neutral { background: rgba(59,130,246,.07); border-color: rgba(59,130,246,.2); }
+    .saving-icon { font-size: 24px; flex-shrink: 0; }
+    .saving-title { font-size: 14px; font-weight: 700; color: #f0f4ff; margin-bottom: 4px; }
+    .saving-text { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+    .saving-highlight { font-size: 14px; color: #4ade80; margin-top: 8px; }
+
+    /* ── Contact ── */
+    .contact-section { border-top: 1px solid rgba(255,255,255,.07); margin-top: 24px; padding-top: 24px; }
+    .contact-title { font-size: 18px; font-weight: 800; color: #f0f4ff; margin-bottom: 6px; }
+    .contact-sub { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+    .cta-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .cta-card { display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(59,130,246,.1); border: 1.5px solid rgba(59,130,246,.25); border-radius: 16px; padding: 20px 16px; text-decoration: none; transition: all .15s; }
+    .cta-card:hover { background: rgba(59,130,246,.18); border-color: #3b82f6; }
+    .cta-icon { font-size: 28px; }
+    .cta-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+    .cta-value { font-size: 15px; font-weight: 700; color: #93c5fd; }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+    .btn-primary { background: #2563eb; color: white; border: none; border-radius: 12px; padding: 12px 24px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-ghost { background: transparent; color: #94a3b8; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-ghost:hover { background: rgba(255,255,255,.06); }
+    .btn-cta { background: #16a34a; color: white; border: none; border-radius: 12px; padding: 13px 28px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-cta:hover:not(:disabled) { background: #15803d; }
+    .btn-cta:disabled { opacity: .5; cursor: default; }
+
+    /* ── Misc ── */
+    .form-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f87171; margin: 10px 0; }
+
+    @@media (max-width: 480px) {
+        .wizard-card { padding: 24px 18px; }
+        .intro-card { padding: 40px 24px; }
+        .form-row { grid-template-columns: 1fr; }
+        .service-grid { grid-template-columns: repeat(2, 1fr); }
+        .result-amount { font-size: 40px; }
+    }
+</style>
+
+@code {
+    private record ServicePlan(string Label, decimal Price, bool PerPerson = false);
+    private record CloudServiceDef(string Id, string Emoji, string Name, string Group, ServicePlan[] Plans);
+
+    private static readonly CloudServiceDef[] AllServices =
+    [
+        new("icloud",     "🍎", "iCloud",        "lager",  [
+            new("Gratis – 5 GB", 0),
+            new("50 GB pr. person", 8, PerPerson: true),
+            new("200 GB – familiedeling", 26),
+            new("2 TB – familiedeling", 82),
+        ]),
+        new("gdrive",     "🔵", "Google Drive",  "lager",  [
+            new("Gratis – 15 GB", 0),
+            new("100 GB – kan deles", 15),
+            new("2 TB – kan deles", 75),
+            new("Alle betaler 100 GB selv", 15, PerPerson: true),
+        ]),
+        new("dropbox",    "📦", "Dropbox",       "lager",  [
+            new("Gratis – 2 GB", 0),
+            new("Plus – 2 TB (1 bruger)", 99),
+            new("Family – 2 TB (6 brugere)", 169),
+        ]),
+        new("onedrive",   "🟦", "OneDrive",      "lager",  [
+            new("Gratis – 5 GB", 0),
+            new("Microsoft 365 Personal", 69),
+            new("Microsoft 365 Family (6 pers.)", 119),
+        ]),
+        new("amazon",     "📷", "Amazon Photos", "lager",  [
+            new("Inkluderet i Prime", 0),
+            new("Ekstra lager (100 GB+)", 15),
+        ]),
+        new("email",      "📧", "Betalt email",  "lager",  [
+            new("Inkluderet i sky-lageret (gratis)", 0),
+            new("Selvstændig email (ProtonMail m.fl.)", 35),
+            new("Forretningsemail (Google Workspace)", 79),
+        ]),
+        new("spotify",    "🎵", "Spotify",       "stream", [
+            new("Gratis", 0),
+            new("Individual", 109),
+            new("Duo (2 pers.)", 139),
+            new("Family (6 pers.)", 169),
+        ]),
+        new("netflix",    "🎬", "Netflix",       "stream", [
+            new("Standard", 109),
+            new("Premium (4 skærme)", 189),
+        ]),
+        new("disney",     "🏰", "Disney+",       "stream", [
+            new("Standard", 79),
+            new("Premium", 99),
+        ]),
+        new("applemusic", "🎶", "Apple Music",   "stream", [
+            new("Individual", 69),
+            new("Family (6 pers.)", 109),
+        ]),
+        new("viaplay",    "📺", "Viaplay",       "stream", [
+            new("Film & Serier", 99),
+            new("Total (inkl. sport)", 179),
+        ]),
+        new("psnetwork",  "🎮", "PlayStation+",  "apps",   [
+            new("Gratis (online)", 0),
+            new("PS Plus Essential", 44),
+            new("PS Plus Extra", 69),
+            new("PS Plus Premium", 84),
+        ]),
+        new("chatgpt",    "🤖", "ChatGPT",       "apps",   [
+            new("Gratis", 0),
+            new("Plus", 139),
+        ]),
+        new("claude",     "🧠", "Claude",        "apps",   [
+            new("Gratis", 0),
+            new("Pro", 139),
+        ]),
+        new("snapchat",   "👻", "Snapchat+",     "apps",   [
+            new("Gratis", 0),
+            new("Snapchat+", 29),
+        ]),
+    ];
+
+    private static readonly CloudServiceDef[] StorageServices = AllServices.Where(s => s.Group == "lager").ToArray();
+    private static readonly CloudServiceDef[] StreamServices  = AllServices.Where(s => s.Group == "stream").ToArray();
+    private static readonly CloudServiceDef[] AppsServices    = AllServices.Where(s => s.Group == "apps").ToArray();
+    private const decimal RecommendedStoragePrice = 75m; // Google One 2TB family
+
+    // Wizard state
+    private int _step = 0;
+    private HashSet<string> _selected = new();
+    private int _familySize = 2;
+    private Dictionary<string, int[]> _planPerPerson = new();
+    private string? _stepError;
+
+    private IEnumerable<CloudServiceDef> SelectedServices =>
+        AllServices.Where(s => _selected.Contains(s.Id));
+
+    private decimal CurrentTotal =>
+        SelectedServices.Sum(svc =>
+            _planPerPerson[svc.Id].Where(i => i > 0).Sum(i => svc.Plans[i - 1].Price));
+
+    private decimal StorageCost =>
+        SelectedServices.Where(s => s.Group == "lager").Sum(svc =>
+            _planPerPerson[svc.Id].Where(i => i > 0).Sum(i => svc.Plans[i - 1].Price));
+
+    private void EnsurePersonPlans(string id)
+    {
+        if (!_planPerPerson.TryGetValue(id, out var arr) || arr.Length != _familySize)
+        {
+            var next = new int[_familySize];
+            if (arr != null) Array.Copy(arr, next, Math.Min(arr.Length, _familySize));
+            _planPerPerson[id] = next;
+        }
+    }
+
+    private void SetFamilySize(int size)
+    {
+        _familySize = size;
+        foreach (var id in _planPerPerson.Keys.ToList())
+        {
+            var old = _planPerPerson[id];
+            var next = new int[size];
+            Array.Copy(old, next, Math.Min(old.Length, size));
+            _planPerPerson[id] = next;
+        }
+    }
+
+    private void Toggle(string id)
+    {
+        if (!_selected.Remove(id))
+        {
+            _selected.Add(id);
+            EnsurePersonPlans(id);
+        }
+        _stepError = null;
+    }
+
+    private void GoToStep2()
+    {
+        if (_selected.Count == 0)
+        {
+            _stepError = "Vælg mindst én tjeneste for at fortsætte.";
+            return;
+        }
+        foreach (var id in _selected) EnsurePersonPlans(id);
+        _stepError = null;
+        _step = 2;
+    }
+
+}

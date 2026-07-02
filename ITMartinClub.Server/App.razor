@@ -16,9 +16,20 @@
     <script src="_framework/blazor.server.js"></script>
     <script>
         window.clubJs = {
-            getSession:    () => localStorage.getItem('club_session'),
-            setSession:    (v) => localStorage.setItem('club_session', v),
-            clearSession:  () => localStorage.removeItem('club_session'),
+            getSession: function () {
+                var ls = localStorage.getItem('club_session');
+                if (ls) return ls;
+                var m = document.cookie.match(/(?:^|;\s*)club_session=([^;]+)/);
+                return m ? m[1] : null;
+            },
+            setSession: function (v) {
+                localStorage.setItem('club_session', v);
+                document.cookie = 'club_session=' + v + ';path=/;max-age=31536000;samesite=lax';
+            },
+            clearSession: function () {
+                localStorage.removeItem('club_session');
+                document.cookie = 'club_session=;path=/;max-age=0';
+            },
             scrollToBottom: (id) => { var el = document.getElementById(id); if (el) el.scrollTop = el.scrollHeight; },
 
             registerSW: async function () {

@@ -80,7 +80,7 @@
                 .FirstOrDefaultAsync(s => s.Id == sid);
             if (session?.Member.Group.Slug == Slug)
             {
-                Nav.NavigateTo($"/g/{Slug}");
+                Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
                 return;
             }
         }

@@ -168,8 +168,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.FamilieOverblik.Do
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartin.FamilieOverblik.Infrastructure", "ITMartin.FamilieOverblik.Infrastructure\ITMartin.FamilieOverblik.Infrastructure.csproj", "{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinSuite.Maui", "ITMartinSuite.Maui\ITMartinSuite.Maui.csproj", "{1DD3221D-4146-4E11-85A9-13341264D3D7}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -491,9 +489,5 @@ Global
 		{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DF28C162-48A1-45E5-9FE5-B2B35396F4C6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1DD3221D-4146-4E11-85A9-13341264D3D7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

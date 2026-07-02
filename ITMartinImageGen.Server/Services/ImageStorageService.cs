@@ -12,20 +12,44 @@ public sealed class ImageStorageService
         Directory.CreateDirectory(_root);
     }
 
-    public async Task<string> SaveFromUrlAsync(string imageUrl, CancellationToken ct = default)
+    public async Task<string> SaveFromUrlAsync(string url, CancellationToken ct = default)
     {
-        var bytes    = await _http.GetByteArrayAsync(imageUrl, ct);
-        var fileName = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..8]}.jpg";
-        var path     = Path.Combine(_root, fileName);
-        await File.WriteAllBytesAsync(path, bytes, ct);
+        var response = await _http.GetAsync(url, ct);
+        response.EnsureSuccessStatusCode();
+
+        var ext = DetectExtension(url, response.Content.Headers.ContentType?.MediaType);
+        var fileName = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..8]}{ext}";
+        var path = Path.Combine(_root, fileName);
+
+        await using var fs = File.Create(path);
+        await response.Content.CopyToAsync(fs, ct);
         return path;
     }
 
-    public string[] GetSavedImages()
+    public string[] GetSavedFiles()
     {
         if (!Directory.Exists(_root)) return [];
-        return Directory.GetFiles(_root, "*.jpg")
+        return Directory.GetFiles(_root)
             .OrderByDescending(f => f)
             .ToArray();
+    }
+
+    private static string DetectExtension(string url, string? contentType)
+    {
+        var lower = url.ToLowerInvariant();
+        if (lower.Contains(".mp4")) return ".mp4";
+        if (lower.Contains(".webm")) return ".webm";
+        if (lower.Contains(".png")) return ".png";
+        if (lower.Contains(".webp")) return ".webp";
+        if (lower.Contains(".gif")) return ".gif";
+
+        return contentType switch
+        {
+            "video/mp4"  => ".mp4",
+            "image/png"  => ".png",
+            "image/webp" => ".webp",
+            "image/gif"  => ".gif",
+            _            => ".jpg"
+        };
     }
 }
