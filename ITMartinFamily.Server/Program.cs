@@ -98,6 +98,7 @@ using (var scope = app.Services.CreateScope())
         """);
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Reminders ADD COLUMN RemindAt TEXT"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Reminders ADD COLUMN NotificationSent INTEGER NOT NULL DEFAULT 0"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Reminders ADD COLUMN PhotoPath TEXT"); } catch { }
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS StoredItems (
@@ -120,6 +121,7 @@ if (!app.Environment.IsDevelopment())
 
 Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "data", "tasks"));
 Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "data", "findit-photos"));
+Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "data", "reminders"));
 
 app.UseStaticFiles();
 app.UseAntiforgery();
@@ -151,6 +153,13 @@ app.MapGet("/findit-photo/{id:guid}", async (Guid id, ITMartinFamily.Application
     var item = await repo.GetByIdAsync(id);
     if (item?.PhotoPath is null || !File.Exists(item.PhotoPath)) return Results.NotFound();
     return Results.File(await File.ReadAllBytesAsync(item.PhotoPath), "image/jpeg");
+});
+
+app.MapGet("/reminder-photo/{id:guid}", async (Guid id, ITMartinFamily.Infrastructure.FamilyDbContext db) =>
+{
+    var r = await db.Reminders.FindAsync(id);
+    if (r?.PhotoPath is null || !File.Exists(r.PhotoPath)) return Results.NotFound();
+    return Results.File(await File.ReadAllBytesAsync(r.PhotoPath), "image/jpeg");
 });
 
 app.MapRazorComponents<App>()

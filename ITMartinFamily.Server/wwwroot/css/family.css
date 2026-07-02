@@ -590,6 +590,58 @@ body {
 .today-action-btn.claim-btn { background: #6366f1; color: #fff; }
 .today-action-btn.done-btn  { background: #22c55e; color: #fff; }
 
+/* ── Shared button system ────────────────────────── */
+.btn-primary    { width: 100%; background: #6366f1; color: #fff; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-primary-sm { background: #6366f1; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.btn-primary:disabled, .btn-primary-sm:disabled { opacity: .3; cursor: default; }
+.btn-camera    { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 0 13px; height: 44px; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+.btn-done      { background: rgba(34,197,94,.15); color: #86efac; border: 1px solid rgba(34,197,94,.25); border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.btn-found     { background: rgba(34,197,94,.15); color: #86efac; border: 1px solid rgba(34,197,94,.25); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
+.btn-capture   { flex: 1; background: #6366f1; color: #fff; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-cancel    { background: rgba(255,255,255,.07); color: #94a3b8; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 13px 20px; font-size: 14px; cursor: pointer; }
+.btn-text      { background: none; border: none; color: #64748b; font-size: 13px; cursor: pointer; padding: 4px 0; }
+.btn-text-sm   { background: none; border: none; color: #64748b; font-size: 12px; cursor: pointer; padding: 2px 0; text-align: left; }
+.btn-text:hover, .btn-text-sm:hover { color: #f59e0b; }
+.btn-remove-photo { background: none; border: none; color: #ef4444; font-size: 13px; cursor: pointer; padding: 4px; }
+
+/* ── Add row (shared) ────────────────────────────── */
+.add-row       { display: flex; gap: 8px; align-items: center; }
+.add-input     { flex: 1; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 11px 14px; color: #e2e8f0; font-size: 15px; outline: none; min-width: 0; }
+.add-input:focus { border-color: #6366f1; }
+.add-input-full { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 11px 14px; color: #e2e8f0; font-size: 15px; outline: none; }
+.add-input-full:focus { border-color: #6366f1; }
+
+/* ── Camera view (shared) ────────────────────────── */
+.camera-wrap   { display: flex; flex-direction: column; gap: 10px; }
+.camera-video  { width: 100%; max-height: 240px; border-radius: 12px; object-fit: cover; background: #000; }
+.camera-actions { display: flex; gap: 8px; }
+
+/* ── Photo preview row ───────────────────────────── */
+.photo-preview-row { display: flex; align-items: center; gap: 10px; background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); border-radius: 10px; padding: 8px 12px; }
+.preview-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+.preview-label { flex: 1; font-size: 13px; color: #94a3b8; }
+
+/* ── Urgent reminders list ───────────────────────── */
+.reminder-list { display: flex; flex-direction: column; gap: 8px; }
+.reminder-item { display: flex; align-items: center; gap: 12px; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2); border-radius: 12px; padding: 12px 14px; }
+.reminder-photo { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.reminder-content { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.reminder-text  { font-size: 15px; font-weight: 600; color: #fde68a; }
+.reminder-time  { font-size: 12px; color: #f59e0b; font-weight: 700; }
+
+/* ── Urgent add helpers ──────────────────────────── */
+.time-row   { display: flex; align-items: center; gap: 10px; }
+.time-label { font-size: 13px; color: #94a3b8; }
+.time-input { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 8px 10px; color: #e2e8f0; font-size: 14px; outline: none; }
+.time-input:focus { border-color: #f59e0b; }
+
+/* ── Tasks header link ───────────────────────────── */
+.section-add-link { font-size: 13px; color: #6366f1; font-weight: 600; text-decoration: none; }
+.section-add-link:hover { color: #818cf8; }
+
+/* ── FindIt mini form ────────────────────────────── */
+.findit-form { display: flex; flex-direction: column; gap: 8px; }
+
 /* ── Blazor error UI ─────────────────────────────── */
 #blazor-error-ui { display: none; position: fixed; bottom: 60px; left: 0; right: 0; z-index: 1100; background: rgba(239,68,68,.15); border-top: 1px solid rgba(239,68,68,.3); padding: 10px 20px; text-align: center; font-size: 13px; color: #fca5a5; }
 #blazor-error-ui .reload { color: #f87171; font-weight: 700; margin: 0 8px; }

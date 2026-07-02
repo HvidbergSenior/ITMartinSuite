@@ -11,4 +11,5 @@ public sealed class PersonalReminder
     public DateTime  CreatedAt        { get; set; } = DateTime.UtcNow;
     public DateTime? RemindAt         { get; set; }
     public bool      NotificationSent { get; set; }
+    public string?   PhotoPath        { get; set; }
 }
