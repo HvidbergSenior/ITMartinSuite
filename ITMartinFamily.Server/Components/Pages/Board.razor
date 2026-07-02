@@ -20,7 +20,7 @@
 
 <PageTitle>@(_family?.Name ?? "Gruppen")</PageTitle>
 
-<link rel="stylesheet" href="css/family.css" />
+<link rel="stylesheet" href="css/family.css?v=6" />
 
 @if (!_ready)
 {
@@ -37,7 +37,7 @@ else
             </div>
             <div style="display:flex;gap:8px;align-items:center">
                 <button class="add-btn" @onclick="ToggleAdd">@(_showAdd ? "✕ Annuller" : "+ Tilføj opgave")</button>
-                <button class="logout-btn" @onclick="Logout">↩</button>
+                <button class="logout-btn" @onclick="Logout">Log ud</button>
             </div>
         </div>
 

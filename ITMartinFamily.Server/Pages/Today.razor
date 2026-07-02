@@ -12,18 +12,19 @@
 @using Microsoft.JSInterop
 @using System.Globalization
 
-@inject IDailyTaskRepository        TaskRepo
-@inject IPersonalReminderRepository ReminderRepo
-@inject IFamilyStoredItemRepository StoredItemRepo
-@inject FamilyDbContext              Db
-@inject NavigationManager            Nav
-@inject IJSRuntime                   JS
+@inject IDailyTaskRepository          TaskRepo
+@inject IPersonalReminderRepository   ReminderRepo
+@inject IFamilyStoredItemRepository   StoredItemRepo
+@inject IPushNotificationService      PushService
+@inject FamilyDbContext                Db
+@inject NavigationManager              Nav
+@inject IJSRuntime                     JS
 
 @implements IAsyncDisposable
 
 <PageTitle>I dag</PageTitle>
 
-<link rel="stylesheet" href="css/family.css?v=5" />
+<link rel="stylesheet" href="css/family.css?v=6" />
 
 @if (!_ready)
 {
@@ -41,13 +42,45 @@ else
             <button class="logout-btn" @onclick="Logout">Log ud</button>
         </div>
 
-        <!-- ── Tasks ───────────────────────────────── -->
+        <!-- ── Opgaver i dag ──────────────────────── -->
         <div class="today-card">
             <div class="today-card-header">
                 <span class="today-card-title">📋 Opgaver i dag</span>
-                <a href="/@Slug/opgaver" class="section-add-link">Tilføj opgave</a>
             </div>
             <div class="today-card-body">
+
+                @if (_taskCamera)
+                {
+                    <div class="camera-wrap">
+                        <video id="task-video" autoplay muted playsinline class="camera-video"></video>
+                        <div class="camera-actions">
+                            <button class="btn-capture" @onclick="CaptureTaskPhotoAsync">📸 Tag billede</button>
+                            <button class="btn-cancel"  @onclick="CloseTaskCameraAsync">Annuller</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="add-row">
+                        <button class="btn-camera" @onclick="OpenTaskCameraAsync" title="Tag et billede af opgaven">📷</button>
+                        <input class="add-input" @bind="_taskText" @bind:event="oninput"
+                               placeholder="Hvad skal gøres?" @onkeydown="OnTaskKey" />
+                        <button class="btn-primary-sm" @onclick="AddTaskAsync"
+                                disabled="@(string.IsNullOrWhiteSpace(_taskText) && string.IsNullOrEmpty(_taskPreview))">
+                            Tilføj
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_taskPreview))
+                    {
+                        <div class="photo-preview-row">
+                            <img src="data:image/jpeg;base64,@_taskPreview" class="preview-thumb" />
+                            <span class="preview-label">Billede tilføjes</span>
+                            <button class="btn-remove-photo" @onclick="() => _taskPreview = string.Empty">Fjern</button>
+                        </div>
+                    }
+                }
+
                 @if (_tasks.Count == 0)
                 {
                     <div class="section-empty">Ingen opgaver i dag ✓</div>
@@ -90,7 +123,7 @@ else
             </div>
         </div>
 
-        <!-- ── Urgent notes / Husk i dag ──────────── -->
+        <!-- ── Husk i dag ──────────────────────────── -->
         <div class="today-card">
             <div class="today-card-header">
                 <span class="today-card-title">⚡ Husk i dag</span>
@@ -180,7 +213,7 @@ else
             </div>
         </div>
 
-        <!-- ── Mini FindIt ─────────────────────────── -->
+        <!-- ── Hvad har du lagt fra dig? ──────────── -->
         <div class="today-card">
             <div class="today-card-header">
                 <span class="today-card-title">📍 Hvad har du lagt fra dig?</span>
@@ -269,6 +302,11 @@ else
     private List<PersonalReminder> _reminders   = [];
     private List<FamilyStoredItem> _storedItems = [];
 
+    // Task add
+    private string _taskText    = "";
+    private bool   _taskCamera  = false;
+    private string _taskPreview = "";
+
     // Urgent
     private string _urgentText    = "";
     private string _urgentTimeStr = "";
@@ -334,7 +372,7 @@ else
                 .WithAutomaticReconnect()
                 .Build();
 
-            _hub.On<DailyTask>("TaskAdded",     t    => { _tasks.Add(t); InvokeAsync(StateHasChanged); });
+            _hub.On<DailyTask>("TaskAdded", t => { _tasks.Add(t); InvokeAsync(StateHasChanged); });
             _hub.On<Guid, string>("TaskClaimed", (id, by) =>
             {
                 var t = _tasks.FirstOrDefault(x => x.Id == id);
@@ -359,6 +397,61 @@ else
         catch { }
 
         StateHasChanged();
+    }
+
+    // ── Task camera ───────────────────────────────────────
+    private async Task OpenTaskCameraAsync()
+    {
+        _taskCamera = true; StateHasChanged();
+        await JS.InvokeVoidAsync("familyApp.startCamera", "task-video");
+    }
+
+    private async Task CaptureTaskPhotoAsync()
+    {
+        try { _taskPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); } catch { }
+        await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
+        _taskCamera = false; StateHasChanged();
+    }
+
+    private async Task CloseTaskCameraAsync()
+    {
+        await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
+        _taskCamera = false; StateHasChanged();
+    }
+
+    // ── Task add ──────────────────────────────────────────
+    private async Task OnTaskKey(KeyboardEventArgs e) { if (e.Key == "Enter") await AddTaskAsync(); }
+
+    private async Task AddTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_taskText) && string.IsNullOrEmpty(_taskPreview)) return;
+        try
+        {
+            string? imagePath = null;
+            if (!string.IsNullOrEmpty(_taskPreview))
+                imagePath = await SavePhotoAsync(_taskPreview, "tasks");
+
+            var task = new DailyTask
+            {
+                FamilyId  = _familyId,
+                Note      = _taskText.Trim(),
+                ImagePath = imagePath,
+                CreatedBy = _myName,
+                Date      = DateOnly.FromDateTime(DateTime.Today)
+            };
+            await TaskRepo.AddAsync(task);
+            _tasks.Add(task);
+
+            if (_hub?.State == HubConnectionState.Connected)
+                await _hub.SendAsync("TaskAdded", Slug, task);
+
+            _ = PushService.SendToFamilyAsync(_familyId, _myName, "📋 Ny opgave", $"{_myName}: {task.Note}");
+
+            _taskText    = "";
+            _taskPreview = "";
+            StateHasChanged();
+        }
+        catch { }
     }
 
     // ── Task actions ──────────────────────────────────────
@@ -397,8 +490,7 @@ else
 
     private async Task CaptureUrgentPhotoAsync()
     {
-        try { _urgentPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); }
-        catch { }
+        try { _urgentPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); } catch { }
         await JS.InvokeVoidAsync("familyApp.stopCamera", "urgent-video");
         _urgentCamera = false; StateHasChanged();
     }
@@ -459,8 +551,7 @@ else
 
     private async Task CaptureFindItPhotoAsync()
     {
-        try { _findItPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); }
-        catch { }
+        try { _findItPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); } catch { }
         await JS.InvokeVoidAsync("familyApp.stopCamera", "findit-video");
         _findItCamera = false; StateHasChanged();
     }
