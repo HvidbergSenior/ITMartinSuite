@@ -3,6 +3,11 @@ window.familyApp = {
     setSession:   function(slug, id) { localStorage.setItem('family_session_' + slug, id); localStorage.setItem('family_last_slug', slug); },
     clearSession: function(slug) { localStorage.removeItem('family_session_' + slug); localStorage.removeItem('family_last_slug'); },
     getLastSlug:  function() { return localStorage.getItem('family_last_slug') || ''; },
+    preventBackToJoin: function() {
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) window.location.reload();
+        }, { once: true });
+    },
     scrollChat:   function() { var el = document.getElementById('chat-messages'); if (el) el.scrollTop = el.scrollHeight; },
 
     capturePhoto: async function() {

@@ -12,9 +12,20 @@
 
 <body>
     <Routes />
-    <script src="js/family.js?v=4"></script>
-    <script src="_framework/blazor.web.js"></script>
-    <script>familyApp.registerServiceWorker();</script>
+    <script src="js/family.js?v=5"></script>
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    <script>
+        Blazor.start({
+            circuit: {
+                reconnectionOptions: {
+                    maxRetries: 30,
+                    retryIntervalMilliseconds: (previousAttempts, maxRetries) =>
+                        previousAttempts < 5 ? 1000 : 5000
+                }
+            }
+        });
+        familyApp.registerServiceWorker();
+    </script>
     <div id="components-reconnect-modal">
         <span class="reconnect-msg">🔄 Forbinder igen...</span>
         <span class="reconnect-failed-msg">😴 Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
