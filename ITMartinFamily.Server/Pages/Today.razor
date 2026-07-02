@@ -21,7 +21,7 @@
 
 <PageTitle>I dag</PageTitle>
 
-<link rel="stylesheet" href="css/family.css" />
+<link rel="stylesheet" href="css/family.css?v=2" />
 
 @if (!_ready)
 {
@@ -52,7 +52,7 @@ else
             }
             else
             {
-                @foreach (var task in _tasks.OrderBy(t => t.CompletedAt.HasValue).ThenBy(t => t.ClaimedBy is null ? 0 : 1).ThenBy(t => t.CreatedAt))
+                @foreach (var task in _tasks.ToList().OrderBy(t => t.CompletedAt.HasValue).ThenBy(t => t.ClaimedBy is null ? 0 : 1).ThenBy(t => t.CreatedAt))
                 {
                     <div class="today-task-card @(task.CompletedAt.HasValue ? "today-task-done" : "") @(task.ClaimedBy == _myName && !task.CompletedAt.HasValue ? "today-task-mine" : "")">
                         @if (!string.IsNullOrWhiteSpace(task.ImagePath) && File.Exists(task.ImagePath))
@@ -159,21 +159,29 @@ else
 
     private async Task ClaimAsync(DailyTask task)
     {
-        task.ClaimedBy = _myName;
-        task.ClaimedAt = DateTime.UtcNow;
-        await TaskRepo.UpdateAsync(task);
-        if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskClaimed", Slug, task.Id, _myName);
-        StateHasChanged();
+        try
+        {
+            task.ClaimedBy = _myName;
+            task.ClaimedAt = DateTime.UtcNow;
+            await TaskRepo.UpdateAsync(task);
+            if (_hub?.State == HubConnectionState.Connected)
+                await _hub.SendAsync("TaskClaimed", Slug, task.Id, _myName);
+            StateHasChanged();
+        }
+        catch { }
     }
 
     private async Task MarkDoneAsync(DailyTask task)
     {
-        task.CompletedAt = DateTime.UtcNow;
-        await TaskRepo.UpdateAsync(task);
-        if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskCompleted", Slug, task.Id);
-        StateHasChanged();
+        try
+        {
+            task.CompletedAt = DateTime.UtcNow;
+            await TaskRepo.UpdateAsync(task);
+            if (_hub?.State == HubConnectionState.Connected)
+                await _hub.SendAsync("TaskCompleted", Slug, task.Id);
+            StateHasChanged();
+        }
+        catch { }
     }
 
     private async Task Logout()
