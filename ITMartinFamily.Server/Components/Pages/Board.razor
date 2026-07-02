@@ -1,9 +1,10 @@
-@page "/f/{slug}"
+@page "/{slug}/opgaver"
 @rendermode InteractiveServer
 
 @using ITMartinFamily.Application.Interfaces
 @using ITMartinFamily.Domain.Entities
 @using ITMartinFamily.Infrastructure
+@using ITMartinFamily.Server.Services
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
@@ -13,10 +14,11 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ITMartinFamily.Application.Interfaces.IPushNotificationService PushService
+@inject ToastService Toast
 
 @implements IAsyncDisposable
 
-<PageTitle>@(_family?.Name ?? "Familie")</PageTitle>
+<PageTitle>@(_family?.Name ?? "Gruppen")</PageTitle>
 
 <link rel="stylesheet" href="css/family.css" />
 
@@ -30,7 +32,7 @@ else
 
         <div class="family-header">
             <div>
-                <h1 class="family-title">@(_family?.Name ?? "Familie")</h1>
+                <h1 class="family-title">@(_family?.Name ?? "Gruppen")</h1>
                 <div class="family-subtitle">@DateTime.Today.ToString("dddd d. MMMM") · Hej @_myName</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
@@ -104,6 +106,7 @@ else
                                 @if (task.ClaimedBy == _myName)
                                 {
                                     <button class="action-btn done-btn" @onclick="() => MarkDone(task)">Markér færdig ✓</button>
+                                    <button class="action-btn postpone-btn" @onclick="() => TryPostpone(task)">↷ Gør det i morgen</button>
                                 }
                             }
                             else
@@ -121,6 +124,8 @@ else
                 }
             </div>
         }
+
+        <BottomNav Slug="@Slug" Active="opgaver" />
 
         <!-- Chat -->
         <div class="chat-panel">
@@ -172,20 +177,20 @@ else
         var sessionStr = await JS.InvokeAsync<string?>("familyApp.getSession", Slug);
         if (string.IsNullOrEmpty(sessionStr) || !Guid.TryParse(sessionStr, out var sessionId))
         {
-            Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true);
+            Navigation.NavigateTo($"/{Slug}/join", forceLoad: true);
             return;
         }
 
         var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId);
-        if (session == null) { Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true); return; }
+        if (session == null) { Navigation.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
 
         _member = await Db.Members.FindAsync(session.MemberId);
-        if (_member == null) { Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true); return; }
+        if (_member == null) { Navigation.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
 
         _family = await Db.Families.FindAsync(_member.FamilyId);
         if (_family?.Slug != Slug)
         {
-            Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true);
+            Navigation.NavigateTo($"/{Slug}/join", forceLoad: true);
             return;
         }
         _myName   = _member.Name;
@@ -352,6 +357,19 @@ else
         StateHasChanged();
     }
 
+    private void TryPostpone(DailyTask task)
+    {
+        var messages = new[]
+        {
+            $"🙅 Nej, {_myName}! Opgaverne er til I DAG. Klar det nu – eller giv det videre til en anden.",
+            $"⚠️ 'I morgen' er ikke en mulighed! Du tog ansvaret – følg det.",
+            $"🚫 Ingen udsættelse! Enten gør {_myName} det nu, eller giver det til en anden.",
+            $"😤 Du satte dit navn på det! Klar det – eller giv det til nogen der KAN."
+        };
+        var msg = messages[Math.Abs(task.Id.GetHashCode()) % messages.Length];
+        Toast.Show(msg, "warn", 5000);
+    }
+
     private async Task DeleteTask(DailyTask task)
     {
         _tasks.Remove(task);
@@ -387,7 +405,7 @@ else
     private async Task Logout()
     {
         await JS.InvokeVoidAsync("familyApp.clearSession", Slug);
-        Navigation.NavigateTo($"/f/{Slug}/join", forceLoad: true);
+        Navigation.NavigateTo($"/{Slug}/join", forceLoad: true);
     }
 
     public async ValueTask DisposeAsync()

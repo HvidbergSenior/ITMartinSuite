@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject FamilyDbContext Db
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 @using ITMartinFamily.Domain.Entities
 @using ITMartinFamily.Infrastructure
 @using Microsoft.AspNetCore.Components.Web
@@ -11,27 +12,54 @@
 
 <div class="create-wrap">
     <div class="create-card">
-        <div style="font-size:48px;margin-bottom:12px">👨‍👩‍👧‍👦</div>
-        <h1 class="create-title">Opret familie</h1>
-        <p class="create-sub">Ét sted for hele familien</p>
+        <div style="font-size:48px;margin-bottom:12px">👥</div>
 
-        @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
+        @if (_showJoin)
+        {
+            <h1 class="create-title">Gå til din gruppe</h1>
+            <p class="create-sub">Skriv gruppenavnet for at logge ind</p>
 
-        <div class="create-field">
-            <label>Familienavn</label>
-            <input @bind="_name" placeholder="Familie Hansen" class="create-input" maxlength="100" />
-        </div>
-        <div class="create-field">
-            <label>Adgangskode</label>
-            <input @bind="_password" type="password" placeholder="Vælg en kode" class="create-input" maxlength="40" />
-            <div class="create-hint">Alle familiemedlemmer bruger denne kode for at logge ind.</div>
-        </div>
+            @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
 
-        <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">
-            @(_creating ? "Opretter..." : "Opret familie")
-        </button>
+            <div class="create-field">
+                <label>Gruppenavn</label>
+                <input @bind="_joinName" @onkeydown="OnJoinKey" placeholder="hvidberg" class="create-input" maxlength="100" />
+                <div class="create-hint">Skriv det navn du brugte da gruppen blev oprettet.</div>
+            </div>
 
-        <div class="create-footer">Har du allerede en familie? Gå til <strong>familie.itmartin.dk/f/dit-familienavn/join</strong></div>
+            <button class="create-btn" @onclick="GoToJoin" disabled="@_creating">
+                @(_creating ? "Finder..." : "Gå til login →")
+            </button>
+
+            <div class="create-footer">
+                Ingen gruppe endnu? <button class="create-link" @onclick="() => { _showJoin = false; _error = null; }">Opret en ny gruppe</button>
+            </div>
+        }
+        else
+        {
+            <h1 class="create-title">Opret en gruppe</h1>
+            <p class="create-sub">Til dig og din gruppe – fokus på i dag</p>
+
+            @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
+
+            <div class="create-field">
+                <label>Gruppenavn</label>
+                <input @bind="_name" placeholder="Hvidberg, Venner, Kontoret..." class="create-input" maxlength="100" />
+            </div>
+            <div class="create-field">
+                <label>Adgangskode</label>
+                <input @bind="_password" type="password" placeholder="Vælg en kode" class="create-input" maxlength="40" />
+                <div class="create-hint">Alle i gruppen bruger denne kode for at logge ind.</div>
+            </div>
+
+            <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">
+                @(_creating ? "Opretter..." : "Opret gruppe")
+            </button>
+
+            <div class="create-footer">
+                Har du allerede en gruppe? <button class="create-link" @onclick="() => { _showJoin = true; _error = null; }">Log ind her</button>
+            </div>
+        }
     </div>
 </div>
 
@@ -51,23 +79,48 @@
     .create-btn:hover:not(:disabled) { background: #1d4ed8; }
     .create-btn:disabled { opacity: .5; cursor: default; }
     .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f87171; margin-bottom: 16px; text-align: left; }
-    .create-footer { margin-top: 24px; font-size: 12px; color: #475569; line-height: 1.5; }
+    .create-footer { margin-top: 24px; font-size: 13px; color: #64748b; }
+    .create-link { background: none; border: none; color: #6366f1; cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0; }
 </style>
 
 @code {
-    private string _name = "", _password = "";
+    private string _name = "", _password = "", _joinName = "";
     private string? _error;
-    private bool _creating;
+    private bool _creating, _showJoin;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var slug = await JS.InvokeAsync<string?>("familyApp.getLastSlug");
+        if (!string.IsNullOrEmpty(slug))
+            Nav.NavigateTo($"/{slug}", forceLoad: true);
+    }
+
+    private async Task OnJoinKey(KeyboardEventArgs e) { if (e.Key == "Enter") await GoToJoin(); }
+
+    private async Task GoToJoin()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_joinName)) { _error = "Skriv gruppenavnet."; return; }
+        var slug = _joinName.ToLower().Trim().Replace(" ", "-");
+        slug = System.Text.RegularExpressions.Regex.Replace(slug, @"[^a-z0-9\-]", "");
+        _creating = true;
+        StateHasChanged();
+        var exists = await Db.Families.AnyAsync(f => f.Slug == slug);
+        _creating = false;
+        if (!exists) { _error = $"Ingen gruppe fundet med navnet \"{_joinName}\"."; return; }
+        Nav.NavigateTo($"/{slug}/join", forceLoad: true);
+    }
 
     private async Task CreateAsync()
     {
         _error = null;
-        if (string.IsNullOrWhiteSpace(_name))     { _error = "Skriv et familienavn."; return; }
+        if (string.IsNullOrWhiteSpace(_name))     { _error = "Skriv et gruppenavn."; return; }
         if (string.IsNullOrWhiteSpace(_password)) { _error = "Skriv en adgangskode."; return; }
 
         var slug = System.Text.RegularExpressions.Regex
             .Replace(_name.ToLower().Trim().Replace(" ", "-"), @"[^a-z0-9\-]", "");
-        if (string.IsNullOrWhiteSpace(slug)) { _error = "Familienavnet kan ikke bruges som adresse."; return; }
+        if (string.IsNullOrWhiteSpace(slug)) { _error = "Gruppenavnet kan ikke bruges som adresse."; return; }
 
         var baseSlug = slug;
         var counter = 2;
@@ -81,7 +134,7 @@
         {
             Db.Families.Add(new Family { Slug = slug, Name = _name.Trim(), Password = _password.Trim() });
             await Db.SaveChangesAsync();
-            Nav.NavigateTo($"/f/{slug}/join", forceLoad: true);
+            Nav.NavigateTo($"/{slug}/join", forceLoad: true);
         }
         catch (Exception ex)
         {

@@ -46,4 +46,5 @@ h1:focus {
 .toast-success { background:#22c55e; color:white; }
 .toast-error   { background:#ef4444; color:white; }
 .toast-info    { background:#3b82f6; color:white; }
+.toast-warn    { background:#f59e0b; color:#1a1a1a; font-size:.95rem; max-width:320px; }
 @keyframes toast-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }

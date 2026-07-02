@@ -1,0 +1,252 @@
+@page "/{slug}"
+@rendermode InteractiveServer
+
+@using ITMartinFamily.Application.Interfaces
+@using ITMartinFamily.Domain.Entities
+@using ITMartinFamily.Infrastructure
+@using ITMartinFamily.Server.Components
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@using System.Globalization
+
+@inject IDailyTaskRepository       TaskRepo
+@inject IPersonalReminderRepository ReminderRepo
+@inject FamilyDbContext             Db
+@inject NavigationManager           Nav
+@inject IJSRuntime                  JS
+
+@implements IAsyncDisposable
+
+<PageTitle>I dag</PageTitle>
+
+<link rel="stylesheet" href="css/family.css" />
+
+@if (!_ready)
+{
+    <div class="page-loading">Indlæser...</div>
+}
+else
+{
+    <div class="family-page">
+
+        <div class="today-header">
+            <div>
+                <div class="today-date">@DateTime.Today.ToString("dddd d. MMMM", new CultureInfo("da-DK"))</div>
+                <div class="today-greeting">Hej @_myName 👋</div>
+            </div>
+            <button class="logout-btn" @onclick="Logout">↩</button>
+        </div>
+
+        <!-- Personal reminders -->
+        <div class="section-card">
+            <div class="section-header">
+                <span class="section-title">📌 Glem ikke i dag</span>
+                <button class="add-tiny-btn" @onclick="() => _showAddReminder = !_showAddReminder">
+                    @(_showAddReminder ? "✕" : "+")
+                </button>
+            </div>
+
+            @if (_showAddReminder)
+            {
+                <div class="reminder-add-row">
+                    <input class="reminder-input" @bind="_newReminder" @onkeydown="OnReminderKey"
+                           placeholder="Hvad må du ikke glemme?" maxlength="200" autofocus />
+                    <button class="reminder-submit" @onclick="AddReminderAsync"
+                            disabled="@string.IsNullOrWhiteSpace(_newReminder)">Gem</button>
+                </div>
+            }
+
+            @if (_reminders.Count == 0)
+            {
+                <div class="section-empty">Ingen påmindelser i dag</div>
+            }
+            else
+            {
+                <div class="reminder-list">
+                    @foreach (var r in _reminders.OrderBy(r => r.Done).ThenBy(r => r.CreatedAt))
+                    {
+                        <div class="reminder-item @(r.Done ? "reminder-done" : "")">
+                            <button class="reminder-check" @onclick="() => ToggleReminderAsync(r)">
+                                @(r.Done ? "✅" : "☐")
+                            </button>
+                            <span class="reminder-text">@r.Text</span>
+                            <button class="reminder-del" @onclick="() => DeleteReminderAsync(r)">✕</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Shared tasks summary -->
+        <div class="section-card">
+            <div class="section-header">
+                <span class="section-title">📋 Fælles opgaver i dag</span>
+                <a href="/@Slug/opgaver" class="section-link">Alle →</a>
+            </div>
+
+            @{
+                var open = _tasks.Where(t => !t.CompletedAt.HasValue).ToList();
+                var done = _tasks.Where(t => t.CompletedAt.HasValue).ToList();
+            }
+
+            @if (_tasks.Count == 0)
+            {
+                <div class="section-empty">Ingen opgaver i dag ✓</div>
+            }
+            else
+            {
+                @foreach (var task in _tasks.OrderBy(t => t.CompletedAt.HasValue).ThenBy(t => t.CreatedAt).Take(6))
+                {
+                    <div class="today-task @(task.CompletedAt.HasValue ? "today-task-done" : "") @(task.ClaimedBy == _myName && !task.CompletedAt.HasValue ? "today-task-mine" : "")">
+                        @if (!string.IsNullOrWhiteSpace(task.ImagePath) && File.Exists(task.ImagePath))
+                        {
+                            <img src="/task-image/@task.Id" class="today-task-img" />
+                        }
+                        <div class="today-task-body">
+                            <div class="today-task-note">@task.Note</div>
+                            @if (task.CompletedAt.HasValue)
+                            {
+                                <div class="today-task-badge done-badge">✅ @task.ClaimedBy</div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(task.ClaimedBy))
+                            {
+                                <div class="today-task-badge claimed-badge">@task.ClaimedBy klarer det</div>
+                            }
+                            else
+                            {
+                                <div class="today-task-badge open-badge">Ingen taget den</div>
+                            }
+                        </div>
+                    </div>
+                }
+                @if (_tasks.Count > 6)
+                {
+                    <a href="/@Slug/opgaver" class="show-more-link">+ @(_tasks.Count - 6) flere opgaver →</a>
+                }
+                <div class="task-summary">
+                    <span class="summary-open">@open.Count åbne</span>
+                    <span class="summary-sep">·</span>
+                    <span class="summary-done">@done.Count færdige</span>
+                </div>
+            }
+        </div>
+
+    </div>
+
+    <BottomNav Slug="@Slug" Active="today" />
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Family?  _family;
+    private string   _myName = "";
+    private bool     _ready;
+
+    private List<DailyTask>        _tasks     = [];
+    private List<PersonalReminder> _reminders = [];
+
+    private bool   _showAddReminder;
+    private string _newReminder = "";
+
+    private HubConnection? _hub;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var sessionStr = await JS.InvokeAsync<string?>("familyApp.getSession", Slug);
+        if (string.IsNullOrEmpty(sessionStr) || !Guid.TryParse(sessionStr, out var sessionId))
+        { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId);
+        if (session is null) { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        var member = await Db.Members.FindAsync(session.MemberId);
+        if (member is null) { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        _family = await Db.Families.FindAsync(member.FamilyId);
+        if (_family?.Slug != Slug) { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        _myName   = member.Name;
+        _tasks    = await TaskRepo.GetTodayAsync(_family.Id);
+        _reminders = await ReminderRepo.GetTodayAsync(_family.Id, _myName);
+        _ready    = true;
+
+        var hubUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
+            ?.Split(';').FirstOrDefault()
+            ?.Replace("+", "localhost")
+            ?.Replace("*", "localhost")
+            ?? "http://localhost:8080";
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(hubUrl + "/hubs/family")
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<DailyTask>("TaskAdded",     t    => { _tasks.Add(t); InvokeAsync(StateHasChanged); });
+        _hub.On<Guid, string>("TaskClaimed", (id, by) =>
+        {
+            var t = _tasks.FirstOrDefault(x => x.Id == id);
+            if (t is not null) { t.ClaimedBy = by; t.ClaimedAt = DateTime.UtcNow; }
+            InvokeAsync(StateHasChanged);
+        });
+        _hub.On<Guid>("TaskCompleted", id =>
+        {
+            var t = _tasks.FirstOrDefault(x => x.Id == id);
+            if (t is not null) t.CompletedAt = DateTime.UtcNow;
+            InvokeAsync(StateHasChanged);
+        });
+        _hub.On<Guid>("TaskDeleted", id =>
+        {
+            _tasks.RemoveAll(x => x.Id == id);
+            InvokeAsync(StateHasChanged);
+        });
+
+        try { await _hub.StartAsync(); await _hub.SendAsync("JoinFamily", Slug); }
+        catch { }
+
+        StateHasChanged();
+    }
+
+    private async Task OnReminderKey(KeyboardEventArgs e) { if (e.Key == "Enter") await AddReminderAsync(); }
+
+    private async Task AddReminderAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newReminder) || _family is null) return;
+        var r = new PersonalReminder { FamilyId = _family.Id, MemberName = _myName, Text = _newReminder.Trim() };
+        await ReminderRepo.AddAsync(r);
+        _reminders.Add(r);
+        _newReminder     = "";
+        _showAddReminder = false;
+        StateHasChanged();
+    }
+
+    private async Task ToggleReminderAsync(PersonalReminder r)
+    {
+        r.Done = !r.Done;
+        await ReminderRepo.UpdateAsync(r);
+        StateHasChanged();
+    }
+
+    private async Task DeleteReminderAsync(PersonalReminder r)
+    {
+        _reminders.Remove(r);
+        await ReminderRepo.DeleteAsync(r.Id);
+        StateHasChanged();
+    }
+
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("familyApp.clearSession", Slug);
+        Nav.NavigateTo($"/{Slug}/join", forceLoad: true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null) await _hub.DisposeAsync();
+    }
+}

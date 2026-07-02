@@ -3,6 +3,7 @@
 @inject TestHubService Svc
 @inject NavigationManager Nav
 @inject ToastService Toast
+@inject IJSRuntime JS
 
 @if (_assignment is null)
 {
@@ -54,7 +55,8 @@ else
                     var isOpen = _openStepId == step.Id;
 
                     <div class="step-card @StatusClass(result) @(isOpen ? "step-open" : "")"
-                         @onclick="() => ToggleStep(step.Id)">
+                         id="step-@step.Id"
+                         @onclick="async () => await ToggleStep(step.Id)">
 
                         <div class="step-header">
                             <div class="step-status-icon">@StatusIcon(result)</div>
@@ -204,8 +206,17 @@ else
         }
     }
 
-    private void ToggleStep(Guid stepId) =>
+    private async Task ToggleStep(Guid stepId)
+    {
         _openStepId = _openStepId == stepId ? null : stepId;
+        var target = _openStepId;
+        if (target.HasValue)
+        {
+            await Task.Delay(80);
+            await JS.InvokeVoidAsync("eval",
+                $"document.getElementById('step-{target}')?.scrollIntoView({{behavior:'smooth',block:'nearest'}})");
+        }
+    }
 
     private async Task RecordResult(Guid stepId, StepStatus status)
     {

@@ -28,7 +28,7 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .idx-card-name{font-size:17px;font-weight:800}
 .idx-card-desc{font-size:13px;color:#94a3b8;line-height:1.6;flex:1}
 .idx-card-tag{font-size:11px;color:#475569;font-weight:600}
-.idx-card-url{font-size:11px;color:#1e40af;font-family:monospace;margin-top:4px;word-break:break-all}
+.idx-card-url{font-size:11px;color:#64b5f6;font-family:monospace;margin-top:4px;word-break:break-all}
 .idx-footer{text-align:center;font-size:13px;color:#1e293b;padding:32px 0 16px}
 @media(max-width:600px){.idx-title{font-size:28px}.idx-grid{grid-template-columns:1fr}.idx-hero{padding:40px 0 32px}}
 </style>
@@ -56,6 +56,18 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
         <div class="idx-preview" style="background:linear-gradient(135deg,#1a2820 0%,#0d4a2e 100%)"><div class="idx-preview-icon">🖼️</div><div class="idx-preview-label">Galleri</div></div>
         <div class="idx-card-body"><div class="idx-card-name">Galleri</div><div class="idx-card-desc">Gennemse og del dit billedgalleri. Støtter billeder og videoer, organiseret efter år og kategori. Kan deles med familie og venner via privat URL.</div><div class="idx-card-tag">Billeder · Video · Deling</div><div class="idx-card-url" id="url-gallery"></div></div>
       </a>
+      <a class="idx-card" id="link-curator" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#1a1a2a 0%,#2a2a5a 100%)"><div class="idx-preview-icon">🎬</div><div class="idx-preview-label">Curator</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Curator</div><div class="idx-card-desc">Kuratér og organiser dit mediebibliotek. Gennemgå film og videoer, marker favoritter og sæt kategorier på tværs af hele samlingen.</div><div class="idx-card-tag">Medier · Bibliotek · Organisering</div><div class="idx-card-url" id="url-curator"></div></div>
+      </a>
+      <a class="idx-card" id="link-scan" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#1a1015 0%,#3a1535 100%)"><div class="idx-preview-icon">📷</div><div class="idx-preview-label">Scan</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Scan</div><div class="idx-card-desc">Universel scanningsapp til at registrere og organisere genstande med kamera. Identificér, kategorisér og gem items i dit personlige register.</div><div class="idx-card-tag">Scanner · Registrering · AI</div><div class="idx-card-url" id="url-scan"></div></div>
+      </a>
+      <a class="idx-card" id="link-upload" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0a1a30 0%,#1a3060 100%)"><div class="idx-preview-icon">📤</div><div class="idx-preview-label">Upload</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Upload</div><div class="idx-card-desc">Kundeupload med drag &amp; drop. Del et personligt uploadlink, og modtag filer direkte til din NAS-mappe — ingen konto eller login kræves.</div><div class="idx-card-tag">Filer · Kunder · Drag &amp; Drop</div><div class="idx-card-url" id="url-upload"></div></div>
+      </a>
     </div>
   </div>
 
@@ -63,9 +75,13 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
   <div class="idx-category">
     <div class="idx-cat-header"><div class="idx-cat-line"></div><span class="idx-cat-label">Musik</span><div class="idx-cat-line"></div></div>
     <div class="idx-grid">
-      <a class="idx-card" href="http://10.0.0.126:8101" target="_blank">
+      <a class="idx-card" id="link-musik" href="#" target="_blank">
         <div class="idx-preview" style="background:linear-gradient(135deg,#1e1030 0%,#4a1a7a 100%)"><div class="idx-preview-icon">🎵</div><div class="idx-preview-label">Martin Musik</div></div>
-        <div class="idx-card-body"><div class="idx-card-name">Martin Musik</div><div class="idx-card-desc">Lyt til originaler og Martin's versioner, se sangtekster og skriv kommentarer. Kun for inviterede.</div><div class="idx-card-tag">Musik · Sange · Kommentarer</div><div class="idx-card-url">10.0.0.126:8101</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Martin Musik</div><div class="idx-card-desc">Øv dine egne sange med afspiller, tekst og akkorder synkroniseret. Transponer akkorder med ét tryk, og få AI-coaching til forbedring af tekster og fremførelse.</div><div class="idx-card-tag">Musik · Akkorder · AI Coach</div><div class="idx-card-url" id="url-musik"></div></div>
+      </a>
+      <a class="idx-card" id="link-musikStudio" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0d0820 0%,#2a1560 100%)"><div class="idx-preview-icon">🎛️</div><div class="idx-preview-label">Musik Studio</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Musik Studio</div><div class="idx-card-desc">Administrer og rediger din musiksamling. Tilføj sange, opdater tekster og akkorder, og organiser dit repertoire med avancerede redigeringsmuligheder.</div><div class="idx-card-tag">Musik · Redigering · Admin</div><div class="idx-card-url" id="url-musikStudio"></div></div>
       </a>
     </div>
   </div>
@@ -93,9 +109,25 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
         <div class="idx-preview" style="background:linear-gradient(135deg,#200a0a 0%,#6b1a1a 100%)"><div class="idx-preview-icon">🃏</div><div class="idx-preview-label">Magic</div></div>
         <div class="idx-card-body"><div class="idx-card-name">Magic</div><div class="idx-card-desc">Scan og administrer din Magic: The Gathering kortsamling. Brug kamera til at registrere kort, se samlingsværdi og søg i alle dine kort.</div><div class="idx-card-tag">MTG · Samling · Scanner</div><div class="idx-card-url" id="url-magic"></div></div>
       </a>
+      <a class="idx-card" id="link-magicCollection" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#150505 0%,#400d0d 100%)"><div class="idx-preview-icon">👁️</div><div class="idx-preview-label">Magic Samling</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Magic Samling</div><div class="idx-card-desc">Vis din Magic: The Gathering samling som et læsbart katalog. Del dit kortbibliotek med andre uden at give adgang til at redigere.</div><div class="idx-card-tag">MTG · Samling · Deling</div><div class="idx-card-url" id="url-magicCollection"></div></div>
+      </a>
       <a class="idx-card" id="link-library" href="#" target="_blank">
-        <div class="idx-preview" style="background:linear-gradient(135deg,#0a1a30 0%,#1a3a6a 100%)"><div class="idx-preview-icon">📚</div><div class="idx-preview-label">Bibliotek</div></div>
-        <div class="idx-card-body"><div class="idx-card-name">Bibliotek</div><div class="idx-card-desc">Registrer og hold styr på din samling af bøger, DVD'er og tegneserier. Scan stregkoder og hent automatisk info om titler og forfattere.</div><div class="idx-card-tag">Bøger · DVD · Tegneserier</div><div class="idx-card-url" id="url-library"></div></div>
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0a1a30 0%,#1a3a6a 100%)"><div class="idx-preview-icon">📚</div><div class="idx-preview-label">Scan Bøger</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Scan Bøger</div><div class="idx-card-desc">Scan en hel bogreol med kameraet — AI identificerer automatisk bøgerne og registrerer dem i dit bibliotek.</div><div class="idx-card-tag">Bøger · AI · Kamera</div><div class="idx-card-url" id="url-library"></div></div>
+      </a>
+      <a class="idx-card" id="link-librarySearch" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0a1520 0%,#0a3050 100%)"><div class="idx-preview-icon">🔍</div><div class="idx-preview-label">Søg Bøger</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Søg Bøger</div><div class="idx-card-desc">Søg i alle bøger identificeret fra scannede bogreoler. Find hurtigt en titel eller forfatter på tværs af hele samlingen.</div><div class="idx-card-tag">Bøger · Søgning · Samling</div><div class="idx-card-url" id="url-librarySearch"></div></div>
+      </a>
+      <a class="idx-card" id="link-magazine" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#1a1000 0%,#4a2d00 100%)"><div class="idx-preview-icon">📰</div><div class="idx-preview-label">Blade</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Blade</div><div class="idx-card-desc">Scan og registrer dine blade og magasiner med kameraet. Hold styr på din samling og find nemt tilbage til specifikke udgaver og artikler.</div><div class="idx-card-tag">Blade · Scanner · Samling</div><div class="idx-card-url" id="url-magazine"></div></div>
+      </a>
+      <a class="idx-card" id="link-magazineSearch" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#120d00 0%,#362000 100%)"><div class="idx-preview-icon">🔎</div><div class="idx-preview-label">Søg Blade</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Søg Blade</div><div class="idx-card-desc">Søg i din magasinsamling. Find hurtigt en specifik udgave eller et bestemt emne på tværs af hele din samling af blade.</div><div class="idx-card-tag">Blade · Søgning · Samling</div><div class="idx-card-url" id="url-magazineSearch"></div></div>
       </a>
     </div>
   </div>
@@ -105,16 +137,16 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
     <div class="idx-cat-header"><div class="idx-cat-line"></div><span class="idx-cat-label">Familie &amp; Fællesskab</span><div class="idx-cat-line"></div></div>
     <div class="idx-grid">
       <a class="idx-card" id="link-family" href="#" target="_blank">
-        <div class="idx-preview" style="background:linear-gradient(135deg,#1a1020 0%,#4a2060 100%)"><div class="idx-preview-icon">🏠</div><div class="idx-preview-label">Familie</div></div>
-        <div class="idx-card-body"><div class="idx-card-name">Familie</div><div class="idx-card-desc">Fælles opgavetavle for hele familien. Tilføj, tag og afslut opgaver sammen. Alle kan se hvad der mangler og hvem der gør hvad.</div><div class="idx-card-tag">Familie · Opgaver · Planlægning</div><div class="idx-card-url" id="url-family"></div></div>
+        <div class="idx-preview" style="background:linear-gradient(135deg,#1a1020 0%,#4a2060 100%)"><div class="idx-preview-icon">📋</div><div class="idx-preview-label">Idag</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Idag</div><div class="idx-card-desc">Fælles opgavetavle for din gruppe — fokus på nu og i dag. Tilføj opgaver, tag dem og afslut dem. Perfekt til familier og små grupper der vil have styr på hverdagen.</div><div class="idx-card-tag">Grupper · Opgaver · I dag</div><div class="idx-card-url" id="url-family"></div></div>
       </a>
       <a class="idx-card" id="link-adhd" href="#" target="_blank">
         <div class="idx-preview" style="background:linear-gradient(135deg,#1a2030 0%,#1a4060 100%)"><div class="idx-preview-icon">🔍</div><div class="idx-preview-label">FindIt</div></div>
-        <div class="idx-card-body"><div class="idx-card-name">FindIt</div><div class="idx-card-desc">Husk hvor du lagde tingene. Beskriv en genstand og find den igen med en hurtig søgning. Perfekt til dem der glemmer tingenes plads.</div><div class="idx-card-tag">ADHD · Huskeseddel · Genstande</div><div class="idx-card-url" id="url-adhd"></div></div>
+        <div class="idx-card-body"><div class="idx-card-name">FindIt</div><div class="idx-card-desc">Husk hvor du lagde tingene. Tag et billede og beskriv en genstand — find den igen med en hurtig søgning. Perfekt til dem der glemmer tingenes plads.</div><div class="idx-card-tag">ADHD · Huskeseddel · Genstande</div><div class="idx-card-url" id="url-adhd"></div></div>
       </a>
-      <a class="idx-card" href="http://10.0.0.126:8102" target="_blank">
+      <a class="idx-card" id="link-club" href="#" target="_blank">
         <div class="idx-preview" style="background:linear-gradient(135deg,#101a20 0%,#1a3a50 100%)"><div class="idx-preview-icon">🤝</div><div class="idx-preview-label">Club</div></div>
-        <div class="idx-card-body"><div class="idx-card-name">Club</div><div class="idx-card-desc">Fælles platform for grupper og foreninger. Del vigtige dokumenter, planlæg begivenheder og skriv opslag — alt samlet ét sted.</div><div class="idx-card-tag">Forening · Dokumenter · Kalender</div><div class="idx-card-url">10.0.0.126:8102</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Club</div><div class="idx-card-desc">Fælles platform for grupper og foreninger. Del vigtige dokumenter med læsekvittering, planlæg begivenheder, sæt opgaver og skriv opslag — alt samlet ét sted.</div><div class="idx-card-tag">Forening · Dokumenter · Kalender</div><div class="idx-card-url" id="url-club"></div></div>
       </a>
     </div>
   </div>
@@ -129,11 +161,52 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
       </a>
       <a class="idx-card" id="link-auction" href="#" target="_blank">
         <div class="idx-preview" style="background:linear-gradient(135deg,#1a0a00 0%,#5a2000 100%)"><div class="idx-preview-icon">🔨</div><div class="idx-preview-label">Auktion</div></div>
-        <div class="idx-card-body"><div class="idx-card-name">Auktion</div><div class="idx-card-desc">Afhold live auktioner med realtidsbud. Opret genstande med billeder og startbud — deltagere byder fra deres telefon.</div><div class="idx-card-tag">Auktion · Bud · Live</div><div class="idx-card-url" id="url-auction"></div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Auktion</div><div class="idx-card-desc">Afhold live auktioner med realtidsbud. Opret genstande med billeder og startbud — deltagere byder fra deres telefon og vinder ved højeste bud.</div><div class="idx-card-tag">Auktion · Bud · Live</div><div class="idx-card-url" id="url-auction"></div></div>
       </a>
       <a class="idx-card" id="link-market" href="#" target="_blank">
         <div class="idx-preview" style="background:linear-gradient(135deg,#001a10 0%,#004a30 100%)"><div class="idx-preview-icon">🏪</div><div class="idx-preview-label">Marked</div></div>
-        <div class="idx-card-body"><div class="idx-card-name">Marked</div><div class="idx-card-desc">Køb og sælg ting i dit netværk. Upload billeder, sæt en pris og kommuniker direkte med sælger.</div><div class="idx-card-tag">Køb · Salg · Netværk</div><div class="idx-card-url" id="url-market"></div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Marked</div><div class="idx-card-desc">Køb og sælg ting i dit netværk. Upload billeder, sæt en pris eller byd-knap, og kommuniker direkte med sælger. Markér som solgt når handlen er i hus.</div><div class="idx-card-tag">Køb · Salg · Netværk</div><div class="idx-card-url" id="url-market"></div></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- AI Værktøjer -->
+  <div class="idx-category">
+    <div class="idx-cat-header"><div class="idx-cat-line"></div><span class="idx-cat-label">AI Værktøjer</span><div class="idx-cat-line"></div></div>
+    <div class="idx-grid">
+      <a class="idx-card" id="link-imageGen" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0d0820 0%,#2d1060 100%)"><div class="idx-preview-icon">🎨</div><div class="idx-preview-label">Billedgenerator</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Billedgenerator</div><div class="idx-card-desc">Beskriv et billede med ord — AI genererer det. Tilpas med feedback, sæt en bestemt person ind med et foto, og gem det færdige billede til din webshop.</div><div class="idx-card-tag">AI · Billeder · Webshop</div><div class="idx-card-url" id="url-imageGen"></div></div>
+      </a>
+      <a class="idx-card" id="link-cloudOverblik" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0a1520 0%,#0a2040 100%)"><div class="idx-preview-icon">☁️</div><div class="idx-preview-label">Cloud Overblik</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">Cloud Overblik</div><div class="idx-card-desc">Kortlæg din virksomheds cloud-aftaler med en guidet wizard. Få overblik over abonnementer, udgifter og besparelsesmuligheder — og book en gratis rådgivning.</div><div class="idx-card-tag">Cloud · Erhverv · Overblik</div><div class="idx-card-url" id="url-cloudOverblik"></div></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Spil & Gaming -->
+  <div class="idx-category">
+    <div class="idx-cat-header"><div class="idx-cat-line"></div><span class="idx-cat-label">Spil &amp; Gaming</span><div class="idx-cat-line"></div></div>
+    <div class="idx-grid">
+      <a class="idx-card" id="link-r6Assistant" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0a1520 0%,#0a3040 100%)"><div class="idx-preview-icon">🎮</div><div class="idx-preview-label">R6 Assistant</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">R6 Assistant</div><div class="idx-card-desc">Din personlige assistent til Rainbow Six Siege. Hold styr på operatorer, strategier og holdkonfigurationer til dine næste matches.</div><div class="idx-card-tag">R6 · Spil · Strategi</div><div class="idx-card-url" id="url-r6Assistant"></div></div>
+      </a>
+      <a class="idx-card" id="link-r6Intel" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0d0a1a 0%,#1a1040 100%)"><div class="idx-preview-icon">🕵️</div><div class="idx-preview-label">R6 Intel</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">R6 Intel</div><div class="idx-card-desc">Real-time intel og statistik til Rainbow Six Siege. Analysér modstanderens operatorer og styrk din forberedelse til ranked-matches.</div><div class="idx-card-tag">R6 · Intel · Statistik</div><div class="idx-card-url" id="url-r6Intel"></div></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Kvalitetssikring -->
+  <div class="idx-category">
+    <div class="idx-cat-header"><div class="idx-cat-line"></div><span class="idx-cat-label">Kvalitetssikring</span><div class="idx-cat-line"></div></div>
+    <div class="idx-grid">
+      <a class="idx-card" id="link-testHub" href="#" target="_blank">
+        <div class="idx-preview" style="background:linear-gradient(135deg,#0a1a10 0%,#1a4020 100%)"><div class="idx-preview-icon">🧪</div><div class="idx-preview-label">TestHub</div></div>
+        <div class="idx-card-body"><div class="idx-card-name">TestHub</div><div class="idx-card-desc">Koordiner manuelle tests af alle ITMartin-apps. Opret testrunder, tildel opgaver og følg feedback og resultater — alt ét sted.</div><div class="idx-card-tag">Test · Kvalitet · Feedback</div><div class="idx-card-url" id="url-testHub"></div></div>
       </a>
     </div>
   </div>
@@ -143,6 +216,7 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 
 <script>
 (async () => {
+  try {
   const res   = await fetch('/api/links');
   const links = await res.json();
   const set = (key) => {
@@ -153,7 +227,16 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
       if (u) u.textContent = links[key].replace(/^https?:\/\//, '');
     }
   };
-  ['fileSorter','gallery','budget','receipt','magic','library','family','adhd','bartab','auction','market','testHub'].forEach(set);
+  ['fileSorter','gallery','curator','scan','upload',
+   'musik','musikStudio',
+   'budget','receipt',
+   'magic','magicCollection','library','librarySearch','magazine','magazineSearch',
+   'family','adhd','club',
+   'bartab','auction','market',
+   'imageGen','cloudOverblik',
+   'r6Assistant','r6Intel',
+   'testHub'].forEach(set);
+  } catch (_) { /* links stay as # if fetch fails */ }
 })();
 </script>
 </body>

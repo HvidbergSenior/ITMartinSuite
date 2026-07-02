@@ -26,7 +26,7 @@ services:
       - Apps__LibraryUrl=https://scan-books.itmartin.dk
       - Apps__LibrarySearchUrl=https://search-books.itmartin.dk
       - Apps__AdhdUrl=https://adhd.itmartin.dk
-      - Apps__FamilyUrl=https://familie.itmartin.dk
+      - Apps__FamilyUrl=https://idag.itmartin.dk
       - Apps__MarketUrl=https://market.itmartin.dk
       - Apps__BarTabUrl=https://bartab.itmartin.dk
       - Apps__AuctionUrl=https://auction.itmartin.dk
@@ -44,6 +44,8 @@ services:
       - Apps__R6AssistantUrl=https://r6.itmartin.dk
       - Apps__R6IntelUrl=https://r6intel.itmartin.dk
       - Apps__ImageGenUrl=https://imagegen.itmartin.dk
+      - Apps__CloudOverblikUrl=https://cloudoverblik.itmartin.dk
+      - Apps__UploadUrl=https://upload.itmartin.dk
 
     restart: unless-stopped
 
@@ -587,6 +589,36 @@ services:
       - martinnet
 
   # =========================================================
+  # CLOUD OVERBLIK — Public cloud audit wizard + lead capture
+  #   cloudoverblik.itmartin.dk  →  http://cloudoverblik-web:8080
+  # =========================================================
+
+  cloudoverblik-web:
+    container_name: cloudoverblik-web
+    image: cloudoverblik-web
+    profiles: [manual]
+
+    build:
+      context: .
+      dockerfile: ./ITMartinCloudOverblik.Server/Dockerfile
+
+    ports:
+      - "8108:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__CloudDb=Data Source=/app/data/cloud.db
+      - CloudAdmin__Pin=sky2025
+
+    volumes:
+      - /volume1/docker/martinsuite/cloudoverblik/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # TESTHUB
   # =========================================================
 
@@ -856,6 +888,35 @@ services:
 
     volumes:
       - /volume1/docker/martinsuite/scan/data:/app/data
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # UPLOAD — Customer file upload (drag & drop → NAS folder)
+  #   upload.itmartin.dk/upload/{slug}
+  # =========================================================
+
+  upload-web:
+    container_name: upload-web
+    image: upload-web
+    profiles: [manual]
+
+    build:
+      context: .
+      dockerfile: ./ITMartinUpload.Server/Dockerfile
+
+    ports:
+      - "8109:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - UploadRoot=/app/data
+
+    volumes:
+      - /volume1/docker/martinsuite/upload/data:/app/data
 
     restart: unless-stopped
 

@@ -28,7 +28,7 @@ public sealed class PushNotificationService(
     private async Task SendAsync(IEnumerable<Domain.Entities.PushSubscription> subs, string title, string body)
     {
         var (publicKey, privateKey) = vapid.Load();
-        var vapidDetails = new VapidDetails("https://familie.itmartin.dk", publicKey, privateKey);
+        var vapidDetails = new VapidDetails("https://idag.itmartin.dk", publicKey, privateKey);
         var payload = JsonSerializer.Serialize(new { title, body });
         var client = new WebPushClient();
 

@@ -6,12 +6,12 @@ public sealed class ToastService
     public IReadOnlyList<ToastMessage> Toasts => _toasts;
     public event Action? OnChange;
 
-    public void Show(string text, string type = "success")
+    public void Show(string text, string type = "success", int durationMs = 3000)
     {
         var toast = new ToastMessage(Guid.NewGuid(), text, type);
         _toasts.Add(toast);
         OnChange?.Invoke();
-        _ = Task.Delay(3000).ContinueWith(_ =>
+        _ = Task.Delay(durationMs).ContinueWith(_ =>
         {
             _toasts.Remove(toast);
             OnChange?.Invoke();

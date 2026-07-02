@@ -1,0 +1,360 @@
+@page "/{slug}/findit"
+@rendermode InteractiveServer
+
+@using ITMartinFamily.Application.Interfaces
+@using ITMartinFamily.Domain.Entities
+@using ITMartinFamily.Infrastructure
+@using ITMartinFamily.Server.Components
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+
+@inject IFamilyStoredItemRepository ItemRepo
+@inject IFamilyClaudeService         Claude
+@inject FamilyDbContext              Db
+@inject NavigationManager            Nav
+@inject IJSRuntime                   JS
+
+<PageTitle>FindIt</PageTitle>
+
+<link rel="stylesheet" href="css/family.css" />
+
+@if (!_ready)
+{
+    <div class="page-loading">Indlæser...</div>
+}
+else
+{
+    <div class="family-page">
+
+        <div class="findit-header">
+            <h1 class="findit-title">🔍 FindIt</h1>
+            <div class="findit-sub">Familiens @_family?.Name</div>
+        </div>
+
+        <!-- Search -->
+        <div class="findit-search-wrap">
+            <input class="findit-search" type="search"
+                   placeholder="Hvor er mine/mine...?"
+                   value="@_query"
+                   @oninput="OnSearch"
+                   autocomplete="off" />
+        </div>
+
+        @if (_isSearching)
+        {
+            <!-- Search results -->
+            @if (_results.Count == 0)
+            {
+                <div class="findit-empty">
+                    <div style="font-size:40px">🤷</div>
+                    <div>Intet fundet for "@_query"</div>
+                    <button class="findit-add-btn" @onclick="StartRegister">Registrér det nu</button>
+                </div>
+            }
+            else
+            {
+                <div class="findit-results">
+                    @foreach (var item in _results)
+                    {
+                        <div class="findit-card" @key="item.Id">
+                            @if (item.PhotoPath is not null && File.Exists(item.PhotoPath))
+                            {
+                                <img class="findit-thumb" src="/findit-photo/@item.Id" alt="@item.Name" />
+                            }
+                            <div class="findit-card-body">
+                                <div class="findit-item-name">@item.Name</div>
+                                <div class="findit-item-loc">📍 @item.Location</div>
+                                @if (!string.IsNullOrWhiteSpace(item.Notes))
+                                {
+                                    <div class="findit-item-notes">@item.Notes</div>
+                                }
+                                <div class="findit-item-time">@TimeAgo(item.UpdatedAt)</div>
+                            </div>
+                            <button class="findit-del" @onclick="() => AskDelete(item.Id)">
+                                @(_deleteId == item.Id ? "✓?" : "×")
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <!-- Register panel -->
+            @if (_showRegister)
+            {
+                <div class="findit-register-card">
+                    <div class="findit-register-title">Registrér genstand</div>
+
+                    @if (_showAi)
+                    {
+                        <textarea class="findit-ai-input" rows="2"
+                                  placeholder='Beskriv det: "mine nøgler er på køkkenbordet"'
+                                  @bind="_aiInput"></textarea>
+                        <div class="findit-register-actions">
+                            <button class="btn-secondary" @onclick="() => _showAi = false">Manuel</button>
+                            <button class="btn-primary" @onclick="SaveAiAsync"
+                                    disabled="@(_saving || string.IsNullOrWhiteSpace(_aiInput))">
+                                @(_saving ? "Gemmer..." : "Gem")
+                            </button>
+                        </div>
+                    }
+                    else if (_cameraOpen)
+                    {
+                        <div style="position:relative">
+                            <video id="findit-video" autoplay muted playsinline
+                                   style="width:100%;border-radius:12px;"></video>
+                            <button class="capture-btn" @onclick="CapturePhotoAsync">Tag billede</button>
+                        </div>
+                    }
+                    else
+                    {
+                        @if (!string.IsNullOrEmpty(_previewImage))
+                        {
+                            <img src="data:image/jpeg;base64,@_previewImage" class="preview-img" />
+                            <div class="findit-photo-hint">AI analyserer billedet automatisk ved gem</div>
+                        }
+                        <input class="findit-field" placeholder="Hvad? (nøgler, briller, pas...)"
+                               @bind="_itemName" @onkeydown="OnFieldKey" />
+                        <input class="findit-field" placeholder="Hvor? (køkkenbord, bil, entré...)"
+                               @bind="_itemLocation" @onkeydown="OnFieldKey" />
+                        <input class="findit-field" placeholder="Noter (valgfrit)"
+                               @bind="_itemNotes" />
+                        <div class="findit-register-actions">
+                            <button class="btn-secondary" @onclick="() => _showAi = true">AI-input</button>
+                            <button class="btn-secondary" @onclick="OpenCameraAsync">📷 Foto</button>
+                            <button class="btn-primary" @onclick="SaveManualAsync"
+                                    disabled="@(_saving || string.IsNullOrWhiteSpace(_itemName) || string.IsNullOrWhiteSpace(_itemLocation))">
+                                @(_saving ? "Gemmer..." : "Gem")
+                            </button>
+                        </div>
+                    }
+
+                    @if (_savedFlash) { <div class="findit-flash">✅ Gemt!</div> }
+                    @if (!string.IsNullOrEmpty(_error)) { <div class="findit-error">@_error</div> }
+                </div>
+            }
+            else
+            {
+                <button class="findit-add-big" @onclick="StartRegister">
+                    <span style="font-size:28px">+</span>
+                    <span>Registrér en genstand</span>
+                </button>
+            }
+
+            <!-- Recent items -->
+            <div class="findit-recent-title">Senest registrerede</div>
+            @if (_recent.Count == 0)
+            {
+                <div class="section-empty">Intet registreret endnu</div>
+            }
+            else
+            {
+                <div class="findit-results">
+                    @foreach (var item in _recent)
+                    {
+                        <div class="findit-card" @key="item.Id">
+                            @if (item.PhotoPath is not null && File.Exists(item.PhotoPath))
+                            {
+                                <img class="findit-thumb" src="/findit-photo/@item.Id" alt="@item.Name" />
+                            }
+                            <div class="findit-card-body">
+                                <div class="findit-item-name">@item.Name</div>
+                                <div class="findit-item-loc">📍 @item.Location</div>
+                                @if (!string.IsNullOrWhiteSpace(item.Notes))
+                                {
+                                    <div class="findit-item-notes">@item.Notes</div>
+                                }
+                                <div class="findit-item-time">@TimeAgo(item.UpdatedAt)</div>
+                            </div>
+                            @if (_deleteId == item.Id)
+                            {
+                                <button class="findit-del-confirm" @onclick="() => ConfirmDelete(item.Id)">✓</button>
+                                <button class="findit-del" @onclick="() => _deleteId = null">✕</button>
+                            }
+                            else
+                            {
+                                <button class="findit-del" @onclick="() => AskDelete(item.Id)">×</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+    </div>
+
+    <BottomNav Slug="@Slug" Active="findit" />
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Family? _family;
+    private bool    _ready;
+
+    private string                _query    = "";
+    private bool                  _isSearching => !string.IsNullOrWhiteSpace(_query);
+    private List<FamilyStoredItem> _results = [];
+    private List<FamilyStoredItem> _recent  = [];
+    private CancellationTokenSource? _searchCts;
+
+    private bool   _showRegister;
+    private bool   _showAi;
+    private bool   _cameraOpen;
+    private string _aiInput      = "";
+    private string _itemName     = "";
+    private string _itemLocation = "";
+    private string _itemNotes    = "";
+    private string _previewImage = "";
+    private bool   _saving;
+    private bool   _savedFlash;
+    private string _error  = "";
+    private Guid?  _deleteId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var sessionStr = await JS.InvokeAsync<string?>("familyApp.getSession", Slug);
+        if (string.IsNullOrEmpty(sessionStr) || !Guid.TryParse(sessionStr, out var sessionId))
+        { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId);
+        if (session is null) { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        var member = await Db.Members.FindAsync(session.MemberId);
+        if (member is null) { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        _family = await Db.Families.FindAsync(member.FamilyId);
+        if (_family?.Slug != Slug) { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
+
+        _recent = await ItemRepo.GetRecentAsync(_family.Id);
+        _ready  = true;
+        StateHasChanged();
+    }
+
+    private async Task OnSearch(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(_query)) { _results = []; return; }
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var ct = _searchCts.Token;
+        try
+        {
+            await Task.Delay(300, ct);
+            _results = await ItemRepo.SearchAsync(_family!.Id, _query, ct);
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void StartRegister()
+    {
+        _showRegister = true;
+        _error = "";
+        StateHasChanged();
+    }
+
+    private async Task OnFieldKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SaveManualAsync(); }
+
+    private async Task SaveManualAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_itemName) || string.IsNullOrWhiteSpace(_itemLocation)) return;
+        string? photoPath = null;
+        if (!string.IsNullOrEmpty(_previewImage))
+            photoPath = await SavePhotoAsync(_previewImage);
+        await DoSave(_itemName.Trim(), _itemLocation.Trim(), string.IsNullOrWhiteSpace(_itemNotes) ? null : _itemNotes.Trim(), photoPath);
+        _itemName = _itemLocation = _itemNotes = _previewImage = "";
+    }
+
+    private async Task SaveAiAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_aiInput)) return;
+        _saving = true; _error = ""; StateHasChanged();
+        var (name, loc, ok) = await Claude.ParseItemAsync(_aiInput);
+        if (!ok) { _error = "Kunne ikke forstå det. Prøv: \"mine nøgler er på køkkenbordet\""; _saving = false; return; }
+        await DoSave(name, loc, null, null);
+        _aiInput = "";
+        _showAi  = false;
+    }
+
+    private async Task DoSave(string name, string location, string? notes, string? photoPath)
+    {
+        _saving = true; _error = ""; StateHasChanged();
+        try
+        {
+            var saved = await ItemRepo.SaveAsync(_family!.Id, name, location, notes, photoPath);
+            var ex = _recent.FirstOrDefault(x => x.Id == saved.Id);
+            if (ex is not null) _recent.Remove(ex);
+            _recent.Insert(0, saved);
+            if (_recent.Count > 20) _recent.RemoveAt(20);
+            _savedFlash   = true;
+            _showRegister = false;
+            StateHasChanged();
+            await Task.Delay(1500);
+            _savedFlash = false;
+        }
+        finally { _saving = false; StateHasChanged(); }
+    }
+
+    private async Task OpenCameraAsync()
+    {
+        _cameraOpen = true;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("familyApp.startCamera", "findit-video");
+    }
+
+    private async Task CapturePhotoAsync()
+    {
+        try
+        {
+            _previewImage = await JS.InvokeAsync<string>("familyApp.capturePhoto");
+            await JS.InvokeVoidAsync("familyApp.stopCamera", "findit-video");
+            _cameraOpen = false;
+
+            // Auto-fill name/location via AI from photo
+            _saving = true; StateHasChanged();
+            var bytes = Convert.FromBase64String(_previewImage);
+            var (name, loc, ok) = await Claude.AnalyzePhotoAsync(bytes, "image/jpeg");
+            if (ok) { _itemName = name; _itemLocation = loc; }
+            _saving = false;
+        }
+        catch { _cameraOpen = false; }
+        StateHasChanged();
+    }
+
+    private async Task<string?> SavePhotoAsync(string base64)
+    {
+        var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "findit-photos");
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+        await File.WriteAllBytesAsync(path, Convert.FromBase64String(base64));
+        return path;
+    }
+
+    private void AskDelete(Guid id) => _deleteId = id;
+
+    private async Task ConfirmDelete(Guid id)
+    {
+        _deleteId = null;
+        await ItemRepo.DeleteAsync(id);
+        _recent.RemoveAll(x => x.Id == id);
+        _results.RemoveAll(x => x.Id == id);
+        StateHasChanged();
+    }
+
+    private static string TimeAgo(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt;
+        if (diff.TotalMinutes < 1)  return "lige nu";
+        if (diff.TotalHours   < 1)  return $"{(int)diff.TotalMinutes} min siden";
+        if (diff.TotalDays    < 1)  return $"{(int)diff.TotalHours} timer siden";
+        if (diff.TotalDays    < 7)  return $"{(int)diff.TotalDays} dage siden";
+        return dt.ToLocalTime().ToString("d. MMM");
+    }
+}

@@ -3,7 +3,6 @@
 
 @inject FalAiService FalAi
 @inject ClaudePromptService Claude
-@inject ImageStorageService Storage
 
 <PageTitle>Billedgenerator</PageTitle>
 
@@ -13,67 +12,214 @@
         <div class="studio-logo">🎨</div>
         <div>
             <div class="studio-title">Billedgenerator</div>
-            <div class="studio-sub">Beskriv · Generér · Tilpas</div>
+            <div class="studio-sub">AI-billedværktøjer samlet ét sted</div>
         </div>
     </div>
+
+    <!-- Feature tabs -->
+    <div class="mode-tabs">
+        @foreach (var m in Modes)
+        {
+            <button class="mode-tab @(_mode == m.Id ? "active" : "")"
+                    @onclick="() => { _mode = m.Id; _error = null; }">
+                <span class="mode-tab-icon">@m.Icon</span>
+                <span class="mode-tab-label">@m.Name</span>
+            </button>
+        }
+    </div>
+
+    <!-- Mode description -->
+    <div class="mode-desc">@CurrentMode.Description</div>
 
     <div class="studio-body">
 
         <!-- LEFT: Controls -->
         <div class="studio-controls">
 
-            <!-- Step 1: Describe -->
-            <div class="ctrl-section">
-                <div class="ctrl-label">1 · Beskriv billedet</div>
-                <textarea class="ctrl-textarea" @bind="_description"
-                          placeholder="F.eks.: En mand der jonglerer med 3 bolde – rød, blå og grøn – hvid baggrund"
-                          rows="4" disabled="@_busy"></textarea>
-                <button class="btn btn-primary" @onclick="GenerateAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_description))">
-                    @if (_busy && _phase == Phase.Generating) { <span class="spinner"></span> } @("Generér billede")
-                </button>
-            </div>
-
-            @if (_currentImageUrl is not null)
+            @if (_mode == Mode.Generate)
             {
-                <!-- Step 2: Feedback -->
                 <div class="ctrl-section">
-                    <div class="ctrl-label">2 · Hvad skal ændres?</div>
-                    <textarea class="ctrl-textarea" @bind="_feedback"
-                              placeholder="F.eks.: Boldene har forkerte farver – de skal alle være gule"
-                              rows="3" disabled="@_busy"></textarea>
-                    <button class="btn btn-secondary" @onclick="RefineAsync"
-                            disabled="@(_busy || string.IsNullOrWhiteSpace(_feedback))">
-                        @if (_busy && _phase == Phase.Refining) { <span class="spinner"></span> } @("Opdatér billede")
+                    <div class="ctrl-label">Beskriv billedet</div>
+                    <textarea class="ctrl-textarea" @bind="_genDescription"
+                              placeholder="F.eks.: En mand der jonglerer med 3 bolde – rød, blå og grøn – hvid baggrund"
+                              rows="4" disabled="@_busy"></textarea>
+                    <button class="btn btn-primary" @onclick="GenerateAsync"
+                            disabled="@(_busy || string.IsNullOrWhiteSpace(_genDescription))">
+                        @Spinner(Phase.Generate) Generér billede
                     </button>
                 </div>
 
-                <!-- Step 3: Person -->
-                <div class="ctrl-section">
-                    <div class="ctrl-label">3 · Brug en bestemt person</div>
-                    <label class="upload-btn">
-                        📷 @(_personFileName ?? "Upload foto af personen")
-                        <InputFile OnChange="OnPersonPhotoSelected" accept="image/*" style="display:none" />
-                    </label>
-                    @if (_personPhotoBytes is not null)
-                    {
-                        <button class="btn btn-secondary" @onclick="PersonSwapAsync" disabled="@_busy">
-                            @if (_busy && _phase == Phase.PersonSwap) { <span class="spinner"></span> } @("Sæt personen ind")
+                @if (_currentImageUrl is not null)
+                {
+                    <div class="ctrl-section">
+                        <div class="ctrl-label">Hvad skal ændres?</div>
+                        <textarea class="ctrl-textarea" @bind="_genFeedback"
+                                  placeholder="F.eks.: Boldene skal alle være gule i stedet"
+                                  rows="3" disabled="@_busy"></textarea>
+                        <button class="btn btn-secondary" @onclick="RefineAsync"
+                                disabled="@(_busy || string.IsNullOrWhiteSpace(_genFeedback))">
+                            @Spinner(Phase.Refine) Opdatér billede
                         </button>
-                    }
+                    </div>
+                }
+
+                @if (_genPromptUsed is not null)
+                {
+                    <details class="prompt-details"><summary>AI prompt</summary><p>@_genPromptUsed</p></details>
+                }
+            }
+
+            @if (_mode == Mode.Rediger)
+            {
+                <div class="ctrl-section">
+                    @InputImageSection()
+                    <div class="ctrl-label" style="margin-top:14px">Hvad skal ændres?</div>
+                    <textarea class="ctrl-textarea" @bind="_redigerPrompt"
+                              placeholder="F.eks.: Skift skjortens farve til blå. Fjern brillerne. Tilføj sol i baggrunden."
+                              rows="3" disabled="@_busy"></textarea>
+                    <p class="ctrl-hint">Præcis lokal redigering – resten af billedet bevares</p>
+                    <button class="btn btn-primary" @onclick="KontextEditAsync"
+                            disabled="@(_busy || _currentImageUrl is null || string.IsNullOrWhiteSpace(_redigerPrompt))">
+                        @Spinner(Phase.Rediger) Rediger billede
+                    </button>
                 </div>
+            }
+
+            @if (_mode == Mode.Transform)
+            {
+                <div class="ctrl-section">
+                    @InputImageSection()
+                    <div class="ctrl-label" style="margin-top:14px">Hvad skal ske med billedet?</div>
+                    <textarea class="ctrl-textarea" @bind="_transformPrompt"
+                              placeholder="F.eks.: Gør det til et oliemaleri. Skift baggrunden til strand. Tilføj sne."
+                              rows="3" disabled="@_busy"></textarea>
+                    <div class="slider-row">
+                        <label class="slider-label">Styrke: @(_transformStrength.ToString("0.0"))</label>
+                        <input type="range" min="0.1" max="1.0" step="0.05"
+                               @bind="_transformStrength" @bind:event="oninput" class="slider" />
+                    </div>
+                    <div class="slider-hint">Lav = behold originalen · Høj = stor forandring</div>
+                    <button class="btn btn-primary" @onclick="TransformAsync"
+                            disabled="@(_busy || _currentImageUrl is null || string.IsNullOrWhiteSpace(_transformPrompt))">
+                        @Spinner(Phase.Transform) Forvandl billede
+                    </button>
+                </div>
+            }
+
+            @if (_mode == Mode.Stil)
+            {
+                <div class="ctrl-section">
+                    <div class="ctrl-label">Indholdsbillede (der omstyls)</div>
+                    @InputImageSection()
+                    <div class="ctrl-label" style="margin-top:14px">Referencestil</div>
+                    <p class="ctrl-hint">Upload et billede hvis stil du vil overføre</p>
+                    <div class="upload-row">
+                        <label class="upload-btn @(_styleBytes != null ? "has-file" : "") flex1">
+                            🖌️ @(_styleName ?? "Upload stilbillede")
+                            <InputFile OnChange="e => OnFileSelected(e, f => { _styleBytes = f.Bytes; _styleMime = f.Mime; _styleName = f.Name; })"
+                                       accept="image/*" style="display:none" />
+                        </label>
+                        @if (_styleBytes != null)
+                        {
+                            <button class="clear-btn" @onclick="() => { _styleBytes = null; _styleName = null; }">×</button>
+                        }
+                    </div>
+                    <button class="btn btn-primary" @onclick="StyleAsync"
+                            disabled="@(_busy || _currentImageUrl is null || _styleBytes is null)">
+                        @Spinner(Phase.Stil) Overfør stil
+                    </button>
+                </div>
+            }
+
+            @if (_mode == Mode.FaceSwap)
+            {
+                <div class="ctrl-section">
+                    @InputImageSection()
+                    <div class="ctrl-label" style="margin-top:14px">Foto af den person der skal ind</div>
+                    <p class="ctrl-hint">Tæt-på portræt fungerer bedst</p>
+                    <div class="upload-row">
+                        <label class="upload-btn @(_faceBytes != null ? "has-file" : "") flex1">
+                            📷 @(_faceName ?? "Upload ansigtsfotat")
+                            <InputFile OnChange="e => OnFileSelected(e, f => { _faceBytes = f.Bytes; _faceMime = f.Mime; _faceName = f.Name; })"
+                                       accept="image/*" style="display:none" />
+                        </label>
+                        @if (_faceBytes != null)
+                        {
+                            <button class="clear-btn" @onclick="() => { _faceBytes = null; _faceName = null; }">×</button>
+                        }
+                    </div>
+                    <button class="btn btn-accent" @onclick="FaceSwapAsync"
+                            disabled="@(_busy || _currentImageUrl is null || _faceBytes is null)">
+                        @Spinner(Phase.FaceSwap) Sæt ansigtet ind
+                    </button>
+                </div>
+            }
+
+            @if (_mode == Mode.Background)
+            {
+                <div class="ctrl-section">
+                    @InputImageSection()
+                    <button class="btn btn-primary" @onclick="RemoveBgAsync"
+                            disabled="@(_busy || _currentImageUrl is null)">
+                        @Spinner(Phase.Background) Fjern baggrund
+                    </button>
+                    <p class="ctrl-hint" style="margin-top:8px">Resultatet er et PNG med gennemsigtig baggrund</p>
+                </div>
+            }
+
+            @if (_mode == Mode.TryOn)
+            {
+                <div class="ctrl-section">
+                    <div class="ctrl-label">Foto af personen (hel krop)</div>
+                    @InputImageSection()
+
+                    <div class="ctrl-label" style="margin-top:14px">Foto af tøjet</div>
+                    <div class="upload-row">
+                        <label class="upload-btn @(_garmentBytes != null ? "has-file" : "") flex1">
+                            👗 @(_garmentName ?? "Upload tøjfoto")
+                            <InputFile OnChange="e => OnFileSelected(e, f => { _garmentBytes = f.Bytes; _garmentMime = f.Mime; _garmentName = f.Name; })"
+                                       accept="image/*" style="display:none" />
+                        </label>
+                        @if (_garmentBytes != null)
+                        {
+                            <button class="clear-btn" @onclick="() => { _garmentBytes = null; _garmentName = null; }">×</button>
+                        }
+                    </div>
+
+                    <div class="ctrl-label" style="margin-top:14px">Tøjtype</div>
+                    <select @bind="_tryOnCategory" class="ctrl-select">
+                        <option value="upper">Overdel</option>
+                        <option value="lower">Underdel</option>
+                        <option value="overall">Hel outfit</option>
+                    </select>
+
+                    <button class="btn btn-accent" @onclick="TryOnAsync"
+                            disabled="@(_busy || _currentImageUrl is null || _garmentBytes is null)">
+                        @Spinner(Phase.TryOn) Prøv tøjet
+                    </button>
+                </div>
+            }
+
+            @if (_mode == Mode.Upscale)
+            {
+                <div class="ctrl-section">
+                    @InputImageSection()
+                    <button class="btn btn-primary" @onclick="UpscaleAsync"
+                            disabled="@(_busy || _currentImageUrl is null)">
+                        @Spinner(Phase.Upscale) Forstør 4×
+                    </button>
+                    <p class="ctrl-hint" style="margin-top:8px">Øger opløsningen og skærper ansigter automatisk</p>
+                </div>
+            }
+
+            @if (_busy)
+            {
+                <button class="btn btn-cancel" @onclick="CancelAsync">✕ Annuller</button>
             }
 
             @if (_error is not null)
             {
                 <div class="error-box">⚠️ @_error</div>
-            }
-
-            @if (_promptUsed is not null)
-            {
-                <details class="prompt-details">
-                    <summary>AI prompt</summary>
-                    <p>@_promptUsed</p>
-                </details>
             }
 
         </div>
@@ -85,14 +231,18 @@
             {
                 <div class="preview-empty">
                     <div style="font-size:64px">🖼️</div>
-                    <div>Dit billede vises her</div>
+                    <div>Vælg et værktøj til venstre for at komme i gang</div>
                 </div>
             }
             else if (_busy && _currentImageUrl is null)
             {
                 <div class="preview-empty">
                     <div class="spinner-large"></div>
-                    <div>Genererer...</div>
+                    <div>Arbejder...</div>
+                    @if (_busyHint is not null)
+                    {
+                        <div class="busy-hint">@_busyHint</div>
+                    }
                 </div>
             }
             else if (_currentImageUrl is not null)
@@ -102,15 +252,19 @@
                     {
                         <div class="preview-loading-overlay"><div class="spinner-large"></div></div>
                     }
-                    <img src="@_currentImageUrl" class="preview-img" alt="Genereret billede" />
+                    @if (_currentIsVideo)
+                    {
+                        <video src="@_currentImageUrl" class="preview-img" controls autoplay muted loop playsinline></video>
+                    }
+                    else
+                    {
+                        <img src="@_currentImageUrl" class="preview-img" alt="Billede" />
+                    }
                 </div>
 
                 <div class="preview-actions">
-                    <button class="btn btn-save" @onclick="SaveAsync" disabled="@_saving">
-                        @(_saving ? "Gemmer..." : _savedMessage ?? "💾 Gem billede")
-                    </button>
                     <a class="btn btn-dl" href="@_currentImageUrl" target="_blank" download>
-                        ⬇ Download
+                        ⬇ Download til din enhed
                     </a>
                 </div>
             }
@@ -120,9 +274,21 @@
                 <div class="history-strip">
                     @foreach (var item in _history.AsEnumerable().Reverse())
                     {
-                        <img src="@item.Url" class="history-thumb @(item.Url == _currentImageUrl ? "active" : "")"
-                             @onclick="() => SelectHistory(item)"
-                             title="@item.Prompt" alt="Historik" />
+                        @if (item.IsVideo)
+                        {
+                            <div class="history-thumb history-thumb-video @(item.Url == _currentImageUrl ? "active" : "")"
+                                 @onclick="() => SelectHistory(item)"
+                                 title="@item.Label">
+                                🎬
+                            </div>
+                        }
+                        else
+                        {
+                            <img src="@item.Url"
+                                 class="history-thumb @(item.Url == _currentImageUrl ? "active" : "")"
+                                 @onclick="() => SelectHistory(item)"
+                                 title="@item.Label" alt="Historik" />
+                        }
                     }
                 </div>
             }
@@ -131,104 +297,303 @@
     </div>
 </div>
 
+<style>
+    .mode-tabs { display:flex; gap:4px; padding:0 20px; overflow-x:auto; border-bottom:1px solid rgba(255,255,255,.08); }
+    .mode-tab { display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 14px; background:transparent; border:none; border-bottom:2px solid transparent; color:#64748b; cursor:pointer; font-size:12px; font-weight:600; white-space:nowrap; margin-bottom:-1px; transition:color .15s; }
+    .mode-tab:hover { color:#cbd5e1; }
+    .mode-tab.active { color:#f0f0f0; border-bottom-color:#3b82f6; }
+    .mode-tab-icon { font-size:20px; }
+    .mode-tab-label { font-size:11px; }
+    .mode-desc { padding:10px 20px; font-size:13px; color:#64748b; border-bottom:1px solid rgba(255,255,255,.05); background:rgba(255,255,255,.02); }
+    .ctrl-hint { font-size:12px; color:#6b7280; margin:4px 0 8px; }
+    .slider-row { display:flex; align-items:center; gap:10px; margin:10px 0 2px; }
+    .slider-label { font-size:12px; color:#94a3b8; min-width:90px; }
+    .slider { flex:1; accent-color:#3b82f6; }
+    .slider-hint { font-size:11px; color:#4b5563; margin-bottom:10px; }
+    .ctrl-select { width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 14px; color:white; font-size:14px; outline:none; margin-bottom:14px; }
+    .ctrl-select option { background:#1e2530; }
+    .input-thumb-wrap { position:relative; border-radius:10px; overflow:hidden; margin-bottom:12px; border:1px solid rgba(255,255,255,.1); }
+    .input-thumb { width:100%; max-height:160px; object-fit:cover; display:block; }
+    .input-thumb-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.55); color:#94a3b8; font-size:11px; padding:4px 8px; }
+    .input-thumb-clear { position:absolute; top:6px; right:6px; background:rgba(0,0,0,.6); border:none; border-radius:50%; width:24px; height:24px; color:white; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; }
+    .input-thumb-clear:hover { background:rgba(239,68,68,.8); }
+    .upload-row { display:flex; gap:6px; align-items:stretch; margin-bottom:10px; }
+    .upload-row .upload-btn { margin-bottom:0; }
+    .flex1 { flex:1; }
+    .clear-btn { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); border-radius:8px; color:#94a3b8; font-size:16px; cursor:pointer; padding:0 10px; flex-shrink:0; }
+    .clear-btn:hover { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.4); color:#f87171; }
+    .upload-btn { display:block; width:100%; padding:11px 14px; border-radius:10px; border:1px dashed rgba(255,255,255,.2); color:#9ca3af; font-size:13px; cursor:pointer; text-align:center; background:rgba(255,255,255,.03); margin-bottom:10px; }
+    .upload-btn:hover, .upload-btn.has-file { border-color:#3b82f6; color:#93c5fd; }
+    .btn-cancel { width:100%; margin-top:10px; background:transparent; border:1px solid rgba(239,68,68,.35); border-radius:10px; color:#f87171; font-size:13px; font-weight:600; padding:10px; cursor:pointer; }
+    .btn-cancel:hover { background:rgba(239,68,68,.1); }
+    .btn-accent { background:#7c3aed; }
+    .btn-accent:hover:not(:disabled) { background:#6d28d9; }
+    .busy-hint { font-size:12px; color:#64748b; margin-top:8px; }
+    .history-thumb-video { width:56px; height:56px; border-radius:8px; cursor:pointer; border:2px solid transparent; display:flex; align-items:center; justify-content:center; font-size:24px; background:rgba(255,255,255,.06); flex-shrink:0; transition:.15s; }
+    .history-thumb-video:hover { border-color:rgba(255,255,255,.3); }
+    .history-thumb-video.active { border-color:#3b82f6; }
+</style>
+
 @code {
-    private string? _description;
-    private string? _feedback;
-    private string? _promptUsed;
+    private enum Mode { Generate, Rediger, Transform, Stil, FaceSwap, Background, TryOn, Upscale }
+    private enum Phase { None, Generate, Refine, Rediger, Transform, Stil, FaceSwap, Background, TryOn, Upscale }
+
+    private record ModeInfo(Mode Id, string Icon, string Name, string Description);
+
+    private static readonly ModeInfo[] Modes =
+    [
+        new(Mode.Generate,         "🖊️",  "Generér",          "Beskriv et billede med ord og AI genererer det. Du kan efterfølgende justere med feedback."),
+        new(Mode.Rediger,          "✏️",  "Rediger",           "Præcis lokal redigering med tekst – skift en detalje uden at ændre resten. (Flux Kontext)"),
+        new(Mode.Transform,        "🔄",  "Forvandl",          "Transformer hele billedet med en tekstvejledning – skift stil, baggrund eller indhold."),
+        new(Mode.Stil,             "🖌️",  "Stil",              "Overfør stilen fra et referencebillede til dit billede – tegnefilm, maleri, fotorealistisk m.m."),
+        new(Mode.FaceSwap,        "👤",  "Ansigt",            "Sæt dit eget eller et andet ansigt ind i et eksisterende billede."),
+        new(Mode.Background,       "✂️",  "Baggrund",          "Fjern baggrunden fra et billede og få et gennemsigtigt PNG."),
+        new(Mode.TryOn,            "👕",  "Tøjprøve",          "Prøv tøj virtuelt på en person. Upload et personfotat og et billede af det tøj du vil prøve."),
+        new(Mode.Upscale,          "🔍",  "Forstør",           "Forstør billedets opløsning 4× og skærp ansigter automatisk."),
+    ];
+
+    private ModeInfo CurrentMode => Modes.First(m => m.Id == _mode);
+
+    private Mode _mode = Mode.Generate;
+    private Phase _phase = Phase.None;
+
     private string? _currentImageUrl;
-    private string? _error;
-    private string? _savedMessage;
-    private string? _personFileName;
-
-    private byte[]? _personPhotoBytes;
-    private string? _personMimeType;
-
+    private bool _currentIsVideo;
     private bool _busy;
-    private bool _saving;
+    private string? _error;
+    private string? _busyHint;
+    private CancellationTokenSource? _cts;
 
-    private enum Phase { Generating, Refining, PersonSwap }
-    private Phase _phase;
+    // Generate mode
+    private string? _genDescription;
+    private string? _genFeedback;
+    private string? _genPromptUsed;
 
-    private record HistoryItem(string Url, string Prompt);
+    // Rediger mode
+    private string? _redigerPrompt;
+
+    // Transform mode
+    private string? _transformPrompt;
+    private float   _transformStrength = 0.75f;
+
+    // Stil mode
+    private byte[]? _styleBytes;
+    private string? _styleMime;
+    private string? _styleName;
+
+    // Face swap
+    private byte[]? _faceBytes;
+    private string? _faceMime;
+    private string? _faceName;
+
+    // Try-on
+    private byte[]? _garmentBytes;
+    private string? _garmentMime;
+    private string? _garmentName;
+    private string  _tryOnCategory = "upper";
+
+    private record HistoryItem(string Url, string Label, bool IsVideo = false);
     private readonly List<HistoryItem> _history = [];
+
+    // ── Actions ──────────────────────────────────────────────────────────────
 
     private async Task GenerateAsync()
     {
-        if (string.IsNullOrWhiteSpace(_description)) return;
-        _busy = true; _phase = Phase.Generating; _error = null; _savedMessage = null;
-        StateHasChanged();
-        try
+        if (string.IsNullOrWhiteSpace(_genDescription)) return;
+        await RunAsync(Phase.Generate, async () =>
         {
-            _promptUsed     = await Claude.RefinePromptAsync(_description);
-            _currentImageUrl = await FalAi.GenerateAsync(_promptUsed);
-            _history.Add(new(_currentImageUrl, _promptUsed));
-        }
-        catch (Exception ex) { _error = ex.Message; }
-        finally { _busy = false; StateHasChanged(); }
+            var ct = _cts!.Token;
+            _genPromptUsed   = await Claude.RefinePromptAsync(_genDescription);
+            ct.ThrowIfCancellationRequested();
+            _currentImageUrl = await FalAi.GenerateAsync(_genPromptUsed, ct);
+            _currentIsVideo  = false;
+            _history.Add(new(_currentImageUrl, $"🖊️ {_genDescription![..Math.Min(40, _genDescription.Length)]}"));
+        });
     }
 
     private async Task RefineAsync()
     {
-        if (string.IsNullOrWhiteSpace(_feedback) || _currentImageUrl is null) return;
-        _busy = true; _phase = Phase.Refining; _error = null; _savedMessage = null;
-        StateHasChanged();
-        try
+        if (string.IsNullOrWhiteSpace(_genFeedback) || _currentImageUrl is null) return;
+        await RunAsync(Phase.Refine, async () =>
         {
-            _promptUsed      = await Claude.AnalyzeAndRefineAsync(_currentImageUrl, _feedback, _promptUsed ?? "");
-            _currentImageUrl = await FalAi.GenerateAsync(_promptUsed);
-            _history.Add(new(_currentImageUrl, _promptUsed));
-            _feedback = "";
-        }
-        catch (Exception ex) { _error = ex.Message; }
-        finally { _busy = false; StateHasChanged(); }
+            var ct = _cts!.Token;
+            _genPromptUsed   = await Claude.AnalyzeAndRefineAsync(_currentImageUrl, _genFeedback, _genPromptUsed ?? "");
+            ct.ThrowIfCancellationRequested();
+            _currentImageUrl = await FalAi.GenerateAsync(_genPromptUsed, ct);
+            _currentIsVideo  = false;
+            _history.Add(new(_currentImageUrl, $"🔁 {_genFeedback![..Math.Min(40, _genFeedback.Length)]}"));
+            _genFeedback = "";
+        });
     }
 
-    private async Task PersonSwapAsync()
+    private async Task KontextEditAsync()
     {
-        if (_personPhotoBytes is null || _promptUsed is null) return;
-        _busy = true; _phase = Phase.PersonSwap; _error = null; _savedMessage = null;
-        StateHasChanged();
-        try
+        if (_currentImageUrl is null || string.IsNullOrWhiteSpace(_redigerPrompt)) return;
+        await RunAsync(Phase.Rediger, async () =>
         {
-            _currentImageUrl = await FalAi.PersonSwapAsync(_promptUsed, _personPhotoBytes, _personMimeType ?? "image/jpeg");
-            _history.Add(new(_currentImageUrl, _promptUsed + " [person]"));
-        }
-        catch (Exception ex) { _error = ex.Message; }
-        finally { _busy = false; StateHasChanged(); }
+            var englishPrompt = await Claude.TranslateEditInstructionAsync(_redigerPrompt, _cts!.Token);
+            var result = await FalAi.KontextEditAsync(_currentImageUrl, englishPrompt, _cts!.Token);
+            _history.Add(new(result, $"✏️ {_redigerPrompt![..Math.Min(40, _redigerPrompt.Length)]}"));
+            _currentImageUrl = result;
+            _currentIsVideo  = false;
+        });
     }
 
-    private async Task OnPersonPhotoSelected(InputFileChangeEventArgs e)
+    private async Task TransformAsync()
     {
-        var file = e.File;
-        _personFileName = file.Name;
-        _personMimeType = file.ContentType;
-
-        using var ms = new MemoryStream();
-        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-        await stream.CopyToAsync(ms);
-        _personPhotoBytes = ms.ToArray();
-        StateHasChanged();
+        if (_currentImageUrl is null || string.IsNullOrWhiteSpace(_transformPrompt)) return;
+        await RunAsync(Phase.Transform, async () =>
+        {
+            var englishPrompt = await Claude.TranslateEditInstructionAsync(_transformPrompt, _cts!.Token);
+            var result = await FalAi.ImageToImageAsync(_currentImageUrl, englishPrompt, _transformStrength, _cts!.Token);
+            _history.Add(new(result, $"🔄 {_transformPrompt![..Math.Min(40, _transformPrompt.Length)]}"));
+            _currentImageUrl = result;
+            _currentIsVideo  = false;
+        });
     }
 
-    private async Task SaveAsync()
+    private async Task StyleAsync()
+    {
+        if (_currentImageUrl is null || _styleBytes is null) return;
+        await RunAsync(Phase.Stil, async () =>
+        {
+            var result = await FalAi.StyleTransferAsync(_currentImageUrl, _styleBytes, _styleMime ?? "image/jpeg", _cts!.Token);
+            _history.Add(new(result, $"🖌️ {_styleName ?? "stil"}"));
+            _currentImageUrl = result;
+            _currentIsVideo  = false;
+        });
+    }
+
+    private async Task FaceSwapAsync()
+    {
+        if (_currentImageUrl is null || _faceBytes is null) return;
+        await RunAsync(Phase.FaceSwap, async () =>
+        {
+            var result = await FalAi.FaceSwapAsync(_currentImageUrl, _faceBytes, _faceMime ?? "image/jpeg", _cts!.Token);
+            _history.Add(new(result, $"👤 {_faceName ?? "ansigt"}"));
+            _currentImageUrl = result;
+            _currentIsVideo  = false;
+        });
+    }
+
+    private async Task RemoveBgAsync()
     {
         if (_currentImageUrl is null) return;
-        _saving = true; _savedMessage = null;
-        StateHasChanged();
-        try
+        await RunAsync(Phase.Background, async () =>
         {
-            var path = await Storage.SaveFromUrlAsync(_currentImageUrl);
-            _savedMessage = $"✅ Gemt: {Path.GetFileName(path)}";
-        }
+            var result = await FalAi.RemoveBackgroundAsync(_currentImageUrl, _cts!.Token);
+            _history.Add(new(result, "✂️ Baggrund fjernet"));
+            _currentImageUrl = result;
+            _currentIsVideo  = false;
+        });
+    }
+
+    private async Task TryOnAsync()
+    {
+        if (_currentImageUrl is null || _garmentBytes is null) return;
+        await RunAsync(Phase.TryOn, async () =>
+        {
+            var result = await FalAi.VirtualTryOnAsync(_currentImageUrl, _garmentBytes, _garmentMime ?? "image/jpeg", _tryOnCategory, _cts!.Token);
+            _history.Add(new(result, $"👕 {_garmentName ?? "tøj"}"));
+            _currentImageUrl = result;
+            _currentIsVideo  = false;
+        });
+    }
+
+    private async Task UpscaleAsync()
+    {
+        if (_currentImageUrl is null) return;
+        await RunAsync(Phase.Upscale, async () =>
+        {
+            var result = await FalAi.UpscaleAsync(_currentImageUrl, _cts!.Token);
+            _history.Add(new(result, "🔍 Forstørret 4×"));
+            _currentImageUrl = result;
+            _currentIsVideo  = false;
+        });
+    }
+
+    private async Task CancelAsync()
+    {
+        await (_cts?.CancelAsync() ?? Task.CompletedTask);
+    }
+
+    private async Task RunAsync(Phase phase, Func<Task> action, string? hint = null)
+    {
+        _cts = new CancellationTokenSource();
+        _busy = true; _phase = phase; _error = null; _busyHint = hint;
+        StateHasChanged();
+        try   { await action(); }
+        catch (OperationCanceledException) { _error = "Annulleret."; }
         catch (Exception ex) { _error = ex.Message; }
-        finally { _saving = false; StateHasChanged(); }
+        finally { _busy = false; _phase = Phase.None; _busyHint = null; _cts?.Dispose(); _cts = null; StateHasChanged(); }
+    }
+
+    // ── File handling ─────────────────────────────────────────────────────────
+
+    private record FileData(byte[] Bytes, string Mime, string Name);
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e, Action<FileData> assign)
+    {
+        var file = e.File;
+        using var ms = new MemoryStream();
+        await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+        await stream.CopyToAsync(ms);
+        assign(new(ms.ToArray(), file.ContentType, file.Name));
+        StateHasChanged();
+    }
+
+    private async Task OnCurrentImageUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        using var ms = new MemoryStream();
+        await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        _currentImageUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(bytes)}";
+        _currentIsVideo  = false;
+        _history.Add(new(_currentImageUrl, $"📁 {file.Name}"));
+        StateHasChanged();
     }
 
     private void SelectHistory(HistoryItem item)
     {
         _currentImageUrl = item.Url;
-        _promptUsed      = item.Prompt;
-        _savedMessage    = null;
+        _currentIsVideo  = item.IsVideo;
         StateHasChanged();
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private RenderFragment Spinner(Phase p) => _busy && _phase == p
+        ? @<span class="spinner"></span>
+        : @<text></text>;
+
+    private RenderFragment InputImageSection() =>
+        @<div>
+            @if (_currentImageUrl is not null && !_currentIsVideo)
+            {
+                <div class="input-thumb-wrap">
+                    <img src="@_currentImageUrl" class="input-thumb" alt="Input" />
+                    <div class="input-thumb-label">Nuværende billede — bruges som input</div>
+                    <button class="input-thumb-clear" @onclick="() => { _currentImageUrl = null; }" title="Fjern billede">×</button>
+                </div>
+            }
+            else if (_currentImageUrl is not null && _currentIsVideo)
+            {
+                <div class="input-thumb-wrap">
+                    <div style="padding:12px; text-align:center; color:#64748b; font-size:13px;">🎬 Nuværende resultat er en video – upload et billede nedenfor</div>
+                </div>
+                <label class="upload-btn">
+                    📁 Upload billede
+                    <InputFile OnChange="OnCurrentImageUpload" accept="image/*" style="display:none" />
+                </label>
+            }
+            else
+            {
+                <label class="upload-btn">
+                    📁 Upload billede
+                    <InputFile OnChange="OnCurrentImageUpload" accept="image/*" style="display:none" />
+                </label>
+            }
+        </div>;
 }

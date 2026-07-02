@@ -1,98 +1,125 @@
-@page "/f/{slug}/join"
+@page "/{slug}/join"
 @rendermode InteractiveServer
-@inject FamilyDbContext Db
-@inject NavigationManager Nav
-@inject IJSRuntime JS
+
 @using ITMartinFamily.Domain.Entities
 @using ITMartinFamily.Infrastructure
+@using ITMartinFamily.Server.Components
 @using Microsoft.AspNetCore.Components.Web
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 
+@inject FamilyDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<link rel="stylesheet" href="css/family.css" />
+
 <div class="join-wrap">
     <div class="join-card">
-        <div class="join-logo">👨‍👩‍👧‍👦</div>
-        <h1 class="join-title">@(_family?.Name ?? "Familie")</h1>
+        <div class="join-logo">👥</div>
+        <h1 class="join-title">@(_family?.Name ?? "Gruppen")</h1>
 
-        @if (_error != null) { <div class="join-error">@_error</div> }
+        @if (_error is not null) { <div class="join-error">@_error</div> }
 
         @if (!_loaded)
         {
             <div class="join-loading">Indlæser...</div>
         }
-        else if (_family == null)
+        else if (_family is null)
         {
-            <div class="join-error">Familien findes ikke.</div>
-            <a href="/" class="join-btn" style="display:block;margin-top:16px;text-align:center;text-decoration:none">Opret familie</a>
+            <div class="join-error">Gruppen findes ikke. <a href="/" style="color:#6366f1">Opret en gruppe</a></div>
         }
         else
         {
-            <div class="join-field">
-                <label>Dit navn</label>
-                <input @bind="_name" placeholder="Fornavn" class="join-input" maxlength="60"
-                       @onkeydown="OnKey" />
+            <div class="join-sub">Hvem er du?</div>
+
+            <div class="member-grid">
+                @foreach (var m in _members)
+                {
+                    var color = AvatarColor(m.Name);
+                    <button class="member-card @(_selectedName == m.Name ? "member-card-active" : "")"
+                            @onclick="() => Pick(m.Name)"
+                            style="@(_selectedName == m.Name ? $"border-color:{color};background:color-mix(in srgb,{color} 15%,transparent)" : "")">
+                        <div class="member-avatar" style="background:@color">
+                            @m.Name[0].ToString().ToUpperInvariant()
+                        </div>
+                        <div class="member-name">@m.Name</div>
+                    </button>
+                }
+                <button class="member-card member-card-new @(_selectedName == "__new__" ? "member-card-active" : "")"
+                        @onclick='() => Pick("__new__")'>
+                    <div class="member-avatar" style="background:#475569">+</div>
+                    <div class="member-name">Ny person</div>
+                </button>
             </div>
-            <div class="join-field">
-                <label>Adgangskode</label>
-                <input @bind="_password" type="password" placeholder="Familiens kode" class="join-input"
-                       @onkeydown="OnKey" />
-            </div>
-            <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
-                @(_joining ? "Logger ind..." : "Log ind")
-            </button>
+
+            @if (_selectedName is not null)
+            {
+                <div class="join-fields">
+                    @if (_selectedName == "__new__")
+                    {
+                        <input class="join-input" @bind="_newName" placeholder="Dit navn" maxlength="60"
+                               @onkeydown="OnKey" />
+                    }
+                    <input class="join-input" type="password" @bind="_password"
+                           placeholder="Familiens adgangskode" @onkeydown="OnKey" />
+                    <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
+                        @(_joining ? "Logger ind..." : "Kom ind")
+                    </button>
+                </div>
+            }
         }
     </div>
 </div>
 
-<style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
-    .join-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .join-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px; text-align: center; }
-    .join-logo { font-size: 48px; margin-bottom: 12px; }
-    .join-title { font-size: 26px; font-weight: 900; margin: 0 0 28px; }
-    .join-field { text-align: left; margin-bottom: 16px; }
-    .join-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
-    .join-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; }
-    .join-input:focus { border-color: #3b82f6; }
-    .join-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
-    .join-btn:hover:not(:disabled) { background: #1d4ed8; }
-    .join-btn:disabled { opacity: .5; cursor: default; }
-    .join-error { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f87171; margin-bottom: 16px; }
-    .join-loading { color: #64748b; padding: 20px 0; }
-</style>
-
 @code {
     [Parameter] public string Slug { get; set; } = "";
 
-    private Family? _family;
-    private string _name = "", _password = "";
-    private string? _error;
-    private bool _joining, _loaded;
+    private Family?             _family;
+    private List<FamilyMember>  _members      = [];
+    private string?             _selectedName;
+    private string              _newName      = "";
+    private string              _password     = "";
+    private string?             _error;
+    private bool                _joining, _loaded;
+
+    private static readonly string[] Colors = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#f97316"];
+    private static string AvatarColor(string name) => Colors[Math.Abs(name.GetHashCode()) % Colors.Length];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
+        // Already logged in → redirect to today
         var existing = await JS.InvokeAsync<string?>("familyApp.getSession", Slug);
         if (!string.IsNullOrEmpty(existing) && Guid.TryParse(existing, out var sid))
         {
             var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Id == sid);
             if (session is not null)
             {
-                var member = await Db.Members.FindAsync(session.MemberId);
-                if (member is not null)
+                var m = await Db.Members.FindAsync(session.MemberId);
+                if (m is not null)
                 {
-                    var fam = await Db.Families.FindAsync(member.FamilyId);
-                    if (fam?.Slug == Slug) { Nav.NavigateTo($"/f/{Slug}", forceLoad: true); return; }
+                    var f = await Db.Families.FindAsync(m.FamilyId);
+                    if (f?.Slug == Slug) { Nav.NavigateTo($"/{Slug}", forceLoad: true); return; }
                 }
             }
         }
 
-        _family = await Db.Families.FirstOrDefaultAsync(f => f.Slug == Slug);
+        _family  = await Db.Families.FirstOrDefaultAsync(f => f.Slug == Slug);
+        _members = _family is not null
+            ? await Db.Members.Where(m => m.FamilyId == _family.Id).OrderBy(m => m.Name).ToListAsync()
+            : [];
         _loaded = true;
         StateHasChanged();
+    }
+
+    private void Pick(string name)
+    {
+        _selectedName = _selectedName == name ? null : name;
+        _error        = null;
+        _password     = "";
     }
 
     private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await JoinAsync(); }
@@ -100,19 +127,21 @@
     private async Task JoinAsync()
     {
         _error = null;
-        if (string.IsNullOrWhiteSpace(_name))     { _error = "Skriv dit navn."; return; }
-        if (_family == null) return;
+        if (_family is null) return;
         if (_password.Trim() != _family.Password) { _error = "Forkert adgangskode."; return; }
+
+        var nameToUse = _selectedName == "__new__" ? _newName.Trim() : _selectedName ?? "";
+        if (string.IsNullOrWhiteSpace(nameToUse)) { _error = "Skriv dit navn."; return; }
 
         _joining = true;
         StateHasChanged();
 
         try
         {
-            var member = await Db.Members.FirstOrDefaultAsync(m => m.FamilyId == _family.Id && m.Name == _name.Trim());
-            if (member == null)
+            var member = await Db.Members.FirstOrDefaultAsync(m => m.FamilyId == _family.Id && m.Name == nameToUse);
+            if (member is null)
             {
-                member = new FamilyMember { FamilyId = _family.Id, Name = _name.Trim() };
+                member = new FamilyMember { FamilyId = _family.Id, Name = nameToUse };
                 Db.Members.Add(member);
             }
 
@@ -121,11 +150,11 @@
             await Db.SaveChangesAsync();
 
             await JS.InvokeVoidAsync("familyApp.setSession", Slug, session.Id.ToString());
-            Nav.NavigateTo($"/f/{Slug}", forceLoad: true);
+            Nav.NavigateTo($"/{Slug}", forceLoad: true);
         }
         catch (Exception ex)
         {
-            _error = $"Noget gik galt: {ex.Message}";
+            _error   = $"Noget gik galt: {ex.Message}";
             _joining = false;
         }
     }

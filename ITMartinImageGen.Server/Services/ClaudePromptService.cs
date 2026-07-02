@@ -86,6 +86,18 @@ public sealed class ClaudePromptService
         return ExtractText(response);
     }
 
+    public async Task<string> TranslateEditInstructionAsync(string instruction, CancellationToken ct = default)
+    {
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model     = Model.ClaudeSonnet4_6,
+            MaxTokens = 120,
+            System    = "Translate the user's image editing instruction to clear, concise English. Keep it short and specific. Return ONLY the translated instruction — no explanations, no quotes.",
+            Messages  = [ new() { Role = Role.User, Content = instruction } ]
+        }, cancellationToken: ct);
+        return ExtractText(response);
+    }
+
     private static string ExtractText(Message response)
     {
         var text = new System.Text.StringBuilder();

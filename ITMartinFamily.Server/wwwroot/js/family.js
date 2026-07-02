@@ -1,7 +1,8 @@
 window.familyApp = {
     getSession:   function(slug) { return localStorage.getItem('family_session_' + slug) || ''; },
-    setSession:   function(slug, id) { localStorage.setItem('family_session_' + slug, id); },
-    clearSession: function(slug) { localStorage.removeItem('family_session_' + slug); },
+    setSession:   function(slug, id) { localStorage.setItem('family_session_' + slug, id); localStorage.setItem('family_last_slug', slug); },
+    clearSession: function(slug) { localStorage.removeItem('family_session_' + slug); localStorage.removeItem('family_last_slug'); },
+    getLastSlug:  function() { return localStorage.getItem('family_last_slug') || ''; },
     scrollChat:   function() { var el = document.getElementById('chat-messages'); if (el) el.scrollTop = el.scrollHeight; },
 
     capturePhoto: async function() {

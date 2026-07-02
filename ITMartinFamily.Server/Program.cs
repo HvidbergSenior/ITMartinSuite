@@ -22,6 +22,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSignalR();
 builder.Services.AddFamilyInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<ToastService>();
+builder.Services.AddHostedService<ITMartinFamily.Server.Services.TaskReminderService>();
 
 var app = builder.Build();
 
@@ -81,6 +82,31 @@ using (var scope = app.Services.CreateScope())
             CreatedAt  TEXT NOT NULL
         )
         """);
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS Reminders (
+            Id         TEXT NOT NULL PRIMARY KEY,
+            FamilyId   TEXT NOT NULL,
+            MemberName TEXT NOT NULL,
+            Text       TEXT NOT NULL,
+            Date       TEXT NOT NULL,
+            Done       INTEGER NOT NULL DEFAULT 0,
+            CreatedAt  TEXT NOT NULL
+        )
+        """);
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS StoredItems (
+            Id        TEXT NOT NULL PRIMARY KEY,
+            FamilyId  TEXT NOT NULL,
+            Name      TEXT NOT NULL,
+            Location  TEXT NOT NULL,
+            Notes     TEXT,
+            PhotoPath TEXT,
+            StoredAt  TEXT NOT NULL,
+            UpdatedAt TEXT NOT NULL
+        )
+        """);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -89,6 +115,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "data", "tasks"));
+Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "data", "findit-photos"));
 
 app.UseStaticFiles();
 app.UseAntiforgery();
@@ -113,6 +140,13 @@ app.MapGet("/task-image/{id:guid}", async (Guid id, ITMartinFamily.Application.I
     var task = await repo.GetByIdAsync(id);
     if (task?.ImagePath is null || !File.Exists(task.ImagePath)) return Results.NotFound();
     return Results.File(await File.ReadAllBytesAsync(task.ImagePath), "image/jpeg");
+});
+
+app.MapGet("/findit-photo/{id:guid}", async (Guid id, ITMartinFamily.Application.Interfaces.IFamilyStoredItemRepository repo) =>
+{
+    var item = await repo.GetByIdAsync(id);
+    if (item?.PhotoPath is null || !File.Exists(item.PhotoPath)) return Results.NotFound();
+    return Results.File(await File.ReadAllBytesAsync(item.PhotoPath), "image/jpeg");
 });
 
 app.MapRazorComponents<App>()

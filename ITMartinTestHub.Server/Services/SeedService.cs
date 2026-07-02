@@ -24,7 +24,7 @@ public static class SeedService
             new AppEntry { Name = "Auction",         Icon = "🔨", Url = "https://auction.itmartin.dk",          Description = "Live-budgivning for samleobjekter",    SortOrder = 7  },
             new AppEntry { Name = "Magic",           Icon = "✨", Url = "https://magic.itmartin.dk",            Description = "AI-kortscanner",                       SortOrder = 8  },
             new AppEntry { Name = "FindIt",          Icon = "📍", Url = "https://adhd.itmartin.dk",            Description = "Placerings-tracker for genstande",     SortOrder = 9  },
-            new AppEntry { Name = "Family Planner",  Icon = "👨‍👩‍👧", Url = "https://family.itmartin.dk",           Description = "Familieplanlægning og koordinering",  SortOrder = 10 },
+            new AppEntry { Name = "Idag",             Icon = "📋", Url = "https://idag.itmartin.dk",             Description = "Fælles opgavetavle for grupper – fokus på i dag", SortOrder = 10 },
             new AppEntry { Name = "Market",          Icon = "🛍️", Url = "https://market.itmartin.dk",           Description = "Markedsplads",                         SortOrder = 11 },
             new AppEntry { Name = "R6 Assistant",    Icon = "🎮", Url = "https://r6.itmartin.dk",               Description = "Rainbow Six Siege-assistent",          SortOrder = 12 },
             new AppEntry { Name = "Portal",          Icon = "🏠", Url = "https://martin.itmartin.dk",           Description = "Hovedportal og indeks",                SortOrder = 13 },
@@ -77,69 +77,56 @@ public static class SeedService
 
     private static readonly Dictionary<string, List<(int Order, string Instruction, string Expected)>> ManagedSteps = new()
     {
-        ["Library Scan"] =
+        ["Idag"] =
         [
-            (1, "Åbn appen", "Kameraet starter og 'Scan hylde 1'-knappen vises"),
-            (2, "Peg kameraet mod en bogreol og tryk 'Scan hylde 1'", "Et grønt 'Hylde 1 ✓'-mærke vises og knappen skifter til 'Scan hylde 2'"),
-            (3, "Scan endnu en hylde ved at trykke 'Scan hylde 2'", "Et grønt 'Hylde 2 ✓'-mærke tilføjes ved siden af det første"),
-            (4, "Tryk 'Færdig – analyser 2 hylde(r)'", "Spinner vises med teksten 'Analyserer 2 hylde(r)…' mens AI behandler begge"),
-            (5, "Vent på at analysen er færdig", "Grøn besked vises: '✓ 2 hylde(r) gemt. Find bøgerne i Søg Bøger ↗'"),
-        ],
-        ["Library Search"] =
-        [
-            (1, "Åbn appen", "Søgesiden indlæses med det samlede antal elementer vist"),
-            (2, "Skriv et bogtitel fra en tidligere scannet hylde", "Matchende resultater vises straks"),
-            (3, "Ryd søgningen og skriv et forfatternavn", "Bøger af den pågældende forfatter vises"),
-            (4, "Skriv noget der ikke matcher noget", "Beskeden 'No items match your search' vises"),
-        ],
-        ["Club"] =
-        [
-            (1, "Åbn appen og opret en gruppe med navn, beskrivelse, invitationskode og admin PIN", "Gruppen oprettes og du sendes automatisk til tilmeldingssiden – ingen URL-slug skal indtastes"),
-            (2, "Tilmeld dig gruppen med dit navn og invitationskoden", "Gruppens forside vises med dit navn som medlem"),
-            (3, "Åbn Opslagstavlen og opret et opslag", "Opslaget vises på tavlen med navn og tidspunkt"),
-            (4, "Åbn Kalenderen og opret en begivenhed", "Begivenheden vises i kalenderen"),
-            (5, "Åbn Dokumenter og upload eller se dokumenter", "Dokumentlisten vises korrekt"),
-        ],
-        ["Magic Scan"] =
-        [
-            (1, "Åbn appen", "Scannersiden indlæses direkte – ingen omdirigering"),
-            (2, "Vælg et sæt fra rullelisten (f.eks. søg 'MOM')", "Sæt er valgt og et grønt bekræftelsesbanner vises"),
-            (3, "Tryk på 'Start Camera'", "Kameraet starter"),
-            (4, "Hold et Magic-kort foran kameraet og tryk 'Scan Card'", "Spinner vises mens AI behandler kortet"),
-            (5, "Vent på resultat", "Kortnavn, sæt, samler-nummer og EUR-pris vises"),
-        ],
-        ["FindIt"] =
-        [
-            (1, "Åbn appen og tryk på 📷-knappen", "Kameraet starter og vejledningsskærmen vises"),
-            (2, "Peg kameraet mod en genstand (f.eks. nøgler, briller eller tegnebog) og tryk for at optage", "AI analyserer billedet og foreslår automatisk genstandens navn og placering"),
-            (3, "Bekræft eller ret navn og placering og tryk 'Gem'", "Genstanden gemmes og vises på forsiden med et thumbnail af billedet"),
-            (4, "Gå tilbage til forsiden og søg efter genstanden ved navn", "Søgeresultatet vises med billede-thumbnail, navn og placering"),
-            (5, "Registrer en genstand manuelt via tekstfeltet uden foto", "Genstanden gemmes og vises på listen uden thumbnail"),
-        ],
-        ["TestHub"] =
-        [
-            (1, "Åbn appen og skriv dit navn", "Forsiden vises med din tester-profil og dine aktive testopgaver"),
-            (2, "Åbn en testopgave", "Opgavesiden vises med formålsbar øverst, testrin til venstre og 'Fejl & ideer' til højre"),
-            (3, "Marker et trin som OK og et trin som Fejl", "OK-trin får grønt flueben, fejl-trin får rødt kryds – næste trin åbnes automatisk"),
-            (4, "Tilføj en fejlrapport via 'Fejl & ideer'", "Feedback gemmes og vises i listen nedenfor med navn og tidspunkt"),
-            (5, "Fuldfør alle trin og bekræft at 'Test færdig' vises", "'Test færdig'-banneret vises med tidsstempel"),
+            (1,  "Åbn idag.itmartin.dk",
+                 "Velkomstsiden vises med 'Opret ny gruppe' og 'Gå til eksisterende gruppe'"),
+            (2,  "Opret en ny gruppe med et navn og en adgangskode, og tryk 'Opret'",
+                 "Gruppen oprettes og join-siden for den nye gruppe vises med gruppe-URL"),
+            (3,  "Skriv dit navn og adgangskoden og tryk 'Tilmeld'",
+                 "Boardet vises med dit navn øverst og en tom opgaveliste"),
+            (4,  "Tilføj en opgave via tekstfeltet og tryk 'Tilføj'",
+                 "Opgaven vises på listen med 'Tag'-knap og ingen claimet"),
+            (5,  "Tryk 'Tag' på opgaven",
+                 "Dit navn vises på opgaven og knappen skifter til 'Aflever'"),
+            (6,  "Tryk 'Aflever' på opgaven",
+                 "Opgaven markeres som færdig med tidsstempel og flyttes til afsluttet-listen"),
+            (7,  "Tryk 'Gør det i morgen' på en taget men ikke afleveret opgave",
+                 "En toast-besked med en fast dansk tekst vises — opgaven udsættes IKKE"),
+            (8,  "Luk fanen og åbn idag.itmartin.dk igen",
+                 "Appen husker din gruppe og omdirigerer automatisk til boardet uden at du skal skrive gruppenavnet"),
+            (9,  "Åbn appen i en anden fane og tilmeld et andet navn med samme adgangskode",
+                 "Det andet navn vises som andet medlem på boardet"),
+            (10, "Åbn Påmindelser og opret en påmindelse til i morgen",
+                 "Påmindelsen gemmes og vises på listen med dato"),
+            (11, "Åbn Chat og send en besked",
+                 "Beskeden vises i chatten med dit navn og tidspunkt"),
         ],
     };
 
     public static async Task SeedStepsAsync(TestHubDbContext db)
     {
-        var appNames = ManagedSteps.Keys.ToList();
+        // Remove steps for any app not in ManagedSteps
+        var managedNames = ManagedSteps.Keys.ToList();
+        var unmanagedApps = await db.Apps
+            .Include(a => a.Steps)
+            .Where(a => !managedNames.Contains(a.Name) && a.Steps.Any())
+            .ToListAsync();
+        foreach (var app in unmanagedApps)
+            db.Steps.RemoveRange(app.Steps);
+
+        // Sync steps for managed apps
         var apps = await db.Apps
             .Include(a => a.Steps)
-            .Where(a => appNames.Contains(a.Name))
+            .Where(a => managedNames.Contains(a.Name))
             .ToListAsync();
 
-        var changed = false;
+        var changed = unmanagedApps.Any(a => a.Steps.Any());
 
         foreach (var app in apps)
         {
-            var def        = ManagedSteps[app.Name];
-            var firstDef   = def[0];
+            var def         = ManagedSteps[app.Name];
+            var firstDef    = def[0];
             var firstActual = app.Steps.OrderBy(s => s.Order).FirstOrDefault();
 
             if (firstActual?.Instruction    == firstDef.Instruction &&

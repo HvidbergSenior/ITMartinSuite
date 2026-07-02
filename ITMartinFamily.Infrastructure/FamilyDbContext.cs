@@ -11,4 +11,6 @@ public sealed class FamilyDbContext(DbContextOptions<FamilyDbContext> options) :
     public DbSet<FamilySession>    Sessions          => Set<FamilySession>();
     public DbSet<ChatMessage>      Chat              => Set<ChatMessage>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+    public DbSet<PersonalReminder> Reminders         => Set<PersonalReminder>();
+    public DbSet<FamilyStoredItem> StoredItems       => Set<FamilyStoredItem>();
 }
