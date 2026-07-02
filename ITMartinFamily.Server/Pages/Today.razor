@@ -24,7 +24,7 @@
 
 <PageTitle>I dag</PageTitle>
 
-<link rel="stylesheet" href="css/family.css?v=6" />
+<link rel="stylesheet" href="css/family.css?v=7" />
 
 @if (!_ready)
 {
@@ -62,7 +62,8 @@ else
                 else
                 {
                     <div class="add-row">
-                        <button class="btn-camera" @onclick="OpenTaskCameraAsync" title="Tag et billede af opgaven">📷</button>
+                        <button class="btn-camera" @onclick="OpenTaskCameraAsync" title="Tag billede">📷</button>
+                        <button class="btn-camera" @onclick="PickTaskPhotoAsync" title="Vælg fra galleri">🖼️</button>
                         <input class="add-input" @bind="_taskText" @bind:event="oninput"
                                placeholder="Hvad skal gøres?" @onkeydown="OnTaskKey" />
                         <button class="btn-primary-sm" @onclick="AddTaskAsync"
@@ -143,7 +144,8 @@ else
                 else
                 {
                     <div class="add-row">
-                        <button class="btn-camera" @onclick="OpenUrgentCameraAsync" title="Tag et billede som påmindelse">📷</button>
+                        <button class="btn-camera" @onclick="OpenUrgentCameraAsync" title="Tag billede">📷</button>
+                        <button class="btn-camera" @onclick="PickUrgentPhotoAsync" title="Vælg fra galleri">🖼️</button>
                         <input class="add-input" @bind="_urgentText" @bind:event="oninput"
                                placeholder="Hvad skal du huske?" @onkeydown="OnUrgentKey" />
                         <button class="btn-primary-sm" @onclick="AddUrgentAsync"
@@ -242,7 +244,8 @@ else
                             </div>
                         }
                         <div class="add-row">
-                            <button class="btn-camera" @onclick="OpenFindItCameraAsync" title="Tag et billede af genstanden">📷</button>
+                            <button class="btn-camera" @onclick="OpenFindItCameraAsync" title="Tag billede">📷</button>
+                            <button class="btn-camera" @onclick="PickFindItPhotoAsync" title="Vælg fra galleri">🖼️</button>
                             <input class="add-input" @bind="_findItName" @bind:event="oninput"
                                    placeholder="Hvad? (nøgler, pung...)" @onkeydown="OnFindItKey" />
                         </div>
@@ -408,9 +411,19 @@ else
 
     private async Task CaptureTaskPhotoAsync()
     {
-        try { _taskPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); } catch { }
+        try { _taskPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto", "task-video"); } catch { }
         await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
         _taskCamera = false; StateHasChanged();
+    }
+
+    private async Task PickTaskPhotoAsync()
+    {
+        try
+        {
+            var b64 = await JS.InvokeAsync<string>("familyApp.pickPhoto");
+            if (!string.IsNullOrEmpty(b64)) { _taskPreview = b64; StateHasChanged(); }
+        }
+        catch { }
     }
 
     private async Task CloseTaskCameraAsync()
@@ -490,9 +503,19 @@ else
 
     private async Task CaptureUrgentPhotoAsync()
     {
-        try { _urgentPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); } catch { }
+        try { _urgentPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto", "urgent-video"); } catch { }
         await JS.InvokeVoidAsync("familyApp.stopCamera", "urgent-video");
         _urgentCamera = false; StateHasChanged();
+    }
+
+    private async Task PickUrgentPhotoAsync()
+    {
+        try
+        {
+            var b64 = await JS.InvokeAsync<string>("familyApp.pickPhoto");
+            if (!string.IsNullOrEmpty(b64)) { _urgentPreview = b64; StateHasChanged(); }
+        }
+        catch { }
     }
 
     private async Task CloseUrgentCameraAsync()
@@ -551,9 +574,19 @@ else
 
     private async Task CaptureFindItPhotoAsync()
     {
-        try { _findItPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto"); } catch { }
+        try { _findItPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto", "findit-video"); } catch { }
         await JS.InvokeVoidAsync("familyApp.stopCamera", "findit-video");
         _findItCamera = false; StateHasChanged();
+    }
+
+    private async Task PickFindItPhotoAsync()
+    {
+        try
+        {
+            var b64 = await JS.InvokeAsync<string>("familyApp.pickPhoto");
+            if (!string.IsNullOrEmpty(b64)) { _findItPreview = b64; StateHasChanged(); }
+        }
+        catch { }
     }
 
     private async Task CloseFindItCameraAsync()

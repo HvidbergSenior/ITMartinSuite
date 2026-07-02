@@ -10,9 +10,9 @@ window.familyApp = {
     },
     scrollChat:   function() { var el = document.getElementById('chat-messages'); if (el) el.scrollTop = el.scrollHeight; },
 
-    capturePhoto: async function() {
-        var video = document.getElementById('task-video');
-        if (!video) throw new Error('Video element not found');
+    capturePhoto: async function(videoId) {
+        var video = document.getElementById(videoId);
+        if (!video) throw new Error('Video element not found: ' + videoId);
 
         // Wait up to 2s for the video stream to report dimensions
         var waited = 0;
@@ -37,6 +37,30 @@ window.familyApp = {
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(video, 0, 0, w, h);
         return canvas.toDataURL('image/jpeg', 0.82).replace('data:image/jpeg;base64,', '');
+    },
+
+    pickPhoto: function() {
+        return new Promise(function(resolve) {
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = function() {
+                var file = input.files && input.files[0];
+                if (!file) { resolve(''); return; }
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    resolve(e.target.result.replace(/^data:image\/[a-z]+;base64,/, ''));
+                };
+                reader.onerror = function() { resolve(''); };
+                reader.readAsDataURL(file);
+            };
+            // Some browsers fire oncancel; others just do nothing — resolve empty after focus returns
+            window.addEventListener('focus', function handler() {
+                window.removeEventListener('focus', handler);
+                setTimeout(function() { if (!input.files || !input.files.length) resolve(''); }, 400);
+            }, { once: true });
+            input.click();
+        });
     },
 
     startCamera: async function(videoId) {
