@@ -24,7 +24,7 @@
 
 <PageTitle>I dag</PageTitle>
 
-<link rel="stylesheet" href="css/family.css?v=9" />
+<link rel="stylesheet" href="css/family.css?v=10" />
 
 @if (!_ready)
 {
@@ -87,6 +87,7 @@ else
                 }
             }
 
+            <div class="item-list">
             @if (_tasks.Count == 0)
             {
                 <div class="section-empty">Ingen opgaver i dag ✓</div>
@@ -126,6 +127,7 @@ else
                     </div>
                 }
             }
+            </div>
         }
         else if (_tab == "husk")
         {
