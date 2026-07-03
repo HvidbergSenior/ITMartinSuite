@@ -54,5 +54,6 @@ public static class AppRegistry
         new("Upload",             "upload-web",           "https://upload.itmartin.dk"),
         new("R6 Assistant",       "r6assistant-web",      "https://r6.itmartin.dk"),
         new("R6 Intel",           "r6intel-web",          "https://r6intel.itmartin.dk"),
+        new("Media Seller",       "mediaseller-web",      "https://mediaseller.itmartin.dk"),
     ];
 }

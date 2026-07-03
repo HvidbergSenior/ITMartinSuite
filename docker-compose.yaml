@@ -46,6 +46,8 @@ services:
       - Apps__ImageGenUrl=https://imagegen.itmartin.dk
       - Apps__CloudOverblikUrl=https://cloudoverblik.itmartin.dk
       - Apps__UploadUrl=https://upload.itmartin.dk
+      - Apps__MediaSellerUrl=https://mediaseller.itmartin.dk
+      - Apps__DailyBriefUrl=https://nyheder.itmartin.dk
 
     restart: unless-stopped
 
@@ -923,36 +925,82 @@ services:
     networks:
       - martinnet
 
+  # =========================================================
+  # DAILY BRIEF — RSS news aggregator
+  #   nyheder.itmartin.dk  →  http://dailybrief-web:8080
+  # =========================================================
+
   dailybrief-web:
-    image: martinsuite-dailybrief-web:latest
     container_name: dailybrief-web
+    profiles: [manual]
+
+    build:
+      context: .
+      dockerfile: ./ITMartinDailyBrief.Server/Dockerfile
+
     env_file:
       - magic.env
+
     ports:
       - "8110:8080"
+
     environment:
       - ASPNETCORE_URLS=http://+:8080
+
     restart: unless-stopped
+
     networks:
       - martinnet
 
   # =========================================================
   # POLL — Meningsmåling (open voting, no login)
-  #   poll.itmartin.dk  →  http://poll-web:8080
+  #   stem.itmartin.dk  →  http://poll-web:8080
   # =========================================================
 
   poll-web:
-    image: martinsuite-poll-web:latest
     container_name: poll-web
     profiles: [manual]
+
+    build:
+      context: .
+      dockerfile: ./ITMartinPoll.Server/Dockerfile
+
     ports:
       - "8111:8080"
+
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - Poll__AdminPin=1234
+
     volumes:
       - /volume1/docker/martinsuite/poll/data:/app/data
+
     restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
+  # MEDIA SELLER — Sælg medie (Excel-import af samlinger)
+  #   mediaseller.itmartin.dk  →  http://mediaseller-web:8080
+  # =========================================================
+
+  mediaseller-web:
+    container_name: mediaseller-web
+    profiles: [manual]
+
+    build:
+      context: .
+      dockerfile: ./ITMartinMediaSeller.Server/Dockerfile
+
+    ports:
+      - "8112:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+
+    restart: unless-stopped
+
     networks:
       - martinnet
 
