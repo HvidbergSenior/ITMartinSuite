@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>ITMartin Test Dashboard</title>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#0F1117;color:#E5E7EB;margin:0;padding:16px}
+    h1{font-size:20px;margin-bottom:4px}
+    h2{font-size:13px;margin:24px 0 8px;color:#6B7280;text-transform:uppercase;letter-spacing:.08em}
+    .ts{font-size:13px;color:#6B7280;margin-bottom:16px}
+    .overall{display:inline-block;padding:6px 16px;border-radius:6px;font-weight:700;font-size:15px;margin-bottom:20px}
+    .overall.pass{background:#14532D;color:#86EFAC}.overall.fail{background:#7F1D1D;color:#FCA5A5}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;color:#6B7280;padding:5px 8px;border-bottom:1px solid #1F2937}
+    td{padding:5px 8px;border-bottom:1px solid #1F2937}
+    tr.failed td:first-child{color:#FCA5A5}
+    tr.skipped td,tr.ignored td{opacity:.45}
+    .badge{padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}
+    .badge.pass{background:#14532D;color:#86EFAC}.badge.fail{background:#7F1D1D;color:#FCA5A5}
+    .badge.skip{background:#292524;color:#78716C}
+    .msg{max-width:260px;word-break:break-word}
+    .k6{background:#161825;border-radius:8px;padding:12px 16px;display:flex;gap:32px;margin-top:8px}
+    .k6 .val{font-size:22px;font-weight:700}.k6 .lbl{font-size:11px;color:#6B7280}
+  </style>
+</head>
+<body>
+  <h1>ITMartin · Test Dashboard</h1>
+  <div class="ts">Seneste kørsel: 03/07/2026 11:11</div>
+  <div class="overall pass">✓ Alle tests OK</div>
+
+  <h2>Smoke · alle apps (0 kørte &nbsp;·&nbsp; 0 offline &nbsp;·&nbsp; 0 fejl)</h2>
+  <table><tr><th>App</th><th>Status</th><th>Tid</th><th>Besked</th></tr>
+  </table>
+
+  <h2>Flow · bruger-flows (0 tests &nbsp;·&nbsp; 0 fejl)</h2>
+  <table><tr><th>Test</th><th>Status</th><th>Tid</th><th>Besked</th></tr>
+  </table>
+  
+</body></html>
