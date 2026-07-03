@@ -81,13 +81,14 @@ else if (_song is not null)
                             <button class="t-btn" @onclick="() => AdjustT(-1)" title="Transponer ned en halvtone">−</button>
                             <button class="t-btn" @onclick="() => AdjustT(1)"  title="Transponer op en halvtone">+</button>
                         </div>
+                        <button class="btn-ghost-sm" @onclick="SearchUltimateGuitar" title="Søg akkorder på Ultimate Guitar">🎸 UG</button>
                         @if (ChordAi.IsAvailable)
                         {
-                            <button class="btn-ai" @onclick="AiChords" disabled="@_aiLoading">
+                            <button class="btn-ghost-sm" @onclick='() => _ugPasteOpen = true' title="Indsæt kopieret UG-tab og udtræk akkorder + tekst automatisk">📋 Fra UG</button>
+                            <button class="btn-ai" @onclick="AiChords" disabled="@_aiLoading" title="Lad AI gætte akkorder (bedst til egne sange)">
                                 @(_aiLoading ? "..." : "🤖 AI")
                             </button>
                         }
-                        <button class="btn-ghost-sm" @onclick="SearchUltimateGuitar" title="Søg akkorder på Ultimate Guitar">🎸 UG</button>
                         <button class="btn-ghost-sm" @onclick="SimplifyChords" title="Fjern slash-akkorder (A/D → A)">简</button>
                         <button class="btn-ghost-sm" @onclick='() => _photoTarget = "chords"'>📷</button>
                     </div>
@@ -350,6 +351,35 @@ else if (_song is not null)
 </div>
 }
 
+<!-- Paste from Ultimate Guitar overlay -->
+@if (_ugPasteOpen)
+{
+    <div class="photo-overlay">
+        <div class="photo-panel">
+            <div class="photo-header">
+                <span>🎸 Indsæt fra Ultimate Guitar</span>
+                <button class="photo-close" @onclick='() => { _ugPasteOpen = false; _ugPasteText = ""; }'>✕</button>
+            </div>
+            <p style="font-size:0.85rem;color:#aaa;margin:4px 0 8px">
+                Kopiér hele tab-teksten fra Ultimate Guitar og indsæt herunder.
+                AI udtrækker akkorder og tekst automatisk.
+            </p>
+            <textarea class="chord-editor" rows="14"
+                      style="font-size:0.8rem"
+                      placeholder="Indsæt UG-tab her..."
+                      value="@_ugPasteText"
+                      @oninput="e => _ugPasteText = e.Value?.ToString() ?? string.Empty"></textarea>
+            <div class="photo-result-actions" style="margin-top:8px">
+                <button class="btn-primary" @onclick="ParseUgTab"
+                        disabled="@(_ugParsing || string.IsNullOrWhiteSpace(_ugPasteText))">
+                    @(_ugParsing ? "Analyserer..." : "✓ Udtræk akkorder + tekst")
+                </button>
+                <button class="btn-ghost-sm" @onclick='() => { _ugPasteOpen = false; _ugPasteText = ""; }'>Annuller</button>
+            </div>
+        </div>
+    </div>
+}
+
 <!-- Photo capture overlay -->
 @if (_photoTarget is not null)
 {
@@ -441,6 +471,10 @@ else if (_song is not null)
     private string _aiHelperResult = "";
 
     private bool _annotatingChords;
+
+    private bool _ugPasteOpen;
+    private string _ugPasteText = "";
+    private bool _ugParsing;
 
     private static readonly string[] MajorKeys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] MinorKeys = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"];
@@ -834,6 +868,20 @@ else if (_song is not null)
         if (_song is null) return;
         var q = Uri.EscapeDataString(_song.Title + (string.IsNullOrWhiteSpace(_song.Artist) ? "" : " " + _song.Artist) + " lyrics");
         await JS.InvokeVoidAsync("open", $"https://www.google.com/search?q={q}", "_blank");
+    }
+
+    private async Task ParseUgTab()
+    {
+        if (string.IsNullOrWhiteSpace(_ugPasteText)) return;
+        _ugParsing = true;
+        StateHasChanged();
+        var result = await ChordAi.ParseUltimateGuitarTabAsync(_ugPasteText);
+        if (!string.IsNullOrEmpty(result.Chords))  { _chordEdit  = result.Chords;  }
+        if (!string.IsNullOrEmpty(result.Lyrics))  { _lyricsEdit = result.Lyrics;  }
+        AutoSave();
+        _ugParsing   = false;
+        _ugPasteOpen = false;
+        _ugPasteText = "";
     }
 
     private async Task SearchUltimateGuitar()

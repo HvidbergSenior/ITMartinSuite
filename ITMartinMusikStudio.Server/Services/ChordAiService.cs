@@ -431,6 +431,70 @@ public sealed class ChordAiService
         return "";
     }
 
+    public record UgTabResult(string Chords, string Lyrics);
+
+    public async Task<UgTabResult> ParseUltimateGuitarTabAsync(string rawTab)
+    {
+        if (_client is null) return new UgTabResult("", "");
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeSonnet4_6,
+            MaxTokens = 2000,
+            System = """
+                You are a musician parsing a raw Ultimate Guitar tab into two structured outputs.
+                The tab may have chords written above lyrics, or inline chord markers like [Am].
+
+                Return EXACTLY this format with the two delimiters — nothing else:
+
+                ===CHORDS===
+                Verse: Am F C G
+                Chorus: C G Am F
+
+                ===LYRICS===
+                Verse:
+                [Am]I was wrong to say I [F]loved her
+                [C]When I told her it was [G]over
+
+                Rules:
+                - CHORDS section: one section label per line, chords listed after the colon. Only unique progression per section, not every bar.
+                - LYRICS section: plain lyrics with [Chord] markers placed immediately before the syllable where the chord lands.
+                - Keep section labels (Verse, Chorus, Bridge, etc.) as plain text lines with no chord markers.
+                - Empty lines between sections must remain as empty lines.
+                - Do NOT include tab notation, finger numbers, or any non-lyric content in the LYRICS section.
+                - If no lyrics are present, return empty LYRICS section.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Parse this Ultimate Guitar tab:\n\n{rawTab}"
+                }
+            ]
+        });
+
+        var text = "";
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) { text = tb.Text.Trim(); break; }
+
+        var chordsStart = text.IndexOf("===CHORDS===", StringComparison.Ordinal);
+        var lyricsStart = text.IndexOf("===LYRICS===", StringComparison.Ordinal);
+
+        var chords = "";
+        var lyrics = "";
+
+        if (chordsStart >= 0 && lyricsStart > chordsStart)
+            chords = text[(chordsStart + 12)..lyricsStart].Trim();
+        else if (chordsStart >= 0)
+            chords = text[(chordsStart + 12)..].Trim();
+
+        if (lyricsStart >= 0)
+            lyrics = text[(lyricsStart + 12)..].Trim();
+
+        return new UgTabResult(chords, lyrics);
+    }
+
     public async Task<string> ExtractChordsFromImageAsync(string base64Image, string mediaType)
     {
         if (_client is null) return "";
