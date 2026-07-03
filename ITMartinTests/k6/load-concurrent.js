@@ -49,7 +49,7 @@ export default function () {
 
   check(res, {
     'status 200':          r => r.status === 200,
-    'has blazor content':  r => r.body.includes('blazor') || r.body.includes('<body'),
+    'has blazor content':  r => r.body != null && (r.body.includes('blazor') || r.body.includes('<body')),
     'under 3 s':           r => r.timings.duration < 3000,
   });
 

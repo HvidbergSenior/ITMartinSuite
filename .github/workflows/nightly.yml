@@ -76,7 +76,6 @@ jobs:
             --no-build -c Release \
             --filter "Category=Smoke" \
             --logger "trx;LogFileName=smoke.trx" \
-            --logger "nunit;LogFilePath=TestResults/smoke-results.xml" \
             -p:ResultsDirectory=TestResults \
             -v normal
         continue-on-error: true
@@ -88,7 +87,6 @@ jobs:
             --no-build -c Release \
             --filter "Category=Flow" \
             --logger "trx;LogFileName=flows.trx" \
-            --logger "nunit;LogFilePath=TestResults/flow-results.xml" \
             -p:ResultsDirectory=TestResults \
             -v normal
         continue-on-error: true
