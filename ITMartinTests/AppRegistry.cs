@@ -19,7 +19,7 @@ public static class AppRegistry
     public static readonly AppDef[] All =
     [
         // ── Always-on ─────────────────────────────────────────────────────────
-        new("Daily Brief",        "dailybrief-web",       E("DAILYBRIEF_URL", "https://nyheder.itmartin.dk"), AlwaysOn: true),
+        new("Daily Brief",        "dailybrief-web",       E("DAILYBRIEF_URL", "https://nyheder.itmartin.dk")),
 
         // ── Real shops / real users ────────────────────────────────────────────
         new("Kvittering",         "receipt-web",          "https://kvittering.itmartin.dk"),
