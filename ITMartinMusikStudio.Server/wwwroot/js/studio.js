@@ -6,6 +6,7 @@ window.studio = (function() {
     var _camStream = null;
     var _songKey = null;
     var _videoMode = false;
+    var _mixAudios = [];
 
     // ── Recording ──────────────────────────────────────────────────────────────
 
@@ -55,7 +56,30 @@ window.studio = (function() {
             });
     }
 
+    function stopMix() {
+        _mixAudios.forEach(function(a) { try { a.pause(); a.currentTime = 0; } catch(e) {} });
+        _mixAudios = [];
+    }
+
+    function playMix(urls) {
+        stopMix();
+        _mixAudios = urls.map(function(url) {
+            var a = new Audio(url);
+            a.play().catch(function(e) { console.error("Mix playback failed", e); });
+            return a;
+        });
+    }
+
+    function startOverdub(songKey, playUrl, videoMode) {
+        stopMix();
+        var playback = new Audio(playUrl);
+        playback.play().catch(function(e) { console.error("Overdub playback failed", e); });
+        _mixAudios = [playback];
+        return startRecording(songKey, videoMode);
+    }
+
     function stopRecording() {
+        stopMix();
         return new Promise(function(resolve) {
             if (!_mediaRecorder) { resolve(); return; }
 
@@ -189,6 +213,9 @@ window.studio = (function() {
     return {
         startRecording: startRecording,
         stopRecording: stopRecording,
+        startOverdub: startOverdub,
+        playMix: playMix,
+        stopMix: stopMix,
         startCamera: startCamera,
         stopCamera: stopCamera,
         capturePhoto: capturePhoto

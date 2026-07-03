@@ -143,7 +143,30 @@ else if (_song is not null)
                             <button class="rec-mode-btn @(_videoMode ? "rec-mode-btn--active" : "")"
                                     @onclick='() => _videoMode = true'>📹 Video</button>
                         </div>
-                        <button class="btn-record" @onclick="StartRecording">⏺ Optag</button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button class="btn-record" @onclick="StartRecording">⏺ Optag</button>
+                            @if (_recordings.Any())
+                            {
+                                <button class="btn-record" style="background:#1d4ed8"
+                                        @onclick="StartOverdubRecording"
+                                        title="Spil seneste optagelse i høretelefoner og optag nyt spor ovenpå">
+                                    ⏺ Overdub
+                                </button>
+                            }
+                        </div>
+                        @if (_recordings.Count >= 2)
+                        {
+                            @if (!_mixing)
+                            {
+                                <button class="btn-ghost-sm" style="margin-top:8px;width:100%"
+                                        @onclick="PlayMix">▶ Mix alle (@_recordings.Count spor)</button>
+                            }
+                            else
+                            {
+                                <button class="btn-stop" style="margin-top:8px"
+                                        @onclick="StopMix">⏹ Stop mix</button>
+                            }
+                        }
                     }
                     else
                     {
@@ -479,6 +502,8 @@ else if (_song is not null)
     private string _ugPasteText = "";
     private bool _ugParsing;
 
+    private bool _mixing;
+
     private static readonly string[] MajorKeys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] MinorKeys = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"];
 
@@ -632,16 +657,7 @@ else if (_song is not null)
     private async Task StartRecording()
     {
         _recording = true;
-        _recTimer = 0;
-        _recTimer_t = new System.Timers.Timer(1000) { AutoReset = true };
-        _recTimer_t.Elapsed += async (_, _) =>
-        {
-            _recTimer++;
-            await InvokeAsync(StateHasChanged);
-            if (_recTimer >= 600)
-                await InvokeAsync(StopRecording);
-        };
-        _recTimer_t.Start();
+        StartRecTimer();
         try
         {
             await JS.InvokeVoidAsync("studio.startRecording", SongKey, _videoMode);
@@ -657,6 +673,58 @@ else if (_song is not null)
                 : $"Mikrofon fejl: {ex.Message}";
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private void StartRecTimer()
+    {
+        _recTimer = 0;
+        _recTimer_t = new System.Timers.Timer(1000) { AutoReset = true };
+        _recTimer_t.Elapsed += async (_, _) =>
+        {
+            _recTimer++;
+            await InvokeAsync(StateHasChanged);
+            if (_recTimer >= 600)
+                await InvokeAsync(StopRecording);
+        };
+        _recTimer_t.Start();
+    }
+
+    private async Task StartOverdubRecording()
+    {
+        var latest = _recordings.OrderByDescending(r => r.CreatedAt).FirstOrDefault();
+        if (latest is null) { await StartRecording(); return; }
+
+        _recording = true;
+        StartRecTimer();
+        try
+        {
+            var playUrl = $"/stream?path={Uri.EscapeDataString(latest.RelativePath)}";
+            await JS.InvokeVoidAsync("studio.startOverdub", SongKey, playUrl, _videoMode);
+        }
+        catch (JSException ex)
+        {
+            _recTimer_t?.Stop();
+            _recTimer_t?.Dispose();
+            _recTimer = 0;
+            _recording = false;
+            _saveStatus = $"Mikrofon fejl: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task PlayMix()
+    {
+        _mixing = true;
+        var urls = _recordings
+            .Select(r => $"/stream?path={Uri.EscapeDataString(r.RelativePath)}")
+            .ToArray();
+        await JS.InvokeVoidAsync("studio.playMix", urls);
+    }
+
+    private async Task StopMix()
+    {
+        _mixing = false;
+        await JS.InvokeVoidAsync("studio.stopMix");
     }
 
     private async Task StopRecording()
