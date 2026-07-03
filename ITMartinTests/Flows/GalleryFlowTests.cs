@@ -6,93 +6,114 @@ public class GalleryFlowTests : FlowTestBase
 {
     private const string Base = "https://gallery.itmartin.dk";
 
-    [Test]
-    public async Task Gallery_Index_Loads()
+    // Gallery is a plain JS app — wait for JS to fetch /api/galleries and render cards
+    private async Task WaitForGalleryCards() =>
+        await Page.WaitForSelectorAsync(".gallery-card", new() { Timeout = 10_000 });
+
+    private async Task OpenGallery(string nameFragment)
     {
         await GoOrSkip(Base);
-        await WaitForPage();
+        await Page.WaitForLoadStateAsync(LoadState.Load, new() { Timeout = 15_000 });
+        await WaitForGalleryCards();
 
-        var body = await Page.ContentAsync();
-        Assert.That(body, Does.Contain("blazor").Or.Contain("gallery").IgnoreCase,
-            "Gallery index should load");
+        var card = Page.Locator($".gallery-card:has(.gallery-card-name:has-text('{nameFragment}'))");
+        if (await card.CountAsync() == 0)
+            Assert.Ignore($"Gallery '{nameFragment}' not found on index");
+
+        await card.First.ClickAsync();
+        // Wait for either login modal or gallery content to appear after JS fetch
+        await Page.WaitForSelectorAsync("#loginModal.active, .file-card, .folder-card",
+            new() { Timeout = 8_000 });
+    }
+
+    private async Task EnterPassword(string password)
+    {
+        // Wait for login modal to appear after clicking a password-protected gallery
+        await Page.WaitForSelectorAsync("#loginModal.active, #loginInput", new() { Timeout = 5_000 });
+        await Page.Locator("#loginInput").FillAsync(password);
+        await Page.Locator("#loginBtn").ClickAsync();
+    }
+
+    // ── Tests ─────────────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task Gallery_Index_Shows_Gallery_Cards()
+    {
+        await GoOrSkip(Base);
+        await Page.WaitForLoadStateAsync(LoadState.Load, new() { Timeout = 15_000 });
+        await WaitForGalleryCards();
+
+        var count = await Page.Locator(".gallery-card").CountAsync();
+        Assert.That(count, Is.GreaterThan(0), "Gallery index should show at least one gallery card");
     }
 
     [Test]
     public async Task Gallery_Mie_Requires_Password()
     {
-        await GoOrSkip($"{Base}/mie");
-        await WaitForPage();
+        await OpenGallery("Mie");
 
-        var hasPasswordInput = await Page.Locator("input[type='password'], input[placeholder*='kode'], input[placeholder*='adgang']")
-            .CountAsync() > 0;
-        var hasPhotos = await Page.Locator("img[src*='/gallery/'], .gallery-item, .photo-grid").CountAsync() > 0;
+        // Should show login modal or already browsing (if no password)
+        var hasModal  = await Page.Locator("#loginModal.active").CountAsync() > 0;
+        var hasFiles  = await Page.Locator(".file-card, .folder-card, img").CountAsync() > 0;
 
-        Assert.That(hasPasswordInput || hasPhotos, Is.True,
-            "Gallery /mie should show password form or photos");
+        Assert.That(hasModal || hasFiles, Is.True,
+            "Mie gallery should show login modal or files after clicking");
     }
 
     [Test]
-    public async Task Gallery_Mie_Correct_Password_Shows_Photos()
+    public async Task Gallery_Mie_Correct_Password_Shows_Files()
     {
         var password = Environment.GetEnvironmentVariable("GALLERY_PASSWORD_MIE") ?? "8670Låsby";
 
-        await GoOrSkip($"{Base}/mie");
-        await WaitForPage();
+        await OpenGallery("Mie");
 
-        var passwordInput = Page.Locator("input[type='password'], input[placeholder*='kode'], input[placeholder*='adgang']");
-        if (await passwordInput.CountAsync() == 0)
+        var hasModal = await Page.Locator("#loginModal.active").CountAsync() > 0;
+        if (!hasModal)
         {
-            var imgs = await Page.Locator("img").CountAsync();
-            Assert.That(imgs, Is.GreaterThan(0), "Expected photos to be visible");
+            // Gallery opened without password (cookie?) — just check files visible
+            var files = await Page.Locator(".file-card, .folder-card, img").CountAsync();
+            Assert.That(files, Is.GreaterThan(0), "Expected files or folders visible");
             return;
         }
 
-        await passwordInput.First.FillAsync(password);
-        await passwordInput.First.PressAsync("Enter");
-        await Page.WaitForLoadStateAsync(LoadState.Load, new() { Timeout = 10_000 });
-        await Task.Delay(1_500);
+        await EnterPassword(password);
+        await Task.Delay(1_500); // allow JS to load gallery content
 
-        var images = await Page.Locator("img").CountAsync();
-        Assert.That(images, Is.GreaterThan(0), "Expected photos after correct password");
+        var count = await Page.Locator(".file-card, .folder-card, img").CountAsync();
+        Assert.That(count, Is.GreaterThan(0), "Expected files or folders after correct Mie password");
     }
 
     [Test]
     public async Task Gallery_JesperMette_Requires_Password()
     {
-        await GoOrSkip($"{Base}/jespermette");
-        await WaitForPage();
+        await OpenGallery("Mette");
 
-        var hasPasswordInput = await Page.Locator("input[type='password'], input[placeholder*='kode'], input[placeholder*='adgang']")
-            .CountAsync() > 0;
-        var hasPhotos = await Page.Locator("img[src*='/gallery/'], .gallery-item, .photo-grid").CountAsync() > 0;
+        var hasModal = await Page.Locator("#loginModal.active").CountAsync() > 0;
+        var hasFiles = await Page.Locator(".file-card, .folder-card, img").CountAsync() > 0;
 
-        Assert.That(hasPasswordInput || hasPhotos, Is.True,
-            "Gallery /jespermette should show password form or photos");
+        Assert.That(hasModal || hasFiles, Is.True,
+            "Mette & Jesper gallery should show login modal or files after clicking");
     }
 
     [Test]
-    public async Task Gallery_JesperMette_Correct_Password_Shows_Photos()
+    public async Task Gallery_JesperMette_Correct_Password_Shows_Files()
     {
         var password = Environment.GetEnvironmentVariable("GALLERY_PASSWORD_JESPERMETTE") ?? "2860Søborg";
 
-        await GoOrSkip($"{Base}/jespermette");
-        await WaitForPage();
+        await OpenGallery("Mette");
 
-        var passwordInput = Page.Locator("input[type='password'], input[placeholder*='kode'], input[placeholder*='adgang']");
-        if (await passwordInput.CountAsync() == 0)
+        var hasModal = await Page.Locator("#loginModal.active").CountAsync() > 0;
+        if (!hasModal)
         {
-            var imgs = await Page.Locator("img").CountAsync();
-            Assert.That(imgs, Is.GreaterThan(0), "Expected photos to be visible");
+            var files = await Page.Locator(".file-card, .folder-card, img").CountAsync();
+            Assert.That(files, Is.GreaterThan(0), "Expected files or folders visible");
             return;
         }
 
-        await passwordInput.First.FillAsync(password);
-        await passwordInput.First.PressAsync("Enter");
-        await Page.WaitForLoadStateAsync(LoadState.Load, new() { Timeout = 10_000 });
+        await EnterPassword(password);
         await Task.Delay(1_500);
 
-        var images = await Page.Locator("img").CountAsync();
-        Assert.That(images, Is.GreaterThan(0), "Expected photos after correct password");
+        var count = await Page.Locator(".file-card, .folder-card, img").CountAsync();
+        Assert.That(count, Is.GreaterThan(0), "Expected files or folders after correct JesperMette password");
     }
 }
-
