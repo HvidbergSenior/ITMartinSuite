@@ -8,24 +8,31 @@ import xml.etree.ElementTree as ET
 import json, os
 from datetime import datetime
 
-def parse_nunit(path):
+def parse_trx(path):
+    """Parse a .trx (Visual Studio Test Results) file into a list of test-case dicts."""
     if not os.path.exists(path):
         return []
+    ns = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
     root = ET.parse(path).getroot()
     cases = []
-    def walk(node):
-        for child in node:
-            if child.tag == 'test-case':
-                msg_el = child.find('.//message')
-                cases.append({
-                    'name':     child.get('name', ''),
-                    'result':   child.get('result', 'Unknown'),
-                    'duration': float(child.get('duration') or 0),
-                    'message':  (msg_el.text or '') if msg_el is not None else '',
-                })
-            else:
-                walk(child)
-    walk(root)
+    for r in root.findall('.//t:UnitTestResult', ns):
+        outcome = r.get('outcome', 'Unknown')
+        # Map TRX outcomes to dashboard labels
+        result = {'Passed': 'Passed', 'Failed': 'Failed', 'NotExecuted': 'Skipped'}.get(outcome, outcome)
+        # Duration: "0:00:01.234" → seconds
+        dur_str = r.get('duration', '0')
+        try:
+            parts = dur_str.split(':')
+            dur = float(parts[-1]) + int(parts[-2]) * 60 + int(parts[-3]) * 3600
+        except Exception:
+            dur = 0.0
+        msg_el = r.find('.//t:Message', ns)
+        cases.append({
+            'name':     r.get('testName', ''),
+            'result':   result,
+            'duration': dur,
+            'message':  (msg_el.text or '').strip() if msg_el is not None else '',
+        })
     return cases
 
 def k6_summary():
@@ -43,8 +50,8 @@ def k6_summary():
     except Exception:
         return None
 
-smoke = parse_nunit('TestResults/smoke-results.xml')
-flows = parse_nunit('TestResults/flow-results.xml')
+smoke = parse_trx('TestResults/smoke.trx')
+flows = parse_trx('TestResults/flows.trx')
 k6    = k6_summary()
 now   = datetime.now().strftime('%d/%m/%Y %H:%M')
 

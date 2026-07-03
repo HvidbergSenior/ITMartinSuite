@@ -76,7 +76,7 @@ jobs:
             --no-build -c Release \
             --filter "Category=Smoke" \
             --logger "trx;LogFileName=smoke.trx" \
-            -p:ResultsDirectory=TestResults \
+            -p:ResultsDirectory="${{ github.workspace }}/TestResults" \
             -v normal
         continue-on-error: true
 
@@ -87,7 +87,7 @@ jobs:
             --no-build -c Release \
             --filter "Category=Flow" \
             --logger "trx;LogFileName=flows.trx" \
-            -p:ResultsDirectory=TestResults \
+            -p:ResultsDirectory="${{ github.workspace }}/TestResults" \
             -v normal
         continue-on-error: true
 

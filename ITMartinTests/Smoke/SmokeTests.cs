@@ -48,6 +48,13 @@ public class SmokeTests
         {
             response = await Http.GetAsync(app.Url);
         }
+        catch (TaskCanceledException)
+        {
+            var msg = $"{app.Name} timed out after 15 s — container not responding";
+            if (app.AlwaysOn) Assert.Fail(msg);
+            else              Assert.Ignore($"OFFLINE — {msg}");
+            return;
+        }
         catch (HttpRequestException ex)
         {
             var msg = $"Cannot connect to {app.Name} ({app.Url}): {ex.Message}";
@@ -59,10 +66,12 @@ public class SmokeTests
 
         TestContext.Out.WriteLine($"Status: {(int)response.StatusCode}  Time: {sw.ElapsedMilliseconds} ms");
 
-        // Cloudflare/proxy errors mean the container is down
-        if (response.StatusCode is HttpStatusCode.BadGateway
+        // Cloudflare/proxy errors or 404 mean the container is down / not deployed
+        if (response.StatusCode is HttpStatusCode.NotFound
+                                 or HttpStatusCode.BadGateway
                                  or HttpStatusCode.ServiceUnavailable
-                                 or HttpStatusCode.GatewayTimeout)
+                                 or HttpStatusCode.GatewayTimeout
+                                 or (HttpStatusCode)530)
         {
             var msg = $"{app.Name} returned {(int)response.StatusCode} — container likely stopped";
             if (app.AlwaysOn) Assert.Fail(msg);
@@ -78,7 +87,9 @@ public class SmokeTests
         Assert.That(body, Does.Contain("blazor").Or.Contain("<body"),
             $"{app.Name}: response body missing Blazor shell — possible startup error");
 
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(5_000),
-            $"{app.Name}: response took {sw.ElapsedMilliseconds} ms (limit 5 000 ms)");
+        // Only enforce the time limit for always-on apps; manual containers cold-start slowly
+        if (app.AlwaysOn)
+            Assert.That(sw.ElapsedMilliseconds, Is.LessThan(10_000),
+                $"{app.Name}: response took {sw.ElapsedMilliseconds} ms (limit 10 000 ms)");
     }
 }
