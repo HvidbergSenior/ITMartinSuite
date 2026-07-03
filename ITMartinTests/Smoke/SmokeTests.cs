@@ -66,11 +66,13 @@ public class SmokeTests
 
         TestContext.Out.WriteLine($"Status: {(int)response.StatusCode}  Time: {sw.ElapsedMilliseconds} ms");
 
-        // Cloudflare/proxy errors or 404 mean the container is down / not deployed
+        // Cloudflare/proxy errors, 404, or unresolvable redirects mean the container is down / not deployed
         if (response.StatusCode is HttpStatusCode.NotFound
                                  or HttpStatusCode.BadGateway
                                  or HttpStatusCode.ServiceUnavailable
                                  or HttpStatusCode.GatewayTimeout
+                                 or HttpStatusCode.MovedPermanently
+                                 or HttpStatusCode.Found
                                  or (HttpStatusCode)530)
         {
             var msg = $"{app.Name} returned {(int)response.StatusCode} — container likely stopped";

@@ -77,7 +77,8 @@ public class GalleryFlowTests : FlowTestBase
         }
 
         await EnterPassword(password);
-        await Task.Delay(1_500); // allow JS to load gallery content
+        // Wait for gallery content to appear after login
+        try { await Page.WaitForSelectorAsync(".file-card, .folder-card, img", new() { Timeout = 5_000 }); } catch { }
 
         var count = await Page.Locator(".file-card, .folder-card, img").CountAsync();
         Assert.That(count, Is.GreaterThan(0), "Expected files or folders after correct Mie password");
@@ -111,7 +112,7 @@ public class GalleryFlowTests : FlowTestBase
         }
 
         await EnterPassword(password);
-        await Task.Delay(1_500);
+        try { await Page.WaitForSelectorAsync(".file-card, .folder-card, img", new() { Timeout = 5_000 }); } catch { }
 
         var count = await Page.Locator(".file-card, .folder-card, img").CountAsync();
         Assert.That(count, Is.GreaterThan(0), "Expected files or folders after correct JesperMette password");

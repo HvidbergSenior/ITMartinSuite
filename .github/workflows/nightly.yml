@@ -76,8 +76,8 @@ jobs:
             --no-build -c Release \
             --filter "Category=Smoke" \
             --logger "trx;LogFileName=smoke.trx" \
-            -p:ResultsDirectory="${{ github.workspace }}/TestResults" \
             -v normal
+          find . -name "smoke.trx" -not -path "./TestResults/*" -exec cp {} TestResults/ \; 2>/dev/null || true
         continue-on-error: true
 
       # ── Flow tests (Playwright browser) ────────────────────────────────────────
@@ -87,8 +87,8 @@ jobs:
             --no-build -c Release \
             --filter "Category=Flow" \
             --logger "trx;LogFileName=flows.trx" \
-            -p:ResultsDirectory="${{ github.workspace }}/TestResults" \
             -v normal
+          find . -name "flows.trx" -not -path "./TestResults/*" -exec cp {} TestResults/ \; 2>/dev/null || true
         continue-on-error: true
 
       # ── k6 load test ────────────────────────────────────────────────────────────

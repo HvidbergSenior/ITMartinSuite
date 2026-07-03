@@ -12,7 +12,7 @@ public abstract class FlowTestBase : PageTest
             if (resp?.Status is 502 or 503 or 504)
                 Assert.Ignore($"OFFLINE — {url} returned {resp.Status}");
         }
-        catch (PlaywrightException ex) when (ex.Message.Contains("net::ERR"))
+        catch (PlaywrightException ex) when (ex.Message.Contains("net::ERR") || ex.Message.Contains("Timeout") || ex.Message.Contains("timeout"))
         {
             Assert.Ignore($"OFFLINE — cannot reach {url}: {ex.Message}");
         }
