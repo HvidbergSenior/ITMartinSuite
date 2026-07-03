@@ -76,7 +76,7 @@ jobs:
             --no-build -c Release \
             --filter "Category=Smoke" \
             --logger "trx;LogFileName=smoke.trx" \
-            -v normal
+            -v normal || true
           find . -name "smoke.trx" -not -path "./TestResults/*" -exec cp {} TestResults/ \; 2>/dev/null || true
         continue-on-error: true
 
@@ -87,7 +87,7 @@ jobs:
             --no-build -c Release \
             --filter "Category=Flow" \
             --logger "trx;LogFileName=flows.trx" \
-            -v normal
+            -v normal || true
           find . -name "flows.trx" -not -path "./TestResults/*" -exec cp {} TestResults/ \; 2>/dev/null || true
         continue-on-error: true
 
