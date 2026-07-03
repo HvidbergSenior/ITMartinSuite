@@ -15,6 +15,10 @@
             Title="Familie"
             Route="familie/board"
             ContentTemplate="{DataTemplate views:TaskBoardPage}" />
+        <ShellContent
+            Title="Nyheder"
+            Route="nyheder"
+            ContentTemplate="{DataTemplate views:DailyBriefPage}" />
     </TabBar>
 
 </Shell>

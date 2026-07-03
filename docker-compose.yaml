@@ -782,7 +782,7 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__StudioDb=Data Source=/app/data/studio.db
       - StudioSettings__AccessCode=martin
-      - StudioSettings__MusicRoot=/musik
+      - MusicSettings__Root=/musik
 
     volumes:
       - /volume1/MartinMusik:/musik
@@ -920,6 +920,39 @@ services:
 
     restart: unless-stopped
 
+    networks:
+      - martinnet
+
+  dailybrief-web:
+    image: martinsuite-dailybrief-web:latest
+    container_name: dailybrief-web
+    env_file:
+      - magic.env
+    ports:
+      - "8110:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+    restart: unless-stopped
+    networks:
+      - martinnet
+
+  # =========================================================
+  # POLL — Meningsmåling (open voting, no login)
+  #   poll.itmartin.dk  →  http://poll-web:8080
+  # =========================================================
+
+  poll-web:
+    image: martinsuite-poll-web:latest
+    container_name: poll-web
+    profiles: [manual]
+    ports:
+      - "8111:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - Poll__AdminPin=1234
+    volumes:
+      - /volume1/docker/martinsuite/poll/data:/app/data
+    restart: unless-stopped
     networks:
       - martinnet
 

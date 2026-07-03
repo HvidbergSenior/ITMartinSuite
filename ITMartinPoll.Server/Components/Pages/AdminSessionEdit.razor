@@ -1,0 +1,259 @@
+@page "/admin/session/create"
+@page "/admin/session/edit/{SessionId:int}"
+@rendermode InteractiveServer
+@inject PollDb          Db
+@inject AdminSession    Session
+@inject NavigationManager Nav
+
+<PageTitle>@(_isNew ? "Ny billedserie" : "Rediger billedserie")</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/admin" class="poll-back">← Admin</a>
+        <span class="poll-logo">@(_isNew ? "Ny billedserie" : "Rediger")</span>
+    </header>
+
+    @if (!Session.IsAdmin)
+    {
+        <div class="poll-empty"><p>Ingen adgang. <a href="/admin">Log ind</a></p></div>
+    }
+    else
+    {
+        <div class="admin-form">
+
+            <label class="form-label">Titel</label>
+            <input class="poll-input" placeholder="Hvad skal der bedømmes?"
+                   @bind="_title" @bind:event="oninput" />
+
+            <label class="form-label">Formål / beskrivelse</label>
+            <textarea class="poll-textarea" rows="3"
+                      placeholder="Hvad skal der stemmes om, og hvorfor?"
+                      @bind="_description" @bind:event="oninput"></textarea>
+
+            <label class="form-label">Forsidefoto (valgfrit)</label>
+            <InputFile OnChange="OnCoverSelected" accept="image/*" class="file-input" />
+            @if (!string.IsNullOrEmpty(_coverName))
+            {
+                <img src="/poll-images/@_coverName" class="admin-preview-img" alt="" />
+            }
+
+            <label class="form-label">Deadline (valgfrit — f.eks. i dag kl. 14:00)</label>
+            <input type="datetime-local" class="poll-input"
+                   value="@_deadlineStr"
+                   @onchange="e => _deadlineStr = e.Value?.ToString() ?? string.Empty" />
+
+            <label class="form-label">Upload billeder (@(_isNew ? "vælg alle på én gang" : "tilføj flere"))</label>
+            <InputFile OnChange="OnImagesSelected" accept="image/*" multiple class="file-input" />
+
+            @if (_uploading)
+            {
+                <div class="poll-vote-label">Uploader… @_uploaded / @_total</div>
+            }
+
+            @if (_pendingNames.Count > 0)
+            {
+                <div class="session-thumb-grid">
+                    @foreach (var name in _pendingNames)
+                    {
+                        <img class="session-thumb" src="/poll-images/@name" alt="" />
+                    }
+                </div>
+            }
+
+            @if (!_isNew && _existing.Count > 0)
+            {
+                @if (_deadline.HasValue)
+                {
+                    var dl     = _deadline.Value.ToLocalTime();
+                    var passed = _deadline.Value < DateTime.UtcNow;
+                    <div class="poll-deadline-banner @(passed ? "expired" : "")">
+                        @(passed
+                            ? "Afstemning lukket — frist var " + dl.ToString("d. MMM yyyy 'kl.' HH:mm")
+                            : "Åben for stemmer til " + dl.ToString("d. MMM yyyy 'kl.' HH:mm"))
+                    </div>
+                }
+
+                <label class="form-label">Resultater</label>
+                <div class="session-results">
+                    @foreach (var img in _existing)
+                    {
+                        var avg = img.Ratings.Count > 0
+                            ? img.Ratings.Average(r => r.Score)
+                            : (double?)null;
+                        <div class="session-result-row">
+                            <img class="session-result-thumb" src="/poll-images/@img.FileName" alt="" />
+                            <div class="session-result-info">
+                                <div class="session-result-avg">
+                                    @(avg.HasValue ? $"⌀ {avg.Value:F1}" : "Ingen bedømmelser")
+                                </div>
+                                <div class="session-result-dist">
+                                    @foreach (var g in img.Ratings.GroupBy(r => r.Score).OrderByDescending(g => g.Key))
+                                    {
+                                        <span class="session-score-chip">@RatingScale.Label(g.Key): @g.Count()</span>
+                                    }
+                                </div>
+                                @foreach (var r in img.Ratings.Where(r => !string.IsNullOrWhiteSpace(r.Comment) || !string.IsNullOrWhiteSpace(r.VoterName)))
+                                {
+                                    <div class="session-comment">
+                                        @if (!string.IsNullOrWhiteSpace(r.VoterName))
+                                        {
+                                            <span class="session-comment-name">@r.VoterName</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(r.Comment))
+                                        {
+                                            <span>💬 @r.Comment</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="form-error">@_error</div>
+            }
+
+            <button class="poll-submit-btn" @onclick="Save">
+                @(_isNew ? "Opret billedserie" : "Gem ændringer")
+            </button>
+
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int SessionId { get; set; }
+
+    private bool      _isNew       = true;
+    private string    _title       = "";
+    private string    _description = "";
+    private string    _deadlineStr = "";
+    private string    _error       = "";
+    private string    _coverName   = "";
+    private DateTime? _deadline;
+    private bool   _uploading = false;
+    private int    _uploaded  = 0;
+    private int    _total     = 0;
+
+    private List<string>      _pendingNames = [];
+    private List<SessionImage> _existing    = [];
+
+    protected override void OnInitialized()
+    {
+        _isNew = SessionId == 0;
+        if (!_isNew)
+        {
+            var s = Db.Sessions
+                .Where(x => x.Id == SessionId)
+                .Select(x => new ImageSession
+                {
+                    Id             = x.Id,
+                    Title          = x.Title,
+                    Description    = x.Description,
+                    CoverImageName = x.CoverImageName,
+                    Deadline       = x.Deadline,
+                    Images         = x.Images.OrderBy(i => i.SortOrder)
+                        .Select(i => new SessionImage
+                        {
+                            Id       = i.Id,
+                            FileName = i.FileName,
+                            Ratings  = i.Ratings.ToList(),
+                        }).ToList(),
+                })
+                .FirstOrDefault();
+
+            if (s is not null)
+            {
+                _title       = s.Title;
+                _description = s.Description;
+                _coverName   = s.CoverImageName ?? "";
+                _deadline    = s.Deadline;
+                _deadlineStr = s.Deadline?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm") ?? "";
+                _existing    = s.Images;
+            }
+        }
+    }
+
+    private async Task OnImagesSelected(InputFileChangeEventArgs e)
+    {
+        _uploading = true;
+        _total     = e.FileCount;
+        _uploaded  = 0;
+        StateHasChanged();
+
+        Directory.CreateDirectory("/app/data/images");
+        foreach (var file in e.GetMultipleFiles(30))
+        {
+            var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
+            var name = $"{Guid.NewGuid():N}{ext}";
+            var path = Path.Combine("/app/data/images", name);
+            await using var fs = File.Create(path);
+            await using var ms = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+            await ms.CopyToAsync(fs);
+            _pendingNames.Add(name);
+            _uploaded++;
+            StateHasChanged();
+        }
+        _uploading = false;
+    }
+
+    private async Task OnCoverSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
+        var name = $"cover_{Guid.NewGuid():N}{ext}";
+        var path = Path.Combine("/app/data/images", name);
+        Directory.CreateDirectory("/app/data/images");
+        await using var fs = File.Create(path);
+        await using var ms = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+        await ms.CopyToAsync(fs);
+        _coverName = name;
+    }
+
+    private async Task Save()
+    {
+        _error = "";
+        if (string.IsNullOrWhiteSpace(_title)) { _error = "Titel mangler"; return; }
+        if (_isNew && _pendingNames.Count == 0) { _error = "Upload mindst ét billede"; return; }
+
+        DateTime? deadline = null;
+        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var d))
+            deadline = d.ToUniversalTime();
+
+        if (_isNew)
+        {
+            var session = new ImageSession
+            {
+                Title          = _title.Trim(),
+                Description    = _description.Trim(),
+                CoverImageName = string.IsNullOrEmpty(_coverName) ? null : _coverName,
+                IsActive       = true,
+                CreatedAt      = DateTime.UtcNow,
+                Deadline       = deadline,
+                Images    = _pendingNames.Select((n, i) => new SessionImage
+                    { FileName = n, SortOrder = i }).ToList(),
+            };
+            Db.Sessions.Add(session);
+        }
+        else
+        {
+            var session = await Db.Sessions.FindAsync(SessionId);
+            if (session is null) return;
+            session.Title          = _title.Trim();
+            session.Description    = _description.Trim();
+            session.CoverImageName = string.IsNullOrEmpty(_coverName) ? null : _coverName;
+            session.Deadline       = deadline;
+
+            var nextOrder = _existing.Count;
+            foreach (var (name, i) in _pendingNames.Select((n, i) => (n, i)))
+                Db.SessionImages.Add(new SessionImage
+                    { SessionId = SessionId, FileName = name, SortOrder = nextOrder + i });
+        }
+
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo("/admin");
+    }
+}

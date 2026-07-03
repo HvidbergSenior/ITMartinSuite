@@ -16,6 +16,7 @@
             <p class="songs-sub">@_songs.Count sange</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn-primary" @onclick='() => Nav.NavigateTo("/songwriter", forceLoad: true)'>🎸 Skriv sang</button>
             <button class="btn-primary" @onclick="ShowNewSong">＋ Ny sang</button>
             <button class="btn-ghost" @onclick="Logout">Log ud</button>
         </div>
@@ -27,7 +28,7 @@
     <!-- DB songs -->
     @if (FilteredSongs.Any())
     {
-        <div class="section-label">Mine sange</div>
+        <div class="section-label">Mine studio-sange</div>
         <div class="song-cards">
             @foreach (var s in FilteredSongs)
             {
@@ -62,7 +63,7 @@
     <!-- Source files not yet in DB -->
     @if (FilteredFiles.Any())
     {
-        <div class="section-label" style="margin-top:28px">Kildefiler</div>
+        <div class="section-label" style="margin-top:28px">🎵 Sange fra NAS — vælg for at lave din version</div>
         <div class="songs-list">
             @foreach (var f in FilteredFiles)
             {
@@ -204,6 +205,6 @@
     private async Task Logout()
     {
         await JS.InvokeVoidAsync("localStorage.removeItem", "studio_auth");
-        Nav.NavigateTo("/");
+        Nav.NavigateTo("/", forceLoad: true);
     }
 }

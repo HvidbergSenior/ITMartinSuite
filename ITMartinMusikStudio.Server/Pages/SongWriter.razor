@@ -1,0 +1,212 @@
+@page "/songwriter"
+@rendermode InteractiveServer
+@inject StudioDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Skriv sang — Studio</PageTitle>
+
+<div class="sw-page">
+
+    <div class="sw-header">
+        <a href="/songs" class="topbar-back">← Sange</a>
+        <h1 class="sw-title">🎸 Skriv en sang</h1>
+        <p class="sw-sub">Vælg udgangspunkt — du kan ændre alt bagefter</p>
+    </div>
+
+    <!-- Step 1: Chord progression -->
+    <div class="sw-section">
+        <div class="sw-step-label">1. Akkordrækkefølge</div>
+        <div class="sw-cards">
+            @foreach (var p in _progressions)
+            {
+                var active = _chosenProg == p;
+                <button class="sw-card @(active ? "sw-card--active" : "")"
+                        @onclick="() => _chosenProg = p">
+                    <div class="sw-card-mood">@p.Mood</div>
+                    <div class="sw-card-chords">@string.Join(" – ", p.Chords)</div>
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Step 2: Picking pattern -->
+    @if (_chosenProg is not null)
+    {
+        <div class="sw-section">
+            <div class="sw-step-label">2. Spillemønster</div>
+            <div class="sw-cards">
+                @foreach (var pat in _patterns)
+                {
+                    var active = _chosenPat == pat;
+                    <button class="sw-card @(active ? "sw-card--active" : "")"
+                            @onclick="() => _chosenPat = pat">
+                        <div class="sw-card-mood">@pat.Name</div>
+                        <div class="sw-card-chords">@pat.Notation</div>
+                        <div class="sw-card-desc">@pat.Description</div>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Step 3: Song name + create -->
+    @if (_chosenPat is not null)
+    {
+        <div class="sw-section">
+            <div class="sw-step-label">3. Hvad skal sangen hedde?</div>
+            <input class="sw-input" type="text" placeholder="Sangtitel..."
+                   @bind="_title" @bind:event="oninput"
+                   @onkeydown="OnKey" />
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div style="color:var(--red);font-size:13px;margin-top:6px">@_error</div>
+            }
+            <button class="sw-create-btn" @onclick="CreateAsync"
+                    disabled="@(string.IsNullOrWhiteSpace(_title) || _creating)">
+                @(_creating ? "Opretter..." : "🎵 Start sangen →")
+            </button>
+        </div>
+    }
+
+</div>
+
+<style>
+    .sw-page {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 24px 16px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+    .sw-header { display: flex; flex-direction: column; gap: 6px; }
+    .sw-title { font-size: 26px; font-weight: 900; margin-top: 12px; }
+    .sw-sub { color: var(--muted); font-size: 14px; }
+    .sw-section { display: flex; flex-direction: column; gap: 12px; }
+    .sw-step-label { font-size: 12px; font-weight: 700; text-transform: uppercase;
+                     letter-spacing: .08em; color: var(--muted); }
+    .sw-cards { display: flex; flex-direction: column; gap: 10px; }
+    .sw-card {
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+        text-align: left;
+        cursor: pointer;
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        transition: border-color .15s;
+    }
+    .sw-card:hover { border-color: var(--accent); }
+    .sw-card--active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+    .sw-card-mood { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: .07em; color: var(--muted); }
+    .sw-card--active .sw-card-mood { color: var(--accent); }
+    .sw-card-chords { font-size: 18px; font-weight: 700; }
+    .sw-card-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .sw-input {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+        color: var(--text);
+        font-size: 16px;
+        width: 100%;
+        outline: none;
+    }
+    .sw-input:focus { border-color: var(--accent); }
+    .sw-create-btn {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 15px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 4px;
+    }
+    .sw-create-btn:disabled { opacity: .4; cursor: default; }
+    .sw-create-btn:hover:not(:disabled) { background: #2563eb; }
+</style>
+
+@code {
+    record Progression(string Mood, List<string> Chords);
+    record PickStyle(string Name, string Notation, string Description);
+
+    private readonly List<Progression> _progressions =
+    [
+        new("Melankolsk", ["Em", "C", "G", "D"]),
+        new("Glad",       ["G", "D", "Em", "C"]),
+        new("Trist",      ["Am", "F", "C", "G"]),
+        new("Dramatisk",  ["Dm", "Am", "F", "C"]),
+        new("Soul/Blues", ["A", "D", "E", "A"]),
+    ];
+
+    private readonly List<PickStyle> _patterns =
+    [
+        new("Fingerpicking",     "T 3 2 1 2 3",    "Blød og flydende — god til ballader"),
+        new("Fingerpicking+",    "T 1 2 3 2 1",    "Mere bevægelse — god til vers med energi"),
+        new("Strumming enkel",   "↓ ↓↑ – ↑↓↑",   "Klassisk rytmisk — god til refrænger"),
+        new("Strumming kraftig", "↓↓ ↑↓ ↑↓ ↑",   "Stærk og drivende — god til kor"),
+    ];
+
+    private Progression? _chosenProg;
+    private PickStyle?   _chosenPat;
+    private string       _title   = "";
+    private string       _error   = "";
+    private bool         _creating;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        string? ok;
+        try { ok = await JS.InvokeAsync<string?>("localStorage.getItem", "studio_auth"); }
+        catch { return; }
+        if (ok != "1") { Nav.NavigateTo("/", forceLoad: true); }
+    }
+
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await CreateAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        var title = _title.Trim();
+        if (string.IsNullOrWhiteSpace(title) || _chosenProg is null || _chosenPat is null) return;
+
+        _creating = true;
+        _error    = "";
+        StateHasChanged();
+
+        var baseKey = title.ToLower()
+            .Replace(" ", "_")
+            .Replace("-", "_");
+
+        var existingKeys = await Db.Songs.Select(s => s.Key).ToListAsync();
+        var key = existingKeys.Contains(baseKey)
+            ? baseKey + "_" + Guid.NewGuid().ToString("N")[..4]
+            : baseKey;
+
+        var chordChart = string.Join("  ", _chosenProg.Chords);
+
+        var song = new StudioSong
+        {
+            Key             = key,
+            Title           = title,
+            ChordChart      = chordChart,
+            FingerpickPattern = _chosenPat.Notation,
+        };
+
+        Db.Songs.Add(song);
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo($"/studio/{Uri.EscapeDataString(key)}", forceLoad: true);
+    }
+}

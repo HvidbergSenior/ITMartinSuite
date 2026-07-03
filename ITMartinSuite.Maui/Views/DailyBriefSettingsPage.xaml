@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="ITMartinSuite.Maui.Views.DailyBriefSettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Mine kilder"
+    BackgroundColor="#0F1117">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Gem" Clicked="OnSaveClicked" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="24">
+
+            <!-- Item count -->
+            <VerticalStackLayout Spacing="12">
+                <Label Text="ANTAL ARTIKLER" FontSize="12" TextColor="#6B7280"
+                       FontAttributes="Bold" LetterSpacing="1" />
+                <HorizontalStackLayout Spacing="12">
+                    <Button x:Name="Btn5"  Text="5"  Clicked="OnCountClicked" Tag="5"
+                            BackgroundColor="#1E2030" TextColor="#9CA3AF"
+                            CornerRadius="8" WidthRequest="70" />
+                    <Button x:Name="Btn10" Text="10" Clicked="OnCountClicked" Tag="10"
+                            BackgroundColor="#1E2030" TextColor="#9CA3AF"
+                            CornerRadius="8" WidthRequest="70" />
+                    <Button x:Name="Btn15" Text="15" Clicked="OnCountClicked" Tag="15"
+                            BackgroundColor="#1E2030" TextColor="#9CA3AF"
+                            CornerRadius="8" WidthRequest="70" />
+                </HorizontalStackLayout>
+                <Label Text="Antal nyeste artikler fra alle aktive kilder samlet"
+                       FontSize="12" TextColor="#4B5563" />
+            </VerticalStackLayout>
+
+            <!-- Sources -->
+            <VerticalStackLayout Spacing="12">
+                <Label Text="AKTIVE KILDER" FontSize="12" TextColor="#6B7280"
+                       FontAttributes="Bold" LetterSpacing="1" />
+
+                <CollectionView x:Name="SourcesView" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*,Auto" Padding="0,10" ColumnSpacing="12">
+                                <!-- Color indicator -->
+                                <BoxView Grid.Column="0"
+                                         WidthRequest="4" HeightRequest="32"
+                                         Color="{Binding Color}"
+                                         CornerRadius="2"
+                                         VerticalOptions="Center" />
+
+                                <!-- Name -->
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                    <Label Text="{Binding Name}" FontSize="15" TextColor="#E5E7EB" />
+                                    <Label Text="{Binding Category}" FontSize="12" TextColor="#6B7280" />
+                                </VerticalStackLayout>
+
+                                <!-- Toggle -->
+                                <Switch Grid.Column="2"
+                                        IsToggled="{Binding Enabled}"
+                                        ThumbColor="#818CF8"
+                                        OnColor="#3730A3"
+                                        VerticalOptions="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+
+            <!-- Add custom source -->
+            <VerticalStackLayout Spacing="12">
+                <Label Text="TILFØJ KILDE" FontSize="12" TextColor="#6B7280"
+                       FontAttributes="Bold" LetterSpacing="1" />
+                <Entry x:Name="CustomNameEntry"
+                       Placeholder="Navn (fx Zetland)"
+                       PlaceholderColor="#4B5563"
+                       TextColor="#F0F0F0"
+                       BackgroundColor="#1E2030"
+                       Margin="0" />
+                <Entry x:Name="CustomUrlEntry"
+                       Placeholder="RSS URL (fx https://...)"
+                       PlaceholderColor="#4B5563"
+                       TextColor="#F0F0F0"
+                       BackgroundColor="#1E2030"
+                       Keyboard="Url" />
+                <Button Text="+ Tilføj"
+                        Clicked="OnAddSourceClicked"
+                        BackgroundColor="#1E2030"
+                        TextColor="#818CF8"
+                        CornerRadius="8"
+                        HorizontalOptions="Start" />
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

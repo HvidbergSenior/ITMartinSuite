@@ -1,0 +1,76 @@
+@page "/article/{ItemId}"
+@rendermode InteractiveServer
+@inject FeedService     FeedSvc
+@inject BriefingService BriefingSvc
+
+<PageTitle>DailyBrief</PageTitle>
+
+<div class="brief-root">
+
+    <header class="brief-header">
+        <a href="/" class="brief-back-btn">← Tilbage</a>
+        @if (_item is not null)
+        {
+            <span class="brief-source-badge" style="background:@_item.SourceColor">@_item.SourceName</span>
+        }
+    </header>
+
+    @if (_item is null)
+    {
+        <div class="brief-empty">
+            <p>Åbn en nyhed fra forsiden.</p>
+            <a href="/" class="btn-secondary" style="display:inline-block;margin-top:8px">← Forsiden</a>
+        </div>
+    }
+    else
+    {
+        <div class="article-body">
+
+            <div class="brief-time" style="margin-bottom:4px">@_item.TimeAgo</div>
+            <h1 class="article-headline">@_item.Title</h1>
+
+            @if (!string.IsNullOrEmpty(_aiSummary))
+            {
+                <div class="article-summary">@_aiSummary</div>
+            }
+            else if (!string.IsNullOrEmpty(_item.Description))
+            {
+                <div class="article-summary">@_item.Description</div>
+            }
+
+            @if (_aiLoading)
+            {
+                <div class="ai-btn ai-btn-loading">Skriver resumé…</div>
+            }
+            else if (string.IsNullOrEmpty(_aiSummary))
+            {
+                <button class="ai-btn" @onclick="GenerateSummary">✦ Lav AI-resumé</button>
+            }
+
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter] public string ItemId { get; set; } = "";
+
+    private FeedItem? _item;
+    private string    _aiSummary = "";
+    private bool      _aiLoading = false;
+
+    protected override void OnInitialized()
+    {
+        _item = FeedSvc.CurrentItems.FirstOrDefault(x => x.Id == ItemId);
+    }
+
+    private async Task GenerateSummary()
+    {
+        if (_item is null) return;
+        _aiLoading = true;
+        StateHasChanged();
+        _aiSummary = await BriefingSvc.GetArticleSummaryAsync(_item);
+        _aiLoading = false;
+        StateHasChanged();
+    }
+}

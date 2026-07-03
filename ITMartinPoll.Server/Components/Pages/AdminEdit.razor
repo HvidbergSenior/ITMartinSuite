@@ -1,0 +1,175 @@
+@page "/admin/create"
+@page "/admin/edit/{PollId:int}"
+@rendermode InteractiveServer
+@inject PollDb         Db
+@inject IConfiguration Config
+@inject AdminSession   Session
+@inject NavigationManager Nav
+@inject IJSRuntime     JS
+
+<PageTitle>@(_isNew ? "Ny" : "Rediger") meningsmåling</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/admin" class="poll-back">← Admin</a>
+        <span class="poll-logo">@(_isNew ? "Ny meningsmåling" : "Rediger")</span>
+    </header>
+
+    @if (!_auth)
+    {
+        <div class="poll-empty"><p>Ingen adgang. <a href="/admin">Log ind</a></p></div>
+    }
+    else
+    {
+        <div class="admin-form">
+
+            <label class="form-label">Titel</label>
+            <input class="poll-input" placeholder="Hvad handler det om?"
+                   @bind="_title" @bind:event="oninput" />
+
+            <label class="form-label">Beskrivelse</label>
+            <textarea class="poll-textarea" rows="5"
+                      placeholder="Uddyb gerne baggrunden for spørgsmålet…"
+                      @bind="_body" @bind:event="oninput"></textarea>
+
+            <label class="form-label">Billede (valgfrit)</label>
+            <InputFile OnChange="OnImageSelected" accept="image/*" class="file-input" />
+            @if (!string.IsNullOrEmpty(_imageName))
+            {
+                <img src="/poll-images/@_imageName" class="admin-preview-img" alt="" />
+            }
+
+            <label class="form-label">Deadline (valgfrit)</label>
+            <input type="date" class="poll-input"
+                   value="@_deadlineStr"
+                   @onchange="e => _deadlineStr = e.Value?.ToString() ?? string.Empty" />
+
+            <label class="form-label">Svarmuligheder</label>
+            @for (int i = 0; i < _options.Count; i++)
+            {
+                var idx = i;
+                <div class="option-row">
+                    <input class="poll-input option-input"
+                           placeholder="@($"Mulighed {idx + 1}")"
+                           value="@_options[idx]"
+                           @oninput="e => _options[idx] = e.Value?.ToString() ?? string.Empty" />
+                    @if (_options.Count > 2)
+                    {
+                        <button class="admin-btn danger small" @onclick="() => _options.RemoveAt(idx)">✕</button>
+                    }
+                </div>
+            }
+            @if (_options.Count < 6)
+            {
+                <button class="admin-btn" @onclick="() => _options.Add(string.Empty)">+ Tilføj mulighed</button>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="form-error">@_error</div>
+            }
+
+            <button class="poll-submit-btn" @onclick="Save">
+                @(_isNew ? "Opret meningsmåling" : "Gem ændringer")
+            </button>
+
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int PollId { get; set; }
+
+    private bool         _auth  => Session.IsAdmin;
+    private bool         _isNew      = true;
+    private string       _title      = "";
+    private string       _body       = "";
+    private string       _deadlineStr = "";
+    private string?      _imageName;
+    private List<string> _options    = ["Ja", "Nej"];
+    private string       _error      = "";
+
+    protected override void OnInitialized()
+    {
+        _isNew = PollId == 0;
+        if (!_isNew)
+        {
+            var p = Db.Polls.Where(x => x.Id == PollId)
+                .Select(x => new { x.Title, x.Body, x.ImageName, x.Deadline,
+                                   Options = x.Options.OrderBy(o => o.SortOrder).ToList() })
+                .FirstOrDefault();
+            if (p is not null)
+            {
+                _title       = p.Title;
+                _body        = p.Body;
+                _imageName   = p.ImageName;
+                _deadlineStr = p.Deadline?.ToString("yyyy-MM-dd") ?? "";
+                _options     = p.Options.Select(o => o.Label).ToList();
+                if (_options.Count == 0) _options = ["Ja", "Nej"];
+            }
+        }
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
+        var name = $"{Guid.NewGuid():N}{ext}";
+        var path = Path.Combine("/app/data/images", name);
+
+        Directory.CreateDirectory("/app/data/images");
+        await using var fs = File.Create(path);
+        await using var ms = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await ms.CopyToAsync(fs);
+
+        _imageName = name;
+    }
+
+    private async Task Save()
+    {
+        _error = "";
+        if (string.IsNullOrWhiteSpace(_title))       { _error = "Titel mangler";           return; }
+        if (_options.Count(o => !string.IsNullOrWhiteSpace(o)) < 2)
+                                                      { _error = "Minimum 2 svarmuligheder"; return; }
+
+        DateTime? deadline = null;
+        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var d))
+            deadline = d.ToUniversalTime();
+
+        var cleanOpts = _options.Where(o => !string.IsNullOrWhiteSpace(o)).ToList();
+
+        if (_isNew)
+        {
+            var poll = new Poll
+            {
+                Title     = _title.Trim(),
+                Body      = _body.Trim(),
+                ImageName = _imageName,
+                Deadline  = deadline,
+                IsActive  = true,
+                CreatedAt = DateTime.UtcNow,
+                Options   = cleanOpts.Select((l, i) => new PollOption { Label = l, SortOrder = i }).ToList(),
+            };
+            Db.Polls.Add(poll);
+        }
+        else
+        {
+            var poll = await Db.Polls.FindAsync(PollId);
+            if (poll is null) return;
+            poll.Title     = _title.Trim();
+            poll.Body      = _body.Trim();
+            poll.ImageName = _imageName;
+            poll.Deadline  = deadline;
+
+            var existing = Db.Options.Where(o => o.PollId == PollId).ToList();
+            Db.Options.RemoveRange(existing);
+            foreach (var (label, idx) in cleanOpts.Select((l, i) => (l, i)))
+                Db.Options.Add(new PollOption { PollId = PollId, Label = label, SortOrder = idx });
+        }
+
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo("/admin");
+    }
+}

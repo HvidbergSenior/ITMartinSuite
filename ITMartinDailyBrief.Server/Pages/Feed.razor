@@ -1,0 +1,123 @@
+@page "/"
+@rendermode InteractiveServer
+@inject FeedService     FeedSvc
+@inject IJSRuntime      JS
+@inject NavigationManager Nav
+
+<PageTitle>DailyBrief</PageTitle>
+
+<div class="brief-root">
+
+    <header class="brief-header">
+        <div class="brief-header-left">
+            <span class="brief-logo">DailyBrief</span>
+            @if (!_loading && _items.Count > 0)
+            {
+                <span class="brief-summary">@_items.Count nyheder · @_sourceCount kilder</span>
+            }
+        </div>
+        <a href="/settings" class="brief-settings-btn">⚙</a>
+    </header>
+
+    @if (_loading)
+    {
+        <div class="brief-skeletons">
+            @for (int i = 0; i < 6; i++) { <div class="skeleton-card"></div> }
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="brief-empty">
+            <div class="brief-empty-icon">📰</div>
+            <p>Ingen nyheder</p>
+            <p class="brief-empty-sub">Aktivér mindst én kilde i <a href="/settings">indstillinger</a></p>
+        </div>
+    }
+    else
+    {
+        <div class="brief-feed">
+            @foreach (var item in _items)
+            {
+                <a class="brief-card" href="/article/@item.Id">
+                    <div class="brief-card-text">
+                        <div class="brief-card-meta">
+                            <span class="brief-source-badge" style="background:@item.SourceColor">@item.SourceName</span>
+                            <span class="brief-time">@item.TimeAgo</span>
+                        </div>
+                        <div class="brief-card-title">@item.Title</div>
+                        @if (!string.IsNullOrEmpty(item.Description))
+                        {
+                            <div class="brief-card-desc">@item.Description</div>
+                        }
+                    </div>
+                    @if (item.HasImage)
+                    {
+                        <img class="brief-card-img" src="@item.ImageUrl" alt="" loading="lazy" />
+                    }
+                </a>
+            }
+
+            <div class="brief-done">
+                <span class="brief-done-check">✓</span> Du er opdateret
+                <div class="brief-done-sub">Træk ned for at opdatere</div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<FeedItem> _items       = [];
+    private bool           _loading     = true;
+    private int            _sourceCount = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var sources  = await LoadSourcesAsync();
+        var rawMax   = await JS.InvokeAsync<string?>("localStorage.getItem", "brief_max_items");
+        var maxItems = int.TryParse(rawMax, out var n) ? n : 10;
+
+        _sourceCount = sources.Count(s => s.Enabled);
+        _items       = await FeedSvc.GetItemsAsync(sources, maxItems);
+        _loading     = false;
+        StateHasChanged();
+    }
+
+    private async Task<List<FeedSource>> LoadSourcesAsync()
+    {
+        var sources = FeedSource.Presets.ToList();
+        foreach (var s in sources)
+        {
+            var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"brief_source_{s.Id}");
+            s.Enabled = raw == null || raw == "true";
+        }
+        var customJson = await JS.InvokeAsync<string?>("localStorage.getItem", "brief_custom_sources");
+        if (!string.IsNullOrEmpty(customJson))
+        {
+            try
+            {
+                var customs = System.Text.Json.JsonSerializer.Deserialize<List<CustomSourceDto>>(customJson);
+                if (customs is not null)
+                    foreach (var c in customs)
+                    {
+                        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"brief_source_{c.Id}");
+                        sources.Add(new FeedSource { Id = c.Id, Name = c.Name, RssUrl = c.Url,
+                                                     Enabled = raw == null || raw == "true" });
+                    }
+            }
+            catch { }
+        }
+        return sources;
+    }
+
+    private record CustomSourceDto(string Id, string Name, string Url);
+}

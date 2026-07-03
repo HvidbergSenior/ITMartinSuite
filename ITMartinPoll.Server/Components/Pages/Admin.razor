@@ -1,0 +1,158 @@
+@page "/admin"
+@rendermode InteractiveServer
+@inject PollDb         Db
+@inject IConfiguration Config
+@inject AdminSession   Session
+@inject NavigationManager Nav
+
+<PageTitle>Admin — Stem</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <span class="poll-logo">⚙ Admin</span>
+        @if (Session.IsAdmin) { <a href="/" class="poll-back">← Forsiden</a> }
+    </header>
+
+    @if (!Session.IsAdmin)
+    {
+        <div class="admin-pin-wrap">
+            <div class="admin-pin-card">
+                <h2>Admin adgang</h2>
+                <input class="poll-input" type="password" placeholder="PIN"
+                       @bind="_pin" @bind:event="oninput"
+                       @onkeydown="OnPinKey" />
+                @if (_pinWrong) { <div class="admin-pin-error">Forkert PIN</div> }
+                <button class="poll-submit-btn" @onclick="CheckPin">Log ind</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="admin-body">
+
+            <div class="admin-section-label">BILLEDSERIER</div>
+            <a href="/admin/session/create" class="admin-create-btn">+ Ny billedserie</a>
+
+            @if (!_sessions.Any())
+            {
+                <div class="poll-empty" style="padding:24px 0"><p>Ingen billedserier endnu</p></div>
+            }
+            @foreach (var s in _sessions)
+            {
+                <div class="admin-poll-row">
+                    <div class="admin-poll-info">
+                        <span class="@(s.IsActive ? "admin-active" : "admin-inactive")">
+                            @(s.IsActive ? "● Aktiv" : "○ Inaktiv")
+                        </span>
+                        <span class="admin-poll-title">@s.Title</span>
+                        <span class="admin-poll-votes">@s.Images.Count billeder</span>
+                    </div>
+                    <div class="admin-poll-actions">
+                        <a href="/admin/session/edit/@s.Id" class="admin-btn">Resultater / Rediger</a>
+                        <button class="admin-btn" @onclick="() => ToggleSession(s)">
+                            @(s.IsActive ? "Deaktiver" : "Aktivér")
+                        </button>
+                        <button class="admin-btn danger" @onclick="() => DeleteSession(s)">Slet</button>
+                    </div>
+                </div>
+            }
+
+            <div class="admin-section-label" style="margin-top:24px">MENINGSMÅLINGER</div>
+            <a href="/admin/create" class="admin-create-btn">+ Ny meningsmåling</a>
+
+            @if (!_polls.Any())
+            {
+                <div class="poll-empty" style="padding:24px 0"><p>Ingen meningsmålinger endnu</p></div>
+            }
+            @foreach (var p in _polls)
+            {
+                <div class="admin-poll-row">
+                    <div class="admin-poll-info">
+                        <span class="@(p.IsActive ? "admin-active" : "admin-inactive")">
+                            @(p.IsActive ? "● Aktiv" : "○ Inaktiv")
+                        </span>
+                        <span class="admin-poll-title">@p.Title</span>
+                        <span class="admin-poll-votes">@p.Votes.Count stemmer</span>
+                    </div>
+                    <div class="admin-poll-actions">
+                        <a href="/admin/edit/@p.Id" class="admin-btn">Rediger</a>
+                        <button class="admin-btn" @onclick="() => ToggleActive(p)">
+                            @(p.IsActive ? "Deaktiver" : "Aktivér")
+                        </button>
+                        <button class="admin-btn danger" @onclick="() => DeletePoll(p)">Slet</button>
+                    </div>
+                </div>
+            }
+
+        </div>
+    }
+</div>
+
+@code {
+    private string             _pin      = "";
+    private bool               _pinWrong = false;
+    private List<Poll>         _polls    = [];
+    private List<ImageSession> _sessions = [];
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        _polls = Db.Polls
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => new Poll { Id = p.Id, Title = p.Title, IsActive = p.IsActive,
+                                    Votes = p.Votes.ToList() })
+            .ToList();
+
+        _sessions = Db.Sessions
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => new ImageSession { Id = s.Id, Title = s.Title, IsActive = s.IsActive,
+                                            Images = s.Images.ToList() })
+            .ToList();
+    }
+
+    private void CheckPin()
+    {
+        var correct = Config["Poll:AdminPin"] ?? "1234";
+        if (_pin == correct) { Session.IsAdmin = true; _pinWrong = false; }
+        else _pinWrong = true;
+    }
+
+    private void OnPinKey(KeyboardEventArgs e) { if (e.Key == "Enter") CheckPin(); }
+
+    private async Task ToggleActive(Poll p)
+    {
+        var poll = await Db.Polls.FindAsync(p.Id);
+        if (poll is null) return;
+        poll.IsActive = !poll.IsActive;
+        await Db.SaveChangesAsync();
+        Load();
+    }
+
+    private async Task DeletePoll(Poll p)
+    {
+        var poll = await Db.Polls.FindAsync(p.Id);
+        if (poll is null) return;
+        Db.Polls.Remove(poll);
+        await Db.SaveChangesAsync();
+        Load();
+    }
+
+    private async Task ToggleSession(ImageSession s)
+    {
+        var session = await Db.Sessions.FindAsync(s.Id);
+        if (session is null) return;
+        session.IsActive = !session.IsActive;
+        await Db.SaveChangesAsync();
+        Load();
+    }
+
+    private async Task DeleteSession(ImageSession s)
+    {
+        var session = await Db.Sessions.FindAsync(s.Id);
+        if (session is null) return;
+        Db.Sessions.Remove(session);
+        await Db.SaveChangesAsync();
+        Load();
+    }
+}

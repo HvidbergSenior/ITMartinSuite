@@ -31,12 +31,16 @@ public static class MauiProgram
         builder.Services.AddTransient<TaskBoardViewModel>();
         builder.Services.AddTransient<CreateTaskViewModel>();
         builder.Services.AddTransient<OnboardingViewModel>();
+        builder.Services.AddTransient<DailyBriefViewModel>();
 
         builder.Services.AddTransient<HomePage>();
         builder.Services.AddTransient<TaskBoardPage>();
         builder.Services.AddTransient<CreateTaskPage>();
         builder.Services.AddTransient<OnboardingPage>();
+        builder.Services.AddTransient<DailyBriefPage>();
         builder.Services.AddSingleton<AppShell>();
+
+        builder.Services.AddSingleton<FeedService>();
 
 #if DEBUG
         builder.Logging.AddDebug();

@@ -35,15 +35,19 @@ public sealed class StudioLibraryService
             {
                 var name = Path.GetFileName(dir);
                 if (name is "recordings" or "myversions" or "lyrics" or "originals") continue;
-                if (name.StartsWith('.') || name.StartsWith('@')) continue;
+                if (name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#')) continue;
 
-                foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+                try
                 {
-                    var ext = Path.GetExtension(file);
-                    if (!all.Contains(ext)) continue;
-                    var rel = Path.GetRelativePath(Root, file).Replace('\\', '/');
-                    results.Add(new SourceFile(rel, Path.GetFileNameWithoutExtension(file)));
+                    foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+                    {
+                        var ext = Path.GetExtension(file);
+                        if (!all.Contains(ext)) continue;
+                        var rel = Path.GetRelativePath(Root, file).Replace('\\', '/');
+                        results.Add(new SourceFile(rel, Path.GetFileNameWithoutExtension(file)));
+                    }
                 }
+                catch { }
             }
         }
         catch { }

@@ -1,0 +1,129 @@
+@page "/settings"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>DailyBrief — Indstillinger</PageTitle>
+
+<div class="brief-root">
+
+    <header class="brief-header">
+        <button class="brief-back-btn" @onclick='() => Nav.NavigateTo("/", forceLoad: true)'>← Tilbage</button>
+        <span class="brief-logo">Indstillinger</span>
+        <button class="brief-save-btn" @onclick="Save">Gem</button>
+    </header>
+
+    <div class="settings-body">
+
+        <!-- Item count -->
+        <section class="settings-section">
+            <h2 class="settings-heading">ANTAL ARTIKLER</h2>
+            <div class="count-picker">
+                @foreach (var n in new[] { 5, 10, 15 })
+                {
+                    <button class="count-btn @(_maxItems == n ? "active" : "")"
+                            @onclick="() => _maxItems = n">@n</button>
+                }
+            </div>
+            <p class="settings-hint">Nyeste artikler på tværs af alle aktive kilder</p>
+        </section>
+
+        <!-- Sources -->
+        <section class="settings-section">
+            <h2 class="settings-heading">AKTIVE KILDER</h2>
+            @foreach (var src in _sources)
+            {
+                <div class="source-row">
+                    <span class="source-dot" style="background:@src.Color"></span>
+                    <span class="source-name">@src.Name</span>
+                    <label class="toggle">
+                        <input type="checkbox" checked="@src.Enabled"
+                               @onchange="e => src.Enabled = (bool)(e.Value ?? false)" />
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+            }
+        </section>
+
+        <!-- Add custom -->
+        <section class="settings-section">
+            <h2 class="settings-heading">TILFØJ KILDE</h2>
+            <input class="settings-input" placeholder="Navn (fx Zetland)"
+                   @bind="_newName" @bind:event="oninput" />
+            <input class="settings-input" placeholder="RSS URL (fx https://...)"
+                   @bind="_newUrl" @bind:event="oninput" type="url" />
+            <button class="add-btn" @onclick="AddSource"
+                    disabled="@(string.IsNullOrWhiteSpace(_newName) || string.IsNullOrWhiteSpace(_newUrl))">
+                + Tilføj
+            </button>
+        </section>
+
+    </div>
+
+</div>
+
+@code {
+    private List<FeedSource> _sources  = [];
+    private int              _maxItems = 10;
+    private string           _newName  = "";
+    private string           _newUrl   = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var rawMax = await JS.InvokeAsync<string?>("localStorage.getItem", "brief_max_items");
+        _maxItems  = int.TryParse(rawMax, out var n) ? n : 10;
+        _sources   = FeedSource.Presets.ToList();
+
+        foreach (var s in _sources)
+        {
+            var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"brief_source_{s.Id}");
+            s.Enabled = raw == null || raw == "true";
+        }
+
+        var customJson = await JS.InvokeAsync<string?>("localStorage.getItem", "brief_custom_sources");
+        if (!string.IsNullOrEmpty(customJson))
+        {
+            try
+            {
+                var customs = System.Text.Json.JsonSerializer.Deserialize<List<CustomDto>>(customJson);
+                if (customs is not null)
+                    foreach (var c in customs)
+                    {
+                        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"brief_source_{c.Id}");
+                        _sources.Add(new FeedSource { Id = c.Id, Name = c.Name, RssUrl = c.Url, Enabled = raw == null || raw == "true" });
+                    }
+            }
+            catch { }
+        }
+
+        StateHasChanged();
+    }
+
+    private void AddSource()
+    {
+        if (string.IsNullOrWhiteSpace(_newName) || string.IsNullOrWhiteSpace(_newUrl)) return;
+        _sources.Add(new FeedSource { Name = _newName.Trim(), RssUrl = _newUrl.Trim(), Enabled = true });
+        _newName = "";
+        _newUrl  = "";
+    }
+
+    private async Task Save()
+    {
+        await JS.InvokeVoidAsync("localStorage.setItem", "brief_max_items", _maxItems.ToString());
+
+        foreach (var s in _sources)
+            await JS.InvokeVoidAsync("localStorage.setItem", $"brief_source_{s.Id}", s.Enabled.ToString().ToLower());
+
+        var customs = _sources
+            .Where(s => !s.IsPreset)
+            .Select(s => new CustomDto(s.Id, s.Name, s.RssUrl));
+        await JS.InvokeVoidAsync("localStorage.setItem", "brief_custom_sources",
+            System.Text.Json.JsonSerializer.Serialize(customs));
+
+        Nav.NavigateTo("/", forceLoad: true);
+    }
+
+    private record CustomDto(string Id, string Name, string Url);
+}

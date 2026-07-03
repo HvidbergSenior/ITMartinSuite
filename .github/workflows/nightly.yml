@@ -1,0 +1,149 @@
+name: Nightly Integration Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 04:00 CEST (UTC+2 Danish summer)
+  workflow_dispatch:
+    inputs:
+      manage_containers:
+        description: 'Start/stop manual containers on NAS via SSH'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # push to gh-pages branch
+  checks:   write   # show test results in GitHub UI
+
+jobs:
+  test:
+    name: Test all ITMartin apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      POLL_ADMIN_PIN:       ${{ secrets.POLL_ADMIN_PIN }}
+      GALLERY_PASSWORD_MIE: ${{ secrets.GALLERY_PASSWORD_MIE }}
+      DAILYBRIEF_URL:       ${{ secrets.DAILYBRIEF_URL }}
+
+    steps:
+
+      # ── Checkout ────────────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── (Optional) Tailscale so we can SSH to the NAS ──────────────────────────
+      - name: Connect to Tailscale
+        if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret:    ${{ secrets.TS_OAUTH_SECRET }}
+          tags:            tag:ci
+
+      # ── (Optional) Start all manual containers before testing ───────────────────
+      - name: Start manual containers on NAS
+        if: ${{ secrets.NAS_SSH_KEY != '' && (github.event_name == 'schedule' || inputs.manage_containers == true) }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.NAS_SSH_KEY }}" > ~/.ssh/nas_key
+          chmod 600 ~/.ssh/nas_key
+          ssh -i ~/.ssh/nas_key -o StrictHostKeyChecking=no \
+            "${{ secrets.NAS_SSH_USER || 'martinhvidberg' }}@100.117.120.44" \
+            "cd /volume1/homes/MartinHvidberg/martinsuite-magic && \
+             docker compose --profile manual up -d 2>&1 | tail -5"
+          echo "Waiting 30 s for containers to become ready…"
+          sleep 30
+
+      # ── Build ───────────────────────────────────────────────────────────────────
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0'
+
+      - name: Restore & build
+        run: dotnet build ITMartinTests/ITMartinTests.csproj -c Release -v q
+
+      # ── Playwright browsers ─────────────────────────────────────────────────────
+      - name: Install Playwright Chromium
+        run: pwsh ITMartinTests/bin/Release/net8.0/playwright.ps1 install --with-deps chromium
+
+      # ── Smoke tests (HttpClient, all apps) ─────────────────────────────────────
+      - name: Smoke tests
+        run: |
+          mkdir -p TestResults
+          dotnet test ITMartinTests/ITMartinTests.csproj \
+            --no-build -c Release \
+            --filter "Category=Smoke" \
+            --logger "trx;LogFileName=smoke.trx" \
+            --logger "nunit;LogFilePath=smoke-results.xml" \
+            --results-dir "${{ github.workspace }}/TestResults" \
+            -v normal
+        continue-on-error: true
+
+      # ── Flow tests (Playwright browser) ────────────────────────────────────────
+      - name: Flow tests
+        run: |
+          dotnet test ITMartinTests/ITMartinTests.csproj \
+            --no-build -c Release \
+            --filter "Category=Flow" \
+            --logger "trx;LogFileName=flows.trx" \
+            --logger "nunit;LogFilePath=flow-results.xml" \
+            --results-dir "${{ github.workspace }}/TestResults" \
+            -v normal
+        continue-on-error: true
+
+      # ── k6 load test ────────────────────────────────────────────────────────────
+      - name: Install k6
+        run: |
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -q && sudo apt-get install -y -q k6
+
+      - name: Load test (k6)
+        run: k6 run ITMartinTests/k6/load-concurrent.js --quiet
+        continue-on-error: true
+
+      # ── Dashboard ───────────────────────────────────────────────────────────────
+      - name: Generate dashboard
+        if: always()
+        run: python3 ITMartinTests/scripts/generate-dashboard.py
+        continue-on-error: true
+
+      # ── Test results in GitHub UI ───────────────────────────────────────────────
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name:          'ITMartin Tests'
+          path:          'TestResults/*.trx'
+          reporter:      'dotnet-trx'
+          fail-on-error: false
+
+      # ── Upload raw artifacts ────────────────────────────────────────────────────
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name:           test-results-${{ github.run_number }}
+          path:           TestResults/
+          retention-days: 60
+
+      # ── Stop manual containers ──────────────────────────────────────────────────
+      - name: Stop manual containers on NAS
+        if: ${{ always() && secrets.NAS_SSH_KEY != '' && (github.event_name == 'schedule' || inputs.manage_containers == true) }}
+        run: |
+          ssh -i ~/.ssh/nas_key -o StrictHostKeyChecking=no \
+            "${{ secrets.NAS_SSH_USER || 'martinhvidberg' }}@100.117.120.44" \
+            "cd /volume1/homes/MartinHvidberg/martinsuite-magic && \
+             docker compose --profile manual stop 2>&1 | tail -5"
+
+      # ── Deploy dashboard to GitHub Pages ────────────────────────────────────────
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        if: always()
+        with:
+          github_token:   ${{ secrets.GITHUB_TOKEN }}
+          publish_dir:    TestResults/dashboard
+          commit_message: 'chore: test run #${{ github.run_number }}'

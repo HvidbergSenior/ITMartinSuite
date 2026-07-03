@@ -69,6 +69,14 @@ secrets.json
 !**/*.Server/Data/
 !**/*.Infrastructure/Data/
 !**/*.Web/Data/
+# Re-exclude runtime upload/scan folders inside Server projects
+**/receipts/
+**/uploads/
+**/scans/
+**/shelves/
+# Explicit overrides for known runtime data paths
+ITMartin.Receipt.Server/data/
+ITMartinLibrary.Server/data/shelves/
 **/frames/
 **/debug/
 **/ocr/

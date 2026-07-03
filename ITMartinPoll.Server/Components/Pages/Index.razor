@@ -1,0 +1,107 @@
+@page "/"
+@rendermode InteractiveServer
+@inject PollDb Db
+
+<PageTitle>Stem</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <span class="poll-logo">Stem</span>
+    </header>
+
+    @if (!_polls.Any() && !_sessions.Any())
+    {
+        <div class="poll-empty">
+            <p>Ingen aktive meningsmålinger lige nu</p>
+        </div>
+    }
+    else
+    {
+        <div class="poll-list">
+
+            @foreach (var s in _sessions)
+            {
+                <a class="poll-card" href="/session/@s.Id">
+                    @if (!string.IsNullOrEmpty(s.CoverImageName))
+                    {
+                        <img class="poll-card-img session-cover-img"
+                             src="/poll-images/@s.CoverImageName" alt="" />
+                    }
+                    <div class="poll-card-body">
+                        <span class="session-badge">BILLEDSERIE · @s.Images.Count billeder</span>
+                        <div class="poll-card-title">@s.Title</div>
+                        @if (!string.IsNullOrEmpty(s.Description))
+                        {
+                            <div class="poll-card-desc">@s.Description</div>
+                        }
+                        <div class="poll-card-meta">
+                            <span>Tryk for at bedømme</span>
+                        </div>
+                    </div>
+                </a>
+            }
+
+            @foreach (var p in _polls)
+            {
+                <a class="poll-card" href="/poll/@p.Id">
+                    @if (!string.IsNullOrEmpty(p.ImageName))
+                    {
+                        <img class="poll-card-img" src="/poll-images/@p.ImageName" alt="" />
+                    }
+                    <div class="poll-card-body">
+                        <div class="poll-card-title">@p.Title</div>
+                        @if (!string.IsNullOrEmpty(p.Body))
+                        {
+                            <div class="poll-card-desc">@p.Body</div>
+                        }
+                        <div class="poll-card-meta">
+                            <span>@p.Votes.Count stemmer</span>
+                            @if (p.Deadline.HasValue)
+                            {
+                                <span class="poll-deadline @(p.HasDeadlinePassed ? "expired" : "")">
+                                    @(p.HasDeadlinePassed ? "Lukket" : "Frist: " + p.Deadline.Value.ToString("d. MMM"))
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </a>
+            }
+
+        </div>
+    }
+</div>
+
+@code {
+    private List<Poll>         _polls    = [];
+    private List<ImageSession> _sessions = [];
+
+    protected override void OnInitialized()
+    {
+        _polls = Db.Polls
+            .Where(p => p.IsActive)
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => new Poll
+            {
+                Id        = p.Id,
+                Title     = p.Title,
+                Body      = p.Body,
+                ImageName = p.ImageName,
+                Deadline  = p.Deadline,
+                Votes     = p.Votes.ToList(),
+            })
+            .ToList();
+
+        _sessions = Db.Sessions
+            .Where(s => s.IsActive)
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => new ImageSession
+            {
+                Id             = s.Id,
+                Title          = s.Title,
+                Description    = s.Description,
+                CoverImageName = s.CoverImageName,
+                Images         = s.Images.ToList(),
+            })
+            .ToList();
+    }
+}

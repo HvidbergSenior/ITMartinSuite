@@ -1,0 +1,251 @@
+@page "/session/{SessionId:int}"
+@rendermode InteractiveServer
+@inject PollDb        Db
+@inject IJSRuntime    JS
+
+<PageTitle>@(_session?.Title ?? "Billedserie")</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/" class="poll-back">← Tilbage</a>
+        @if (_session is not null && !_loading && !_done && !_session.HasDeadlinePassed)
+        {
+            <span class="session-counter">@_rated.Count / @_session.Images.Count bedømt</span>
+        }
+    </header>
+
+    @if (_loading)
+    {
+        <div class="poll-empty"><p>Indlæser…</p></div>
+    }
+    else if (_session is null)
+    {
+        <div class="poll-empty"><p>Billedserien findes ikke.</p></div>
+    }
+    else if (_session.HasDeadlinePassed)
+    {
+        <div class="session-done">
+            <div class="session-done-icon" style="color:#D97706">⏱</div>
+            <div class="session-done-title">Afstemningen er lukket</div>
+            <div class="session-done-sub">
+                Fristen var @_session.Deadline!.Value.ToLocalTime().ToString("d. MMM 'kl.' HH:mm")
+            </div>
+            <a href="/" class="poll-submit-btn" style="margin-top:8px">← Tilbage</a>
+        </div>
+    }
+    else if (_done)
+    {
+        <div class="session-done">
+            <div class="session-done-icon">✓</div>
+            <div class="session-done-title">Tak for din bedømmelse!</div>
+            <div class="session-done-sub">Du har bedømt alle @_session.Images.Count billeder</div>
+            <a href="/" class="poll-submit-btn" style="margin-top:8px">← Tilbage til forsiden</a>
+        </div>
+    }
+    else
+    {
+        @if (_session.Deadline.HasValue)
+        {
+            <div class="poll-deadline-banner">
+                Stem inden @_session.Deadline.Value.ToLocalTime().ToString("d. MMM 'kl.' HH:mm")
+            </div>
+        }
+
+        <div class="session-grid-header">@_session.Title</div>
+        @if (!string.IsNullOrEmpty(_session.Description))
+        {
+            <div class="poll-card-desc" style="margin:0 0 12px 0">@_session.Description</div>
+        }
+
+        <div class="session-name-wrap">
+            <input class="poll-input session-name-input"
+                   placeholder="Dit navn (valgfrit)"
+                   maxlength="60"
+                   @bind="_voterName"
+                   @bind:event="oninput"
+                   @onchange="SaveName" />
+        </div>
+
+        <!-- All images always visible -->
+        <div class="session-grid">
+            @for (int i = 0; i < _session.Images.Count; i++)
+            {
+                var idx   = i;
+                var sImg  = _session.Images[i];
+                var score = _rated.TryGetValue(sImg.Id, out var sc) ? sc : 0;
+                var isSelected = _selectedIdx == idx;
+
+                <button class="session-thumb-btn @(score > 0 ? "rated" : "") @(isSelected ? "active" : "")"
+                        @onclick="() => SelectImage(idx)">
+                    <img src="/poll-images/@sImg.FileName" alt="" />
+                    @if (score > 0)
+                    {
+                        <span class="session-score-badge">@RatingScale.Label(score)</span>
+                    }
+                    else if (isSelected)
+                    {
+                        <span class="session-score-badge" style="color:#818CF8">Vælg bedømmelse ↓</span>
+                    }
+                </button>
+            }
+        </div>
+
+        <!-- Rating panel — appears below grid when an image is selected -->
+        @if (_selectedIdx >= 0)
+        {
+            var selImg = _session.Images[_selectedIdx];
+            <div class="session-rating-panel" id="rating-panel">
+                <div class="session-panel-img-wrap">
+                    <img class="session-panel-img" src="/poll-images/@selImg.FileName" alt="" />
+                </div>
+                <div class="session-zoom-hint">Knib ud for at zoome</div>
+                <div class="session-vote">
+                    <div class="poll-vote-label">
+                        Billede @(_selectedIdx + 1) — hvad synes du?
+                    </div>
+                    <div class="poll-options">
+                        @for (int s = 5; s >= 1; s--)
+                        {
+                            var score = s;
+                            <button class="poll-option-btn @(_score == score ? "selected" : "")"
+                                    @onclick="() => _score = score">
+                                @RatingScale.Label(score)
+                            </button>
+                        }
+                    </div>
+                    @if (_score > 0)
+                    {
+                        <div class="poll-comment-wrap">
+                            <textarea class="poll-comment-input"
+                                      placeholder="Hvad mangler, eller kan gøres bedre? (valgfrit)"
+                                      maxlength="280"
+                                      @bind="_comment"
+                                      @bind:event="oninput"></textarea>
+                            <div class="poll-comment-chars">@_comment.Length / 280</div>
+                        </div>
+                        <button class="poll-submit-btn" @onclick="SubmitRating">Gem bedømmelse ✓</button>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (_rated.Count == _session.Images.Count)
+        {
+            <div style="padding:0 16px 32px">
+                <button class="poll-submit-btn" @onclick="() => _done = true">
+                    Alle bedømt — Afslut ✓
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int SessionId { get; set; }
+
+    private ImageSession?        _session     = null;
+    private Dictionary<int, int> _rated       = [];
+    private int                  _selectedIdx = -1;
+    private int                  _score       = 0;
+    private string               _comment     = "";
+    private string               _voterName   = "";
+    private string               _voterToken  = "";
+    private bool                 _done        = false;
+    private bool                 _loading     = true;
+
+    protected override void OnInitialized()
+    {
+        _session = Db.Sessions
+            .Where(s => s.Id == SessionId)
+            .Select(s => new ImageSession
+            {
+                Id          = s.Id,
+                Title       = s.Title,
+                Description = s.Description,
+                IsActive    = s.IsActive,
+                Deadline    = s.Deadline,
+                Images      = s.Images.OrderBy(i => i.SortOrder).ToList(),
+            })
+            .FirstOrDefault();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _session is null) return;
+
+        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"session_{SessionId}");
+        if (raw is not null)
+        {
+            try { _rated = System.Text.Json.JsonSerializer.Deserialize<Dictionary<int, int>>(raw) ?? []; }
+            catch { _rated = []; }
+        }
+
+        _voterName = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+
+        _voterToken = await JS.InvokeAsync<string?>("localStorage.getItem", $"voter_token_{SessionId}") ?? "";
+        if (string.IsNullOrEmpty(_voterToken))
+        {
+            _voterToken = Guid.NewGuid().ToString("N");
+            await JS.InvokeVoidAsync("localStorage.setItem", $"voter_token_{SessionId}", _voterToken);
+        }
+
+        if (_rated.Count == _session.Images.Count && _session.Images.Count > 0)
+            _done = true;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveName()
+    {
+        await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _voterName);
+    }
+
+    private async Task SelectImage(int idx)
+    {
+        _selectedIdx = idx;
+        var imgId = _session!.Images[idx].Id;
+        _score   = _rated.TryGetValue(imgId, out var sc) ? sc : 0;
+        _comment = "";
+        await JS.InvokeVoidAsync("scrollToId", "rating-panel");
+    }
+
+    private async Task SubmitRating()
+    {
+        if (_score == 0 || _session is null || _selectedIdx < 0) return;
+        var img = _session.Images[_selectedIdx];
+
+        var existing = Db.ImageRatings.FirstOrDefault(r => r.ImageId == img.Id && r.VoterToken == _voterToken);
+        if (existing is not null)
+        {
+            existing.Score     = _score;
+            existing.VoterName = _voterName.Trim();
+            existing.Comment   = _comment.Trim();
+            existing.RatedAt   = DateTime.UtcNow;
+        }
+        else
+        {
+            Db.ImageRatings.Add(new ImageRating
+            {
+                ImageId    = img.Id,
+                Score      = _score,
+                VoterToken = _voterToken,
+                VoterName  = _voterName.Trim(),
+                Comment    = _comment.Trim(),
+                RatedAt    = DateTime.UtcNow,
+            });
+        }
+        await Db.SaveChangesAsync();
+
+        _rated[img.Id] = _score;
+        await JS.InvokeVoidAsync("localStorage.setItem", $"session_{SessionId}",
+            System.Text.Json.JsonSerializer.Serialize(_rated));
+
+        _selectedIdx = -1;
+        _score       = 0;
+        _comment     = "";
+
+        if (_rated.Count == _session.Images.Count)
+            _done = true;
+    }
+}

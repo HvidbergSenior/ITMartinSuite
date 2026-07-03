@@ -1,0 +1,201 @@
+@page "/poll/{PollId:int}"
+@rendermode InteractiveServer
+@inject PollDb      Db
+@inject IJSRuntime  JS
+@inject NavigationManager Nav
+
+<PageTitle>@(_poll?.Title ?? "Meningsmåling")</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/" class="poll-back">← Tilbage</a>
+    </header>
+
+    @if (_poll is null)
+    {
+        <div class="poll-empty"><p>Meningsmålingen findes ikke.</p></div>
+    }
+    else
+    {
+        <div class="poll-view">
+
+            @if (!string.IsNullOrEmpty(_poll.ImageName))
+            {
+                <img class="poll-hero-img" src="/poll-images/@_poll.ImageName" alt="" />
+            }
+
+            <div class="poll-content">
+                <h1 class="poll-title">@_poll.Title</h1>
+
+                @if (!string.IsNullOrEmpty(_poll.Body))
+                {
+                    <p class="poll-body">@_poll.Body</p>
+                }
+
+                @if (_poll.Deadline.HasValue)
+                {
+                    <div class="poll-deadline-banner @(_poll.HasDeadlinePassed ? "expired" : "")">
+                        @(_poll.HasDeadlinePassed
+                            ? "Denne afstemning er lukket"
+                            : "Åben til " + _poll.Deadline.Value.ToString("d. MMMM yyyy"))
+                    </div>
+                }
+            </div>
+
+            @if (_hasVoted || _poll.HasDeadlinePassed)
+            {
+                <!-- Results -->
+                <div class="poll-results">
+                    <div class="poll-results-label">
+                        @(_poll.HasDeadlinePassed ? "Resultat" : "Din stemme er registreret ✓")
+                    </div>
+                    @foreach (var opt in _poll.Options.OrderBy(o => o.SortOrder))
+                    {
+                        var count   = opt.Votes.Count;
+                        var total   = _poll.Votes.Count;
+                        var pct     = total > 0 ? (int)Math.Round(count * 100.0 / total) : 0;
+                        var isChosen = opt.Id == _chosenOptionId;
+                        <div class="poll-result-row @(isChosen ? "chosen" : "")">
+                            <div class="poll-result-label">@opt.Label</div>
+                            <div class="poll-result-bar-wrap">
+                                <div class="poll-result-bar" style="width:@pct%"></div>
+                            </div>
+                            <div class="poll-result-pct">@pct%</div>
+                            <div class="poll-result-count">(@count)</div>
+                        </div>
+                    }
+                    <div class="poll-total">@_poll.Votes.Count stemmer i alt</div>
+                </div>
+
+                @if (_poll.Votes.Any(c => !string.IsNullOrWhiteSpace(c.Comment)))
+                {
+                    <div class="poll-comments">
+                        <div class="poll-comments-label">Kommentarer</div>
+                        @foreach (var v in _poll.Votes.Where(c => !string.IsNullOrWhiteSpace(c.Comment)).OrderByDescending(c => c.VotedAt).Take(50))
+                        {
+                            <div class="poll-comment">
+                                <span class="poll-comment-opt" style="background:@OptionColor(v.OptionId)">
+                                    @_poll.Options.FirstOrDefault(o => o.Id == v.OptionId)?.Label
+                                </span>
+                                <span class="poll-comment-text">@v.Comment</span>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <!-- Voting -->
+                <div class="poll-vote">
+                    <div class="poll-vote-label">Hvad mener du?</div>
+                    <div class="poll-options">
+                        @foreach (var opt in _poll.Options.OrderBy(o => o.SortOrder))
+                        {
+                            var optId = opt.Id;
+                            <button class="poll-option-btn @(_selected == optId ? "selected" : "")"
+                                    @onclick="() => _selected = optId">
+                                @opt.Label
+                            </button>
+                        }
+                    </div>
+
+                    @if (_selected > 0)
+                    {
+                        <div class="poll-comment-wrap">
+                            <textarea class="poll-comment-input"
+                                      placeholder="Vil du uddybe? (valgfrit)"
+                                      maxlength="280"
+                                      @bind="_comment"
+                                      @bind:event="oninput"></textarea>
+                            <div class="poll-comment-chars">@_comment.Length/280</div>
+                        </div>
+                        <button class="poll-submit-btn" @onclick="SubmitVote">Stem</button>
+                    }
+                </div>
+            }
+
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int PollId { get; set; }
+
+    private Poll?  _poll;
+    private bool   _hasVoted      = false;
+    private int    _chosenOptionId = 0;
+    private int    _selected      = 0;
+    private string _comment       = "";
+
+    private static readonly string[] _colors = ["#3730A3","#0F766E","#B91C1C","#92400E","#4338CA"];
+
+    private string OptionColor(int optId)
+    {
+        if (_poll is null) return "#6B7280";
+        var idx = _poll.Options.OrderBy(o => o.SortOrder).ToList().FindIndex(o => o.Id == optId);
+        return idx >= 0 ? _colors[idx % _colors.Length] : "#6B7280";
+    }
+
+    protected override void OnInitialized()
+    {
+        _poll = Db.Polls
+            .Where(p => p.Id == PollId)
+            .Select(p => new Poll
+            {
+                Id        = p.Id,
+                Title     = p.Title,
+                Body      = p.Body,
+                ImageName = p.ImageName,
+                Deadline  = p.Deadline,
+                IsActive  = p.IsActive,
+                Options   = p.Options.OrderBy(o => o.SortOrder).ToList(),
+                Votes     = p.Votes.ToList(),
+            })
+            .FirstOrDefault();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _poll is null) return;
+        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"poll_voted_{PollId}");
+        if (raw != null && int.TryParse(raw, out var optId))
+        {
+            _hasVoted       = true;
+            _chosenOptionId = optId;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SubmitVote()
+    {
+        if (_selected == 0 || _poll is null) return;
+
+        Db.Votes.Add(new Vote
+        {
+            PollId   = PollId,
+            OptionId = _selected,
+            Comment  = _comment.Trim(),
+            VotedAt  = DateTime.UtcNow,
+        });
+        await Db.SaveChangesAsync();
+
+        await JS.InvokeVoidAsync("localStorage.setItem", $"poll_voted_{PollId}", _selected.ToString());
+
+        _chosenOptionId = _selected;
+        _hasVoted       = true;
+
+        // Reload so vote counts are fresh
+        _poll = Db.Polls
+            .Where(p => p.Id == PollId)
+            .Select(p => new Poll
+            {
+                Id      = p.Id, Title   = p.Title, Body    = p.Body,
+                Options = p.Options.OrderBy(o => o.SortOrder).ToList(),
+                Votes   = p.Votes.ToList(),
+                Deadline = p.Deadline,
+            })
+            .FirstOrDefault();
+
+        StateHasChanged();
+    }
+}

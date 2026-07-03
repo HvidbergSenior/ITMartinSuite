@@ -1,0 +1,601 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #0F1117;
+    color: #F0F0F0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ── Root ─────────────────────────────── */
+
+.poll-root {
+    max-width: 640px;
+    margin: 0 auto;
+    min-height: 100dvh;
+}
+
+/* ── Header ──────────────────────────── */
+
+.poll-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #0F1117;
+    border-bottom: 1px solid #1E2030;
+    padding: max(env(safe-area-inset-top), 12px) 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.poll-logo { font-size: 20px; font-weight: 700; color: #F0F0F0; }
+
+.poll-back {
+    font-size: 15px;
+    color: #818CF8;
+    cursor: pointer;
+}
+
+/* ── Poll list (index) ───────────────── */
+
+.poll-list { padding: 8px 0 64px; }
+
+.poll-card {
+    display: block;
+    border-bottom: 1px solid #1A1D2E;
+    text-decoration: none;
+    color: #F0F0F0;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.poll-card:active { background: #161825; }
+
+.poll-card-img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    display: block;
+}
+
+.poll-card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+
+.poll-card-title { font-size: 17px; font-weight: 600; line-height: 1.3; }
+
+.poll-card-desc {
+    font-size: 15px;
+    color: #9CA3AF;
+    line-height: 1.5;
+    white-space: pre-line;
+}
+
+.poll-card-meta { display: flex; gap: 12px; font-size: 12px; color: #4B5563; margin-top: 4px; }
+
+.poll-deadline.expired { color: #B45309; }
+
+/* ── Poll view ───────────────────────── */
+
+.poll-view { padding-bottom: 64px; }
+
+.poll-hero-img { width: 100%; max-height: 260px; object-fit: cover; display: block; }
+
+.poll-content { padding: 20px 16px 0; display: flex; flex-direction: column; gap: 10px; }
+
+.poll-title { font-size: 22px; font-weight: 700; line-height: 1.3; }
+
+.poll-body { font-size: 16px; color: #9CA3AF; line-height: 1.6; }
+
+.poll-deadline-banner {
+    background: #1C1A30;
+    border: 1px solid #4338CA;
+    border-radius: 6px;
+    color: #818CF8;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.poll-deadline-banner.expired {
+    background: #1C1200;
+    border-color: #B45309;
+    color: #D97706;
+}
+
+/* ── Voting ──────────────────────────── */
+
+.poll-vote { padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.poll-vote-label { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: #4B5563; }
+
+.poll-options { display: flex; flex-direction: column; gap: 10px; }
+
+.poll-option-btn {
+    all: unset;
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    padding: 16px 20px;
+    background: #161825;
+    border: 2px solid #1E2030;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 600;
+    color: #E5E7EB;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.poll-option-btn.selected {
+    background: #1E1B4B;
+    border-color: #4338CA;
+    color: #818CF8;
+}
+
+.poll-option-btn:active { opacity: 0.8; }
+
+.poll-comment-wrap { display: flex; flex-direction: column; gap: 4px; }
+
+.poll-comment-input {
+    width: 100%;
+    background: #161825;
+    border: 1px solid #1E2030;
+    border-radius: 8px;
+    color: #F0F0F0;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: none;
+    min-height: 80px;
+}
+
+.poll-comment-input::placeholder { color: #374151; }
+.poll-comment-input:focus { outline: none; border-color: #4338CA; }
+.poll-comment-chars { font-size: 11px; color: #374151; text-align: right; }
+
+.poll-submit-btn {
+    all: unset;
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: #3730A3;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.15s;
+}
+
+.poll-submit-btn:active { opacity: 0.8; }
+
+/* ── Results ─────────────────────────── */
+
+.poll-results { padding: 24px 16px; display: flex; flex-direction: column; gap: 14px; }
+
+.poll-results-label { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: #4B5563; }
+
+.poll-result-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 44px 44px;
+    align-items: center;
+    gap: 8px;
+}
+
+.poll-result-row.chosen .poll-result-label { color: #818CF8; font-weight: 600; }
+
+.poll-result-label { font-size: 15px; color: #9CA3AF; }
+
+.poll-result-bar-wrap { background: #161825; border-radius: 4px; height: 8px; overflow: hidden; }
+
+.poll-result-bar { height: 100%; background: #3730A3; border-radius: 4px; transition: width 0.4s; }
+.poll-result-row.chosen .poll-result-bar { background: #818CF8; }
+
+.poll-result-pct { font-size: 15px; font-weight: 700; color: #F0F0F0; text-align: right; }
+.poll-result-count { font-size: 12px; color: #4B5563; }
+
+.poll-total { font-size: 12px; color: #374151; text-align: right; }
+
+/* ── Comments ────────────────────────── */
+
+.poll-comments { padding: 0 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+
+.poll-comments-label { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: #4B5563; margin-bottom: 4px; }
+
+.poll-comment {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #161825;
+}
+
+.poll-comment-opt {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.poll-comment-text { font-size: 14px; color: #9CA3AF; line-height: 1.5; }
+
+/* ── Empty ───────────────────────────── */
+
+.poll-empty {
+    padding: 80px 32px;
+    text-align: center;
+    color: #4B5563;
+    font-size: 16px;
+}
+
+.poll-empty a { color: #818CF8; }
+
+/* ── Admin ───────────────────────────── */
+
+.admin-pin-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+}
+
+.admin-pin-card {
+    background: #161825;
+    border: 1px solid #1E2030;
+    border-radius: 12px;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.admin-pin-card h2 { font-size: 18px; text-align: center; color: #F0F0F0; }
+.admin-pin-error { color: #F87171; font-size: 14px; text-align: center; }
+
+.admin-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.admin-create-btn {
+    display: block;
+    background: #1E1B4B;
+    border: 1px solid #4338CA;
+    border-radius: 10px;
+    color: #818CF8;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.admin-poll-row {
+    background: #161825;
+    border: 1px solid #1E2030;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-poll-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-active   { font-size: 12px; color: #34D399; font-weight: 600; }
+.admin-inactive { font-size: 12px; color: #6B7280; }
+.admin-poll-title { font-size: 15px; font-weight: 600; flex: 1; }
+.admin-poll-votes { font-size: 12px; color: #4B5563; }
+
+.admin-poll-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.admin-btn {
+    background: #1E2030;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    color: #9CA3AF;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    touch-action: manipulation;
+    font-family: inherit;
+}
+
+.admin-btn.danger { color: #F87171; border-color: #7F1D1D; }
+.admin-btn.small  { padding: 4px 10px; }
+
+/* ── Admin form ──────────────────────── */
+
+.admin-form { padding: 20px 16px 64px; display: flex; flex-direction: column; gap: 14px; }
+
+.form-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #4B5563; }
+
+.poll-input {
+    width: 100%;
+    background: #161825;
+    border: 1px solid #1E2030;
+    border-radius: 8px;
+    color: #F0F0F0;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: inherit;
+}
+
+.poll-input::placeholder { color: #374151; }
+.poll-input:focus { outline: none; border-color: #4338CA; }
+
+.poll-textarea {
+    width: 100%;
+    background: #161825;
+    border: 1px solid #1E2030;
+    border-radius: 8px;
+    color: #F0F0F0;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.poll-textarea::placeholder { color: #374151; }
+.poll-textarea:focus { outline: none; border-color: #4338CA; }
+
+.file-input { color: #9CA3AF; font-size: 14px; }
+
+.admin-preview-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; }
+
+.option-row { display: flex; gap: 8px; align-items: center; }
+.option-input { flex: 1; }
+
+.form-error { color: #F87171; font-size: 14px; }
+
+/* ── Session cover image (index card) ── */
+
+.session-cover-img {
+    width: 100%;
+    max-height: 160px;
+    object-fit: contain;
+    background: #090B12;
+    display: block;
+}
+
+/* ── Session grid (voting overview) ─── */
+
+.session-grid-header {
+    padding: 14px 16px 6px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #F0F0F0;
+}
+
+.session-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    padding: 8px 16px 24px;
+}
+
+@media (min-width: 480px) {
+    .session-grid { grid-template-columns: repeat(5, 1fr); }
+}
+
+.session-thumb-btn {
+    all: unset;
+    box-sizing: border-box;
+    display: block;
+    position: relative;
+    cursor: pointer;
+    background: #090B12;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid #1E2030;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.session-thumb-btn img {
+    width: 100%;
+    height: 55px;
+    object-fit: contain;
+    display: block;
+}
+
+.session-thumb-btn.rated  { border-color: #4338CA; }
+.session-thumb-btn.active { border-color: #818CF8; box-shadow: 0 0 0 2px #818CF866; }
+
+.session-score-badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.78);
+    color: #9CA3AF;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 4px;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.session-thumb-btn.rated .session-score-badge { color: #818CF8; }
+
+/* ── Rating panel (stays below grid) ─── */
+
+.session-rating-panel {
+    border-top: 2px solid #4338CA;
+    margin-top: 8px;
+}
+
+.session-zoom-hint {
+    text-align: center;
+    font-size: 12px;
+    color: #6B7280;
+    padding: 4px 0 8px;
+}
+
+.session-panel-img-wrap {
+    background: #090B12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 280px;
+    overflow: hidden;
+}
+
+.session-panel-img {
+    max-width: 100%;
+    max-height: 160px;
+    object-fit: contain;
+    display: block;
+    touch-action: pinch-zoom;
+}
+
+/* ── Session badge (index) ───────────── */
+
+.session-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #818CF8;
+    background: #1E1B4B;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+/* ── Session progress bar ────────────── */
+
+.session-progress-wrap { height: 3px; background: #1A1D2E; }
+.session-progress-bar  { height: 100%; background: #4338CA; transition: width 0.4s; }
+.session-counter       { font-size: 14px; color: #4B5563; }
+
+/* ── Session image ───────────────────── */
+
+.session-image-wrap {
+    background: #090B12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: min(55vw, 420px);
+    overflow: hidden;
+}
+
+.session-image {
+    max-width: 100%;
+    max-height: min(55vw, 420px);
+    object-fit: contain;
+    display: block;
+}
+
+.session-vote { padding: 20px 16px 64px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Session done ────────────────────── */
+
+.session-done {
+    padding: 80px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+.session-done-icon  { font-size: 56px; color: #34D399; }
+.session-done-title { font-size: 22px; font-weight: 700; }
+.session-done-sub   { font-size: 15px; color: #6B7280; }
+
+/* ── Admin section label ─────────────── */
+
+.admin-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #374151;
+    padding: 4px 0 2px;
+}
+
+/* ── Session results (admin edit) ────── */
+
+.session-results { display: flex; flex-direction: column; gap: 14px; }
+
+.session-result-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px;
+    background: #161825;
+    border: 1px solid #1E2030;
+    border-radius: 10px;
+}
+
+.session-result-thumb {
+    width: 80px;
+    height: 60px;
+    object-fit: contain;
+    background: #090B12;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.session-result-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.session-result-avg  { font-size: 16px; font-weight: 700; color: #818CF8; }
+.session-result-dist { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.session-score-chip {
+    font-size: 11px;
+    color: #9CA3AF;
+    background: #1E2030;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.session-comment { font-size: 13px; color: #6B7280; font-style: italic; display: flex; flex-direction: column; gap: 2px; }
+.session-comment-name { font-style: normal; font-weight: 600; color: #A5B4FC; font-size: 12px; }
+.session-name-wrap { padding: 0 0 12px 0; }
+.session-name-input { font-size: 14px; }
+
+/* ── Session thumb grid (upload preview) */
+
+.session-thumb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+}
+
+.session-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    background: #090B12;
+    border-radius: 6px;
+}
+
+/* ── Reconnect ───────────────────────── */
+
+#components-reconnect-modal {
+    display: none;
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1E2030;
+    color: #9CA3AF;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 100;
+}
+
+#components-reconnect-modal.components-reconnect-show,
+#components-reconnect-modal.components-reconnect-failed { display: block; }
