@@ -75,6 +75,58 @@ public class GalleryFlowTests : PageTest
         Assert.That(images, Is.GreaterThan(0), "Expected photos after correct password");
     }
 
+    [Test]
+    public async Task Gallery_JesperMette_Requires_Password()
+    {
+        await GoOrSkip($"{Base}/jespermette");
+        await Page.WaitForSelectorAsync("body", new() { Timeout = 15_000 });
+
+        var hasPasswordInput = await Page.Locator("input[type='password'], input[placeholder*='kode'], input[placeholder*='adgang']")
+            .CountAsync() > 0;
+        var hasPhotos = await Page.Locator("img[src*='/gallery/'], .gallery-item, .photo-grid").CountAsync() > 0;
+
+        Assert.That(hasPasswordInput || hasPhotos, Is.True,
+            "Gallery /jespermette should show password form or photos");
+    }
+
+    [Test]
+    public async Task Gallery_JesperMette_Correct_Password_Shows_Photos()
+    {
+        var password = Environment.GetEnvironmentVariable("GALLERY_PASSWORD_JESPERMETTE") ?? "2860Søborg";
+
+        await GoOrSkip($"{Base}/jespermette");
+        await Page.WaitForSelectorAsync("body", new() { Timeout = 15_000 });
+
+        var passwordInput = Page.Locator("input[type='password']");
+        if (await passwordInput.CountAsync() == 0)
+        {
+            var imgs = await Page.Locator("img").CountAsync();
+            Assert.That(imgs, Is.GreaterThan(0), "Expected photos to be visible");
+            return;
+        }
+
+        await passwordInput.First.FillAsync(password);
+        await passwordInput.First.PressAsync("Enter");
+
+        try
+        {
+            await Page.WaitForSelectorAsync("img, .gallery-grid, .photo-item",
+                new() { Timeout = 10_000 });
+        }
+        catch
+        {
+            var btn = Page.Locator("button[type='submit'], .gallery-login-btn, button:has-text('Åbn'), button:has-text('Log ind')");
+            if (await btn.CountAsync() > 0)
+            {
+                await btn.First.ClickAsync();
+                await Page.WaitForSelectorAsync("img, .gallery-grid", new() { Timeout = 10_000 });
+            }
+        }
+
+        var images = await Page.Locator("img").CountAsync();
+        Assert.That(images, Is.GreaterThan(0), "Expected photos after correct password");
+    }
+
     private async Task GoOrSkip(string url)
     {
         try

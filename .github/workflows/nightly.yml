@@ -21,9 +21,10 @@ jobs:
     timeout-minutes: 30
 
     env:
-      POLL_ADMIN_PIN:       ${{ secrets.POLL_ADMIN_PIN }}
-      GALLERY_PASSWORD_MIE: ${{ secrets.GALLERY_PASSWORD_MIE }}
-      DAILYBRIEF_URL:       ${{ secrets.DAILYBRIEF_URL }}
+      POLL_ADMIN_PIN:                ${{ secrets.POLL_ADMIN_PIN }}
+      GALLERY_PASSWORD_MIE:          ${{ secrets.GALLERY_PASSWORD_MIE }}
+      GALLERY_PASSWORD_JESPERMETTE:  ${{ secrets.GALLERY_PASSWORD_JESPERMETTE }}
+      DAILYBRIEF_URL:                ${{ secrets.DAILYBRIEF_URL }}
       HAS_TAILSCALE:        ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
       HAS_SSH:              ${{ secrets.NAS_SSH_KEY != '' }}
 
