@@ -87,6 +87,7 @@ else if (_song is not null)
                                 @(_aiLoading ? "..." : "🤖 AI")
                             </button>
                         }
+                        <button class="btn-ghost-sm" @onclick="SearchUltimateGuitar" title="Søg akkorder på Ultimate Guitar">🎸 UG</button>
                         <button class="btn-ghost-sm" @onclick="SimplifyChords" title="Fjern slash-akkorder (A/D → A)">简</button>
                         <button class="btn-ghost-sm" @onclick='() => _photoTarget = "chords"'>📷</button>
                     </div>
@@ -833,6 +834,13 @@ else if (_song is not null)
         if (_song is null) return;
         var q = Uri.EscapeDataString(_song.Title + (string.IsNullOrWhiteSpace(_song.Artist) ? "" : " " + _song.Artist) + " lyrics");
         await JS.InvokeVoidAsync("open", $"https://www.google.com/search?q={q}", "_blank");
+    }
+
+    private async Task SearchUltimateGuitar()
+    {
+        if (_song is null) return;
+        var q = Uri.EscapeDataString(_song.Title + (string.IsNullOrWhiteSpace(_song.Artist) ? "" : " " + _song.Artist));
+        await JS.InvokeVoidAsync("open", $"https://www.ultimate-guitar.com/search.php?search_type=title&value={q}", "_blank");
     }
 
     // ── Toneart / key finder ──────────────────────────────────────────────────
