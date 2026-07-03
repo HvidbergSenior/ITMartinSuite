@@ -293,6 +293,7 @@ html, body {
     animation: pulse 1s ease-in-out infinite;
 }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
+.btn-stop--warn { background: #7c2d12; border-color: #f97316; color: #f97316; }
 
 .rec-count { font-size: 11px; color: var(--muted); }
 .rec-list { display: flex; flex-direction: column; gap: 10px; }

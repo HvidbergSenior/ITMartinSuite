@@ -152,7 +152,10 @@ else if (_song is not null)
                             <video id="rec-preview" muted playsinline autoplay
                                    style="width:100%;border-radius:8px;background:#000;margin-bottom:8px"></video>
                         }
-                        <button class="btn-stop" @onclick="StopRecording">⏹ Stop (@_recTimer s)</button>
+                        <button class="btn-stop @(_recTimer >= 300 ? "btn-stop--warn" : "")"
+                                @onclick="StopRecording">
+                            ⏹ Stop (@FormatRecTime(_recTimer) / 10:00)
+                        </button>
                     }
                 </div>
 
@@ -517,6 +520,9 @@ else if (_song is not null)
         _recordings = Library.GetRecordings(SongKey);
     }
 
+    private static string FormatRecTime(int seconds) =>
+        $"{seconds / 60}:{seconds % 60:D2}";
+
     private static string ToTitle(string key) =>
         string.Join(" ",
             key.Replace("_", " ").Replace("-", " ")
@@ -632,6 +638,8 @@ else if (_song is not null)
         {
             _recTimer++;
             await InvokeAsync(StateHasChanged);
+            if (_recTimer >= 600)
+                await InvokeAsync(StopRecording);
         };
         _recTimer_t.Start();
         try
