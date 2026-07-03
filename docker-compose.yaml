@@ -40,14 +40,14 @@ services:
       - Apps__MagicCollectionUrl=https://magic-collection.itmartin.dk
       - Apps__MagazineUrl=https://magazine.itmartin.dk
       - Apps__MagazineSearchUrl=https://magazine-search.itmartin.dk
-      - Apps__ScanUrl=https://scan.itmartin.dk
+      - Apps__ScanUrl=https://find-varer.itmartin.dk
       - Apps__R6AssistantUrl=https://r6.itmartin.dk
       - Apps__R6IntelUrl=https://r6intel.itmartin.dk
-      - Apps__ImageGenUrl=https://imagegen.itmartin.dk
+      - Apps__ImageGenUrl=https://billedbehandling.itmartin.dk
       - Apps__CloudOverblikUrl=https://cloudoverblik.itmartin.dk
       - Apps__UploadUrl=https://upload.itmartin.dk
       - Apps__MediaSellerUrl=https://mediaseller.itmartin.dk
-      - Apps__DailyBriefUrl=https://nyheder.itmartin.dk
+      - Apps__DailyBriefUrl=https://dagligenyheder.itmartin.dk
 
     restart: unless-stopped
 
@@ -927,7 +927,7 @@ services:
 
   # =========================================================
   # DAILY BRIEF — RSS news aggregator
-  #   nyheder.itmartin.dk  →  http://dailybrief-web:8080
+  #   dagligenyheder.itmartin.dk  →  http://dailybrief-web:8080
   # =========================================================
 
   dailybrief-web:

@@ -19,7 +19,7 @@ public static class AppRegistry
     public static readonly AppDef[] All =
     [
         // ── Always-on ─────────────────────────────────────────────────────────
-        new("Daily Brief",        "dailybrief-web",       E("DAILYBRIEF_URL", "https://nyheder.itmartin.dk")),
+        new("Daily Brief",        "dailybrief-web",       E("DAILYBRIEF_URL", "https://dagligenyheder.itmartin.dk")),
 
         // ── Real shops / real users ────────────────────────────────────────────
         new("Kvittering",         "receipt-web",          "https://kvittering.itmartin.dk"),
@@ -35,22 +35,22 @@ public static class AppRegistry
         new("Musik",              "musik-web",            "https://musik.itmartin.dk"),
         new("Musik Studio",       "musik-studio-web",     "https://studio.itmartin.dk"),
         new("Club (Lions)",       "club-web",             "https://lions-club.itmartin.dk"),
-        new("Club (R6 Oldboyz)",  "club-web",             "https://r6oldboyz.itmartin.dk"),
+        new("Club (R6 Oldboyz)",  "club-web",             "https://r6OldBoyz.itmartin.dk"),
         new("BarTab",             "bartab-web",           "https://bartab.itmartin.dk"),
         new("Auction",            "auction-web",          "https://auction.itmartin.dk"),
         new("Market",             "market-web",           "https://market.itmartin.dk"),
         new("Family Planner",     "family-web",           "https://idag.itmartin.dk"),
 
         // ── Tools ─────────────────────────────────────────────────────────────
-        new("Portal",             "index-web",            "https://martin.itmartin.dk"),
+        new("Portal",             "index-web",            "https://all-apps.itmartin.dk"),
         new("FileSorter",         "filesorter-web",       "https://filesorter.itmartin.dk"),
         new("Budget",             "budget-web",           "https://budget.itmartin.dk"),
         new("Magazine",           "magazine-web",         "https://magazine.itmartin.dk"),
         new("Magazine Search",    "magazine-search-web",  "https://magazine-search.itmartin.dk"),
-        new("Image Generator",    "imagegen-web",         "https://imagegen.itmartin.dk"),
+        new("Image Generator",    "imagegen-web",         "https://billedbehandling.itmartin.dk"),
         new("Cloud Overblik",     "cloudoverblik-web",    "https://cloudoverblik.itmartin.dk"),
         new("Test Hub",           "testhub-web",          "https://test.itmartin.dk"),
-        new("Scan",               "scan-web",             "https://scan.itmartin.dk"),
+        new("Scan / Find Varer",  "scan-web",             "https://find-varer.itmartin.dk"),
         new("Upload",             "upload-web",           "https://upload.itmartin.dk"),
         new("R6 Assistant",       "r6assistant-web",      "https://r6.itmartin.dk"),
         new("R6 Intel",           "r6intel-web",          "https://r6intel.itmartin.dk"),

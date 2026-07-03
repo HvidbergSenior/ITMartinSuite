@@ -49,11 +49,11 @@ The dashboard will be available at:
 
 Go to repo → **Settings → Secrets and variables → Actions → New repository secret**:
 
-| Secret | Value | Purpose |
-|---|---|---|
-| `POLL_ADMIN_PIN` | `1234` | Admin login for stem.itmartin.dk |
-| `GALLERY_PASSWORD_MIE` | `8670Låsby` | Mie gallery password |
-| `DAILYBRIEF_URL` | `https://nyheder.itmartin.dk` | URL for DailyBrief (confirm the real domain) |
+| Secret | Value                         | Purpose |
+|---|-------------------------------|---|
+| `POLL_ADMIN_PIN` | `1645`                        | Admin login for stem.itmartin.dk |
+| `GALLERY_PASSWORD_MIE` | `8670Låsby`                   | Mie gallery password |
+| `DAILYBRIEF_URL` | `https://dagligenyheder.itmartin.dk` | URL for DailyBrief |
 
 ### 4. (Optional) SSH to NAS for automatic container start/stop
 

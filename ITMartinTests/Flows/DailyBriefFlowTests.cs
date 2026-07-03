@@ -5,7 +5,7 @@ namespace ITMartinTests.Flows;
 public class DailyBriefFlowTests : FlowTestBase
 {
     private static string Url =>
-        Environment.GetEnvironmentVariable("DAILYBRIEF_URL") ?? "https://nyheder.itmartin.dk";
+        Environment.GetEnvironmentVariable("DAILYBRIEF_URL") ?? "https://dagligenyheder.itmartin.dk";
 
     [Test]
     public async Task DailyBrief_Loads_And_Shows_News_UI()

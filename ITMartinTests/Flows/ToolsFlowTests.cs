@@ -10,7 +10,7 @@ public class ToolsFlowTests : FlowTestBase
     [Test]
     public async Task Portal_Index_Loads_With_Links()
     {
-        await GoOrSkip("https://martin.itmartin.dk");
+        await GoOrSkip("https://all-apps.itmartin.dk");
         await WaitForPage();
         await AssertBodyHasContent("Portal");
 
@@ -117,7 +117,7 @@ public class ToolsFlowTests : FlowTestBase
     [Test]
     public async Task ImageGen_Index_Loads()
     {
-        await GoOrSkip("https://imagegen.itmartin.dk");
+        await GoOrSkip("https://billedbehandling.itmartin.dk");
         await WaitForPage();
         await AssertBodyHasContent("ImageGen index");
     }
@@ -125,7 +125,7 @@ public class ToolsFlowTests : FlowTestBase
     [Test]
     public async Task ImageGen_Has_Prompt_Input()
     {
-        await GoOrSkip("https://imagegen.itmartin.dk");
+        await GoOrSkip("https://billedbehandling.itmartin.dk");
         await WaitForPage();
         await AssertBodyHasContent("ImageGen interface");
 
@@ -168,7 +168,7 @@ public class ToolsFlowTests : FlowTestBase
     [Test]
     public async Task Scan_Index_Loads()
     {
-        await GoOrSkip("https://scan.itmartin.dk");
+        await GoOrSkip("https://find-varer.itmartin.dk");
         await WaitForPage();
         await AssertBodyHasContent("Scan index");
     }
@@ -176,7 +176,7 @@ public class ToolsFlowTests : FlowTestBase
     [Test]
     public async Task Scan_Shows_Upload_Or_Camera_Interface()
     {
-        await GoOrSkip("https://scan.itmartin.dk");
+        await GoOrSkip("https://find-varer.itmartin.dk");
         await WaitForPage();
         await AssertBodyHasContent("Scan interface");
 
