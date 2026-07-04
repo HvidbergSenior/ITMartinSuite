@@ -44,7 +44,7 @@ public sealed class FalAiService
             num_images            = 1,
             enable_safety_checker = false
         });
-        return ExtractFirstImageUrl(await PostAsync("https://fal.run/fal-ai/flux/dev/image-to-image", body, ct));
+        return ExtractFirstImageUrl(await PostAsync("https://fal.run/fal-ai/flux-dev/image-to-image", body, ct));
     }
 
     // Face swap: replace the face in sceneUrl with the face from faceBytes
