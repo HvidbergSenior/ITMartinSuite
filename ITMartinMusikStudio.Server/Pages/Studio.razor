@@ -340,11 +340,17 @@ else if (_song is not null)
                 </div>
                 <div class="chord-detail-body">
                     @{
-                        var diagramSvg = ChordDiagrams.GetSvg(_selectedChord);
+                        var diagram = ChordDiagrams.Get(_selectedChord);
                     }
-                    @if (diagramSvg is not null)
+                    @if (diagram is not null)
                     {
-                        <div class="chord-detail-diagram">@((MarkupString)diagramSvg)</div>
+                        <div class="chord-detail-diagram">
+                            @((MarkupString)diagram.Svg)
+                            @if (!string.IsNullOrEmpty(diagram.ShapeLabel))
+                            {
+                                <div style="font-size:0.7rem;color:#64748b;margin-top:4px;text-align:center;max-width:80px">@diagram.ShapeLabel</div>
+                            }
+                        </div>
                     }
                     @if (_selectedChordLoading)
                     {
