@@ -483,6 +483,8 @@ else if (_song is not null)
     @if (_tab == "optag")
     {
     <div class="studio-record-tab">
+    <div class="optag-layout">
+    <div class="optag-controls">
 
         <!-- Recording card -->
         <div class="studio-card">
@@ -657,7 +659,135 @@ else if (_song is not null)
             </div>
         }
 
-    </div>
+    </div><!-- /optag-controls -->
+
+    <!-- RIGHT: Spilleguide while recording ─────────────── -->
+    <div class="optag-lyrics">
+
+        <!-- Chord detail panel (same shared state as Spilleguide) -->
+        @if (_selectedChord is not null)
+        {
+            var detail = ChordDiagrams.Get(_selectedChord);
+            <div class="chord-detail-panel">
+                <div class="chord-detail-header">
+                    <span class="chord-detail-name">@_selectedChord</span>
+                    <button class="chord-detail-close" @onclick="DismissChord">✕</button>
+                </div>
+                @if (detail is not null)
+                {
+                    <div class="chord-detail-body">
+                        <div>@((MarkupString)detail.Svg)</div>
+                        @if (!string.IsNullOrEmpty(detail.ShapeLabel))
+                        {
+                            <div class="chord-shape-label">@detail.ShapeLabel</div>
+                        }
+                    </div>
+                }
+                @if (_selectedChordLoading)
+                {
+                    <p class="chord-detail-text" style="color:#6b7280">Henter tips...</p>
+                }
+                else if (!string.IsNullOrEmpty(_selectedChordInfo))
+                {
+                    <pre class="chord-detail-text">@_selectedChordInfo</pre>
+                }
+                <button class="btn-ghost-sm" style="margin-top:6px" @onclick="ShowChordTransition">
+                    🔀 Overgang
+                </button>
+            </div>
+        }
+
+        <!-- Pattern bar -->
+        @if (!string.IsNullOrWhiteSpace(_strumEdit) || !string.IsNullOrWhiteSpace(_fingerpickEdit))
+        {
+            <div class="perform-pattern-bar">
+                @if (!string.IsNullOrWhiteSpace(_fingerpickEdit))
+                {
+                    <div>
+                        <span class="pattern-label">Fingerpicking</span>
+                        @((MarkupString)PatternRenderer.RenderFingerpick(_fingerpickEdit))
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(_strumEdit))
+                {
+                    <div>
+                        <span class="pattern-label">Strumming</span>
+                        @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Lyrics -->
+        @if (HasInlineChords)
+        {
+            <div class="perform-sheet">
+                @foreach (var line in _lyricsEdit.Split('\n'))
+                {
+                    @if (string.IsNullOrWhiteSpace(line))
+                    {
+                        <div class="perform-spacer"></div>
+                    }
+                    else if (IsSectionLabel(line))
+                    {
+                        <div class="perform-section-label">@line.Trim('[', ']', ':', ' ')</div>
+                    }
+                    else
+                    {
+                        <div class="perform-lyric-line">
+                            @foreach (var seg in ParseLyricLine(line))
+                            {
+                                var segChord = seg.Chord;
+                                <span class="perform-seg">
+                                    @if (segChord is not null)
+                                    {
+                                        <button class="perform-chord-inline @(_selectedChord == segChord ? "perform-chord-inline--active" : "")"
+                                                @onclick="() => SelectPerformChord(segChord)">@segChord</button>
+                                    }
+                                    else
+                                    {
+                                        <span class="perform-chord-inline" style="visibility:hidden">·</span>
+                                    }
+                                    <span class="perform-word">@seg.Text</span>
+                                </span>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_lyricsEdit))
+        {
+            <div class="perform-sheet">
+                @foreach (var line in _lyricsEdit.Split('\n'))
+                {
+                    @if (string.IsNullOrWhiteSpace(line))
+                    {
+                        <div class="perform-spacer"></div>
+                    }
+                    else if (IsSectionLabel(line))
+                    {
+                        <div class="perform-section-label">@line.Trim('[', ']', ':', ' ')</div>
+                    }
+                    else
+                    {
+                        <div class="perform-plain-line">@line</div>
+                    }
+                }
+            </div>
+        }
+        else
+        {
+            <div class="perform-empty">
+                <p>Ingen tekst endnu</p>
+                <button class="btn-ghost" @onclick='() => _tab = "forbered"'>← Gå til Forbered</button>
+            </div>
+        }
+
+    </div><!-- /optag-lyrics -->
+
+    </div><!-- /optag-layout -->
+    </div><!-- /studio-record-tab -->
     }
 
     @if (_saveStatus is not null)
