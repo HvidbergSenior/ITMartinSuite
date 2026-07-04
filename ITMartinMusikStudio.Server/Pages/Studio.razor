@@ -242,19 +242,30 @@ else if (_song is not null)
                 {
                     @foreach (var (label, path) in new[]
                     {
-                        ("🎤 Sang",        _stems.Vocals),
-                        ("🥁 Trommer",     _stems.Drums),
-                        ("🎸 Bas",         _stems.Bass),
-                        ("🎹 Instrumenter",_stems.Other),
+                        ("🎤 Sang",         _stems.Vocals),
+                        ("🥁 Trommer",      _stems.Drums),
+                        ("🎸 Bas",          _stems.Bass),
+                        ("🎹 Instrumenter", _stems.Other),
                     })
                     {
                         @if (path is not null)
                         {
-                            var rel = Path.GetRelativePath(Library.Root, path).Replace('\\', '/');
+                            var rel     = Path.GetRelativePath(Library.Root, path).Replace('\\', '/');
+                            var playUrl = $"/stream?path={Uri.EscapeDataString(rel)}";
                             <div style="margin:6px 0">
-                                <div style="font-size:0.8rem;color:#aaa;margin-bottom:2px">@label</div>
-                                <audio controls src="/stream?path=@Uri.EscapeDataString(rel)"
-                                       class="rec-player" style="width:100%" />
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+                                    <span style="font-size:0.8rem;color:#aaa">@label</span>
+                                    @if (!_recording)
+                                    {
+                                        <button class="btn-ghost-sm"
+                                                style="font-size:0.7rem;padding:2px 6px"
+                                                @onclick="() => StartOverdubFromUrl(playUrl)"
+                                                title="Spil dette spor i høretelefoner og optag ovenpå">
+                                            ⏺ Syng med
+                                        </button>
+                                    }
+                                </div>
+                                <audio controls src="@playUrl" class="rec-player" style="width:100%" />
                             </div>
                         }
                     }
@@ -751,12 +762,15 @@ else if (_song is not null)
     {
         var latest = _recordings.OrderByDescending(r => r.CreatedAt).FirstOrDefault();
         if (latest is null) { await StartRecording(); return; }
+        await StartOverdubFromUrl($"/stream?path={Uri.EscapeDataString(latest.RelativePath)}");
+    }
 
+    private async Task StartOverdubFromUrl(string playUrl)
+    {
         _recording = true;
         StartRecTimer();
         try
         {
-            var playUrl = $"/stream?path={Uri.EscapeDataString(latest.RelativePath)}";
             await JS.InvokeVoidAsync("studio.startOverdub", SongKey, playUrl, _videoMode);
         }
         catch (JSException ex)
