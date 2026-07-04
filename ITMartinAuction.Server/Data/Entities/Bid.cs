@@ -6,6 +6,7 @@ public sealed class Bid
     public Guid AuctionItemId { get; set; }
     public Guid BidderId { get; set; }
     public decimal Amount { get; set; }
+    public bool IsPreBid { get; set; }
     public DateTime PlacedAt { get; set; } = DateTime.UtcNow;
 
     public Bidder? Bidder { get; set; }

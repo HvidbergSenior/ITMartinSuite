@@ -2,38 +2,39 @@
 @rendermode InteractiveServer
 @inject AuctionService Svc
 @inject NavigationManager Nav
-@inject IWebHostEnvironment Env
+@inject IJSRuntime JS
 
 <div class="add-page">
     <div class="add-card">
-        <button class="btn-back" @onclick="GoBack">← Back</button>
-        <h2>Add Item</h2>
+        <button class="btn-back" @onclick="GoBack">← Tilbage</button>
+        <h2>Tilføj genstand</h2>
 
         <div class="home-section">
-            <label class="home-label">Name</label>
-            <input class="home-input" @bind="Name" placeholder="Black Lotus (LP)" maxlength="100" />
+            <label class="home-label">Navn</label>
+            <input class="home-input" @bind="Name" placeholder="10 puslespil" maxlength="100" />
         </div>
 
         <div class="home-section">
-            <label class="home-label">Description (optional)</label>
+            <label class="home-label">Antal stk.</label>
+            <input class="home-input" type="number" min="1" @bind="Qty" />
+        </div>
+
+        <div class="home-section">
+            <label class="home-label">Beskrivelse (valgfri)</label>
             <textarea class="home-input home-textarea"
                       @bind="Description"
-                      placeholder="Condition, edition, notes…"
+                      placeholder="Stand, edition, bemærkninger…"
                       rows="3"
                       maxlength="500"></textarea>
         </div>
 
         <div class="home-section">
-            <label class="home-label">Starting price (kr)</label>
-            <input class="home-input"
-                   type="number"
-                   min="0"
-                   @bind="StartingPrice"
-                   placeholder="50" />
+            <label class="home-label">Startpris (kr)</label>
+            <input class="home-input" type="number" min="0" @bind="StartingPrice" placeholder="50" />
         </div>
 
         <div class="home-section">
-            <label class="home-label">Photo (optional)</label>
+            <label class="home-label">Foto (valgfri)</label>
             <InputFile OnChange="OnPhotoSelected" accept="image/*" class="photo-input" />
             @if (_photoPreview is not null)
             {
@@ -48,8 +49,8 @@
 
         <button class="btn-primary"
                 @onclick="Save"
-                disabled="@(string.IsNullOrWhiteSpace(Name) || _saving)">
-            @(_saving ? "Saving…" : "Add item")
+                disabled="@(string.IsNullOrWhiteSpace(Name) || _saving || string.IsNullOrEmpty(_adminToken))">
+            @(_saving ? "Gemmer…" : "Tilføj genstand")
         </button>
     </div>
 </div>
@@ -58,30 +59,34 @@
     [Parameter] public string Code { get; set; } = "";
 
     private string  Name         = "";
+    private int     Qty          = 1;
     private string? Description;
     private decimal StartingPrice = 0;
     private string? _photoPath;
     private string? _photoPreview;
-    private string  _error = "";
+    private string  _error       = "";
     private bool    _saving;
+    private string  _adminToken  = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _adminToken = await JS.InvokeAsync<string?>("auction.getItem", $"admin_{Code.ToUpper()}") ?? "";
+        await InvokeAsync(StateHasChanged);
+    }
 
     private async Task OnPhotoSelected(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file is null) return;
-
-        var ext   = Path.GetExtension(file.Name).ToLowerInvariant();
-        var fname = $"{Guid.NewGuid()}{ext}";
-        var dir   = "/app/data/photos";
-
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-
+        var ext      = Path.GetExtension(file.Name).ToLowerInvariant();
+        var fname    = $"{Guid.NewGuid()}{ext}";
+        var dir      = "/app/data/photos";
+        Directory.CreateDirectory(dir);
         var fullPath = Path.Combine(dir, fname);
-        await using var fs = new FileStream(fullPath, FileMode.Create);
+        await using var fs     = new FileStream(fullPath, FileMode.Create);
         await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
         await stream.CopyToAsync(fs);
-
         _photoPath    = fullPath;
         _photoPreview = $"/photos/{fname}";
     }
@@ -93,7 +98,7 @@
         _error  = "";
         try
         {
-            await Svc.AddItemAsync(Code, Name.Trim(), Description?.Trim(), StartingPrice, _photoPath);
+            await Svc.AddItemAsync(Code, _adminToken, Name.Trim(), Description?.Trim(), StartingPrice, Qty, _photoPath);
             GoBack();
         }
         catch (Exception ex)
@@ -104,5 +109,5 @@
     }
 
     private void GoBack() =>
-        Nav.NavigateTo($"/auction/{Code}", forceLoad: true);
+        Nav.NavigateTo($"/auction/{Code}/admin", forceLoad: true);
 }

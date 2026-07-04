@@ -1,0 +1,203 @@
+@page "/auction/{Code}/skaerm"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@inject AuctionService Svc
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<div class="skaerm-page">
+    @if (_session is null)
+    {
+        <div class="skaerm-waiting">
+            <div class="skaerm-gavel">🔨</div>
+            <div class="skaerm-title">Indlæser…</div>
+        </div>
+    }
+    else if (_session.Status == AuctionStatus.Draft)
+    {
+        <div class="skaerm-waiting">
+            <div class="skaerm-gavel">🔨</div>
+            <div class="skaerm-title">@_session.Name</div>
+            <div class="skaerm-code">Deltag med kode: <strong>@_session.Code</strong></div>
+            <div class="skaerm-sub">Forbereder auktion…</div>
+        </div>
+    }
+    else if (_session.Status == AuctionStatus.PreAuction)
+    {
+        <div class="skaerm-waiting">
+            <div class="skaerm-gavel">🛒</div>
+            <div class="skaerm-title">@_session.Name</div>
+            <div class="skaerm-code">Afgiv forudbud — kode: <strong>@_session.Code</strong></div>
+            <div class="skaerm-items-preview">
+                @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
+                {
+                    <div class="skaerm-preview-item">
+                        <span>@item.Name</span>
+                        <span class="skaerm-preview-price">fra @item.StartingPrice.ToString("0") kr</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (_session.Status == AuctionStatus.Live)
+    {
+        <div class="skaerm-live">
+            <div class="skaerm-session">@_session.Name</div>
+
+            @if (_activeItem is null)
+            {
+                <div class="skaerm-waiting-item">
+                    <div class="skaerm-gavel">⏳</div>
+                    <div>Næste genstand klar snart…</div>
+                </div>
+            }
+            else
+            {
+                <div class="skaerm-item-name">@_activeItem.Name</div>
+                @if (_activeItem.LotQuantity > 1)
+                {
+                    <div class="skaerm-item-qty">@_activeItem.LotQuantity stk.</div>
+                }
+
+                @if (SkaermTopBid is not null)
+                {
+                    var bidder = _session.Bidders.FirstOrDefault(b => b.Id == SkaermTopBid.BidderId);
+                    <div class="skaerm-bid">@SkaermTopBid.Amount.ToString("0") kr</div>
+                    <div class="skaerm-bidder" style="color:@(bidder?.Color ?? "#6366f1")">
+                        Budgiver #@(bidder?.BidderNumber?.ToString() ?? "?")
+                    </div>
+                }
+                else
+                {
+                    <div class="skaerm-bid">@_activeItem.StartingPrice.ToString("0") kr</div>
+                    <div class="skaerm-bidder muted">Startpris — vær første budgiver!</div>
+                }
+
+                <div class="skaerm-countdown @(_countdown <= 5 ? "skaerm-urgent" : "")">
+                    @_countdown
+                </div>
+            }
+        </div>
+    }
+    else if (_session.Status == AuctionStatus.Ended)
+    {
+        <div class="skaerm-ended">
+            <div class="skaerm-gavel">🏆</div>
+            <div class="skaerm-title">@_session.Name — Afsluttet</div>
+            <div class="skaerm-results">
+                @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
+                {
+                    <div class="skaerm-result-row">
+                        <span class="skaerm-result-name">@item.Name</span>
+                        @if (item.Status == AuctionItemStatus.Sold && item.WinningBid.HasValue)
+                        {
+                            var w = _session.Bidders.FirstOrDefault(b => b.Id == item.WinnerBidderId);
+                            <span class="skaerm-result-winner" style="color:@(w?.Color ?? "#22c55e")">
+                                @item.WinningBid.Value.ToString("0") kr — Budgiver #@(w?.BidderNumber?.ToString() ?? "?")
+                            </span>
+                        }
+                        else if (item.Status == AuctionItemStatus.Sold && item.BuyNowBuyerName is not null)
+                        {
+                            <span class="skaerm-result-winner">Købt — @item.BuyNowBuyerName</span>
+                        }
+                        else
+                        {
+                            <span class="skaerm-result-passed">Ikke solgt</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private AuctionSession? _session;
+    private AuctionItem?    _activeItem;
+    private int             _countdown;
+    private HubConnection?  _hub;
+
+    private Bid? SkaermTopBid => _activeItem?.Bids
+        .Where(b => !b.IsPreBid)
+        .OrderByDescending(b => b.Amount)
+        .FirstOrDefault();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _session    = await Svc.GetByCodeAsync(Code);
+        _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _session is null) return;
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/auction"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<object>("PhaseChanged", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetByCodeAsync(Code);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("ItemActivated", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetByCodeAsync(Code);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _countdown  = 30;
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("BidPlaced", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetByCodeAsync(Code);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            StateHasChanged();
+        }));
+
+        _hub.On<Guid, int>("Countdown", (itemId, rem) => InvokeAsync(() =>
+        {
+            if (_activeItem?.Id == itemId) { _countdown = rem; StateHasChanged(); }
+        }));
+
+        _hub.On<object>("ItemClosed", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetByCodeAsync(Code);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _countdown  = 0;
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("BuyNow", _ => InvokeAsync(async () =>
+        {
+            _session = await Svc.GetByCodeAsync(Code);
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("ItemAdded", _ => InvokeAsync(async () =>
+        {
+            _session = await Svc.GetByCodeAsync(Code);
+            StateHasChanged();
+        }));
+
+        await _hub.StartAsync();
+        await _hub.InvokeAsync("JoinSession", Code.ToUpper());
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+        {
+            try { if (_hub.State == HubConnectionState.Connected) await _hub.InvokeAsync("LeaveSession", Code.ToUpper()); }
+            catch { }
+            await _hub.DisposeAsync();
+        }
+    }
+}

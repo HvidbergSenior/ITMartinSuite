@@ -46,7 +46,7 @@ $ServiceMap = @{
     "family-web"             = @{ Dockerfile = "ITMartinFamily.Server/Dockerfile";                    Context = "." }
     "market-web"             = @{ Dockerfile = "ITMartinMarket.Server/Dockerfile";                    Context = "." }
     "bartab-web"             = @{ Dockerfile = "ITMartinBarTab.Server/Dockerfile";                    Context = "." }
-    "auction-web"            = @{ Dockerfile = "ITMartinAuction.Server/Dockerfile";                   Context = "." }
+    "auction-web"            = @{ Dockerfile = "ITMartinAuction.Server/Dockerfile";                   Context = "."; Profile = "manual" }
     "testhub-web"            = @{ Dockerfile = "ITMartinTestHub.Server/Dockerfile";                   Context = "." }
     "index-web"              = @{ Dockerfile = "ITMartin.IndexServer/Dockerfile";                     Context = "." }
     "musik-web"              = @{ Dockerfile = "ITMartinMusic.Server/Dockerfile";                     Context = "." }
@@ -101,7 +101,8 @@ Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cy
 $composeFile = Join-Path $PSScriptRoot "docker-compose.yaml"
 scp -O $composeFile "${NasHost}:${NasPath}/docker-compose.yaml" | Out-Null
 
-$sshCmd = "docker --context default load -i " + $nasFile + " && rm " + $nasFile + " && cd " + $NasPath + " && docker --context default compose up -d --force-recreate --timeout 10 " + $Service
+$profileFlag = if ($entry.Profile) { "--profile $($entry.Profile) " } else { "" }
+$sshCmd = "docker --context default load -i " + $nasFile + " && rm " + $nasFile + " && cd " + $NasPath + " && docker --context default compose " + $profileFlag + "up -d --force-recreate --timeout 10 " + $Service
 ssh $NasHost "$sshCmd"
 if ($LASTEXITCODE -ne 0) { exit 1 }
 

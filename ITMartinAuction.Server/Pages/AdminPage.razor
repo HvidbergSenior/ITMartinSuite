@@ -1,0 +1,435 @@
+@page "/auction/{Code}/admin"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@inject AuctionService Svc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ToastService Toast
+@implements IAsyncDisposable
+
+@if (_loading)
+{
+    <div class="loading">Indlæser…</div>
+}
+else if (_session is null)
+{
+    <div class="loading">Ingen adgang — kontroller link</div>
+}
+else
+{
+    <div class="admin-page">
+
+        <!-- Header -->
+        <div class="auction-header">
+            <div class="header-left">
+                <span class="session-name">@_session.Name</span>
+                <span class="code-badge">@_session.Code</span>
+                <span class="phase-pill phase-@_session.Status.ToString().ToLower()">
+                    @PhaseDanish(_session.Status) — Admin
+                </span>
+            </div>
+            <div class="header-right">
+                <button class="btn-skaerm" @onclick="GoSkaerm" title="Storskærm">📺</button>
+                <button class="btn-skaerm" @onclick="GoAuction" title="Deltagervisning">👥</button>
+            </div>
+        </div>
+
+        <div class="admin-body">
+
+            <!-- LEFT: item management + phase controls -->
+            <div class="admin-main">
+
+                <!-- Phase controls -->
+                <div class="admin-panel">
+                    <div class="panel-title">Fase</div>
+                    <div class="phase-controls">
+                        @if (_session.Status == AuctionStatus.Draft)
+                        {
+                            <button class="btn-phase" @onclick="OpenPreAuction">
+                                🛒 Åbn forudbudsrunde
+                            </button>
+                        }
+                        else if (_session.Status == AuctionStatus.PreAuction)
+                        {
+                            <div class="phase-info">Forudbudsrunde er åben</div>
+                            <button class="btn-phase" @onclick="StartLive">
+                                🔨 Start live auktion
+                            </button>
+                        }
+                        else if (_session.Status == AuctionStatus.Live)
+                        {
+                            <div class="phase-info">Live auktion kører</div>
+                            <button class="btn-phase btn-phase-danger" @onclick="EndAuction">
+                                ✅ Afslut auktion
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="phase-info">Auktionen er afsluttet</div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Live controls (only when Live) -->
+                @if (_session.Status == AuctionStatus.Live)
+                {
+                    <div class="admin-panel">
+                        <div class="panel-title">Live styring</div>
+
+                        @if (_activeItem is not null)
+                        {
+                            var adminTopBid = _activeItem.Bids
+                                .Where(b => !b.IsPreBid)
+                                .OrderByDescending(b => b.Amount)
+                                .FirstOrDefault();
+                            <div class="live-item-name">@_activeItem.Name</div>
+                            @if (adminTopBid is not null)
+                            {
+                                var bidder = _session.Bidders.FirstOrDefault(b => b.Id == adminTopBid.BidderId);
+                                <div class="live-top-bid">
+                                    @adminTopBid.Amount.ToString("0") kr — Budgiver #@(bidder?.BidderNumber?.ToString() ?? "?")
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="live-top-bid muted">Ingen bud endnu</div>
+                            }
+                            <div class="countdown-display">⏱ @_countdown s</div>
+                            <div class="host-controls">
+                                <button class="btn-hammer" @onclick="Hammer">🔨 SOLGT!</button>
+                                <button class="btn-pass"   @onclick="Pass">Ikke solgt</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="muted">Åbn en genstand fra listen for at starte</p>
+                        }
+                    </div>
+                }
+
+                <!-- Add item form -->
+                @if (_session.Status is AuctionStatus.Draft or AuctionStatus.PreAuction)
+                {
+                    <div class="admin-panel">
+                        <div class="panel-title">Tilføj genstand</div>
+                        <div class="home-section">
+                            <label class="home-label">Navn</label>
+                            <input class="home-input" @bind="_newName" placeholder="10 puslespil" maxlength="100" />
+                        </div>
+                        <div class="home-section">
+                            <label class="home-label">Antal stk.</label>
+                            <input class="home-input" type="number" min="1" @bind="_newQty" />
+                        </div>
+                        <div class="home-section">
+                            <label class="home-label">Beskrivelse</label>
+                            <textarea class="home-input home-textarea" @bind="_newDesc" rows="2" maxlength="300"></textarea>
+                        </div>
+                        <div class="home-section">
+                            <label class="home-label">Startpris (kr)</label>
+                            <input class="home-input" type="number" min="0" @bind="_newPrice" />
+                        </div>
+                        <div class="home-section">
+                            <label class="home-label">Foto (valgfri)</label>
+                            <InputFile OnChange="OnPhotoSelected" accept="image/*" class="photo-input" />
+                            @if (_photoPreview is not null)
+                            {
+                                <img class="photo-preview" src="@_photoPreview" alt="preview" />
+                            }
+                        </div>
+                        <button class="btn-primary"
+                                @onclick="AddItem"
+                                disabled="@(string.IsNullOrWhiteSpace(_newName) || _saving)">
+                            @(_saving ? "Gemmer…" : "+ Tilføj")
+                        </button>
+                    </div>
+                }
+
+            </div>
+
+            <!-- RIGHT: item queue / bidder list -->
+            <div class="admin-sidebar">
+
+                <div class="admin-panel">
+                    <div class="panel-title">Genstande</div>
+                    @if (!_session.Items.Any())
+                    {
+                        <p class="muted queue-empty">Ingen genstande endnu</p>
+                    }
+                    @foreach (var item in _session.Items.OrderBy(i => i.SortOrder))
+                    {
+                        var preBids = item.Bids.Where(b => b.IsPreBid).ToList();
+                        var liveBids = item.Bids.Where(b => !b.IsPreBid).ToList();
+                        <div class="admin-item @(item.Status == AuctionItemStatus.Active ? "admin-item-active" : "")
+                                               @(item.Status == AuctionItemStatus.Sold   ? "admin-item-done"   : "")
+                                               @(item.Status == AuctionItemStatus.Passed ? "admin-item-done"   : "")">
+                            <div class="admin-item-name">@item.Name
+                                @if (item.LotQuantity > 1) { <span class="catalog-qty">@item.LotQuantity stk.</span> }
+                            </div>
+                            <div class="admin-item-meta">
+                                <span>@item.StartingPrice.ToString("0") kr</span>
+                                @if (preBids.Any())
+                                {
+                                    <span class="prebid-count">@preBids.Count forudbud (max @preBids.Max(b => b.Amount).ToString("0") kr)</span>
+                                }
+                                @if (item.Status == AuctionItemStatus.Sold && item.WinningBid.HasValue)
+                                {
+                                    var w = _session.Bidders.FirstOrDefault(b => b.Id == item.WinnerBidderId);
+                                    <span class="badge-sold">✓ @item.WinningBid.Value.ToString("0") kr — Budgiver #@(w?.BidderNumber?.ToString() ?? "?")</span>
+                                }
+                                else if (item.Status == AuctionItemStatus.Passed && item.BuyNowBuyerName is not null)
+                                {
+                                    <span class="badge-sold">Købt: @item.BuyNowBuyerName</span>
+                                }
+                                else if (item.Status == AuctionItemStatus.Passed)
+                                {
+                                    <span class="badge-passed">Ikke solgt</span>
+                                }
+                                else if (item.Status == AuctionItemStatus.Active)
+                                {
+                                    <span class="badge-active">Live</span>
+                                }
+                                else if (_session.Status == AuctionStatus.Live && item.Status == AuctionItemStatus.Pending)
+                                {
+                                    <button class="btn-open" @onclick="() => OpenItem(item.Id)">Åbn</button>
+                                }
+                            </div>
+                            @if (liveBids.Any())
+                            {
+                                <div class="admin-bids">
+                                    @foreach (var b in liveBids.OrderByDescending(b => b.Amount).Take(3))
+                                    {
+                                        var bidder = _session.Bidders.FirstOrDefault(x => x.Id == b.BidderId);
+                                        <span class="admin-bid-chip" style="border-color:@(bidder?.Color ?? "#555")">
+                                            #@(bidder?.BidderNumber?.ToString() ?? "?") @b.Amount.ToString("0") kr
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="admin-panel">
+                    <div class="panel-title">Budgivere (@_session.Bidders.Count)</div>
+                    @foreach (var b in _session.Bidders.OrderBy(b => b.BidderNumber ?? int.MaxValue))
+                    {
+                        <div class="bidder-row">
+                            <div class="bid-avatar" style="background:@b.Color">
+                                @(b.BidderNumber.HasValue ? $"#{b.BidderNumber}" : "–")
+                            </div>
+                            <span class="bidder-name">
+                                @(b.BidderNumber.HasValue ? $"Budgiver #{b.BidderNumber}" : "Tilskuer")
+                            </span>
+                        </div>
+                    }
+                    @if (!_session.Bidders.Any())
+                    {
+                        <p class="muted">Ingen deltagere endnu</p>
+                    }
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private AuctionSession? _session;
+    private bool            _loading = true;
+    private string          _adminToken = "";
+    private HubConnection?  _hub;
+    private AuctionItem?    _activeItem;
+    private int             _countdown;
+
+    // Add item form
+    private string  _newName  = "";
+    private string? _newDesc;
+    private decimal _newPrice = 0;
+    private int     _newQty   = 1;
+    private string? _photoPath;
+    private string? _photoPreview;
+    private bool    _saving;
+
+    private static string PhaseDanish(AuctionStatus s) => s switch
+    {
+        AuctionStatus.Draft       => "Kladde",
+        AuctionStatus.PreAuction  => "Forudbud",
+        AuctionStatus.Live        => "Live",
+        AuctionStatus.Ended       => "Afsluttet",
+        _                         => s.ToString()
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _adminToken = await JS.InvokeAsync<string?>("auction.getItem", $"admin_{Code.ToUpper()}") ?? "";
+        _session    = await Svc.GetAdminSessionAsync(Code, _adminToken);
+        _loading    = false;
+
+        if (_session is null)
+        {
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        _activeItem = _session.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/auction"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<object>("PhaseChanged", _ => InvokeAsync(async () =>
+        {
+            _session = await Svc.GetAdminSessionAsync(Code, _adminToken);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("ItemAdded", _ => InvokeAsync(async () =>
+        {
+            _session = await Svc.GetAdminSessionAsync(Code, _adminToken);
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("ItemActivated", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetAdminSessionAsync(Code, _adminToken);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _countdown  = 30;
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("BidPlaced", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetAdminSessionAsync(Code, _adminToken);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            StateHasChanged();
+        }));
+
+        _hub.On<Guid, int>("Countdown", (itemId, rem) => InvokeAsync(() =>
+        {
+            if (_activeItem?.Id == itemId) { _countdown = rem; StateHasChanged(); }
+        }));
+
+        _hub.On<Guid>("ItemTimeout", itemId => InvokeAsync(() =>
+        {
+            _countdown = 0;
+            StateHasChanged();
+            Toast.Show("Tid udløbet — afgør genstand", "info");
+        }));
+
+        _hub.On<object>("ItemClosed", _ => InvokeAsync(async () =>
+        {
+            _session    = await Svc.GetAdminSessionAsync(Code, _adminToken);
+            _activeItem = _session?.Items.FirstOrDefault(i => i.Status == AuctionItemStatus.Active);
+            _countdown  = 0;
+            StateHasChanged();
+        }));
+
+        _hub.On<object>("BidderJoined", _ => InvokeAsync(async () =>
+        {
+            _session = await Svc.GetAdminSessionAsync(Code, _adminToken);
+            StateHasChanged();
+        }));
+
+        await _hub.StartAsync();
+        await _hub.InvokeAsync("JoinSession", Code.ToUpper());
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OpenPreAuction()
+    {
+        try { await Svc.OpenPreAuctionAsync(Code, _adminToken); }
+        catch (Exception ex) { Toast.Show(ex.Message, "error"); }
+    }
+
+    private async Task StartLive()
+    {
+        try { await Svc.StartLiveAsync(Code, _adminToken); }
+        catch (Exception ex) { Toast.Show(ex.Message, "error"); }
+    }
+
+    private async Task EndAuction()
+    {
+        try { await Svc.EndAuctionAsync(Code, _adminToken); }
+        catch (Exception ex) { Toast.Show(ex.Message, "error"); }
+    }
+
+    private async Task OpenItem(Guid itemId)
+    {
+        try { await Svc.ActivateItemAsync(Code, _adminToken, itemId); }
+        catch (Exception ex) { Toast.Show(ex.Message, "error"); }
+    }
+
+    private async Task Hammer()
+    {
+        if (_activeItem is null) return;
+        try { await Svc.CloseItemAsync(Code, _adminToken, _activeItem.Id, sold: true); }
+        catch (Exception ex) { Toast.Show(ex.Message, "error"); }
+    }
+
+    private async Task Pass()
+    {
+        if (_activeItem is null) return;
+        try { await Svc.CloseItemAsync(Code, _adminToken, _activeItem.Id, sold: false); }
+        catch (Exception ex) { Toast.Show(ex.Message, "error"); }
+    }
+
+    private async Task OnPhotoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
+        var fname = $"{Guid.NewGuid()}{ext}";
+        var dir  = "/app/data/photos";
+        Directory.CreateDirectory(dir);
+        var fullPath = Path.Combine(dir, fname);
+        await using var fs     = new FileStream(fullPath, FileMode.Create);
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await stream.CopyToAsync(fs);
+        _photoPath    = fullPath;
+        _photoPreview = $"/photos/{fname}";
+    }
+
+    private async Task AddItem()
+    {
+        if (string.IsNullOrWhiteSpace(_newName)) return;
+        _saving = true;
+        try
+        {
+            await Svc.AddItemAsync(Code, _adminToken, _newName.Trim(), _newDesc?.Trim(), _newPrice, _newQty, _photoPath);
+            _newName  = "";
+            _newDesc  = null;
+            _newPrice = 0;
+            _newQty   = 1;
+            _photoPath    = null;
+            _photoPreview = null;
+            Toast.Show("Genstand tilføjet ✓");
+        }
+        catch (Exception ex)
+        {
+            Toast.Show(ex.Message, "error");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void GoSkaerm()   => Nav.NavigateTo($"/auction/{Code}/skaerm",  forceLoad: true);
+    private void GoAuction()  => Nav.NavigateTo($"/auction/{Code}",         forceLoad: true);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+        {
+            try { if (_hub.State == HubConnectionState.Connected) await _hub.InvokeAsync("LeaveSession", Code.ToUpper()); }
+            catch { }
+            await _hub.DisposeAsync();
+        }
+    }
+}

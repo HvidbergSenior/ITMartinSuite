@@ -10,8 +10,11 @@ public sealed class AuctionItem
     public string? PhotoPath { get; set; }
     public AuctionItemStatus Status { get; set; } = AuctionItemStatus.Pending;
     public int SortOrder { get; set; }
+    public int LotQuantity { get; set; } = 1;
     public Guid? WinnerBidderId { get; set; }
     public decimal? WinningBid { get; set; }
+    public string? BuyNowBuyerName { get; set; }
+    public string? BuyNowBuyerPhone { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<Bid> Bids { get; set; } = [];

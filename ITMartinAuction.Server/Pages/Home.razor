@@ -7,27 +7,27 @@
 <div class="home-page">
     <div class="home-card">
         <div class="home-logo">🔨</div>
-        <h1 class="home-title">Auction</h1>
-        <p class="home-sub">Live bidding for collectors</p>
+        <h1 class="home-title">Live Auktion</h1>
+        <p class="home-sub">Byd på genstande i realtid</p>
 
         <div class="home-section">
-            <label class="home-label">Session name</label>
+            <label class="home-label">Auktionsnavn</label>
             <input class="home-input"
                    @bind="SessionName"
                    @bind:event="oninput"
-                   placeholder="Magic Cards — June 2026"
+                   placeholder="Samlekort — Juli 2026"
                    maxlength="60" />
             <button class="btn-primary"
                     @onclick="CreateSession"
                     disabled="@(string.IsNullOrWhiteSpace(SessionName) || Creating)">
-                @(Creating ? "Creating..." : "Create auction")
+                @(Creating ? "Opretter…" : "Opret auktion")
             </button>
         </div>
 
-        <div class="home-divider">or join existing</div>
+        <div class="home-divider">eller deltag i eksisterende</div>
 
         <div class="home-section">
-            <label class="home-label">Session code</label>
+            <label class="home-label">Auktionskode</label>
             <input class="home-input home-code"
                    @bind="JoinCode"
                    @bind:event="oninput"
@@ -36,7 +36,7 @@
             <button class="btn-secondary"
                     @onclick="JoinSession"
                     disabled="@string.IsNullOrWhiteSpace(JoinCode)">
-                Join
+                Deltag
             </button>
         </div>
 
@@ -62,12 +62,12 @@
         try
         {
             var session = await Svc.CreateAsync(SessionName.Trim());
-            await JS.InvokeVoidAsync("auction.setItem", $"host_{session.Code}", "1");
-            Nav.NavigateTo($"/auction/{session.Code}", forceLoad: true);
+            await JS.InvokeVoidAsync("auction.setItem", $"admin_{session.Code}", session.AdminToken);
+            Nav.NavigateTo($"/auction/{session.Code}/admin", forceLoad: true);
         }
         catch (Exception ex)
         {
-            Error    = $"Could not create session: {ex.Message}";
+            Error    = $"Kunne ikke oprette: {ex.Message}";
             Creating = false;
         }
     }
@@ -78,7 +78,7 @@
         var session = await Svc.GetByCodeAsync(code);
         if (session is null)
         {
-            Error = "Session not found. Check the code.";
+            Error = "Session ikke fundet. Tjek koden.";
             return;
         }
         Nav.NavigateTo($"/auction/{code}", forceLoad: true);

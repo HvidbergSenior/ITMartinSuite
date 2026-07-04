@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Auction</title>
+    <title>Live Auktion</title>
     <base href="/" />
     <link rel="stylesheet" href="app.css" />
 </head>
@@ -15,7 +15,11 @@
         window.auction = {
             getItem: (k) => localStorage.getItem(k),
             setItem: (k, v) => localStorage.setItem(k, v),
-            removeItem: (k) => localStorage.removeItem(k)
+            removeItem: (k) => localStorage.removeItem(k),
+            scrollChat: () => {
+                const el = document.getElementById('chat-scroll');
+                if (el) el.scrollTop = el.scrollHeight;
+            }
         };
     </script>
     <div id="components-reconnect-modal">
