@@ -31,20 +31,10 @@ public sealed class FalAiService
         return ExtractFirstImageUrl(await PostAsync("https://fal.run/fal-ai/flux-pro/v1.1", body, ct));
     }
 
-    // Image → image: transform with text prompt and strength (Flux Dev image-to-image)
+    // Image → image: transform with text prompt — uses Kontext (flux/dev i2i is deprecated)
     public async Task<string> ImageToImageAsync(string imageUrl, string prompt, float strength = 0.75f, CancellationToken ct = default)
     {
-        var uploadedUrl = await EnsureUploadedAsync(imageUrl, ct);
-        var body = JsonSerializer.Serialize(new
-        {
-            image_url             = uploadedUrl,
-            prompt,
-            strength,
-            image_size            = "square_hd",
-            num_images            = 1,
-            enable_safety_checker = false
-        });
-        return ExtractFirstImageUrl(await PostAsync("https://fal.run/fal-ai/flux-dev/image-to-image", body, ct));
+        return await KontextEditAsync(imageUrl, prompt, ct);
     }
 
     // Face swap: replace the face in sceneUrl with the face from faceBytes
