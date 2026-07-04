@@ -3,6 +3,7 @@
 @inject StudioDbContext Db
 @inject StudioLibraryService Library
 @inject ChordAiService ChordAi
+@inject StemService StemSvc
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using Microsoft.EntityFrameworkCore
@@ -212,6 +213,59 @@ else if (_song is not null)
                     </div>
                 }
             </div>
+
+            <!-- Stem separation (local only — requires Demucs) -->
+            @if (StemSvc.IsAvailable && Library.Exists(_song!.SourceFile))
+            {
+            <div class="studio-card">
+                <div class="card-header">
+                    <div class="card-label">🎛️ Stems</div>
+                    @if (!_stemRunning && _stems is null)
+                    {
+                        <button class="btn-ai" @onclick="ExtractStems">Udtræk</button>
+                    }
+                    @if (_stems is not null && !_stemRunning)
+                    {
+                        <button class="btn-ghost-sm" @onclick="ExtractStems">↺ Igen</button>
+                    }
+                </div>
+
+                @if (_stemRunning)
+                {
+                    <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+                        <div class="spinner"></div>
+                        <span style="font-size:0.8rem;color:#aaa">@(_stemProgress ?? "Starter Demucs…")</span>
+                    </div>
+                }
+
+                @if (_stems is not null)
+                {
+                    @foreach (var (label, path) in new[]
+                    {
+                        ("🎤 Sang",        _stems.Vocals),
+                        ("🥁 Trommer",     _stems.Drums),
+                        ("🎸 Bas",         _stems.Bass),
+                        ("🎹 Instrumenter",_stems.Other),
+                    })
+                    {
+                        @if (path is not null)
+                        {
+                            var rel = Path.GetRelativePath(Library.Root, path).Replace('\\', '/');
+                            <div style="margin:6px 0">
+                                <div style="font-size:0.8rem;color:#aaa;margin-bottom:2px">@label</div>
+                                <audio controls src="/stream?path=@Uri.EscapeDataString(rel)"
+                                       class="rec-player" style="width:100%" />
+                            </div>
+                        }
+                    }
+                }
+
+                @if (!StemSvc.IsAvailable)
+                {
+                    <p style="font-size:0.8rem;color:#666">Kræver Demucs: <code>pip install demucs</code></p>
+                }
+            </div>
+            }
 
         </div>
 
@@ -503,6 +557,10 @@ else if (_song is not null)
     private bool _ugParsing;
 
     private bool _mixing;
+
+    private bool _stemRunning;
+    private string? _stemProgress;
+    private StemResult? _stems;
 
     private static readonly string[] MajorKeys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] MinorKeys = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"];
@@ -944,6 +1002,36 @@ else if (_song is not null)
         if (_song is null) return;
         var q = Uri.EscapeDataString(_song.Title + (string.IsNullOrWhiteSpace(_song.Artist) ? "" : " " + _song.Artist) + " lyrics");
         await JS.InvokeVoidAsync("open", $"https://www.google.com/search?q={q}", "_blank");
+    }
+
+    private async Task ExtractStems()
+    {
+        if (_song is null || !Library.Exists(_song.SourceFile)) return;
+        _stemRunning = true;
+        _stemProgress = null;
+        _stems = null;
+        StateHasChanged();
+
+        try
+        {
+            var inputPath  = Path.GetFullPath(Path.Combine(Library.Root, _song.SourceFile));
+            var outputDir  = Path.Combine(Library.Root, "stems", SongKey);
+            var progress   = new Progress<string>(msg =>
+            {
+                _stemProgress = msg;
+                InvokeAsync(StateHasChanged);
+            });
+            _stems = await StemSvc.SeparateAsync(inputPath, outputDir, progress);
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = $"Stem fejl: {ex.Message}";
+        }
+        finally
+        {
+            _stemRunning = false;
+            StateHasChanged();
+        }
     }
 
     private async Task ParseUgTab()

@@ -14,6 +14,7 @@ builder.Services.AddDbContext<StudioDbContext>(o =>
 
 builder.Services.AddScoped<StudioLibraryService>();
 builder.Services.AddSingleton<ChordAiService>();
+builder.Services.AddSingleton<StemService>();
 
 var app = builder.Build();
 

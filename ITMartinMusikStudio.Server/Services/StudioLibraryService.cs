@@ -34,7 +34,7 @@ public sealed class StudioLibraryService
             foreach (var dir in Directory.EnumerateDirectories(Root))
             {
                 var name = Path.GetFileName(dir);
-                if (name is "recordings" or "myversions" or "lyrics" or "originals") continue;
+                if (name is "recordings" or "myversions" or "lyrics" or "originals" or "stems") continue;
                 if (name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#')) continue;
 
                 try
