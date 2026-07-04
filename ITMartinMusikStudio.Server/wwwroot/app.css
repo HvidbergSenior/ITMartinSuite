@@ -1034,6 +1034,24 @@ html, body {
     .perform-player { min-width: 100%; order: 99; }
 }
 
+/* ── Vocal guide player ─────────────────────────────────────────────────────── */
+.vocal-guide-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: rgba(167,139,250,.08);
+    border: 1px solid rgba(167,139,250,.25);
+    border-radius: 8px;
+    margin-top: 8px;
+}
+.vocal-guide-player .pattern-label {
+    font-size: 11px;
+    color: #a78bfa;
+    white-space: nowrap;
+}
+
 /* ── Optag two-column layout ────────────────────────────────────────────────── */
 .optag-layout {
     display: flex;

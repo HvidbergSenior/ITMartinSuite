@@ -12,9 +12,11 @@ builder.Services.AddDbContext<StudioDbContext>(o =>
     o.UseSqlite(builder.Configuration.GetConnectionString("StudioDb")
         ?? "Data Source=/app/data/studio.db"));
 
+builder.Services.AddHttpClient("fal");
 builder.Services.AddScoped<StudioLibraryService>();
 builder.Services.AddSingleton<ChordAiService>();
 builder.Services.AddSingleton<StemService>();
+builder.Services.AddSingleton<VocalGuideService>();
 
 var app = builder.Build();
 

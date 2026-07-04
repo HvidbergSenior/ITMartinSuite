@@ -4,6 +4,7 @@
 @inject StudioLibraryService Library
 @inject ChordAiService ChordAi
 @inject StemService StemSvc
+@inject VocalGuideService VocalGuide
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using Microsoft.EntityFrameworkCore
@@ -319,7 +320,28 @@ else if (_song is not null)
                 <button class="btn-stop btn-stop--pulse" style="padding:6px 16px;font-size:0.9rem"
                         @onclick="StopRecording">⏹ @FormatRecTime(_recTimer)</button>
             }
+            @if (VocalGuide.IsAvailable)
+            {
+                <button class="btn-ai" style="padding:6px 12px;font-size:0.85rem"
+                        @onclick="GenerateVocalGuide" disabled="@_vocalLoading"
+                        title="Generer la-la-la sangstemme at synge med">
+                    @(_vocalLoading ? "⏳" : "🎤 La-la guide")
+                </button>
+            }
         </div>
+
+        @if (_vocalError is not null)
+        {
+            <div class="pattern-tip" style="color:#fca5a5;background:rgba(220,38,38,.1)">⚠️ @_vocalError</div>
+        }
+        @if (_vocalUrl is not null)
+        {
+            <div class="vocal-guide-player">
+                <span class="pattern-label">🎤 La-la guide</span>
+                <audio controls src="@_vocalUrl" class="perform-player" style="flex:1;min-width:200px" />
+                <button class="btn-ghost-sm" @onclick='() => { _vocalUrl = null; _vocalError = null; }'>✕</button>
+            </div>
+        }
 
         <!-- Chord overview (from chord chart) -->
         @if (!string.IsNullOrWhiteSpace(_chordEdit))
@@ -907,6 +929,10 @@ else if (_song is not null)
     private string _strumEdit = "";
     private bool _plektrumMode;
 
+    private bool _vocalLoading;
+    private string? _vocalUrl;
+    private string? _vocalError;
+
     private bool _patternsLoading;
     private bool _aiLoading;
     private string? _saveStatus;
@@ -1341,6 +1367,26 @@ else if (_song is not null)
         if (!string.IsNullOrEmpty(strum)) { _strumEdit      = strum; }
         AutoSave();
         _patternsLoading = false;
+    }
+
+    // ── Vocal guide ───────────────────────────────────────────────────────────
+
+    private async Task GenerateVocalGuide()
+    {
+        if (_song is null) return;
+        _vocalLoading = true;
+        _vocalError   = null;
+        _vocalUrl     = null;
+        try
+        {
+            _vocalUrl = await VocalGuide.GenerateAsync(
+                _song.MusicKey, _song.Tempo, _chordEdit, durationSeconds: 30);
+        }
+        catch (Exception ex)
+        {
+            _vocalError = ex.Message.Split('\n')[0];
+        }
+        finally { _vocalLoading = false; }
     }
 
     // ── Search ────────────────────────────────────────────────────────────────
