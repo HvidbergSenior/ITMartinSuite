@@ -328,7 +328,31 @@ else if (_song is not null)
                     @(_vocalLoading ? "⏳" : "🎤 La-la guide")
                 </button>
             }
+            <button class="btn-ghost-sm @(_twoColLyrics ? "active" : "")"
+                    style="padding:5px 10px;font-size:0.8rem"
+                    @onclick='() => _twoColLyrics = !_twoColLyrics'
+                    title="Skift mellem 1 og 2 kolonner">
+                @(_twoColLyrics ? "⊞" : "☰")
+            </button>
         </div>
+
+        @if (_recordings.Any())
+        {
+            var latestRec = _recordings.OrderByDescending(r => r.CreatedAt).First();
+            <div class="practice-playback-bar">
+                <span class="pattern-label">📼 Seneste:</span>
+                @if (latestRec.IsVideo)
+                {
+                    <video controls src="/stream?path=@Uri.EscapeDataString(latestRec.RelativePath)"
+                           style="height:36px;border-radius:4px" />
+                }
+                else
+                {
+                    <audio controls src="/stream?path=@Uri.EscapeDataString(latestRec.RelativePath)"
+                           class="perform-player" style="flex:1;min-width:180px" preload="metadata" />
+                }
+            </div>
+        }
 
         @if (_vocalError is not null)
         {
@@ -443,7 +467,7 @@ else if (_song is not null)
         <!-- Main: lyrics with chords OR plain text -->
         @if (HasInlineChords)
         {
-            <div class="perform-sheet">
+            <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
                 @foreach (var line in _lyricsEdit.Split('\n'))
                 {
                     @if (string.IsNullOrWhiteSpace(line))
@@ -480,7 +504,7 @@ else if (_song is not null)
         }
         else if (!string.IsNullOrWhiteSpace(_lyricsEdit))
         {
-            <div class="perform-sheet">
+            <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
                 @foreach (var line in _lyricsEdit.Split('\n'))
                 {
                     @if (string.IsNullOrWhiteSpace(line))
@@ -932,6 +956,7 @@ else if (_song is not null)
     private bool _vocalLoading;
     private string? _vocalUrl;
     private string? _vocalError;
+    private bool _twoColLyrics;
 
     private bool _patternsLoading;
     private bool _aiLoading;
