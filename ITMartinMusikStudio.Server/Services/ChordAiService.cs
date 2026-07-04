@@ -215,17 +215,20 @@ public sealed class ChordAiService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 500,
             System = """
-                You are a guitar teacher. Give a practical fingerpicking pattern for the song.
-                Use standard notation: T=thumb, i=index, m=middle, a=ring. Include string numbers (6=low E, 1=high e).
-                Show the repeating bar clearly. Give 2-3 lines of explanation. Danish is fine.
-                Keep it concise and directly usable.
+                Du er guitarlærer. Svar ALTID på dansk.
+                Giv et praktisk fingerpickingmønster til sangen.
+                Brug: T=tommelfinger, i=pegefinger, m=langfinger, a=ringfinger. Strengnumre: 6=lav E, 1=høj e.
+                Svar PRÆCIST i dette format (ingen andet):
+                FINGRE: T i m a i m a i
+                STRENGE: 6 2 3 1 2 3 1 2
+                TIP: [1-2 sætninger om mønstret + om det kræver bare fingre eller om plektor kan bruges som erstatning]
                 """,
             Messages =
             [
                 new()
                 {
                     Role = Role.User,
-                    Content = $"Song: {title}\nKey: {musicKey}{(string.IsNullOrEmpty(bpm) ? "" : $"\nTempo: {bpm}")}\nChords:\n{chart}\n\nGive me a fingerpicking pattern for guitar."
+                    Content = $"Sang: {title}\nToneart: {musicKey}{(string.IsNullOrEmpty(bpm) ? "" : $"\nTempo: {bpm}")}\nakkorder:\n{chart}\n\nGiv et fingerpickingmønster til guitar."
                 }
             ]
         });
@@ -246,16 +249,20 @@ public sealed class ChordAiService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 400,
             System = """
-                You are a guitar teacher. Give a practical strumming pattern.
-                Use ↓ for down-strum, ↑ for up-strum, – for mute/skip. Show the beat count below the arrows.
-                Give 2-3 lines of explanation. Danish is fine. Keep it concise and directly usable.
+                Du er guitarlærer. Svar ALTID på dansk.
+                Giv et praktisk strummingmønster til guitar.
+                Brug: ↓=nedslag, ↑=opslag, –=pause/spring over.
+                Svar PRÆCIST i dette format (ingen andet):
+                SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –
+                TAK:  1 + 2 + 3 + 4 +
+                TIP: [1-2 sætninger om mønstret]
                 """,
             Messages =
             [
                 new()
                 {
                     Role = Role.User,
-                    Content = $"Song: {title}\nKey: {musicKey}{(string.IsNullOrEmpty(bpm) ? "" : $"\nTempo: {bpm}")}\nChords:\n{chart}\n\nGive me a strumming pattern for guitar."
+                    Content = $"Sang: {title}\nToneart: {musicKey}{(string.IsNullOrEmpty(bpm) ? "" : $"\nTempo: {bpm}")}\nakkorder:\n{chart}\n\nGiv et strummingmønster til guitar."
                 }
             ]
         });

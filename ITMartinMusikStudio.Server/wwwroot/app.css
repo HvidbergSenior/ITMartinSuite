@@ -1031,3 +1031,156 @@ html, body {
     .perform-controls { gap: 8px; }
     .perform-player { min-width: 100%; order: 99; }
 }
+
+/* ── Pattern toggle (Fingre / Plektor) ──────────────────────────────────────── */
+.pattern-toggle {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #1f2937;
+}
+.pattern-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+}
+.pattern-toggle-btn.active {
+    background: #1d4ed8;
+    color: #fff;
+}
+.pattern-toggle-btn:hover:not(.active) { background: #1f2937; color: #d1d5db; }
+
+.pattern-tip {
+    font-size: 12px;
+    color: #60a5fa;
+    background: rgba(96,165,250,.08);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+}
+
+.pattern-edit {
+    font-size: 12px;
+    margin-top: 6px;
+    opacity: 0.7;
+}
+.pattern-edit:focus { opacity: 1; }
+
+/* ── Strumming visual grid ──────────────────────────────────────────────────── */
+.strum-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 6px 0 10px;
+    align-items: flex-end;
+}
+.strum-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    min-height: 46px;
+    border-radius: 8px;
+    padding: 5px 4px 3px;
+    gap: 2px;
+}
+.strum-arrow {
+    font-size: 1.35rem;
+    line-height: 1;
+    display: block;
+}
+.strum-beat-num {
+    font-size: 0.62rem;
+    color: #9ca3af;
+    line-height: 1;
+}
+.strum-down  { background: rgba(249,115,22,.18); border: 1.5px solid rgba(249,115,22,.5); color: #fb923c; }
+.strum-up    { background: rgba(96,165,250,.15);  border: 1.5px solid rgba(96,165,250,.45); color: #60a5fa; }
+.strum-both  { background: rgba(167,139,250,.15); border: 1.5px solid rgba(167,139,250,.4); color: #a78bfa; font-size: 0.85rem; }
+.strum-rest  { background: rgba(255,255,255,.03); border: 1.5px solid #1f2937; color: #374151; }
+.strum-mute  { background: rgba(255,255,255,.03); border: 1.5px solid #374151; color: #4b5563; }
+.strum-other { background: rgba(255,255,255,.04); border: 1.5px solid #1f2937; color: #6b7280; }
+
+/* ── Fingerpicking visual grid ──────────────────────────────────────────────── */
+.pick-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 6px 0 10px;
+    overflow-x: auto;
+    max-width: 100%;
+}
+.pick-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 22px;
+}
+.pick-label {
+    width: 14px;
+    flex-shrink: 0;
+    font-size: 9px;
+    color: #6b7280;
+    text-align: right;
+    font-family: monospace;
+}
+.pick-cell {
+    width: 22px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.pick-head { color: #4b5563; font-weight: 400; font-size: 9px; }
+.pick-empty { color: #1e2937; font-size: 14px; font-weight: 300; }
+.pick-thumb  { background: rgba(14,165,233,.2);  border: 1px solid rgba(14,165,233,.45); color: #38bdf8; }
+.pick-index  { background: rgba(250,204,21,.15); border: 1px solid rgba(250,204,21,.35); color: #fbbf24; }
+.pick-mid    { background: rgba(249,115,22,.15); border: 1px solid rgba(249,115,22,.35); color: #fb923c; }
+.pick-ring   { background: rgba(240,114,182,.15); border: 1px solid rgba(240,114,182,.35); color: #f472b6; }
+.pick-other  { background: rgba(255,255,255,.08); border: 1px solid #1f2937; color: #9ca3af; }
+
+.pick-legend {
+    font-size: 10px;
+    color: #6b7280;
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.pick-legend span {
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 700;
+    font-size: 10px;
+}
+
+/* ── Pattern bar in Spilleguide (visual version) ─────────────────────────────── */
+.perform-pattern-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 10px 14px;
+    background: #0f172a;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1px solid #1e293b;
+}
+.perform-pattern-bar .pattern-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 3px;
+}

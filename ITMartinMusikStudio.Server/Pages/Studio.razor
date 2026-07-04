@@ -132,8 +132,12 @@ else if (_song is not null)
             <!-- Patterns -->
             <div class="studio-card">
                 <div class="card-header">
-                    <div class="card-label">🎸🎹 Guitarmønstre</div>
-                    <div class="card-actions">
+                    <div class="card-label">🎸 Mønstre</div>
+                    <div class="card-actions" style="gap:6px">
+                        <div class="pattern-toggle">
+                            <button class="@(!_plektrumMode ? "pattern-toggle-btn active" : "pattern-toggle-btn")" @onclick='() => _plektrumMode = false'>🖐 Fingre</button>
+                            <button class="@(_plektrumMode ? "pattern-toggle-btn active" : "pattern-toggle-btn")" @onclick='() => _plektrumMode = true'>🎸 Plektor</button>
+                        </div>
                         @if (ChordAi.IsAvailable)
                         {
                             <button class="btn-ai" @onclick="AiPatterns" disabled="@_patternsLoading">
@@ -142,16 +146,34 @@ else if (_song is not null)
                         }
                     </div>
                 </div>
-                <div class="card-label-sm" style="margin-bottom:4px">Fingerpicking</div>
-                <textarea class="chord-editor" rows="4"
-                          value="@_fingerpickEdit"
-                          @oninput="e => { _fingerpickEdit = e.Value?.ToString() ?? _fingerpickEdit; AutoSave(); }"
-                          placeholder="T  i  m  a  /  T  i  m  a&#10;6  2  3  1  /  6  2  3  1"></textarea>
-                <div class="card-label-sm" style="margin:8px 0 4px">Strumming (↓ ↑)</div>
-                <textarea class="chord-editor" rows="3"
-                          value="@_strumEdit"
-                          @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
-                          placeholder="↓  ↓↑  –  ↑↓↑&#10;1  2+  3  4+a"></textarea>
+
+                @if (_plektrumMode)
+                {
+                    <div class="pattern-tip">
+                        💡 Med plektor bruges strumming. Fingerpicking kræver bare fingre — brug strumming nedenfor som erstatning.
+                    </div>
+                    <div class="card-label-sm" style="margin-bottom:4px">Strumming</div>
+                    @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
+                    <textarea class="chord-editor pattern-edit" rows="2"
+                              value="@_strumEdit"
+                              @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
+                              placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –&#10;TAK:  1 + 2 + 3 + 4 +"></textarea>
+                }
+                else
+                {
+                    <div class="card-label-sm" style="margin-bottom:4px">Fingerpicking</div>
+                    @((MarkupString)PatternRenderer.RenderFingerpick(_fingerpickEdit))
+                    <textarea class="chord-editor pattern-edit" rows="3"
+                              value="@_fingerpickEdit"
+                              @oninput="e => { _fingerpickEdit = e.Value?.ToString() ?? _fingerpickEdit; AutoSave(); }"
+                              placeholder="FINGRE:  T  i  m  a  i  m  a  i&#10;STRENGE: 6  2  3  1  2  3  1  2&#10;TIP: ..."></textarea>
+                    <div class="card-label-sm" style="margin:8px 0 4px">Strumming</div>
+                    @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
+                    <textarea class="chord-editor pattern-edit" rows="2"
+                              value="@_strumEdit"
+                              @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
+                              placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –&#10;TAK:  1 + 2 + 3 + 4 +"></textarea>
+                }
             </div>
 
         </div>
@@ -371,13 +393,19 @@ else if (_song is not null)
         @if (!string.IsNullOrWhiteSpace(_strumEdit) || !string.IsNullOrWhiteSpace(_fingerpickEdit))
         {
             <div class="perform-pattern-bar">
-                @if (!string.IsNullOrWhiteSpace(_strumEdit))
-                {
-                    <span><span class="pattern-label">Strum:</span> <code>@_strumEdit.Split('\n')[0]</code></span>
-                }
                 @if (!string.IsNullOrWhiteSpace(_fingerpickEdit))
                 {
-                    <span><span class="pattern-label">Pick:</span> <code>@_fingerpickEdit.Split('\n')[0]</code></span>
+                    <div>
+                        <span class="pattern-label">Fingerpicking</span>
+                        @((MarkupString)PatternRenderer.RenderFingerpick(_fingerpickEdit))
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(_strumEdit))
+                {
+                    <div>
+                        <span class="pattern-label">Strumming</span>
+                        @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
+                    </div>
                 }
             </div>
         }
@@ -736,6 +764,7 @@ else if (_song is not null)
     private string _notesEdit = "";
     private string _fingerpickEdit = "";
     private string _strumEdit = "";
+    private bool _plektrumMode;
 
     private bool _patternsLoading;
     private bool _aiLoading;
