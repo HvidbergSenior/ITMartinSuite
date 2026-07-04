@@ -12,9 +12,7 @@
 
 @if (_song is null && !_loading)
 {
-    <div class="studio-init">
-        <p>Opretter sang...</p>
-    </div>
+    <div class="studio-init"><p>Opretter sang...</p></div>
 }
 else if (_song is not null)
 {
@@ -32,12 +30,10 @@ else if (_song is not null)
         <div class="topbar-meta">
             <select class="meta-select" value="@_song.MusicKey" @onchange="OnKeyChanged">
                 <optgroup label="Dur (Major)">
-                    @foreach (var k in MajorKeys)
-                    { <option value="@k">@k</option> }
+                    @foreach (var k in MajorKeys) { <option value="@k">@k</option> }
                 </optgroup>
                 <optgroup label="Mol (Minor)">
-                    @foreach (var k in MinorKeys)
-                    { <option value="@k">@k</option> }
+                    @foreach (var k in MinorKeys) { <option value="@k">@k</option> }
                 </optgroup>
             </select>
             <input class="meta-bpm" type="number" placeholder="BPM"
@@ -45,14 +41,27 @@ else if (_song is not null)
         </div>
     </div>
 
-    <div class="studio-body">
+    <!-- Tab bar -->
+    <div class="studio-tabs">
+        <button class="studio-tab @(_tab == "forbered" ? "studio-tab--active" : "")"
+                @onclick='() => _tab = "forbered"'>🔍 Forbered</button>
+        <button class="studio-tab @(_tab == "spilleguide" ? "studio-tab--active" : "")"
+                @onclick='() => _tab = "spilleguide"'>🎼 Spilleguide</button>
+        <button class="studio-tab @(_tab == "optag" ? "studio-tab--active" : "") @(_recording ? "studio-tab--rec" : "")"
+                @onclick='() => _tab = "optag"'>⏺ Optag@(_recording ? " ●" : "")</button>
+    </div>
 
-        <!-- LEFT: Player + Recording -->
+    <!-- ════════════════ TAB: FORBERED ════════════════ -->
+    @if (_tab == "forbered")
+    {
+    <div class="studio-body">
         <div class="studio-left">
 
-            <!-- Player -->
+            <!-- Source file -->
             <div class="studio-card">
-                <div class="card-label">🎬 Kilde</div>
+                <div class="card-header">
+                    <div class="card-label">🎬 Kilde</div>
+                </div>
                 @if (Library.Exists(_song.SourceFile))
                 {
                     @if (Library.IsVideo(_song.SourceFile))
@@ -68,8 +77,29 @@ else if (_song is not null)
                 }
                 else
                 {
-                    <div class="no-file">Fil ikke fundet: @_song.SourceFile</div>
+                    <p class="no-file">Ingen kildefil tilknyttet</p>
                 }
+            </div>
+
+            <!-- Find song -->
+            <div class="studio-card">
+                <div class="card-label">🔍 Find sang</div>
+                <div class="find-song-buttons">
+                    <button class="btn-primary" @onclick="SearchUltimateGuitar">
+                        🎸 Søg på Ultimate Guitar
+                    </button>
+                    @if (ChordAi.IsAvailable)
+                    {
+                        <button class="btn-ghost" style="width:100%"
+                                @onclick='() => _ugPasteOpen = true'>
+                            📋 Indsæt UG-tab → udtræk akkorder + tekst
+                        </button>
+                    }
+                    <button class="btn-ghost" style="width:100%"
+                            @onclick="SearchLyrics">
+                        🔍 Søg sangtekst på Google
+                    </button>
+                </div>
             </div>
 
             <!-- Chord chart -->
@@ -79,31 +109,30 @@ else if (_song is not null)
                     <div class="card-actions">
                         <div class="transpose-row">
                             <span class="t-label">½t</span>
-                            <button class="t-btn" @onclick="() => AdjustT(-1)" title="Transponer ned en halvtone">−</button>
-                            <button class="t-btn" @onclick="() => AdjustT(1)"  title="Transponer op en halvtone">+</button>
+                            <button class="t-btn" @onclick="() => AdjustT(-1)" title="Transponer ned">−</button>
+                            <button class="t-btn" @onclick="() => AdjustT(1)"  title="Transponer op">+</button>
                         </div>
-                        <button class="btn-ghost-sm" @onclick="SearchUltimateGuitar" title="Søg akkorder på Ultimate Guitar">🎸 UG</button>
                         @if (ChordAi.IsAvailable)
                         {
-                            <button class="btn-ghost-sm" @onclick='() => _ugPasteOpen = true' title="Indsæt kopieret UG-tab og udtræk akkorder + tekst automatisk">📋 Fra UG</button>
-                            <button class="btn-ai" @onclick="AiChords" disabled="@_aiLoading" title="Lad AI gætte akkorder (bedst til egne sange)">
+                            <button class="btn-ai" @onclick="AiChords" disabled="@_aiLoading"
+                                    title="AI gætter akkorder — bedst til egne sange uden UG-tab">
                                 @(_aiLoading ? "..." : "🤖 AI")
                             </button>
                         }
-                        <button class="btn-ghost-sm" @onclick="SimplifyChords" title="Fjern slash-akkorder (A/D → A)">简</button>
+                        <button class="btn-ghost-sm" @onclick="SimplifyChords" title="Fjern slash-akkorder">简</button>
                         <button class="btn-ghost-sm" @onclick='() => _photoTarget = "chords"'>📷</button>
                     </div>
                 </div>
-                <textarea class="chord-editor" rows="10"
+                <textarea class="chord-editor" rows="8"
                           value="@_chordEdit"
                           @oninput="e => { _chordEdit = e.Value?.ToString() ?? _chordEdit; AutoSave(); }"
                           placeholder="Verse: Am G F E&#10;Chorus: C G Am F&#10;Bridge: Dm Am E Am"></textarea>
             </div>
 
-            <!-- Guitar patterns -->
+            <!-- Patterns -->
             <div class="studio-card">
                 <div class="card-header">
-                    <div class="card-label">🎸 Guitarmønstre</div>
+                    <div class="card-label">🎸🎹 Guitarmønstre</div>
                     <div class="card-actions">
                         @if (ChordAi.IsAvailable)
                         {
@@ -113,8 +142,8 @@ else if (_song is not null)
                         }
                     </div>
                 </div>
-                <div class="card-label-sm" style="margin-bottom:4px">Fingerpicking (T i m a / strenge)</div>
-                <textarea class="chord-editor" rows="5"
+                <div class="card-label-sm" style="margin-bottom:4px">Fingerpicking</div>
+                <textarea class="chord-editor" rows="4"
                           value="@_fingerpickEdit"
                           @oninput="e => { _fingerpickEdit = e.Value?.ToString() ?? _fingerpickEdit; AutoSave(); }"
                           placeholder="T  i  m  a  /  T  i  m  a&#10;6  2  3  1  /  6  2  3  1"></textarea>
@@ -125,162 +154,8 @@ else if (_song is not null)
                           placeholder="↓  ↓↑  –  ↑↓↑&#10;1  2+  3  4+a"></textarea>
             </div>
 
-            <!-- Recording -->
-            <div class="studio-card">
-                <div class="card-header">
-                    <div class="card-label">🎙 Optagelse</div>
-                    @if (_recordings.Any())
-                    {
-                        <span class="rec-count">@_recordings.Count take(s)</span>
-                    }
-                </div>
-
-                <div class="rec-controls">
-                    @if (!_recording)
-                    {
-                        <div class="rec-mode-toggle">
-                            <button class="rec-mode-btn @(_videoMode ? "" : "rec-mode-btn--active")"
-                                    @onclick='() => _videoMode = false'>🎙 Lyd</button>
-                            <button class="rec-mode-btn @(_videoMode ? "rec-mode-btn--active" : "")"
-                                    @onclick='() => _videoMode = true'>📹 Video</button>
-                        </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button class="btn-record" @onclick="StartRecording">⏺ Optag</button>
-                            @if (_recordings.Any())
-                            {
-                                <button class="btn-record" style="background:#1d4ed8"
-                                        @onclick="StartOverdubRecording"
-                                        title="Spil seneste optagelse i høretelefoner og optag nyt spor ovenpå">
-                                    ⏺ Overdub
-                                </button>
-                            }
-                        </div>
-                        @if (_recordings.Count >= 2)
-                        {
-                            @if (!_mixing)
-                            {
-                                <button class="btn-ghost-sm" style="margin-top:8px;width:100%"
-                                        @onclick="PlayMix">▶ Mix alle (@_recordings.Count spor)</button>
-                            }
-                            else
-                            {
-                                <button class="btn-stop" style="margin-top:8px"
-                                        @onclick="StopMix">⏹ Stop mix</button>
-                            }
-                        }
-                    }
-                    else
-                    {
-                        @if (_videoMode)
-                        {
-                            <video id="rec-preview" muted playsinline autoplay
-                                   style="width:100%;border-radius:8px;background:#000;margin-bottom:8px"></video>
-                        }
-                        <button class="btn-stop @(_recTimer >= 300 ? "btn-stop--warn" : "")"
-                                @onclick="StopRecording">
-                            ⏹ Stop (@FormatRecTime(_recTimer) / 10:00)
-                        </button>
-                    }
-                </div>
-
-                @if (_recordings.Any())
-                {
-                    <div class="rec-list">
-                        @foreach (var r in _recordings)
-                        {
-                            <div class="rec-item">
-                                <div class="rec-item-info">
-                                    <span class="rec-item-name">@(r.IsVideo ? "📹" : "🎙") @r.Name</span>
-                                    <span class="rec-item-date">@r.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
-                                </div>
-                                @if (r.IsVideo)
-                                {
-                                    <video controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)"
-                                           class="rec-player" style="width:100%;border-radius:6px" />
-                                }
-                                else
-                                {
-                                    <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" class="rec-player" />
-                                }
-                                <div class="rec-item-actions">
-                                    <button class="btn-publish" @onclick="() => Publish(r)" title="Publicér til public app">
-                                        🚀 Publicér
-                                    </button>
-                                    <button class="btn-delete-sm" @onclick="() => DeleteRecording(r)">🗑</button>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-            </div>
-
-            <!-- Stem separation (local only — requires Demucs) -->
-            @if (StemSvc.IsAvailable && Library.Exists(_song!.SourceFile))
-            {
-            <div class="studio-card">
-                <div class="card-header">
-                    <div class="card-label">🎛️ Stems</div>
-                    @if (!_stemRunning && _stems is null)
-                    {
-                        <button class="btn-ai" @onclick="ExtractStems">Udtræk</button>
-                    }
-                    @if (_stems is not null && !_stemRunning)
-                    {
-                        <button class="btn-ghost-sm" @onclick="ExtractStems">↺ Igen</button>
-                    }
-                </div>
-
-                @if (_stemRunning)
-                {
-                    <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
-                        <div class="spinner"></div>
-                        <span style="font-size:0.8rem;color:#aaa">@(_stemProgress ?? "Starter Demucs…")</span>
-                    </div>
-                }
-
-                @if (_stems is not null)
-                {
-                    @foreach (var (label, path) in new[]
-                    {
-                        ("🎤 Sang",         _stems.Vocals),
-                        ("🥁 Trommer",      _stems.Drums),
-                        ("🎸 Bas",          _stems.Bass),
-                        ("🎹 Instrumenter", _stems.Other),
-                    })
-                    {
-                        @if (path is not null)
-                        {
-                            var rel     = Path.GetRelativePath(Library.Root, path).Replace('\\', '/');
-                            var playUrl = $"/stream?path={Uri.EscapeDataString(rel)}";
-                            <div style="margin:6px 0">
-                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-                                    <span style="font-size:0.8rem;color:#aaa">@label</span>
-                                    @if (!_recording)
-                                    {
-                                        <button class="btn-ghost-sm"
-                                                style="font-size:0.7rem;padding:2px 6px"
-                                                @onclick="() => StartOverdubFromUrl(playUrl)"
-                                                title="Spil dette spor i høretelefoner og optag ovenpå">
-                                            ⏺ Syng med
-                                        </button>
-                                    }
-                                </div>
-                                <audio controls src="@playUrl" class="rec-player" style="width:100%" />
-                            </div>
-                        }
-                    }
-                }
-
-                @if (!StemSvc.IsAvailable)
-                {
-                    <p style="font-size:0.8rem;color:#666">Kræver Demucs: <code>pip install demucs</code></p>
-                }
-            </div>
-            }
-
         </div>
 
-        <!-- RIGHT: Lyrics + Notes -->
         <div class="studio-right">
 
             <!-- Lyrics -->
@@ -295,47 +170,18 @@ else if (_song is not null)
                                 @(_annotatingChords ? "..." : "🤖 Sæt akkorder")
                             </button>
                         }
-                        <button class="btn-ghost-sm" @onclick="SearchLyrics">🔍 Søg tekst</button>
                         <button class="btn-ghost-sm" @onclick='() => _photoTarget = "lyrics"'>📷 Fra foto</button>
                     </div>
                 </div>
-                <textarea class="lyrics-editor" rows="12"
+                <textarea class="lyrics-editor" rows="14"
                           value="@_lyricsEdit"
                           @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; AutoSave(); }"
-                          placeholder="Brug [Am]ord for akkorder over teksten&#10;[Am]I hope you don't mind [F]I hope you don't mind..."></textarea>
-
-                @if (HasInlineChords)
+                          placeholder="Brug [Am]ord for akkorder i teksten&#10;[Am]I hope you don't mind [F]I put down in words..."></textarea>
+                @if (!string.IsNullOrWhiteSpace(_lyricsEdit))
                 {
-                    <div class="chord-sheet-header">
-                        <span class="card-label-sm">Nodeark (@_song!.MusicKey)</span>
-                    </div>
-                    <div class="chord-sheet">
-                        @foreach (var line in _lyricsEdit.Split('\n'))
-                        {
-                            @if (string.IsNullOrWhiteSpace(line))
-                            {
-                                <div class="chord-sheet-spacer"></div>
-                            }
-                            else if (IsSectionLabel(line))
-                            {
-                                <div class="chord-sheet-section">@line.Trim('[', ']', ':', ' ')</div>
-                            }
-                            else
-                            {
-                                <div class="chord-sheet-line">
-                                    @foreach (var seg in ParseLyricLine(line))
-                                    {
-                                        <span class="lyric-seg">
-                                            <span class="lyric-chord-above">
-                                                @(seg.Chord ?? "")
-                                            </span>
-                                            <span class="lyric-word">@seg.Text</span>
-                                        </span>
-                                    }
-                                </div>
-                            }
-                        }
-                    </div>
+                    <p style="font-size:0.75rem;color:#444;margin-top:2px">
+                        Gå til <strong>🎼 Spilleguide</strong> for at se teksten i stort format og klik på akkorder for at se greb
+                    </p>
                 }
             </div>
 
@@ -345,7 +191,7 @@ else if (_song is not null)
                     <div class="card-label">📋 Noter</div>
                     <button class="btn-ghost-sm" @onclick='() => _photoTarget = "notes"'>📷 Fra foto</button>
                 </div>
-                <textarea class="notes-editor" rows="6"
+                <textarea class="notes-editor" rows="5"
                           value="@_notesEdit"
                           @oninput="e => { _notesEdit = e.Value?.ToString() ?? _notesEdit; AutoSave(); }"
                           placeholder="Dine egne noter, idéer, pointer..."></textarea>
@@ -355,31 +201,18 @@ else if (_song is not null)
             @if (ChordAi.IsAvailable)
             {
             <div class="studio-card">
-                <div class="card-label">🧠 AI Hjælp</div>
+                <div class="card-label" style="margin-bottom:10px">🧠 AI Hjælp</div>
                 <div class="ai-tabs">
-                    <button class="ai-tab @(_aiTab == "rim" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("rim")'>🎵 Rim</button>
-                    <button class="ai-tab @(_aiTab == "spil" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("spil")'>🎸🎹 Spil</button>
-                    <button class="ai-tab @(_aiTab == "sang" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("sang")'>🎤 Sang</button>
+                    <button class="ai-tab @(_aiTab == "spil"     ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("spil")'>🎸 Greb</button>
+                    <button class="ai-tab @(_aiTab == "sang"     ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("sang")'>🎤 Sang</button>
                     <button class="ai-tab @(_aiTab == "toneart"  ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("toneart")'>🎹 Toneart</button>
-                    <button class="ai-tab @(_aiTab == "overgang" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("overgang")'>🎵 Overgang</button>
+                    <button class="ai-tab @(_aiTab == "overgang" ? "ai-tab--active" : "")" @onclick='() => SelectAiTab("overgang")'>🔀 Overgang</button>
                 </div>
 
-                @if (_aiTab == "rim")
+                @if (_aiTab == "spil")
                 {
                     <div class="ai-rim">
-                        <input class="ai-rim-input" type="text" placeholder="Et ord eller en linje du sidder fast på..."
-                               value="@_rimInput"
-                               @oninput="e => _rimInput = e.Value?.ToString() ?? string.Empty"
-                               @onkeydown="OnRimKey" />
-                        <button class="btn-ai-full" @onclick="AiRim" disabled="@(_aiHelperLoading || string.IsNullOrWhiteSpace(_rimInput))">
-                            @(_aiHelperLoading ? "..." : "Få forslag →")
-                        </button>
-                    </div>
-                }
-                else if (_aiTab == "spil")
-                {
-                    <div class="ai-rim">
-                        <input class="ai-rim-input" type="text" placeholder="Akkordnavn, fx A/D, F#m, Bm7, Cadd9..."
+                        <input class="ai-rim-input" type="text" placeholder="Akkordnavn, fx A/D, F#m, Bm7..."
                                value="@_chordLookup"
                                @oninput="e => _chordLookup = e.Value?.ToString() ?? string.Empty"
                                @onkeydown="OnChordLookupKey" />
@@ -387,10 +220,10 @@ else if (_song is not null)
                             @(_aiHelperLoading ? "..." : "Vis greb →")
                         </button>
                     </div>
-                    <div class="ai-action-row" style="margin-top:8px;">
-                        <p class="ai-action-desc">Mønstre for alle akkorder i sangen</p>
+                    <div class="ai-action-row" style="margin-top:8px">
+                        <p class="ai-action-desc">Guitar &amp; piano mønstre for alle akkorder i sangen</p>
                         <button class="btn-ai-full" @onclick="AiSpil" disabled="@_aiHelperLoading">
-                            @(_aiHelperLoading ? "..." : "Vis guitar & piano mønstre →")
+                            @(_aiHelperLoading ? "..." : "Vis alle mønstre →")
                         </button>
                     </div>
                 }
@@ -406,7 +239,7 @@ else if (_song is not null)
                 else if (_aiTab == "toneart")
                 {
                     <div class="ai-action-row">
-                        <p class="ai-action-desc">Hvad er den bedste toneart at synge sangen i? Capo-position til guitar.</p>
+                        <p class="ai-action-desc">Bedste toneart for din stemme + capo-position til guitar</p>
                         <button class="btn-ai-full" @onclick="AiToneart" disabled="@_aiHelperLoading">
                             @(_aiHelperLoading ? "..." : "Find toneart →")
                         </button>
@@ -415,7 +248,7 @@ else if (_song is not null)
                 else if (_aiTab == "overgang")
                 {
                     <div class="ai-action-row">
-                        <p class="ai-action-desc">Forslag til overgangs-noder og passing chords mellem akkorderne i sangen.</p>
+                        <p class="ai-action-desc">Passing chords og overgangs-teknik mellem akkorderne i sangen</p>
                         <button class="btn-ai-full" @onclick="AiOvergang" disabled="@_aiHelperLoading">
                             @(_aiHelperLoading ? "..." : "Vis overgange →")
                         </button>
@@ -434,6 +267,364 @@ else if (_song is not null)
 
         </div>
     </div>
+    }
+
+    <!-- ════════════════ TAB: SPILLEGUIDE ════════════════ -->
+    @if (_tab == "spilleguide")
+    {
+    <div class="perform-page">
+
+        <!-- Controls strip -->
+        <div class="perform-controls">
+            <div class="transpose-row">
+                <span class="t-label" style="color:#64748b">½t</span>
+                <button class="t-btn" @onclick="() => AdjustT(-1)">−</button>
+                <button class="t-btn" @onclick="() => AdjustT(1)">+</button>
+            </div>
+            <span class="perform-key-badge">@_song.MusicKey@(_song.Tempo.HasValue ? $" · {_song.Tempo} BPM" : "")</span>
+            @if (Library.Exists(_song.SourceFile))
+            {
+                <audio src="/stream?path=@Uri.EscapeDataString(_song.SourceFile)"
+                       controls class="perform-player" preload="metadata" />
+            }
+            <button class="btn-record" style="padding:6px 16px;font-size:0.9rem"
+                    @onclick='() => _tab = "optag"'>⏺ Optag</button>
+        </div>
+
+        <!-- Chord overview (from chord chart) -->
+        @if (!string.IsNullOrWhiteSpace(_chordEdit))
+        {
+            <div class="perform-chord-overview">
+                @foreach (var line in _chordEdit.Split('\n'))
+                {
+                    @if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        <div class="perform-chord-row">
+                            @foreach (var token in line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                @if (IsChord(token))
+                                {
+                                    var c = token;
+                                    <button class="perform-chord-btn @(_selectedChord == c ? "perform-chord-btn--active" : "")"
+                                            @onclick="() => SelectPerformChord(c)"
+                                            title="Klik for greb og overgang">@c</button>
+                                }
+                                else
+                                {
+                                    <span class="perform-section-chip">@token.TrimEnd(':')</span>
+                                }
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        }
+
+        <!-- Chord detail panel (appears when chord is tapped) -->
+        @if (_selectedChord is not null)
+        {
+            <div class="chord-detail-panel">
+                <div class="chord-detail-header">
+                    <span class="chord-detail-name">@_selectedChord</span>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        @if (!_selectedChordLoading && ChordAi.IsAvailable)
+                        {
+                            <button class="btn-ai" @onclick="ShowChordTransition"
+                                    disabled="@_selectedChordLoading"
+                                    title="Vis overgangs-teknik til næste akkord">
+                                🔀 Overgang
+                            </button>
+                        }
+                        <button class="chord-detail-close" @onclick="DismissChord">✕</button>
+                    </div>
+                </div>
+                <div class="chord-detail-body">
+                    @{
+                        var diagramSvg = ChordDiagrams.GetSvg(_selectedChord);
+                    }
+                    @if (diagramSvg is not null)
+                    {
+                        <div class="chord-detail-diagram">@((MarkupString)diagramSvg)</div>
+                    }
+                    @if (_selectedChordLoading)
+                    {
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+                            <div class="spinner"></div>
+                            <span style="font-size:0.85rem;color:#64748b">Henter greb...</span>
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(_selectedChordInfo))
+                    {
+                        <pre class="chord-detail-text">@_selectedChordInfo</pre>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Pattern reference bar -->
+        @if (!string.IsNullOrWhiteSpace(_strumEdit) || !string.IsNullOrWhiteSpace(_fingerpickEdit))
+        {
+            <div class="perform-pattern-bar">
+                @if (!string.IsNullOrWhiteSpace(_strumEdit))
+                {
+                    <span><span class="pattern-label">Strum:</span> <code>@_strumEdit.Split('\n')[0]</code></span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_fingerpickEdit))
+                {
+                    <span><span class="pattern-label">Pick:</span> <code>@_fingerpickEdit.Split('\n')[0]</code></span>
+                }
+            </div>
+        }
+
+        <!-- Main: lyrics with chords OR plain text -->
+        @if (HasInlineChords)
+        {
+            <div class="perform-sheet">
+                @foreach (var line in _lyricsEdit.Split('\n'))
+                {
+                    @if (string.IsNullOrWhiteSpace(line))
+                    {
+                        <div class="perform-spacer"></div>
+                    }
+                    else if (IsSectionLabel(line))
+                    {
+                        <div class="perform-section-label">@line.Trim('[', ']', ':', ' ')</div>
+                    }
+                    else
+                    {
+                        <div class="perform-lyric-line">
+                            @foreach (var seg in ParseLyricLine(line))
+                            {
+                                var segChord = seg.Chord;
+                                <span class="perform-seg">
+                                    @if (segChord is not null)
+                                    {
+                                        <button class="perform-chord-inline @(_selectedChord == segChord ? "perform-chord-inline--active" : "")"
+                                                @onclick="() => SelectPerformChord(segChord)">@segChord</button>
+                                    }
+                                    else
+                                    {
+                                        <span class="perform-chord-inline" style="visibility:hidden">·</span>
+                                    }
+                                    <span class="perform-word">@seg.Text</span>
+                                </span>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_lyricsEdit))
+        {
+            <div class="perform-sheet">
+                @foreach (var line in _lyricsEdit.Split('\n'))
+                {
+                    @if (string.IsNullOrWhiteSpace(line))
+                    {
+                        <div class="perform-spacer"></div>
+                    }
+                    else if (IsSectionLabel(line))
+                    {
+                        <div class="perform-section-label">@line.Trim('[', ']', ':', ' ')</div>
+                    }
+                    else
+                    {
+                        <div class="perform-plain-line">@line</div>
+                    }
+                }
+            </div>
+        }
+        else
+        {
+            <div class="perform-empty">
+                <p>Ingen tekst endnu</p>
+                <button class="btn-ghost" @onclick='() => _tab = "forbered"'>← Gå til Forbered</button>
+            </div>
+        }
+
+    </div>
+    }
+
+    <!-- ════════════════ TAB: OPTAG ════════════════ -->
+    @if (_tab == "optag")
+    {
+    <div class="studio-record-tab">
+
+        <!-- Recording card -->
+        <div class="studio-card">
+            <div class="card-header">
+                <div class="card-label">🎙 Optagelse</div>
+                @if (_recordings.Any() && !_recording)
+                {
+                    <span class="rec-count">@_recordings.Count take(s)</span>
+                }
+            </div>
+
+            @if (!_recording)
+            {
+                <div class="rec-mode-toggle" style="margin-bottom:10px">
+                    <button class="rec-mode-btn @(_videoMode ? "" : "rec-mode-btn--active")"
+                            @onclick='() => _videoMode = false'>🎙 Lyd</button>
+                    <button class="rec-mode-btn @(_videoMode ? "rec-mode-btn--active" : "")"
+                            @onclick='() => _videoMode = true'>📹 Video</button>
+                </div>
+                <div class="optag-main-buttons">
+                    <button class="btn-record btn-record--big" @onclick="StartRecording">
+                        ⏺ Optag
+                    </button>
+                    @if (_recordings.Any())
+                    {
+                        <button class="btn-record btn-record--big"
+                                style="background:#1d4ed8;border-color:#1d4ed8"
+                                @onclick="StartOverdubRecording"
+                                title="Afspil seneste optagelse i høretelefoner og optag nyt spor ovenpå">
+                            ⏺ Overdub
+                        </button>
+                    }
+                </div>
+                @if (_recordings.Count >= 2)
+                {
+                    @if (!_mixing)
+                    {
+                        <button class="btn-ghost-sm" style="margin-top:10px;width:100%;padding:10px"
+                                @onclick="PlayMix">▶ Afspil mix alle @_recordings.Count spor</button>
+                    }
+                    else
+                    {
+                        <button class="btn-stop" style="margin-top:10px;width:100%"
+                                @onclick="StopMix">⏹ Stop mix</button>
+                    }
+                }
+            }
+            else
+            {
+                @if (_videoMode)
+                {
+                    <video id="rec-preview" muted playsinline autoplay
+                           style="width:100%;border-radius:8px;background:#000;margin-bottom:10px"></video>
+                }
+                <button class="btn-stop @(_recTimer >= 300 ? "btn-stop--warn" : "")"
+                        style="width:100%;font-size:1rem;padding:16px"
+                        @onclick="StopRecording">
+                    ⏹ Stop (@FormatRecTime(_recTimer) / 10:00)
+                </button>
+            }
+        </div>
+
+        <!-- Stems -->
+        @if (StemSvc.IsAvailable)
+        {
+        <div class="studio-card">
+            <div class="card-header">
+                <div class="card-label">🎛️ Udtræk spor</div>
+                @if (_stems is not null && !_stemRunning)
+                {
+                    <button class="btn-ghost-sm" @onclick="ExtractStems" title="Udtræk igen">↺</button>
+                }
+            </div>
+
+            @if (string.IsNullOrEmpty(_song!.SourceFile))
+            {
+                <p style="font-size:0.85rem;color:#555">
+                    Vedhæft en kildefil under 🔍 Forbered for at dele sangen op i vokal, trommer, bas og instrumenter.
+                </p>
+            }
+            else if (_stemRunning)
+            {
+                <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+                    <div class="spinner"></div>
+                    <div>
+                        <div style="font-size:0.85rem;color:#ccc">Analyserer sang… (@_stemElapsed s)</div>
+                        <div style="font-size:0.75rem;color:#444;margin-top:2px">Tager 1–3 minutter</div>
+                    </div>
+                </div>
+            }
+            else if (_stems is null)
+            {
+                <p style="font-size:0.85rem;color:#666;margin-bottom:10px">
+                    Del sangen op i separate spor — syng til guitaren uden vokal, eller optag ovenpå bare trommerne.
+                </p>
+                <button class="btn-record" style="width:100%;background:#1d4ed8;border-color:#1d4ed8;padding:12px"
+                        @onclick="ExtractStems">
+                    🎛️ Udtræk spor
+                </button>
+            }
+            else
+            {
+                @foreach (var (icon, label, path) in new[]
+                {
+                    ("🎤", "Vokal / Sang",    _stems.Vocals),
+                    ("🥁", "Trommer",         _stems.Drums),
+                    ("🎸", "Bas",             _stems.Bass),
+                    ("🎹", "Instrumenter",    _stems.Other),
+                })
+                {
+                    @if (path is not null)
+                    {
+                        var rel     = Path.GetRelativePath(Library.Root, path).Replace('\\', '/');
+                        var playUrl = $"/stream?path={Uri.EscapeDataString(rel)}";
+                        <div class="stem-row">
+                            <div class="stem-row-header">
+                                <span style="font-weight:700">@icon @label</span>
+                                @if (!_recording)
+                                {
+                                    <button class="btn-record"
+                                            style="font-size:0.75rem;padding:5px 12px;background:#1d4ed8;border-color:#1d4ed8"
+                                            @onclick="() => StartOverdubFromUrl(playUrl)">
+                                        ⏺ Syng til
+                                    </button>
+                                }
+                            </div>
+                            <audio controls src="@playUrl" style="width:100%;height:32px" />
+                        </div>
+                    }
+                }
+            }
+        </div>
+        }
+
+        <!-- Recordings list -->
+        @if (_recordings.Any())
+        {
+        <div class="studio-card">
+            <div class="card-label" style="margin-bottom:10px">📼 Optagelser</div>
+            <div class="rec-list">
+                @foreach (var r in _recordings)
+                {
+                    <div class="rec-item">
+                        <div class="rec-item-info">
+                            <span class="rec-item-name">@(r.IsVideo ? "📹" : "🎙") @r.Name</span>
+                            <span class="rec-item-date">@r.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                        </div>
+                        @if (r.IsVideo)
+                        {
+                            <video controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)"
+                                   class="rec-player" style="width:100%;border-radius:6px" />
+                        }
+                        else
+                        {
+                            <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" class="rec-player" />
+                        }
+                        <div class="rec-item-actions">
+                            <button class="btn-publish" @onclick="() => Publish(r)">🚀 Publicér</button>
+                            <button class="btn-delete-sm" @onclick="() => DeleteRecording(r)">🗑</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        }
+        else if (!_recording)
+        {
+            <div style="text-align:center;padding:40px 20px;color:#374151">
+                <p style="font-size:2rem;margin-bottom:8px">🎙</p>
+                <p>Ingen optagelser endnu</p>
+                <p style="font-size:0.85rem;margin-top:4px">Tryk ⏺ Optag for at starte</p>
+            </div>
+        }
+
+    </div>
+    }
 
     @if (_saveStatus is not null)
     {
@@ -442,7 +633,7 @@ else if (_song is not null)
 </div>
 }
 
-<!-- Paste from Ultimate Guitar overlay -->
+<!-- ════ MODAL: Paste from Ultimate Guitar ════ -->
 @if (_ugPasteOpen)
 {
     <div class="photo-overlay">
@@ -471,7 +662,7 @@ else if (_song is not null)
     </div>
 }
 
-<!-- Photo capture overlay -->
+<!-- ════ MODAL: Photo capture ════ -->
 @if (_photoTarget is not null)
 {
     <div class="photo-overlay">
@@ -532,6 +723,8 @@ else if (_song is not null)
     private StudioSong? _song;
     private bool _loading = true;
 
+    private string _tab = "forbered";
+
     private string _chordEdit = "";
     private string _lyricsEdit = "";
     private string _notesEdit = "";
@@ -539,7 +732,6 @@ else if (_song is not null)
     private string _strumEdit = "";
 
     private bool _patternsLoading;
-
     private bool _aiLoading;
     private string? _saveStatus;
     private System.Timers.Timer? _saveTimer;
@@ -555,12 +747,10 @@ else if (_song is not null)
     private bool _photoAnalyzing;
     private string _photoResult = "";
 
-    private string _aiTab = "rim";
-    private string _rimInput = "";
+    private string _aiTab = "spil";
     private string _chordLookup = "";
     private bool _aiHelperLoading;
     private string _aiHelperResult = "";
-
     private bool _annotatingChords;
 
     private bool _ugPasteOpen;
@@ -572,6 +762,12 @@ else if (_song is not null)
     private bool _stemRunning;
     private string? _stemProgress;
     private StemResult? _stems;
+    private int _stemElapsed;
+    private System.Timers.Timer? _stemTimer_t;
+
+    private string? _selectedChord;
+    private string _selectedChordInfo = "";
+    private bool _selectedChordLoading;
 
     private static readonly string[] MajorKeys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] MinorKeys = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"];
@@ -623,7 +819,7 @@ else if (_song is not null)
                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                .Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w[1..] : w));
 
-    // ── Auto-save with debounce ────────────────────────────────────────────────
+    // ── Auto-save ──────────────────────────────────────────────────────────────
 
     private void AutoSave()
     {
@@ -816,7 +1012,7 @@ else if (_song is not null)
         var baseUrl = Nav.BaseUri.TrimEnd('/');
         await http.PostAsJsonAsync($"{baseUrl}/api/publish/{SongKey}",
             new { relativePath = r.RelativePath });
-        _saveStatus = $"🚀 Publiceret!";
+        _saveStatus = "🚀 Publiceret!";
         await Task.Delay(2000);
         _saveStatus = null;
     }
@@ -869,7 +1065,6 @@ else if (_song is not null)
         _photoAnalyzing = true;
         _photoResult = "";
         StateHasChanged();
-
         try
         {
             string result;
@@ -877,7 +1072,6 @@ else if (_song is not null)
                 result = await ChordAi.ExtractChordsFromImageAsync(base64, mime);
             else
                 result = await ChordAi.ExtractTextFromImageAsync(base64, mime);
-
             _photoResult = result;
         }
         catch (Exception ex)
@@ -890,30 +1084,19 @@ else if (_song is not null)
         }
     }
 
-    private async Task<string> ExtractTextFromImageAsync(string base64, string mime)
-    {
-        return await ChordAi.ExtractTextFromImageAsync(base64, mime);
-    }
-
     private void ApplyPhotoResult()
     {
         if (string.IsNullOrEmpty(_photoResult)) return;
         switch (_photoTarget)
         {
             case "lyrics":
-                _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit)
-                    ? _photoResult
-                    : _lyricsEdit + "\n\n" + _photoResult;
+                _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit) ? _photoResult : _lyricsEdit + "\n\n" + _photoResult;
                 break;
             case "chords":
-                _chordEdit = string.IsNullOrWhiteSpace(_chordEdit)
-                    ? _photoResult
-                    : _chordEdit + "\n\n" + _photoResult;
+                _chordEdit = string.IsNullOrWhiteSpace(_chordEdit) ? _photoResult : _chordEdit + "\n\n" + _photoResult;
                 break;
             case "notes":
-                _notesEdit = string.IsNullOrWhiteSpace(_notesEdit)
-                    ? _photoResult
-                    : _notesEdit + "\n\n" + _photoResult;
+                _notesEdit = string.IsNullOrWhiteSpace(_notesEdit) ? _photoResult : _notesEdit + "\n\n" + _photoResult;
                 break;
         }
         AutoSave();
@@ -926,31 +1109,6 @@ else if (_song is not null)
 
     private void SelectAiTab(string tab) { _aiTab = tab; _aiHelperResult = ""; }
     private void ClearAiHelper() => _aiHelperResult = "";
-
-    private async Task OnRimKey(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") await AiRim();
-    }
-
-    private async Task AiRim()
-    {
-        if (string.IsNullOrWhiteSpace(_rimInput)) return;
-        _aiHelperLoading = true;
-        _aiHelperResult = "";
-        _aiHelperResult = await ChordAi.GetRhymeSuggestionsAsync(_rimInput, _lyricsEdit);
-        _aiHelperLoading = false;
-    }
-
-    private void SimplifyChords()
-    {
-        // Replace slash chords (A/D, G/B, D/F#) with just the chord name before the slash
-        _chordEdit = System.Text.RegularExpressions.Regex.Replace(
-            _chordEdit,
-            @"([A-G][#b]?(?:maj|min|m|dim|aug|sus\d?|add\d|M|\d)*)/[A-G][#b]?",
-            m => m.Groups[1].Value);
-        AutoSave();
-        StateHasChanged();
-    }
 
     private async Task OnChordLookupKey(KeyboardEventArgs e)
     {
@@ -1003,63 +1161,19 @@ else if (_song is not null)
             ChordAi.GetFingerpickPatternAsync(_song.Title, _chordEdit, _song.Tempo, _song.MusicKey),
             ChordAi.GetStrumPatternAsync(_song.Title, _chordEdit, _song.Tempo, _song.MusicKey)
         ).ContinueWith(t => (t.Result[0], t.Result[1]));
-        if (!string.IsNullOrEmpty(pick))  { _fingerpickEdit = pick;  }
+        if (!string.IsNullOrEmpty(pick))  { _fingerpickEdit = pick; }
         if (!string.IsNullOrEmpty(strum)) { _strumEdit      = strum; }
         AutoSave();
         _patternsLoading = false;
     }
 
-    // ── Search lyrics (opens Google in browser — paste into textarea) ────────────
+    // ── Search ────────────────────────────────────────────────────────────────
 
     private async Task SearchLyrics()
     {
         if (_song is null) return;
         var q = Uri.EscapeDataString(_song.Title + (string.IsNullOrWhiteSpace(_song.Artist) ? "" : " " + _song.Artist) + " lyrics");
         await JS.InvokeVoidAsync("open", $"https://www.google.com/search?q={q}", "_blank");
-    }
-
-    private async Task ExtractStems()
-    {
-        if (_song is null || !Library.Exists(_song.SourceFile)) return;
-        _stemRunning = true;
-        _stemProgress = null;
-        _stems = null;
-        StateHasChanged();
-
-        try
-        {
-            var inputPath  = Path.GetFullPath(Path.Combine(Library.Root, _song.SourceFile));
-            var outputDir  = Path.Combine(Library.Root, "stems", SongKey);
-            var progress   = new Progress<string>(msg =>
-            {
-                _stemProgress = msg;
-                InvokeAsync(StateHasChanged);
-            });
-            _stems = await StemSvc.SeparateAsync(inputPath, outputDir, progress);
-        }
-        catch (Exception ex)
-        {
-            _saveStatus = $"Stem fejl: {ex.Message}";
-        }
-        finally
-        {
-            _stemRunning = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ParseUgTab()
-    {
-        if (string.IsNullOrWhiteSpace(_ugPasteText)) return;
-        _ugParsing = true;
-        StateHasChanged();
-        var result = await ChordAi.ParseUltimateGuitarTabAsync(_ugPasteText);
-        if (!string.IsNullOrEmpty(result.Chords))  { _chordEdit  = result.Chords;  }
-        if (!string.IsNullOrEmpty(result.Lyrics))  { _lyricsEdit = result.Lyrics;  }
-        AutoSave();
-        _ugParsing   = false;
-        _ugPasteOpen = false;
-        _ugPasteText = "";
     }
 
     private async Task SearchUltimateGuitar()
@@ -1069,7 +1183,59 @@ else if (_song is not null)
         await JS.InvokeVoidAsync("open", $"https://www.ultimate-guitar.com/search.php?search_type=title&value={q}", "_blank");
     }
 
-    // ── Toneart / key finder ──────────────────────────────────────────────────
+    // ── Stems ─────────────────────────────────────────────────────────────────
+
+    private async Task ExtractStems()
+    {
+        if (_song is null || string.IsNullOrEmpty(_song.SourceFile)) return;
+        _stemRunning = true;
+        _stemElapsed = 0;
+        _stemProgress = null;
+        _stems = null;
+
+        _stemTimer_t?.Dispose();
+        _stemTimer_t = new System.Timers.Timer(1000) { AutoReset = true };
+        _stemTimer_t.Elapsed += async (_, _) => { _stemElapsed++; await InvokeAsync(StateHasChanged); };
+        _stemTimer_t.Start();
+        StateHasChanged();
+
+        try
+        {
+            var inputPath = Path.GetFullPath(Path.Combine(Library.Root, _song.SourceFile));
+            var outputDir = Path.Combine(Library.Root, "stems", SongKey);
+            var progress  = new Progress<string>(msg => { _stemProgress = msg; InvokeAsync(StateHasChanged); });
+            _stems = await StemSvc.SeparateAsync(inputPath, outputDir, progress);
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = $"Stem fejl: {ex.Message}";
+        }
+        finally
+        {
+            _stemTimer_t?.Stop();
+            _stemTimer_t?.Dispose();
+            _stemRunning = false;
+            StateHasChanged();
+        }
+    }
+
+    // ── UG tab parser ─────────────────────────────────────────────────────────
+
+    private async Task ParseUgTab()
+    {
+        if (string.IsNullOrWhiteSpace(_ugPasteText)) return;
+        _ugParsing = true;
+        StateHasChanged();
+        var result = await ChordAi.ParseUltimateGuitarTabAsync(_ugPasteText);
+        if (!string.IsNullOrEmpty(result.Chords)) { _chordEdit  = result.Chords; }
+        if (!string.IsNullOrEmpty(result.Lyrics)) { _lyricsEdit = result.Lyrics; }
+        AutoSave();
+        _ugParsing   = false;
+        _ugPasteOpen = false;
+        _ugPasteText = "";
+    }
+
+    // ── Toneart / Key finder ──────────────────────────────────────────────────
 
     private async Task AiToneart()
     {
@@ -1098,7 +1264,7 @@ else if (_song is not null)
             .Select(m => m.Groups[1].Value)
             .Distinct());
 
-    // ── AI chord annotation ───────────────────────────────────────────────────
+    // ── Chord annotation ──────────────────────────────────────────────────────
 
     private async Task AiAnnotateChords()
     {
@@ -1123,6 +1289,50 @@ else if (_song is not null)
         {
             _annotatingChords = false;
         }
+    }
+
+    // ── Simplify chords ───────────────────────────────────────────────────────
+
+    private void SimplifyChords()
+    {
+        _chordEdit = System.Text.RegularExpressions.Regex.Replace(
+            _chordEdit,
+            @"([A-G][#b]?(?:maj|min|m|dim|aug|sus\d?|add\d|M|\d)*)/[A-G][#b]?",
+            m => m.Groups[1].Value);
+        AutoSave();
+        StateHasChanged();
+    }
+
+    // ── Perform chord tap ─────────────────────────────────────────────────────
+
+    private void DismissChord() { _selectedChord = null; _selectedChordInfo = ""; }
+
+    private async Task SelectPerformChord(string chord)
+    {
+        if (_selectedChord == chord)
+        {
+            _selectedChord = null;
+            _selectedChordInfo = "";
+            return;
+        }
+        _selectedChord = chord;
+        _selectedChordInfo = "";
+        _selectedChordLoading = true;
+        StateHasChanged();
+        _selectedChordInfo = await ChordAi.GetChordFingeringAsync(chord);
+        _selectedChordLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task ShowChordTransition()
+    {
+        if (_selectedChord is null) return;
+        _selectedChordLoading = true;
+        StateHasChanged();
+        var chart = string.IsNullOrWhiteSpace(_chordEdit) ? ExtractChordsFromLyrics() : _chordEdit;
+        _selectedChordInfo = await ChordAi.GetChordTransitionsAsync(chart, _song?.MusicKey ?? "C");
+        _selectedChordLoading = false;
+        StateHasChanged();
     }
 
     // ── Chord+lyrics renderer ─────────────────────────────────────────────────

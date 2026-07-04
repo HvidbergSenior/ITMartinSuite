@@ -37,20 +37,27 @@ public sealed class StemService
         using var proc = Process.Start(psi)
             ?? throw new InvalidOperationException("Could not start python");
 
+        var stderrLines = new System.Collections.Generic.List<string>();
         _ = Task.Run(async () =>
         {
             while (!proc.StandardError.EndOfStream)
             {
                 var line = await proc.StandardError.ReadLineAsync(ct);
                 if (!string.IsNullOrWhiteSpace(line))
+                {
+                    stderrLines.Add(line.Trim());
                     progress?.Report(line.Trim());
+                }
             }
         }, ct);
 
         await proc.WaitForExitAsync(ct);
 
         if (proc.ExitCode != 0)
-            throw new InvalidOperationException("Demucs failed — is it installed? Run: pip install demucs");
+        {
+            var detail = stderrLines.Count > 0 ? "\n" + string.Join("\n", stderrLines.TakeLast(5)) : "";
+            throw new InvalidOperationException($"Demucs fejlede (kode {proc.ExitCode}){detail}");
+        }
 
         // Demucs writes to {tempOut}/{model}/{filename}/ — find the folder with vocals.wav
         var stemFolder = Directory
@@ -93,12 +100,12 @@ public sealed class StemService
                 var p = Process.Start(new ProcessStartInfo
                 {
                     FileName               = candidate,
-                    Arguments              = "-m demucs --version",
+                    Arguments              = "-c \"import demucs; print('ok')\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError  = true,
                     UseShellExecute        = false,
                 });
-                p?.WaitForExit(5_000);
+                p?.WaitForExit(10_000);
                 if (p?.ExitCode == 0) return candidate;
             }
             catch { }
