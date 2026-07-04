@@ -45,10 +45,10 @@ else if (_song is not null)
     <div class="studio-tabs">
         <button class="studio-tab @(_tab == "forbered" ? "studio-tab--active" : "")"
                 @onclick='() => _tab = "forbered"'>🔍 Forbered</button>
-        <button class="studio-tab @(_tab == "spilleguide" ? "studio-tab--active" : "")"
-                @onclick='() => _tab = "spilleguide"'>🎼 Spilleguide</button>
-        <button class="studio-tab @(_tab == "optag" ? "studio-tab--active" : "") @(_recording ? "studio-tab--rec" : "")"
-                @onclick='() => _tab = "optag"'>⏺ Optag@(_recording ? " ●" : "")</button>
+        <button class="studio-tab @(_tab == "spilleguide" ? "studio-tab--active" : "") @(_recording ? "studio-tab--rec" : "")"
+                @onclick='() => _tab = "spilleguide"'>🎼 Øv & Spil@(_recording ? " ●" : "")</button>
+        <button class="studio-tab @(_tab == "optag" ? "studio-tab--active" : "")"
+                @onclick='() => _tab = "optag"'>⭐ Indspil</button>
     </div>
 
     <!-- ════════════════ TAB: FORBERED ════════════════ -->
@@ -309,8 +309,16 @@ else if (_song is not null)
                 <audio src="/stream?path=@Uri.EscapeDataString(_song.SourceFile)"
                        controls class="perform-player" preload="metadata" />
             }
-            <button class="btn-record" style="padding:6px 16px;font-size:0.9rem"
-                    @onclick='() => _tab = "optag"'>⏺ Optag</button>
+            @if (!_recording)
+            {
+                <button class="btn-record" style="padding:6px 16px;font-size:0.9rem"
+                        @onclick="StartRecording">⏺ Optag</button>
+            }
+            else
+            {
+                <button class="btn-stop btn-stop--pulse" style="padding:6px 16px;font-size:0.9rem"
+                        @onclick="StopRecording">⏹ @FormatRecTime(_recTimer)</button>
+            }
         </div>
 
         <!-- Chord overview (from chord chart) -->
@@ -489,7 +497,7 @@ else if (_song is not null)
         <!-- Recording card -->
         <div class="studio-card">
             <div class="card-header">
-                <div class="card-label">🎙 Optagelse</div>
+                <div class="card-label">⭐ Indspil — klar version</div>
                 @if (_recordings.Any() && !_recording)
                 {
                     <span class="rec-count">@_recordings.Count take(s)</span>
@@ -498,6 +506,9 @@ else if (_song is not null)
 
             @if (!_recording)
             {
+                <p style="font-size:0.8rem;color:#6b7280;margin-bottom:10px">
+                    Klar til det rigtige take? Øv i <strong>Øv & Spil</strong> — og indspil din bedste version her.
+                </p>
                 <div class="rec-mode-toggle" style="margin-bottom:10px">
                     <button class="rec-mode-btn @(_videoMode ? "" : "rec-mode-btn--active")"
                             @onclick='() => _videoMode = false'>🎙 Lyd</button>
@@ -505,8 +516,8 @@ else if (_song is not null)
                             @onclick='() => _videoMode = true'>📹 Video</button>
                 </div>
                 <div class="optag-main-buttons">
-                    <button class="btn-record btn-record--big" @onclick="StartRecording">
-                        ⏺ Optag
+                    <button class="btn-record" style="width:100%;padding:10px" @onclick='async () => { _tab = "spilleguide"; await StartRecording(); }'>
+                        ⏺ Optag i Øv & Spil
                     </button>
                     @if (_recordings.Any())
                     {

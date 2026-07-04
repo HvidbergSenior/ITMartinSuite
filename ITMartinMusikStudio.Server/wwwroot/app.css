@@ -293,7 +293,9 @@ html, body {
     animation: pulse 1s ease-in-out infinite;
 }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
+@keyframes pulse-red { 0%, 100% { background: #1f2937; border-color: #dc2626; } 50% { background: #7f1d1d; border-color: #ef4444; } }
 .btn-stop--warn { background: #7c2d12; border-color: #f97316; color: #f97316; }
+.btn-stop--pulse { animation: pulse-red 1.2s ease-in-out infinite; color: #fca5a5; }
 
 .rec-count { font-size: 11px; color: var(--muted); }
 .rec-list { display: flex; flex-direction: column; gap: 10px; }
