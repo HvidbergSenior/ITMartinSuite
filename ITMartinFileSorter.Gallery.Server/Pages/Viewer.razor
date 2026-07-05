@@ -19,6 +19,16 @@
                 @Path.GetFileName(FilePath)
             </div>
 
+            @if ((IsVideo || IsAudio) && !string.IsNullOrEmpty(VideoSrc))
+            {
+                <a class="btn btn-sm viewer-tv-btn"
+                   href="@VideoSrc"
+                   target="_blank"
+                   title="Åbn i native afspiller (til AirPlay på TV)">
+                    📺
+                </a>
+            }
+
         </div>
 
         <!-- CONTENT -->
