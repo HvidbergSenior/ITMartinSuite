@@ -108,6 +108,15 @@
                 📁
             </button>
 
+            @if (!string.IsNullOrEmpty(WebPath))
+            {
+                <a class="btn"
+                   href="@VideoSrc"
+                   target="_blank">
+                    📺
+                </a>
+            }
+
         </div>
 
     </div>
