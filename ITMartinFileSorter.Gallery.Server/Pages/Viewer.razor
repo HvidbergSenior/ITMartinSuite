@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject ILogger<Viewer> Logger
+@inject IJSRuntime JS
 
 <div class="viewer-root">
 
@@ -40,9 +41,9 @@
                                preload="metadata"
                                x-webkit-airplay="allow"
                                @onclick:stopPropagation
-                               @key="WebPath">
+                               @key="VideoSrc">
 
-                            <source src="@WebPath" />
+                            <source src="@VideoSrc" />
 
                         </video>
                     }
@@ -119,6 +120,12 @@
 
     private string WebPath = "";
 
+    private string _galleryToken = "";
+
+    private string VideoSrc => string.IsNullOrEmpty(_galleryToken)
+        ? WebPath
+        : WebPath + "?token=" + Uri.EscapeDataString(_galleryToken);
+
     private bool IsVideo;
 
     private List<string> Playlist = [];
@@ -190,6 +197,19 @@
         if (firstRender)
         {
             await StageRef.FocusAsync();
+
+            // Extract slug from /libraryfiles/{slug}/... to find the right cookie
+            var parts = WebPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+            {
+                var slug = parts[1];
+                var token = await JS.InvokeAsync<string?>("getCookie", $"gallery_{slug}");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    _galleryToken = token;
+                    StateHasChanged();
+                }
+            }
         }
     }
 

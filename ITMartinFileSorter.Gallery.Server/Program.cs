@@ -54,7 +54,8 @@ app.Use(async (ctx, next) =>
             if (g is not null && !string.IsNullOrEmpty(g.Password))
             {
                 var cookie = ctx.Request.Cookies[$"gallery_{slug}"];
-                if (cookie != g.Password)
+                var token  = ctx.Request.Query["token"].ToString();
+                if (cookie != g.Password && token != g.Password)
                 {
                     ctx.Response.StatusCode = 401;
                     return;
