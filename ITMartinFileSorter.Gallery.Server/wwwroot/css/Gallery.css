@@ -317,6 +317,32 @@
 .nav-video.left  { left: 24px; }
 .nav-video.right { right: 24px; }
 
+.viewer-audio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px 24px;
+    width: 100%;
+}
+
+.viewer-audio-icon {
+    font-size: 64px;
+}
+
+.viewer-audio-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: center;
+    word-break: break-word;
+}
+
+.viewer-audio-player {
+    width: 100%;
+    max-width: 400px;
+}
+
 .viewer-controls {
     display: flex;
     gap: 12px;

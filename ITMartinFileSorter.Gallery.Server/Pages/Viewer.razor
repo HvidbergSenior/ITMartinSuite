@@ -47,6 +47,21 @@
 
                         </video>
                     }
+                    else if (IsAudio)
+                    {
+                        <div class="viewer-audio">
+                            <div class="viewer-audio-icon">🎵</div>
+                            <div class="viewer-audio-name">@Path.GetFileName(FilePath)</div>
+                            <audio class="viewer-audio-player"
+                                   controls
+                                   autoplay
+                                   preload="metadata"
+                                   x-webkit-airplay="allow"
+                                   @key="VideoSrc">
+                                <source src="@VideoSrc" />
+                            </audio>
+                        </div>
+                    }
                     else
                     {
                         <img class="viewer-media"
@@ -108,7 +123,7 @@
                 📁
             </button>
 
-            @if (!string.IsNullOrEmpty(WebPath))
+            @if ((IsVideo || IsAudio) && !string.IsNullOrEmpty(VideoSrc))
             {
                 <a class="btn"
                    href="@VideoSrc"
@@ -136,6 +151,8 @@
         : WebPath + "?token=" + Uri.EscapeDataString(_galleryToken);
 
     private bool IsVideo;
+
+    private bool IsAudio;
 
     private List<string> Playlist = [];
 
@@ -249,8 +266,8 @@
         WebPath =
             $"/libraryfiles/{relative}";
 
-        IsVideo =
-            MediaTypeHelper.IsVideo(FilePath);
+        IsVideo = MediaTypeHelper.IsVideo(FilePath);
+        IsAudio = !IsVideo && MediaTypeHelper.IsAudio(FilePath);
 
         Logger.LogInformation(
             "Viewing file {File}",

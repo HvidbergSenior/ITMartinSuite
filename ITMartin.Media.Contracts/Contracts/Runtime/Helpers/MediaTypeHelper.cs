@@ -28,6 +28,17 @@ public static class MediaTypeHelper
             ".tiff"
         ];
 
+    private static readonly HashSet<string>
+        AudioExtensions =
+        [
+            ".mp3",
+            ".wav",
+            ".aac",
+            ".flac",
+            ".ogg",
+            ".m4a"
+        ];
+
     public static bool IsVideo(
         string path)
     {
@@ -47,6 +58,17 @@ public static class MediaTypeHelper
                 .ToLowerInvariant();
 
         return ImageExtensions
+            .Contains(extension);
+    }
+
+    public static bool IsAudio(
+        string path)
+    {
+        var extension =
+            Path.GetExtension(path)
+                .ToLowerInvariant();
+
+        return AudioExtensions
             .Contains(extension);
     }
 }
