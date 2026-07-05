@@ -59,6 +59,7 @@ $ServiceMap = @{
     "imagegen-web"           = @{ Dockerfile = "ITMartinImageGen.Server/Dockerfile";                  Context = "." }
     "dailybrief-web"         = @{ Dockerfile = "ITMartinDailyBrief.Server/Dockerfile";                Context = "." }
     "poll-web"               = @{ Dockerfile = "ITMartinPoll.Server/Dockerfile";                       Context = "." }
+    "r6strat-web"            = @{ Dockerfile = "ITMartinR6Strat.Server/Dockerfile";                    Context = "."; Profile = "manual" }
 }
 
 if (-not $ServiceMap.ContainsKey($Service)) {

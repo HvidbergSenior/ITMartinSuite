@@ -1,0 +1,334 @@
+@page "/s/{Code}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@inject StratSessionService Svc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (_session is null)
+{
+    <div class="loading">Session ikke fundet</div>
+}
+else
+{
+    <div class="session-wrap">
+
+        <!-- Top bar -->
+        <div class="top-bar">
+            <div class="top-left">
+                <span class="code-chip">@_session.Code</span>
+                <span class="map-chip">
+                    @(_session.SelectedMap is null ? "Venter på map…" : R6Data.MapName(_session.SelectedMap))
+                </span>
+                @if (_session.Side is not null)
+                {
+                    <span class="side-chip side-@_session.Side">
+                        @(_session.Side == "attack" ? "⚔️ Angreb" : "🛡️ Forsvar")
+                    </span>
+                }
+            </div>
+            @if (_isHost)
+            {
+                <button class="btn-reset" @onclick="Reset">↺</button>
+            }
+        </div>
+
+        <!-- STEP: Map selection -->
+        @if (_session.Step == StratStep.WaitingMap)
+        {
+            <div class="phase-wrap">
+                <div class="phase-title">Hvilket map blev valgt?</div>
+                <div class="map-select-grid">
+                    @foreach (var mapId in _session.MapPool)
+                    {
+                        var map = R6Data.FindMap(mapId);
+                        if (map is null) continue;
+                        <button class="map-select-btn @(_isHost ? "" : "map-select-readonly")"
+                                @onclick="() => PickMap(mapId)"
+                                disabled="@(!_isHost)">
+                            @map.Name
+                        </button>
+                    }
+                </div>
+                @if (!_isHost)
+                {
+                    <p class="waiting-text">Venter på at host vælger map…</p>
+                }
+            </div>
+        }
+
+        <!-- STEP: Side selection -->
+        else if (_session.Step == StratStep.WaitingSide)
+        {
+            <div class="phase-wrap">
+                <div class="phase-title">Hvilken side?</div>
+                @if (_isHost)
+                {
+                    <div class="side-btns">
+                        <button class="btn-side btn-attack" @onclick='() => PickSide("attack")'>
+                            ⚔️ Angreb
+                        </button>
+                        <button class="btn-side btn-defence" @onclick='() => PickSide("defence")'>
+                            🛡️ Forsvar
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <p class="waiting-text">Venter på side…</p>
+                }
+            </div>
+        }
+
+        <!-- STEP: Ban phase + site selection -->
+        else if (_session.Step == StratStep.BanPhase)
+        {
+            <div class="phase-wrap">
+
+                <!-- Ban suggestion -->
+                @if (_session.Plan?.Ban is { } ban || _session.SitePlanCache.Values.FirstOrDefault()?.Ban is { } firstBan)
+                {
+                    var b = _session.Plan?.Ban ?? _session.SitePlanCache.Values.First().Ban!;
+                    var banOp = R6Data.FindOperator(b.Operator);
+                    var altOp = R6Data.FindOperator(b.Alternate);
+                    <div class="ban-card">
+                        <div class="ban-label">🚫 BAN FORSLAG</div>
+                        <div class="ban-main">
+                            <div class="ban-op">
+                                <img class="op-img-large" src="@(banOp?.ImageUrl ?? "")"
+                                     onerror="this.style.display='none'"
+                                     alt="@b.Operator" />
+                                <div class="ban-op-name">@b.Operator</div>
+                            </div>
+                            <div class="ban-reason">@b.Reason</div>
+                            @if (!string.IsNullOrEmpty(b.Alternate))
+                            {
+                                <div class="ban-alt">
+                                    Alt: @b.Alternate
+                                    @if (altOp is not null)
+                                    {
+                                        <img class="op-img-small" src="@altOp.ImageUrl"
+                                             onerror="this.style.display='none'" alt="@b.Alternate" />
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="generating">🤖 Genererer plan…</div>
+                }
+
+                <!-- Site selection (host only) -->
+                @if (_isHost)
+                {
+                    <div class="site-section">
+                        <div class="phase-title" style="font-size:1rem">Vælg bombsite når runden starter</div>
+                        @{
+                            var sites = R6Data.FindMap(_session.SelectedMap!)?.Sites ?? [];
+                        }
+                        <div class="site-grid">
+                            @foreach (var site in sites)
+                            {
+                                var s = site;
+                                <button class="site-btn" @onclick="() => PickSite(s)">
+                                    @site
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="waiting-text">Venter på bombsite valg…</p>
+                }
+            </div>
+        }
+
+        <!-- STEP: Pick phase — role cards -->
+        else if (_session.Step == StratStep.PickPhase)
+        {
+            @if (_session.Generating)
+            {
+                <div class="generating">🤖 Genererer strat for @_session.SelectedSite…</div>
+            }
+            else if (_session.Plan is { } plan)
+            {
+                <div class="site-header">
+                    <span class="site-name">💣 @_session.SelectedSite</span>
+                    <span class="strategy-text">@plan.Strategy</span>
+                </div>
+
+                <!-- Role cards -->
+                <div class="roles-scroll">
+                    @for (var i = 0; i < plan.Roles.Count; i++)
+                    {
+                        var idx  = i;
+                        var role = plan.Roles[i];
+                        var pick = _session.Picks.FirstOrDefault(p => p.RoleIndex == idx);
+                        var myPick = _session.Picks.FirstOrDefault(p => p.PlayerToken == _myToken);
+                        var isMine = myPick?.RoleIndex == idx;
+
+                        <div class="role-card role-@role.Color @(isMine ? "role-mine" : "") @(pick is not null && !isMine ? "role-taken" : "")">
+                            <div class="role-header">
+                                <span class="role-emoji">@role.Emoji</span>
+                                <span class="role-name">@role.Name</span>
+                                @if (pick is not null)
+                                {
+                                    <span class="role-claimed">✓ Valgt</span>
+                                }
+                            </div>
+
+                            <div class="role-task">@role.Task</div>
+
+                            <!-- Operator photos -->
+                            <div class="op-row">
+                                @foreach (var opName in role.Operators)
+                                {
+                                    var op = R6Data.FindOperator(opName);
+                                    var alreadyPicked = _session.Picks.Any(p => p.OperatorId == op?.Id && p.PlayerToken != _myToken);
+                                    <div class="op-card @(alreadyPicked ? "op-taken" : "")">
+                                        <img class="op-img"
+                                             src="@(op?.ImageUrl ?? $"https://r6operators.marcopixel.eu/icons/png/{opName.ToLower()}.png")"
+                                             onerror="this.style.display='none'"
+                                             alt="@opName" />
+                                        <div class="op-name">@opName</div>
+                                        @if (!alreadyPicked && (pick is null || isMine))
+                                        {
+                                            <button class="btn-pick @(isMine && myPick?.OperatorId == op?.Id ? "btn-pick-active" : "")"
+                                                    @onclick="() => PickOp(idx, op?.Id ?? opName.ToLower())">
+                                                @(isMine && myPick?.OperatorId == op?.Id ? "✓ Valgt" : "Vælg")
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Walls -->
+                            @if (role.Walls.Any())
+                            {
+                                <div class="role-walls">
+                                    <span class="walls-label">@(_session.Side == "defence" ? "🧱 Forstærk:" : "💥 Bryd:")</span>
+                                    @foreach (var w in role.Walls)
+                                    {
+                                        <span class="wall-chip">@w</span>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Rotation -->
+                            @if (!string.IsNullOrEmpty(role.Rotation))
+                            {
+                                <div class="role-rotation">
+                                    <span class="rotation-label">🔄</span> @role.Rotation
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- My card (pinned when picked) -->
+                @if (_session.Picks.FirstOrDefault(p => p.PlayerToken == _myToken) is { } mine)
+                {
+                    var myRole = _session.Plan?.Roles.ElementAtOrDefault(mine.RoleIndex);
+                    if (myRole is not null)
+                    {
+                        var myOp = R6Data.FindOperator(mine.OperatorId);
+                        <div class="my-card">
+                            <div class="my-card-left">
+                                <img class="op-img-large" src="@(myOp?.ImageUrl ?? "")"
+                                     onerror="this.style.display='none'" alt="@mine.OperatorId" />
+                                <div>
+                                    <div class="my-role">@myRole.Emoji @myRole.Name</div>
+                                    <div class="my-op-name">@(myOp?.Name ?? mine.OperatorId)</div>
+                                </div>
+                            </div>
+                            <div class="my-task">@myRole.Task</div>
+                        </div>
+                    }
+                }
+            }
+        }
+
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private StratSession? _session;
+    private bool          _isHost;
+    private string        _myToken = "";
+    private HubConnection? _hub;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _session = Svc.Get(Code);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _myToken = await JS.InvokeAsync<string?>("strat.get", $"token_{Code.ToUpper()}") ?? "";
+        if (string.IsNullOrEmpty(_myToken))
+        {
+            _myToken = Guid.NewGuid().ToString("N");
+            await JS.InvokeVoidAsync("strat.set", $"token_{Code.ToUpper()}", _myToken);
+        }
+
+        var hostToken = await JS.InvokeAsync<string?>("strat.get", $"host_{Code.ToUpper()}") ?? "";
+        _isHost = !string.IsNullOrEmpty(hostToken) && _session?.HostToken == hostToken;
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/strat"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On("SessionUpdated", () => InvokeAsync(() =>
+        {
+            _session = Svc.Get(Code);
+            StateHasChanged();
+        }));
+
+        await _hub.StartAsync();
+        await _hub.InvokeAsync("JoinSession", Code.ToUpper());
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PickMap(string mapId)
+    {
+        if (!_isHost) return;
+        await Svc.SetMapAsync(Code, mapId);
+    }
+
+    private async Task PickSide(string side)
+    {
+        if (!_isHost) return;
+        await Svc.SetSideAsync(Code, side);
+    }
+
+    private async Task PickSite(string site)
+    {
+        if (!_isHost) return;
+        await Svc.SetSiteAsync(Code, site);
+    }
+
+    private async Task PickOp(int roleIndex, string opId)
+    {
+        await Svc.PickOperatorAsync(Code, _myToken, roleIndex, opId);
+    }
+
+    private async Task Reset()
+    {
+        if (!_isHost) return;
+        await Svc.ResetAsync(Code);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null) await _hub.DisposeAsync();
+    }
+}

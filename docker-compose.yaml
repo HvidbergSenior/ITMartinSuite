@@ -814,6 +814,33 @@ services:
       - martinnet
 
   # =========================================================
+  # R6 STRAT — Live tactical planner for R6 Siege matches
+  #   strat.itmartin.dk  →  http://r6strat-web:8080
+  # =========================================================
+
+  r6strat-web:
+    container_name: r6strat-web
+    profiles: [manual]
+
+    build:
+      context: .
+      dockerfile: ./ITMartinR6Strat.Server/Dockerfile
+
+    env_file:
+      - magic.env
+
+    ports:
+      - "8113:8080"
+
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+
+    restart: unless-stopped
+
+    networks:
+      - martinnet
+
+  # =========================================================
   # WORKERS
   # =========================================================
 

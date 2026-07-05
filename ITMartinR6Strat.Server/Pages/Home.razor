@@ -1,0 +1,62 @@
+@page "/"
+@rendermode InteractiveServer
+@inject StratSessionService Svc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="home-wrap">
+    <div class="home-card">
+        <div class="home-logo">🎯</div>
+        <h1 class="home-title">R6 Strat</h1>
+        <p class="home-sub">Vælg de 5 mulige maps for denne session</p>
+
+        <div class="map-grid">
+            @foreach (var map in R6Data.Maps)
+            {
+                var selected = _selected.Contains(map.Id);
+                <button class="map-btn @(selected ? "map-btn-on" : "")"
+                        @onclick="() => Toggle(map.Id)"
+                        disabled="@(!selected && _selected.Count >= 5)">
+                    <span class="map-name">@map.Name</span>
+                    @if (selected)
+                    {
+                        <span class="map-check">✓ @(_selected.IndexOf(map.Id) + 1)</span>
+                    }
+                </button>
+            }
+        </div>
+
+        <button class="btn-start"
+                @onclick="Create"
+                disabled="@(_selected.Count == 0 || _creating)">
+            @(_creating ? "Opretter…" : $"Start session ({_selected.Count}/5 maps)")
+        </button>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="home-error">@_error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly List<string> _selected = [];
+    private bool   _creating;
+    private string _error = "";
+
+    private void Toggle(string mapId)
+    {
+        if (_selected.Contains(mapId)) _selected.Remove(mapId);
+        else if (_selected.Count < 5)  _selected.Add(mapId);
+    }
+
+    private async Task Create()
+    {
+        if (_selected.Count == 0) return;
+        _creating = true;
+        var token   = Guid.NewGuid().ToString("N");
+        var session = Svc.Create([.. _selected], token);
+        await JS.InvokeVoidAsync("strat.set", $"host_{session.Code}", token);
+        Nav.NavigateTo($"/s/{session.Code}", forceLoad: true);
+    }
+}
