@@ -1,7 +1,14 @@
-﻿<footer class="app-footer">
-    <div>© ITMartin</div>
+<footer class="app-footer">
+    <span>&copy; @DateTime.Now.Year Den Digitale Rådgiver</span>
+    <a href="https://martin.itmartin.dk/vilkaar" target="_blank">Vilkår &amp; Privatlivspolitik</a>
 </footer>
-    
+
+<style>
+    .app-footer { display:flex; justify-content:center; gap:1.5rem; padding:.75rem 1rem; font-size:.75rem; color:#64748b; border-top:1px solid rgba(255,255,255,.06); flex-wrap:wrap; }
+    .app-footer a { color:#64748b; text-decoration:underline; }
+    .app-footer a:hover { color:#94a3b8; }
+</style>
+
 @code {
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public RenderFragment? ChildContent { get; set; }
