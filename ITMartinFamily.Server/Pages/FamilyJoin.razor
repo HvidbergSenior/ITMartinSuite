@@ -133,7 +133,23 @@
     {
         _error = null;
         if (_family is null) return;
-        if (_password.Trim() != _family.Password) { _error = "Forkert adgangskode."; return; }
+
+        var entered = _password.Trim();
+        bool valid;
+        if (_family.Password.StartsWith("$2"))
+        {
+            valid = BCrypt.Net.BCrypt.Verify(entered, _family.Password);
+        }
+        else
+        {
+            valid = entered == _family.Password;
+            if (valid)
+            {
+                _family.Password = BCrypt.Net.BCrypt.HashPassword(entered);
+                await Db.SaveChangesAsync();
+            }
+        }
+        if (!valid) { _error = "Forkert adgangskode."; return; }
 
         var nameToUse = _selectedName == "__new__" ? _newName.Trim() : _selectedName ?? "";
         if (string.IsNullOrWhiteSpace(nameToUse)) { _error = "Skriv dit navn."; return; }

@@ -132,7 +132,7 @@
 
         try
         {
-            Db.Families.Add(new Family { Slug = slug, Name = _name.Trim(), Password = _password.Trim() });
+            Db.Families.Add(new Family { Slug = slug, Name = _name.Trim(), Password = BCrypt.Net.BCrypt.HashPassword(_password.Trim()) });
             await Db.SaveChangesAsync();
             Nav.NavigateTo($"/{slug}/join", forceLoad: true);
         }
