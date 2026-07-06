@@ -1,5 +1,6 @@
 @page "/studio/{SongKey}"
 @rendermode InteractiveServer
+@implements IDisposable
 @inject StudioDbContext Db
 @inject StudioLibraryService Library
 @inject ChordAiService ChordAi
@@ -198,7 +199,7 @@ else if (_song is not null)
                 </div>
                 <textarea class="lyrics-editor" rows="14"
                           value="@_lyricsEdit"
-                          @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; AutoSave(); }"
+                          @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; SyncChordsFromLyrics(); AutoSave(); }"
                           placeholder="Brug [Am]ord for akkorder i teksten&#10;[Am]I hope you don't mind [F]I put down in words..."></textarea>
                 @if (!string.IsNullOrWhiteSpace(_lyricsEdit))
                 {
@@ -319,6 +320,15 @@ else if (_song is not null)
             {
                 <button class="btn-stop btn-stop--pulse" style="padding:6px 16px;font-size:0.9rem"
                         @onclick="StopRecording">⏹ @FormatRecTime(_recTimer)</button>
+                @if (_beat >= 0)
+                {
+                    <div class="beat-strip">
+                        @for (int b = 0; b < 4; b++)
+                        {
+                            <div class="beat-dot @(_beat == b ? "beat-dot--on" : "")">@(b + 1)</div>
+                        }
+                    </div>
+                }
             }
             @if (VocalGuide.IsAvailable)
             {
@@ -367,11 +377,11 @@ else if (_song is not null)
             </div>
         }
 
-        <!-- Chord overview (from chord chart) -->
-        @if (!string.IsNullOrWhiteSpace(_chordEdit))
+        <!-- Chord overview (from chord chart or inline lyrics) -->
+        @if (HasAnyChords)
         {
             <div class="perform-chord-overview">
-                @foreach (var line in _chordEdit.Split('\n'))
+                @foreach (var line in EffectiveChordSource.Split('\n'))
                 {
                     @if (!string.IsNullOrWhiteSpace(line))
                     {
@@ -601,6 +611,15 @@ else if (_song is not null)
                         @onclick="StopRecording">
                     ⏹ Stop (@FormatRecTime(_recTimer) / 10:00)
                 </button>
+                @if (_beat >= 0)
+                {
+                    <div class="beat-strip" style="justify-content:center;margin-top:14px">
+                        @for (int b = 0; b < 4; b++)
+                        {
+                            <div class="beat-dot @(_beat == b ? "beat-dot--on" : "")">@(b + 1)</div>
+                        }
+                    </div>
+                }
             }
         </div>
 
@@ -771,6 +790,35 @@ else if (_song is not null)
                         <span class="pattern-label">Strumming</span>
                         @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
                     </div>
+                }
+            </div>
+        }
+
+        <!-- Chord overview -->
+        @if (HasAnyChords)
+        {
+            <div class="perform-chord-overview">
+                @foreach (var line in EffectiveChordSource.Split('\n'))
+                {
+                    @if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        <div class="perform-chord-row">
+                            @foreach (var token in line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                @if (IsChord(token))
+                                {
+                                    var c = token;
+                                    <button class="perform-chord-btn @(_selectedChord == c ? "perform-chord-btn--active" : "")"
+                                            @onclick="() => SelectPerformChord(c)"
+                                            title="Klik for greb og overgang">@c</button>
+                                }
+                                else
+                                {
+                                    <span class="perform-section-chip">@token.TrimEnd(':')</span>
+                                }
+                            }
+                        </div>
+                    }
                 }
             </div>
         }
@@ -962,12 +1010,15 @@ else if (_song is not null)
     private bool _aiLoading;
     private string? _saveStatus;
     private System.Timers.Timer? _saveTimer;
+    private bool _disposed;
     private System.Timers.Timer? _recTimer_t;
     private int _recTimer;
 
     private bool _recording;
     private bool _videoMode;
     private List<RecordingFile> _recordings = [];
+    private int _beat = -1;
+    private System.Timers.Timer? _beatTimer;
 
     private string? _photoTarget;
     private bool _cameraOn;
@@ -1034,6 +1085,12 @@ else if (_song is not null)
         _strumEdit       = _song.StrumPattern;
         _loading         = false;
 
+        // Sync chord chart from inline lyrics chords (catches chords added since last save)
+        var prevChords = _chordEdit;
+        SyncChordsFromLyrics();
+        if (_chordEdit != prevChords)
+            AutoSave();
+
         _recordings = Library.GetRecordings(SongKey);
     }
 
@@ -1061,11 +1118,14 @@ else if (_song is not null)
         _saveTimer = new System.Timers.Timer(1200) { AutoReset = false };
         _saveTimer.Elapsed += async (_, _) =>
         {
+            if (_disposed) return;
             _song.UpdatedAt = DateTime.UtcNow;
-            await Db.SaveChangesAsync();
+            try { await Db.SaveChangesAsync(); } catch { return; }
+            if (_disposed) return;
             _saveStatus = "Gemt ✓";
             await InvokeAsync(StateHasChanged);
             await Task.Delay(1500);
+            if (_disposed) return;
             _saveStatus = null;
             await InvokeAsync(StateHasChanged);
         };
@@ -1146,10 +1206,41 @@ else if (_song is not null)
 
     // ── Recording ─────────────────────────────────────────────────────────────
 
+    private void StartBeatTimer()
+    {
+        _beatTimer?.Stop(); _beatTimer?.Dispose();
+        if (_song?.Tempo is not > 0) return;
+        _beat = 0;
+        var ms = (int)(60000.0 / _song.Tempo.Value);
+        _beatTimer = new System.Timers.Timer(ms) { AutoReset = true };
+        _beatTimer.Elapsed += async (_, _) =>
+        {
+            if (_disposed) return;
+            _beat = (_beat + 1) % 4;
+            await InvokeAsync(StateHasChanged);
+        };
+        _beatTimer.Start();
+    }
+
+    private void StopBeatTimer()
+    {
+        _beatTimer?.Stop(); _beatTimer?.Dispose();
+        _beatTimer = null;
+        _beat = -1;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _saveTimer?.Stop(); _saveTimer?.Dispose();
+        _beatTimer?.Stop(); _beatTimer?.Dispose();
+    }
+
     private async Task StartRecording()
     {
         _recording = true;
         StartRecTimer();
+        StartBeatTimer();
         try
         {
             await JS.InvokeVoidAsync("studio.startRecording", SongKey, _videoMode);
@@ -1192,6 +1283,7 @@ else if (_song is not null)
     {
         _recording = true;
         StartRecTimer();
+        StartBeatTimer();
         try
         {
             await JS.InvokeVoidAsync("studio.startOverdub", SongKey, playUrl, _videoMode);
@@ -1228,6 +1320,7 @@ else if (_song is not null)
         _recTimer_t?.Dispose();
         _recording = false;
         _recTimer = 0;
+        StopBeatTimer();
         await JS.InvokeVoidAsync("studio.stopRecording");
         await Task.Delay(800);
         _recordings = Library.GetRecordings(SongKey);
@@ -1511,6 +1604,41 @@ else if (_song is not null)
             .Select(m => m.Groups[1].Value)
             .Distinct());
 
+    private void SyncChordsFromLyrics()
+    {
+        if (!HasInlineChords) return;
+        var rx = new System.Text.RegularExpressions.Regex(@"\[([A-G][^\]]*)\]");
+        var lines = new List<string>();
+        string? currentSection = null;
+        var sectionChords = new List<string>();
+
+        foreach (var rawLine in _lyricsEdit.Split('\n'))
+        {
+            if (IsSectionLabel(rawLine))
+            {
+                if (sectionChords.Count > 0)
+                    lines.Add((currentSection is not null ? currentSection + ": " : "") + string.Join(" ", sectionChords));
+                currentSection = rawLine.Trim('[', ']', ':', ' ');
+                sectionChords = [];
+            }
+            else
+            {
+                foreach (System.Text.RegularExpressions.Match m in rx.Matches(rawLine))
+                {
+                    var chord = m.Groups[1].Value;
+                    if (!sectionChords.Contains(chord))
+                        sectionChords.Add(chord);
+                }
+            }
+        }
+        if (sectionChords.Count > 0)
+            lines.Add((currentSection is not null ? currentSection + ": " : "") + string.Join(" ", sectionChords));
+
+        var synced = string.Join("\n", lines);
+        if (!string.IsNullOrWhiteSpace(synced))
+            _chordEdit = synced;
+    }
+
     // ── Chord annotation ──────────────────────────────────────────────────────
 
     private async Task AiAnnotateChords()
@@ -1587,6 +1715,12 @@ else if (_song is not null)
     private bool HasInlineChords =>
         !string.IsNullOrWhiteSpace(_lyricsEdit) &&
         System.Text.RegularExpressions.Regex.IsMatch(_lyricsEdit, @"\[[A-G][^\]]*\]");
+
+    private string EffectiveChordSource =>
+        string.IsNullOrWhiteSpace(_chordEdit) ? ExtractChordsFromLyrics() : _chordEdit;
+
+    private bool HasAnyChords =>
+        !string.IsNullOrWhiteSpace(_chordEdit) || HasInlineChords;
 
     private static bool IsSectionLabel(string line)
     {

@@ -51,11 +51,38 @@
         </div>
     }
 
-    <!-- Step 3: Song name + create -->
+    <!-- Step 3: Tempo -->
     @if (_chosenPat is not null)
     {
         <div class="sw-section">
-            <div class="sw-step-label">3. Hvad skal sangen hedde?</div>
+            <div class="sw-step-label">3. Tempo</div>
+            <div class="sw-bpm-grid">
+                @foreach (var (label, bpm) in _tempos)
+                {
+                    var active = _chosenBpm == bpm;
+                    <button class="sw-bpm-chip @(active ? "sw-bpm-chip--active" : "")"
+                            @onclick="() => _chosenBpm = bpm">
+                        <div class="sw-bpm-num">@bpm</div>
+                        <div class="sw-bpm-label">@label</div>
+                    </button>
+                }
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+                <input class="sw-input" type="number" placeholder="Eget BPM..." min="40" max="240" style="max-width:160px"
+                       @onchange="e => { if (int.TryParse(e.Value?.ToString(), out var t)) _chosenBpm = t; }" />
+                @if (_chosenBpm.HasValue)
+                {
+                    <span style="font-size:13px;color:var(--muted)">@_chosenBpm BPM valgt</span>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Step 4: Song name + create -->
+    @if (_chosenPat is not null)
+    {
+        <div class="sw-section">
+            <div class="sw-step-label">4. Hvad skal sangen hedde?</div>
             <input class="sw-input" type="text" placeholder="Sangtitel..."
                    @bind="_title" @bind:event="oninput"
                    @onkeydown="OnKey" />
@@ -133,6 +160,14 @@
     }
     .sw-create-btn:disabled { opacity: .4; cursor: default; }
     .sw-create-btn:hover:not(:disabled) { background: #2563eb; }
+    .sw-bpm-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+    .sw-bpm-chip { background: var(--card); border: 2px solid var(--border); border-radius: 12px;
+                   padding: 12px 18px; cursor: pointer; color: var(--text); display: flex;
+                   flex-direction: column; align-items: center; gap: 2px; min-width: 80px; transition: border-color .15s; }
+    .sw-bpm-chip:hover { border-color: var(--accent); }
+    .sw-bpm-chip--active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+    .sw-bpm-num { font-size: 20px; font-weight: 800; }
+    .sw-bpm-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 </style>
 
 @code {
@@ -156,8 +191,18 @@
         new("Strumming kraftig", "↓↓ ↑↓ ↑↓ ↑",   "Stærk og drivende — god til kor"),
     ];
 
+    private readonly List<(string Label, int Bpm)> _tempos =
+    [
+        ("Langsom",  60),
+        ("Rolig",    80),
+        ("Moderat", 100),
+        ("Frisk",   120),
+        ("Hurtig",  140),
+    ];
+
     private Progression? _chosenProg;
     private PickStyle?   _chosenPat;
+    private int?         _chosenBpm;
     private string       _title   = "";
     private string       _error   = "";
     private bool         _creating;
@@ -198,10 +243,11 @@
 
         var song = new StudioSong
         {
-            Key             = key,
-            Title           = title,
-            ChordChart      = chordChart,
+            Key               = key,
+            Title             = title,
+            ChordChart        = chordChart,
             FingerpickPattern = _chosenPat.Notation,
+            Tempo             = _chosenBpm,
         };
 
         Db.Songs.Add(song);

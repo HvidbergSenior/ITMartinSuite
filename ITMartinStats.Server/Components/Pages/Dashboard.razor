@@ -1,0 +1,506 @@
+@page "/"
+@rendermode InteractiveServer
+@inject StatsDbContext Db
+@inject IConfiguration Config
+@inject IJSRuntime JS
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>ITMartin Analytics</PageTitle>
+
+@if (!_authed)
+{
+    <div class="login-wrap">
+        <div class="login-card">
+            <div class="login-icon">📊</div>
+            <h1 class="login-title">ITMartin Analytics</h1>
+            <input class="pin-input" type="password" placeholder="PIN..."
+                   @bind="_pin" @bind:event="oninput"
+                   @onkeydown="OnPinKey" autofocus />
+            @if (_pinError is not null)
+            {
+                <div class="pin-error">@_pinError</div>
+            }
+            <button class="pin-btn" @onclick="AuthAsync">Log ind</button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="dash">
+        <div class="dash-header">
+            <h1 class="dash-title">📊 Analytics — ITMartin.dk</h1>
+            <div class="period-tabs">
+                @foreach (var (label, days) in new[] { ("I dag", 1), ("7 dage", 7), ("30 dage", 30), ("Alt", 0) })
+                {
+                    <button class="period-tab @(_days == days ? "period-tab--on" : "")"
+                            @onclick="() => SetPeriod(days)">@label</button>
+                }
+            </div>
+        </div>
+
+        <!-- View tabs -->
+        <div class="view-tabs">
+            <button class="view-tab @(_view == "overview" ? "view-tab--on" : "")"
+                    @onclick='() => _view = "overview"'>Oversigt</button>
+            <button class="view-tab @(_view == "visitors" ? "view-tab--on" : "")"
+                    @onclick='() => _view = "visitors"'>Besøgende (@_uniqueVisitors)</button>
+        </div>
+
+        @if (_view == "overview")
+        {
+            <!-- Summary cards -->
+            <div class="cards-row">
+                <div class="stat-card">
+                    <div class="stat-val">@_totalViews</div>
+                    <div class="stat-lbl">Sidevisninger</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val">@_uniqueVisitors</div>
+                    <div class="stat-lbl">Unikke besøgende</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val">@_todayViews</div>
+                    <div class="stat-lbl">I dag</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val">@_mobilePercent%</div>
+                    <div class="stat-lbl">Mobilandel</div>
+                </div>
+            </div>
+
+            <!-- Daily bar chart -->
+            @if (_dailyCounts.Count > 0)
+            {
+                <div class="section-card">
+                    <div class="section-title">Besøg per dag</div>
+                    <div class="bar-chart">
+                        @{
+                            var maxVal = _dailyCounts.Max(d => d.Count);
+                            if (maxVal == 0) maxVal = 1;
+                        }
+                        @foreach (var (day, count) in _dailyCounts)
+                        {
+                            var pct = (int)(count * 100.0 / maxVal);
+                            <div class="bar-col">
+                                <div class="bar-tip">@(count > 0 ? count.ToString() : "")</div>
+                                <div class="bar" style="height:@(Math.Max(pct,2))%"></div>
+                                <div class="bar-lbl">@day.ToString("d/M")</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="two-col">
+                <!-- Top pages -->
+                <div class="section-card">
+                    <div class="section-title">Populæreste sider</div>
+                    @if (_topPages.Count == 0)
+                    {
+                        <div class="empty">Ingen data endnu</div>
+                    }
+                    @foreach (var (path, count) in _topPages)
+                    {
+                        var pct = _totalViews > 0 ? (int)(count * 100.0 / _totalViews) : 0;
+                        <div class="row-item">
+                            <div class="row-path">@(path.Length > 40 ? path[..40] + "…" : path)</div>
+                            <div class="row-bar-wrap">
+                                <div class="row-bar" style="width:@(Math.Max(pct,1))%"></div>
+                            </div>
+                            <div class="row-count">@count</div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Referrers + Devices -->
+                <div class="section-card">
+                    <div class="section-title">Trafikkilde</div>
+                    @if (_topRefs.Count == 0)
+                    {
+                        <div class="empty">Ingen data endnu</div>
+                    }
+                    @foreach (var (refHost, count) in _topRefs)
+                    {
+                        var pct = _totalViews > 0 ? (int)(count * 100.0 / _totalViews) : 0;
+                        <div class="row-item">
+                            <div class="row-path">@(string.IsNullOrEmpty(refHost) ? "Direkte" : refHost)</div>
+                            <div class="row-bar-wrap">
+                                <div class="row-bar row-bar--ref" style="width:@(Math.Max(pct,1))%"></div>
+                            </div>
+                            <div class="row-count">@count</div>
+                        </div>
+                    }
+
+                    <div class="section-title" style="margin-top:20px">Enhed</div>
+                    @foreach (var (dev, count) in _devices)
+                    {
+                        var pct = _totalViews > 0 ? (int)(count * 100.0 / _totalViews) : 0;
+                        <div class="row-item">
+                            <div class="row-path">@dev</div>
+                            <div class="row-bar-wrap">
+                                <div class="row-bar row-bar--dev" style="width:@(Math.Max(pct,1))%"></div>
+                            </div>
+                            <div class="row-count">@count (@pct%)</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Link clicks -->
+            @if (_topClicks.Count > 0)
+            {
+                <div class="section-card">
+                    <div class="section-title">Link-klik</div>
+                    @foreach (var (path, count) in _topClicks)
+                    {
+                        var maxC = _topClicks.Max(x => x.Count);
+                        var bar = maxC > 0 ? (int)(count * 100.0 / maxC) : 0;
+                        <div class="row-item">
+                            <div class="row-path">@(path.Length > 50 ? path[..50] + "…" : path)</div>
+                            <div class="row-bar-wrap">
+                                <div class="row-bar row-bar--click" style="width:@(Math.Max(bar,1))%"></div>
+                            </div>
+                            <div class="row-count">@count</div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Recent hits -->
+            <div class="section-card">
+                <div class="section-title">Seneste besøg</div>
+                <table class="recent-table">
+                    <thead>
+                        <tr><th>Tid</th><th>Side</th><th>Enhed</th><th>Kilde</th><th>Besøgende</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var h in _recent)
+                        {
+                            var shortVid = string.IsNullOrEmpty(h.VisitorId) ? "–" : "#" + h.VisitorId[..Math.Min(6, h.VisitorId.Length)];
+                            <tr>
+                                <td class="td-time">@h.CreatedAt.ToLocalTime().ToString("HH:mm")</td>
+                                <td class="td-path">@(h.Path.Length > 50 ? h.Path[..50] + "…" : h.Path)</td>
+                                <td class="td-dev">@h.Device</td>
+                                <td class="td-ref">@(string.IsNullOrEmpty(h.Referrer) ? "–" : h.Referrer)</td>
+                                <td class="td-vid">
+                                    <button class="vid-btn" @onclick="() => ShowVisitor(h.VisitorId)">@shortVid</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (_view == "visitors")
+        {
+            @if (_selectedVisitorId is not null)
+            {
+                <!-- Visitor detail view -->
+                <div class="section-card">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                        <button class="back-btn" @onclick="ClearVisitor">← Alle besøgende</button>
+                        <div class="section-title" style="margin:0">Besøgende #@_selectedVisitorId[..Math.Min(6, _selectedVisitorId.Length)]</div>
+                    </div>
+                    <div class="visitor-meta">
+                        <span>@_visitorDetail.Count besøg</span>
+                        <span>Første: @(_visitorDetail.Count > 0 ? _visitorDetail.Min(h => h.CreatedAt).ToLocalTime().ToString("d. MMM yyyy HH:mm") : "–")</span>
+                        <span>Seneste: @(_visitorDetail.Count > 0 ? _visitorDetail.Max(h => h.CreatedAt).ToLocalTime().ToString("d. MMM yyyy HH:mm") : "–")</span>
+                        <span>Enhed: @(_visitorDetail.FirstOrDefault()?.Device ?? "–")</span>
+                    </div>
+                    <table class="recent-table" style="margin-top:12px">
+                        <thead>
+                            <tr><th>Tid</th><th>Side</th><th>Titel</th><th>Kilde</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var h in _visitorDetail.OrderByDescending(h => h.CreatedAt))
+                            {
+                                <tr>
+                                    <td class="td-time">@h.CreatedAt.ToLocalTime().ToString("d/M HH:mm")</td>
+                                    <td class="td-path">@(h.Path.Length > 40 ? h.Path[..40] + "…" : h.Path)</td>
+                                    <td class="td-path" style="color:#94a3b8">@(h.Title.Length > 40 ? h.Title[..40] + "…" : h.Title)</td>
+                                    <td class="td-ref">@(string.IsNullOrEmpty(h.Referrer) ? "–" : h.Referrer)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <!-- Visitor list -->
+                <div class="section-card">
+                    <div class="section-title">Besøgende — @_days @(_days == 1 ? "dag" : "dage")@(_days == 0 ? " (alt)" : "")</div>
+                    @if (_visitorList.Count == 0)
+                    {
+                        <div class="empty">Ingen besøgende endnu — VisitorId gemmes i localStorage fra besøg via martin.itmartin.dk</div>
+                    }
+                    <table class="recent-table">
+                        <thead>
+                            <tr><th>Besøgende</th><th>Besøg</th><th>Sider</th><th>Første besøg</th><th>Seneste besøg</th><th>Enhed</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in _visitorList)
+                            {
+                                var shortVid = string.IsNullOrEmpty(v.VisitorId) ? "Anonym" : "#" + v.VisitorId[..Math.Min(6, v.VisitorId.Length)];
+                                <tr style="cursor:pointer" @onclick="() => ShowVisitor(v.VisitorId)">
+                                    <td class="td-vid"><button class="vid-btn">@shortVid</button></td>
+                                    <td class="td-count">@v.Visits</td>
+                                    <td class="td-count">@v.UniquePaths</td>
+                                    <td class="td-time">@v.FirstSeen.ToLocalTime().ToString("d/M HH:mm")</td>
+                                    <td class="td-time">@v.LastSeen.ToLocalTime().ToString("d/M HH:mm")</td>
+                                    <td class="td-dev">@v.Device</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </div>
+}
+
+<style>
+    /* Login */
+    .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; }
+    .login-card { background:#1e293b; border:1px solid #334155; border-radius:20px; padding:40px; display:flex; flex-direction:column; align-items:center; gap:16px; width:320px; }
+    .login-icon { font-size:48px; }
+    .login-title { font-size:20px; font-weight:800; color:#f1f5f9; margin:0; }
+    .pin-input { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px 16px; color:#f1f5f9; font-size:20px; text-align:center; width:100%; letter-spacing:.2em; outline:none; }
+    .pin-input:focus { border-color:#3b82f6; }
+    .pin-error { color:#ef4444; font-size:13px; }
+    .pin-btn { background:#3b82f6; color:#fff; border:none; border-radius:10px; padding:12px; font-size:15px; font-weight:700; cursor:pointer; width:100%; }
+    .pin-btn:hover { background:#2563eb; }
+
+    /* Dashboard */
+    .dash { max-width:960px; margin:0 auto; padding:24px 16px 80px; display:flex; flex-direction:column; gap:20px; }
+    .dash-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    .dash-title { font-size:22px; font-weight:900; color:#f1f5f9; margin:0; }
+    .period-tabs { display:flex; gap:6px; }
+    .period-tab { background:#1e293b; border:1px solid #334155; border-radius:8px; padding:6px 14px; color:#94a3b8; font-size:13px; font-weight:600; cursor:pointer; }
+    .period-tab--on { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+    .view-tabs { display:flex; gap:0; border-bottom:2px solid #334155; }
+    .view-tab { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:10px 20px; color:#64748b; font-size:14px; font-weight:600; cursor:pointer; }
+    .view-tab--on { color:#f1f5f9; border-bottom-color:#3b82f6; }
+
+    /* Stat cards */
+    .cards-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    @@media(max-width:640px){ .cards-row { grid-template-columns:repeat(2,1fr); } }
+    .stat-card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px 18px; }
+    .stat-val { font-size:28px; font-weight:900; color:#f1f5f9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .stat-lbl { font-size:12px; color:#64748b; margin-top:4px; text-transform:uppercase; letter-spacing:.07em; font-weight:600; }
+
+    /* Bar chart */
+    .section-card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px 20px; }
+    .section-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#64748b; margin-bottom:14px; }
+    .bar-chart { display:flex; align-items:flex-end; gap:4px; height:120px; overflow:hidden; }
+    .bar-col { display:flex; flex-direction:column; align-items:center; gap:2px; flex:1; height:100%; justify-content:flex-end; }
+    .bar-tip { font-size:10px; color:#64748b; }
+    .bar { width:100%; background:#3b82f6; border-radius:3px 3px 0 0; min-height:2px; transition:height .3s; }
+    .bar-lbl { font-size:10px; color:#64748b; writing-mode:vertical-rl; transform:rotate(180deg); max-height:36px; overflow:hidden; }
+
+    /* Two col */
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @@media(max-width:640px){ .two-col { grid-template-columns:1fr; } }
+
+    /* Row items */
+    .row-item { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #0f172a; }
+    .row-item:last-child { border-bottom:none; }
+    .row-path { font-size:13px; color:#cbd5e1; min-width:0; flex-shrink:0; width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .row-bar-wrap { flex:1; height:8px; background:#0f172a; border-radius:4px; overflow:hidden; }
+    .row-bar { height:100%; background:#3b82f6; border-radius:4px; }
+    .row-bar--ref { background:#8b5cf6; }
+    .row-bar--dev { background:#10b981; }
+    .row-bar--click { background:#f59e0b; }
+    .row-count { font-size:13px; color:#94a3b8; width:40px; text-align:right; flex-shrink:0; }
+    .empty { font-size:13px; color:#64748b; padding:8px 0; }
+
+    /* Tables */
+    .recent-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .recent-table th { color:#64748b; font-weight:600; text-align:left; padding:4px 8px; border-bottom:1px solid #334155; }
+    .recent-table td { color:#cbd5e1; padding:5px 8px; border-bottom:1px solid #0f172a; }
+    .recent-table tr:hover td { background:#243044; }
+    .td-time { color:#64748b; white-space:nowrap; }
+    .td-path { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .td-dev { color:#64748b; white-space:nowrap; }
+    .td-ref { color:#64748b; white-space:nowrap; }
+    .td-count { color:#f1f5f9; font-weight:700; text-align:center; }
+    .td-vid { white-space:nowrap; }
+    .vid-btn { background:none; border:1px solid #334155; border-radius:6px; padding:2px 8px; color:#94a3b8; font-size:12px; font-family:monospace; cursor:pointer; }
+    .vid-btn:hover { border-color:#3b82f6; color:#3b82f6; }
+    .back-btn { background:#1e293b; border:1px solid #334155; border-radius:8px; padding:6px 12px; color:#94a3b8; font-size:13px; font-weight:600; cursor:pointer; }
+    .back-btn:hover { border-color:#3b82f6; color:#f1f5f9; }
+    .visitor-meta { display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:#64748b; }
+    .visitor-meta span { white-space:nowrap; }
+</style>
+
+@code {
+    private bool _authed;
+    private string _pin = "";
+    private string? _pinError;
+    private int _days = 7;
+    private string _view = "overview";
+
+    private int _totalViews;
+    private int _uniqueVisitors;
+    private int _todayViews;
+    private int _mobilePercent;
+    private List<(string Path, int Count)> _topPages = [];
+    private List<(string Ref, int Count)> _topRefs = [];
+    private List<(string Dev, int Count)> _devices = [];
+    private List<(DateTime Day, int Count)> _dailyCounts = [];
+    private List<(string Path, int Count)> _topClicks = [];
+    private List<PageHit> _recent = [];
+
+    record VisitorRow(string VisitorId, int Visits, int UniquePaths, DateTime FirstSeen, DateTime LastSeen, string Device);
+    private List<VisitorRow> _visitorList = [];
+    private string? _selectedVisitorId;
+    private List<PageHit> _visitorDetail = [];
+
+    private async Task OnPinKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AuthAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "stats_auth");
+            var correct = Config["Stats:AdminPin"] ?? "1234";
+            if (stored == correct)
+            {
+                _authed = true;
+                await LoadAsync();
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private async Task AuthAsync()
+    {
+        var correct = Config["Stats:AdminPin"] ?? "1234";
+        if (_pin == correct)
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "stats_auth", correct);
+            _authed = true;
+            await LoadAsync();
+        }
+        else { _pinError = "Forkert PIN"; }
+    }
+
+    private async Task SetPeriod(int days)
+    {
+        _days = days;
+        _selectedVisitorId = null;
+        await LoadAsync();
+    }
+
+    private async Task ShowVisitor(string? visitorId)
+    {
+        if (string.IsNullOrEmpty(visitorId)) return;
+        _selectedVisitorId = visitorId;
+        _view = "visitors";
+        _visitorDetail = await Db.Hits
+            .AsNoTracking()
+            .Where(h => h.VisitorId == visitorId)
+            .OrderByDescending(h => h.CreatedAt)
+            .ToListAsync();
+    }
+
+    private void ClearVisitor()
+    {
+        _selectedVisitorId = null;
+        _visitorDetail = [];
+    }
+
+    private async Task LoadAsync()
+    {
+        var since = _days == 0
+            ? DateTime.UtcNow.AddYears(-10)
+            : DateTime.UtcNow.AddDays(-_days);
+
+        var todayUtc = DateTime.UtcNow.Date;
+
+        // All queries run in SQLite — nothing loaded into memory for aggregation
+        var pageQ  = Db.Hits.AsNoTracking().Where(h => h.CreatedAt >= since && !EF.Functions.Like(h.Path, "click:%"));
+        var clickQ = Db.Hits.AsNoTracking().Where(h => h.CreatedAt >= since && EF.Functions.Like(h.Path, "click:%"));
+
+        _totalViews     = await pageQ.CountAsync();
+        _todayViews     = await pageQ.Where(h => h.CreatedAt >= todayUtc).CountAsync();
+        _uniqueVisitors = await pageQ.Where(h => h.VisitorId != "").Select(h => h.VisitorId).Distinct().CountAsync();
+
+        var mobileCount = await pageQ.Where(h => h.Device == "mobil").CountAsync();
+        _mobilePercent  = _totalViews > 0 ? (int)(mobileCount * 100.0 / _totalViews) : 0;
+
+        var raw = await pageQ
+            .GroupBy(h => h.Path)
+            .Select(g => new { Path = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count).Take(10)
+            .ToListAsync();
+        _topPages = raw.Select(x => (x.Path, x.Count)).ToList();
+
+        var rawRef = await pageQ
+            .GroupBy(h => h.Referrer)
+            .Select(g => new { Ref = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count).Take(8)
+            .ToListAsync();
+        _topRefs = rawRef.Select(x => (x.Ref, x.Count)).ToList();
+
+        var rawDev = await pageQ
+            .GroupBy(h => h.Device)
+            .Select(g => new { Dev = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+        _devices = rawDev.Select(x => (x.Dev, x.Count)).ToList();
+
+        var rawClick = await clickQ
+            .GroupBy(h => h.Path)
+            .Select(g => new { Path = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count).Take(10)
+            .ToListAsync();
+        _topClicks = rawClick.Select(x => (x.Path.Length > 6 ? x.Path[6..] : x.Path, x.Count)).ToList();
+
+        // Only load 30 full rows for the recent feed
+        _recent = await pageQ.OrderByDescending(h => h.CreatedAt).Take(30).ToListAsync();
+
+        // Visitor list — aggregated in DB, just load timestamps for device (last device)
+        var rawVis = await pageQ
+            .Where(h => h.VisitorId != "")
+            .GroupBy(h => h.VisitorId)
+            .Select(g => new {
+                VisitorId = g.Key,
+                Visits    = g.Count(),
+                FirstSeen = g.Min(h => h.CreatedAt),
+                LastSeen  = g.Max(h => h.CreatedAt),
+            })
+            .OrderByDescending(v => v.LastSeen)
+            .ToListAsync();
+
+        // Fetch latest device per visitor with a single query
+        var visitorIds = rawVis.Select(v => v.VisitorId).ToList();
+        var latestDevices = await Db.Hits
+            .AsNoTracking()
+            .Where(h => visitorIds.Contains(h.VisitorId))
+            .GroupBy(h => h.VisitorId)
+            .Select(g => new { VisitorId = g.Key, Device = g.OrderByDescending(h => h.CreatedAt).Select(h => h.Device).FirstOrDefault() })
+            .ToDictionaryAsync(x => x.VisitorId, x => x.Device ?? "");
+
+        _visitorList = rawVis.Select(v => new VisitorRow(
+            v.VisitorId, v.Visits, 0, v.FirstSeen, v.LastSeen,
+            latestDevices.GetValueOrDefault(v.VisitorId, ""))).ToList();
+
+        // Daily chart — load only timestamps, group in memory (small list, just dates)
+        var chartDays = Math.Min(_days == 0 ? 30 : _days, 30);
+        var startDay  = todayUtc.AddDays(-(chartDays - 1));
+        var dates     = await pageQ
+            .Where(h => h.CreatedAt >= startDay)
+            .Select(h => h.CreatedAt)
+            .ToListAsync();
+        _dailyCounts = Enumerable.Range(0, chartDays)
+            .Select(i => startDay.AddDays(i))
+            .Select(d => (d, dates.Count(dt => dt.Date == d)))
+            .ToList();
+    }
+}

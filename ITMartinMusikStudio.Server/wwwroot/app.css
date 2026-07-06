@@ -297,6 +297,19 @@ html, body {
 .btn-stop--warn { background: #7c2d12; border-color: #f97316; color: #f97316; }
 .btn-stop--pulse { animation: pulse-red 1.2s ease-in-out infinite; color: #fca5a5; }
 
+.beat-strip { display: flex; gap: 8px; align-items: center; }
+.beat-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+    background: #1e293b; border: 2px solid #334155; color: #475569;
+    transition: background .04s, border-color .04s, color .04s, box-shadow .04s;
+}
+.beat-dot--on {
+    background: #ef4444; border-color: #ef4444; color: #fff;
+    box-shadow: 0 0 12px rgba(239,68,68,.7);
+}
+
 .rec-count { font-size: 11px; color: var(--muted); }
 .rec-list { display: flex; flex-direction: column; gap: 10px; }
 .rec-item {
