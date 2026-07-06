@@ -87,3 +87,4 @@ ITMartinLibrary.Server/data/shelves/
 
 magic.env
 cloudflare.env
+docker-compose.yaml

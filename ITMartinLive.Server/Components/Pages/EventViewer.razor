@@ -1,0 +1,55 @@
+@page "/e/{Slug}"
+@inject LiveService Live
+
+@{
+    var ev = Live.Get(Slug ?? "");
+}
+
+@if (ev is null)
+{
+    <div class="empty-state">📡 Begivenhed ikke fundet</div>
+}
+else
+{
+    <div id="page-data" data-page="viewer" data-slug="@Slug" style="display:none"></div>
+
+    <div class="viewer">
+        <div class="viewer-hdr">
+            <a href="/" class="ghost-btn">← Alle</a>
+            <div class="viewer-hdr-center">
+                <span class="live-dot"></span>
+                <span id="v-name">@ev.SportEmoji @ev.Name</span>
+                <span id="v-score" style="@(string.IsNullOrEmpty(ev.HeaderText) ? "display:none" : "")">@ev.HeaderText</span>
+            </div>
+            <div class="viewer-hdr-right">
+                <span id="v-count">👁️ @ev.ViewerCount</span>
+                <button class="ghost-btn notify-btn" id="v-notify-btn" onclick="toggleNotifications()">🔔</button>
+            </div>
+        </div>
+
+        <div id="float-zone" class="float-zone"></div>
+
+        <div id="v-feed" class="feed">
+            <div class="empty-state" style="padding:40px 0">⏳ Indlæser...</div>
+        </div>
+
+        <div class="fab-bar">
+            <button class="fab" onclick="openMsgModal()">💬 Send besked</button>
+        </div>
+
+        <div id="msg-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeMsgModal()">
+            <div class="modal" onclick="event.stopPropagation()">
+                <div class="modal-title">Send en besked til kommentatoren</div>
+                <input id="msg-author" class="field" placeholder="Dit navn (valgfrit)" maxlength="40" />
+                <textarea id="msg-text" class="field" placeholder="Din besked..." rows="3" maxlength="280"></textarea>
+                <div id="msg-sent" class="success-msg" style="display:none">✅ Sendt — venter på godkendelse</div>
+                <button id="msg-send-btn" class="primary-btn" onclick="sendViewerMsg()">Send</button>
+                <button class="ghost-btn" onclick="closeMsgModal()">Luk</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Slug { get; set; }
+}

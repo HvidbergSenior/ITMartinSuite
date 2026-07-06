@@ -1,0 +1,23 @@
+@page "/login"
+@layout ITMartinBudget.Server.Layout.EmptyLayout
+
+<PageTitle>Log ind – Budget</PageTitle>
+
+<div class="login-wrap">
+    <div class="login-box">
+        <div class="login-icon">💰</div>
+        <div class="login-title">Budget</div>
+        @if (Error == "1")
+        {
+            <div class="login-error">Forkert PIN – prøv igen</div>
+        }
+        <form method="post" action="/api/auth/login">
+            <input type="password" name="pin" class="login-field" placeholder="PIN-kode" autofocus maxlength="30" />
+            <button type="submit" class="login-btn">Log ind</button>
+        </form>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+}

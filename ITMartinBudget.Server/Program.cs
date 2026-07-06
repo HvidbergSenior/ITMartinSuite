@@ -105,6 +105,45 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
+var adminPin = app.Configuration["Budget__AdminPin"] ?? "budget2025";
+
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value ?? "";
+    var bypass = path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+              || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase);
+    if (bypass || (ctx.Request.Cookies.TryGetValue("budget_auth", out var v) && v == adminPin))
+    {
+        await next();
+        return;
+    }
+    ctx.Response.Redirect("/login");
+});
+
+app.MapPost("/api/auth/login", (HttpContext ctx, [Microsoft.AspNetCore.Mvc.FromForm] string pin) =>
+{
+    if (pin == adminPin)
+    {
+        ctx.Response.Cookies.Append("budget_auth", adminPin, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure   = true,
+            SameSite = SameSiteMode.Strict,
+            MaxAge   = TimeSpan.FromDays(30)
+        });
+        return Results.Redirect("/");
+    }
+    return Results.Redirect("/login?error=1");
+}).DisableAntiforgery();
+
+app.MapGet("/api/auth/logout", (HttpContext ctx) =>
+{
+    ctx.Response.Cookies.Delete("budget_auth");
+    return Results.Redirect("/login");
+});
+
 app.UseAntiforgery();
 
 // =========================

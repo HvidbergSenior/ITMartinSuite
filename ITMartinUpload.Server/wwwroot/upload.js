@@ -3,7 +3,7 @@ const MAX_CONCURRENT = 3;
 const _queue = [];
 let _running = 0;
 
-export function init(dropZoneId, inputId, slug, dotNetRef) {
+export function init(dropZoneId, inputId, slug, token, dotNetRef) {
     const dz = document.getElementById(dropZoneId);
     const fi = document.getElementById(inputId);
 
@@ -20,21 +20,21 @@ export function init(dropZoneId, inputId, slug, dotNetRef) {
         e.preventDefault();
         dz.classList.remove('dragover');
         const files = Array.from(e.dataTransfer.files).filter(f => f.size > 0);
-        if (files.length > 0) enqueue(files, slug, dotNetRef);
+        if (files.length > 0) enqueue(files, slug, token, dotNetRef);
     });
 
     fi.addEventListener('change', () => {
         const files = Array.from(fi.files).filter(f => f.size > 0);
-        if (files.length > 0) enqueue(files, slug, dotNetRef);
+        if (files.length > 0) enqueue(files, slug, token, dotNetRef);
         fi.value = '';
     });
 }
 
-async function enqueue(files, slug, dotNetRef) {
+async function enqueue(files, slug, token, dotNetRef) {
     const infos = files.map(f => ({ name: f.name, size: f.size }));
     const ids = await dotNetRef.invokeMethodAsync('AddFiles', infos);
     for (let i = 0; i < files.length; i++) {
-        _queue.push({ file: files[i], id: ids[i], slug, dotNetRef });
+        _queue.push({ file: files[i], id: ids[i], slug, token, dotNetRef });
     }
     drain();
 }
@@ -50,7 +50,7 @@ function drain() {
     }
 }
 
-async function uploadOne({ file, id, slug, dotNetRef }) {
+async function uploadOne({ file, id, slug, token, dotNetRef }) {
     await dotNetRef.invokeMethodAsync('OnStart', id);
 
     return new Promise(resolve => {
@@ -79,7 +79,8 @@ async function uploadOne({ file, id, slug, dotNetRef }) {
         xhr.addEventListener('error', () => finish(false, 'Netværksfejl – tjek forbindelsen'));
         xhr.addEventListener('abort', () => finish(false, 'Annulleret'));
 
-        xhr.open('POST', `/api/upload/${encodeURIComponent(slug)}`);
+        const url = `/api/upload/${encodeURIComponent(slug)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+        xhr.open('POST', url);
         xhr.send(form);
     });
 }

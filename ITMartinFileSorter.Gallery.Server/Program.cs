@@ -91,7 +91,7 @@ app.MapPost("/api/login", (LoginRequest req, HttpContext ctx) =>
     {
         ctx.Response.Cookies.Append($"gallery_{req.Gallery}", req.Password ?? "", new CookieOptions
         {
-            HttpOnly = true,
+            HttpOnly = false,
             SameSite = SameSiteMode.Strict,
             MaxAge   = TimeSpan.FromDays(30),
         });

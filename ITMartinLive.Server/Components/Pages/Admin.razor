@@ -1,0 +1,66 @@
+@page "/admin"
+@inject LiveService Live
+
+@if (!_auth)
+{
+    <div class="pin-gate">
+        <div class="pin-box">
+            <div class="pin-title">⚙️ Admin</div>
+            <form method="get" action="/admin">
+                <input name="pin" class="field" type="password" placeholder="Admin PIN" maxlength="20" autofocus />
+                @if (_pinError) { <div class="error-msg">Forkert PIN</div> }
+                <button type="submit" class="primary-btn">Log ind</button>
+                <a href="/" class="ghost-btn" style="margin-top:8px;display:block;text-align:center">← Tilbage</a>
+            </form>
+        </div>
+    </div>
+}
+else
+{
+    <div id="page-data" data-page="admin" data-pin="@PinParam" style="display:none"></div>
+
+    <div class="admin-page">
+        <div class="viewer-hdr">
+            <a href="/" class="ghost-btn">← Hjem</a>
+            <span style="font-weight:700">⚙️ Admin</span>
+        </div>
+
+        <div class="admin-card">
+            <div class="section-label">Ny begivenhed</div>
+            <input class="field" id="a-name" placeholder="Navn (f.eks. Tour de France etape 8)" />
+            <div class="emoji-row" id="emoji-row">
+                @foreach (var e in _sportEmojis)
+                {
+                    <button class="emoji-pick @(e == "🏆" ? "emoji-active" : "")" data-emoji="@e" onclick="pickEmoji(this)">@e</button>
+                }
+            </div>
+            <input type="hidden" id="a-emoji" value="🏆" />
+            <input class="field" id="a-slug" placeholder="URL-slug (f.eks. tdf-etape8)" />
+            <input class="field" id="a-pin-val" placeholder="Writer-PIN (giv til kommentator)" />
+            <div id="a-error" class="error-msg" style="display:none"></div>
+            <button class="primary-btn" onclick="createEvent()">Opret begivenhed</button>
+        </div>
+
+        <div class="admin-card">
+            <div class="section-label">Alle begivenheder</div>
+            <div id="a-events"><div class="empty-state">⏳ Indlæser...</div></div>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "pin")]
+    public string? PinParam { get; set; }
+
+    private bool _auth;
+    private bool _pinError;
+
+    private static readonly string[] _sportEmojis =
+        ["🏆", "⚽", "🚴", "🏊", "🎾", "🏀", "🏈", "🏒", "🥊", "🏋️", "🎿", "🏇", "🥇", "🏟️"];
+
+    protected override void OnInitialized()
+    {
+        if (PinParam == Live.AdminPin) _auth = true;
+        else if (PinParam is not null) _pinError = true;
+    }
+}

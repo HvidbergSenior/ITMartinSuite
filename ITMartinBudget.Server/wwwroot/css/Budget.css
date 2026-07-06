@@ -1645,5 +1645,16 @@ h3 {
 .toast { padding:.65rem 1.1rem; border-radius:10px; font-weight:600; font-size:.875rem; animation:toast-in .2s ease; max-width:280px; pointer-events:auto; }
 .toast-success { background:#22c55e; color:white; }
 .toast-error   { background:#ef4444; color:white; }
+
+/* ── Login page ───────────────────────────────────── */
+.login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg); }
+.login-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:2rem 2.5rem; width:100%; max-width:340px; display:flex; flex-direction:column; gap:1rem; }
+.login-icon { font-size:2.5rem; text-align:center; }
+.login-title { font-size:1.4rem; font-weight:700; text-align:center; color:var(--text); }
+.login-error { background:#3b1212; border:1px solid var(--red); color:var(--red); border-radius:8px; padding:.6rem 1rem; font-size:.875rem; text-align:center; }
+.login-field { width:100%; background:var(--card-light); border:1px solid var(--border); border-radius:10px; padding:.75rem 1rem; color:var(--text); font-size:1rem; box-sizing:border-box; }
+.login-field:focus { outline:none; border-color:#4f6ef7; }
+.login-btn { width:100%; background:#4f6ef7; color:white; border:none; border-radius:10px; padding:.8rem; font-size:1rem; font-weight:600; cursor:pointer; }
+.login-btn:hover { background:#3b5be0; }
 .toast-info    { background:#3b82f6; color:white; }
 @keyframes toast-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }

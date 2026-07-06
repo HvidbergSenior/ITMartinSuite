@@ -45,6 +45,7 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .file-thumb{width:100%;height:100%;object-fit:cover}
 .file-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px}
 .vid-overlay{background:rgba(0,0,0,.4)}
+.file-tv{position:absolute;top:5px;right:5px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:13px;cursor:pointer;z-index:2;text-decoration:none;line-height:1.5}
 
 /* Empty */
 .empty{text-align:center;padding:60px 20px;color:#4b5563;font-size:15px}
@@ -128,6 +129,7 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="v-btn" onclick="closeViewer()">📁 Mappe</button>
     <button class="v-btn" onclick="goHome()">🏠</button>
     <div class="v-title" id="vTitle"></div>
+    <a class="v-btn" id="vTvBtn" style="display:none;text-decoration:none" target="_blank" title="Åbn i native afspiller (AirPlay)">📺</a>
   </div>
   <div class="v-stage" id="vStage">
     <div class="v-zone left"  onclick="viewerNav(-1)"></div>
@@ -293,10 +295,12 @@ function renderBrowse(data, galleryName) {
       if (f.isVideo) return `
         <div class="file-card" onclick="openViewer(${i})">
           <div class="file-overlay vid-overlay">▶</div>
+          <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
         </div>`;
       if (f.isAudio) return `
         <div class="file-card" onclick="openViewer(${i})">
           <div class="file-overlay">🎵</div>
+          <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
         </div>`;
       return `
         <div class="file-card" onclick="openViewer(${i})">
@@ -342,8 +346,16 @@ function renderViewer() {
   if (!playlist.length) return;
   const f = playlist[playIdx];
 
-  document.getElementById('vTitle').textContent   = f.name;
+  document.getElementById('vTitle').textContent   = f.name.replace(/\.[^.]+$/, '');
   document.getElementById('vCounter').textContent = `${playIdx + 1} / ${playlist.length}`;
+
+  const tvBtn = document.getElementById('vTvBtn');
+  if (f.isVideo || f.isAudio) {
+    tvBtn.href           = tvUrl(f.webPath);
+    tvBtn.style.display  = '';
+  } else {
+    tvBtn.style.display = 'none';
+  }
 
   const stage = document.getElementById('vStage');
   const old   = stage.querySelector('.v-media, .v-audio-bg');
@@ -357,12 +369,14 @@ function renderViewer() {
     el.autoplay    = true;
     el.playsinline = true;
     el.preload     = 'metadata';
+    el.setAttribute('x-webkit-airplay', 'allow');
     el.src         = f.webPath;
     el.onclick     = e => e.stopPropagation();
   } else if (f.isAudio) {
     el = document.createElement('div');
     el.className = 'v-audio-bg';
-    el.innerHTML = `<div class="v-audio-icon">🎵</div><div style="font-size:14px;color:#9ca3af">${esc(f.name)}</div><audio controls autoplay style="margin-top:8px;width:260px" src="${esc(f.webPath)}"></audio>`;
+    const shortName = f.name.replace(/\.[^.]+$/, '');
+    el.innerHTML = `<div class="v-audio-icon">🎵</div><div style="font-size:14px;color:#9ca3af;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">${esc(shortName)}</div><audio controls autoplay x-webkit-airplay="allow" style="margin-top:8px;width:260px" src="${esc(f.webPath)}"></audio>`;
   } else {
     el = document.createElement('img');
     el.className = 'v-media';
@@ -397,6 +411,16 @@ document.getElementById('btnGalleries').addEventListener('click', () => loadGall
 function esc(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getCookie(name) {
+  const m = document.cookie.match('(?:^|;)\\s*' + name + '=([^;]*)');
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+function tvUrl(webPath) {
+  const token = currentGallery ? getCookie('gallery_' + currentGallery) : null;
+  return token ? webPath + '?token=' + encodeURIComponent(token) : webPath;
 }
 </script>
 </body>

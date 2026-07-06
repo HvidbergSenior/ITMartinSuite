@@ -1,0 +1,48 @@
+@page "/"
+@inject LiveService Live
+
+<div class="home">
+    <div class="top-bar">
+        <div class="top-bar-brand"><span class="live-dot"></span> LIVE</div>
+        <a href="/admin" class="ghost-btn">⚙️</a>
+    </div>
+
+    @if (!_events.Any())
+    {
+        <div class="empty-state">
+            <div style="font-size:48px">📡</div>
+            <div>Ingen aktive begivenheder</div>
+        </div>
+    }
+    else
+    {
+        <div class="event-grid">
+            @foreach (var ev in _events)
+            {
+                <a href="/e/@ev.Slug" class="event-card">
+                    <div class="event-emoji">@ev.SportEmoji</div>
+                    <div class="event-info">
+                        <div class="event-name">@ev.Name</div>
+                        @if (!string.IsNullOrEmpty(ev.HeaderText))
+                        {
+                            <div class="event-header-text">@ev.HeaderText</div>
+                        }
+                        <div class="event-meta">
+                            <span>@ev.Updates.Count opdateringer</span>
+                            <span>👁️ @ev.ViewerCount</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<LiveEvent> _events = [];
+
+    protected override void OnInitialized()
+    {
+        _events = Live.GetActive();
+    }
+}

@@ -20,10 +20,14 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 var uploadRoot = builder.Configuration["UploadRoot"] ?? "/app/data";
+var uploadToken = builder.Configuration["Upload__Token"] ?? "";
 Directory.CreateDirectory(uploadRoot);
 
-app.MapPost("/api/upload/{slug}", async (string slug, HttpRequest request) =>
+app.MapPost("/api/upload/{slug}", async (string slug, string? token, HttpRequest request) =>
 {
+    if (!string.IsNullOrEmpty(uploadToken) && token != uploadToken)
+        return Results.Unauthorized();
+
     if (!IsValidSlug(slug)) return Results.BadRequest("Ugyldigt navn");
 
     var folder = Path.Combine(uploadRoot, slug.ToLowerInvariant());

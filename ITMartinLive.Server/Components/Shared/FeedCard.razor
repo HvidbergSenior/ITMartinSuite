@@ -1,0 +1,99 @@
+@inject IJSRuntime JS
+
+<div class="card card-@Update.Type.ToString().ToLower() @(Update.IsStarred ? "card-starred" : "")">
+
+    @if (Update.Type == UpdateType.Breaking)
+    {
+        <div class="card-breaking-label">🔴 BREAKING</div>
+    }
+    @if (Update.Type == UpdateType.Summary)
+    {
+        <div class="card-summary-label">📋 Opsummering</div>
+    }
+
+    @if (Update.Type == UpdateType.Score)
+    {
+        <div class="card-score">@Update.Text</div>
+    }
+    else if (Update.Type == UpdateType.Video && !string.IsNullOrEmpty(Update.VideoPath))
+    {
+        @if (!string.IsNullOrEmpty(Update.Text))
+        {
+            <div class="card-text">@Update.Text</div>
+        }
+        <video class="card-video" controls playsinline preload="metadata" x-webkit-airplay="allow">
+            <source src="@Update.VideoPath" />
+        </video>
+    }
+    else if (Update.Type == UpdateType.Poll && Update.PollOptions.Any())
+    {
+        <div class="card-text">@Update.Text</div>
+        <div class="poll">
+            @{ var total = Math.Max(1, Update.PollOptions.Sum(o => o.Votes)); }
+            @for (int i = 0; i < Update.PollOptions.Count; i++)
+            {
+                var idx = i;
+                var opt = Update.PollOptions[i];
+                var pct = (int)(opt.Votes * 100.0 / total);
+                <button class="poll-opt @(_votedPoll ? "voted" : "")" @onclick="() => Vote(idx)">
+                    <div class="poll-bar" style="width:@pct%"></div>
+                    <span class="poll-label">@opt.Text</span>
+                    <span class="poll-pct">@pct%</span>
+                </button>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="card-text">@Update.Text</div>
+    }
+
+    <div class="card-footer">
+        <span class="card-time">@Update.CreatedAt.ToLocalTime().ToString("HH:mm")</span>
+        <div class="reactions">
+            @foreach (var emoji in new[] { "👍", "🔥", "😱", "😢" })
+            {
+                var e = emoji;
+                var count = Update.Reactions.TryGetValue(e, out var c) ? c : 0;
+                <button class="reaction @(count > 0 ? "reaction-active" : "")" @onclick="() => React(e)">
+                    @e @if (count > 0) { <span>@count</span> }
+                </button>
+            }
+        </div>
+        @if (IsWriter)
+        {
+            <div class="writer-actions">
+                <button class="wbtn" @onclick="() => OnStar.InvokeAsync(Update.Id)" title="@(Update.IsStarred ? "Fjern pin" : "Pin øverst")">
+                    @(Update.IsStarred ? "📌" : "📍")
+                </button>
+                <button class="wbtn" @onclick="() => OnPush.InvokeAsync(Update)" title="Send push notifikation">🔔</button>
+                <button class="wbtn danger" @onclick="() => OnDelete.InvokeAsync(Update.Id)" title="Slet">🗑️</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public LiveUpdate   Update   { get; set; } = default!;
+    [Parameter]                 public bool         IsWriter { get; set; }
+    [Parameter]                 public EventCallback<(Guid, string)> OnReact  { get; set; }
+    [Parameter]                 public EventCallback<(Guid, int)>    OnVote   { get; set; }
+    [Parameter]                 public EventCallback<Guid>           OnStar   { get; set; }
+    [Parameter]                 public EventCallback<Guid>           OnDelete { get; set; }
+    [Parameter]                 public EventCallback<LiveUpdate>     OnPush   { get; set; }
+
+    private bool _votedPoll;
+
+    private async Task React(string emoji)
+    {
+        await OnReact.InvokeAsync((Update.Id, emoji));
+        await JS.InvokeVoidAsync("floatEmoji", emoji);
+    }
+
+    private async Task Vote(int idx)
+    {
+        if (_votedPoll) return;
+        _votedPoll = true;
+        await OnVote.InvokeAsync((Update.Id, idx));
+    }
+}

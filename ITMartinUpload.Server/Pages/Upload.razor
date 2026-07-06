@@ -3,8 +3,21 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IConfiguration Config
+@inject NavigationManager Nav
 
 <PageTitle>Upload – @Slug – ITMartin</PageTitle>
+
+@if (!_authorized)
+{
+    <div class="root">
+        <div class="header">
+            <div class="logo">🔒</div>
+            <h1 class="title">Adgang nægtet</h1>
+            <p class="sub">Ugyldig eller manglende adgangskode i URL'en. Kontakt Martin for at få det korrekte link.</p>
+        </div>
+    </div>
+    return;
+}
 
 <div class="root">
     <div class="header">
@@ -121,7 +134,9 @@
     private List<UploadFile> _uploads = [];
     private List<ExistingFile> _existing = [];
     private bool _loaded;
+    private bool _authorized = true;
     private string _uploadRoot = "/app/data";
+    private string _token = "";
 
     private IJSObjectReference? _js;
     private DotNetObjectReference<Upload>? _ref;
@@ -133,15 +148,24 @@
     protected override void OnInitialized()
     {
         _uploadRoot = Config["UploadRoot"] ?? "/app/data";
+        var uri = new Uri(Nav.Uri);
+        var qs = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        _token = qs["token"] ?? "";
+        var expectedToken = Config["Upload__Token"] ?? "";
+        if (!string.IsNullOrEmpty(expectedToken) && _token != expectedToken)
+        {
+            _authorized = false;
+            return;
+        }
         LoadExisting();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender || !_authorized) return;
         _ref = DotNetObjectReference.Create(this);
         _js = await JS.InvokeAsync<IJSObjectReference>("import", "/upload.js");
-        await _js.InvokeVoidAsync("init", "dz", "fi", Slug, _ref);
+        await _js.InvokeVoidAsync("init", "dz", "fi", Slug, _token, _ref);
     }
 
     [JSInvokable]
