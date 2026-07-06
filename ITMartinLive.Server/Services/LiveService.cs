@@ -10,14 +10,15 @@ public class LiveService
     private readonly string _dataFile = "/data/events.json";
     private readonly ILogger<LiveService> _logger;
 
-    public string AdminPin { get; } = "live2025";
+    public string AdminPin { get; }
 
     public event Action<string>? Changed;
     private void Notify(string slug) => Changed?.Invoke(slug);
 
-    public LiveService(ILogger<LiveService> logger)
+    public LiveService(ILogger<LiveService> logger, IConfiguration config)
     {
-        _logger = logger;
+        _logger  = logger;
+        AdminPin = config["Live__AdminPin"] ?? "live2025";
         Load();
     }
 
