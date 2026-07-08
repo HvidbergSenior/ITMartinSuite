@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Star Realms Score</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script src="js/starrealms.js"></script>
+    <div id="components-reconnect-modal">
+        <span class="reconnect-msg">🔄 Forbinder igen...</span>
+        <span class="reconnect-failed-msg">😴 Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+    </div>
+</body>
+</html>
