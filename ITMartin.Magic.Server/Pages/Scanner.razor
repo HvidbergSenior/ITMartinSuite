@@ -633,12 +633,25 @@
     private void AddFeedItem(string text, bool success, CardScanContext? result)
     {
         _recentResults.Insert(0, new ScanFeedItem(text, success, result));
-        if (_recentResults.Count > 5) _recentResults.RemoveAt(_recentResults.Count - 1);
+        if (_recentResults.Count > 10) _recentResults.RemoveAt(_recentResults.Count - 1);
     }
 
-    private void SelectFeedItem(ScanFeedItem item)
+    private async Task SelectFeedItem(ScanFeedItem item)
     {
-        if (item.Result is not null) _scanResult = item.Result;
+        if (item.Result is null) return;
+
+        _scanResult = item.Result;
+
+        // The detail panel only renders once the camera is stopped (by design - it
+        // shouldn't pop up mid-scan) - so tapping a card while still scanning needs to
+        // actually stop the camera too, otherwise the click visibly does nothing at all.
+        if (_cameraStarted)
+        {
+            try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+            _cameraStarted = false;
+        }
+
+        StateHasChanged();
     }
 
     private async Task Capture(bool background = false)
