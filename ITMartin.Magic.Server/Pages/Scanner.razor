@@ -149,31 +149,36 @@
             </div>
         </div>
 
-        <div class="scanner-buttons" style="gap:12px; align-items:center;">
+        <div class="scanner-buttons">
+
+            @if (_queuedCount > 0 || _completedCount > 0)
+            {
+                <div class="scanner-status-row">
+                    @if (_queuedCount > 0)
+                    {
+                        <span class="badge bg-info text-dark">
+                            🔄 @_queuedCount kort behandles...
+                        </span>
+                    }
+
+                    @if (_completedCount > 0)
+                    {
+                        <span class="badge bg-success">
+                            ✅ @_completedCount gemt denne session
+                        </span>
+
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAllResults">
+                            @(_showAllResults ? "Skjul alle kort" : "Vis alle scannede kort")
+                        </button>
+                    }
+                </div>
+            }
 
             <button class="btn btn-success btn-lg scan-button"
                     @onclick="() => Capture()"
                     disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
                 📷 Scan kort
             </button>
-
-            @if (_queuedCount > 0)
-            {
-                <span class="badge bg-info text-dark">
-                    🔄 @_queuedCount kort behandles...
-                </span>
-            }
-
-            @if (_completedCount > 0)
-            {
-                <span class="badge bg-success">
-                    ✅ @_completedCount gemt denne session
-                </span>
-
-                <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAllResults">
-                    @(_showAllResults ? "Skjul alle kort" : "Vis alle scannede kort")
-                </button>
-            }
 
         </div>
     }
@@ -209,9 +214,12 @@
         </div>
     }
 
-    @if (_scanResult != null)
+    @* Full result detail only shows once you stop scanning — a "scan session" (camera +
+       compact feed only, distraction-free) followed by a "results session" (full detail,
+       reviewed afterward) rather than the last result popping up mid-capture of the next card. *@
+    @if (_scanResult != null && !_cameraStarted)
     {
-        <div class="result-panel">
+        <div class="result-panel fade-in-panel">
 
             @if (_scanResult.ScryfallMatchResult != null)
             {
@@ -324,7 +332,7 @@
 
         </div>
     }
-    @if (_scanResult is { Failed: true })
+    @if (_scanResult is { Failed: true } && !_cameraStarted)
     {
         <div class="alert alert-warning mt-3">
             <strong>⚠️ Ikke genkendt</strong>
