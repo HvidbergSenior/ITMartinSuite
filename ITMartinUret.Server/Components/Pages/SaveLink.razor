@@ -1,0 +1,43 @@
+@page "/sag/{Id:guid}/gem-link/{Token:guid}"
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Gem dette link — ITMartinUret</PageTitle>
+
+<div class="wrap narrow">
+    <h1>Sag oprettet</h1>
+    @if (Pending)
+    {
+        <div class="warn-box">
+            Din sag afventer manuel gennemgang, fordi vores AI-tjek fandt noget der bør ses igennem først (f.eks. en påstand der ligner en anklage, eller personoplysninger om en navngivet person). Den vises ikke offentligt endnu.
+        </div>
+    }
+    <div class="warn-box">
+        <strong>Gem dette link!</strong> Det er den eneste måde, du kan tilføje opdateringer, uploade dokumenter eller slette sagen igen. Der er ingen login — mister du linket, mister du adgangen.
+    </div>
+    <div class="link-box">
+        <code>@ManageUrl</code>
+        <button class="btn-secondary" @onclick="Copy">Kopiér</button>
+    </div>
+    @if (_copied)
+    {
+        <div class="ok">Kopieret.</div>
+    }
+    <a class="btn-primary" style="text-align:center;text-decoration:none;display:inline-block" href="@($"/sag/{Id}")">Se din sag</a>
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [Parameter] public Guid Token { get; set; }
+    [SupplyParameterFromQuery] public bool Pending { get; set; }
+    private bool _copied;
+
+    private string ManageUrl => $"{Nav.BaseUri}sag/{Id}/administrer/{Token}";
+
+    private async Task Copy()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", ManageUrl);
+        _copied = true;
+    }
+}

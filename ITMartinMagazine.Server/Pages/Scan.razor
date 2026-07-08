@@ -40,6 +40,11 @@
                     🔵 @T("Tag billede", "Take Photo")
                 </button>
             }
+
+            <InputFile id="galleryInput" OnChange="OnGallerySelected" accept="image/*" style="display:none" />
+            <label for="galleryInput" class="btn-secondary">
+                🖼️ @T("Vælg billede fra enhed", "Choose Photo from Device")
+            </label>
         </div>
     }
 
@@ -214,29 +219,67 @@
             _capturedImagePath = Path.Combine(imagesRoot, filename);
             await File.WriteAllBytesAsync(_capturedImagePath, bytes);
 
-            // AI analysis
-            var aiResult = await AiService.IdentifyAsync(_capturedImagePath);
-
-            _form = new FormModel
-            {
-                Title = aiResult?.Title ?? "",
-                IssueDate = aiResult?.IssueDate ?? "",
-                Year = aiResult?.Year ?? DateTime.Now.Year,
-                Publisher = aiResult?.Publisher ?? "",
-                Country = aiResult?.Country ?? "Other",
-                Condition = aiResult?.Condition ?? "Good",
-                ValueRating = aiResult?.ValueRating ?? "Unknown",
-                AiReasoning = aiResult?.AiReasoning ?? "",
-                CoverImageFilename = filename
-            };
-
-            _phase = Phase.Editing;
+            await AnalyzeCapturedImageAsync(filename);
         }
         catch (Exception ex)
         {
             _cameraError = ex.Message;
             _phase = Phase.Camera;
         }
+    }
+
+    private async Task OnGallerySelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            _phase = Phase.Analyzing;
+            StateHasChanged();
+
+            const long maxFileSize = 20 * 1024 * 1024; // 20 MB, phone photos can be large
+            var file = e.File;
+
+            await using var stream = file.OpenReadStream(maxFileSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            var ext = file.ContentType switch
+            {
+                "image/png"  => ".png",
+                "image/webp" => ".webp",
+                _            => ".jpg"
+            };
+            var imagesRoot = Config["MagazineSettings:ImagesRoot"] ?? "/app/data/images";
+            var filename = $"{Guid.NewGuid():N}{ext}";
+            _capturedImagePath = Path.Combine(imagesRoot, filename);
+            await File.WriteAllBytesAsync(_capturedImagePath, ms.ToArray());
+
+            await AnalyzeCapturedImageAsync(filename);
+        }
+        catch (Exception ex)
+        {
+            _cameraError = ex.Message;
+            _phase = Phase.Camera;
+        }
+    }
+
+    private async Task AnalyzeCapturedImageAsync(string filename)
+    {
+        var aiResult = await AiService.IdentifyAsync(_capturedImagePath!);
+
+        _form = new FormModel
+        {
+            Title = aiResult?.Title ?? "",
+            IssueDate = aiResult?.IssueDate ?? "",
+            Year = aiResult?.Year ?? DateTime.Now.Year,
+            Publisher = aiResult?.Publisher ?? "",
+            Country = aiResult?.Country ?? "Other",
+            Condition = aiResult?.Condition ?? "Good",
+            ValueRating = aiResult?.ValueRating ?? "Unknown",
+            AiReasoning = aiResult?.AiReasoning ?? "",
+            CoverImageFilename = filename
+        };
+
+        _phase = Phase.Editing;
     }
 
     private async Task Save()

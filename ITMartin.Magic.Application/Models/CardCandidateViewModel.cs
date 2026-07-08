@@ -18,6 +18,8 @@ public sealed class CardCandidateViewModel
 
     public string SetName { get; set; } = string.Empty;
 
+    public string ReleasedAt { get; set; } = string.Empty;
+
     public decimal? EurPrice { get; set; }
 
     public decimal? EurFoilPrice { get; set; }

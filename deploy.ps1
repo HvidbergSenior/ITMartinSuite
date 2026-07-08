@@ -1,8 +1,12 @@
 param(
     [Parameter(Mandatory)]
     [string]$Service,
-    [switch]$Remote
+    [switch]$Remote,
+    [switch]$NoCache,
+    [switch]$Force
 )
+
+$CriticalLoad = 12.0
 
 $ProgressPreference = 'SilentlyContinue'
 
@@ -64,6 +68,8 @@ $ServiceMap = @{
     "upload-web"             = @{ Dockerfile = "ITMartinUpload.Server/Dockerfile";                     Context = "."; Profile = "manual" }
     "cloudoverblik-web"      = @{ Dockerfile = "ITMartinCloudOverblik.Server/Dockerfile";              Context = "."; Profile = "manual" }
     "stats-web"              = @{ Dockerfile = "ITMartinStats.Server/Dockerfile";                      Context = "." }
+    "uret-web"               = @{ Dockerfile = "ITMartinUret.Server/Dockerfile";                        Context = "."; Profile = "manual" }
+    "stream-web"             = @{ Dockerfile = "ITMartinStream.Server/Dockerfile";                      Context = "."; Profile = "manual" }
 }
 
 if (-not $ServiceMap.ContainsKey($Service)) {
@@ -80,7 +86,12 @@ $tarName    = "$imageName.tar"
 $nasFile    = "$NasFile_Base/$tarName"
 
 Write-Host "[1/3] Building $imageName..." -ForegroundColor Cyan
-docker build --platform linux/amd64 --provenance=false -t $imageName -f $dockerfile $context
+if ($NoCache) {
+    Write-Host "    (--no-cache forced)" -ForegroundColor Yellow
+    docker build --no-cache --platform linux/amd64 --provenance=false -t $imageName -f $dockerfile $context
+} else {
+    docker build --platform linux/amd64 --provenance=false -t $imageName -f $dockerfile $context
+}
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "[2/3] Saving image..." -ForegroundColor Cyan
@@ -102,6 +113,20 @@ if (Test-Path "Z:\martinsuite-magic") {
 }
 
 Write-Host "[3/3] Loading on NAS and restarting $Service..." -ForegroundColor Cyan
+
+if (-not $Force) {
+    $loadRaw = ssh $NasHost "cat /proc/loadavg" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $loadRaw) {
+        $load1min = [double]($loadRaw -split '\s+')[0]
+        if ($load1min -gt $CriticalLoad) {
+            Write-Error "NAS load average is critical ($load1min, threshold $CriticalLoad) - refusing to start/recreate $Service. Check 'docker ps' and stop something first, or rerun with -Force to override."
+            exit 1
+        }
+        Write-Host "    NAS load OK ($load1min)" -ForegroundColor DarkGray
+    } else {
+        Write-Host "    Could not read NAS load average - proceeding anyway" -ForegroundColor Yellow
+    }
+}
 
 $composeFile = Join-Path $PSScriptRoot "docker-compose.yaml"
 scp -O $composeFile "${NasHost}:${NasPath}/docker-compose.yaml" | Out-Null

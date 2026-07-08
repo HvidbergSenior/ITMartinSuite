@@ -33,6 +33,8 @@ public sealed class FinalScryfallMatchWorkflowStep
         if (string.IsNullOrWhiteSpace(
                 context.State.CardName))
         {
+            context.State.Fail(
+                "Kunne ikke læse et kortnavn på billedet. Prøv at holde kortet fladt, tættere på kameraet og i godt lys.");
             return;
         }
         _logger.LogDebug("Scryfall match — set filter: {SetCode}", context.State.SetCode);
@@ -42,9 +44,11 @@ public sealed class FinalScryfallMatchWorkflowStep
                 context.State.SetCode,
                 context.State.AiResult,
                 cancellationToken);
-        
+
         if (match?.BestMatch is null)
         {
+            context.State.Fail(
+                $"Læste navnet \"{context.State.CardName}\", men fandt ingen matchende udgave på Scryfall. Tjek om navnet blev læst korrekt, eller om det valgte sæt er forkert.");
             return;
         }
 
@@ -57,6 +61,12 @@ public sealed class FinalScryfallMatchWorkflowStep
 
                 SetCode =
                     match.BestMatch.Set,
+
+                SetName =
+                    match.BestMatch.SetName ?? match.BestMatch.Set,
+
+                ReleasedAt =
+                    match.BestMatch.ReleasedAt,
 
                 CollectorNumber =
                     match.BestMatch.CollectorNumber,
@@ -84,6 +94,9 @@ public sealed class FinalScryfallMatchWorkflowStep
 
                 SetCode =
                     match.BestMatch.Set,
+
+                SetName =
+                    match.BestMatch.SetName ?? match.BestMatch.Set,
 
                 CollectorNumber =
                     match.BestMatch.CollectorNumber,

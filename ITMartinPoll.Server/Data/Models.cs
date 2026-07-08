@@ -36,13 +36,14 @@ public class PollOption
 
 public class Vote
 {
-    public int        Id       { get; set; }
-    public int        PollId   { get; set; }
-    public int        OptionId { get; set; }
-    public string     Comment  { get; set; } = "";
-    public DateTime   VotedAt  { get; set; } = DateTime.UtcNow;
-    public Poll       Poll     { get; set; } = null!;
-    public PollOption Option   { get; set; } = null!;
+    public int        Id        { get; set; }
+    public int        PollId    { get; set; }
+    public int        OptionId  { get; set; }
+    public string     Comment   { get; set; } = "";
+    public string     VoterName { get; set; } = "";
+    public DateTime   VotedAt   { get; set; } = DateTime.UtcNow;
+    public Poll       Poll      { get; set; } = null!;
+    public PollOption Option    { get; set; } = null!;
 }
 
 public class ImageSession
@@ -50,6 +51,11 @@ public class ImageSession
     public int       Id             { get; set; }
     public string    Title          { get; set; } = "";
     public string    Description    { get; set; } = "";
+
+    // Shown to voters above each image, e.g. "Hvilket billede kan du bedst lide?" — falls
+    // back to a generic prompt in SessionPage.razor when left blank.
+    public string    Question       { get; set; } = "";
+
     public string?   CoverImageName { get; set; }
     public bool      IsActive       { get; set; } = true;
     public DateTime  CreatedAt      { get; set; } = DateTime.UtcNow;

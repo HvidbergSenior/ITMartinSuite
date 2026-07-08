@@ -64,6 +64,52 @@
                 <button class="admin-btn" @onclick="() => _options.Add(string.Empty)">+ Tilføj mulighed</button>
             }
 
+            @if (!_isNew)
+            {
+                <label class="form-label">Resultater</label>
+                <div class="poll-results" style="padding:0">
+                    @if (_totalVotes == 0)
+                    {
+                        <div class="poll-empty" style="min-height:auto;padding:12px 0">Ingen stemmer endnu</div>
+                    }
+                    else
+                    {
+                        @foreach (var (label, count) in _optionResults)
+                        {
+                            var pct = (int)Math.Round(count * 100.0 / _totalVotes);
+                            <div class="poll-result-row">
+                                <div class="poll-result-label">@label</div>
+                                <div class="poll-result-bar-wrap">
+                                    <div class="poll-result-bar" style="width:@pct%"></div>
+                                </div>
+                                <div class="poll-result-pct">@pct%</div>
+                                <div class="poll-result-count">(@count)</div>
+                            </div>
+                        }
+                        <div class="poll-total">@_totalVotes stemmer i alt</div>
+                    }
+                </div>
+
+                @if (_comments.Count > 0)
+                {
+                    <div class="poll-comments" style="padding:0">
+                        <div class="poll-comments-label">Kommentarer</div>
+                        @foreach (var v in _comments)
+                        {
+                            <div class="poll-comment">
+                                <span class="poll-comment-opt" style="background:@OptionColor(v.OptionId)">
+                                    @(_optionLookup.GetValueOrDefault(v.OptionId, "?"))
+                                </span>
+                                <span class="session-comment-name @(string.IsNullOrWhiteSpace(v.VoterName) ? "anon" : "")">
+                                    @(string.IsNullOrWhiteSpace(v.VoterName) ? "Anonym" : v.VoterName)
+                                </span>
+                                <span class="poll-comment-text">@v.Comment</span>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+
             @if (!string.IsNullOrEmpty(_error))
             {
                 <div class="form-error">@_error</div>
@@ -89,6 +135,20 @@
     private List<string> _options    = ["Ja", "Nej"];
     private string       _error      = "";
 
+    private int _totalVotes;
+    private List<(string Label, int Count)> _optionResults = [];
+    private List<Vote> _comments = [];
+    private Dictionary<int, string> _optionLookup = [];
+    private List<int> _optionOrder = [];
+
+    private static readonly string[] _colors = ["#3730A3","#0F766E","#B91C1C","#92400E","#4338CA"];
+
+    private string OptionColor(int optId)
+    {
+        var idx = _optionOrder.IndexOf(optId);
+        return idx >= 0 ? _colors[idx % _colors.Length] : "#6B7280";
+    }
+
     protected override void OnInitialized()
     {
         _isNew = PollId == 0;
@@ -96,7 +156,9 @@
         {
             var p = Db.Polls.Where(x => x.Id == PollId)
                 .Select(x => new { x.Title, x.Body, x.ImageName, x.Deadline,
-                                   Options = x.Options.OrderBy(o => o.SortOrder).ToList() })
+                                   Options = x.Options.OrderBy(o => o.SortOrder)
+                                       .Select(o => new { o.Id, o.Label, VoteCount = o.Votes.Count }).ToList(),
+                                   Votes = x.Votes.ToList() })
                 .FirstOrDefault();
             if (p is not null)
             {
@@ -106,6 +168,13 @@
                 _deadlineStr = p.Deadline?.ToString("yyyy-MM-dd") ?? "";
                 _options     = p.Options.Select(o => o.Label).ToList();
                 if (_options.Count == 0) _options = ["Ja", "Nej"];
+
+                _optionResults = p.Options.Select(o => (o.Label, o.VoteCount)).ToList();
+                _optionLookup  = p.Options.ToDictionary(o => o.Id, o => o.Label);
+                _optionOrder   = p.Options.Select(o => o.Id).ToList();
+                _totalVotes    = p.Votes.Count;
+                _comments      = p.Votes.Where(v => !string.IsNullOrWhiteSpace(v.Comment))
+                                    .OrderByDescending(v => v.VotedAt).ToList();
             }
         }
     }

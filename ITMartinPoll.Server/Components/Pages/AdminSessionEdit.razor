@@ -30,6 +30,16 @@
                       placeholder="Hvad skal der stemmes om, og hvorfor?"
                       @bind="_description" @bind:event="oninput"></textarea>
 
+            <label class="form-label">Spørgsmål (vises over hvert billede)</label>
+            <input class="poll-input" placeholder="f.eks. Hvilket billede kan du bedst lide?"
+                   @bind="_question" @bind:event="oninput" />
+            <div class="suggestion-chip-row">
+                @foreach (var s in _questionSuggestions)
+                {
+                    <button type="button" class="suggestion-chip" @onclick="() => _question = s">@s</button>
+                }
+            </div>
+
             <label class="form-label">Forsidefoto (valgfrit)</label>
             <InputFile OnChange="OnCoverSelected" accept="image/*" class="file-input" />
             @if (!string.IsNullOrEmpty(_coverName))
@@ -95,10 +105,9 @@
                                 @foreach (var r in img.Ratings.Where(r => !string.IsNullOrWhiteSpace(r.Comment) || !string.IsNullOrWhiteSpace(r.VoterName)))
                                 {
                                     <div class="session-comment">
-                                        @if (!string.IsNullOrWhiteSpace(r.VoterName))
-                                        {
-                                            <span class="session-comment-name">@r.VoterName</span>
-                                        }
+                                        <span class="session-comment-name @(string.IsNullOrWhiteSpace(r.VoterName) ? "anon" : "")">
+                                            @(string.IsNullOrWhiteSpace(r.VoterName) ? "Anonym" : r.VoterName)
+                                        </span>
                                         @if (!string.IsNullOrWhiteSpace(r.Comment))
                                         {
                                             <span>💬 @r.Comment</span>
@@ -130,7 +139,18 @@
     private bool      _isNew       = true;
     private string    _title       = "";
     private string    _description = "";
+    private string    _question    = "";
     private string    _deadlineStr = "";
+
+    private static readonly string[] _questionSuggestions =
+    [
+        "Hvem kan du bedst lide?",
+        "Hvem synes du ser bedst ud?",
+        "Hvilket billede kan du bedst lide?",
+        "Hvad synes du om dette?",
+        "Hvilket design fungerer bedst?",
+        "Hvor godt synes du dette er?",
+    ];
     private string    _error       = "";
     private string    _coverName   = "";
     private DateTime? _deadline;
@@ -153,6 +173,7 @@
                     Id             = x.Id,
                     Title          = x.Title,
                     Description    = x.Description,
+                    Question       = x.Question,
                     CoverImageName = x.CoverImageName,
                     Deadline       = x.Deadline,
                     Images         = x.Images.OrderBy(i => i.SortOrder)
@@ -169,6 +190,7 @@
             {
                 _title       = s.Title;
                 _description = s.Description;
+                _question    = s.Question;
                 _coverName   = s.CoverImageName ?? "";
                 _deadline    = s.Deadline;
                 _deadlineStr = s.Deadline?.ToLocalTime().ToString("yyyy-MM-ddTHH:mm") ?? "";
@@ -229,6 +251,7 @@
             {
                 Title          = _title.Trim(),
                 Description    = _description.Trim(),
+                Question       = _question.Trim(),
                 CoverImageName = string.IsNullOrEmpty(_coverName) ? null : _coverName,
                 IsActive       = true,
                 CreatedAt      = DateTime.UtcNow,
@@ -244,6 +267,7 @@
             if (session is null) return;
             session.Title          = _title.Trim();
             session.Description    = _description.Trim();
+            session.Question       = _question.Trim();
             session.CoverImageName = string.IsNullOrEmpty(_coverName) ? null : _coverName;
             session.Deadline       = deadline;
 

@@ -13,6 +13,12 @@ internal sealed class ScryfallCardDto
     [JsonPropertyName("set")]
     public string Set { get; set; } = "";
 
+    [JsonPropertyName("set_name")]
+    public string SetName { get; set; } = "";
+
+    [JsonPropertyName("lang")]
+    public string Lang { get; set; } = "";
+
     [JsonPropertyName("collector_number")]
     public string CollectorNumber { get; set; } = "";
 

@@ -54,6 +54,10 @@ using (var scope = app.Services.CreateScope())
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"ImageRatings\" ADD COLUMN \"VoterName\" TEXT NOT NULL DEFAULT '';"); }
     catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Sessions\" ADD COLUMN \"Question\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Votes\" ADD COLUMN \"VoterName\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
 }
 
 if (!app.Environment.IsDevelopment())

@@ -29,6 +29,16 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .gallery-card-info{padding:10px 12px}
 .gallery-card-name{font-size:15px;font-weight:700}
 
+/* Welcome summary */
+.summary-card{background:linear-gradient(135deg,#1e3a5f,#0f2942);border:1px solid #2d5a8f;border-radius:16px;padding:24px 20px;margin-bottom:18px;text-align:center}
+.summary-icon{font-size:40px;margin-bottom:8px}
+.summary-title{font-size:19px;font-weight:800;margin-bottom:4px}
+.summary-sub{font-size:13px;color:#93c5fd;margin-bottom:16px}
+.summary-stats{display:flex;flex-wrap:wrap;justify-content:center;gap:20px 28px}
+.summary-stat{display:flex;flex-direction:column;gap:2px}
+.summary-stat-num{font-size:24px;font-weight:900;color:#60a5fa}
+.summary-stat-label{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em}
+
 /* Folder grid */
 .folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:6px}
 .folder-card{background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
@@ -98,6 +108,12 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
       <div class="gallery-grid" id="galleryGrid"></div>
     </div>
     <div id="fileBrowser" style="display:none">
+      <div class="summary-card" id="summaryCard" style="display:none">
+        <div class="summary-icon">🎉</div>
+        <div class="summary-title">Din samling er klar!</div>
+        <div class="summary-sub" id="summaryDates"></div>
+        <div class="summary-stats" id="summaryStats"></div>
+      </div>
       <div id="folderSection">
         <div class="section-label">Mapper</div>
         <div class="folder-grid" id="folderGrid"></div>
@@ -149,6 +165,7 @@ let playlist       = [];
 let playIdx        = 0;
 let pendingSlug    = null;
 let pendingName    = null;
+let summaryData    = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadGalleries();
@@ -156,6 +173,7 @@ loadGalleries();
 // ── Gallery picker ────────────────────────────────────────────────────────────
 async function loadGalleries() {
   currentGallery = null;
+  summaryData    = null;
   const res = await fetch('/api/galleries');
   if (!res.ok) return;
   const list = await res.json();
@@ -192,6 +210,7 @@ async function selectGallery(slug, name) {
   const data = await res.json();
   parentRelPath = data.parentRelPath;
   renderBrowse(data, name);
+  loadSummary(slug);
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────
@@ -232,6 +251,7 @@ async function doLogin() {
     document.getElementById('fileBrowser').style.display   = '';
     document.getElementById('btnLogout').style.display     = '';
     await loadBrowse('', name);
+    loadSummary(slug);
   } else {
     err.textContent = 'Forkert adgangskode';
     document.getElementById('loginInput').select();
@@ -269,6 +289,7 @@ function renderBrowse(data, galleryName) {
   document.getElementById('hdrTitle').textContent       = title;
   document.getElementById('btnGalleries').style.display = '';
   document.getElementById('btnBack').style.display      = atRoot ? 'none' : '';
+  document.getElementById('summaryCard').style.display  = (atRoot && summaryData) ? '' : 'none';
 
   const fg = document.getElementById('folderGrid');
   const fs = document.getElementById('folderSection');
@@ -315,6 +336,40 @@ function renderBrowse(data, galleryName) {
 
   document.getElementById('emptyState').style.display =
     (!folders.length && !files.length) ? '' : 'none';
+}
+
+// ── Welcome summary ───────────────────────────────────────────────────────────
+async function loadSummary(slug) {
+  summaryData = null;
+  const res = await fetch(`/api/summary?gallery=${encodeURIComponent(slug)}`);
+  if (!res.ok) return;
+  summaryData = await res.json();
+  renderSummary();
+  // Re-show the card now that data is ready, if we're still at the gallery root
+  if (currentRelPath === '') document.getElementById('summaryCard').style.display = '';
+}
+
+function renderSummary() {
+  if (!summaryData) return;
+  const s = summaryData;
+
+  const fmt = d => d ? new Date(d).toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const from = fmt(s.earliestDate), to = fmt(s.latestDate);
+  document.getElementById('summaryDates').textContent =
+    (from && to) ? (from === to ? `Fra ${from}` : `Fra ${from} til ${to}`) : '';
+
+  const stats = [];
+  if (s.photoCount) stats.push([s.photoCount.toLocaleString('da-DK'), 'Billeder']);
+  if (s.videoCount) stats.push([s.videoCount.toLocaleString('da-DK'), 'Videoer']);
+  if (s.audioCount) stats.push([s.audioCount.toLocaleString('da-DK'), 'Lyd']);
+  stats.push([s.folderCount.toLocaleString('da-DK'), 'Album']);
+  if (s.totalGb) stats.push([s.totalGb.toLocaleString('da-DK') + ' GB', 'Størrelse']);
+
+  document.getElementById('summaryStats').innerHTML = stats.map(([num, label]) => `
+    <div class="summary-stat">
+      <div class="summary-stat-num">${esc(num)}</div>
+      <div class="summary-stat-label">${esc(label)}</div>
+    </div>`).join('');
 }
 
 // ── Viewer ────────────────────────────────────────────────────────────────────
@@ -422,6 +477,27 @@ function tvUrl(webPath) {
   const token = currentGallery ? getCookie('gallery_' + currentGallery) : null;
   return token ? webPath + '?token=' + encodeURIComponent(token) : webPath;
 }
+</script>
+<script>
+(function(){
+    var vid = localStorage.getItem('_mid');
+    if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); }
+    function track(path, title, referrer) {
+        fetch('https://stats.itmartin.dk/api/hit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: path, title: title, referrer: referrer, visitorId: vid, host: location.hostname }),
+            keepalive: true
+        }).catch(function(){});
+    }
+    track(location.pathname + location.search, document.title, document.referrer);
+    document.addEventListener('click', function(e) {
+        var a = e.target.closest('a');
+        if (!a || !a.href || a.href.startsWith('javascript')) return;
+        var href = a.getAttribute('href') || a.href;
+        track('click:' + href, a.textContent.trim().slice(0, 80), location.pathname);
+    }, true);
+})();
 </script>
 </body>
 </html>

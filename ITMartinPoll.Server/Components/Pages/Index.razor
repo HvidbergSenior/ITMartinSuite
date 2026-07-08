@@ -9,6 +9,10 @@
         <span class="poll-logo">Stem</span>
     </header>
 
+    <ProblemPurposeBanner
+        Problem="At lave en hurtig afstemning blandt venner eller familie kræver normalt en konto, et betalt værktøj, eller et rodet opslag hvor svarene drukner."
+        Formaal="Opret en afstemning på få sekunder. Del et link — alle kan stemme uden login, og du ser resultatet med det samme." />
+
     @if (!_polls.Any() && !_sessions.Any())
     {
         <div class="poll-empty">
@@ -17,6 +21,9 @@
     }
     else
     {
+        @if (_sessions.Any())
+        {
+        <div class="vote-section-label">🖼️ Billedserier — bedøm billeder</div>
         <div class="poll-list">
 
             @foreach (var s in _sessions)
@@ -40,7 +47,13 @@
                     </div>
                 </a>
             }
+        </div>
+        }
 
+        @if (_polls.Any())
+        {
+        <div class="vote-section-label">📊 Meningsmålinger — svar på et spørgsmål</div>
+        <div class="poll-list">
             @foreach (var p in _polls)
             {
                 <a class="poll-card" href="/poll/@p.Id">
@@ -66,8 +79,8 @@
                     </div>
                 </a>
             }
-
         </div>
+        }
     }
 </div>
 

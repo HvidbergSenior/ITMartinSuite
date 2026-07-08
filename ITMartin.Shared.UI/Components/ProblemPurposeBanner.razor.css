@@ -1,0 +1,35 @@
+.itm-pp-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(99, 102, 241, .1);
+    border: 1px solid rgba(99, 102, 241, .25);
+    border-radius: 10px;
+    padding: .7rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.itm-pp-row {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.itm-pp-icon {
+    font-size: .85rem;
+}
+
+.itm-pp-label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #818cf8;
+    white-space: nowrap;
+}
+
+.itm-pp-text {
+    font-size: .85rem;
+    color: #c7d2fe;
+}

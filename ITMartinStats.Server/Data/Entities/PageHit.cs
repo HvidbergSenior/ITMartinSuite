@@ -3,6 +3,7 @@ namespace ITMartinStats.Server.Data.Entities;
 public class PageHit
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public string Host { get; set; } = "";
     public string Path { get; set; } = "";
     public string Title { get; set; } = "";
     public string Referrer { get; set; } = "";

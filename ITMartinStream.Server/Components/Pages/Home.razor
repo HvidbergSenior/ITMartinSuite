@@ -1,0 +1,53 @@
+@page "/"
+@inject StreamService Stream
+
+<div class="home">
+    <div class="top-bar">
+        <div class="top-bar-brand"><span class="live-dot"></span> STREAM</div>
+        <a href="/admin" class="ghost-btn">⚙️</a>
+    </div>
+
+    <div style="padding:0 14px">
+        <ProblemPurposeBanner
+            Problem="Nye projekter — en app, en bog, et brætspil — bliver typisk skabt i det skjulte. Andre ser kun det færdige resultat og kan ikke give input undervejs, eller fortælle hvordan de oplevede det."
+            Formaal="Del processen live, og hold en løbende samtale om emnet med dem det er lavet til. Alle kan følge med, kommentere og svare — en rigtig dialog, ikke bare envejskommunikation." />
+    </div>
+
+    @if (!_projects.Any())
+    {
+        <div class="empty-state">
+            <div style="font-size:48px">🚀</div>
+            <div>Ingen aktive projekter lige nu</div>
+        </div>
+    }
+    else
+    {
+        <div class="event-grid">
+            @foreach (var p in _projects)
+            {
+                <a href="/p/@p.Slug" class="event-card">
+                    <div class="event-emoji">@p.Emoji</div>
+                    <div class="event-info">
+                        <div class="event-name">@p.Name</div>
+                        @if (!string.IsNullOrEmpty(p.StatusText))
+                        {
+                            <div class="event-header-text">@p.StatusText</div>
+                        }
+                        <div class="event-meta">
+                            <span>@p.Updates.Count opdateringer</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<StreamProject> _projects = [];
+
+    protected override void OnInitialized()
+    {
+        _projects = Stream.GetActive();
+    }
+}

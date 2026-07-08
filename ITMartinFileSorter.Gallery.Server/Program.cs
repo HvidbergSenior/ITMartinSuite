@@ -157,6 +157,52 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     return Results.Ok(new { atRoot, parentRelPath = parentRel, folders, files });
 });
 
+app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    if (g is null) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
+    if (!Directory.Exists(g.Path)) return Results.NotFound();
+
+    var mediaFiles = Directory.EnumerateFiles(g.Path, "*.*", SearchOption.AllDirectories)
+        .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}thumbnails{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+        .Where(IsMedia);
+
+    int photoCount = 0, videoCount = 0, audioCount = 0, totalCount = 0;
+    long totalBytes = 0;
+    DateTime? earliest = null, latest = null;
+
+    foreach (var f in mediaFiles)
+    {
+        var ext = Ext(f);
+        if (IsImg(ext)) photoCount++;
+        else if (IsVid(ext)) videoCount++;
+        else if (IsAud(ext)) audioCount++;
+        totalCount++;
+
+        var fi = new FileInfo(f);
+        totalBytes += fi.Length;
+        var t = fi.LastWriteTimeUtc;
+        if (earliest is null || t < earliest) earliest = t;
+        if (latest is null || t > latest) latest = t;
+    }
+
+    var folderCount = Directory.EnumerateDirectories(g.Path)
+        .Count(d => !Path.GetFileName(d).StartsWith('.') &&
+                    !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase));
+
+    return Results.Ok(new
+    {
+        totalCount, photoCount, videoCount, audioCount, folderCount,
+        earliestDate = earliest,
+        latestDate   = latest,
+        totalGb      = Math.Round(totalBytes / 1024.0 / 1024.0 / 1024.0, 1),
+    });
+});
+
 app.MapGet("/api/playlist", (string gallery, string folder, HttpContext ctx) =>
 {
     var g = galleries.FirstOrDefault(x => x.Slug == gallery);

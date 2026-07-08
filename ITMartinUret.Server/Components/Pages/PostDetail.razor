@@ -1,0 +1,136 @@
+@page "/sag/{Id:guid}"
+@rendermode InteractiveServer
+@inject UretDbContext Db
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>@(_post?.Title ?? "Sag") — ITMartinUret</PageTitle>
+
+@if (_post is null)
+{
+    <div class="wrap"><p>Sagen findes ikke, eller er fjernet.</p></div>
+}
+else
+{
+    <div class="wrap narrow">
+        <div class="case-header">
+            <div class="case-company">@_post.Company</div>
+            <h1>@_post.Title</h1>
+            <div class="case-date">Oprettet @_post.CreatedAt.ToLocalTime().ToString("d. MMM yyyy")</div>
+        </div>
+
+        <div class="case-body">@_post.Body</div>
+
+        @if (!string.IsNullOrEmpty(_post.ContactEmail))
+        {
+            <div class="case-contact">Kontakt: @_post.ContactEmail</div>
+        }
+
+        @if (_post.Attachments.Count > 0)
+        {
+            <div class="section-title">Dokumenter</div>
+            <ul class="attachments">
+                @foreach (var a in _post.Attachments)
+                {
+                    <li>
+                        <a href="@($"/vedhaeftninger/{a.Id}")">@a.FileName</a>
+                        @if (!string.IsNullOrEmpty(a.LegalSummary))
+                        {
+                            <div class="ai-summary">
+                                <span class="ai-summary-tag">AI-resumé</span>
+                                @a.LegalSummary
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (_post.Updates.Count > 0)
+        {
+            <div class="section-title">Tidslinje</div>
+            <ul class="timeline">
+                @foreach (var u in _post.Updates.OrderByDescending(x => x.CreatedAt))
+                {
+                    <li>
+                        <div class="tl-date">@u.CreatedAt.ToLocalTime().ToString("d. MMM yyyy")</div>
+                        <div class="tl-body">@u.Body</div>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (!string.IsNullOrEmpty(_post.ActionSuggestions))
+        {
+            <div class="section-title">Hvad kan man gøre?</div>
+            <div class="section-card">
+                <span class="ai-summary-tag suggestions">AI-forslag</span>
+                <div class="case-body" style="margin-top:8px">@_post.ActionSuggestions</div>
+                <p class="hint" style="margin-top:8px">Generel vejledning, ikke juridisk rådgivning. Kontakt en advokat eller den relevante myndighed direkte for alvorlige eller uklare sager.</p>
+            </div>
+        }
+
+        <div class="report-box">
+            @if (!_reportOpen && !_reportSent)
+            {
+                <button class="btn-secondary" @onclick="() => _reportOpen = true">Anmeld denne sag</button>
+            }
+            else if (_reportOpen)
+            {
+                <EditForm Model="_reportForm" OnValidSubmit="SubmitReport">
+                    <DataAnnotationsValidator />
+                    <label class="field">
+                        <span>Begrundelse</span>
+                        <InputTextArea @bind-Value="_reportForm.Reason" rows="3" placeholder="Hvorfor skal denne sag gennemgås?" />
+                    </label>
+                    <label class="field">
+                        <span>Din kontakt (valgfrit)</span>
+                        <InputText @bind-Value="_reportForm.ReporterContact" />
+                    </label>
+                    <button class="btn-primary" type="submit">Send anmeldelse</button>
+                </EditForm>
+            }
+            @if (_reportSent)
+            {
+                <div class="ok">Tak — sagen bliver gennemgået.</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private Post? _post;
+    private bool _reportOpen;
+    private bool _reportSent;
+    private ReportForm _reportForm = new();
+
+    private class ReportForm
+    {
+        [Required] public string Reason { get; set; } = "";
+        public string? ReporterContact { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _post = await Db.Posts
+            .Include(p => p.Updates)
+            .Include(p => p.Attachments)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == Id && p.Status == PostStatus.Visible);
+    }
+
+    private async Task SubmitReport()
+    {
+        if (string.IsNullOrWhiteSpace(_reportForm.Reason)) return;
+
+        Db.Reports.Add(new Report
+        {
+            PostId = Id,
+            Reason = _reportForm.Reason.Trim(),
+            ReporterContact = string.IsNullOrWhiteSpace(_reportForm.ReporterContact) ? null : _reportForm.ReporterContact.Trim(),
+        });
+        await Db.SaveChangesAsync();
+        _reportSent = true;
+        _reportOpen = false;
+    }
+}

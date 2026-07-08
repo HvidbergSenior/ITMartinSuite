@@ -47,6 +47,10 @@
                         <span class="admin-poll-title">@s.Title</span>
                         <span class="admin-poll-votes">@s.Images.Count billeder</span>
                     </div>
+                    @if (!string.IsNullOrEmpty(s.Question))
+                    {
+                        <div class="admin-poll-question">❓ @s.Question</div>
+                    }
                     <div class="admin-poll-actions">
                         <a href="/admin/session/edit/@s.Id" class="admin-btn">Resultater / Rediger</a>
                         <button class="admin-btn" @onclick="() => ToggleSession(s)">
@@ -106,7 +110,7 @@
 
         _sessions = Db.Sessions
             .OrderByDescending(s => s.CreatedAt)
-            .Select(s => new ImageSession { Id = s.Id, Title = s.Title, IsActive = s.IsActive,
+            .Select(s => new ImageSession { Id = s.Id, Title = s.Title, Question = s.Question, IsActive = s.IsActive,
                                             Images = s.Images.ToList() })
             .ToList();
     }

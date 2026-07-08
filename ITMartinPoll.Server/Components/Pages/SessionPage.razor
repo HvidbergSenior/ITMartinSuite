@@ -56,6 +56,10 @@
         {
             <div class="poll-card-desc" style="margin:0 0 12px 0">@_session.Description</div>
         }
+        @if (!string.IsNullOrEmpty(_session.Question))
+        {
+            <div class="session-question">@_session.Question</div>
+        }
 
         <div class="session-name-wrap">
             <input class="poll-input session-name-input"
@@ -101,7 +105,7 @@
                 <div class="session-zoom-hint">Knib ud for at zoome</div>
                 <div class="session-vote">
                     <div class="poll-vote-label">
-                        Billede @(_selectedIdx + 1) — hvad synes du?
+                        @(!string.IsNullOrEmpty(_session.Question) ? _session.Question : $"Billede {_selectedIdx + 1} — hvad synes du?")
                     </div>
                     <div class="poll-options">
                         @for (int s = 5; s >= 1; s--)
@@ -162,6 +166,7 @@
                 Id          = s.Id,
                 Title       = s.Title,
                 Description = s.Description,
+                Question    = s.Question,
                 IsActive    = s.IsActive,
                 Deadline    = s.Deadline,
                 Images      = s.Images.OrderBy(i => i.SortOrder).ToList(),

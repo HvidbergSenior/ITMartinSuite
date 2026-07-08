@@ -77,6 +77,9 @@
                                 <span class="poll-comment-opt" style="background:@OptionColor(v.OptionId)">
                                     @_poll.Options.FirstOrDefault(o => o.Id == v.OptionId)?.Label
                                 </span>
+                                <span class="session-comment-name @(string.IsNullOrWhiteSpace(v.VoterName) ? "anon" : "")">
+                                    @(string.IsNullOrWhiteSpace(v.VoterName) ? "Anonym" : v.VoterName)
+                                </span>
                                 <span class="poll-comment-text">@v.Comment</span>
                             </div>
                         }
@@ -101,6 +104,12 @@
 
                     @if (_selected > 0)
                     {
+                        <input class="poll-input session-name-input"
+                               placeholder="Dit navn (valgfrit)"
+                               maxlength="60"
+                               @bind="_voterName"
+                               @bind:event="oninput"
+                               @onchange="SaveName" />
                         <div class="poll-comment-wrap">
                             <textarea class="poll-comment-input"
                                       placeholder="Vil du uddybe? (valgfrit)"
@@ -126,6 +135,7 @@
     private int    _chosenOptionId = 0;
     private int    _selected      = 0;
     private string _comment       = "";
+    private string _voterName     = "";
 
     private static readonly string[] _colors = ["#3730A3","#0F766E","#B91C1C","#92400E","#4338CA"];
 
@@ -162,8 +172,15 @@
         {
             _hasVoted       = true;
             _chosenOptionId = optId;
-            StateHasChanged();
         }
+
+        _voterName = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+        StateHasChanged();
+    }
+
+    private async Task SaveName()
+    {
+        await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _voterName);
     }
 
     private async Task SubmitVote()
@@ -172,10 +189,11 @@
 
         Db.Votes.Add(new Vote
         {
-            PollId   = PollId,
-            OptionId = _selected,
-            Comment  = _comment.Trim(),
-            VotedAt  = DateTime.UtcNow,
+            PollId    = PollId,
+            OptionId  = _selected,
+            Comment   = _comment.Trim(),
+            VoterName = _voterName.Trim(),
+            VotedAt   = DateTime.UtcNow,
         });
         await Db.SaveChangesAsync();
 

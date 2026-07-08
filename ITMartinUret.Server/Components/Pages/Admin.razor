@@ -1,0 +1,110 @@
+@page "/admin"
+@rendermode InteractiveServer
+@inject UretDbContext Db
+@inject IConfiguration Config
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Admin — ITMartinUret</PageTitle>
+
+@if (!_authed)
+{
+    <div class="wrap narrow">
+        <h1>Admin login</h1>
+        <input class="pin-input" type="password" @bind="_pin" @bind:event="oninput" @onkeydown="OnPinKey" placeholder="PIN" autofocus />
+        @if (_pinError is not null)
+        {
+            <div class="error">@_pinError</div>
+        }
+        <button class="btn-primary" @onclick="Auth">Log ind</button>
+    </div>
+}
+else
+{
+    <div class="wrap">
+        <h1>Anmeldelser</h1>
+        @if (_reports.Count == 0)
+        {
+            <p class="hint">Ingen åbne anmeldelser.</p>
+        }
+        @foreach (var r in _reports)
+        {
+            <div class="section-card">
+                <div class="report-meta">@r.CreatedAt.ToLocalTime().ToString("d/M HH:mm") — <a href="@($"/sag/{r.PostId}")" target="_blank">Se sag</a></div>
+                <div class="report-reason">@r.Reason</div>
+                @if (!string.IsNullOrEmpty(r.ReporterContact))
+                {
+                    <div class="report-contact">Anmelders kontakt: @r.ReporterContact</div>
+                }
+                <div class="report-actions">
+                    <button class="btn-secondary" @onclick="() => Dismiss(r.Id)">Afvis</button>
+                    <button class="btn-danger" @onclick="() => Hide(r.Id)">Skjul sag</button>
+                    <button class="btn-danger" @onclick="() => DeletePost(r.Id)">Slet sag</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _authed;
+    private string _pin = "";
+    private string? _pinError;
+    private List<Report> _reports = [];
+
+    private async Task OnPinKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Auth();
+    }
+
+    private async Task Auth()
+    {
+        var correct = Config["Uret:AdminPin"] ?? "1234";
+        if (_pin == correct) { _authed = true; await Load(); }
+        else { _pinError = "Forkert PIN"; }
+    }
+
+    private async Task Load()
+    {
+        _reports = await Db.Reports.AsNoTracking()
+            .Where(r => r.Status == ReportStatus.Open)
+            .OrderBy(r => r.CreatedAt)
+            .ToListAsync();
+    }
+
+    private async Task Dismiss(Guid id)
+    {
+        var r = await Db.Reports.FindAsync(id);
+        if (r is null) return;
+
+        // Covers both cases: a report against an already-visible post (no-op), and an
+        // AI-flagged post awaiting review (Hidden) — dismissing approves it for publish.
+        var post = await Db.Posts.FindAsync(r.PostId);
+        if (post is not null && post.Status == PostStatus.Hidden) post.Status = PostStatus.Visible;
+
+        r.Status = ReportStatus.Dismissed;
+        await Db.SaveChangesAsync();
+        await Load();
+    }
+
+    private async Task Hide(Guid id)
+    {
+        var r = await Db.Reports.FindAsync(id);
+        if (r is null) return;
+        var post = await Db.Posts.FindAsync(r.PostId);
+        if (post is not null) post.Status = PostStatus.Hidden;
+        r.Status = ReportStatus.ActionTaken;
+        await Db.SaveChangesAsync();
+        await Load();
+    }
+
+    private async Task DeletePost(Guid id)
+    {
+        var r = await Db.Reports.FindAsync(id);
+        if (r is null) return;
+        var post = await Db.Posts.FindAsync(r.PostId);
+        if (post is not null) post.Status = PostStatus.Deleted;
+        r.Status = ReportStatus.ActionTaken;
+        await Db.SaveChangesAsync();
+        await Load();
+    }
+}

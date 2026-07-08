@@ -6,6 +6,8 @@ public sealed record ScryfallMatchResult
 
     public required string SetCode { get; init; }
 
+    public string? SetName { get; init; }
+
     public required string CollectorNumber { get; init; }
 
     public string? ScryfallId { get; init; }

@@ -1,0 +1,160 @@
+@page "/opret"
+@rendermode InteractiveServer
+@inject UretDbContext Db
+@inject NavigationManager Nav
+@inject ICaseReviewService Review
+@inject ILogger<CreatePost> Logger
+
+<PageTitle>Opret sag — ITMartinUret</PageTitle>
+
+<div class="wrap narrow">
+    <h1>Opret sag</h1>
+    <p class="hint">Skriv kun fakta: hvad der skete, og hvornår. Undgå beskyldninger og vurderinger ("de snød mig", "svindel") — hold dig til det, der faktisk blev sagt og gjort. Det beskytter både dig og siden juridisk.</p>
+
+    <EditForm Model="_form" OnValidSubmit="Submit">
+        <DataAnnotationsValidator />
+
+        <label class="field">
+            <span>Virksomhed</span>
+            <InputText @bind-Value="_form.Company" placeholder="F.eks. Movia" />
+        </label>
+
+        <label class="field">
+            <span>Overskrift</span>
+            <InputText @bind-Value="_form.Title" placeholder="Kort, faktuel overskrift" />
+        </label>
+
+        <label class="field">
+            <span>Hvad skete der?</span>
+            <InputTextArea @bind-Value="_form.Body" rows="8" placeholder="Datoer, hvad der blev sagt/skrevet, hvad du gjorde." />
+        </label>
+
+        <button type="button" class="btn-secondary" @onclick="SuggestFactualVersion"
+                disabled="@(_suggesting || string.IsNullOrWhiteSpace(_form.Body))">
+            @(_suggesting ? "Arbejder..." : "Foreslå fakta-version (AI)")
+        </button>
+
+        @if (_suggestedBody is not null)
+        {
+            <div class="section-card" style="margin-top:10px">
+                <div class="section-title">AI-forslag — kun fakta</div>
+                <div class="case-body">@_suggestedBody</div>
+                <div class="report-actions" style="margin-top:10px">
+                    <button type="button" class="btn-primary" @onclick="UseSuggestion">Brug denne version</button>
+                    <button type="button" class="btn-secondary" @onclick="() => _suggestedBody = null">Behold min egen</button>
+                </div>
+            </div>
+        }
+
+        <label class="field" style="margin-top:14px">
+            <span>Kontakt (valgfrit — vises offentligt på siden hvis udfyldt)</span>
+            <InputText @bind-Value="_form.ContactEmail" placeholder="din@email.dk" />
+        </label>
+
+        @* Placeholder wording pending real legal review — see project notes before this goes live. *@
+        <label class="checkbox">
+            <input type="checkbox" @bind="_tosAccepted" />
+            <span>Jeg bekræfter, at det jeg skriver er fakta og mit eget ansvar, ikke sidens. Jeg har fjernet andre personers personoplysninger fra evt. vedhæftede filer. <a href="/vilkaar" target="_blank">Læs vilkår</a>.</span>
+        </label>
+
+        @if (_error is not null)
+        {
+            <div class="error">@_error</div>
+        }
+
+        <button class="btn-primary" type="submit" disabled="@(!_tosAccepted)">Opret sag</button>
+    </EditForm>
+</div>
+
+@code {
+    private const string TosVersion = "uret-v1-2026-07-07";
+
+    private PostForm _form = new();
+    private bool _tosAccepted;
+    private bool _submitting;
+    private bool _suggesting;
+    private string? _suggestedBody;
+    private string? _error;
+
+    private class PostForm
+    {
+        [Required] public string Company { get; set; } = "";
+        [Required] public string Title { get; set; } = "";
+        [Required] public string Body { get; set; } = "";
+        public string? ContactEmail { get; set; }
+    }
+
+    private async Task SuggestFactualVersion()
+    {
+        _suggesting = true;
+        _suggestedBody = null;
+        _error = null;
+        try
+        {
+            _suggestedBody = await Review.RewriteAsFactualAsync(_form.Body);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Factual rewrite failed");
+            _error = "AI-forslaget kunne ikke hentes lige nu — prøv igen om lidt.";
+        }
+        finally
+        {
+            _suggesting = false;
+        }
+    }
+
+    private void UseSuggestion()
+    {
+        if (_suggestedBody is not null) _form.Body = _suggestedBody;
+        _suggestedBody = null;
+    }
+
+    private async Task Submit()
+    {
+        if (!_tosAccepted) { _error = "Du skal bekræfte vilkårene."; return; }
+        if (_submitting) return;
+        _submitting = true;
+        _error = null;
+
+        // Fail closed: if the AI check errors out, route to manual review rather than auto-publishing unchecked.
+        var risk = new RiskCheckResult(RiskLevel.Medium, ["ai-tjek-fejlede"], "AI-tjek fejlede — sagen afventer manuel gennemgang.");
+        try
+        {
+            risk = await Review.CheckRiskAsync(_form.Company, _form.Body);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Risk check failed");
+        }
+
+        var pending = risk.Level is RiskLevel.Medium or RiskLevel.High;
+
+        var post = new Post
+        {
+            Company = _form.Company.Trim(),
+            Title = _form.Title.Trim(),
+            Body = _form.Body.Trim(),
+            ContactEmail = string.IsNullOrWhiteSpace(_form.ContactEmail) ? null : _form.ContactEmail.Trim(),
+            TosVersion = TosVersion,
+            TosAcceptedAt = DateTime.UtcNow,
+            Status = pending ? PostStatus.Hidden : PostStatus.Visible,
+        };
+
+        Db.Posts.Add(post);
+
+        if (pending)
+        {
+            Db.Reports.Add(new Report
+            {
+                PostId = post.Id,
+                Reason = $"[AI-tjek: {risk.Level}] {risk.Explanation} ({string.Join(", ", risk.Flags)})",
+            });
+        }
+
+        await Db.SaveChangesAsync();
+
+        var query = pending ? "?pending=true" : "";
+        Nav.NavigateTo($"/sag/{post.Id}/gem-link/{post.EditToken}{query}");
+    }
+}

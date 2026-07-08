@@ -60,16 +60,12 @@ public sealed class PrintingEliminationService
         var before =
             cards.Count;
 
-        var artist =
-            NormalizeArtist(
-                analysis.Artist);
-
         var matches =
             cards
                 .Where(x =>
                     string.Equals(
-                        NormalizeArtist(x.Artist),
-                        artist,
+                        x.CollectorNumber,
+                        analysis.CollectorNumber,
                         StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -99,12 +95,16 @@ public sealed class PrintingEliminationService
         var before =
             cards.Count;
 
+        var artist =
+            NormalizeArtist(
+                analysis.Artist);
+
         var matches =
             cards
                 .Where(x =>
                     string.Equals(
-                        x.Artist,
-                        analysis.Artist,
+                        NormalizeArtist(x.Artist),
+                        artist,
                         StringComparison.OrdinalIgnoreCase))
                 .ToList();
 

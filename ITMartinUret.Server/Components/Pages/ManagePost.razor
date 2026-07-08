@@ -1,0 +1,231 @@
+@page "/sag/{Id:guid}/administrer/{Token:guid}"
+@rendermode InteractiveServer
+@inject UretDbContext Db
+@inject NavigationManager Nav
+@inject ICaseReviewService Review
+@inject ILogger<ManagePost> Logger
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Administrer sag — ITMartinUret</PageTitle>
+
+@if (_post is null)
+{
+    <div class="wrap"><p>Ugyldigt link, eller sagen er slettet.</p></div>
+}
+else
+{
+    <div class="wrap narrow">
+        <h1>Administrer: @_post.Title</h1>
+
+        <div class="section-title">Tilføj opdatering</div>
+        <EditForm Model="_updateForm" OnValidSubmit="AddUpdate">
+            <DataAnnotationsValidator />
+            <label class="field">
+                <InputTextArea @bind-Value="_updateForm.Body" rows="4" placeholder="Hvad er der sket siden sidst? (fakta, med dato)" />
+            </label>
+            <button class="btn-primary" type="submit">Tilføj</button>
+        </EditForm>
+
+        <div class="section-title">🤖 Hvad kan du gøre?</div>
+        <p class="hint">AI-genereret, generel vejledning ud fra det du har skrevet — ikke juridisk rådgivning. For alvorlige eller uklare sager, kontakt en advokat eller den relevante myndighed direkte.</p>
+        <button class="btn-secondary" @onclick="SuggestActions" disabled="@_suggestingActions">
+            @(_suggestingActions ? "Arbejder..." : (_post.ActionSuggestions is null ? "Få forslag" : "Opdater forslag"))
+        </button>
+        @if (_post.ActionSuggestions is not null)
+        {
+            <div class="section-card">
+                <div class="case-body">@_post.ActionSuggestions</div>
+            </div>
+        }
+
+        <div class="section-title">Upload dokument</div>
+        <div class="warn-box">
+            Tjek at du har fjernet eller sløret andre personers navn, e-mail, telefonnummer eller andre personoplysninger, før du uploader — kun det, der er nødvendigt for sagen.
+        </div>
+        <label class="checkbox">
+            <input type="checkbox" @bind="_redactionAck" />
+            <span>Jeg har fjernet andre personers personoplysninger fra denne fil.</span>
+        </label>
+        <InputFile OnChange="UploadFile" disabled="@(!_redactionAck)"
+                   accept="image/*,.pdf,.eml,.msg,.txt" capture="environment" />
+        <p class="hint">Tag et billede af et brev eller print, eller vælg en fil (f.eks. en e-mail eksporteret som .eml/.pdf).</p>
+        @if (_uploadError is not null)
+        {
+            <div class="error">@_uploadError</div>
+        }
+        @if (_uploadOk)
+        {
+            <div class="ok">Uploadet@(_summarizing ? " — AI læser dokumentet..." : "").</div>
+        }
+        @if (_lastSummary is not null)
+        {
+            <div class="section-card">
+                <div class="section-title">AI-resumé af "@_lastSummaryFile"</div>
+                <div class="case-body">@_lastSummary</div>
+            </div>
+        }
+
+        <div class="section-title">Slet sag</div>
+        @if (!_confirmDelete)
+        {
+            <button class="btn-danger" @onclick="() => _confirmDelete = true">Slet sag</button>
+        }
+        else
+        {
+            <p class="hint">Er du sikker? Dette kan ikke fortrydes.</p>
+            <div class="report-actions">
+                <button class="btn-danger" @onclick="DeletePost">Ja, slet permanent</button>
+                <button class="btn-secondary" @onclick="() => _confirmDelete = false">Annullér</button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [Parameter] public Guid Token { get; set; }
+
+    private Post? _post;
+    private UpdateForm _updateForm = new();
+    private bool _redactionAck;
+    private string? _uploadError;
+    private bool _uploadOk;
+    private bool _summarizing;
+    private string? _lastSummary;
+    private string? _lastSummaryFile;
+    private bool _suggestingActions;
+    private bool _confirmDelete;
+
+    private const long MaxFileBytes = 15_000_000;
+    private static readonly string[] AllowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".eml", ".msg", ".txt"];
+
+    // .msg is a proprietary binary format we don't decode — AI summary only runs for types we can read reliably.
+    private static readonly string[] SummarizableExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".eml", ".txt"];
+
+    private class UpdateForm
+    {
+        [Required] public string Body { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _post = await Db.Posts.Include(p => p.Updates).FirstOrDefaultAsync(p =>
+            p.Id == Id && p.EditToken == Token && p.Status != PostStatus.Deleted);
+    }
+
+    private async Task AddUpdate()
+    {
+        if (_post is null || string.IsNullOrWhiteSpace(_updateForm.Body)) return;
+        var update = new PostUpdate { PostId = _post.Id, Body = _updateForm.Body.Trim() };
+        Db.Updates.Add(update);
+        await Db.SaveChangesAsync();
+        _post.Updates.Add(update);
+        _updateForm = new();
+    }
+
+    private async Task SuggestActions()
+    {
+        if (_post is null) return;
+        _suggestingActions = true;
+        try
+        {
+            var fullText = _post.Body + "\n\n" + string.Join("\n\n",
+                _post.Updates.OrderBy(u => u.CreatedAt).Select(u => u.Body));
+            var suggestions = await Review.SuggestActionsAsync(_post.Company, fullText);
+            _post.ActionSuggestions = suggestions;
+            _post.ActionSuggestionsGeneratedAt = DateTime.UtcNow;
+            await Db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Action suggestion failed");
+        }
+        finally
+        {
+            _suggestingActions = false;
+        }
+    }
+
+    private async Task UploadFile(InputFileChangeEventArgs e)
+    {
+        _uploadError = null;
+        _uploadOk = false;
+        _lastSummary = null;
+        if (_post is null || !_redactionAck) return;
+
+        var file = e.File;
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!AllowedExtensions.Contains(ext)) { _uploadError = "Filtype er ikke tilladt."; return; }
+        if (file.Size > MaxFileBytes) { _uploadError = "Filen er for stor (maks 15 MB)."; return; }
+
+        var dir = Path.Combine("/app/data/uploads", _post.Id.ToString());
+        Directory.CreateDirectory(dir);
+        var storedName = $"{Guid.NewGuid()}{ext}";
+        var fullPath = Path.Combine(dir, storedName);
+
+        await using (var stream = file.OpenReadStream(MaxFileBytes))
+        await using (var outFile = File.Create(fullPath))
+        {
+            await stream.CopyToAsync(outFile);
+        }
+
+        var attachment = new Attachment
+        {
+            PostId = _post.Id,
+            FileName = file.Name,
+            StoredPath = fullPath,
+            RedactionAckAt = DateTime.UtcNow,
+        };
+        Db.Attachments.Add(attachment);
+        await Db.SaveChangesAsync();
+        _redactionAck = false;
+        _uploadOk = true;
+        StateHasChanged();
+
+        if (SummarizableExtensions.Contains(ext))
+        {
+            _summarizing = true;
+            try
+            {
+                var bytes = await File.ReadAllBytesAsync(fullPath);
+                var summary = await Review.SummarizeDocumentAsync(_post.Company, bytes, file.Name);
+                attachment.LegalSummary = summary;
+                attachment.SummaryGeneratedAt = DateTime.UtcNow;
+                await Db.SaveChangesAsync();
+                _lastSummary = summary;
+                _lastSummaryFile = file.Name;
+
+                // Backstop: a clean case description doesn't guarantee a clean attachment. Re-run the same
+                // risk check against the AI's own summary and pull the case back for review if it slipped up.
+                var docRisk = await Review.CheckRiskAsync(_post.Company, summary);
+                if (docRisk.Level is RiskLevel.Medium or RiskLevel.High && _post.Status == PostStatus.Visible)
+                {
+                    _post.Status = PostStatus.Hidden;
+                    Db.Reports.Add(new Report
+                    {
+                        PostId = _post.Id,
+                        Reason = $"[AI-tjek af vedhæftning \"{file.Name}\": {docRisk.Level}] {docRisk.Explanation} ({string.Join(", ", docRisk.Flags)})",
+                    });
+                    await Db.SaveChangesAsync();
+                    _uploadError = "Dokumentet udløste en gennemgang — sagen er midlertidigt skjult igen, indtil den er tjekket manuelt.";
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Document summary failed for {FileName}", file.Name);
+            }
+            finally
+            {
+                _summarizing = false;
+            }
+        }
+    }
+
+    private async Task DeletePost()
+    {
+        if (_post is null) return;
+        _post.Status = PostStatus.Deleted;
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo("/");
+    }
+}

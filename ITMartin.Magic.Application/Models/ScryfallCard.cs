@@ -44,4 +44,5 @@ public class
 
     public decimal? UsdFoilPrice { get; set; }
     public string? SetName { get; set; }
+    public string Lang { get; set; } = "en";
 }

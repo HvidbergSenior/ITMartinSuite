@@ -91,6 +91,30 @@ else
                 </div>
             }
 
+            <!-- Per-app visits -->
+            <div class="section-card">
+                <div class="section-title">Besøg per app</div>
+                @if (_appViews.Count == 0)
+                {
+                    <div class="empty">Ingen data endnu</div>
+                }
+                @{
+                    var maxApp = _appViews.Count > 0 ? _appViews.Max(a => a.Count) : 1;
+                    if (maxApp == 0) maxApp = 1;
+                }
+                @foreach (var (host, count) in _appViews)
+                {
+                    var pct = (int)(count * 100.0 / maxApp);
+                    <div class="row-item">
+                        <div class="row-path">@host</div>
+                        <div class="row-bar-wrap">
+                            <div class="row-bar" style="width:@(Math.Max(pct,1))%"></div>
+                        </div>
+                        <div class="row-count">@count</div>
+                    </div>
+                }
+            </div>
+
             <div class="two-col">
                 <!-- Top pages -->
                 <div class="section-card">
@@ -232,7 +256,7 @@ else
                     <div class="section-title">Besøgende — @_days @(_days == 1 ? "dag" : "dage")@(_days == 0 ? " (alt)" : "")</div>
                     @if (_visitorList.Count == 0)
                     {
-                        <div class="empty">Ingen besøgende endnu — VisitorId gemmes i localStorage fra besøg via martin.itmartin.dk</div>
+                        <div class="empty">Ingen besøgende endnu — VisitorId gemmes i localStorage fra besøg via www.itmartin.dk</div>
                     }
                     <table class="recent-table">
                         <thead>
@@ -344,6 +368,7 @@ else
     private int _uniqueVisitors;
     private int _todayViews;
     private int _mobilePercent;
+    private List<(string Host, int Count)> _appViews = [];
     private List<(string Path, int Count)> _topPages = [];
     private List<(string Ref, int Count)> _topRefs = [];
     private List<(string Dev, int Count)> _devices = [];
@@ -433,6 +458,14 @@ else
 
         var mobileCount = await pageQ.Where(h => h.Device == "mobil").CountAsync();
         _mobilePercent  = _totalViews > 0 ? (int)(mobileCount * 100.0 / _totalViews) : 0;
+
+        var rawApps = await pageQ
+            .Where(h => h.Host != "")
+            .GroupBy(h => h.Host)
+            .Select(g => new { Host = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+        _appViews = rawApps.Select(x => (x.Host, x.Count)).ToList();
 
         var raw = await pageQ
             .GroupBy(h => h.Path)

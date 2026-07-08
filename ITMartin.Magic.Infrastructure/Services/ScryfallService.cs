@@ -137,12 +137,27 @@ public sealed class ScryfallService
                 cards = filteredCards;
             }
         }
-        cards =
-            await _printingEliminationService
-                .EliminateAsync(
-                    cards,
-                    analysis,
-                    cancellationToken);
+
+        // Prefer English printings — foreign-language reprints (e.g. "4bb" Fourth
+        // Edition Foreign Black Border) otherwise tie with the correct English
+        // printing whenever the AI didn't extract enough distinguishing detail.
+        var englishOnly =
+            cards.Where(x => string.Equals(x.Lang, "en", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (englishOnly.Count > 0)
+        {
+            cards = englishOnly;
+        }
+
+        if (analysis is not null)
+        {
+            cards =
+                await _printingEliminationService
+                    .EliminateAsync(
+                        cards,
+                        analysis,
+                        cancellationToken);
+        }
         
         var matches =
             cards
@@ -163,7 +178,7 @@ public sealed class ScryfallService
 
                     var score =
                         analysis is null
-                            ? 0
+                            ? 100 // name already matched via the Scryfall query itself
                             : _matchScoringService.CalculateScore(
                                 card,
                                 analysis);
@@ -230,7 +245,8 @@ public sealed class ScryfallService
             UsdPrice = ParsePrice(dto.Prices?.Usd),
             UsdFoilPrice = ParsePrice(dto.Prices?.UsdFoil),
             Finishes = dto.Finishes ?? [],
-            SetName = dto.Set
+            SetName = dto.SetName,
+            Lang = dto.Lang
         };
     }
 
@@ -240,6 +256,8 @@ public sealed class ScryfallService
     {
         return decimal.TryParse(
             value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture,
             out var price)
             ? price
             : null;

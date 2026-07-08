@@ -42,10 +42,23 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Poll list (index) ───────────────── */
 
+.vote-section-label {
+    padding: 20px 16px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #818CF8;
+}
+
 .poll-list { padding: 8px 0 64px; }
 
 .poll-card {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
     border-bottom: 1px solid #1A1D2E;
     text-decoration: none;
     color: #F0F0F0;
@@ -57,13 +70,16 @@ a { color: inherit; text-decoration: none; }
 .poll-card:active { background: #161825; }
 
 .poll-card-img {
-    width: 100%;
-    max-height: 200px;
+    width: 64px;
+    height: 64px;
     object-fit: cover;
     display: block;
+    flex-shrink: 0;
+    border-radius: 10px;
+    border: 1px solid #262A40;
 }
 
-.poll-card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.poll-card-body { padding: 0; display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 
 .poll-card-title { font-size: 17px; font-weight: 600; line-height: 1.3; }
 
@@ -82,7 +98,15 @@ a { color: inherit; text-decoration: none; }
 
 .poll-view { padding-bottom: 64px; }
 
-.poll-hero-img { width: 100%; max-height: 260px; object-fit: cover; display: block; }
+.poll-hero-img {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    display: block;
+    margin: 16px auto 0;
+    border-radius: 10px;
+    border: 1px solid #262A40;
+}
 
 .poll-content { padding: 20px 16px 0; display: flex; flex-direction: column; gap: 10px; }
 
@@ -298,6 +322,7 @@ a { color: inherit; text-decoration: none; }
 .admin-inactive { font-size: 12px; color: #6B7280; }
 .admin-poll-title { font-size: 15px; font-weight: 600; flex: 1; }
 .admin-poll-votes { font-size: 12px; color: #4B5563; }
+.admin-poll-question { font-size: 13px; color: #818CF8; }
 
 .admin-poll-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -336,6 +361,18 @@ a { color: inherit; text-decoration: none; }
 .poll-input::placeholder { color: #374151; }
 .poll-input:focus { outline: none; border-color: #4338CA; }
 
+.suggestion-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -6px; }
+.suggestion-chip {
+    background: #161825;
+    border: 1px solid #1E2030;
+    border-radius: 999px;
+    color: #9CA3AF;
+    font-size: 12px;
+    padding: 5px 12px;
+    cursor: pointer;
+}
+.suggestion-chip:hover { border-color: #4338CA; color: #F0F0F0; }
+
 .poll-textarea {
     width: 100%;
     background: #161825;
@@ -363,11 +400,8 @@ a { color: inherit; text-decoration: none; }
 /* ── Session cover image (index card) ── */
 
 .session-cover-img {
-    width: 100%;
-    max-height: 160px;
     object-fit: contain;
     background: #090B12;
-    display: block;
 }
 
 /* ── Session grid (voting overview) ─── */
@@ -377,6 +411,13 @@ a { color: inherit; text-decoration: none; }
     font-size: 17px;
     font-weight: 700;
     color: #F0F0F0;
+}
+
+.session-question {
+    padding: 0 16px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #818CF8;
 }
 
 .session-grid {
@@ -451,6 +492,9 @@ a { color: inherit; text-decoration: none; }
     justify-content: center;
     height: 280px;
     overflow: hidden;
+    margin: 0 16px;
+    border-radius: 10px;
+    border: 1px solid #262A40;
 }
 
 .session-panel-img {
@@ -562,6 +606,7 @@ a { color: inherit; text-decoration: none; }
 
 .session-comment { font-size: 13px; color: #6B7280; font-style: italic; display: flex; flex-direction: column; gap: 2px; }
 .session-comment-name { font-style: normal; font-weight: 600; color: #A5B4FC; font-size: 12px; }
+.session-comment-name.anon { color: #6B7280; font-weight: 500; font-style: italic; }
 .session-name-wrap { padding: 0 0 12px 0; }
 .session-name-input { font-size: 14px; }
 

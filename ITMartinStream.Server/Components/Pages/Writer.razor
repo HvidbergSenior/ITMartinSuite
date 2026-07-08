@@ -1,0 +1,144 @@
+@page "/w/{Slug}"
+@inject StreamService Stream
+
+@if (!_auth)
+{
+    <div class="pin-gate">
+        <div class="pin-box">
+            <div class="pin-title">🔐 @(Slug)</div>
+            <form method="get" action="/w/@Slug">
+                <input name="pin" class="field" type="password" placeholder="PIN-kode" maxlength="20" autofocus />
+                @if (_pinError) { <div class="error-msg">@_pinErrorMsg</div> }
+                <button type="submit" class="primary-btn">Åbn</button>
+            </form>
+        </div>
+    </div>
+}
+else if (_project is null)
+{
+    <div class="empty-state">Projekt ikke fundet</div>
+}
+else
+{
+    <div id="page-data" data-page="writer" data-slug="@Slug" data-pin="@PinParam" style="display:none"></div>
+
+    <div class="writer-layout">
+
+        <div class="viewer-hdr">
+            <span class="live-dot"></span>
+            <span class="writer-event-name">@_project.Emoji @_project.Name</span>
+            <div class="viewer-hdr-right">
+                <a href="/p/@Slug" class="ghost-btn">Vis live →</a>
+            </div>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab tab-active" id="tab-write" onclick="writerTab('write')">✏️ Skriv</button>
+            <button class="tab" id="tab-feed" onclick="writerTab('feed')">
+                📋 Feed <span id="pending-badge" class="badge" style="display:none"></span>
+            </button>
+        </div>
+
+        <!-- COMPOSER -->
+        <div id="pane-write">
+
+            <div class="composer-section">
+                <div class="composer-label">📌 Status</div>
+                <div class="header-row">
+                    <input id="w-header" class="field" placeholder="f.eks. Bygger auth-flow" value="@_project.StatusText" />
+                    <button class="primary-btn compact" onclick="updateStatus()">Opdater</button>
+                </div>
+                <div id="w-current-header" class="current-header" style="@(string.IsNullOrEmpty(_project.StatusText) ? "display:none" : "")">
+                    Nu: <strong id="w-header-val">@_project.StatusText</strong>
+                </div>
+            </div>
+
+            <div class="composer-section">
+                <div class="composer-label">🔴 Live-link (YouTube/Twitch, valgfrit)</div>
+                <div class="header-row">
+                    <input id="w-streamurl" class="field" placeholder="f.eks. https://youtube.com/watch?v=... eller https://twitch.tv/dit-kanalnavn" value="@_project.StreamUrl" />
+                    <button class="primary-btn compact" onclick="updateStreamUrl()">Opdater</button>
+                </div>
+            </div>
+
+            <div class="composer-section">
+                <div class="composer-label">Type</div>
+                <div class="type-row">
+                    <!-- onclick values = UpdateType enum: Text=0, Milestone=1, Breaking=2, Poll=3 -->
+                    <button class="type-btn type-active" onclick="selectType(0)">📝<span>Tekst</span></button>
+                    <button class="type-btn" onclick="selectType(1)">🎯<span>Milepæl</span></button>
+                    <button class="type-btn" onclick="selectType(2)">🔥<span>Breaking</span></button>
+                    <button class="type-btn" onclick="selectType(3)">📊<span>Afstemning</span></button>
+                </div>
+            </div>
+
+            <div id="reply-banner" class="reply-banner" style="display:none">
+                <span id="reply-banner-text"></span>
+                <button class="ghost-btn compact" onclick="cancelReply()">✕ Annullér svar</button>
+            </div>
+
+            <div class="composer-section">
+                <textarea id="w-text" class="field textarea-big" placeholder="Hvad sker der?" rows="3" maxlength="500"></textarea>
+            </div>
+
+            <div id="poll-section" class="composer-section" style="display:none">
+                <div class="composer-label">Valgmuligheder</div>
+                <div id="poll-opts">
+                    <input class="field poll-opt-input" placeholder="Mulighed 1" style="margin-bottom:6px" />
+                    <input class="field poll-opt-input" placeholder="Mulighed 2" style="margin-bottom:6px" />
+                </div>
+                <button class="ghost-btn" onclick="addPollOpt()">+ Tilføj mulighed</button>
+            </div>
+
+            <button class="primary-btn big-btn" id="post-btn" onclick="postUpdate()">Post opdatering</button>
+
+            <div class="composer-section end-section">
+                <button id="toggle-btn" class="ghost-btn danger" onclick="toggleActive()">
+                    @(_project.IsActive ? "⏹️ Afslut projekt" : "▶️ Genåbn projekt")
+                </button>
+            </div>
+
+        </div>
+
+        <!-- FEED TAB -->
+        <div id="pane-feed" style="display:none">
+            <div id="w-pending"></div>
+            <div id="w-feed" class="feed"></div>
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "pin")]
+    public string? PinParam { get; set; }
+
+    private StreamProject? _project;
+    private bool _auth;
+    private bool _pinError;
+    private string _pinErrorMsg = "";
+
+    protected override void OnInitialized()
+    {
+        _project = Stream.Get(Slug);
+        if (PinParam is not null)
+        {
+            if (_project is null)
+            {
+                _pinError = true;
+                _pinErrorMsg = $"Projekt '{Slug}' findes ikke — opret det i admin først";
+            }
+            else if (_project.WriterPin == PinParam.Trim())
+            {
+                _auth = true;
+            }
+            else
+            {
+                _pinError = true;
+                _pinErrorMsg = "Forkert PIN";
+            }
+        }
+    }
+}

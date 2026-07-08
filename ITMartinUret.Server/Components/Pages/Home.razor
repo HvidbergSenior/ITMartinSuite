@@ -1,0 +1,40 @@
+@page "/"
+@inject UretDbContext Db
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>ITMartinUret</PageTitle>
+
+<div class="wrap">
+    <div class="hero">
+        <h1>ITMartinUret</h1>
+        <p class="sub">Fakta om urimelig behandling fra virksomheder — offentligt, tidsstemplet, dokumenteret. Ingen historier, ingen "hjælp mig" — bare hvad der skete.</p>
+        <a class="btn-primary" href="/opret">Opret sag</a>
+    </div>
+
+    <div class="list">
+        @if (_posts.Count == 0)
+        {
+            <div class="empty">Ingen sager endnu.</div>
+        }
+        @foreach (var p in _posts)
+        {
+            <a class="post-card" href="@($"/sag/{p.Id}")">
+                <div class="post-company">@p.Company</div>
+                <div class="post-title">@p.Title</div>
+                <div class="post-date">@p.CreatedAt.ToLocalTime().ToString("d. MMM yyyy")</div>
+            </a>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Post> _posts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _posts = await Db.Posts.AsNoTracking()
+            .Where(p => p.Status == PostStatus.Visible)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+    }
+}
