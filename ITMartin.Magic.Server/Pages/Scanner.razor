@@ -232,6 +232,10 @@
                         <span class="badge bg-success">
                             ✅ @_completedCount gemt denne session
                         </span>
+
+                        <button class="btn btn-outline-light btn-sm" @onclick="StopAndShowResults">
+                            👁️ Se resultater
+                        </button>
                     }
                 </div>
             }
@@ -523,6 +527,13 @@
     }
 
     private async Task ChangeSet()
+    {
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+        _cameraStarted = false;
+        StateHasChanged();
+    }
+
+    private async Task StopAndShowResults()
     {
         try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
         _cameraStarted = false;
