@@ -13,13 +13,13 @@
     <base href="/" />
 
     <link rel="stylesheet"
-          href="bootstrap/css/bootstrap.min.css" />
+          href="bootstrap/css/bootstrap.min.css?v=@CacheBuster" />
 
     <link rel="stylesheet"
           href="_content/ITMartin.Shared.UI/css/Shared.css" />
 
     <link rel="stylesheet"
-          href="css/Magic.css" />
+          href="css/Magic.css?v=@CacheBuster" />
 
     <link rel="stylesheet"
           href="ITMartin.Magic.Server.styles.css" />
@@ -31,7 +31,7 @@
 
 <Routes @rendermode="InteractiveServer" />
 
-<script src="js/webcam.js"></script>
+<script src="js/webcam.js?v=@CacheBuster"></script>
 
 <script src="_framework/blazor.web.js"></script>
 
@@ -58,3 +58,10 @@
 </script>
 </body>
 </html>
+
+@code {
+    // Set once per process (i.e. per deploy/restart) - forces browsers and Cloudflare's
+    // edge cache to fetch fresh static assets after every deploy instead of potentially
+    // serving a stale cached copy indefinitely, since these files had no versioning at all.
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}
