@@ -44,11 +44,11 @@
         </div>
     }
 
-    @if (_completedCount == 0)
+    @if (!_cameraStarted && _completedCount == 0)
     {
         <div class="alert alert-info mt-2">
-            📷 <strong>Sådan virker det:</strong> Vælg sæt → start kameraet → scan løs. Når du ser "✅ Taget!" må du straks gå videre til næste kort —
-            du behøver ikke vente på at det bliver genkendt. Alle resultater bliver gemt i baggrunden, og du ser dem samlet, når du stopper kameraet.
+            📷 <strong>Sådan virker det:</strong> Vælg sæt → start kameraet → tryk "Scan kort" for hvert kort du vil have med (de lægges i en bunke, se tallet på knappen).
+            Tryk "▶️ Behandl X kort" når du er klar til at få dem genkendt og prissat — helt op til dig hvornår.
         </div>
     }
 
@@ -228,11 +228,24 @@
                 </div>
             }
 
-            <button class="btn btn-success btn-lg scan-button"
-                    @onclick="() => Capture()"
-                    disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
-                📷 Scan kort
-            </button>
+            <div class="d-flex gap-2">
+                <button class="@(_justCaptured ? "btn btn-lg scan-button scan-button-flash" : "btn btn-success btn-lg scan-button")"
+                        @onclick="() => Capture()"
+                        disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
+                    @(_justCaptured ? "✅ Taget!" : "📷 Scan kort")
+                    @if (_pendingFrames.Count > 0)
+                    {
+                        <span class="pending-count-badge">@_pendingFrames.Count</span>
+                    }
+                </button>
+
+                @if (_pendingFrames.Count > 0)
+                {
+                    <button class="btn btn-primary btn-lg" @onclick="SendPendingFrames">
+                        ▶️ Behandl @_pendingFrames.Count kort
+                    </button>
+                }
+            </div>
 
         </div>
     }
@@ -453,6 +466,10 @@
     // are cheap to hold; the JPEGs themselves are already written to disk before enqueueing.
     private readonly Channel<string> _workChannel = Channel.CreateUnbounded<string>();
 
+    // Captured but not yet sent for processing — the user explicitly triggers
+    // processing via "Behandl", rather than it starting invisibly per capture.
+    private readonly List<string> _pendingFrames = [];
+
     private List<MagicSetSymbolDefinition> _sets = [];
 
     private IEnumerable<MagicSetSymbolDefinition> FilteredSets =>
@@ -667,8 +684,7 @@
 
             if (!background) _capturedImage = $"data:image/jpeg;base64,{clean}";
 
-            _workChannel.Writer.TryWrite(framePath);
-            _queuedCount++;
+            _pendingFrames.Add(framePath);
             _ = FlashCaptureConfirmation();
             StateHasChanged();
         }
@@ -676,6 +692,20 @@
         {
             if (!background) { _detectedText = ex.Message; StateHasChanged(); }
         }
+    }
+
+    private void SendPendingFrames()
+    {
+        if (_pendingFrames.Count == 0) return;
+
+        foreach (var path in _pendingFrames)
+        {
+            _workChannel.Writer.TryWrite(path);
+            _queuedCount++;
+        }
+
+        _pendingFrames.Clear();
+        StateHasChanged();
     }
 
     private sealed class CameraCaptureResult { public string Image { get; set; } = ""; }
