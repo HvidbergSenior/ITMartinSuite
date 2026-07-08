@@ -432,7 +432,13 @@
 
     // Unbounded so a fast scanning streak never silently drops a captured card — frame paths
     // are cheap to hold; the JPEGs themselves are already written to disk before enqueueing.
+    private const int WorkerConcurrency = 3;
     private readonly Channel<string> _workChannel = Channel.CreateUnbounded<string>();
+
+    // CardRepository is a single scoped EF Core context shared across this circuit -
+    // concurrent workers must not call it at the same time (EF Core contexts aren't
+    // thread-safe). The AI/Scryfall call itself (the slow part) still runs in parallel.
+    private readonly SemaphoreSlim _dbWriteLock = new(1, 1);
 
     // Captured but not yet sent for processing — the user explicitly triggers
     // processing via "Behandl", rather than it starting invisibly per capture.
@@ -470,7 +476,13 @@
         }
         catch { }
 
-        _ = RunWorkerAsync();
+        // Multiple concurrent workers draining the same channel - a full batch submitted
+        // via "Behandl" would otherwise process strictly one-at-a-time, making later cards
+        // in the batch wait behind every earlier one instead of being handled in parallel.
+        for (var i = 0; i < WorkerConcurrency; i++)
+        {
+            _ = RunWorkerAsync();
+        }
     }
 
     private async Task SaveOwnerName()
@@ -529,20 +541,28 @@
 
                 if (!result.Failed && result.ScryfallMatchResult is { } match)
                 {
-                    await CardRepository.UpsertScannedAsync(new MagicCard
+                    await _dbWriteLock.WaitAsync();
+                    try
                     {
-                        Id = Guid.NewGuid(),
-                        Name = match.Name,
-                        SetCode = match.SetCode ?? "",
-                        CollectorNumber = match.CollectorNumber ?? "",
-                        Owner = _ownerName,
-                        ScryfallId = match.ScryfallId,
-                        Quantity = 1,
-                        EurPrice = match.EurPrice,
-                        UsdPrice = match.UsdPrice,
-                        FirstSeenAt = DateTime.UtcNow,
-                        LastSeenAt = DateTime.UtcNow
-                    });
+                        await CardRepository.UpsertScannedAsync(new MagicCard
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = match.Name,
+                            SetCode = match.SetCode ?? "",
+                            CollectorNumber = match.CollectorNumber ?? "",
+                            Owner = _ownerName,
+                            ScryfallId = match.ScryfallId,
+                            Quantity = 1,
+                            EurPrice = match.EurPrice,
+                            UsdPrice = match.UsdPrice,
+                            FirstSeenAt = DateTime.UtcNow,
+                            LastSeenAt = DateTime.UtcNow
+                        });
+                    }
+                    finally
+                    {
+                        _dbWriteLock.Release();
+                    }
                 }
 
                 await InvokeAsync(() =>
