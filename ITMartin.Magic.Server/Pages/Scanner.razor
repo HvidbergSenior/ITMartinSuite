@@ -36,7 +36,29 @@
 
     <hr class="scanner-divider" />
 
-    @if (!_cameraStarted)
+    @if (!_cameraStarted && _completedCount > 0 && !_showSetPicker)
+    {
+        <div class="session-summary fade-in-panel">
+            <h5 class="mb-2">📋 Denne session — @_completedCount kort</h5>
+            <ul class="list-group mb-3">
+                @foreach (var item in _recentResults)
+                {
+                    <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning")">
+                        @item.Text
+                    </li>
+                }
+            </ul>
+            <button class="btn btn-primary w-100 mb-2"
+                    @onclick="StartCamera"
+                    disabled="@(string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)">
+                📷 Scan flere kort
+            </button>
+            <div class="text-center">
+                <button class="btn btn-link btn-sm" @onclick="() => _showSetPicker = true">Skift sæt</button>
+            </div>
+        </div>
+    }
+    else if (!_cameraStarted)
     {
         <div class="scanner-setup">
 
@@ -182,7 +204,7 @@
                         </span>
 
                         <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAllResults">
-                            @(_showAllResults ? "Skjul alle kort" : "Vis alle scannede kort")
+                            @(_showAllResults ? "Skjul hele historikken" : "Vis hele historikken (alle testere)")
                         </button>
                     }
                 </div>
@@ -213,7 +235,7 @@
     {
         <div class="mt-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Alle scannede kort (@_allCards.Count)</h5>
+                <h5 class="mb-0">Hele historikken (@_allCards.Count) — alle testere, ikke kun denne session</h5>
                 <span class="fw-bold">Samlet værdi: €@_allCards.Sum(c => c.EurPrice ?? 0).ToString("F2")</span>
             </div>
             <ul class="list-group">
@@ -388,6 +410,7 @@
     private readonly List<ScanFeedItem> _recentResults = [];
     private bool _showAllResults;
     private List<MagicCard> _allCards = [];
+    private bool _showSetPicker;
     private bool _showWrongResultForm;
     private string _wrongResultNote = "";
     private bool _badScanSaved;
