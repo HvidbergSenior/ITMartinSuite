@@ -190,7 +190,10 @@
 // UPSCALE FOR OCR
 // =====================================
 
-        const scale = guideWidth > 800 ? 1 : 4;
+        // Upscaling doesn't add real detail (just interpolated pixels) and was costing
+        // several seconds of canvas work on mobile for no recognition benefit - keep it
+        // minimal, only for genuinely small crops.
+        const scale = guideWidth > 500 ? 1 : 2;
 
         const canvas =
             document.createElement("canvas");
@@ -224,7 +227,7 @@
             image:
                 canvas.toDataURL(
                     "image/jpeg",
-                    1.0)
+                    0.88)
         };
     },
 

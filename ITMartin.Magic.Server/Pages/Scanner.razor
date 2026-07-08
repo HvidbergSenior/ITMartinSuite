@@ -291,12 +291,7 @@
                 var match = _scanResult.ScryfallMatchResult;
                 var setIcon = _sets.FirstOrDefault(s => s.SetCode == match.SetCode)?.IconSvgUri;
 
-                <div class="card-result">
-
-                    <div class="image-panel">
-                        <img src="@match.ImageUrl"
-                             class="matched-card-image" />
-                    </div>
+                <div class="card-result card-result-compact">
 
                     <div class="card-details">
 
@@ -408,22 +403,11 @@
             <div>@_scanResult.FailureReason</div>
         </div>
     }
-    @if (!string.IsNullOrWhiteSpace(_capturedImage) && (_scanResult == null || _scanResult.Failed))
-    {
-        <div class="mt-4">
-            <h5>Taget billede</h5>
-            <img src="@_capturedImage"
-                 style="max-width:400px;
-                    border-radius:12px;
-                    border:2px solid #444;" />
-        </div>
-    }
 </div>
 
 @code {
     private sealed record ScanFeedItem(string Text, bool Success);
 
-    private string? _capturedImage;
     private string? _detectedText;
     private bool _cameraStarted;
     private CardScanContext? _scanResult;
@@ -679,8 +663,6 @@
             Directory.CreateDirectory(folder);
             var framePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
             await File.WriteAllBytesAsync(framePath, bytes);
-
-            if (!background) _capturedImage = $"data:image/jpeg;base64,{clean}";
 
             _pendingFrames.Add(framePath);
             _ = FlashCaptureConfirmation();
