@@ -156,6 +156,13 @@
             }
         </div>
 
+        @if (!string.IsNullOrWhiteSpace(_detectedText) && !_justCaptured)
+        {
+            <div class="alert alert-danger mt-2">
+                ⚠️ @_detectedText
+            </div>
+        }
+
         <div class="scanner-buttons">
 
             @if (_queuedCount > 0 || _completedCount > 0)
