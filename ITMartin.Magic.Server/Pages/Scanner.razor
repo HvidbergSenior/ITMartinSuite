@@ -29,8 +29,8 @@
     @if (_completedCount == 0)
     {
         <div class="alert alert-info mt-2">
-            📷 <strong>Sådan virker det:</strong> Vælg sæt → start kameraet → scan løs. Du behøver ikke vente på ét kort ad gangen —
-            tryk "Scan kort" igen med det samme for næste kort, mens det forrige bliver genkendt og gemt automatisk i baggrunden.
+            📷 <strong>Sådan virker det:</strong> Vælg sæt → start kameraet → scan løs. Når du ser "✅ Taget!" må du straks gå videre til næste kort —
+            du behøver ikke vente på at det bliver genkendt. Alle resultater bliver gemt i baggrunden, og du ser dem samlet, når du stopper kameraet.
         </div>
     }
 
@@ -147,6 +147,13 @@
                     Placer kort inden for rammen
                 </div>
             </div>
+
+            @if (_justCaptured)
+            {
+                <div class="capture-flash">
+                    ✅ Taget! Klar til næste kort
+                </div>
+            }
         </div>
 
         <div class="scanner-buttons">
@@ -378,6 +385,17 @@
     private string _wrongResultNote = "";
     private bool _badScanSaved;
 
+    private bool _justCaptured;
+
+    private async Task FlashCaptureConfirmation()
+    {
+        _justCaptured = true;
+        StateHasChanged();
+        await Task.Delay(1200);
+        _justCaptured = false;
+        StateHasChanged();
+    }
+
     private static readonly HashSet<string> OldFrameSets =
         new(StringComparer.OrdinalIgnoreCase) { "lea", "leb", "2ed", "3ed", "4ed", "4bb" };
 
@@ -581,6 +599,7 @@
 
             _workChannel.Writer.TryWrite(framePath);
             _queuedCount++;
+            _ = FlashCaptureConfirmation();
             StateHasChanged();
         }
         catch (Exception ex)

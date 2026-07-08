@@ -717,6 +717,21 @@ SCAN BUTTON
     animation: fadeInUp .3s ease;
 }
 
+.capture-flash {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(34,197,94,.92);
+    color: white;
+    font-weight: 700;
+    padding: 10px 20px;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    animation: fadeInUp .2s ease;
+    z-index: 10;
+}
+
 .scanner-buttons {
 
     position: fixed;
