@@ -1,0 +1,46 @@
+@page "/verify/{Id:guid}"
+@page "/kontroller/{Id:guid}"
+@rendermode InteractiveServer
+@using ITMartinTransit.Server.Data
+@inject TransitDbContext Db
+
+<PageTitle>Verifikation</PageTitle>
+
+<div class="transit-page">
+
+    @if (_loading)
+    {
+        <div class="verify-loading">Henter...</div>
+    }
+    else if (_person == null)
+    {
+        <div class="verify-notfound">
+            <div class="verify-notfound-icon">❌</div>
+            <div class="verify-notfound-text">Ukendt ID — billet ikke registreret</div>
+            <a href="/" class="transit-btn transit-btn-outline mt-3">Tilbage</a>
+        </div>
+    }
+    else
+    {
+        <div class="verify-card">
+            <div class="verify-badge verify-badge-ok">✓ Registreret</div>
+            <img src="@_person.PhotoBase64" class="verify-photo" alt="Foto" />
+            <div class="verify-name">@_person.Name</div>
+            <div class="verify-date">Registreret @_person.RegisteredAt.ToLocalTime().ToString("dd. MMM yyyy")</div>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private TransitPerson? _person;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _person = await Db.Persons.FindAsync(Id);
+        _loading = false;
+    }
+}

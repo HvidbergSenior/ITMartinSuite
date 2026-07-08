@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @page "/scanner"
 
 @using System.Threading.Channels
@@ -14,265 +14,256 @@
 @inject IMagicCardRepository CardRepository
 @implements IAsyncDisposable
 
-<PageTitle>
-    MTG Scanner
-</PageTitle>
+<PageTitle>MTG Scanner</PageTitle>
 
-<div class="scanner-page">
+@if (!_cameraStarted)
+{
+    <div class="scanner-page">
 
-    <div class="scanner-header">
+        <div class="scanner-setup">
 
-        <div>
+            <label class="form-label">Vælg sæt</label>
 
-            <h1 class="scanner-title">
-                MTG Scanner
-            </h1>
-
-            <div class="scanner-subtitle">
-                AI-drevet kortgenkendelse
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="setMode"
+                       checked="@(!NoSetSymbol)" @onchange="() => NoSetSymbol = false" />
+                <label class="form-check-label">Vælg sæt</label>
             </div>
 
-        </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="radio" name="setMode"
+                       checked="@NoSetSymbol" @onchange="() => NoSetSymbol = true" />
+                <label class="form-check-label">Kort uden sætsymbol</label>
+            </div>
 
-    </div>
-    <div class="scanner-setup">
+            @if (!NoSetSymbol)
+            {
+                <input class="form-control mb-3" placeholder="Søg sæt..."
+                       @bind="_setSearch" @bind:event="oninput" />
 
-        <label class="form-label">
-            Sæt
-        </label>
-
-        <div class="form-check mb-2">
-            <input class="form-check-input"
-                   type="radio"
-                   name="setMode"
-                   checked="@(!NoSetSymbol)"
-                   @onchange="() => NoSetSymbol = false" />
-
-            <label class="form-check-label">
-                Vælg sæt
-            </label>
-        </div>
-
-        <div class="form-check mb-3">
-            <input class="form-check-input"
-                   type="radio"
-                   name="setMode"
-                   checked="@NoSetSymbol"
-                   @onchange="() => NoSetSymbol = true" />
-
-            <label class="form-check-label">
-                Kort uden sætsymbol
-            </label>
-        </div>
-
-        @if (!NoSetSymbol)
-        {
-            <input class="form-control mb-2"
-                   placeholder="Søg sæt..."
-                   @bind="_setSearch" />
-
-            <select class="form-select"
-                    @bind="_selectedSetCode">
-
-                <option value="">
-                    Vælg et sæt...
-                </option>
-
-                @foreach (var set in FilteredSets.Take(50))
+                @if (_selectedSetCode != null)
                 {
-                    <option value="@set.SetCode">
-                        @set.SetName (@set.SetCode.ToUpper())
-                    </option>
+                    var sel = _sets.FirstOrDefault(s => s.SetCode == _selectedSetCode);
+                    <div class="selected-set-display">
+                        @if (!string.IsNullOrEmpty(sel?.IconSvgUri))
+                        {
+                            <img src="@sel.IconSvgUri" class="selected-set-icon" width="28" height="28" alt="@_selectedSetCode" />
+                        }
+                        <div class="selected-set-text">
+                            <div class="selected-set-name">@_selectedSetName</div>
+                            <div class="selected-set-code">@_selectedSetCode.ToUpperInvariant()</div>
+                        </div>
+                        <button class="selected-set-clear" @onclick="() => _selectedSetCode = null">✕</button>
+                    </div>
                 }
 
-            </select>
-        }
-    </div>
-    
-    @if (NoSetSymbol)
-    {
-        <div class="alert alert-info mt-2">
-            Scanner kort uden sætsymboler.
-        </div>
-    }
-    else if (string.IsNullOrWhiteSpace(_selectedSetCode))
-    {
-        <div class="alert alert-warning mt-2">
-            Vælg venligst et sæt inden scanning.
-        </div>
-    }
-    else
-    {
-        <div class="alert alert-success mt-2">
-            Scanner sæt: @_selectedSetCode.ToUpperInvariant()
-        </div>
-    }
-   
-    <div class="scanner-wrapper">
-
-        @if (!_cameraStarted)
-        {
-            <div class="camera-start-panel">
-
-                <button @onclick="StartCamera"
-                        disabled="@(
-                                  string.IsNullOrWhiteSpace(_selectedSetCode)
-                                  && !NoSetSymbol)">
-                    Start kamera
-                </button>
-
-            </div>
-        }
-        else
-        {
-            <video id="video"
-                   autoplay
-                   muted
-                   playsinline
-                   webkit-playsinline
-                   class="scanner-video">
-            </video>
-
-            <div class="scanner-guide">
-
-                <div class="guide-text">
-                    Placer kort inden for rammen
-                </div>
-
-            </div>
-        }
-
-        @if (_isProcessing)
-        {
-            <div class="scanner-overlay">
-
-                <div class="scanner-loading">
-
-                    <div class="spinner-border text-light">
-                    </div>
-
-                    <div class="mt-4 fw-bold">
-                        @_detectedText
-                    </div>
-
-                </div>
-
-            </div>
-        }
-
-    </div>
-
-    <div class="scanner-buttons" style="gap:12px;">
-
-        <button class="btn btn-success btn-lg scan-button"
-                @onclick="() => Capture()"
-                disabled="@(_isProcessing || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
-            @(_isProcessing ? "Scanner..." : "Scan kort")
-        </button>
-
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(_detectedText))
-    {
-        <div class="alert alert-dark scanner-alert mt-4">
-
-            @_detectedText
-
-        </div>
-    }
-
-    @if (_scanResult != null)
-    {
-        <div class="result-panel">
-
-            @if (_scanResult.ScryfallMatchResult != null)
-            {
-                var match = _scanResult.ScryfallMatchResult;
-
-                <div class="card-result">
-
-                    <div class="image-panel">
-
-                        <img src="@match.ImageUrl"
-                             class="matched-card-image" />
-
-                    </div>
-
-                    <div class="card-details">
-
-                        <h2 class="card-name">
-                            @match.Name
-                        </h2>
-
-                        <div class="set-line">
-                            @match.SetCode?.ToUpperInvariant()
-                            ·
-                            #@match.CollectorNumber
-                        </div>
-
-                        <div class="price-hero">
-                            @(match.EurPrice.HasValue ? $"€{match.EurPrice.Value:F2}" : "Ingen pris")
-                        </div>
-
-                        <div class="price-sub">
-                            @if (match.UsdPrice.HasValue)
+                <div class="set-icon-grid">
+                    @foreach (var set in FilteredSets)
+                    {
+                        <div class="set-tile @(set.SetCode == _selectedSetCode ? "set-tile-selected" : "")"
+                             @onclick="() => _selectedSetCode = set.SetCode"
+                             title="@set.SetName">
+                            @if (!string.IsNullOrEmpty(set.IconSvgUri))
                             {
-                                <span>$@match.UsdPrice.Value.ToString("F2") USD</span>
+                                <img src="@set.IconSvgUri" class="set-tile-icon" width="22" height="22" alt="@set.SetCode" />
                             }
-                            @if (match.EurFoilPrice.HasValue)
-                            {
-                                <span>· €@match.EurFoilPrice.Value.ToString("F2") Foil</span>
-                            }
+                            <div class="set-tile-code">@set.SetCode.ToUpper()</div>
                         </div>
-
-                    </div>
-
+                    }
                 </div>
-
             }
 
-        </div>
-    }
-    @if (!string.IsNullOrWhiteSpace(_capturedImage) && (_scanResult == null || _scanResult.Failed))
-    {
-        <div class="mt-4">
-
-            <h5>
-                Taget billede
-            </h5>
-
-            <img src="@_capturedImage"
-                 style="max-width:400px;
-                    border-radius:12px;
-                    border:2px solid #444;" />
+            <button class="btn btn-primary mt-4 w-100"
+                    @onclick="StartCamera"
+                    disabled="@(string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)">
+                Start kamera
+            </button>
 
         </div>
-    }
-</div>
+
+        @if (_sessionCards.Count > 0)
+        {
+            <div class="session-list mt-4">
+                <div class="session-header">Seneste session — @_sessionCards.Count kort</div>
+                @foreach (var entry in _sessionCards)
+                {
+                    <div class="session-row @(entry.Failed ? "session-row-failed" : "")">
+                        <div class="session-info">
+                            <div class="session-name">@(entry.Failed ? "Ikke genkendt" : entry.Name)</div>
+                            <div class="session-meta">
+                                @if (entry.Failed)
+                                {
+                                    @entry.Error
+                                }
+                                else
+                                {
+                                    @($"{entry.SetCode.ToUpperInvariant()} · #{entry.CollectorNumber}")
+                                }
+                            </div>
+                        </div>
+                        <div class="session-price">@(entry.EurPrice.HasValue ? $"€{entry.EurPrice.Value:F2}" : "—")</div>
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+}
+else
+{
+    <div class="scanner-page scanning-mode">
+
+        <div class="set-bar">
+            <div class="set-bar-info">
+                <div class="set-bar-label">Sæt</div>
+                <div class="set-bar-name">
+                    @if (NoSetSymbol)
+                    {
+                        <span>Uden sætsymbol</span>
+                    }
+                    else
+                    {
+                        <span>@_selectedSetName <span class="set-bar-code">(@_selectedSetCode?.ToUpperInvariant())</span></span>
+                    }
+                </div>
+            </div>
+            <button class="set-bar-change" @onclick="ChangeSet">Skift sæt</button>
+        </div>
+
+        <div class="scanner-wrapper">
+            <video id="video" autoplay muted playsinline webkit-playsinline class="scanner-video"></video>
+            <div class="scanner-guide">
+                <div class="guide-text">Placer kort inden for rammen</div>
+            </div>
+        </div>
+
+        <div class="scanner-buttons">
+            <button class="btn btn-lg scan-button @(_isCapturing ? "scan-button-busy" : "")"
+                    @onclick="Capture" disabled="@(_isCapturing)">
+                @if (_isCapturing)
+                {
+                    <span class="processing-spinner me-2"></span>
+                    <span>Fanger...</span>
+                }
+                else
+                {
+                    <span>Scan kort</span>
+                    @if (_pendingFrames.Count > 0)
+                    {
+                        <span class="scan-badge">@_pendingFrames.Count</span>
+                    }
+                }
+            </button>
+
+            @if (_pendingFrames.Count > 0 || _pendingCount > 0)
+            {
+                <button class="btn btn-lg send-button @(_pendingFrames.Count == 0 ? "send-button-busy" : "")"
+                        @onclick="SendFrames" disabled="@(_pendingFrames.Count == 0)">
+                    @if (_pendingCount > 0 && _pendingFrames.Count == 0)
+                    {
+                        <span class="processing-spinner me-2"></span>
+                        <span>Behandler @_pendingCount...</span>
+                    }
+                    else
+                    {
+                        <span>Send @_pendingFrames.Count kort</span>
+                    }
+                </button>
+            }
+        </div>
+
+        @if (_sessionCards.Count > 0)
+        {
+            <div class="results-list">
+                <div class="results-header">Denne session — @_sessionCards.Count kort</div>
+                @foreach (var (entry, idx) in _sessionCards.Select((e, i) => (e, i)))
+                {
+                    <div class="result-card @(entry.Failed ? "result-card-failed" : "result-card-ok") @(idx == 0 ? "result-card-latest" : "")">
+                        @if (entry.Failed)
+                        {
+                            <div class="result-status-icon fail">✕</div>
+                            <div class="result-info">
+                                <div class="result-name result-name-fail">Ikke genkendt</div>
+                            </div>
+                        }
+                        else
+                        {
+                            @if (!string.IsNullOrEmpty(entry.ImageUrl))
+                            {
+                                <img src="@entry.ImageUrl" class="result-thumb" alt="@entry.Name" />
+                            }
+                            <div class="result-info">
+                                <div class="result-name">@entry.Name</div>
+                                <div class="result-set">@entry.SetCode.ToUpperInvariant() · #@entry.CollectorNumber</div>
+                                <div class="result-pricing">
+                                    <span class="result-eur">@(entry.EurPrice.HasValue ? $"€{entry.EurPrice.Value:F2}" : "—")</span>
+                                    @if (entry.UsdPrice.HasValue)
+                                    {
+                                        <span class="result-usd">/ $@entry.UsdPrice.Value.ToString("F2")</span>
+                                    }
+                                    @if (entry.EurFoilPrice.HasValue)
+                                    {
+                                        <span class="result-foil">foil €@entry.EurFoilPrice.Value.ToString("F2")</span>
+                                    }
+                                </div>
+                                @if (idx == 0 && entry.OtherPrintings?.Count > 0)
+                                {
+                                    <div class="result-other-printings">
+                                        <span class="result-other-label">Andre udgaver (@entry.OtherPrintings.Count):</span>
+                                        @foreach (var p in entry.OtherPrintings.Take(5))
+                                        {
+                                            <span class="result-other-item">@p.SetCode.ToUpperInvariant() @(p.EurPrice.HasValue ? $"€{p.EurPrice.Value:F2}" : "—")</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+}
 
 @code {
-    private string? _capturedImage;
-    private string? _detectedText;
-    private bool _isProcessing;
     private bool _cameraStarted;
-    private CardScanContext? _scanResult;
     private string? _selectedSetCode;
     private string _setSearch = "";
     private bool _noSetSymbol;
     private bool _disposed;
+    private int _pendingCount;
+    private bool _isCapturing;
+    private readonly List<string> _pendingFrames = [];
 
-    private readonly Channel<string> _workChannel =
-        Channel.CreateBounded<string>(new BoundedChannelOptions(4) { FullMode = BoundedChannelFullMode.DropOldest });
+    private record SessionEntry(
+        string Name,
+        string SetCode,
+        string CollectorNumber,
+        decimal? EurPrice,
+        decimal? EurFoilPrice = null,
+        decimal? UsdPrice = null,
+        decimal? UsdFoilPrice = null,
+        string? ImageUrl = null,
+        List<CardCandidateViewModel>? OtherPrintings = null,
+        bool Failed = false,
+        string? Error = null);
+    private readonly List<SessionEntry> _sessionCards = [];
+
+    private readonly Channel<(string Path, string? SetCode)> _workChannel =
+        Channel.CreateBounded<(string, string?)>(new BoundedChannelOptions(20) { FullMode = BoundedChannelFullMode.DropOldest });
 
     private List<MagicSetSymbolDefinition> _sets = [];
 
+    private string _selectedSetName =>
+        _sets.FirstOrDefault(s => s.SetCode == _selectedSetCode)?.SetName ?? _selectedSetCode ?? "";
+
     private IEnumerable<MagicSetSymbolDefinition> FilteredSets =>
         string.IsNullOrWhiteSpace(_setSearch)
-            ? _sets.Take(50)
+            ? _sets
             : _sets.Where(x =>
                 x.SetName.Contains(_setSearch, StringComparison.OrdinalIgnoreCase) ||
-                x.SetCode.Contains(_setSearch, StringComparison.OrdinalIgnoreCase))
-              .Take(50);
+                x.SetCode.Contains(_setSearch, StringComparison.OrdinalIgnoreCase));
 
     private bool NoSetSymbol
     {
@@ -287,7 +278,7 @@
     protected override async Task OnInitializedAsync()
     {
         _sets = (await MagicKnowledgeService.GetSetDefinitionsAsync())
-            .OrderByDescending(x => x.SetCode)
+            .OrderBy(x => x.SetCode)
             .ToList();
 
         _ = RunWorkerAsync();
@@ -312,19 +303,25 @@
         catch (Exception ex)
         {
             _cameraStarted = false;
-            _detectedText = ex.Message;
+            _sessionCards.Insert(0, new SessionEntry("", "", "", null, Failed: true, Error: ex.Message));
         }
+        StateHasChanged();
+    }
+
+    private async Task ChangeSet()
+    {
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+        _cameraStarted = false;
         StateHasChanged();
     }
 
     private async Task RunWorkerAsync()
     {
-        await foreach (var framePath in _workChannel.Reader.ReadAllAsync())
+        await foreach (var (framePath, setCode) in _workChannel.Reader.ReadAllAsync())
         {
             if (_disposed) break;
             try
             {
-                var setCode = NoSetSymbol ? null : _selectedSetCode;
                 var result = await CardScanOrchestrator.ExecuteAsync(framePath, setCode, CancellationToken.None);
 
                 if (!result.Failed && result.ScryfallMatchResult is { } match)
@@ -346,17 +343,21 @@
 
                 await InvokeAsync(() =>
                 {
-                    _scanResult = result;
-                    _isProcessing = false;
+                    _pendingCount = Math.Max(0, _pendingCount - 1);
 
                     if (!result.Failed && result.ScryfallMatchResult is { } m)
-                    {
-                        _detectedText = $"Scannet: {m.Name}";
-                    }
-                    else if (result.Failed)
-                    {
-                        _detectedText = result.FailureReason;
-                    }
+                        _sessionCards.Insert(0, new SessionEntry(
+                            m.Name,
+                            m.SetCode ?? "",
+                            m.CollectorNumber ?? "",
+                            m.EurPrice,
+                            m.EurFoilPrice,
+                            m.UsdPrice,
+                            m.UsdFoilPrice,
+                            m.ImageUrl,
+                            result.OtherPrintings));
+                    else
+                        _sessionCards.Insert(0, new SessionEntry("", "", "", null, Failed: true, Error: result.FailureReason ?? "Ikke genkendt"));
 
                     StateHasChanged();
                 });
@@ -365,28 +366,22 @@
             {
                 await InvokeAsync(() =>
                 {
-                    _isProcessing = false;
-                    _detectedText = ex.Message;
+                    _pendingCount = Math.Max(0, _pendingCount - 1);
+                    _sessionCards.Insert(0, new SessionEntry("", "", "", null, Failed: true, Error: ex.Message));
                     StateHasChanged();
                 });
             }
         }
     }
 
-    private async Task Capture(bool background = false)
+    private async Task Capture()
     {
-        if (_disposed) return;
-        if (!background && (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))
-        {
-            _detectedText = "Vælg et sæt eller 'Kort uden sætsymbol'.";
-            return;
-        }
-        if (!_cameraStarted) return;
+        if (_disposed || !_cameraStarted || _isCapturing) return;
+        _isCapturing = true;
+        StateHasChanged();
 
         try
         {
-            if (!background) { _isProcessing = true; _scanResult = null; _detectedText = "Optager..."; StateHasChanged(); }
-
             CameraCaptureResult capture;
             try { capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture"); }
             catch (TaskCanceledException) { return; }
@@ -398,16 +393,30 @@
             var framePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
             await File.WriteAllBytesAsync(framePath, bytes);
 
-            if (!background) _capturedImage = $"data:image/jpeg;base64,{clean}";
-
-            _workChannel.Writer.TryWrite(framePath);
-
-            if (!background) { _isProcessing = true; StateHasChanged(); }
+            _pendingFrames.Add(framePath);
         }
         catch (Exception ex)
         {
-            if (!background) { _isProcessing = false; _detectedText = ex.Message; StateHasChanged(); }
+            _sessionCards.Insert(0, new SessionEntry("", "", "", null, Failed: true, Error: ex.Message));
         }
+        finally
+        {
+            _isCapturing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SendFrames()
+    {
+        if (_pendingFrames.Count == 0) return;
+        var setCode = NoSetSymbol ? null : _selectedSetCode;
+        foreach (var path in _pendingFrames)
+        {
+            _workChannel.Writer.TryWrite((path, setCode));
+            _pendingCount++;
+        }
+        _pendingFrames.Clear();
+        StateHasChanged();
     }
 
     private sealed class CameraCaptureResult { public string Image { get; set; } = ""; }

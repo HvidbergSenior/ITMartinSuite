@@ -36,19 +36,13 @@ public sealed class CardMatchScoringService
         score += 100;
 
         if (!string.IsNullOrWhiteSpace(
-                analysis.CollectorNumber))
+                analysis.CollectorNumber) &&
+            string.Equals(
+                analysis.CollectorNumber,
+                card.CollectorNumber,
+                StringComparison.OrdinalIgnoreCase))
         {
-            if (string.Equals(
-                    analysis.CollectorNumber,
-                    card.CollectorNumber,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                score += 1000;
-            }
-            else
-            {
-                score -= 500;
-            }
+            score += 1000;
         }
 
         if (!string.IsNullOrWhiteSpace(

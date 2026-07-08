@@ -13,4 +13,10 @@ public sealed class ScryfallSetDto
 
     [JsonPropertyName("set_type")]
     public string SetType { get; set; } = "";
+
+    [JsonPropertyName("icon_svg_uri")]
+    public string IconSvgUri { get; set; } = "";
+
+    [JsonPropertyName("digital")]
+    public bool Digital { get; set; }
 }

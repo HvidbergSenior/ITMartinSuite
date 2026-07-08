@@ -35,7 +35,7 @@ public sealed class FinalScryfallMatchWorkflowStep
         {
             return;
         }
-        _logger.LogDebug("Scryfall match — set filter: {SetCode}", context.State.SetCode);
+        _logger.LogInformation("Scryfall match — set filter: {SetCode}", context.State.SetCode);
         var match =
             await _scryfallService.SearchAsync(
                 context.State.CardName,
