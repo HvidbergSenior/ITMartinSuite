@@ -24,5 +24,10 @@ public sealed class MagicCardAnalysisResult
     // year text isn't legible in the photo.
     public bool? HasLineUnderArtist { get; set; }
 
+    // Is there an actual expansion symbol printed on the card (usually a small icon
+    // to the right of the card name, or near the type line)? Used to catch mode
+    // mismatches - user selected "no set symbol" for a card that actually has one.
+    public bool? HasVisibleSetSymbol { get; set; }
+
     public decimal IdentificationConfidence { get; set; }
 }

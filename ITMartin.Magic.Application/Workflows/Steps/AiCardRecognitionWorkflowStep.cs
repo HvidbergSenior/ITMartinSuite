@@ -54,6 +54,18 @@ public sealed class AiCardRecognitionWorkflowStep
         context.State.AiResult =
             result;
 
+        // Mode mismatch: "no set symbol" was selected but the card actually has one -
+        // proceeding would silently search only the small no-symbol whitelist (Alpha
+        // through 4th/5th Edition) and likely land on a wrong reprint rather than the
+        // card's real (expansion-set) printing. Fail clearly instead of guessing.
+        if (string.IsNullOrWhiteSpace(context.State.SetCode) &&
+            result.HasVisibleSetSymbol == true)
+        {
+            context.State.Fail(
+                $"Dette kort ser ud til at have et sætsymbol — det passer ikke med \"Kort uden sætsymbol\". Prøv \"Vælg sæt\" i stedet{(string.IsNullOrWhiteSpace(result.IdentifiedName) ? "" : $" for \"{result.IdentifiedName}\"")}.");
+            return;
+        }
+
         context.State.CardName =
             result.IdentifiedName;
 

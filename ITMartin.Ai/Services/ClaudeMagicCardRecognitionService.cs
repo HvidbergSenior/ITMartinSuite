@@ -52,10 +52,12 @@ public sealed class ClaudeMagicCardRecognitionService
                     new { type = "string", description = "Copyright year printed at the bottom of the card e.g. 1995" }),
                 ["hasLineUnderArtist"] = JsonSerializer.SerializeToElement(
                     new { type = "boolean", description = "Is there anything (a rule line, extra text/element) printed directly below the artist credit line? Revised Edition has nothing there — later editions do." }),
+                ["hasVisibleSetSymbol"] = JsonSerializer.SerializeToElement(
+                    new { type = "boolean", description = "Is there an actual expansion symbol (a small icon) printed on the card, usually to the right of the card name or near the type line? Alpha/Beta/Unlimited/Revised/4th Edition/5th Edition never have one — most expansion sets (Ice Age, Arabian Nights, Tempest, etc.) and all modern cards do." }),
                 ["identificationConfidence"] = JsonSerializer.SerializeToElement(
                     new { type = "number", description = "Confidence 0.0-1.0" }),
             },
-            Required = ["identificationConfidence", "borderColor", "copyrightYear"],
+            Required = ["identificationConfidence", "borderColor", "copyrightYear", "hasVisibleSetSymbol"],
         },
     };
 
@@ -295,6 +297,16 @@ public sealed class ClaudeMagicCardRecognitionService
         Revised Edition's two defining traits together: no visible/legible copyright year,
         AND nothing printed under the artist line. If you observe both of these missing,
         that strongly indicates Revised Edition specifically (not 4th Edition or Unlimited).
+
+        SET SYMBOL RULES
+
+        Always report hasVisibleSetSymbol — look for a small icon printed on the card,
+        usually to the right of the card name or near the type line. This is critical:
+        the app may be searching under the assumption the card has NO set symbol, and if
+        it actually does, that assumption is wrong and the result will be wrong too.
+
+        Always report this truthfully based on what you see, regardless of what mode the
+        app is running in — never assume there's no symbol just because none was expected.
 
         OLD-FRAME SET GUIDE (only relevant when a card name exists in more than one of
         these sets — this only matters for disambiguation, not for cards printed once)
