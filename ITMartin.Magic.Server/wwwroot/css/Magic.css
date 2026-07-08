@@ -805,6 +805,21 @@ SCAN BUTTON
     font-weight: 700;
 }
 
+.card-name-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.card-thumb {
+    width: 48px;
+    height: 67px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+
 .feed-item-clickable {
     cursor: pointer;
     position: relative;

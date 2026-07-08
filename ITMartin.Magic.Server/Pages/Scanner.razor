@@ -287,9 +287,15 @@
 
                     <div class="card-details">
 
-                        <h2 class="card-name">
-                            @match.Name
-                        </h2>
+                        <div class="card-name-row">
+                            @if (!string.IsNullOrEmpty(match.ImageUrl))
+                            {
+                                <img src="@match.ImageUrl" class="card-thumb" alt="@match.Name" />
+                            }
+                            <h2 class="card-name">
+                                @match.Name
+                            </h2>
+                        </div>
 
                         <div class="set-line">
                             @if (!string.IsNullOrEmpty(setIcon))
