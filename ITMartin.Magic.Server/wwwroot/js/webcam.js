@@ -133,15 +133,30 @@
                 (guideRect.top - videoRect.top) *
                 scaleY);
 
-        const guideWidth =
+        let guideWidth =
             Math.round(
                 guideRect.width *
                 scaleX);
 
-        const guideHeight =
+        let guideHeight =
             Math.round(
                 guideRect.height *
                 scaleY);
+
+        // Safety net: on some mobile browsers (notably iOS Safari) video.videoWidth/
+        // videoHeight can still be 0 right after autoplay starts, which collapses the
+        // whole crop to 0x0 and silently produces a blank image every time. Fall back
+        // to capturing the full video frame rather than an unusable empty crop.
+        let guideXSafe = guideX;
+        let guideYSafe = guideY;
+        if (!width || !height || !guideWidth || !guideHeight ||
+            !isFinite(guideWidth) || !isFinite(guideHeight)) {
+            console.warn("webcam.capture: invalid guide crop, falling back to full frame", { width, height, guideWidth, guideHeight });
+            guideXSafe = 0;
+            guideYSafe = 0;
+            guideWidth = width || this.video.videoWidth || 1280;
+            guideHeight = height || this.video.videoHeight || 720;
+        }
 // =====================================
 // CROP CARD
 // =====================================
@@ -161,8 +176,8 @@
         cropCtx.drawImage(
             this.video,
 
-            guideX,
-            guideY,
+            guideXSafe,
+            guideYSafe,
             guideWidth,
             guideHeight,
 
@@ -175,7 +190,7 @@
 // UPSCALE FOR OCR
 // =====================================
 
-        const scale = 4;
+        const scale = guideWidth > 800 ? 1 : 4;
 
         const canvas =
             document.createElement("canvas");
