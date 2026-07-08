@@ -296,6 +296,29 @@ public sealed class ClaudeMagicCardRecognitionService
         AND nothing printed under the artist line. If you observe both of these missing,
         that strongly indicates Revised Edition specifically (not 4th Edition or Unlimited).
 
+        OLD-FRAME SET GUIDE (only relevant when a card name exists in more than one of
+        these sets — this only matters for disambiguation, not for cards printed once)
+
+        - Alpha (lea): black border. UNIQUE TRAIT — rounded card corners. This is the only
+          set with rounded corners; if you can see the corners, this alone confirms Alpha.
+        - Beta (leb): black border, square corners. Visually near-identical to Alpha except
+          corners — rely on copyright year/collector number if corners aren't visible.
+        - Unlimited (2ed): white border — the first white-border set.
+        - Revised (3ed): white border. No copyright year visible, no line under artist (see above).
+        - 4th Edition (4ed): white border. Has copyright year "1995" and a line under artist.
+        - 4th Edition Foreign Black Border (4bb): black border, but the card text is in a
+          foreign language (Spanish or similar), not English — a card with English rules
+          text is never 4bb.
+        - 5th Edition (5ed): white border, released 1997 — noticeably later than the other
+          white-border core sets. If the card looks newer/crisper than a worn 1990s card,
+          consider 5th Edition.
+        - Arabian Nights (arn) / Antiquities (atq): black border expansion sets from 1993-94
+          with their own distinct card pools (not reprints of core-set staples) — normally
+          only relevant if the card name is specific to these sets.
+        - Chronicles (chr) / Renaissance (ren): 1995 reprint sets — if the physical card has
+          any visible expansion symbol at all, it is NOT one of the no-symbol core sets above;
+          check for a small icon near the card name before assuming no set symbol.
+
         COLLECTOR NUMBER RULES
 
         Collector Number and Power/Toughness are different things.

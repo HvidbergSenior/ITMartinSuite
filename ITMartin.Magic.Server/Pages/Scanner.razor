@@ -288,6 +288,18 @@
                 {
                     <div class="mt-3">
                         <div class="fw-bold small text-muted mb-1">Andre mulige udgaver — tjek disse detaljer for at se forskel:</div>
+
+                        @if (_scanResult.OtherPrintings.Any(a => OldFrameSets.Contains(a.SetCode)) || OldFrameSets.Contains(match.SetCode ?? ""))
+                        {
+                            <div class="alert alert-secondary small py-2 px-2 mb-2">
+                                💡 <strong>Gamle udgaver kan ligne hinanden:</strong>
+                                Alpha har <em>runde hjørner</em> (unikt for Alpha).
+                                Sort ramme = Alpha/Beta/4th Ed. Foreign Black Border.
+                                Hvid ramme = Unlimited/Revised/4th Edition/5th Edition.
+                                Revised har <em>ingen</em> synlig copyright-årstal og intet under kunstner-linjen — 4th Edition har begge dele.
+                            </div>
+                        }
+
                         <ul class="list-group">
                             @foreach (var alt in _scanResult.OtherPrintings.Take(6))
                             {
@@ -357,6 +369,9 @@
     private bool _showWrongResultForm;
     private string _wrongResultNote = "";
     private bool _badScanSaved;
+
+    private static readonly HashSet<string> OldFrameSets =
+        new(StringComparer.OrdinalIgnoreCase) { "lea", "leb", "2ed", "3ed", "4ed", "4bb" };
 
     // Unbounded so a fast scanning streak never silently drops a captured card — frame paths
     // are cheap to hold; the JPEGs themselves are already written to disk before enqueueing.
