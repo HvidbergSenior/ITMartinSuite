@@ -1,0 +1,860 @@
+{
+  "operators": [
+    { "name": "Ash",        "side": "Attack",  "role": "Hard Breach Flanker", "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/ash.png" },
+    { "name": "Thermite",   "side": "Attack",  "role": "Hard Breacher",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/thermite.png" },
+    { "name": "Sledge",     "side": "Attack",  "role": "Soft Breacher",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/sledge.png" },
+    { "name": "Twitch",     "side": "Attack",  "role": "Support",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/twitch.png" },
+    { "name": "Glaz",       "side": "Attack",  "role": "Marksman",             "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/glaz.png" },
+    { "name": "Fuze",       "side": "Attack",  "role": "Crowd Control",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/fuze.png" },
+    { "name": "Blitz",      "side": "Attack",  "role": "Shield",               "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/blitz.png" },
+    { "name": "IQ",         "side": "Attack",  "role": "Intel",                "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/iq.png" },
+    { "name": "Buck",       "side": "Attack",  "role": "Soft Breacher",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/buck.png" },
+    { "name": "Blackbeard", "side": "Attack",  "role": "Shield",               "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/blackbeard.png" },
+    { "name": "Capitão",    "side": "Attack",  "role": "Flanker",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/capitao.png" },
+    { "name": "Hibana",     "side": "Attack",  "role": "Hard Breacher",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/hibana.png" },
+    { "name": "Jackal",     "side": "Attack",  "role": "Roam Clear",           "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/jackal.png" },
+    { "name": "Ying",       "side": "Attack",  "role": "Flash Disrupt",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/ying.png" },
+    { "name": "Zofia",      "side": "Attack",  "role": "Support",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/zofia.png" },
+    { "name": "Dokkaebi",   "side": "Attack",  "role": "Intel",                "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/dokkaebi.png" },
+    { "name": "Lion",       "side": "Attack",  "role": "Intel / Roam Clear",   "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/lion.png" },
+    { "name": "Finka",      "side": "Attack",  "role": "Support",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/finka.png" },
+    { "name": "Nomad",      "side": "Attack",  "role": "Flank Watch",          "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/nomad.png" },
+    { "name": "Gridlock",   "side": "Attack",  "role": "Crowd Control",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/gridlock.png" },
+    { "name": "Nokk",       "side": "Attack",  "role": "Roam Clear",           "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/nokk.png" },
+    { "name": "Amaru",      "side": "Attack",  "role": "Flanker",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/amaru.png" },
+    { "name": "Kali",       "side": "Attack",  "role": "Hard Breach Support",  "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/kali.png" },
+    { "name": "Iana",       "side": "Attack",  "role": "Intel / Hologram",     "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/iana.png" },
+    { "name": "Ace",        "side": "Attack",  "role": "Hard Breacher",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/ace.png" },
+    { "name": "Zero",       "side": "Attack",  "role": "Intel",                "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/zero.png" },
+    { "name": "Flores",     "side": "Attack",  "role": "Drone / Intel",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/flores.png" },
+    { "name": "Sens",       "side": "Attack",  "role": "Support / Smoke",      "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/sens.png" },
+    { "name": "Brava",      "side": "Attack",  "role": "Gadget Hack",          "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/brava.png" },
+    { "name": "Ram",        "side": "Attack",  "role": "Soft Breach",          "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/ram.png" },
+    { "name": "Deimos",     "side": "Attack",  "role": "Roam / Flanker",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/deimos.png" },
+
+    { "name": "Smoke",      "side": "Defense", "role": "Delay",                "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/smoke.png" },
+    { "name": "Mute",       "side": "Defense", "role": "Denial",               "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/mute.png" },
+    { "name": "Castle",     "side": "Defense", "role": "Fortify",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/castle.png" },
+    { "name": "Pulse",      "side": "Defense", "role": "Intel",                "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/pulse.png" },
+    { "name": "Doc",        "side": "Defense", "role": "Support",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/doc.png" },
+    { "name": "Rook",       "side": "Defense", "role": "Support",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/rook.png" },
+    { "name": "Jäger",      "side": "Defense", "role": "Gadget Denial",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/jager.png" },
+    { "name": "Bandit",     "side": "Defense", "role": "Hard Breach Denial",   "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/bandit.png" },
+    { "name": "Echo",       "side": "Defense", "role": "Intel / Disrupt",      "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/echo.png" },
+    { "name": "Kapkan",     "side": "Defense", "role": "Trap",                 "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/kapkan.png" },
+    { "name": "Frost",      "side": "Defense", "role": "Trap",                 "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/frost.png" },
+    { "name": "Caveira",    "side": "Defense", "role": "Roamer / Intel",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/caveira.png" },
+    { "name": "Valkyrie",   "side": "Defense", "role": "Intel",                "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/valkyrie.png" },
+    { "name": "Ela",        "side": "Defense", "role": "Roamer / Trap",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/ela.png" },
+    { "name": "Vigil",      "side": "Defense", "role": "Roamer",               "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/vigil.png" },
+    { "name": "Maestro",    "side": "Defense", "role": "Intel / Anchor",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/maestro.png" },
+    { "name": "Alibi",      "side": "Defense", "role": "Intel / Decoy",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/alibi.png" },
+    { "name": "Clash",      "side": "Defense", "role": "Shield / Delay",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/clash.png" },
+    { "name": "Goyo",       "side": "Defense", "role": "Trap / Shield",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/goyo.png" },
+    { "name": "Warden",     "side": "Defense", "role": "Flash Resist",         "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/warden.png" },
+    { "name": "Mozzie",     "side": "Defense", "role": "Intel / Drone Trap",   "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/mozzie.png" },
+    { "name": "Melusi",     "side": "Defense", "role": "Trap / Slow",          "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/melusi.png" },
+    { "name": "Aruni",      "side": "Defense", "role": "Hard Breach Denial",   "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/aruni.png" },
+    { "name": "Thunderbird","side": "Defense", "role": "Support / Heal",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/thunderbird.png" },
+    { "name": "Thorn",      "side": "Defense", "role": "Trap / Delay",         "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/thorn.png" },
+    { "name": "Azami",      "side": "Defense", "role": "Fortify",              "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/azami.png" },
+    { "name": "Solis",      "side": "Defense", "role": "Intel / Gadget",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/solis.png" },
+    { "name": "Fenrir",     "side": "Defense", "role": "Trap / Crowd Control", "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/fenrir.png" },
+    { "name": "Tubarão",    "side": "Defense", "role": "Gadget Disable",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/tubarao.png" },
+    { "name": "Skopos",     "side": "Defense", "role": "Roamer / Drone",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/skopos.png" }
+  ],
+  "maps": [
+    {
+      "name": "Clubhouse",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "CCTV / Cash",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Nomad"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Mozzie", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Jäger", "Mira"],
+          "note": "Defender advantage — control CCTV room and cash window",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Nomad"],    "note": "Thermite opens main, Ash drones 2F" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Twitch", "Buck", "Jackal"],         "note": "Hard breach fast then push" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Ash", "Thermite", "Jackal", "Nokk", "Lion"],      "note": "Jackal+Lion clears roamers first" }
+          ]
+        },
+        {
+          "name": "Bar / Residential",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Sledge", "Zofia", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Rook", "Valkyrie", "Mozzie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Valkyrie", "Bandit"],
+          "note": "Multiple entry points — coordinate timing",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Sledge", "Zofia", "Ace"],       "note": "Standard breach with soft destroy support" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Flores"],        "note": "Double breach from opposite sides simultaneously" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],       "note": "Lion scan then Jackal track roamers" }
+          ]
+        },
+        {
+          "name": "Church / Gym",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 45,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Iana", "Sledge"],
+          "defensePicks":  ["Smoke", "Jäger", "Bandit", "Echo", "Rook"],
+          "suggestedBans": ["Thatcher", "Echo", "Jäger", "Mira"],
+          "note": "Strong defender hold — use vertical play from roof",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Iana", "Sledge"],     "note": "Iana probes for safe entry, Sledge opens floor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Buck"],           "note": "Fast vertical breach from roof" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Nokk", "Jackal", "Ash", "Thermite"],       "note": "Clear 2F roamers before committing to site" }
+          ]
+        },
+        {
+          "name": "Basement Armory",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],
+          "defensePicks":  ["Smoke", "Kapkan", "Bandit", "Rook", "Mozzie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Bandit", "Kapkan"],
+          "note": "Tight corridors — use gadgets to flush defenders",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],        "note": "Fuze clears basement nests, Buck opens ceilings" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Twitch", "Flores", "Buck"],           "note": "Flores drones flush roamers, fast push follows" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Eliminate all roamers before entering basement" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bank",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Vault / Lockers",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 45,
+          "attackPicks":   ["Ash", "Thermite", "Hibana", "Twitch", "Sledge"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Frost", "Valkyrie"],
+          "suggestedBans": ["Thatcher", "Jäger", "Bandit", "Frost"],
+          "note": "Heavy defender setup in vault — bring hard breach",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Hibana", "Twitch", "Sledge"],    "note": "Double breach vault wall + reinforced ceiling" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Thermite", "Ash", "Twitch", "Buck"],         "note": "Speed-run breach — hit vault doors simultaneously" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Jackal", "Lion", "Ash", "Nokk", "Thermite"],        "note": "Bank has lots of roam space — clear first" }
+          ]
+        },
+        {
+          "name": "Exec Office / Executive Lounge",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 55,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Iana", "Buck"],
+          "defensePicks":  ["Smoke", "Mute", "Bandit", "Valkyrie", "Echo"],
+          "suggestedBans": ["Thatcher", "Echo", "Valkyrie", "Mute"],
+          "note": "Attack favored — control skylight and staircase",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Iana", "Buck"],        "note": "Iana probes roof, Buck opens floors from above" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Hibana"],         "note": "Hibana clears executive floor reinforcements fast" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Twitch"],         "note": "Track and eliminate roamers on lower floors first" }
+          ]
+        },
+        {
+          "name": "Server Room / Security Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Rook", "Mozzie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Jäger", "Mira"],
+          "note": "Control server hallway and back staircase",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],       "note": "Standard push through server corridor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Flores"],        "note": "Flores drones flush site, fast entry from parking" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],       "note": "Roam clear both floors before site approach" }
+          ]
+        },
+        {
+          "name": "Teller / CEO Office",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Iana", "Zofia"],
+          "defensePicks":  ["Smoke", "Bandit", "Maestro", "Valkyrie", "Rook"],
+          "suggestedBans": ["Thatcher", "Maestro", "Valkyrie", "Bandit"],
+          "note": "Watch for Maestro Evil Eye covering staircase",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Iana", "Zofia"],      "note": "Iana probes CEO balcony, Twitch zaps Maestro cameras" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Twitch", "Buck", "Hibana"],          "note": "Triple breach angles on CEO floor simultaneously" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Nokk", "Jackal", "Lion", "Ash", "Thermite"],       "note": "Silent Nokk + Jackal combo to clear roamers" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Border",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Armory / Supply Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Gridlock", "Ace"],
+          "defensePicks":  ["Smoke", "Mute", "Jäger", "Clash", "Echo"],
+          "suggestedBans": ["Thatcher", "Jackal", "Mira", "Jäger"],
+          "note": "Control customs room hallway for rotation denial",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Gridlock", "Ace"],     "note": "Gridlock denies rotation, Thermite opens main wall" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Fast double breach from market side" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Border has heavy roam meta — counter it first" }
+          ]
+        },
+        {
+          "name": "Workshop / Ventilation",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Ace"],
+          "defensePicks":  ["Smoke", "Mute", "Bandit", "Rook", "Echo"],
+          "suggestedBans": ["Thatcher", "Jackal", "Mira", "Echo"],
+          "note": "Attack favored — control ventilation shaft and skylights",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Ace"],         "note": "Standard setup — Buck opens floors from vents roof" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Hibana"],         "note": "Hibana opens workshop wall, fast push from archives" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],        "note": "Track roamers via passport corridor before pushing" }
+          ]
+        },
+        {
+          "name": "Customs / Lockers",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Rook", "Valkyrie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Jäger", "Valkyrie"],
+          "note": "Watch customs window — great for defender crossfire",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],       "note": "Control balcony and push through locker stairs" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores clears lockers, fast push from customs window" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Aggressive roam clear before slow customs push" }
+          ]
+        },
+        {
+          "name": "Mail Room / Security",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Mozzie", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Mira", "Jäger"],
+          "note": "Classic Border site — control bathroom balcony",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Ace"],         "note": "Open security wall, push through mail side" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Zofia"],         "note": "Simultaneous breach from security and bathroom" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],        "note": "Clear border roamers methodically before push" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chalet",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Cave / Cave Bar",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 46,
+          "attackPicks":   ["Ash", "Sledge", "Thermite", "Lion", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Maestro", "Rook"],
+          "suggestedBans": ["Thatcher", "Maestro", "Bandit", "Jackal"],
+          "note": "Tight basement — use vertical from above to clear anchors",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Sledge", "Thermite", "Lion", "Buck"],        "note": "Buck opens cave floor from dining, Lion pings anchors" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Buck", "Flores"],            "note": "Flores drones flush cave, fast push from garage" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Chalet roamers dominate — track before descending" }
+          ]
+        },
+        {
+          "name": "Kitchen / Dining Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Echo", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Jäger", "Echo"],
+          "note": "Control trophy room and dining window for crossfire",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],       "note": "Open kitchen wall, Sledge destroys ceiling from garage" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Buck vertical from 2F simultaneously with breach" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],        "note": "Kitchen roamers use chalet stairs effectively — clear first" }
+          ]
+        },
+        {
+          "name": "Trophy Room / TV Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Iana", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Valkyrie", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Valkyrie", "Bandit"],
+          "note": "Balcony control key — Twitch drone the trophy windows",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Iana", "Buck"],        "note": "Iana probes trophy balcony, Buck opens TV floor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Hibana"],         "note": "Fast entry via trophy balcony window" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Nokk", "Jackal", "Ash", "Thermite"],        "note": "Clear attic and 2F roamers before trophy push" }
+          ]
+        },
+        {
+          "name": "Master Bedroom / Kids' Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Frost", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Frost", "Bandit"],
+          "note": "Frost traps near window — drone before entry",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],      "note": "Standard approach — control master hall and push" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores clears window angles, Buck opens kids ceiling" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Track roamers from dining before 2F commitment" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Coastline",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Kitchen / Service Entrance",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Twitch", "Hibana", "Dokkaebi", "Iana"],
+          "defensePicks":  ["Smoke", "Mute", "Jäger", "Valkyrie", "Melusi"],
+          "suggestedBans": ["Thatcher", "Jackal", "Mira", "Jäger"],
+          "note": "Push from blue bar and service entrance simultaneously",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Twitch", "Hibana", "Dokkaebi", "Iana"],      "note": "Dokkaebi rings phones, Hibana pops kitchen wall" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Hibana"],         "note": "Speed breach from kitchen window and service door" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Twitch"],         "note": "Coastline roamers use blue bar effectively — flush them" }
+          ]
+        },
+        {
+          "name": "Billiards / Penthouse",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Iana", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Valkyrie", "Mozzie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Valkyrie", "Mozzie"],
+          "note": "Control penthouse terrace and push billiards staircase",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Iana", "Buck"],        "note": "Iana probes terrace, Buck opens penthouse floor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Flores"],        "note": "Flores drone clears terrace defenders, fast push" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Nokk", "Jackal", "Lion", "Ash", "Thermite"],       "note": "Nokk silent clear of 2F roamers before committing" }
+          ]
+        },
+        {
+          "name": "Blue Bar / Trophy Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Gridlock", "Ace"],
+          "defensePicks":  ["Smoke", "Mute", "Bandit", "Jäger", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Jäger", "Bandit"],
+          "note": "Bar windows give defenders great angles — push from pool",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Gridlock", "Ace"],     "note": "Gridlock denies rotation, breach from pool entrance" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Buck"],           "note": "Fast push from trophy window while breaching bar" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Clear all coastline roamers before blue bar push" }
+          ]
+        },
+        {
+          "name": "Sunrise Bar / Hookah Lounge",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Iana"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Echo", "Rook"],
+          "suggestedBans": ["Thatcher", "Echo", "Jackal", "Jäger"],
+          "note": "Echo can stall pushes effectively — Twitch or Brava first",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Iana"],      "note": "Twitch zaps Echo drone, Iana probes sunrise balcony" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Brava", "Twitch", "Hibana"],         "note": "Brava hacks Echo, Hibana pops hookah wall fast" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Twitch"],         "note": "Systematic roam clear then sunrise window entry" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Consulate",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Garage / Cafeteria",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 44,
+          "attackPicks":   ["Ash", "Thermite", "Buck", "Flores", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Echo", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Bandit", "Echo"],
+          "note": "Hardest site on the map — multiple chokepoints",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Buck", "Flores", "Ace"],         "note": "Flores clears cafeteria, Buck opens garage ceiling" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Hibana clears both reinforced walls before timer" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Consulate basement — must clear all roamers first" }
+          ]
+        },
+        {
+          "name": "Secretary / Piano Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 56,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Iana", "Sledge"],
+          "defensePicks":  ["Smoke", "Mute", "Bandit", "Valkyrie", "Rook"],
+          "suggestedBans": ["Thatcher", "Valkyrie", "Mute", "Bandit"],
+          "note": "Attack strongly favored — control secretary balcony",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Iana", "Sledge"],      "note": "Iana probes piano from balcony, Sledge opens ceiling" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Zofia", "Twitch"],         "note": "Hibana + Ace double breach from opposite sides" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Nokk", "Jackal", "Ash", "Twitch"],         "note": "Clear consulate roamers then aggressive 2F push" }
+          ]
+        },
+        {
+          "name": "Press Room / Consul's Office",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Rook", "Mozzie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Jäger", "Mira"],
+          "note": "Consul balcony is a key entry point — control it early",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Ace"],         "note": "Buck opens press floor from balcony above" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Hibana"],         "note": "Fast breach press wall while pushing consul window" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Track all defenders before 2F commitment" }
+          ]
+        },
+        {
+          "name": "Basement Garage / Storage",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 46,
+          "attackPicks":   ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],
+          "defensePicks":  ["Smoke", "Kapkan", "Bandit", "Frost", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Kapkan", "Frost"],
+          "note": "Watch for Kapkan and Frost in storage entry points",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],        "note": "Fuze clears storage corner anchors safely" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores drones flush basement before breach" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Full roam clear then systematic basement approach" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kafe Dostoyevsky",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Kitchen / Service Entrance",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Sledge", "Buck", "Dokkaebi"],
+          "defensePicks":  ["Smoke", "Mute", "Bandit", "Jäger", "Maestro"],
+          "suggestedBans": ["Thatcher", "Maestro", "Jackal", "Bandit"],
+          "note": "Kitchen wall is the key breach — Thermite or Hibana",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Sledge", "Buck", "Dokkaebi"],    "note": "Dokkaebi rings phones for info, Thermite opens kitchen" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Hibana pops kitchen wall fast, Buck opens service floor" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Kafe roamers use 3F — track and eliminate first" }
+          ]
+        },
+        {
+          "name": "Fireplace / Mining Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Echo", "Rook"],
+          "suggestedBans": ["Thatcher", "Echo", "Jackal", "Jäger"],
+          "note": "Attack favored — use reading room and 3F vertical",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],      "note": "Buck vertical from 3F, Sledge soft destroys mining walls" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Buck"],           "note": "Fast vertical breach from rooftop into fireplace" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Nokk", "Jackal", "Lion", "Ash", "Thermite"],        "note": "Silent Nokk entry clears 3F roamers from above" }
+          ]
+        },
+        {
+          "name": "Reading / Pillar Room",
+          "floor": "3F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Iana"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Maestro", "Rook"],
+          "suggestedBans": ["Thatcher", "Maestro", "Jackal", "Jäger"],
+          "note": "3F is hardest to breach cleanly — need vertical control",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Iana"],        "note": "Iana probes pillar from skylight, Buck destroys floors" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Breach reading wall fast, Buck opens pillar ceiling" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],        "note": "Clear 3F and rooftop before committing to reading room" }
+          ]
+        },
+        {
+          "name": "Bar / Back Store",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Mozzie", "Jäger", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Mozzie", "Jäger"],
+          "note": "Control terrace and push back store from kitchen side",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Ace"],       "note": "Breach back store wall, Sledge opens terrace floor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores drones flush back store, fast push follows" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Track all 1F and 2F roamers before bar approach" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kanal",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Boat Storage / Locker Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Glaz", "Buck"],
+          "defensePicks":  ["Smoke", "Valkyrie", "Jäger", "Echo", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Valkyrie", "Echo"],
+          "note": "Bridge crossing is dangerous — use drones before moving",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Glaz", "Buck"],        "note": "Glaz covers bridge crossing, Thermite opens boat storage" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores drones cover bridge, fast entry from both sides" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Kanal roamers use opposite building — track carefully" }
+          ]
+        },
+        {
+          "name": "Maps Room / Server Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Iana"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Valkyrie", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Valkyrie", "Jäger"],
+          "note": "Push from skylight and server staircase simultaneously",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Iana"],      "note": "Iana probes server from skylight, Sledge opens maps floor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Hibana"],         "note": "Fast push from coast guard side with double breach" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Nokk", "Lion", "Jackal", "Ash", "Thermite"],        "note": "Nokk silent clear of 2F roamers before maps room push" }
+          ]
+        },
+        {
+          "name": "Coast Guard / Kayak",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Kapkan", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Kapkan", "Jäger"],
+          "note": "Watch Kapkan traps on kayak room windows",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Ace"],         "note": "Standard approach — breach kayak wall from dock" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Hibana destroys kayak reinforcements, fast indoor push" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],        "note": "Clear roamers across bridge before committing" }
+          ]
+        },
+        {
+          "name": "Radar Room / Maps Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Mozzie", "Jäger", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Mozzie", "Jäger"],
+          "note": "Use ladder hatches carefully — Mozzie may have captured drones",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],      "note": "Sledge destroys radar floor, Buck opens from above" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores reclaims hacked drones area, fast push" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Full roam clear of Kanal before 2F radar push" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Oregon",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Kitchen / Supply Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Sledge", "Lion", "Nokk"],
+          "defensePicks":  ["Smoke", "Vigil", "Jäger", "Frost", "Mozzie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Vigil", "Frost"],
+          "note": "Attack favored — control tower and push from garage",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Sledge", "Lion", "Nokk"],        "note": "Lion scans supply roamers, Nokk silent entry from garage" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Buck"],           "note": "Fast double push from garage and tower simultaneously" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Oregon roamers use compound — systematic clear required" }
+          ]
+        },
+        {
+          "name": "Meeting Hall / Kids' Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Valkyrie", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Valkyrie", "Bandit"],
+          "note": "Meeting hall window is a key entry — hold top floor",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],      "note": "Buck opens kids floor from roof, Sledge destroys walls" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Hibana pops meeting hall wall, fast push from tower" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Clear Oregon roamers before ascending to 2F" }
+          ]
+        },
+        {
+          "name": "Basement Storage / Laundry",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 46,
+          "attackPicks":   ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],
+          "defensePicks":  ["Smoke", "Kapkan", "Bandit", "Rook", "Frost"],
+          "suggestedBans": ["Thatcher", "Jackal", "Kapkan", "Frost"],
+          "note": "Basement has multiple trap operators — drone carefully",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],        "note": "Fuze and Buck flush basement without entry" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores reveals trap locations before descent" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Full roam clear before risky basement entry" }
+          ]
+        },
+        {
+          "name": "Master Bedroom / Kids' Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Iana", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Echo", "Rook"],
+          "suggestedBans": ["Thatcher", "Echo", "Jackal", "Bandit"],
+          "note": "Echo on this site is very effective — bring Twitch or Brava",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Iana", "Buck"],        "note": "Twitch zaps Echo early, Iana probes master from hatch" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Brava", "Twitch", "Buck"],           "note": "Brava hacks Echo then fast push from roof hatch" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Roam clear Oregon compound before 2F master push" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Outback",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Shark / Croc Bar",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Flores"],
+          "defensePicks":  ["Smoke", "Mute", "Aruni", "Melusi", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Aruni", "Melusi"],
+          "note": "Attack favored — bar windows give great entry angles",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Flores"],      "note": "Flores drones flush bar, Buck opens croc floor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Buck"],           "note": "Fast double push from shark window and croc entrance" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Clear Outback compound roamers first" }
+          ]
+        },
+        {
+          "name": "Laundry / Supply Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Aruni", "Rook", "Mozzie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Aruni", "Bandit"],
+          "note": "Aruni pulsar denies laundry entry — IQ or Brava to counter",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],      "note": "Sledge destroys laundry wall safely, Buck opens supply" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "IQ", "Twitch", "Buck"],              "note": "IQ detects Aruni pulsars, Ace hard breaches main wall" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Roam clear Outback before laundry commitment" }
+          ]
+        },
+        {
+          "name": "Master Bedroom / Kids' Room",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Frost", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Frost", "Bandit"],
+          "note": "Use roof hatches and master window for vertical control",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Ace"],         "note": "Buck opens master ceiling, Ace breaches kids wall" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores reveals Frost traps in kids room before entry" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Outback 2F — clear dingo and compound roamers first" }
+          ]
+        },
+        {
+          "name": "Kitchen / Boiler Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],
+          "defensePicks":  ["Smoke", "Mute", "Bandit", "Jäger", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Mira", "Bandit"],
+          "note": "Push from porch and boiler entrance simultaneously",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],      "note": "Sledge soft destroys boiler walls, Buck opens kitchen" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Fast simultaneous breach from both kitchen angles" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Ash", "Nokk", "Thermite"],        "note": "Clear all Outback kitchen-side roamers before push" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Villa",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Aviator Room / Games Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Buck", "Hibana", "Zofia"],
+          "defensePicks":  ["Smoke", "Echo", "Jäger", "Maestro", "Rook"],
+          "suggestedBans": ["Thatcher", "Echo", "Maestro", "Jackal"],
+          "note": "Both Echo and Maestro present — Twitch is mandatory",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Buck", "Hibana", "Zofia"],       "note": "Hibana opens aviator wall, Zofia handles drones with EMP" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Twitch", "Buck", "Flores"],           "note": "Twitch zaps both Echo and Maestro before entry" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Clear Villa exterior roamers before 1F push" }
+          ]
+        },
+        {
+          "name": "Library / Dining Room",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Maestro", "Rook"],
+          "suggestedBans": ["Thatcher", "Maestro", "Jackal", "Jäger"],
+          "note": "Dining patio is a strong attack position — control it",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Sledge"],      "note": "Twitch disables Maestro, Buck opens dining floor" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Fast library wall breach from patio position" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Clear Villa garden roamers before library push" }
+          ]
+        },
+        {
+          "name": "Art Studio / Statuary",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Iana"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Alibi", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Alibi", "Bandit"],
+          "note": "Alibi decoys confuse entry — drone thoroughly before pushing",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Iana"],        "note": "Iana probes art studio from balcony, Buck opens statuary" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "IQ", "Twitch", "Buck"],              "note": "IQ spots Alibi projectors, fast push from hall" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Full Villa roam clear before 2F art studio push" }
+          ]
+        },
+        {
+          "name": "Garages / Guard Posts",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Ace"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Frost", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Frost", "Bandit"],
+          "note": "Frost traps near garage windows — always drone first",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Ace"],         "note": "Standard breach from courtyard into garage" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores reveals Frost traps, fast push through courtyard" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Clear Villa exterior then methodical garage approach" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Yacht",
+      "imageUrl": "",
+      "sites": [
+        {
+          "name": "Kitchen / Service Entrance",
+          "floor": "1F",
+          "imageUrl": "",
+          "attackWinRate": 52,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Zero"],
+          "defensePicks":  ["Smoke", "Bandit", "Aruni", "Jäger", "Valkyrie"],
+          "suggestedBans": ["Thatcher", "Jackal", "Aruni", "Bandit"],
+          "note": "Attack favored — push from dock and service stairs",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Zero"],      "note": "Zero cameras reveal yacht positions, Thermite opens kitchen" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Fast service entrance and kitchen simultaneous breach" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Yacht deck roamers are aggressive — clear before push" }
+          ]
+        },
+        {
+          "name": "Sewing Room / Walk-In Closet",
+          "floor": "2F",
+          "imageUrl": "",
+          "attackWinRate": 50,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Buck", "Iana"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Valkyrie", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Valkyrie", "Jäger"],
+          "note": "Control deck and push from both sewing room windows",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Buck", "Iana"],        "note": "Iana probes sewing from deck, Buck opens closet ceiling" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Zofia", "Twitch", "Buck"],           "note": "Zofia EMP clears gadgets, fast breach from top deck" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Nokk", "Jackal", "Lion", "Ash", "Thermite"],        "note": "Nokk silent entry clears 2F yacht roamers" }
+          ]
+        },
+        {
+          "name": "Office / Trophy Room",
+          "floor": "3F",
+          "imageUrl": "",
+          "attackWinRate": 48,
+          "attackPicks":   ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Jäger", "Maestro", "Rook"],
+          "suggestedBans": ["Thatcher", "Maestro", "Jackal", "Bandit"],
+          "note": "3F is difficult — use skylight and rooftop for vertical entry",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Twitch", "Sledge", "Buck"],      "note": "Buck opens office ceiling from skylight, Twitch zaps Maestro" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Hibana", "Twitch", "Buck"],           "note": "Hibana clears office wall from top deck fast" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Full yacht roam clear before 3F trophy commitment" }
+          ]
+        },
+        {
+          "name": "Engine Room / Life Rings",
+          "floor": "B",
+          "imageUrl": "",
+          "attackWinRate": 46,
+          "attackPicks":   ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],
+          "defensePicks":  ["Smoke", "Bandit", "Kapkan", "Frost", "Rook"],
+          "suggestedBans": ["Thatcher", "Jackal", "Kapkan", "Frost"],
+          "note": "Basement with multiple trap operators — drone every entry",
+          "battlePlans": [
+            { "number": 1, "label": "Default Setup",     "picks": ["Ash", "Thermite", "Sledge", "Fuze", "Buck"],        "note": "Fuze clears engine room nests, Buck opens from above" },
+            { "number": 2, "label": "Fast Breach",        "picks": ["Ace", "Ash", "Flores", "Twitch", "Buck"],           "note": "Flores reveals all basement traps before descent" },
+            { "number": 3, "label": "Roam Clear First",  "picks": ["Lion", "Jackal", "Nokk", "Ash", "Thermite"],        "note": "Full yacht clear before dangerous basement entry" }
+          ]
+        }
+      ]
+    }
+  ]
+}
