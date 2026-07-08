@@ -86,6 +86,16 @@ public sealed class FinalScryfallMatchWorkflowStep
             }
         ];
 
+        // If another printing scored identically to the best match, the AI didn't
+        // extract enough distinguishing detail (usually copyright year on old
+        // reprints) to actually tell them apart — this pick is a guess, not a
+        // confirmed identification. Surface that instead of presenting it as fact.
+        var topScore = match.Matches.Count > 0 ? match.Matches[0].Score : 0;
+        var isAmbiguous = match.Matches
+            .Skip(1)
+            .Any(m => m.Score == topScore &&
+                      (m.Card.Set != match.BestMatch.Set || m.Card.CollectorNumber != match.BestMatch.CollectorNumber));
+
         context.State.ScryfallMatchResult =
             new ScryfallMatchResult
             {
@@ -117,7 +127,10 @@ public sealed class FinalScryfallMatchWorkflowStep
                     match.BestMatch.UsdPrice,
 
                 UsdFoilPrice =
-                    match.BestMatch.UsdFoilPrice
+                    match.BestMatch.UsdFoilPrice,
+
+                IsAmbiguous =
+                    isAmbiguous
             };
 
         context.State.HasConfirmedMatch = true;
@@ -133,6 +146,7 @@ public sealed class FinalScryfallMatchWorkflowStep
                     Name           = m.Card.Name,
                     SetCode        = m.Card.Set,
                     SetName        = m.Card.SetName ?? m.Card.Set,
+                    ReleasedAt     = m.Card.ReleasedAt,
                     CollectorNumber = m.Card.CollectorNumber,
                     ImageUrl       = m.Card.ImageUrl,
                     EurPrice       = m.Card.EurPrice,

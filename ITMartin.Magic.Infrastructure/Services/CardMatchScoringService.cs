@@ -8,6 +8,9 @@ namespace ITMartin.Magic.Infrastructure.Services;
 public sealed class CardMatchScoringService
     : ICardMatchScoringService
 {
+    private static readonly HashSet<string> OldFrameSets =
+        new(StringComparer.OrdinalIgnoreCase) { "lea", "leb", "2ed", "3ed", "4ed", "4bb" };
+
     private readonly ILogger<CardMatchScoringService> _logger;
 
     public CardMatchScoringService(ILogger<CardMatchScoringService> logger)
@@ -124,6 +127,19 @@ public sealed class CardMatchScoringService
             {
                 score -= 150;
             }
+        }
+
+        // Old-frame reprints (Alpha–4th Edition) often share identical border color and
+        // can have illegible copyright text — this structural detail (nothing vs. something
+        // printed under the artist credit) reliably tells Revised apart from 4th Edition
+        // even when the year can't be read.
+        if (analysis.HasLineUnderArtist.HasValue &&
+            OldFrameSets.Contains(card.Set))
+        {
+            var isRevised = string.Equals(card.Set, "3ed", StringComparison.OrdinalIgnoreCase);
+            var noLine = !analysis.HasLineUnderArtist.Value;
+
+            score += (noLine == isRevised) ? 150 : -150;
         }
 
         _logger.LogDebug("Final score for [{Name}] [{Set}]: {Score}", card.Name, card.Set, score);

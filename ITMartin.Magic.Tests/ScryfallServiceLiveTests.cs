@@ -111,6 +111,54 @@ public class ScryfallServiceLiveTests
         result.Should().BeNull();
     }
 
+    // ── Regression: real captured bad-scan (data/bad-scans/252ec7f8...json,
+    // 2026-07-08). Physical card confirmed Revised Edition. AI extracted
+    // CopyrightYear=null (illegible on this card) and previously had no other
+    // way to tell Revised apart from 4th Edition, defaulting to 4ed. Real
+    // photo also showed nothing under the artist line — Revised's signature.
+    [Test]
+    public async Task EarthElemental_NoYearButNoLineUnderArtist_MatchesRevisedNotFourthEdition()
+    {
+        var analysis = new MagicCardAnalysisResult
+        {
+            IdentifiedName = "Earth Elemental",
+            Artist = "Dan Frazier",
+            ManaCost = "{3}{R}{R}",
+            CardType = "Summon Elemental",
+            PowerToughness = "4/5",
+            BorderColor = "white",
+            CopyrightYear = null,
+            HasLineUnderArtist = false,
+            IdentificationConfidence = 0.95m
+        };
+
+        var result = await _sut.SearchAsync("Earth Elemental", setCode: null, analysis, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.BestMatch.Should().NotBeNull();
+        result.BestMatch!.Set.Should().Be("3ed");
+    }
+
+    [Test]
+    public async Task EarthElemental_NoYearButLineUnderArtist_MatchesFourthEditionNotRevised()
+    {
+        var analysis = new MagicCardAnalysisResult
+        {
+            IdentifiedName = "Earth Elemental",
+            Artist = "Dan Frazier",
+            BorderColor = "white",
+            CopyrightYear = null,
+            HasLineUnderArtist = true,
+            IdentificationConfidence = 0.95m
+        };
+
+        var result = await _sut.SearchAsync("Earth Elemental", setCode: null, analysis, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.BestMatch.Should().NotBeNull();
+        result.BestMatch!.Set.Should().Be("4ed");
+    }
+
     [Test]
     public async Task PricesParseCorrectly_RegardlessOfLocale()
     {

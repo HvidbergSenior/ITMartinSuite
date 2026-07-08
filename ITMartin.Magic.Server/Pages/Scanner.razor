@@ -241,6 +241,13 @@
                             #@match.CollectorNumber
                         </div>
 
+                        @if (match.IsAmbiguous)
+                        {
+                            <div class="alert alert-warning mt-1 mb-2 py-1 px-2 small">
+                                ⚠️ Usikker udgave — flere printninger ser ens ud herfra. Tjek "Andre mulige udgaver" nedenfor.
+                            </div>
+                        }
+
                         <div class="price-hero">
                             @(match.EurPrice.HasValue ? $"€{match.EurPrice.Value:F2}" : "Ingen pris")
                         </div>

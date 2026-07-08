@@ -18,5 +18,11 @@ public sealed class MagicCardAnalysisResult
 
     public string? CopyrightYear { get; set; }
 
+    // Revised Edition has nothing printed directly under the artist credit
+    // line; any later edition (4th Edition onward) has something there.
+    // Distinguishes Revised from 4th Edition even when the tiny copyright
+    // year text isn't legible in the photo.
+    public bool? HasLineUnderArtist { get; set; }
+
     public decimal IdentificationConfidence { get; set; }
 }

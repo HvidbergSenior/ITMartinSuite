@@ -23,4 +23,9 @@ public sealed record ScryfallMatchResult
     public decimal? UsdFoilPrice { get; init; }
     public List<CardCandidateViewModel>
         Candidates { get; set; } = [];
+
+    // True when another printing scored the same as the best match — the AI
+    // didn't extract enough distinguishing detail (usually copyright year)
+    // to actually tell them apart, so this pick is a guess, not a confirmed match.
+    public bool IsAmbiguous { get; init; }
 }

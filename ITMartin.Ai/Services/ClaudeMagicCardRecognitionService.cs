@@ -50,6 +50,8 @@ public sealed class ClaudeMagicCardRecognitionService
                     new { type = "string", description = "Border color: black or white" }),
                 ["copyrightYear"] = JsonSerializer.SerializeToElement(
                     new { type = "string", description = "Copyright year printed at the bottom of the card e.g. 1995" }),
+                ["hasLineUnderArtist"] = JsonSerializer.SerializeToElement(
+                    new { type = "boolean", description = "Is there anything (a rule line, extra text/element) printed directly below the artist credit line? Revised Edition has nothing there — later editions do." }),
                 ["identificationConfidence"] = JsonSerializer.SerializeToElement(
                     new { type = "number", description = "Confidence 0.0-1.0" }),
             },
@@ -278,6 +280,22 @@ public sealed class ClaudeMagicCardRecognitionService
 
         Only omit copyrightYear if the bottom of the card is physically cut off in the image.
 
+        LINE UNDER ARTIST RULES (old-frame cards only — Alpha through 4th Edition)
+
+        Look directly below the artist credit line at the bottom of the card. Revised Edition
+        has nothing there — the area below the artist name is blank. 4th Edition and later
+        printings have something there (an extra line or element).
+
+        Report hasLineUnderArtist = false if that area is blank, true if anything is there.
+        This matters most when the copyright year is too small/worn to read reliably —
+        it's a more robust way to tell Revised Edition apart from 4th Edition.
+
+        REVISED EDITION SIGNATURE
+
+        Revised Edition's two defining traits together: no visible/legible copyright year,
+        AND nothing printed under the artist line. If you observe both of these missing,
+        that strongly indicates Revised Edition specifically (not 4th Edition or Unlimited).
+
         COLLECTOR NUMBER RULES
 
         Collector Number and Power/Toughness are different things.
@@ -322,6 +340,7 @@ public sealed class ClaudeMagicCardRecognitionService
         6. Power/Toughness
         7. Border Color — look at the outer frame: is it black or white?
         8. Copyright Year — look at the very bottom of the card for a line like "© 1993 Wizards of the Coast, Inc."
+        9. Line Under Artist — for old-frame cards, is there anything printed directly below the artist credit? Revised Edition has nothing there.
 
         Read only information that is directly visible.
 
