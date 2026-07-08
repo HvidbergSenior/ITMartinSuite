@@ -567,7 +567,7 @@
 
                     if (!result.Failed && result.ScryfallMatchResult is { } m)
                     {
-                        _detectedText = $"Scannet: {m.Name}";
+                        _detectedText = null;
                         _completedCount++;
                         var price = m.EurPrice.HasValue ? $"€{m.EurPrice.Value:F2}" : "ingen pris fundet";
                         AddFeedItem($"✅ {m.Name} ({m.SetCode?.ToUpperInvariant()}) — {price}", success: true);
