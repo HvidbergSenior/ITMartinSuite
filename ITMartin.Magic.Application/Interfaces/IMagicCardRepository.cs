@@ -7,8 +7,13 @@ public interface IMagicCardRepository
     Task<IEnumerable<MagicCard>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
+    Task<IEnumerable<MagicCard>> GetByOwnerAsync(
+        string owner,
+        CancellationToken cancellationToken = default);
+
     Task<MagicCard?> GetByScryfallIdAsync(
         string scryfallId,
+        string owner,
         CancellationToken cancellationToken = default);
 
     Task AddAsync(

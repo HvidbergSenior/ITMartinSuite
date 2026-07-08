@@ -22,13 +22,24 @@ public sealed class MagicCardRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<MagicCard>> GetByOwnerAsync(
+        string owner,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Cards
+            .Where(x => x.Owner == owner)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<MagicCard?> GetByScryfallIdAsync(
         string scryfallId,
+        string owner,
         CancellationToken cancellationToken = default)
     {
         return await _db.Cards
             .FirstOrDefaultAsync(
-                x => x.ScryfallId == scryfallId,
+                x => x.ScryfallId == scryfallId && x.Owner == owner,
                 cancellationToken);
     }
 
@@ -53,7 +64,7 @@ public sealed class MagicCardRepository
         CancellationToken cancellationToken = default)
     {
         var existing = card.ScryfallId is not null
-            ? await GetByScryfallIdAsync(card.ScryfallId, cancellationToken)
+            ? await GetByScryfallIdAsync(card.ScryfallId, card.Owner, cancellationToken)
             : null;
 
         if (existing is null)

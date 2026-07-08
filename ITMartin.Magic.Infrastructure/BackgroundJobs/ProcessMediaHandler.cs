@@ -62,6 +62,7 @@ public sealed class ProcessMediaHandler
         var existing =
             await _cardRepository.GetByScryfallIdAsync(
                 result.ScryfallId,
+                owner: "",
                 cancellationToken);
 
         if (existing is not null)

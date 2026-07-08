@@ -1,8 +1,10 @@
 @page "/"
 @rendermode InteractiveServer
+@using Microsoft.JSInterop
 
 @inject IMagicCardRepository CardRepository
 @inject IPriceAlertRepository AlertRepository
+@inject IJSRuntime JS
 
 <PageTitle>My Collection — Prices</PageTitle>
 
@@ -14,6 +16,20 @@
             <div class="collection-subtitle">Card prices &amp; collection value</div>
         </div>
     </div>
+
+    @if (string.IsNullOrWhiteSpace(_owner))
+    {
+        <div class="content-card mt-2" style="padding:16px;">
+            <div style="font-weight:700; margin-bottom:4px;">👤 Whose collection?</div>
+            <div class="text-muted small mb-2">Enter the same name you used while scanning to see your cards.</div>
+            <div style="display:flex; gap:8px;">
+                <input class="inv-search" style="flex:1;" placeholder="Your name" @bind="_ownerInput" @bind:event="oninput" />
+                <button class="btn btn-primary" @onclick="SetOwner" disabled="@string.IsNullOrWhiteSpace(_ownerInput)">Go</button>
+            </div>
+        </div>
+    }
+    else
+    {
 
     @if (_alerts.Any())
     {
@@ -110,6 +126,12 @@
         }
     }
 
+    <div class="text-muted small mt-3">
+        Viewing <strong>@_owner</strong>'s collection — <button class="btn btn-link btn-sm p-0" @onclick="ChangeOwner">not you?</button>
+    </div>
+
+    }
+
 </div>
 
 @code {
@@ -141,10 +163,41 @@
         }
     }
 
+    private string _owner = "";
+    private string _ownerInput = "";
+
     protected override async Task OnInitializedAsync()
     {
-        _cards  = (await CardRepository.GetAllAsync()).ToList();
+        try
+        {
+            _owner = await JS.InvokeAsync<string?>("localStorage.getItem", "magic_owner_name") ?? "";
+        }
+        catch { }
+
+        if (!string.IsNullOrWhiteSpace(_owner))
+            await LoadCollectionAsync();
+
         _alerts = await AlertRepository.GetActiveAsync();
+    }
+
+    private async Task LoadCollectionAsync()
+    {
+        _cards = (await CardRepository.GetByOwnerAsync(_owner)).ToList();
+    }
+
+    private async Task SetOwner()
+    {
+        if (string.IsNullOrWhiteSpace(_ownerInput)) return;
+        _owner = _ownerInput.Trim();
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "magic_owner_name", _owner); } catch { }
+        await LoadCollectionAsync();
+    }
+
+    private void ChangeOwner()
+    {
+        _ownerInput = _owner;
+        _owner = "";
+        _cards = null;
     }
 
     private async Task DismissAlert(PriceAlert alert)
