@@ -1,6 +1,8 @@
 using ITMartin.Magic.Application.Interfaces;
 using ITMartin.Magic.Infrastructure;
 using ITMartin.Magic.Infrastructure.Persistence;
+using ITMartin.MagicCollection.Server;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
