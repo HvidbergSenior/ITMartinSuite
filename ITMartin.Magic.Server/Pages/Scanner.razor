@@ -61,8 +61,13 @@
             <ul class="list-group mb-3">
                 @foreach (var item in _recentResults)
                 {
-                    <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning")">
+                    <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning") @(item.Result is not null ? "feed-item-clickable" : "")"
+                        @onclick="() => SelectFeedItem(item)">
                         @item.Text
+                        @if (item.Result is not null)
+                        {
+                            <span class="feed-item-hint">Tryk for detaljer →</span>
+                        }
                     </li>
                 }
             </ul>
@@ -227,10 +232,6 @@
                         <span class="badge bg-success">
                             ✅ @_completedCount gemt denne session
                         </span>
-
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAllResults">
-                            @(_showAllResults ? "Skjul min historik" : "Vis min fulde historik")
-                        </button>
                     }
                 </div>
             }
@@ -248,36 +249,23 @@
         </div>
     }
 
-    @if (_recentResults.Count > 0 && !_showAllResults)
+    @if (_recentResults.Count > 0 && _cameraStarted)
     {
         <ul class="list-group mt-3">
             @foreach (var item in _recentResults)
             {
-                <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning")">
+                <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning") @(item.Result is not null ? "feed-item-clickable" : "")"
+                    @onclick="() => SelectFeedItem(item)">
                     @item.Text
+                    @if (item.Result is not null)
+                    {
+                        <span class="feed-item-hint">Tryk for detaljer →</span>
+                    }
                 </li>
             }
         </ul>
     }
 
-    @if (_showAllResults)
-    {
-        <div class="mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">@_ownerName's fulde historik (@_allCards.Count) — alle sessioner</h5>
-                <span class="fw-bold">Samlet værdi: €@_allCards.Sum(c => c.EurPrice ?? 0).ToString("F2")</span>
-            </div>
-            <ul class="list-group">
-                @foreach (var card in _allCards)
-                {
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>@card.Name (@card.SetCode.ToUpperInvariant()) #@card.CollectorNumber</span>
-                        <span>@(card.EurPrice.HasValue ? $"€{card.EurPrice.Value:F2}" : "Ingen pris")</span>
-                    </li>
-                }
-            </ul>
-        </div>
-    }
 
     @* Full result detail only shows once you stop scanning — a "scan session" (camera +
        compact feed only, distraction-free) followed by a "results session" (full detail,
@@ -406,7 +394,7 @@
 </div>
 
 @code {
-    private sealed record ScanFeedItem(string Text, bool Success);
+    private sealed record ScanFeedItem(string Text, bool Success, CardScanContext? Result);
 
     private string? _detectedText;
     private bool _cameraStarted;
@@ -421,8 +409,6 @@
     private int _queuedCount;
     private int _completedCount;
     private readonly List<ScanFeedItem> _recentResults = [];
-    private bool _showAllResults;
-    private List<MagicCard> _allCards = [];
     private bool _showSetPicker;
     private string _ownerName = "";
     private string _ownerInput = "";
@@ -569,12 +555,12 @@
                         _detectedText = null;
                         _completedCount++;
                         var price = m.EurPrice.HasValue ? $"€{m.EurPrice.Value:F2}" : "ingen pris fundet";
-                        AddFeedItem($"✅ {m.Name} ({m.SetCode?.ToUpperInvariant()}) — {price}", success: true);
+                        AddFeedItem($"✅ {m.Name} ({m.SetCode?.ToUpperInvariant()}) — {price}", success: true, result);
                     }
                     else if (result.Failed)
                     {
                         _detectedText = result.FailureReason;
-                        AddFeedItem($"⚠️ Kunne ikke genkendes: {result.FailureReason}", success: false);
+                        AddFeedItem($"⚠️ Kunne ikke genkendes: {result.FailureReason}", success: false, null);
                     }
 
                     StateHasChanged();
@@ -586,7 +572,7 @@
                 {
                     _queuedCount = Math.Max(0, _queuedCount - 1);
                     _detectedText = ex.Message;
-                    AddFeedItem($"⚠️ Fejl under behandling: {ex.Message}", success: false);
+                    AddFeedItem($"⚠️ Fejl under behandling: {ex.Message}", success: false, null);
                     StateHasChanged();
                 });
             }
@@ -624,21 +610,15 @@
         _badScanSaved = true;
     }
 
-    private async Task ToggleAllResults()
+    private void AddFeedItem(string text, bool success, CardScanContext? result)
     {
-        _showAllResults = !_showAllResults;
-        if (_showAllResults)
-        {
-            _allCards = (await CardRepository.GetByOwnerAsync(_ownerName))
-                .OrderByDescending(c => c.LastSeenAt)
-                .ToList();
-        }
+        _recentResults.Insert(0, new ScanFeedItem(text, success, result));
+        if (_recentResults.Count > 5) _recentResults.RemoveAt(_recentResults.Count - 1);
     }
 
-    private void AddFeedItem(string text, bool success)
+    private void SelectFeedItem(ScanFeedItem item)
     {
-        _recentResults.Insert(0, new ScanFeedItem(text, success));
-        if (_recentResults.Count > 8) _recentResults.RemoveAt(_recentResults.Count - 1);
+        if (item.Result is not null) _scanResult = item.Result;
     }
 
     private async Task Capture(bool background = false)
