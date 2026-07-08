@@ -163,19 +163,6 @@ public sealed class ScryfallService
             cards
                 .Select(card =>
                 {
-                    if (analysis is not null &&
-                        !PassesHardFilters(
-                            card,
-                            analysis))
-                    {
-                        return new ScryfallMatch
-                        {
-                            Card = card,
-                            Score = 0,
-                            Confidence = 0
-                        };
-                    }
-
                     var score =
                         analysis is null
                             ? 100 // name already matched via the Scryfall query itself
@@ -264,19 +251,4 @@ public sealed class ScryfallService
     }
     
     
-    private static bool PassesHardFilters(
-        ScryfallCard card,
-        MagicCardAnalysisResult analysis)
-    {
-        if (!string.IsNullOrWhiteSpace(
-                analysis.CollectorNumber))
-        {
-            return string.Equals(
-                analysis.CollectorNumber,
-                card.CollectorNumber,
-                StringComparison.OrdinalIgnoreCase);
-        }
-
-        return true;
-    }
 }

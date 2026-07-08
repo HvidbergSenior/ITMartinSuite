@@ -63,7 +63,7 @@ public sealed class AiCardRecognitionWorkflowStep
         context.State.IdentificationConfidence =
             result.IdentificationConfidence;
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "AI result — Card: [{Name}] Confidence: [{Confidence}] Artist: [{Artist}] Collector: [{Collector}]",
             result.IdentifiedName,
             result.IdentificationConfidence,

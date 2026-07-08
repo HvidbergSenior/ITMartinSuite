@@ -93,13 +93,6 @@
         }
 
         // =====================================
-        // AUTOFOCUS WAIT
-        // =====================================
-
-        await new Promise(x =>
-            setTimeout(x, 300));
-
-        // =====================================
         // CANVAS
         // =====================================
 
@@ -209,66 +202,8 @@
             canvas.width,
             canvas.height);
         // =====================================
-        // DEBUG PREVIEW
-        // =====================================
-
-        const old =
-            document.getElementById(
-                "debug-canvas");
-
-        if (old) {
-            old.remove();
-        }
-
-        canvas.id =
-            "debug-canvas";
-
-        canvas.style.position =
-            "fixed";
-
-        canvas.style.right =
-            "12px";
-
-        canvas.style.bottom =
-            "12px";
-
-        canvas.style.width =
-            "140px";
-
-        canvas.style.border =
-            "3px solid lime";
-
-        canvas.style.borderRadius =
-            "12px";
-
-        canvas.style.zIndex =
-            "999999";
-        console.log(
-            "GUIDE",
-            guideX,
-            guideY,
-            guideWidth,
-            guideHeight);
-
-        console.log(
-            "UPSCALED",
-            canvas.width,
-            canvas.height);
-        document.body.appendChild(
-            canvas);
-
-        console.log(
-            "CAPTURED:",
-            width,
-            height);
-
-        // =====================================
         // RETURN JPEG
         // =====================================
-        console.log(
-            "VIDEO ELEMENT:",
-            this.video.videoWidth,
-            this.video.videoHeight);
         return {
 
             image:

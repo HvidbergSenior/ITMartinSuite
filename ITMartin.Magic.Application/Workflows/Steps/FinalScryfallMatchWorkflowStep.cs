@@ -37,7 +37,7 @@ public sealed class FinalScryfallMatchWorkflowStep
                 "Kunne ikke læse et kortnavn på billedet. Prøv at holde kortet fladt, tættere på kameraet og i godt lys.");
             return;
         }
-        _logger.LogDebug("Scryfall match — set filter: {SetCode}", context.State.SetCode);
+        _logger.LogInformation("Scryfall match — set filter: {SetCode}", context.State.SetCode);
         var match =
             await _scryfallService.SearchAsync(
                 context.State.CardName,

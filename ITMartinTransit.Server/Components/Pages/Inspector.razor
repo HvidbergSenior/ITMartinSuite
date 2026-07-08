@@ -1,0 +1,49 @@
+@page "/kontroller"
+
+<PageTitle>Kontroller billet</PageTitle>
+
+<div class="transit-page">
+    <div class="transit-header">
+        <a href="/" class="back-link">← Tilbage</a>
+        <h1 class="transit-title">Kontroller billet</h1>
+        <p class="transit-sub">Scan passagerens QR-kode med din telefons kamera</p>
+    </div>
+
+    <div class="inspector-hint">
+        <div class="inspector-hint-icon">📱</div>
+        <div>Brug din telefons kamera-app til at scanne QR-koden.<br />
+        Linket åbner automatisk verifikationssiden.</div>
+    </div>
+
+    <div class="inspector-divider">— eller —</div>
+
+    <p class="inspector-manual-label">Indtast ID manuelt</p>
+    <form action="" @onsubmit="GoToId">
+        <input class="transit-input" type="text" placeholder="Indsæt ID (GUID)"
+               @bind="_manualId" @bind:event="oninput" />
+        <button type="submit" class="transit-btn transit-btn-primary mt-2"
+                disabled="@string.IsNullOrWhiteSpace(_manualId)">
+            Verificer
+        </button>
+    </form>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="transit-error">@_error</div>
+    }
+</div>
+
+@inject NavigationManager Nav
+
+@code {
+    private string _manualId = "";
+    private string? _error;
+
+    private void GoToId()
+    {
+        if (Guid.TryParse(_manualId.Trim(), out var id))
+            Nav.NavigateTo($"/verify/{id}");
+        else
+            _error = "Ugyldigt ID-format.";
+    }
+}

@@ -170,7 +170,7 @@ public sealed class ClaudeMagicCardRecognitionService
 
             var json = JsonSerializer.Serialize(toolUse.Input);
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Claude tool response: {Input}",
                 json);
 

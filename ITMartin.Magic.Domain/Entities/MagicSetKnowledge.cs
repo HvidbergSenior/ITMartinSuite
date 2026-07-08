@@ -34,4 +34,6 @@
     public int? CopyrightYear { get; set; }
 
     public string SymbolShape { get; set; } = "";
+
+    public string IconSvgUri { get; set; } = "";
 }

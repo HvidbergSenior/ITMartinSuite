@@ -90,7 +90,8 @@ public sealed class MagicKnowledgeService
             .Select(x => new MagicSetSymbolDefinition(
                 x.SetCode,
                 x.SetName,
-                x.SymbolDescription ?? string.Empty))
+                x.SymbolDescription ?? string.Empty,
+                x.IconSvgUri ?? string.Empty))
             .ToListAsync();
 
         _cache.Set(SetsCacheKey, sets, TimeSpan.FromHours(1));

@@ -40,59 +40,63 @@ public sealed class MagicSetImportService
                 .ToListAsync(cancellationToken))
             .ToHashSet();
 
-        var allowedTypes = new[]
+        var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "core",
             "expansion",
-            "masters",
-            "eternal",
-            "commander",
-            "draft_innovation",
-            "starter",
-            "funny"
-        };
-        var excludedTypes = new[]
-        {
-            "token",
-            "promo",
-            "memorabilia",
-            "minigame"
+            "masters"
         };
 
-        var newSets =
-            response.Data
-                .Where(x =>
-                    !excludedTypes.Contains(
-                        x.SetType,
-                        StringComparer.OrdinalIgnoreCase))
-                .Where(x =>
-                    !existingCodes.Contains(x.Code))
-                .Select(set => new MagicSetKnowledge
-                {
-                    SetCode = set.Code,
-                    SetName = set.Name,
-                    SetType = set.SetType,
-                    ReleaseYear = set.ReleasedAt.Year,
+        var eligible = response.Data
+            .Where(x => allowedTypes.Contains(x.SetType) && !x.Digital)
+            .ToList();
 
-                    SymbolDescription = "",
-                    SymbolKeywords = "",
-                    SymbolColor = "",
-                    SymbolShape = "",
+        // Remove sets that no longer match allowed types
+        var eligibleCodes = eligible.Select(x => x.Code).ToHashSet();
+        var toRemove = await _db.Sets
+            .Where(x => !eligibleCodes.Contains(x.SetCode))
+            .ToListAsync(cancellationToken);
+        _db.Sets.RemoveRange(toRemove);
 
-                    FrameStyle = "",
-                    CopyrightStyle = "",
-                    CopyrightYear = null,
+        var newSets = eligible
+            .Where(x => !existingCodes.Contains(x.Code))
+            .Select(set => new MagicSetKnowledge
+            {
+                SetCode = set.Code,
+                SetName = set.Name,
+                SetType = set.SetType,
+                ReleaseYear = set.ReleasedAt.Year,
+                IconSvgUri = set.IconSvgUri,
 
-                    HasSetSymbol = true,
-                    UsesOldFrame = false,
-                    UsesWhiteBorder = false,
-                    UsesBlackBorder = true,
+                SymbolDescription = "",
+                SymbolKeywords = "",
+                SymbolColor = "",
+                SymbolShape = "",
 
-                    HasCollectorNumbers = true,
-                    HasFoils = true
-                });
+                FrameStyle = "",
+                CopyrightStyle = "",
+                CopyrightYear = null,
+
+                HasSetSymbol = true,
+                UsesOldFrame = false,
+                UsesWhiteBorder = false,
+                UsesBlackBorder = true,
+
+                HasCollectorNumbers = true,
+                HasFoils = true
+            });
 
         _db.Sets.AddRange(newSets);
+
+        // Refresh icon URLs for existing sets
+        var iconMap = eligible.ToDictionary(x => x.Code, x => x.IconSvgUri);
+        var existing = await _db.Sets
+            .Where(x => existingCodes.Contains(x.SetCode) && x.IconSvgUri == "")
+            .ToListAsync(cancellationToken);
+
+        foreach (var set in existing)
+            if (iconMap.TryGetValue(set.SetCode, out var uri))
+                set.IconSvgUri = uri;
 
         await _db.SaveChangesAsync(cancellationToken);
     }

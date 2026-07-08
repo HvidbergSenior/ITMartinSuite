@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @page "/scanner"
 
 @using System.Threading.Channels
@@ -14,9 +14,7 @@
 @inject IMagicCardRepository CardRepository
 @implements IAsyncDisposable
 
-<PageTitle>
-    MTG Scanner
-</PageTitle>
+<PageTitle>MTG Scanner</PageTitle>
 
 <div class="scanner-page">
 
@@ -38,85 +36,104 @@
 
     <hr class="scanner-divider" />
 
-    <div class="scanner-setup">
+    @if (!_cameraStarted)
+    {
+        <div class="scanner-setup">
 
-        <label class="form-label fw-bold">
-            🃏 Sæt
-        </label>
+            <label class="form-label fw-bold">
+                🃏 Sæt
+            </label>
 
-        <div class="set-mode-toggle">
-            <button type="button"
-                    class="@(!NoSetSymbol ? "set-mode-btn active" : "set-mode-btn")"
-                    @onclick="() => NoSetSymbol = false">
-                Vælg sæt
-            </button>
-            <button type="button"
-                    class="@(NoSetSymbol ? "set-mode-btn active" : "set-mode-btn")"
-                    @onclick="() => NoSetSymbol = true">
-                Kort uden sætsymbol
-            </button>
-        </div>
-
-        @if (!NoSetSymbol)
-        {
-            <input class="form-control mt-2"
-                   placeholder="🔍 Søg sæt..."
-                   @bind="_setSearch" @bind:event="oninput" />
-
-            <div class="set-result-list">
-                @foreach (var set in FilteredSets.Take(50))
-                {
-                    <button type="button"
-                            class="@(_selectedSetCode == set.SetCode ? "set-result-item active" : "set-result-item")"
-                            @onclick="() => _selectedSetCode = set.SetCode">
-                        <span>@set.SetName</span>
-                        <span class="set-code-pill">@set.SetCode.ToUpper()</span>
-                    </button>
-                }
-                @if (!FilteredSets.Any())
-                {
-                    <div class="text-muted small p-2">Ingen sæt matcher søgningen.</div>
-                }
+            <div class="set-mode-toggle">
+                <button type="button"
+                        class="@(!NoSetSymbol ? "set-mode-btn active" : "set-mode-btn")"
+                        @onclick="() => NoSetSymbol = false">
+                    Vælg sæt
+                </button>
+                <button type="button"
+                        class="@(NoSetSymbol ? "set-mode-btn active" : "set-mode-btn")"
+                        @onclick="() => NoSetSymbol = true">
+                    Kort uden sætsymbol
+                </button>
             </div>
-        }
-    </div>
 
-    @if (NoSetSymbol)
-    {
-        <div class="alert alert-info mt-2">
-            Scanner kort uden sætsymboler.
-        </div>
-    }
-    else if (string.IsNullOrWhiteSpace(_selectedSetCode))
-    {
-        <div class="alert alert-warning mt-2">
-            Vælg venligst et sæt inden scanning.
+            @if (!NoSetSymbol)
+            {
+                <input class="form-control mt-2"
+                       placeholder="🔍 Søg sæt..."
+                       @bind="_setSearch" @bind:event="oninput" />
+
+                @if (_selectedSetCode != null)
+                {
+                    var sel = _sets.FirstOrDefault(s => s.SetCode == _selectedSetCode);
+                    <div class="selected-set-display">
+                        @if (!string.IsNullOrEmpty(sel?.IconSvgUri))
+                        {
+                            <img src="@sel.IconSvgUri" class="selected-set-icon" width="28" height="28" alt="@_selectedSetCode" />
+                        }
+                        <div class="selected-set-text">
+                            <div class="selected-set-name">@(sel?.SetName ?? _selectedSetCode)</div>
+                            <div class="selected-set-code">@_selectedSetCode.ToUpperInvariant()</div>
+                        </div>
+                        <button class="selected-set-clear" @onclick="() => _selectedSetCode = null">✕</button>
+                    </div>
+                }
+
+                <div class="set-icon-grid">
+                    @foreach (var set in FilteredSets.Take(60))
+                    {
+                        <div class="set-tile @(set.SetCode == _selectedSetCode ? "set-tile-selected" : "")"
+                             @onclick="() => _selectedSetCode = set.SetCode"
+                             title="@set.SetName">
+                            @if (!string.IsNullOrEmpty(set.IconSvgUri))
+                            {
+                                <img src="@set.IconSvgUri" class="set-tile-icon" width="22" height="22" alt="@set.SetCode" />
+                            }
+                            <div class="set-tile-code">@set.SetCode.ToUpper()</div>
+                        </div>
+                    }
+                    @if (!FilteredSets.Any())
+                    {
+                        <div class="text-muted small p-2">Ingen sæt matcher søgningen.</div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info mt-2">
+                    Scanner kort uden sætsymboler.
+                </div>
+            }
+
+            <button class="btn btn-primary mt-3 w-100"
+                    @onclick="StartCamera"
+                    disabled="@(string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol)">
+                📷 Start kamera
+            </button>
+
         </div>
     }
     else
     {
-        <div class="alert alert-success mt-2">
-            Scanner sæt: @_selectedSetCode.ToUpperInvariant()
-        </div>
-    }
-   
-    <div class="scanner-wrapper">
-
-        @if (!_cameraStarted)
-        {
-            <div class="camera-start-panel">
-
-                <button @onclick="StartCamera"
-                        disabled="@(
-                                  string.IsNullOrWhiteSpace(_selectedSetCode)
-                                  && !NoSetSymbol)">
-                    📷 Start kamera
-                </button>
-
+        <div class="set-bar">
+            <div class="set-bar-info">
+                <div class="set-bar-label">Sæt</div>
+                <div class="set-bar-name">
+                    @if (NoSetSymbol)
+                    {
+                        <span>Uden sætsymbol</span>
+                    }
+                    else
+                    {
+                        var sel = _sets.FirstOrDefault(s => s.SetCode == _selectedSetCode);
+                        <span>@(sel?.SetName ?? _selectedSetCode) <span class="set-bar-code">(@_selectedSetCode?.ToUpperInvariant())</span></span>
+                    }
+                </div>
             </div>
-        }
-        else
-        {
+            <button class="set-bar-change" @onclick="ChangeSet">Skift sæt</button>
+        </div>
+
+        <div class="scanner-wrapper">
             <video id="video"
                    autoplay
                    muted
@@ -126,43 +143,40 @@
             </video>
 
             <div class="scanner-guide">
-
                 <div class="guide-text">
                     Placer kort inden for rammen
                 </div>
-
             </div>
-        }
+        </div>
 
-    </div>
+        <div class="scanner-buttons" style="gap:12px; align-items:center;">
 
-    <div class="scanner-buttons" style="gap:12px; align-items:center;">
-
-        <button class="btn btn-success btn-lg scan-button"
-                @onclick="() => Capture()"
-                disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
-            Scan kort
-        </button>
-
-        @if (_queuedCount > 0)
-        {
-            <span class="badge bg-info text-dark">
-                🔄 @_queuedCount kort behandles...
-            </span>
-        }
-
-        @if (_completedCount > 0)
-        {
-            <span class="badge bg-success">
-                ✅ @_completedCount gemt denne session
-            </span>
-
-            <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAllResults">
-                @(_showAllResults ? "Skjul alle kort" : "Vis alle scannede kort")
+            <button class="btn btn-success btn-lg scan-button"
+                    @onclick="() => Capture()"
+                    disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
+                📷 Scan kort
             </button>
-        }
 
-    </div>
+            @if (_queuedCount > 0)
+            {
+                <span class="badge bg-info text-dark">
+                    🔄 @_queuedCount kort behandles...
+                </span>
+            }
+
+            @if (_completedCount > 0)
+            {
+                <span class="badge bg-success">
+                    ✅ @_completedCount gemt denne session
+                </span>
+
+                <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleAllResults">
+                    @(_showAllResults ? "Skjul alle kort" : "Vis alle scannede kort")
+                </button>
+            }
+
+        </div>
+    }
 
     @if (_recentResults.Count > 0 && !_showAllResults)
     {
@@ -202,14 +216,13 @@
             @if (_scanResult.ScryfallMatchResult != null)
             {
                 var match = _scanResult.ScryfallMatchResult;
+                var setIcon = _sets.FirstOrDefault(s => s.SetCode == match.SetCode)?.IconSvgUri;
 
                 <div class="card-result">
 
                     <div class="image-panel">
-
                         <img src="@match.ImageUrl"
                              class="matched-card-image" />
-
                     </div>
 
                     <div class="card-details">
@@ -219,6 +232,10 @@
                         </h2>
 
                         <div class="set-line">
+                            @if (!string.IsNullOrEmpty(setIcon))
+                            {
+                                <img src="@setIcon" width="18" height="18" alt="@match.SetCode" />
+                            }
                             @(match.SetName ?? match.SetCode?.ToUpperInvariant()) (@match.SetCode?.ToUpperInvariant())
                             ·
                             #@match.CollectorNumber
@@ -302,16 +319,11 @@
     @if (!string.IsNullOrWhiteSpace(_capturedImage) && (_scanResult == null || _scanResult.Failed))
     {
         <div class="mt-4">
-
-            <h5>
-                Taget billede
-            </h5>
-
+            <h5>Taget billede</h5>
             <img src="@_capturedImage"
                  style="max-width:400px;
                     border-radius:12px;
                     border:2px solid #444;" />
-
         </div>
     }
 </div>
@@ -393,6 +405,13 @@
             _cameraStarted = false;
             _detectedText = ex.Message;
         }
+        StateHasChanged();
+    }
+
+    private async Task ChangeSet()
+    {
+        try { await JS.InvokeVoidAsync("webcam.stop"); } catch { }
+        _cameraStarted = false;
         StateHasChanged();
     }
 

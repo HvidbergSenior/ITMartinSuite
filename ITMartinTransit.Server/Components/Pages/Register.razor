@@ -1,0 +1,168 @@
+@page "/registrer"
+@rendermode InteractiveServer
+@using ITMartinTransit.Server.Data
+@using Microsoft.EntityFrameworkCore
+@inject TransitDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Registrer</PageTitle>
+
+<div class="transit-page">
+
+    <div class="transit-header">
+        <a href="/" class="back-link">← Tilbage</a>
+        <h1 class="transit-title">Registrer dig</h1>
+        <p class="transit-sub">Indtast dit navn og tag et selfie</p>
+    </div>
+
+    @if (_done)
+    {
+        <div class="qr-result">
+            <div class="qr-name">@_savedName</div>
+            <div class="qr-label">Dit personlige ID-kort</div>
+            <img src="@_qrDataUrl" class="qr-image" alt="QR kode" />
+            <p class="qr-hint">Gem dette billede eller vis det til kontrolløren</p>
+            <a href="/registrer" class="transit-btn transit-btn-outline">Registrer en anden</a>
+        </div>
+    }
+    else
+    {
+        <div class="form-section">
+            <label class="form-label">Fulde navn</label>
+            <input class="transit-input" type="text" placeholder="Fornavn Efternavn"
+                   @bind="_name" @bind:event="oninput" />
+        </div>
+
+        <div class="cam-section">
+            <label class="form-label">Selfie</label>
+
+            @if (_photo == null)
+            {
+                <div class="cam-wrap" id="camWrap">
+                    @if (!_cameraOn)
+                    {
+                        <button class="cam-start-btn" @onclick="StartCamera">
+                            📷 Åbn kamera
+                        </button>
+                    }
+                    else
+                    {
+                        <video id="regVideo" autoplay muted playsinline class="cam-video"></video>
+                        <button class="cam-capture-btn" @onclick="Capture">Tag billede</button>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="photo-preview-wrap">
+                    <img src="@_photo" class="photo-preview" alt="Selfie" />
+                    <button class="retake-btn" @onclick="Retake">Tag om</button>
+                </div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="transit-error">@_error</div>
+        }
+
+        <button class="transit-btn transit-btn-primary"
+                @onclick="Submit"
+                disabled="@(string.IsNullOrWhiteSpace(_name) || _photo == null || _saving)">
+            @(_saving ? "Gemmer..." : "Opret ID-kort")
+        </button>
+    }
+
+</div>
+
+<script>
+    window.transitCam = {
+        start: async (videoId) => {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            const v = document.getElementById(videoId);
+            v.srcObject = stream;
+            window._transitStream = stream;
+        },
+        capture: (videoId) => {
+            const v = document.getElementById(videoId);
+            const c = document.createElement('canvas');
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            c.getContext('2d').drawImage(v, 0, 0);
+            if (window._transitStream) window._transitStream.getTracks().forEach(t => t.stop());
+            return c.toDataURL('image/jpeg', 0.8);
+        }
+    };
+</script>
+
+@code {
+    private string _name = "";
+    private string? _photo;
+    private bool _cameraOn;
+    private bool _saving;
+    private bool _done;
+    private string? _qrDataUrl;
+    private string? _savedName;
+    private string? _error;
+
+    private async Task StartCamera()
+    {
+        _cameraOn = true;
+        StateHasChanged();
+        await Task.Delay(200);
+        await JS.InvokeVoidAsync("transitCam.start", "regVideo");
+    }
+
+    private async Task Capture()
+    {
+        _photo = await JS.InvokeAsync<string>("transitCam.capture", "regVideo");
+        _cameraOn = false;
+        StateHasChanged();
+    }
+
+    private void Retake()
+    {
+        _photo = null;
+        _cameraOn = false;
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_name) || _photo == null) return;
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            var person = new TransitPerson
+            {
+                Name = _name.Trim(),
+                PhotoBase64 = _photo
+            };
+            Db.Persons.Add(person);
+            await Db.SaveChangesAsync();
+
+            var verifyUrl = Nav.ToAbsoluteUri($"/verify/{person.Id}").ToString();
+            _qrDataUrl = GenerateQr(verifyUrl);
+            _savedName = person.Name;
+            _done = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Fejl: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string GenerateQr(string text)
+    {
+        using var qr = new QRCoder.QRCodeGenerator();
+        var data = qr.CreateQrCode(text, QRCoder.QRCodeGenerator.ECCLevel.M);
+        var code = new QRCoder.PngByteQRCode(data);
+        var bytes = code.GetGraphic(6);
+        return $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+    }
+}
