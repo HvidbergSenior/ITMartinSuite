@@ -796,9 +796,13 @@ SCAN BUTTON
 }
 
 .scan-button-flash {
-    background: #f0fdf4 !important;
-    color: #15803d !important;
-    box-shadow: 0 0 0 4px rgba(34,197,94,.5), 0 12px 36px rgba(0,0,0,.45) !important;
+    background: #16a34a !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 4px rgba(34,197,94,.6), 0 12px 36px rgba(0,0,0,.45) !important;
+}
+
+.behandl-button {
+    font-weight: 700;
 }
 
 .pending-count-badge {

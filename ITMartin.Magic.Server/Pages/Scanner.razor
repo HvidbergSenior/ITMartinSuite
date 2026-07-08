@@ -173,6 +173,13 @@
             <button class="set-bar-change" @onclick="ChangeSet">Skift sæt</button>
         </div>
 
+        @if (_pendingFrames.Count > 0)
+        {
+            <button class="btn btn-primary w-100 mb-2 behandl-button" @onclick="SendPendingFrames">
+                ▶️ Behandl @_pendingFrames.Count kort
+            </button>
+        }
+
         <div class="scanner-wrapper">
             <video id="video"
                    autoplay
@@ -228,24 +235,15 @@
                 </div>
             }
 
-            <div class="d-flex gap-2">
-                <button class="@(_justCaptured ? "btn btn-lg scan-button scan-button-flash" : "btn btn-success btn-lg scan-button")"
-                        @onclick="() => Capture()"
-                        disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
-                    @(_justCaptured ? "✅ Taget!" : "📷 Scan kort")
-                    @if (_pendingFrames.Count > 0)
-                    {
-                        <span class="pending-count-badge">@_pendingFrames.Count</span>
-                    }
-                </button>
-
+            <button class="@(_justCaptured ? "btn btn-lg scan-button scan-button-flash" : "btn btn-success btn-lg scan-button")"
+                    @onclick="() => Capture()"
+                    disabled="@(!_cameraStarted || (string.IsNullOrWhiteSpace(_selectedSetCode) && !NoSetSymbol))">
+                @(_justCaptured ? "✅ Taget!" : "📷 Scan kort")
                 @if (_pendingFrames.Count > 0)
                 {
-                    <button class="btn btn-primary btn-lg" @onclick="SendPendingFrames">
-                        ▶️ Behandl @_pendingFrames.Count kort
-                    </button>
+                    <span class="pending-count-badge">@_pendingFrames.Count</span>
                 }
-            </div>
+            </button>
 
         </div>
     }
