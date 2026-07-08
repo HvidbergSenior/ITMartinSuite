@@ -812,8 +812,9 @@ SCAN BUTTON
 }
 
 .card-thumb {
-    width: 48px;
-    height: 67px;
+    width: 48px !important;
+    height: 67px !important;
+    max-width: 48px !important;
     object-fit: cover;
     border-radius: 6px;
     flex-shrink: 0;
