@@ -9,6 +9,11 @@ public sealed class StarRealmsDbContext : DbContext
 
     public DbSet<GameSession> Sessions => Set<GameSession>();
     public DbSet<GamePlayer> Players   => Set<GamePlayer>();
+    public DbSet<GameRuleset> Rulesets => Set<GameRuleset>();
+    public DbSet<PlayerProfile> Profiles => Set<PlayerProfile>();
+    public DbSet<GameResult> Results => Set<GameResult>();
+    public DbSet<GameResultPlayer> ResultPlayers => Set<GameResultPlayer>();
+    public DbSet<GameEvent> Events => Set<GameEvent>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -20,5 +25,14 @@ public sealed class StarRealmsDbContext : DbContext
             .HasMany(s => s.Players)
             .WithOne()
             .HasForeignKey(p => p.SessionId);
+
+        model.Entity<PlayerProfile>()
+            .HasIndex(p => p.DeviceToken)
+            .IsUnique();
+
+        model.Entity<GameResult>()
+            .HasMany(r => r.Players)
+            .WithOne()
+            .HasForeignKey(p => p.GameResultId);
     }
 }

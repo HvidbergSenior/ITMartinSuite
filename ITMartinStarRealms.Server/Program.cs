@@ -24,6 +24,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<StarRealmsDbContext>();
     db.Database.EnsureCreated();
+    await RulesetSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())
