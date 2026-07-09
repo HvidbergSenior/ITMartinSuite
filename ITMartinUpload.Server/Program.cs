@@ -20,7 +20,7 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 var uploadRoot = builder.Configuration["UploadRoot"] ?? "/app/data";
-var uploadToken = builder.Configuration["Upload__Token"] ?? "";
+var uploadToken = builder.Configuration["Upload:Token"] ?? "";
 Directory.CreateDirectory(uploadRoot);
 
 app.MapPost("/api/upload/{slug}", async (string slug, string? token, HttpRequest request) =>

@@ -152,7 +152,7 @@
         var uri = new Uri(Nav.Uri);
         var qs = System.Web.HttpUtility.ParseQueryString(uri.Query);
         _token = qs["token"] ?? "";
-        var expectedToken = Config["Upload__Token"] ?? "";
+        var expectedToken = Config["Upload:Token"] ?? "";
         if (!string.IsNullOrEmpty(expectedToken) && _token != expectedToken)
         {
             _authorized = false;
