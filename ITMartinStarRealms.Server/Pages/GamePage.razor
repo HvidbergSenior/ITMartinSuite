@@ -1,551 +1,104 @@
 @page "/game/{Code}"
-@rendermode InteractiveServer
-@using Microsoft.AspNetCore.SignalR.Client
-@inject GameService Svc
-@inject StarRealmsAiService Ai
-@inject NavigationManager Nav
-@inject IJSRuntime JS
-@implements IAsyncDisposable
 
-@if (_session is null)
-{
-    <div class="loading">Indlæser…</div>
-}
-else if (_needsName)
-{
-    <div class="home-page">
-        <div class="home-card">
-            <div class="home-logo">🚀</div>
-            <h1 class="home-title">Deltag i spil</h1>
-            <p class="home-sub">Kode: <strong>@_session.Code</strong> · @_session.RulesetName</p>
-            <div class="home-section">
-                <label class="home-label">Dit navn</label>
-                <input class="home-input" @bind="_nameInput" @bind:event="oninput"
-                       placeholder="Martin" maxlength="20" @onkeydown="OnNameKey" />
-                <label class="home-label mt-2">Dit avatar</label>
-                <div class="avatar-grid">
-                    @foreach (var a in Avatars)
-                    {
-                        <button class="avatar-btn @(a == _avatarInput ? "avatar-btn--active" : "")" @onclick="() => _avatarInput = a">@a</button>
-                    }
+<div id="page-data" data-page="game" data-code="@Code" style="display:none"></div>
+
+<div id="g-loading" class="loading">Indlæser…</div>
+
+<div id="g-needs-name" class="home-page" style="display:none">
+    <div class="home-card">
+        <div class="home-logo">🚀</div>
+        <h1 class="home-title">Deltag i spil</h1>
+        <p class="home-sub">Kode: <strong>@Code</strong> · <span id="n-ruleset-name"></span></p>
+        <div class="home-section">
+            <label class="home-label">Dit navn</label>
+            <input id="n-name" class="home-input" placeholder="Martin" maxlength="20" oninput="onJoinNameInput()" />
+            <label class="home-label mt-2">Dit avatar</label>
+            <div id="n-avatar-grid" class="avatar-grid"></div>
+            <label class="home-label mt-2">Din farve</label>
+            <div id="n-color-grid" class="color-grid"></div>
+            <button class="btn-primary mt-2" id="n-btn-join" onclick="joinAsPlayer()" disabled>Deltag i spillet</button>
+        </div>
+    </div>
+</div>
+
+<div id="g-invite" class="home-page" style="display:none">
+    <div class="home-card">
+        <div class="home-logo">📨</div>
+        <h1 class="home-title">Invitér andre</h1>
+        <p class="home-sub"><span id="i-ruleset-name"></span> · <span id="i-count"></span> tilmeldt</p>
+
+        <div class="invite-code-box">@Code</div>
+        <button class="btn-secondary" onclick="copyInviteLink()">🔗 Kopiér invitationslink</button>
+
+        <div id="i-players-list" class="invite-players-list mt-3"></div>
+
+        <button class="btn-primary mt-3" onclick="hideInvite()">▶️ Start spillet</button>
+    </div>
+</div>
+
+<div id="g-main" class="game-page" style="display:none">
+    <div class="game-header">
+        <span class="code-badge">@Code</span>
+        <div class="tab-row">
+            <button class="tab-btn" id="tab-btn-score" onclick="showTab('score')">🎯 Score</button>
+            <button class="tab-btn" id="tab-btn-log" onclick="showTab('log')">📜 Log</button>
+            <button class="tab-btn" id="tab-btn-ai" onclick="showTab('ai')">🤖 AI</button>
+        </div>
+        <button class="btn-reset" onclick="resetGame()" title="Nulstil spil">🔄</button>
+    </div>
+
+    <div id="tab-score">
+        <div id="g-turn-banner" class="turn-banner"></div>
+        <div id="g-hero-card"></div>
+
+        <div class="rules-toggle-row">
+            <button class="btn-link" id="g-rules-toggle" onclick="toggleRules()">📜 Se regler for dette spil</button>
+        </div>
+        <div id="g-rules-panel" class="rules-panel" style="display:none">
+            <div class="rules-title" id="g-rules-title"></div>
+            <div class="rules-desc" id="g-rules-desc"></div>
+        </div>
+
+        <div class="opp-label">Modstandere</div>
+        <div id="g-opp-grid" class="opp-grid"></div>
+    </div>
+
+    <div id="tab-log" style="display:none">
+        <div id="g-log-panel" class="log-panel"></div>
+    </div>
+
+    <div id="tab-ai" style="display:none">
+        <div class="ai-panel">
+            <div class="ai-section">
+                <div class="card-label">🛰️ Skibs-tips</div>
+                <input id="ai-ship-search" class="home-input" placeholder="Søg skib…" oninput="filterShips()" />
+                <select id="ai-ship-select" class="home-input"></select>
+                <button class="btn-primary" id="ai-hint-btn" onclick="getShipHint()">💡 Få combo-tip</button>
+                <div id="ai-hint-result" class="ai-result" style="display:none"></div>
+            </div>
+
+            <div class="ai-section">
+                <div class="card-label">📷 Scan trade row</div>
+                <label class="btn-ghost-file">
+                    🖼 Vælg billede af trade row
+                    <input type="file" id="ai-traderow-file" accept="image/*" style="display:none" onchange="onTradeRowSelected()" />
+                </label>
+                <div id="ai-traderow-loading" class="photo-analyzing" style="display:none">
+                    <div class="spinner"></div><span>Claude analyserer trade row...</span>
                 </div>
-                <label class="home-label mt-2">Din farve</label>
-                <div class="color-grid">
-                    @foreach (var c in GameService.AvailableColors)
-                    {
-                        var taken = _players.Any(p => p.Color == c);
-                        <button class="color-btn @(c == _colorInput ? "color-btn--active" : "") @(taken ? "color-btn--taken" : "")"
-                                style="background:@c" title="@(taken ? "Optaget" : "")"
-                                @onclick="() => _colorInput = c" disabled="@taken">
-                        </button>
-                    }
-                </div>
-                <button class="btn-primary mt-2" @onclick="JoinAsPlayer" disabled="@string.IsNullOrWhiteSpace(_nameInput)">
-                    Deltag i spillet
-                </button>
+                <div id="ai-traderow-result" class="ai-result" style="display:none"></div>
             </div>
         </div>
     </div>
-}
-else if (_showInvite)
-{
-    <div class="home-page">
-        <div class="home-card">
-            <div class="home-logo">📨</div>
-            <h1 class="home-title">Invitér andre</h1>
-            <p class="home-sub">@_session.RulesetName · @_players.Count/@(_maxPlayers) tilmeldt</p>
+</div>
 
-            <div class="invite-code-box">@_session.Code</div>
-            <button class="btn-secondary" @onclick="CopyLink">🔗 Kopiér invitationslink</button>
-
-            <div class="invite-players-list mt-3">
-                @foreach (var p in _players)
-                {
-                    <div class="invite-player-row"><span class="color-dot" style="background:@p.Color"></span>@p.Avatar @p.Name</div>
-                }
-            </div>
-
-            <button class="btn-primary mt-3" @onclick="() => _showInvite = false">
-                ▶️ Start spillet
-            </button>
-        </div>
+<div id="g-winner" class="winner-overlay" style="display:none" onclick="hideWinner()">
+    <div class="winner-card" id="g-winner-card">
+        <div class="winner-trophy">🏆</div>
+        <div class="winner-name" id="g-winner-name"></div>
     </div>
-}
-else
-{
-    <div class="game-page">
-        <div class="game-header">
-            <span class="code-badge">@_session.Code</span>
-            <div class="tab-row">
-                <button class="tab-btn @(_tab == "score" ? "tab-btn--active" : "")" @onclick='() => _tab = "score"'>🎯 Score</button>
-                <button class="tab-btn @(_tab == "log" ? "tab-btn--active" : "")" @onclick='() => _tab = "log"'>📜 Log</button>
-                <button class="tab-btn @(_tab == "ai" ? "tab-btn--active" : "")" @onclick='() => _tab = "ai"'>🤖 AI</button>
-            </div>
-            <button class="btn-reset" @onclick="ResetGame" title="Nulstil spil">🔄</button>
-        </div>
-
-        @if (_tab == "score")
-        {
-            <div class="turn-banner @(_currentTurnPlayerId == _me?.Id ? "turn-banner--mine" : "")">
-                @if (_currentTurnPlayerId == _me?.Id)
-                {
-                    <span>🎯 Det er din tur!</span>
-                }
-                else
-                {
-                    var turnPlayer = _players.FirstOrDefault(p => p.Id == _currentTurnPlayerId);
-                    <span>⏳ @(turnPlayer is null ? "Venter…" : $"{turnPlayer.Avatar} {turnPlayer.Name}'s tur")</span>
-                }
-            </div>
-
-            @if (_me is not null)
-            {
-                var eliminated = _me.Points <= _session!.MinPoints;
-                <div class="hero-card" style="border-color:@_me.Color">
-                    <div class="hero-top">
-                        <div class="hero-avatar" style="background:@_me.Color">@(eliminated ? "💀" : _me.Avatar)</div>
-                        <div class="hero-name">@_me.Name <span class="hero-you">(dig)</span></div>
-                    </div>
-                    <div class="hero-points" style="color:@_me.Color">@_me.Points</div>
-                    <div class="hero-buttons">
-                        <button class="pt-btn pt-btn--down pt-btn--lg" @onclick='() => Adjust(-5)'>-5</button>
-                        <button class="pt-btn pt-btn--down pt-btn--lg" @onclick='() => Adjust(-1)'>-1</button>
-                        <button class="pt-btn pt-btn--up pt-btn--lg" @onclick='() => Adjust(1)'>+1</button>
-                        <button class="pt-btn pt-btn--up pt-btn--lg" @onclick='() => Adjust(5)'>+5</button>
-                    </div>
-                    @if (_currentTurnPlayerId == _me.Id)
-                    {
-                        <button class="btn-secondary mt-2" @onclick="EndTurn">✅ Afslut min tur →</button>
-                    }
-                </div>
-            }
-
-            <div class="rules-toggle-row">
-                <button class="btn-link" @onclick="() => _showRules = !_showRules">
-                    📜 @(_showRules ? "Skjul regler" : "Se regler for dette spil")
-                </button>
-            </div>
-            @if (_showRules)
-            {
-                <div class="rules-panel">
-                    <div class="rules-title">@_session.RulesetName</div>
-                    <div class="rules-desc">@_rulesetDescription</div>
-                </div>
-            }
-
-            <div class="opp-label">Modstandere</div>
-            <div class="opp-grid">
-                @foreach (var p in _players.Where(p => p.Id != _me?.Id).OrderBy(p => p.SortOrder))
-                {
-                    var dead = p.Points <= _session!.MinPoints;
-                    <div class="opp-card @(p.Id == _currentTurnPlayerId ? "opp-card--turn" : "") @(dead ? "opp-card--dead" : "")"
-                         style="border-color:@p.Color">
-                        <div class="opp-avatar" style="background:@p.Color">@(dead ? "💀" : p.Avatar)</div>
-                        <div class="opp-info">
-                            <div class="opp-name">
-                                @p.Name
-                                @if (_session.IsTeamMode && p.Team is not null)
-                                {
-                                    <span class="opp-team">Hold @(p.Team + 1)@(p.Team == _me?.Team ? " (dit)" : "")</span>
-                                }
-                            </div>
-                            <div class="opp-color-label"><span class="color-dot" style="background:@p.Color"></span>farve</div>
-                        </div>
-                        <div class="opp-points" style="color:@p.Color">@p.Points</div>
-                        @if (p.Id == _currentTurnPlayerId)
-                        {
-                            <div class="opp-turn-badge">🎯</div>
-                        }
-                    </div>
-                }
-            </div>
-        }
-        else if (_tab == "log")
-        {
-            <div class="log-panel">
-                @if (_events.Count == 0)
-                {
-                    <p class="log-empty">Ingen hændelser endnu — pointændringer vises her, så alle kan se hvad der skete.</p>
-                }
-                else
-                {
-                    @foreach (var ev in _events)
-                    {
-                        <div class="log-row">
-                            <span class="log-avatar">@ev.Avatar</span>
-                            <span class="log-text"><strong>@ev.Name</strong> @(ev.Delta >= 0 ? "fik" : "mistede") @Math.Abs(ev.Delta) point <span class="log-muted">(nu @ev.Points)</span></span>
-                            <span class="log-time">@ev.CreatedAt.ToLocalTime().ToString("HH:mm")</span>
-                        </div>
-                    }
-                }
-            </div>
-        }
-        else
-        {
-            <div class="ai-panel">
-                <div class="ai-section">
-                    <div class="card-label">🛰️ Skibs-tips</div>
-                    <input class="home-input" placeholder="Søg skib…" @bind="_shipSearch" @bind:event="oninput" />
-                    <select class="home-input" @bind="_selectedShipName">
-                        <option value="">— vælg skib —</option>
-                        @foreach (var fac in ShipCatalog.Factions)
-                        {
-                            <optgroup label="@($"{fac.Icon} {fac.Name}")">
-                                @foreach (var s in FilteredShips.Where(s => s.Faction == fac.Name))
-                                {
-                                    <option value="@s.Name">@s.Name</option>
-                                }
-                            </optgroup>
-                        }
-                    </select>
-                    <button class="btn-primary" @onclick="GetShipHint" disabled="@(string.IsNullOrEmpty(_selectedShipName) || _hintLoading)">
-                        @(_hintLoading ? "Tænker…" : "💡 Få combo-tip")
-                    </button>
-                    @if (!string.IsNullOrEmpty(_hintResult))
-                    {
-                        <div class="ai-result">@_hintResult</div>
-                    }
-                </div>
-
-                <div class="ai-section">
-                    <div class="card-label">📷 Scan trade row</div>
-                    <label class="btn-ghost-file">
-                        🖼 Vælg billede af trade row
-                        <InputFile OnChange="OnTradeRowSelected" accept="image/*" style="display:none" />
-                    </label>
-                    @if (_tradeRowLoading)
-                    {
-                        <div class="photo-analyzing"><div class="spinner"></div><span>Claude analyserer trade row...</span></div>
-                    }
-                    @if (!string.IsNullOrEmpty(_tradeRowResult))
-                    {
-                        <div class="ai-result">@_tradeRowResult</div>
-                    }
-                </div>
-            </div>
-        }
-
-        @if (_showWinner)
-        {
-            <div class="winner-overlay" @onclick="() => _showWinner = false">
-                <div class="winner-card" style="border-color:@_winnerColor">
-                    <div class="winner-trophy">🏆</div>
-                    <div class="winner-name" style="color:@_winnerColor">@_winnerName vinder!</div>
-                </div>
-            </div>
-        }
-    </div>
-}
+</div>
 
 @code {
-    private static readonly string[] Avatars = ["🚀", "👽", "🛸", "⭐", "🔥", "💀", "👑", "🐉", "🦾", "🎯", "🛡️", "⚔️"];
-
-    private record LogEntry(Guid PlayerId, string Name, string Avatar, int Delta, int Points, DateTime CreatedAt);
-
     [Parameter] public string Code { get; set; } = "";
-
-    private GameSession? _session;
-    private List<GamePlayer> _players = [];
-    private GamePlayer? _me;
-    private string _token = "";
-    private Guid? _profileId;
-    private string _nameInput = "";
-    private string _avatarInput = "🚀";
-    private string _colorInput = "";
-    private bool _needsName;
-    private bool _showInvite;
-    private bool _showRules;
-    private string _rulesetDescription = "";
-    private int _maxPlayers = 6;
-    private Guid? _currentTurnPlayerId;
-    private HubConnection? _hub;
-    private string _tab = "score";
-    private readonly Dictionary<Guid, string> _pulse = [];
-    private readonly List<LogEntry> _events = [];
-
-    private string _shipSearch = "";
-    private string _selectedShipName = "";
-    private bool _hintLoading;
-    private string _hintResult = "";
-
-    private bool _tradeRowLoading;
-    private string _tradeRowResult = "";
-
-    private bool _showWinner;
-    private string _winnerName = "";
-    private string _winnerColor = "#fff";
-
-    private IEnumerable<Ship> FilteredShips =>
-        string.IsNullOrWhiteSpace(_shipSearch)
-            ? ShipCatalog.Ships
-            : ShipCatalog.Ships.Where(s => s.Name.Contains(_shipSearch, StringComparison.OrdinalIgnoreCase));
-
-    protected override async Task OnInitializedAsync()
-    {
-        _session = await Svc.GetByCodeAsync(Code);
-        if (_session is null) { Nav.NavigateTo("/", forceLoad: true); return; }
-        _players = _session.Players.ToList();
-        _currentTurnPlayerId = _session.CurrentTurnPlayerId;
-
-        var ruleset = (await Svc.GetRulesetsAsync()).FirstOrDefault(r => r.Id == _session.RulesetId);
-        _rulesetDescription = ruleset?.Description ?? "";
-
-        var recent = await Svc.GetRecentEventsAsync(_session.Id);
-        foreach (var e in recent)
-            _events.Add(new LogEntry(e.PlayerId, e.PlayerName, e.PlayerAvatar, e.Delta, e.ResultingPoints, e.CreatedAt));
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-
-        _token = await JS.InvokeAsync<string?>("starrealms.getItem", $"token_{Code}") ?? "";
-        if (string.IsNullOrEmpty(_token))
-        {
-            _token = Guid.NewGuid().ToString("N");
-            await JS.InvokeVoidAsync("starrealms.setItem", $"token_{Code}", _token);
-        }
-
-        // Long-lived device profile (distinct from the per-session token above) - lets us
-        // recognize "this device" across many different games for win/loss history.
-        var deviceToken = await JS.InvokeAsync<string?>("starrealms.getItem", "device_id") ?? "";
-        if (string.IsNullOrEmpty(deviceToken))
-        {
-            deviceToken = Guid.NewGuid().ToString("N");
-            await JS.InvokeVoidAsync("starrealms.setItem", "device_id", deviceToken);
-        }
-
-        _nameInput = await JS.InvokeAsync<string?>("starrealms.getItem", "profile_name") ?? "";
-        _avatarInput = await JS.InvokeAsync<string?>("starrealms.getItem", "profile_avatar") ?? "🚀";
-        _colorInput = await JS.InvokeAsync<string?>("starrealms.getItem", "profile_color") ?? "";
-        if (string.IsNullOrEmpty(_colorInput) || _players.Any(p => p.Color == _colorInput))
-            _colorInput = GameService.AvailableColors.FirstOrDefault(c => !_players.Select(p => p.Color).Contains(c)) ?? GameService.AvailableColors[0];
-
-        var profile = await Svc.GetOrCreateProfileAsync(deviceToken, _nameInput, _avatarInput);
-        _profileId = profile.Id;
-
-        _me = _players.FirstOrDefault(p => p.Token == _token);
-        if (_me is null)
-        {
-            if (string.IsNullOrWhiteSpace(_nameInput))
-            {
-                _needsName = true;
-                StateHasChanged();
-                return;
-            }
-
-            // Already have a name from Home.razor - join automatically and show the
-            // invitation screen instead of asking again.
-            await JoinAsPlayer();
-            return;
-        }
-
-        await ConnectHub();
-    }
-
-    private void OnNameKey(KeyboardEventArgs e) { if (e.Key == "Enter") _ = JoinAsPlayer(); }
-
-    private async Task JoinAsPlayer()
-    {
-        if (string.IsNullOrWhiteSpace(_nameInput) || _session is null) return;
-        try
-        {
-            await JS.InvokeVoidAsync("starrealms.setItem", "profile_name", _nameInput.Trim());
-            await JS.InvokeVoidAsync("starrealms.setItem", "profile_avatar", _avatarInput);
-            if (!string.IsNullOrEmpty(_colorInput))
-                await JS.InvokeVoidAsync("starrealms.setItem", "profile_color", _colorInput);
-
-            _me = await Svc.GetOrCreatePlayerAsync(Code, _token, _nameInput.Trim(), _profileId, _avatarInput, _colorInput);
-            _needsName = false;
-            var refreshed = await Svc.GetByCodeAsync(Code);
-            _players = refreshed?.Players.ToList() ?? [];
-            _currentTurnPlayerId = refreshed?.CurrentTurnPlayerId;
-            _showInvite = true; // land on the invite screen right after joining/creating
-            StateHasChanged();
-            await ConnectHub();
-        }
-        catch (Exception ex)
-        {
-            _nameInput = "";
-            await JS.InvokeVoidAsync("alert", ex.Message);
-        }
-    }
-
-    private async Task CopyLink()
-    {
-        var url = Nav.ToAbsoluteUri($"/game/{Code}").ToString();
-        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", url); } catch { }
-    }
-
-    private async Task ConnectHub()
-    {
-        _hub = new HubConnectionBuilder()
-            .WithUrl(Nav.ToAbsoluteUri("/hubs/game"))
-            .WithAutomaticReconnect()
-            .Build();
-
-        _hub.On<System.Text.Json.JsonElement>("PlayerJoined", async data =>
-        {
-            var refreshed = await Svc.GetByCodeAsync(Code);
-            _players = refreshed?.Players.ToList() ?? _players;
-            _currentTurnPlayerId = refreshed?.CurrentTurnPlayerId;
-            await InvokeAsync(StateHasChanged);
-        });
-
-        _hub.On<System.Text.Json.JsonElement>("PointsUpdated", async data =>
-        {
-            var id = Guid.Parse(data.GetProperty("id").GetString()!);
-            var pts = data.GetProperty("points").GetInt32();
-            var delta = data.GetProperty("delta").GetInt32();
-
-            var affectedIds = data.TryGetProperty("affectedIds", out var arr)
-                ? arr.EnumerateArray().Select(x => Guid.Parse(x.GetString()!)).ToList()
-                : [id];
-
-            foreach (var affectedId in affectedIds)
-            {
-                var player = _players.FirstOrDefault(p => p.Id == affectedId);
-                if (player is not null) player.Points = affectedId == id ? pts : player.Points + delta;
-                _pulse[affectedId] = delta > 0 ? "score-row--up" : delta < 0 ? "score-row--down" : "";
-                _ = ClearPulseAfterDelay(affectedId);
-            }
-
-            await InvokeAsync(StateHasChanged);
-            await InvokeAsync(() => JS.InvokeVoidAsync(delta > 0 ? "starrealms.playHeal" : "starrealms.playHit"));
-            await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.vibrate", 20));
-
-            var mainPlayer = _players.FirstOrDefault(p => p.Id == id);
-            if (mainPlayer is not null && pts <= (_session?.MinPoints ?? 1))
-                await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.playEliminate"));
-        });
-
-        _hub.On<System.Text.Json.JsonElement>("EventLogged", async data =>
-        {
-            var entry = new LogEntry(
-                Guid.Parse(data.GetProperty("id").GetString()!),
-                data.GetProperty("name").GetString() ?? "",
-                data.GetProperty("avatar").GetString() ?? "🚀",
-                data.GetProperty("delta").GetInt32(),
-                data.GetProperty("points").GetInt32(),
-                data.GetProperty("createdAt").GetDateTime());
-            _events.Insert(0, entry);
-            if (_events.Count > 40) _events.RemoveAt(_events.Count - 1);
-            await InvokeAsync(StateHasChanged);
-        });
-
-        _hub.On<System.Text.Json.JsonElement>("TurnChanged", async data =>
-        {
-            _currentTurnPlayerId = Guid.Parse(data.GetProperty("playerId").GetString()!);
-            await InvokeAsync(StateHasChanged);
-        });
-
-        _hub.On<System.Text.Json.JsonElement>("GameOver", async data =>
-        {
-            _winnerName = data.GetProperty("name").GetString() ?? "";
-            _winnerColor = data.GetProperty("color").GetString() ?? "#fff";
-            _showWinner = true;
-            await InvokeAsync(StateHasChanged);
-            await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.playWinner"));
-            await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.confetti"));
-        });
-
-        _hub.On<System.Text.Json.JsonElement>("GameReset", async data =>
-        {
-            var startingPoints = data.GetProperty("startingPoints").GetInt32();
-            foreach (var p in _players) p.Points = startingPoints;
-            _currentTurnPlayerId = data.TryGetProperty("currentTurnPlayerId", out var t) && t.ValueKind != System.Text.Json.JsonValueKind.Null
-                ? Guid.Parse(t.GetString()!)
-                : null;
-            _events.Clear();
-            _showWinner = false;
-            await InvokeAsync(StateHasChanged);
-        });
-
-        await _hub.StartAsync();
-        await _hub.SendAsync("JoinSession", Code);
-    }
-
-    private async Task ClearPulseAfterDelay(Guid id)
-    {
-        await Task.Delay(600);
-        _pulse[id] = "";
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task Adjust(int delta)
-    {
-        if (_me is null) return;
-        await Svc.AdjustPointsAsync(Code, _me.Id, delta);
-    }
-
-    private async Task EndTurn()
-    {
-        if (_me is null) return;
-        try { await Svc.NextTurnAsync(Code, _me.Id); }
-        catch (Exception ex) { await JS.InvokeVoidAsync("alert", ex.Message); }
-    }
-
-    private async Task ResetGame()
-    {
-        await Svc.ResetAsync(Code);
-    }
-
-    private async Task GetShipHint()
-    {
-        if (string.IsNullOrEmpty(_selectedShipName)) return;
-        var ship = ShipCatalog.Ships.FirstOrDefault(s => s.Name == _selectedShipName);
-        if (ship is null) return;
-
-        _hintLoading = true;
-        _hintResult = "";
-        StateHasChanged();
-        try
-        {
-            _hintResult = await Ai.GetShipHintAsync(ship.Name, ship.Faction);
-        }
-        catch (Exception ex)
-        {
-            _hintResult = $"Fejl: {ex.Message}";
-        }
-        finally
-        {
-            _hintLoading = false;
-        }
-    }
-
-    private async Task OnTradeRowSelected(InputFileChangeEventArgs e)
-    {
-        var file = e.File;
-        if (file is null) return;
-
-        _tradeRowLoading = true;
-        _tradeRowResult = "";
-        StateHasChanged();
-        try
-        {
-            using var ms = new MemoryStream();
-            await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-            await stream.CopyToAsync(ms);
-            var base64 = Convert.ToBase64String(ms.ToArray());
-            var mime = file.ContentType.StartsWith("image/") ? file.ContentType : "image/jpeg";
-            _tradeRowResult = await Ai.AnalyzeTradeRowAsync(base64, mime);
-        }
-        catch (Exception ex)
-        {
-            _tradeRowResult = $"Fejl: {ex.Message}";
-        }
-        finally
-        {
-            _tradeRowLoading = false;
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_hub is not null)
-        {
-            await _hub.SendAsync("LeaveSession", Code);
-            await _hub.DisposeAsync();
-        }
-    }
 }

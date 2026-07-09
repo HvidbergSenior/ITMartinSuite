@@ -1,89 +1,28 @@
 @page "/stats"
-@rendermode InteractiveServer
-@inject GameService Svc
-@inject NavigationManager Nav
-@inject IJSRuntime JS
+
+<div id="page-data" data-page="stats" style="display:none"></div>
 
 <div class="home-page">
     <div class="home-card" style="max-width:520px">
         <div class="home-logo">📊</div>
         <h1 class="home-title">Mine statistikker</h1>
 
-        @if (_loading)
-        {
-            <p class="home-sub">Indlæser…</p>
-        }
-        else if (_profile is null)
-        {
-            <p class="home-sub">Du har ikke spillet nogen spil på denne enhed endnu.</p>
-        }
-        else
-        {
-            <p class="home-sub">@_profile.Avatar @_profile.Name · head-to-head mod dine modstandere</p>
+        <div id="s-loading" class="home-sub">Indlæser…</div>
+        <div id="s-empty" class="home-sub" style="display:none">Du har ikke spillet nogen spil på denne enhed endnu.</div>
+
+        <div id="s-content" style="display:none">
+            <p class="home-sub" id="s-who"></p>
 
             <div class="home-section" style="flex-direction: row; gap:.4rem;">
-                <button class="btn-ghost" @onclick='() => Filter(null)' disabled="@(_sinceMonths is null)">Altid</button>
-                <button class="btn-ghost" @onclick='() => Filter(1)' disabled="@(_sinceMonths == 1)">1 mdr</button>
-                <button class="btn-ghost" @onclick='() => Filter(6)' disabled="@(_sinceMonths == 6)">6 mdr</button>
-                <button class="btn-ghost" @onclick='() => Filter(12)' disabled="@(_sinceMonths == 12)">12 mdr</button>
+                <button class="btn-ghost" id="s-filter-all" onclick="filterStats(null)">Altid</button>
+                <button class="btn-ghost" id="s-filter-1" onclick="filterStats(1)">1 mdr</button>
+                <button class="btn-ghost" id="s-filter-6" onclick="filterStats(6)">6 mdr</button>
+                <button class="btn-ghost" id="s-filter-12" onclick="filterStats(12)">12 mdr</button>
             </div>
 
-            @if (_rows.Count == 0)
-            {
-                <p class="home-sub">Ingen afsluttede spil i denne periode.</p>
-            }
-            else
-            {
-                foreach (var r in _rows)
-                {
-                    var total = r.Wins + r.Losses + r.Draws;
-                    <div class="stats-row">
-                        <div>
-                            <div class="stats-name">@r.OpponentName</div>
-                            <div class="stats-record">@total spil · sidst spillet @r.LastPlayed.ToLocalTime().ToString("d. MMM yyyy")</div>
-                        </div>
-                        <div class="stats-wl">
-                            <span class="stats-wins">@r.Wins V</span>
-                            <span class="stats-losses">@r.Losses T</span>
-                            @if (r.Draws > 0)
-                            {
-                                <span class="stats-draws">@r.Draws U</span>
-                            }
-                        </div>
-                    </div>
-                }
-            }
-        }
+            <div id="s-rows"></div>
+        </div>
 
-        <button class="btn-ghost mt-3" @onclick='() => Nav.NavigateTo("/")'>← Tilbage</button>
+        <button class="btn-ghost mt-3" onclick="location.href='/'">← Tilbage</button>
     </div>
 </div>
-
-@code {
-    private bool _loading = true;
-    private PlayerProfile? _profile;
-    private List<GameService.HeadToHeadRow> _rows = [];
-    private int? _sinceMonths;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-
-        var deviceToken = await JS.InvokeAsync<string?>("starrealms.getItem", "device_id") ?? "";
-        _profile = string.IsNullOrEmpty(deviceToken) ? null : await Svc.FindProfileAsync(deviceToken);
-
-        if (_profile is not null)
-            _rows = await Svc.GetStatsAsync(_profile.Id);
-
-        _loading = false;
-        StateHasChanged();
-    }
-
-    private async Task Filter(int? months)
-    {
-        if (_profile is null) return;
-        _sinceMonths = months;
-        var since = months is null ? (DateTime?)null : DateTime.UtcNow.AddMonths(-months.Value);
-        _rows = await Svc.GetStatsAsync(_profile.Id, since);
-    }
-}

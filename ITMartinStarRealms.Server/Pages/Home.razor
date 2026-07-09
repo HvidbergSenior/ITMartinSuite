@@ -1,8 +1,6 @@
 @page "/"
-@rendermode InteractiveServer
-@inject GameService Svc
-@inject NavigationManager Nav
-@inject IJSRuntime JS
+
+<div id="page-data" data-page="home" style="display:none"></div>
 
 <div class="home-page">
     <div class="home-card">
@@ -10,213 +8,77 @@
         <h1 class="home-title">Star Realms Score</h1>
         <p class="home-sub">Live pointtæller til 1-6 spillere</p>
 
-        @if (_step == 0)
-        {
+        <div id="step-0" class="wizard-step">
             <div class="home-section">
                 <label class="home-label">Dit navn</label>
-                <input class="home-input" @bind="_myName" @bind:event="oninput" placeholder="Martin" maxlength="20" />
+                <input id="h-name" class="home-input" placeholder="Martin" maxlength="20" oninput="onNameInput()" />
                 <label class="home-label mt-2">Dit avatar</label>
-                <div class="avatar-grid">
-                    @foreach (var a in Avatars)
-                    {
-                        <button class="avatar-btn @(a == _myAvatar ? "avatar-btn--active" : "")" @onclick="() => _myAvatar = a">@a</button>
-                    }
-                </div>
-                <button class="btn-primary mt-2" @onclick="GoToRuleset" disabled="@string.IsNullOrWhiteSpace(_myName)">
-                    Videre →
-                </button>
+                <div id="h-avatar-grid" class="avatar-grid"></div>
+                <label class="home-label mt-2">Din farve</label>
+                <div id="h-color-grid" class="color-grid"></div>
+                <button class="btn-primary mt-2" id="h-btn-ruleset" onclick="goToRuleset()" disabled>Videre →</button>
             </div>
 
             <div class="home-divider">eller</div>
             <div class="home-section">
                 <label class="home-label">Spilkode (deltag i eksisterende spil)</label>
-                <input class="home-input home-code" @bind="JoinCode" @bind:event="oninput" placeholder="ABC123" maxlength="6" />
-                <button class="btn-secondary" @onclick="JoinSession" disabled="@string.IsNullOrWhiteSpace(JoinCode)">Deltag</button>
+                <input id="h-join-code" class="home-input home-code" placeholder="ABC123" maxlength="6" oninput="onJoinCodeInput()" />
+                <button class="btn-secondary" id="h-btn-join" onclick="joinSession()" disabled>Deltag</button>
             </div>
 
-            <button class="btn-link mt-3" @onclick='() => Nav.NavigateTo("/stats")'>📊 Se mine statistikker</button>
-        }
-        else if (_step == 1)
-        {
+            <button class="btn-link mt-3" onclick="location.href='/stats'">📊 Se mine statistikker</button>
+        </div>
+
+        <div id="step-1" class="wizard-step" style="display:none">
             <div class="home-section">
                 <label class="home-label">Vælg spiltype</label>
-                @if (_rulesets is null)
-                {
-                    <p>Indlæser…</p>
-                }
-                else
-                {
-                    @foreach (var r in _rulesets)
-                    {
-                        <button class="ruleset-card @(r.Id == _selectedRulesetId ? "ruleset-card--active" : "")" @onclick="() => SelectRuleset(r)">
-                            <div class="ruleset-name">@r.Name @(r.IsBuiltIn ? "" : "🛠️")</div>
-                            <div class="ruleset-desc">@r.Description</div>
-                            <div class="ruleset-meta">@r.MinPlayers-@r.MaxPlayers spillere · start: @r.DefaultStartingPoints</div>
-                        </button>
-                    }
-                }
-                <button class="btn-ghost mt-2" @onclick="() => _showCustomForm = !_showCustomForm">
-                    ✏️ Opret dit eget regelsæt
-                </button>
+                <div id="h-ruleset-list"></div>
 
-                @if (_showCustomForm)
-                {
-                    <div class="custom-ruleset-form">
-                        <label class="home-label">Navn</label>
-                        <input class="home-input" @bind="_customName" placeholder="F.eks. 'Fars husregler'" />
-                        <label class="home-label">Beskrivelse af reglerne</label>
-                        <textarea class="home-input" rows="3" @bind="_customDescription" placeholder="Beskriv reglerne, så andre kan forstå dem"></textarea>
-                        <label class="home-label">Min / Max spillere</label>
-                        <div class="d-flex gap-2">
-                            <input class="home-input" type="number" min="1" max="6" @bind="_customMin" />
-                            <input class="home-input" type="number" min="1" max="6" @bind="_customMax" />
-                        </div>
-                        <label class="home-label">Startpoint</label>
-                        <input class="home-input" type="number" @bind="_customStartingPoints" />
-                        <div class="form-check mt-1">
-                            <input type="checkbox" @bind="_customIsTeam" />
-                            <label>Holdspil</label>
-                        </div>
-                        @if (_customIsTeam)
-                        {
-                            <label class="home-label">Spillere pr. hold</label>
-                            <input class="home-input" type="number" min="1" max="3" @bind="_customPlayersPerTeam" />
-                            <div class="form-check mt-1">
-                                <input type="checkbox" @bind="_customSharedPool" />
-                                <label>Hold deler ét samlet pointtal (som Hydra)</label>
-                            </div>
-                        }
-                        <button class="btn-primary mt-2" @onclick="CreateCustomRuleset" disabled="@string.IsNullOrWhiteSpace(_customName)">
-                            Gem regelsæt
-                        </button>
+                <button class="btn-ghost mt-2" onclick="toggleCustomForm()">✏️ Opret dit eget regelsæt</button>
+
+                <div id="h-custom-form" class="custom-ruleset-form" style="display:none">
+                    <label class="home-label">Navn</label>
+                    <input id="c-name" class="home-input" placeholder="F.eks. 'Fars husregler'" />
+                    <label class="home-label">Beskrivelse af reglerne</label>
+                    <textarea id="c-desc" class="home-input" rows="3" placeholder="Beskriv reglerne, så andre kan forstå dem"></textarea>
+                    <label class="home-label">Min / Max spillere</label>
+                    <div class="d-flex gap-2">
+                        <input id="c-min" class="home-input" type="number" min="1" max="6" value="2" />
+                        <input id="c-max" class="home-input" type="number" min="1" max="6" value="6" />
                     </div>
-                }
+                    <label class="home-label">Startpoint</label>
+                    <input id="c-points" class="home-input" type="number" value="50" />
+                    <div class="form-check mt-1">
+                        <input id="c-team" type="checkbox" onchange="onCustomTeamToggle()" />
+                        <label for="c-team">Holdspil</label>
+                    </div>
+                    <div id="c-team-fields" style="display:none">
+                        <label class="home-label">Spillere pr. hold</label>
+                        <input id="c-per-team" class="home-input" type="number" min="1" max="3" value="2" />
+                        <div class="form-check mt-1">
+                            <input id="c-shared" type="checkbox" />
+                            <label for="c-shared">Hold deler ét samlet pointtal (som Hydra)</label>
+                        </div>
+                    </div>
+                    <button class="btn-primary mt-2" onclick="createCustomRuleset()">Gem regelsæt</button>
+                </div>
 
                 <div class="d-flex gap-2 mt-3">
-                    <button class="btn-ghost" @onclick="() => _step = 0">← Tilbage</button>
-                    <button class="btn-primary" @onclick="GoToPoints" disabled="@(_selectedRuleset is null)">Videre →</button>
+                    <button class="btn-ghost" onclick="showStep(0)">← Tilbage</button>
+                    <button class="btn-primary" id="h-btn-points" onclick="goToPoints()" disabled>Videre →</button>
                 </div>
             </div>
-        }
-        else if (_step == 2)
-        {
+        </div>
+
+        <div id="step-2" class="wizard-step" style="display:none">
             <div class="home-section">
                 <label class="home-label">Startpoint</label>
-                <div class="points-row">
-                    @foreach (var pts in new[] { 50, 55, 60, 65, 70, 75 })
-                    {
-                        <button class="points-btn @(pts == StartingPoints ? "points-btn--active" : "")"
-                                @onclick="() => StartingPoints = pts">
-                            @pts
-                        </button>
-                    }
-                </div>
-                <button class="btn-primary" @onclick="CreateSession" disabled="@Creating">
-                    @(Creating ? "Opretter…" : "🚀 Start nyt spil")
-                </button>
-                <button class="btn-ghost mt-2" @onclick="() => _step = 1">← Tilbage</button>
+                <div class="points-row" id="h-points-row"></div>
+                <button class="btn-primary" id="h-btn-create" onclick="createSession()">🚀 Start nyt spil</button>
+                <button class="btn-ghost mt-2" onclick="showStep(1)">← Tilbage</button>
             </div>
-        }
+        </div>
 
-        @if (!string.IsNullOrEmpty(Error))
-        {
-            <p class="home-error">@Error</p>
-        }
+        <p id="h-error" class="home-error" style="display:none"></p>
     </div>
 </div>
-
-@code {
-    private static readonly string[] Avatars = ["🚀", "👽", "🛸", "⭐", "🔥", "💀", "👑", "🐉", "🦾", "🎯", "🛡️", "⚔️"];
-
-    private int _step;
-    private string _myName = "";
-    private string _myAvatar = "🚀";
-    private List<GameRuleset>? _rulesets;
-    private Guid _selectedRulesetId;
-    private GameRuleset? _selectedRuleset;
-
-    private bool _showCustomForm;
-    private string _customName = "";
-    private string _customDescription = "";
-    private int _customMin = 2;
-    private int _customMax = 6;
-    private int _customStartingPoints = 50;
-    private bool _customIsTeam;
-    private int _customPlayersPerTeam = 2;
-    private bool _customSharedPool;
-
-    private int StartingPoints = 50;
-    private string JoinCode = "";
-    private string Error = "";
-    private bool Creating;
-
-    private async Task GoToRuleset()
-    {
-        await JS.InvokeVoidAsync("starrealms.setItem", "profile_name", _myName.Trim());
-        await JS.InvokeVoidAsync("starrealms.setItem", "profile_avatar", _myAvatar);
-        _rulesets = await Svc.GetRulesetsAsync();
-        if (_rulesets.Count > 0) SelectRuleset(_rulesets[0]);
-        _step = 1;
-    }
-
-    private void SelectRuleset(GameRuleset r)
-    {
-        _selectedRulesetId = r.Id;
-        _selectedRuleset = r;
-        StartingPoints = r.DefaultStartingPoints;
-    }
-
-    private async Task CreateCustomRuleset()
-    {
-        var created = await Svc.CreateCustomRulesetAsync(
-            _customName, _customDescription, _customMin, _customMax,
-            _customIsTeam, _customPlayersPerTeam, _customSharedPool, _customStartingPoints, _myName);
-
-        _rulesets = await Svc.GetRulesetsAsync();
-        SelectRuleset(created);
-        _showCustomForm = false;
-    }
-
-    private void GoToPoints()
-    {
-        if (_selectedRuleset is null)
-        {
-            Error = "Vælg et regelsæt først.";
-            return;
-        }
-        Error = "";
-        _step = 2;
-    }
-
-    private async Task CreateSession()
-    {
-        if (_selectedRuleset is null) { _step = 1; return; }
-        Creating = true;
-        Error = "";
-        StateHasChanged();
-        try
-        {
-            var session = await Svc.CreateAsync(_selectedRulesetId, StartingPoints);
-            Nav.NavigateTo($"/game/{session.Code}", forceLoad: true);
-        }
-        catch (Exception ex)
-        {
-            Error = $"Kunne ikke oprette: {ex.Message}";
-            Creating = false;
-        }
-    }
-
-    private async Task JoinSession()
-    {
-        var code = JoinCode.Trim().ToUpper();
-        var session = await Svc.GetByCodeAsync(code);
-        if (session is null)
-        {
-            Error = "Spil ikke fundet. Tjek koden.";
-            return;
-        }
-        await JS.InvokeVoidAsync("starrealms.setItem", "profile_name", _myName.Trim());
-        await JS.InvokeVoidAsync("starrealms.setItem", "profile_avatar", _myAvatar);
-        Nav.NavigateTo($"/game/{code}", forceLoad: true);
-    }
-}

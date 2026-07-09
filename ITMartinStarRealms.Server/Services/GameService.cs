@@ -1,12 +1,13 @@
 using ITMartinStarRealms.Server.Data;
 using ITMartinStarRealms.Server.Data.Entities;
-using ITMartinStarRealms.Server.Hubs;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ITMartinStarRealms.Server.Services;
 
-public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub)
+// No SignalR/hub here on purpose - the Cloudflare Tunnel this app is served through
+// kills long-lived SignalR connections, so cross-device sync is done via REST + JS
+// polling instead (see Program.cs's /api/sessions endpoints).
+public sealed class GameService(StarRealmsDbContext db)
 {
     public const int MaxPlayers = 6;
 
@@ -14,6 +15,8 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
     [
         "#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22"
     ];
+
+    public static readonly string[] AvailableColors = Colors;
 
     public Task<List<GameRuleset>> GetRulesetsAsync() =>
         db.Rulesets.OrderByDescending(r => r.IsBuiltIn).ThenBy(r => r.Name).ToListAsync();
@@ -89,8 +92,6 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
             .Include(s => s.Players)
             .FirstOrDefaultAsync(s => s.Code == code.ToUpper());
 
-    public static readonly string[] AvailableColors = Colors;
-
     public async Task<GamePlayer> GetOrCreatePlayerAsync(string code, string token, string name, Guid? profileId, string avatar, string? color = null)
     {
         var session = await db.Sessions
@@ -133,13 +134,6 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
             session.CurrentTurnPlayerId = player.Id;
 
         await db.SaveChangesAsync();
-
-        await hub.Clients.Group(code.ToUpper()).SendAsync("PlayerJoined", new
-        {
-            player.Id, player.Name, player.Avatar, player.Color, player.Points, player.SortOrder, player.Team,
-            session.CurrentTurnPlayerId
-        });
-
         return player;
     }
 
@@ -174,25 +168,6 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
         });
 
         await db.SaveChangesAsync();
-
-        await hub.Clients.Group(code.ToUpper()).SendAsync("PointsUpdated", new
-        {
-            player.Id,
-            player.Points,
-            Delta = actualDelta,
-            AffectedIds = affected.Select(p => p.Id).ToArray()
-        });
-
-        await hub.Clients.Group(code.ToUpper()).SendAsync("EventLogged", new
-        {
-            player.Id,
-            player.Name,
-            player.Avatar,
-            Delta = actualDelta,
-            player.Points,
-            CreatedAt = DateTime.UtcNow
-        });
-
         await CheckForWinnerAsync(session);
     }
 
@@ -229,8 +204,6 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
 
         session.CurrentTurnPlayerId = next.Id;
         await db.SaveChangesAsync();
-
-        await hub.Clients.Group(code.ToUpper()).SendAsync("TurnChanged", new { PlayerId = next.Id });
     }
 
     private async Task CheckForWinnerAsync(GameSession session)
@@ -246,12 +219,6 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
             {
                 var winningTeam = teamsAlive[0].ToList();
                 await FinishGameAsync(session, winningTeam);
-                await hub.Clients.Group(session.Code).SendAsync("GameOver", new
-                {
-                    Id = winningTeam[0].Id,
-                    Name = $"Hold {winningTeam[0].Team + 1}",
-                    winningTeam[0].Color
-                });
             }
             return;
         }
@@ -259,12 +226,7 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
         var alive = session.Players.Where(p => p.Points > session.MinPoints).ToList();
         if (session.Players.Count > 1 && alive.Count == 1)
         {
-            var winner = alive[0];
-            await FinishGameAsync(session, [winner]);
-            await hub.Clients.Group(session.Code).SendAsync("GameOver", new
-            {
-                winner.Id, winner.Name, winner.Color
-            });
+            await FinishGameAsync(session, [alive[0]]);
         }
     }
 
@@ -307,12 +269,6 @@ public sealed class GameService(StarRealmsDbContext db, IHubContext<GameHub> hub
         db.Events.RemoveRange(oldEvents);
 
         await db.SaveChangesAsync();
-
-        await hub.Clients.Group(code.ToUpper()).SendAsync("GameReset", new
-        {
-            session.StartingPoints,
-            session.CurrentTurnPlayerId
-        });
     }
 
     public record HeadToHeadRow(string OpponentName, int Wins, int Losses, int Draws, DateTime LastPlayed);
