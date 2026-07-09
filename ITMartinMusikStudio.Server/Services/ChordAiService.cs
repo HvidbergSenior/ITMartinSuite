@@ -511,9 +511,20 @@ public sealed class ChordAiService
             Model = Model.ClaudeOpus4_8,
             MaxTokens = 800,
             System = """
-                You are a musician extracting chord information from sheet music or lyric sheets.
-                Look for chord names written above lyrics or in chord diagrams.
-                Return the chords as a chart with section labels:
+                You are a musician extracting chord information from sheet music, lyric sheets, or a
+                chord-detection app's bar/line grid (a numbered list or grid where each row has a number
+                on the left and one or more chords in that row).
+
+                If the image shows numbered bars or lines (a number clearly associated with each row of
+                chords), output ONE line per number in this exact format, ascending by number:
+                6: F#m
+                7: D | F#m
+                8: E
+                Use "|" to separate multiple chords that fall within the same numbered bar/line.
+                Preserve the numbers exactly as shown — do not renumber or start from 1.
+
+                Otherwise (no numbers visible — e.g. a plain lyric sheet with chords above the words),
+                return the chords as a chart with section labels:
                 Verse: Am G F E
                 Chorus: C G Am F
                 If you see chord diagrams (fretboard diagrams), name the chords shown.

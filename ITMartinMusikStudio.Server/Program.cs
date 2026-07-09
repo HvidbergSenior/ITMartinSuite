@@ -46,6 +46,7 @@ app.MapGet("/stream", (string path, HttpContext ctx) =>
     if (!File.Exists(full))
         return Results.NotFound();
 
+    var isAudioOnlyTake = Path.GetFileNameWithoutExtension(full).StartsWith("take-", StringComparison.OrdinalIgnoreCase);
     var mime = Path.GetExtension(full).ToLowerInvariant() switch
     {
         ".mp3"  => "audio/mpeg",
@@ -56,7 +57,7 @@ app.MapGet("/stream", (string path, HttpContext ctx) =>
         ".aac"  => "audio/aac",
         ".mp4"  => "video/mp4",
         ".mov"  => "video/quicktime",
-        ".webm" => "video/webm",
+        ".webm" => isAudioOnlyTake ? "audio/webm" : "video/webm",
         _       => "application/octet-stream"
     };
 

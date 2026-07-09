@@ -1,0 +1,337 @@
+@page "/game/{Code}"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
+@inject GameService Svc
+@inject StarRealmsAiService Ai
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (_session is null)
+{
+    <div class="loading">Indlæser…</div>
+}
+else if (_needsName)
+{
+    <div class="home-page">
+        <div class="home-card">
+            <div class="home-logo">🚀</div>
+            <h1 class="home-title">Deltag i spil</h1>
+            <p class="home-sub">Kode: <strong>@_session.Code</strong></p>
+            <div class="home-section">
+                <label class="home-label">Dit navn</label>
+                <input class="home-input" @bind="_nameInput" @bind:event="oninput"
+                       placeholder="Martin" maxlength="20" @onkeydown="OnNameKey" />
+                <button class="btn-primary" @onclick="JoinAsPlayer" disabled="@string.IsNullOrWhiteSpace(_nameInput)">
+                    Deltag i spillet
+                </button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="game-page">
+        <div class="game-header">
+            <span class="code-badge">@_session.Code</span>
+            <div class="tab-row">
+                <button class="tab-btn @(_tab == "score" ? "tab-btn--active" : "")" @onclick='() => _tab = "score"'>🎯 Score</button>
+                <button class="tab-btn @(_tab == "ai" ? "tab-btn--active" : "")" @onclick='() => _tab = "ai"'>🤖 AI</button>
+            </div>
+            <button class="btn-reset" @onclick="ResetGame" title="Nulstil spil">🔄</button>
+        </div>
+
+        @if (_tab == "score")
+        {
+            <div class="score-list">
+                @foreach (var p in _players.OrderBy(p => p.SortOrder))
+                {
+                    var eliminated = p.Points <= _session.MinPoints;
+                    <div class="score-row @(_pulse.GetValueOrDefault(p.Id)) @(eliminated ? "score-row--dead" : "")"
+                         style="border-color:@p.Color">
+                        <div class="score-name" style="color:@p.Color">
+                            @(eliminated ? "💀" : "") @p.Name @(p.Id == _me?.Id ? " (dig)" : "")
+                        </div>
+                        <div class="score-value" style="color:@p.Color">@p.Points</div>
+                        @if (p.Id == _me?.Id)
+                        {
+                            <div class="score-buttons">
+                                <button class="pt-btn pt-btn--down" @onclick='() => Adjust(-5)'>-5</button>
+                                <button class="pt-btn pt-btn--down" @onclick='() => Adjust(-1)'>-1</button>
+                                <button class="pt-btn pt-btn--up" @onclick='() => Adjust(1)'>+1</button>
+                                <button class="pt-btn pt-btn--up" @onclick='() => Adjust(5)'>+5</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="ai-panel">
+                <div class="ai-section">
+                    <div class="card-label">🛰️ Skibs-tips</div>
+                    <input class="home-input" placeholder="Søg skib…" @bind="_shipSearch" @bind:event="oninput" />
+                    <select class="home-input" @bind="_selectedShipName">
+                        <option value="">— vælg skib —</option>
+                        @foreach (var fac in ShipCatalog.Factions)
+                        {
+                            <optgroup label="@($"{fac.Icon} {fac.Name}")">
+                                @foreach (var s in FilteredShips.Where(s => s.Faction == fac.Name))
+                                {
+                                    <option value="@s.Name">@s.Name</option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                    <button class="btn-primary" @onclick="GetShipHint" disabled="@(string.IsNullOrEmpty(_selectedShipName) || _hintLoading)">
+                        @(_hintLoading ? "Tænker…" : "💡 Få combo-tip")
+                    </button>
+                    @if (!string.IsNullOrEmpty(_hintResult))
+                    {
+                        <div class="ai-result">@_hintResult</div>
+                    }
+                </div>
+
+                <div class="ai-section">
+                    <div class="card-label">📷 Scan trade row</div>
+                    <label class="btn-ghost-file">
+                        🖼 Vælg billede af trade row
+                        <InputFile OnChange="OnTradeRowSelected" accept="image/*" style="display:none" />
+                    </label>
+                    @if (_tradeRowLoading)
+                    {
+                        <div class="photo-analyzing"><div class="spinner"></div><span>Claude analyserer trade row...</span></div>
+                    }
+                    @if (!string.IsNullOrEmpty(_tradeRowResult))
+                    {
+                        <div class="ai-result">@_tradeRowResult</div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (_showWinner)
+        {
+            <div class="winner-overlay" @onclick="() => _showWinner = false">
+                <div class="winner-card" style="border-color:@_winnerColor">
+                    <div class="winner-trophy">🏆</div>
+                    <div class="winner-name" style="color:@_winnerColor">@_winnerName vinder!</div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private GameSession? _session;
+    private List<GamePlayer> _players = [];
+    private GamePlayer? _me;
+    private string _token = "";
+    private string _nameInput = "";
+    private bool _needsName;
+    private HubConnection? _hub;
+    private string _tab = "score";
+    private readonly Dictionary<Guid, string> _pulse = [];
+
+    private string _shipSearch = "";
+    private string _selectedShipName = "";
+    private bool _hintLoading;
+    private string _hintResult = "";
+
+    private bool _tradeRowLoading;
+    private string _tradeRowResult = "";
+
+    private bool _showWinner;
+    private string _winnerName = "";
+    private string _winnerColor = "#fff";
+
+    private IEnumerable<Ship> FilteredShips =>
+        string.IsNullOrWhiteSpace(_shipSearch)
+            ? ShipCatalog.Ships
+            : ShipCatalog.Ships.Where(s => s.Name.Contains(_shipSearch, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _session = await Svc.GetByCodeAsync(Code);
+        if (_session is null) { Nav.NavigateTo("/", forceLoad: true); return; }
+        _players = _session.Players.ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _token = await JS.InvokeAsync<string?>("starrealms.getItem", $"token_{Code}") ?? "";
+        if (string.IsNullOrEmpty(_token))
+        {
+            _token = Guid.NewGuid().ToString("N");
+            await JS.InvokeVoidAsync("starrealms.setItem", $"token_{Code}", _token);
+        }
+
+        _me = _players.FirstOrDefault(p => p.Token == _token);
+        if (_me is null)
+        {
+            _needsName = true;
+            StateHasChanged();
+            return;
+        }
+
+        await ConnectHub();
+    }
+
+    private void OnNameKey(KeyboardEventArgs e) { if (e.Key == "Enter") _ = JoinAsPlayer(); }
+
+    private async Task JoinAsPlayer()
+    {
+        if (string.IsNullOrWhiteSpace(_nameInput) || _session is null) return;
+        try
+        {
+            _me = await Svc.GetOrCreatePlayerAsync(Code, _token, _nameInput.Trim());
+            _needsName = false;
+            var refreshed = await Svc.GetByCodeAsync(Code);
+            _players = refreshed?.Players.ToList() ?? [];
+            StateHasChanged();
+            await ConnectHub();
+        }
+        catch (Exception ex)
+        {
+            _nameInput = "";
+            await JS.InvokeVoidAsync("alert", ex.Message);
+        }
+    }
+
+    private async Task ConnectHub()
+    {
+        _hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/game"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<System.Text.Json.JsonElement>("PlayerJoined", async data =>
+        {
+            var refreshed = await Svc.GetByCodeAsync(Code);
+            _players = refreshed?.Players.ToList() ?? _players;
+            await InvokeAsync(StateHasChanged);
+        });
+
+        _hub.On<System.Text.Json.JsonElement>("PointsUpdated", async data =>
+        {
+            var id = Guid.Parse(data.GetProperty("id").GetString()!);
+            var pts = data.GetProperty("points").GetInt32();
+            var delta = data.GetProperty("delta").GetInt32();
+
+            var player = _players.FirstOrDefault(p => p.Id == id);
+            if (player is not null) player.Points = pts;
+
+            _pulse[id] = delta > 0 ? "score-row--up" : delta < 0 ? "score-row--down" : "";
+            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(() => JS.InvokeVoidAsync(delta > 0 ? "starrealms.playHeal" : "starrealms.playHit"));
+            await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.vibrate", 20));
+
+            _ = ClearPulseAfterDelay(id);
+
+            if (player is not null && pts <= (_session?.MinPoints ?? 1))
+                await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.playEliminate"));
+        });
+
+        _hub.On<System.Text.Json.JsonElement>("GameOver", async data =>
+        {
+            _winnerName = data.GetProperty("name").GetString() ?? "";
+            _winnerColor = data.GetProperty("color").GetString() ?? "#fff";
+            _showWinner = true;
+            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.playWinner"));
+            await InvokeAsync(() => JS.InvokeVoidAsync("starrealms.confetti"));
+        });
+
+        _hub.On<int>("GameReset", async startingPoints =>
+        {
+            foreach (var p in _players) p.Points = startingPoints;
+            _showWinner = false;
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await _hub.StartAsync();
+        await _hub.SendAsync("JoinSession", Code);
+    }
+
+    private async Task ClearPulseAfterDelay(Guid id)
+    {
+        await Task.Delay(600);
+        _pulse[id] = "";
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Adjust(int delta)
+    {
+        if (_me is null) return;
+        await Svc.AdjustPointsAsync(Code, _me.Id, delta);
+    }
+
+    private async Task ResetGame()
+    {
+        await Svc.ResetAsync(Code);
+    }
+
+    private async Task GetShipHint()
+    {
+        if (string.IsNullOrEmpty(_selectedShipName)) return;
+        var ship = ShipCatalog.Ships.FirstOrDefault(s => s.Name == _selectedShipName);
+        if (ship is null) return;
+
+        _hintLoading = true;
+        _hintResult = "";
+        StateHasChanged();
+        try
+        {
+            _hintResult = await Ai.GetShipHintAsync(ship.Name, ship.Faction);
+        }
+        catch (Exception ex)
+        {
+            _hintResult = $"Fejl: {ex.Message}";
+        }
+        finally
+        {
+            _hintLoading = false;
+        }
+    }
+
+    private async Task OnTradeRowSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        _tradeRowLoading = true;
+        _tradeRowResult = "";
+        StateHasChanged();
+        try
+        {
+            using var ms = new MemoryStream();
+            await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+            await stream.CopyToAsync(ms);
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            var mime = file.ContentType.StartsWith("image/") ? file.ContentType : "image/jpeg";
+            _tradeRowResult = await Ai.AnalyzeTradeRowAsync(base64, mime);
+        }
+        catch (Exception ex)
+        {
+            _tradeRowResult = $"Fejl: {ex.Message}";
+        }
+        finally
+        {
+            _tradeRowLoading = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+        {
+            await _hub.SendAsync("LeaveSession", Code);
+            await _hub.DisposeAsync();
+        }
+    }
+}

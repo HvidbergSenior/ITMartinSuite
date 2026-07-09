@@ -1,0 +1,136 @@
+{
+  "maps": [
+    {
+      "name": "Bank",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" },
+        { "label": "3F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Border",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Chalet",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" },
+        { "label": "3F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Clubhouse",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Coastline",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Consulate",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Fortress",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Kafe Dostoyevsky",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" },
+        { "label": "3F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Kanal",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Oregon",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" },
+        { "label": "3F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Outback",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Skyscraper",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Theme Park",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Villa",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Yacht",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" },
+        { "label": "3F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Nighthaven Labs",
+      "floors": [
+        { "label": "Basement", "imageUrl": "" },
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    },
+    {
+      "name": "Emerald Plains",
+      "floors": [
+        { "label": "1F", "imageUrl": "" },
+        { "label": "2F", "imageUrl": "" }
+      ]
+    }
+  ]
+}

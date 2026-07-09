@@ -1,0 +1,83 @@
+@page "/"
+@rendermode InteractiveServer
+@inject GameService Svc
+@inject NavigationManager Nav
+
+<div class="home-page">
+    <div class="home-card">
+        <div class="home-logo">🚀</div>
+        <h1 class="home-title">Star Realms Score</h1>
+        <p class="home-sub">Live pointtæller til 1-6 spillere</p>
+
+        <div class="home-section">
+            <label class="home-label">Startpoint</label>
+            <div class="points-row">
+                @foreach (var pts in new[] { 50, 55, 60, 65, 70, 75 })
+                {
+                    <button class="points-btn @(pts == StartingPoints ? "points-btn--active" : "")"
+                            @onclick="() => StartingPoints = pts">
+                        @pts
+                    </button>
+                }
+            </div>
+            <button class="btn-primary" @onclick="CreateSession" disabled="@Creating">
+                @(Creating ? "Opretter…" : "🚀 Start nyt spil")
+            </button>
+        </div>
+
+        <div class="home-divider">eller deltag i et spil</div>
+
+        <div class="home-section">
+            <label class="home-label">Spilkode</label>
+            <input class="home-input home-code"
+                   @bind="JoinCode"
+                   @bind:event="oninput"
+                   placeholder="ABC123"
+                   maxlength="6" />
+            <button class="btn-secondary" @onclick="JoinSession" disabled="@string.IsNullOrWhiteSpace(JoinCode)">
+                Deltag
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <p class="home-error">@Error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private int StartingPoints = 50;
+    private string JoinCode = "";
+    private string Error = "";
+    private bool Creating;
+
+    private async Task CreateSession()
+    {
+        Creating = true;
+        Error = "";
+        StateHasChanged();
+        try
+        {
+            var session = await Svc.CreateAsync(StartingPoints);
+            Nav.NavigateTo($"/game/{session.Code}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Error = $"Kunne ikke oprette: {ex.Message}";
+            Creating = false;
+        }
+    }
+
+    private async Task JoinSession()
+    {
+        var code = JoinCode.Trim().ToUpper();
+        var session = await Svc.GetByCodeAsync(code);
+        if (session is null)
+        {
+            Error = "Spil ikke fundet. Tjek koden.";
+            return;
+        }
+        Nav.NavigateTo($"/game/{code}", forceLoad: true);
+    }
+}

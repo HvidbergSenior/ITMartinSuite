@@ -946,8 +946,8 @@ else if (_song is not null)
                 <div class="photo-choose">
                     <button class="btn-primary" @onclick="OpenCamera">📷 Åbn kamera</button>
                     <label class="btn-ghost-file">
-                        🖼 Vælg billede
-                        <InputFile OnChange="OnFileSelected" accept="image/*" style="display:none" />
+                        🖼 Vælg billede(r)
+                        <InputFile OnChange="OnFileSelected" accept="image/*" multiple style="display:none" />
                     </label>
                 </div>
             }
@@ -1370,14 +1370,39 @@ else if (_song is not null)
 
     private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file is null) return;
-        using var ms = new MemoryStream();
-        await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-        await stream.CopyToAsync(ms);
-        var base64 = Convert.ToBase64String(ms.ToArray());
-        var mime = file.ContentType.StartsWith("image/") ? file.ContentType : "image/jpeg";
-        await AnalyzePhoto(base64, mime);
+        var files = e.GetMultipleFiles(20);
+        if (files.Count == 0) return;
+
+        _photoAnalyzing = true;
+        _photoResult = "";
+        StateHasChanged();
+
+        foreach (var file in files)
+        {
+            try
+            {
+                using var ms = new MemoryStream();
+                await using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+                await stream.CopyToAsync(ms);
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                var mime = file.ContentType.StartsWith("image/") ? file.ContentType : "image/jpeg";
+
+                var result = _photoTarget == "chords"
+                    ? await ChordAi.ExtractChordsFromImageAsync(base64, mime)
+                    : await ChordAi.ExtractTextFromImageAsync(base64, mime);
+
+                _photoResult = _photoTarget == "chords"
+                    ? MergeNumberedChords(_photoResult, result)
+                    : string.IsNullOrWhiteSpace(_photoResult) ? result : _photoResult + "\n\n" + result;
+            }
+            catch (Exception ex)
+            {
+                _photoResult += (string.IsNullOrWhiteSpace(_photoResult) ? "" : "\n\n") + $"Fejl: {ex.Message}";
+            }
+        }
+
+        _photoAnalyzing = false;
+        StateHasChanged();
     }
 
     private async Task AnalyzePhoto(string base64, string mime)
@@ -1413,7 +1438,7 @@ else if (_song is not null)
                 _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit) ? _photoResult : _lyricsEdit + "\n\n" + _photoResult;
                 break;
             case "chords":
-                _chordEdit = string.IsNullOrWhiteSpace(_chordEdit) ? _photoResult : _chordEdit + "\n\n" + _photoResult;
+                _chordEdit = MergeNumberedChords(_chordEdit, _photoResult);
                 break;
             case "notes":
                 _notesEdit = string.IsNullOrWhiteSpace(_notesEdit) ? _photoResult : _notesEdit + "\n\n" + _photoResult;
@@ -1424,6 +1449,33 @@ else if (_song is not null)
     }
 
     private void ClearPhotoResult() => _photoResult = string.Empty;
+
+    // Merges a numbered bar/line chord result ("6: F#m") into the existing chord chart by number,
+    // so screenshots can be uploaded in any order and overlapping bars just overwrite instead of duplicating.
+    // Falls back to a plain append when either side isn't in numbered format.
+    private static string MergeNumberedChords(string existing, string incoming)
+    {
+        var numberedLine = new System.Text.RegularExpressions.Regex(@"^(\d+):\s*(.+)$");
+        var incomingNumbered = new SortedDictionary<int, string>();
+        foreach (var line in incoming.Split('\n'))
+        {
+            var m = numberedLine.Match(line.Trim());
+            if (m.Success) incomingNumbered[int.Parse(m.Groups[1].Value)] = m.Groups[2].Value;
+        }
+
+        if (incomingNumbered.Count == 0)
+            return string.IsNullOrWhiteSpace(existing) ? incoming : existing + "\n\n" + incoming;
+
+        var merged = new SortedDictionary<int, string>();
+        foreach (var line in existing.Split('\n'))
+        {
+            var m = numberedLine.Match(line.Trim());
+            if (m.Success) merged[int.Parse(m.Groups[1].Value)] = m.Groups[2].Value;
+        }
+        foreach (var (bar, chord) in incomingNumbered) merged[bar] = chord;
+
+        return string.Join('\n', merged.Select(kv => $"{kv.Key}: {kv.Value}"));
+    }
 
     // ── AI Helper ─────────────────────────────────────────────────────────────
 
