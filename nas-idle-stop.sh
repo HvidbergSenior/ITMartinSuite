@@ -24,7 +24,7 @@ log() { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*"; }
 # Never touch these — real external shop use, core infra, or the tracking
 # mechanism itself. Everything else with profiles:[manual] is fair game,
 # including "heavy" apps like magic-web — idle is idle.
-EXCLUDE=(receipt-web library-web index-web cloudflared rabbitmq stats-web magic-postgres)
+EXCLUDE=(receipt-web library-web index-web cloudflared rabbitmq stats-web magic-postgres cloudoverblik-web)
 
 # service -> public domain (as tracked in Stats' Host column). Services with
 # no public domain (internal/local-only tools) are left out here and fall

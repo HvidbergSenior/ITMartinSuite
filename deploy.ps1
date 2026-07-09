@@ -66,7 +66,7 @@ $ServiceMap = @{
     "r6strat-web"            = @{ Dockerfile = "ITMartinR6Strat.Server/Dockerfile";                    Context = "."; Profile = "manual" }
     "live-web"               = @{ Dockerfile = "ITMartinLive.Server/Dockerfile";                       Context = "."; Profile = "manual" }
     "upload-web"             = @{ Dockerfile = "ITMartinUpload.Server/Dockerfile";                     Context = "."; Profile = "manual" }
-    "cloudoverblik-web"      = @{ Dockerfile = "ITMartinCloudOverblik.Server/Dockerfile";              Context = "."; Profile = "manual" }
+    "cloudoverblik-web"      = @{ Dockerfile = "ITMartinCloudOverblik.Server/Dockerfile";              Context = "." }
     "stats-web"              = @{ Dockerfile = "ITMartinStats.Server/Dockerfile";                      Context = "." }
     "uret-web"               = @{ Dockerfile = "ITMartinUret.Server/Dockerfile";                        Context = "."; Profile = "manual" }
     "stream-web"             = @{ Dockerfile = "ITMartinStream.Server/Dockerfile";                      Context = "."; Profile = "manual" }
