@@ -1,0 +1,16 @@
+<div class="itm-hw-banner">
+    <div class="itm-hw-header">
+        <span class="itm-hw-icon">👉</span>
+        <span class="itm-hw-label">Sådan bruger du appen</span>
+    </div>
+    <ol class="itm-hw-steps">
+        @foreach (var step in Steps)
+        {
+            <li>@step</li>
+        }
+    </ol>
+</div>
+
+@code {
+    [Parameter] public string[] Steps { get; set; } = [];
+}

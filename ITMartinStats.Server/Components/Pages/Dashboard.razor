@@ -27,6 +27,18 @@
 else
 {
     <div class="dash">
+
+        <ProblemPurposeBanner
+            Problem="Uden tal er det umuligt at vide, om nogen faktisk bruger de apps, jeg bygger — eller om der render fejl efter fejl uden at nogen opdager det."
+            Formaal="Ét sted at se besøg per app, og bevis for hvilke apps der rent faktisk skaber værdi for nogen." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Vælg periode øverst (I dag / 7 dage / 30 dage / Alt) for at se, hvordan besøgstal udvikler sig over tid.",
+            "Se 'Besøg per app' for at finde ud af, hvilke apps folk faktisk bruger — og hvilke der trænger til et kig.",
+            "Skift til 'Besøgende'-fanen for at se unikke besøg og enheder."
+        })' />
+
         <div class="dash-header">
             <h1 class="dash-title">📊 Analytics — ITMartin.dk</h1>
             <div class="period-tabs">

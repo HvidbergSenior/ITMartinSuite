@@ -27,6 +27,18 @@ else
 
     <div class="stack">
 
+        <ProblemPurposeBanner
+            Problem="Bank-transaktioner, især MobilePay, er svære at kategorisere ordentligt — og ingen bank hjælper dig med at se, om du betaler for abonnementer, du ikke bruger længere."
+            Formaal="Et hurtigt overblik over jeres økonomi lige nu, og en liste over faste beløb, I måske ikke har brug for mere." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Upload en CSV-eksport fra din bank under 'Upload'.",
+            "Se med det samme, hvor pengene faktisk går hen — overskud, underskud og hvilke kategorier der fylder mest.",
+            "Del '/quick'-linket med resten af familien, så alle kan se økonomien lige nu uden at skulle logge ind.",
+            "Tjek listen over faste, tilbagevendende beløb jævnligt, og find ud af om der er noget, I ikke har brug for mere."
+        })' />
+
         <div>
             <h1 class="page-title">Familieøkonomi</h1>
             <div class="meta">
