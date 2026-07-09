@@ -127,11 +127,18 @@ window.starrealms = (function() {
         return d.innerHTML;
     }
 
-    function apiGet(url) {
-        return fetch(url).then(function(r) {
-            if (!r.ok) return r.text().then(function(t) { throw new Error(t || r.statusText); });
-            return r.status === 204 ? null : r.json();
+    // Some endpoints return 200 with an empty body (Results.Ok() with no payload) rather
+    // than 204 - calling response.json() directly on an empty body throws in Safari
+    // ("String did not match the expected pattern"), so always read as text first.
+    function parseJsonResponse(r) {
+        return r.text().then(function(t) {
+            if (!r.ok) throw new Error(t || r.statusText);
+            return t ? JSON.parse(t) : null;
         });
+    }
+
+    function apiGet(url) {
+        return fetch(url).then(parseJsonResponse);
     }
 
     function apiPost(url, body) {
@@ -139,10 +146,7 @@ window.starrealms = (function() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body || {})
-        }).then(function(r) {
-            if (!r.ok) return r.text().then(function(t) { throw new Error(t || r.statusText); });
-            return r.status === 204 ? null : r.json();
-        });
+        }).then(parseJsonResponse);
     }
 
     function ensureLocalId(key) {

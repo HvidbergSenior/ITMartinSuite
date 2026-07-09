@@ -5,10 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Star Realms Score</title>
     <base href="/" />
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
 </head>
 <body>
     <Routes />
-    <script src="js/starrealms.js"></script>
+    <script src="js/starrealms.js?v=@CacheBuster"></script>
 </body>
 </html>
+
+@code {
+    // Per-process value appended to static asset URLs so the browser/Cloudflare
+    // edge cache fetches fresh files after every deploy instead of potentially
+    // serving a stale cached copy for up to Cache-Control's max-age.
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}
