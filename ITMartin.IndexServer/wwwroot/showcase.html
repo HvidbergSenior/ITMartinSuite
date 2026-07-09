@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0d14">
+<title>Se appsene i brug — ITMartin Suite</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.sc-page{max-width:1000px;margin:0 auto;padding:0 16px 60px}
+.sc-hero{text-align:center;padding:56px 16px 40px}
+.sc-hero-inner{max-width:640px;margin:0 auto}
+.sc-back{display:inline-block;margin-bottom:20px;font-size:13px;color:#64748b;text-decoration:none}
+.sc-back:hover{color:#94a3b8}
+.sc-title{font-size:34px;font-weight:900;margin:0 0 12px;letter-spacing:-.02em}
+.sc-sub{font-size:16px;color:#64748b;margin:0;line-height:1.6}
+
+.sc-list{display:flex;flex-direction:column;gap:28px}
+.sc-app{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden}
+.sc-app-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:wrap}
+.sc-app-title{display:flex;align-items:center;gap:10px}
+.sc-app-icon{font-size:22px}
+.sc-app-name{font-size:17px;font-weight:800}
+.sc-app-desc{font-size:13px;color:#94a3b8;margin-top:2px}
+.sc-app-right{display:flex;align-items:center;gap:10px}
+.sc-status{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.04em;padding:4px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.15);color:#64748b}
+.sc-status.live{border-color:#22c55e;color:#4ade80}
+.sc-status.off{border-color:rgba(255,255,255,.1);color:#475569}
+.sc-try{font-size:12px;font-weight:700;color:#0a0d14;background:#60a5fa;padding:7px 14px;border-radius:999px;text-decoration:none;white-space:nowrap}
+.sc-try.disabled{background:rgba(255,255,255,.06);color:#475569;pointer-events:none}
+.sc-mock{padding:24px;background:#05070c}
+.sc-demo-tag{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#334155;margin-bottom:12px}
+
+/* ── Star Realms mock ── */
+.sr-hero{border:2px solid #6366f1;background:#12162a;border-radius:16px;padding:16px;max-width:280px;text-align:center;margin-bottom:14px}
+.sr-hero-name{font-size:13px;color:#94a3b8;margin-bottom:4px}
+.sr-hero-pts{font-size:2.2rem;font-weight:800;color:#6366f1}
+.sr-opp{display:flex;align-items:center;gap:10px;background:#12162a;border:2px solid #2a2d3d;border-radius:10px;padding:8px 12px;max-width:280px;margin-bottom:8px}
+.sr-opp.turn{box-shadow:0 0 0 2px rgba(255,255,255,.15)}
+.sr-opp-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.sr-opp-name{flex:1;font-size:13px;font-weight:700}
+.sr-opp-pts{font-size:1.1rem;font-weight:800}
+
+/* ── Budget mock ── */
+.bg-card{display:flex;gap:0;border-radius:16px;overflow:hidden;max-width:420px;margin-bottom:16px;border:1px solid #2a2d3d}
+.bg-item{flex:1;padding:14px 16px;background:#171a26}
+.bg-item + .bg-item{border-left:1px solid #2a2d3d}
+.bg-item-label{font-size:11px;color:#8890a6;margin-bottom:4px}
+.bg-item-val{font-size:1.1rem;font-weight:800}
+.bg-item.result .bg-item-val{color:#22c55e}
+.bg-sub{display:flex;justify-content:space-between;align-items:center;background:#171a26;border:1px solid #2a2d3d;border-radius:10px;padding:10px 14px;max-width:420px;margin-bottom:6px;font-size:13px}
+.bg-sub-meta{color:#8890a6;font-size:11px}
+
+/* ── Magic scanner mock ── */
+.mg-row{display:flex;gap:14px;align-items:center;background:#171a26;border:1px solid #2a2d3d;border-radius:12px;padding:12px 16px;max-width:420px}
+.mg-thumb{width:44px;height:61px;border-radius:4px;background:linear-gradient(135deg,#3a2a1a,#5a3a20);flex-shrink:0;border:1px solid rgba(255,255,255,.15)}
+.mg-name{font-weight:800;font-size:14px}
+.mg-set{font-size:11px;color:#8890a6;margin-top:2px}
+.mg-price{margin-left:auto;font-weight:800;color:#4ade80;font-size:15px}
+
+/* ── CloudOverblik mock ── */
+.co-hero{text-align:center;padding:10px 0 16px}
+.co-hero-amt{font-size:2.4rem;font-weight:900}
+.co-hero-lbl{font-size:12px;color:#64748b}
+.co-save{display:flex;gap:10px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:12px;padding:12px 14px;max-width:420px;font-size:13px;color:#94a3b8}
+
+/* ── Stats mock ── */
+.st-row{display:flex;gap:10px;margin-bottom:14px}
+.st-card{background:#171a26;border:1px solid #2a2d3d;border-radius:10px;padding:10px 14px;flex:1}
+.st-card-num{font-size:1.3rem;font-weight:800}
+.st-card-lbl{font-size:10px;color:#8890a6;text-transform:uppercase}
+.st-bars{display:flex;align-items:flex-end;gap:6px;height:60px;max-width:300px}
+.st-bar{flex:1;background:#3b82f6;border-radius:3px 3px 0 0}
+
+.sc-footer{text-align:center;font-size:13px;color:#1e293b;padding:32px 0 16px}
+@media(max-width:600px){.sc-title{font-size:26px}.sc-app-head{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="sc-page">
+
+  <div class="sc-hero">
+    <div class="sc-hero-inner">
+      <a class="sc-back" href="/">← Alle apps</a>
+      <h1 class="sc-title">Se hvordan de virker</h1>
+      <p class="sc-sub">Eksempler med demo-data, så du kan se hvad hver app faktisk gør — uafhængigt af om appen er startet lige nu. Live-mærket viser om du selv kan prøve den i dette øjeblik.</p>
+    </div>
+  </div>
+
+  <div class="sc-list">
+
+    <!-- Star Realms -->
+    <div class="sc-app">
+      <div class="sc-app-head">
+        <div class="sc-app-title">
+          <span class="sc-app-icon">🚀</span>
+          <div>
+            <div class="sc-app-name">Star Realms Pointtæller</div>
+            <div class="sc-app-desc">Live multiplayer-pointtæller til kortspil</div>
+          </div>
+        </div>
+        <div class="sc-app-right">
+          <span class="sc-status" id="status-star-realms">–</span>
+          <a class="sc-try disabled" id="try-star-realms" href="https://starrealms.itmartin.dk" target="_blank" rel="noopener">Prøv live →</a>
+        </div>
+      </div>
+      <div class="sc-mock">
+        <div class="sc-demo-tag">Demo — DemoUser's spil</div>
+        <div class="sr-hero">
+          <div class="sr-hero-name">🚀 DemoUser (dig)</div>
+          <div class="sr-hero-pts">42</div>
+        </div>
+        <div class="sr-opp turn" style="border-color:#3498db">
+          <div class="sr-opp-av" style="background:#3498db">👽</div>
+          <div class="sr-opp-name" style="color:#3498db">Simon</div>
+          <div class="sr-opp-pts" style="color:#3498db">28</div>
+        </div>
+        <div class="sr-opp" style="border-color:#2ecc71">
+          <div class="sr-opp-av" style="background:#2ecc71">🛸</div>
+          <div class="sr-opp-name" style="color:#2ecc71">Anders</div>
+          <div class="sr-opp-pts" style="color:#2ecc71">15</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Budget -->
+    <div class="sc-app">
+      <div class="sc-app-head">
+        <div class="sc-app-title">
+          <span class="sc-app-icon">💰</span>
+          <div>
+            <div class="sc-app-name">Familieøkonomi — Hurtigt overblik</div>
+            <div class="sc-app-desc">Overskud/underskud nu, og hvad du måske ikke behøver længere</div>
+          </div>
+        </div>
+        <div class="sc-app-right">
+          <span class="sc-status" id="status-budget">–</span>
+          <a class="sc-try disabled" id="try-budget" href="https://budget.itmartin.dk" target="_blank" rel="noopener">Prøv live →</a>
+        </div>
+      </div>
+      <div class="sc-mock">
+        <div class="sc-demo-tag">Demo — DemoUser's husholdning, juli</div>
+        <div class="bg-card">
+          <div class="bg-item"><div class="bg-item-label">Indkomst</div><div class="bg-item-val">32.000 kr.</div></div>
+          <div class="bg-item"><div class="bg-item-label">Udgifter</div><div class="bg-item-val">27.750 kr.</div></div>
+          <div class="bg-item result"><div class="bg-item-label">Overskud</div><div class="bg-item-val">4.250 kr.</div></div>
+        </div>
+        <div class="bg-sub"><div><div>Netflix</div><div class="bg-sub-meta">Månedligt · sidst 12 dage siden</div></div><div>89 kr.</div></div>
+        <div class="bg-sub"><div><div>Fitness United</div><div class="bg-sub-meta">Månedligt · sidst 61 dage siden</div></div><div>309 kr.</div></div>
+      </div>
+    </div>
+
+    <!-- Magic Scanner -->
+    <div class="sc-app">
+      <div class="sc-app-head">
+        <div class="sc-app-title">
+          <span class="sc-app-icon">🎴</span>
+          <div>
+            <div class="sc-app-name">Magic Kort-Prisscanner</div>
+            <div class="sc-app-desc">Peg kameraet på et kort, få identitet og markedspris</div>
+          </div>
+        </div>
+        <div class="sc-app-right">
+          <span class="sc-status" id="status-magic">–</span>
+          <a class="sc-try disabled" id="try-magic" href="https://pricing-magic.itmartin.dk" target="_blank" rel="noopener">Prøv live →</a>
+        </div>
+      </div>
+      <div class="sc-mock">
+        <div class="sc-demo-tag">Demo — netop scannet kort</div>
+        <div class="mg-row">
+          <div class="mg-thumb"></div>
+          <div>
+            <div class="mg-name">Lightning Bolt</div>
+            <div class="mg-set">Revised Edition · #161</div>
+          </div>
+          <div class="mg-price">12,50 kr.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CloudOverblik -->
+    <div class="sc-app">
+      <div class="sc-app-head">
+        <div class="sc-app-title">
+          <span class="sc-app-icon">☁️</span>
+          <div>
+            <div class="sc-app-name">Sky-Udgiftsberegner</div>
+            <div class="sc-app-desc">Hvad betaler I egentlig for iCloud, Netflix, Spotify — samlet?</div>
+          </div>
+        </div>
+        <div class="sc-app-right">
+          <span class="sc-status" id="status-cloudoverblik">–</span>
+          <a class="sc-try disabled" id="try-cloudoverblik" href="https://cloudoverblik.itmartin.dk" target="_blank" rel="noopener">Prøv live →</a>
+        </div>
+      </div>
+      <div class="sc-mock">
+        <div class="sc-demo-tag">Demo — DemoFamilie, 4 personer</div>
+        <div class="co-hero">
+          <div class="co-hero-amt">847 kr<span style="font-size:1.2rem;color:#64748b">/md</span></div>
+          <div class="co-hero-lbl">= 10.164 kr/år på sky-tjenester</div>
+        </div>
+        <div class="co-save">💡 I dag betaler I 320 kr/md på sky-lager alene. Med ét delt Google One-abonnement kunne det koste 75 kr/md — en besparelse på 2.940 kr/år.</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="sc-app">
+      <div class="sc-app-head">
+        <div class="sc-app-title">
+          <span class="sc-app-icon">📊</span>
+          <div>
+            <div class="sc-app-name">ITMartin Analytics</div>
+            <div class="sc-app-desc">Hvor mange besøger egentlig dine apps?</div>
+          </div>
+        </div>
+        <div class="sc-app-right">
+          <span class="sc-status" id="status-stats">–</span>
+          <a class="sc-try disabled" id="try-stats" href="https://stats.itmartin.dk" target="_blank" rel="noopener">Prøv live →</a>
+        </div>
+      </div>
+      <div class="sc-mock">
+        <div class="sc-demo-tag">Demo — 7 dages periode</div>
+        <div class="st-row">
+          <div class="st-card"><div class="st-card-num">1.284</div><div class="st-card-lbl">Sidevisninger</div></div>
+          <div class="st-card"><div class="st-card-num">412</div><div class="st-card-lbl">Unikke</div></div>
+          <div class="st-card"><div class="st-card-num">18%</div><div class="st-card-lbl">Mobil</div></div>
+        </div>
+        <div class="st-bars">
+          <div class="st-bar" style="height:40%"></div>
+          <div class="st-bar" style="height:55%"></div>
+          <div class="st-bar" style="height:35%"></div>
+          <div class="st-bar" style="height:70%"></div>
+          <div class="st-bar" style="height:50%"></div>
+          <div class="st-bar" style="height:85%"></div>
+          <div class="st-bar" style="height:100%"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sc-footer">ITMartin Suite — bygget af Martin Hvidberg</div>
+</div>
+
+<script>
+fetch("/api/showcase-status").then(function (r) { return r.json(); }).then(function (status) {
+  Object.keys(status).forEach(function (key) {
+    var live = status[key];
+    var badge = document.getElementById("status-" + key);
+    var link = document.getElementById("try-" + key);
+    if (!badge) return;
+    if (live) {
+      badge.textContent = "🟢 Live nu";
+      badge.className = "sc-status live";
+      if (link) link.classList.remove("disabled");
+    } else {
+      badge.textContent = "⚫ Ikke tændt lige nu";
+      badge.className = "sc-status off";
+      if (link) link.classList.add("disabled");
+    }
+  });
+}).catch(function () {
+  document.querySelectorAll(".sc-status").forEach(function (b) { b.textContent = "? Kunne ikke tjekke"; });
+});
+</script>
+</body>
+</html>

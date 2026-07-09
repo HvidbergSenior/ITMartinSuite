@@ -1,9 +1,45 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpClient("internal", c => c.Timeout = TimeSpan.FromSeconds(6));
 
 var app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+// Checked over the internal martinnet Docker network (container:8080), not the
+// public domain - avoids a Cloudflare round-trip and tells us the real state
+// even for apps with no public route configured yet.
+var showcaseTargets = new Dictionary<string, string>
+{
+    ["star-realms"] = "http://star-realms-web:8080/",
+    ["budget"] = "http://budget-web:8080/login",
+    ["magic"] = "http://magic-web:8080/",
+    ["cloudoverblik"] = "http://cloudoverblik-web:8080/",
+    ["stats"] = "http://stats-web:8080/"
+};
+
+app.MapGet("/api/showcase-status", async (IHttpClientFactory httpFactory) =>
+{
+    var client = httpFactory.CreateClient("internal");
+    // Concurrent writes from parallel tasks below - plain Dictionary isn't
+    // thread-safe for that and was silently dropping/corrupting entries.
+    var results = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
+
+    await Task.WhenAll(showcaseTargets.Select(async kv =>
+    {
+        try
+        {
+            var resp = await client.GetAsync(kv.Value);
+            results[kv.Key] = resp.IsSuccessStatusCode || (int)resp.StatusCode is >= 300 and < 400;
+        }
+        catch
+        {
+            results[kv.Key] = false;
+        }
+    }));
+
+    return Results.Ok(results);
+});
 
 app.MapGet("/api/links", (IConfiguration cfg) => Results.Ok(new
 {
