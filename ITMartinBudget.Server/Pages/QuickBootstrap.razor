@@ -1,0 +1,13 @@
+@page "/quick/{Token}"
+@layout ITMartinBudget.Server.Layout.EmptyLayout
+
+<PageTitle>Åbner...</PageTitle>
+
+<script>
+    localStorage.setItem("budget_quick_token", "@Token");
+    location.href = "/quick";
+</script>
+
+@code {
+    [Parameter] public string Token { get; set; } = "";
+}

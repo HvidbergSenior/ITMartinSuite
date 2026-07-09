@@ -1,0 +1,46 @@
+@page "/quick"
+@layout ITMartinBudget.Server.Layout.EmptyLayout
+
+<PageTitle>Hurtigt overblik – Budget</PageTitle>
+
+<div id="q-denied" class="login-wrap" style="display:none">
+    <div class="login-box">
+        <div class="login-icon">🔒</div>
+        <div class="login-title">Ingen adgang</div>
+        <p style="color:var(--muted);text-align:center;font-size:.9rem">
+            Dette link virker kun, hvis du er kommet hertil via det rigtige invitationslink.
+        </p>
+    </div>
+</div>
+
+<div id="q-loading" class="login-wrap">
+    <div style="color:var(--muted)">Indlæser...</div>
+</div>
+
+<div id="q-content" class="quick-wrap" style="display:none">
+    <div class="quick-inner">
+        <h1 class="quick-title">Økonomi lige nu</h1>
+        <div id="q-month" class="quick-month"></div>
+
+        <div class="financial-overview-card">
+            <div class="financial-item income">
+                <div class="financial-label">Indkomst</div>
+                <div class="financial-value" id="q-income">–</div>
+            </div>
+            <div class="financial-item expense">
+                <div class="financial-label">Udgifter</div>
+                <div class="financial-value" id="q-expenses">–</div>
+            </div>
+            <div class="financial-item result">
+                <div class="financial-label" id="q-net-label">Overskud</div>
+                <div class="financial-value" id="q-net">–</div>
+            </div>
+        </div>
+
+        <h2 class="quick-section-title">Stadig betaler for</h2>
+        <p class="quick-section-sub">Faste beløb der er gået igen med jævne mellemrum — måske stadig nødvendige, måske ikke.</p>
+        <div id="q-subs" class="quick-subs"></div>
+    </div>
+</div>
+
+<script src="js/quick.js"></script>
