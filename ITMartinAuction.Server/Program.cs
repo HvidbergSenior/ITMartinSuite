@@ -34,12 +34,12 @@ using (var scope = app.Services.CreateScope())
 
     var migrations = new[]
     {
-        "ALTER TABLE AuctionSessions ADD COLUMN Status INTEGER NOT NULL DEFAULT 0",
-        "ALTER TABLE AuctionSessions ADD COLUMN AdminToken TEXT NOT NULL DEFAULT ''",
-        "ALTER TABLE AuctionSessions ADD COLUMN AuctionDate TEXT",
-        "ALTER TABLE AuctionItems ADD COLUMN LotQuantity INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE AuctionItems ADD COLUMN BuyNowBuyerName TEXT",
-        "ALTER TABLE AuctionItems ADD COLUMN BuyNowBuyerPhone TEXT",
+        "ALTER TABLE Sessions ADD COLUMN Status INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE Sessions ADD COLUMN AdminToken TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE Sessions ADD COLUMN AuctionDate TEXT",
+        "ALTER TABLE Items ADD COLUMN LotQuantity INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE Items ADD COLUMN BuyNowBuyerName TEXT",
+        "ALTER TABLE Items ADD COLUMN BuyNowBuyerPhone TEXT",
         "ALTER TABLE Bidders ADD COLUMN Token TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE Bidders ADD COLUMN BidderNumber INTEGER",
         "ALTER TABLE Bidders ADD COLUMN Phone TEXT",
