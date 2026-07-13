@@ -38,7 +38,7 @@
             const w = await res.json();
             hero.innerHTML = `
                 <div class="ep-rec-headline">Start <span class="ep-time">${fmtDayTime(w.start)}</span></div>
-                <div class="ep-rec-detail">til ${fmtDayTime(w.end)} · ca. ${w.avgPriceKrPerKwh.toFixed(2)} kr/kWh i gennemsnit${w.isEstimated ? ' (estimeret)' : ''}</div>
+                <div class="ep-rec-detail">til ${fmtDayTime(w.end)} · ca. ${w.avgTotalKrPerKwh.toFixed(2)} kr/kWh i alt i gennemsnit${w.isEstimated ? ' (estimeret)' : ''}</div>
             `;
         } catch {
             hero.innerHTML = '<div class="ep-rec-loading">Kunne ikke hente priser lige nu.</div>';
@@ -62,19 +62,19 @@
 
         const now = new Date();
         const upcoming = prices.filter(p => new Date(p.timeDk) >= new Date(now.getTime() - 3600_000));
-        const min = Math.min(...upcoming.map(p => p.priceKrPerKwh));
-        const max = Math.max(...upcoming.map(p => p.priceKrPerKwh));
+        const min = Math.min(...upcoming.map(p => p.totalKrPerKwh));
+        const max = Math.max(...upcoming.map(p => p.totalKrPerKwh));
         const maxHeight = 100;
 
         upcoming.forEach(p => {
-            const tier = priceTier(p.priceKrPerKwh, min, max);
-            const h = max === min ? maxHeight / 2 : Math.max(4, ((p.priceKrPerKwh - min) / (max - min)) * maxHeight);
+            const tier = priceTier(p.totalKrPerKwh, min, max);
+            const h = max === min ? maxHeight / 2 : Math.max(4, ((p.totalKrPerKwh - min) / (max - min)) * maxHeight);
             const bar = document.createElement('div');
             const d = new Date(p.timeDk);
             const isNow = Math.abs(d - now) < 3600_000 && d <= now;
             bar.className = `ep-bar ep-bar--${tier}${isNow ? ' ep-bar--now' : ''}`;
             bar.style.height = h + 'px';
-            bar.title = `${fmtDayTime(p.timeDk)}: ${p.priceKrPerKwh.toFixed(2)} kr/kWh`;
+            bar.title = `${fmtDayTime(p.timeDk)}: ${p.totalKrPerKwh.toFixed(2)} kr/kWh`;
             chart.appendChild(bar);
         });
 
@@ -91,17 +91,17 @@
 
         const now = new Date();
         const upcoming = prices.filter(p => new Date(p.timeDk) >= new Date(now.getTime() - 3600_000));
-        const min = Math.min(...upcoming.map(p => p.priceKrPerKwh));
-        const maxPrice = Math.max(...upcoming.map(p => p.priceKrPerKwh));
+        const min = Math.min(...upcoming.map(p => p.totalKrPerKwh));
+        const maxPrice = Math.max(...upcoming.map(p => p.totalKrPerKwh));
 
         list.innerHTML = upcoming.map(p => {
-            const tier = priceTier(p.priceKrPerKwh, min, maxPrice);
+            const tier = priceTier(p.totalKrPerKwh, min, maxPrice);
             const d = new Date(p.timeDk);
             const isNow = Math.abs(d - now) < 3600_000 && d <= now;
             return `
                 <div class="ep-price-row${isNow ? ' ep-price-row--now' : ''}">
                     <span class="ep-price-time">${fmtDayTime(p.timeDk)}${p.isEstimated ? '<span class="ep-price-estimated-tag">estimeret</span>' : ''}</span>
-                    <span class="ep-price-value ep-price-value--${tier}">${p.priceKrPerKwh.toFixed(2)} kr/kWh</span>
+                    <span class="ep-price-value ep-price-value--${tier}">${p.totalKrPerKwh.toFixed(2)} kr/kWh</span>
                 </div>
             `;
         }).join('');
@@ -112,6 +112,26 @@
         note.style.display = prices.some(p => p.isEstimated) ? 'block' : 'none';
     }
 
+    function renderBreakdown(prices) {
+        const el = document.getElementById('priceBreakdown');
+        if (!el || prices.length === 0) return;
+
+        const now = new Date();
+        const current = prices.find(p => {
+            const d = new Date(p.timeDk);
+            return Math.abs(d - now) < 3600_000 && d <= now;
+        }) || prices[0];
+
+        el.innerHTML = `
+            <div class="ep-breakdown-row"><span>Spotpris</span><span>${current.spotKrPerKwh.toFixed(3)} kr/kWh</span></div>
+            <div class="ep-breakdown-row"><span>+ Nettarif</span><span>${current.nettarifKrPerKwh.toFixed(3)} kr/kWh</span></div>
+            <div class="ep-breakdown-row"><span>+ Elafgift</span><span>${current.elafgiftKrPerKwh.toFixed(3)} kr/kWh</span></div>
+            <div class="ep-breakdown-row"><span>+ Leverandørtillæg</span><span>${current.leverandoertillaegKrPerKwh.toFixed(3)} kr/kWh</span></div>
+            <div class="ep-breakdown-row"><span>+ Moms (25%)</span><span>${current.momsKrPerKwh.toFixed(3)} kr/kWh</span></div>
+            <div class="ep-breakdown-row ep-breakdown-row--total"><span>= I alt lige nu</span><span>${current.totalKrPerKwh.toFixed(2)} kr/kWh</span></div>
+        `;
+    }
+
     async function loadPrices() {
         try {
             const res = await fetch(`/api/prices?area=${AREA}`);
@@ -119,6 +139,7 @@
             priceCache = prices;
             renderChart(prices);
             renderPriceList(prices);
+            renderBreakdown(prices);
             updateEstimatedNote(prices);
         } catch {
             // chart just stays empty; recommendation card already reports the failure
@@ -208,6 +229,172 @@
             // leave the "building up" note in place
         }
     }
+
+    // ── Elaftale: netselskab/leverandør presets, bill scan, comparison ──────
+
+    let presetsCache = null;
+
+    async function loadPresets() {
+        if (presetsCache) return presetsCache;
+        const res = await fetch('/api/settings/presets');
+        presetsCache = await res.json();
+        return presetsCache;
+    }
+
+    function fillSelect(select, items, currentId) {
+        select.innerHTML = items.map(i =>
+            `<option value="${i.id}"${i.id === currentId ? ' selected' : ''}>${i.name}${i.region ? ' — ' + i.region : ''}</option>`
+        ).join('');
+    }
+
+    function toggleCustomField(select, input) {
+        input.style.display = select.value === 'custom' ? 'block' : 'none';
+    }
+
+    async function loadSettingsUi() {
+        const [presets, settingsRes] = await Promise.all([loadPresets(), fetch('/api/settings')]);
+        const settings = await settingsRes.json();
+
+        const gridSelect = document.getElementById('gridCompanySelect');
+        const supplierSelect = document.getElementById('supplierSelect');
+        fillSelect(gridSelect, presets.gridCompanies, settings.gridCompanyId);
+        fillSelect(supplierSelect, presets.suppliers, settings.supplierId);
+
+        document.getElementById('customNettarif').value = settings.customNettarifOre;
+        document.getElementById('customTillaeg').value = settings.customTillaegOre;
+        document.getElementById('annualUsage').value = settings.annualUsageKwh;
+
+        toggleCustomField(gridSelect, document.getElementById('customNettarif'));
+        toggleCustomField(supplierSelect, document.getElementById('customTillaeg'));
+
+        loadComparison();
+    }
+
+    async function saveSettings() {
+        const settings = {
+            gridCompanyId: document.getElementById('gridCompanySelect').value,
+            customNettarifOre: parseFloat(document.getElementById('customNettarif').value) || 0,
+            supplierId: document.getElementById('supplierSelect').value,
+            customTillaegOre: parseFloat(document.getElementById('customTillaeg').value) || 0,
+            annualUsageKwh: parseFloat(document.getElementById('annualUsage').value) || 4000,
+        };
+
+        try {
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings),
+            });
+            showToast('Elaftale gemt ✓');
+            loadPrices();
+            loadRecommendation();
+            loadComparison();
+        } catch {
+            showToast('Kunne ikke gemme elaftalen');
+        }
+    }
+
+    async function loadComparison() {
+        const list = document.getElementById('compareList');
+        try {
+            const res = await fetch('/api/supplier-comparison');
+            const data = await res.json();
+            list.innerHTML = data.map(r => `
+                <div class="ep-compare-row${r.isCurrent ? ' ep-compare-row--current' : ''}">
+                    <span class="ep-compare-name">${r.name}${r.isCurrent ? ' (nuværende)' : ''}</span>
+                    <span class="ep-compare-cost">~${r.estYearlyCostKr.toFixed(0)} kr/år</span>
+                </div>
+            `).join('');
+        } catch {
+            list.innerHTML = '<div class="ep-compare-row"><span>Kunne ikke hente sammenligning.</span></div>';
+        }
+    }
+
+    function matchPresetIdByName(items, name) {
+        if (!name) return null;
+        const lower = name.toLowerCase();
+        const match = items.find(i => lower.includes(i.name.toLowerCase()) || i.name.toLowerCase().includes(lower));
+        return match ? match.id : null;
+    }
+
+    function summarizeExtraction(r) {
+        const parts = [];
+        if (r.gridCompanyName) parts.push(`netselskab: ${r.gridCompanyName}`);
+        if (r.supplierName) parts.push(`leverandør: ${r.supplierName}`);
+        if (parts.length === 0) return 'Fandt ikke nok til at udfylde automatisk — udfyld selv nedenfor.';
+        return `Fundet ${parts.join(', ')}. Tjek felterne nedenfor og tryk Gem.`;
+    }
+
+    async function applyExtractedResult(result) {
+        const presets = await loadPresets();
+        const gridSelect = document.getElementById('gridCompanySelect');
+        const supplierSelect = document.getElementById('supplierSelect');
+        const customNettarif = document.getElementById('customNettarif');
+        const customTillaeg = document.getElementById('customTillaeg');
+
+        const gridMatchId = matchPresetIdByName(presets.gridCompanies, result.gridCompanyName);
+        if (gridMatchId) {
+            gridSelect.value = gridMatchId;
+        } else if (result.nettarifOrePerKwh) {
+            gridSelect.value = 'custom';
+            customNettarif.value = result.nettarifOrePerKwh;
+        }
+
+        const supplierMatchId = matchPresetIdByName(presets.suppliers, result.supplierName);
+        if (supplierMatchId) {
+            supplierSelect.value = supplierMatchId;
+        } else if (result.supplierMarkupOrePerKwh) {
+            supplierSelect.value = 'custom';
+            customTillaeg.value = result.supplierMarkupOrePerKwh;
+        }
+
+        toggleCustomField(gridSelect, customNettarif);
+        toggleCustomField(supplierSelect, customTillaeg);
+    }
+
+    async function scanBill(file) {
+        const status = document.getElementById('scanStatus');
+        status.style.display = 'block';
+        status.textContent = 'Analyserer regningen…';
+
+        try {
+            const formData = new FormData();
+            formData.append('bill', file);
+            const res = await fetch('/api/bill-scan', { method: 'POST', body: formData });
+            if (!res.ok) {
+                status.textContent = 'Kunne ikke læse regningen — prøv et tydeligere billede, eller udfyld selv nedenfor.';
+                return;
+            }
+            const result = await res.json();
+            await applyExtractedResult(result);
+            status.textContent = summarizeExtraction(result);
+        } catch {
+            status.textContent = 'Kunne ikke læse regningen — prøv igen, eller udfyld selv nedenfor.';
+        }
+    }
+
+    document.getElementById('toggleSettingsBtn').addEventListener('click', () => {
+        const section = document.getElementById('settingsSection');
+        const show = section.style.display === 'none';
+        section.style.display = show ? 'block' : 'none';
+        if (show) loadSettingsUi();
+    });
+
+    document.getElementById('gridCompanySelect').addEventListener('change', e => {
+        toggleCustomField(e.target, document.getElementById('customNettarif'));
+    });
+    document.getElementById('supplierSelect').addEventListener('change', e => {
+        toggleCustomField(e.target, document.getElementById('customTillaeg'));
+    });
+    document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+    document.getElementById('scanBillBtn').addEventListener('click', () => {
+        document.getElementById('billFileInput').click();
+    });
+    document.getElementById('billFileInput').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) scanBill(file);
+    });
 
     document.getElementById('durationRow').addEventListener('click', e => {
         const btn = e.target.closest('.ep-duration-btn');

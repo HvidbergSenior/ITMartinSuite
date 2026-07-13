@@ -122,6 +122,60 @@ body {
     margin-bottom: 1rem;
 }
 
+/* ── Settings link + secondary section ── */
+.ep-settings-link {
+    display: inline-block;
+    margin-top: .5rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: .75rem;
+    padding: .3rem .7rem;
+    cursor: pointer;
+}
+.ep-settings-link:active { border-color: var(--accent); color: var(--accent); }
+.ep-secondary { display: flex; flex-direction: column; }
+
+/* ── Price breakdown / education ── */
+.ep-explainer-intro { font-size: .82rem; color: var(--muted); margin-bottom: .7rem; line-height: 1.4; }
+.ep-breakdown { display: flex; flex-direction: column; gap: 2px; margin-bottom: .8rem; }
+.ep-breakdown-row {
+    display: flex; justify-content: space-between;
+    font-size: .82rem; padding: .3rem .1rem;
+    border-bottom: 1px solid var(--border);
+}
+.ep-breakdown-row--total { border-bottom: none; border-top: 1px solid var(--border); margin-top: .2rem; padding-top: .5rem; font-weight: 800; color: var(--accent); }
+.ep-explainer-list { list-style: none; display: flex; flex-direction: column; gap: .55rem; font-size: .8rem; color: var(--muted); line-height: 1.4; }
+.ep-explainer-list strong { color: var(--text); }
+
+/* ── Elaftale settings form ── */
+.ep-scan-btn {
+    display: block; width: 100%;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-weight: 700; font-size: .9rem;
+    padding: .7rem 0; margin-bottom: .8rem; cursor: pointer;
+}
+.ep-scan-btn:active { border-color: var(--accent); }
+.ep-scan-status { font-size: .8rem; color: var(--muted); margin-bottom: .8rem; line-height: 1.4; }
+.ep-settings-field { margin-bottom: .9rem; }
+.ep-settings-field label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: .3rem; }
+.ep-settings-field select,
+.ep-settings-field input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: .88rem; padding: .55rem .6rem;
+}
+.ep-settings-field input { margin-top: .4rem; }
+
+/* ── Supplier comparison ── */
+.ep-compare-list { display: flex; flex-direction: column; gap: .4rem; }
+.ep-compare-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: .85rem; padding: .5rem .6rem; border-radius: 8px; background: var(--bg3);
+}
+.ep-compare-row--current { outline: 1px solid var(--accent); }
+.ep-compare-cost { font-weight: 700; color: var(--accent); }
+
 /* ── Run log ── */
 .ep-device-row { display: flex; gap: .5rem; flex-wrap: wrap; }
 .ep-device-btn {
