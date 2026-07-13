@@ -51,6 +51,7 @@ app.MapGet("/api/links", (IConfiguration cfg) => Results.Ok(new
     musikStudio     = cfg["Apps:MusikStudioUrl"]     ?? "#",
     budget          = cfg["Apps:BudgetUrl"]          ?? "#",
     receipt         = cfg["Apps:ReceiptUrl"]         ?? "#",
+    elPriser        = cfg["Apps:ElPriserUrl"]        ?? "#",
     magic           = cfg["Apps:MagicUrl"]           ?? "#",
     library         = cfg["Apps:LibraryUrl"]         ?? "#",
     librarySearch   = cfg["Apps:LibrarySearchUrl"]   ?? "#",
@@ -69,6 +70,14 @@ app.MapGet("/api/links", (IConfiguration cfg) => Results.Ok(new
     cloudOverblik   = cfg["Apps:CloudOverblikUrl"]   ?? "#",
     upload          = cfg["Apps:UploadUrl"]          ?? "#",
     testHub         = cfg["Apps:TestHubUrl"]         ?? "#",
+    mediaSeller     = cfg["Apps:MediaSellerUrl"]     ?? "#",
+    dailyBrief      = cfg["Apps:DailyBriefUrl"]      ?? "#",
+    starRealms      = cfg["Apps:StarRealmsUrl"]      ?? "#",
+    r6Strat         = cfg["Apps:R6StratUrl"]         ?? "#",
+    pdf             = cfg["Apps:PdfUrl"]             ?? "#",
+    poll            = cfg["Apps:PollUrl"]            ?? "#",
+    live            = cfg["Apps:LiveUrl"]            ?? "#",
+    uret            = cfg["Apps:UretUrl"]            ?? "#",
 }));
 
 app.Run();

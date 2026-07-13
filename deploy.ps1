@@ -72,6 +72,8 @@ $ServiceMap = @{
     "stream-web"             = @{ Dockerfile = "ITMartinStream.Server/Dockerfile";                      Context = "."; Profile = "manual" }
     "mediaseller-web"        = @{ Dockerfile = "ITMartinMediaSeller.Server/Dockerfile";                  Context = "."; Profile = "manual" }
     "star-realms-web"        = @{ Dockerfile = "ITMartinStarRealms.Server/Dockerfile";                   Context = "."; Profile = "manual" }
+    "pdf-web"                = @{ Dockerfile = "ITMartinPdf.Server/Dockerfile";                           Context = "."; Profile = "manual" }
+    "elpriser-web"           = @{ Dockerfile = "ITMartinElPriser.Server/Dockerfile";                      Context = "."; Profile = "manual" }
 }
 
 if (-not $ServiceMap.ContainsKey($Service)) {

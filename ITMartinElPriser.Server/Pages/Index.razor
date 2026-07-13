@@ -1,0 +1,94 @@
+@page "/"
+
+<PageTitle>ElPriser</PageTitle>
+
+<div class="ep-page">
+
+    <div class="ep-header">
+        <div class="ep-logo">⚡</div>
+        <div class="ep-title">ElPriser</div>
+        <div class="ep-sub">Se hvornår strømmen er billigst</div>
+    </div>
+
+    <ProblemPurposeBanner
+        Problem="Vaskemaskinen og opvaskeren kører ofte når strømmen er dyrest, bare fordi det passer med hverdagen."
+        Formaal="Vis med det samme hvornår strømmen er billigst, så husholdningsapparater kan lægges der i stedet." />
+
+    <HowToUseBanner Steps="@(new[] {
+        "Vælg hvor mange timer din maskine kører (fx 2 timer til vaskemaskinen).",
+        "Se det bedste starttidspunkt øverst — det opdateres automatisk.",
+        "Tryk på en maskine, når du starter den, så appen kan regne prisen ud og holde styr på hvor tit den kører.",
+        "Efter en uges brug bygger 'Ugentligt mønster' sig selv op, så du kan se hvilke dage og tider der plejer at være billigst."
+    })" />
+
+    <div class="ep-card">
+        <div class="ep-card-title">Bedste tidspunkt</div>
+        <div class="ep-duration-row" id="durationRow">
+            <button class="ep-duration-btn" data-hours="1">1 time</button>
+            <button class="ep-duration-btn ep-duration-btn--active" data-hours="2">2 timer</button>
+            <button class="ep-duration-btn" data-hours="3">3 timer</button>
+            <button class="ep-duration-btn" data-hours="4">4 timer</button>
+        </div>
+        <div class="ep-rec-hero" id="recHero">
+            <div class="ep-rec-loading">Henter priser…</div>
+        </div>
+    </div>
+
+    <div class="ep-card">
+        <div class="ep-card-title">Pris de næste 48 timer</div>
+        <div class="ep-chart" id="priceChart"></div>
+        <div class="ep-chart-labels" id="chartLabels"></div>
+        <div class="ep-chart-legend">
+            <span><span class="ep-legend-dot" style="background:var(--cheap)"></span>Billigt</span>
+            <span><span class="ep-legend-dot" style="background:var(--mid)"></span>Middel</span>
+            <span><span class="ep-legend-dot" style="background:var(--expensive)"></span>Dyrt</span>
+        </div>
+    </div>
+
+    <div class="ep-card">
+        <div class="ep-card-title">Jeg starter…</div>
+        <div class="ep-device-row">
+            <button class="ep-device-btn" data-device="Vaskemaskine" data-kwh="1.0">
+                <span class="ep-device-icon">🧺</span>Vaskemaskine
+            </button>
+            <button class="ep-device-btn" data-device="Opvasker" data-kwh="1.2">
+                <span class="ep-device-icon">🍽️</span>Opvasker
+            </button>
+            <button class="ep-device-btn" data-device="Tørretumbler" data-kwh="2.5">
+                <span class="ep-device-icon">👕</span>Tørretumbler
+            </button>
+        </div>
+
+        <div class="ep-totals-row">
+            <div class="ep-total-box">
+                <div class="ep-total-num" id="totalRunsWeek">–</div>
+                <div class="ep-total-label">gange denne uge</div>
+            </div>
+            <div class="ep-total-box">
+                <div class="ep-total-num" id="totalCostWeek">–</div>
+                <div class="ep-total-label">kr denne uge</div>
+            </div>
+            <div class="ep-total-box">
+                <div class="ep-total-num" id="totalCostMonth">–</div>
+                <div class="ep-total-label">kr denne måned</div>
+            </div>
+        </div>
+
+        <div class="ep-run-list" id="runList"></div>
+    </div>
+
+    <div class="ep-card">
+        <div class="ep-card-title">Ugentligt mønster</div>
+        <div class="ep-week-note" id="weekNote">Bygger sig op over de næste dage…</div>
+        <div class="ep-week-grid" id="weekGrid"></div>
+    </div>
+
+</div>
+
+<div class="ep-toast" id="epToast"></div>
+
+<script src="js/elpriser.js?v=@CacheBuster"></script>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

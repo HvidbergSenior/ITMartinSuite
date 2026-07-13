@@ -1,0 +1,128 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:        #0b1220;
+    --bg2:       #111a2e;
+    --bg3:       #16233d;
+    --accent:    #facc15;
+    --accent2:   #eab308;
+    --text:      #eef2ff;
+    --muted:     #7b8aad;
+    --border:    #223154;
+    --radius:    14px;
+    --cheap:     #22c55e;
+    --mid:       #f59e0b;
+    --expensive: #ef4444;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100dvh;
+}
+
+.ep-root { min-height: 100dvh; }
+
+.ep-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 1.25rem 1rem 2rem;
+}
+
+.ep-header { text-align: center; margin-bottom: 1.25rem; }
+.ep-logo   { font-size: 2.5rem; }
+.ep-title  { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
+.ep-sub    { color: var(--muted); font-size: .9rem; margin-top: .15rem; }
+
+.ep-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.ep-card-title {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: .6rem;
+}
+
+/* ── Recommendation ── */
+.ep-rec-hero { text-align: center; padding: .4rem 0 .2rem; }
+.ep-rec-headline { font-size: 1.5rem; font-weight: 800; line-height: 1.25; }
+.ep-rec-headline .ep-time { color: var(--cheap); }
+.ep-rec-detail { color: var(--muted); font-size: .88rem; margin-top: .4rem; }
+.ep-rec-loading { color: var(--muted); text-align: center; padding: 1rem 0; }
+
+.ep-duration-row { display: flex; gap: .5rem; margin-top: 1rem; }
+.ep-duration-btn {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .55rem 0;
+    color: var(--text);
+    font-weight: 600;
+    font-size: .92rem;
+    cursor: pointer;
+}
+.ep-duration-btn--active { border-color: var(--accent); background: rgba(250,204,21,.14); color: var(--accent); }
+
+/* ── Price chart ── */
+.ep-chart { display: flex; align-items: flex-end; gap: 2px; height: 110px; margin-top: .4rem; }
+.ep-bar { flex: 1; border-radius: 3px 3px 0 0; min-height: 3px; position: relative; }
+.ep-bar--cheap     { background: var(--cheap); }
+.ep-bar--mid       { background: var(--mid); }
+.ep-bar--expensive { background: var(--expensive); }
+.ep-bar--now { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ep-chart-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: .68rem; margin-top: .3rem; }
+.ep-chart-legend { display: flex; gap: 1rem; font-size: .75rem; color: var(--muted); margin-top: .5rem; }
+.ep-legend-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .3rem; vertical-align: middle; }
+
+/* ── Run log ── */
+.ep-device-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.ep-device-btn {
+    flex: 1;
+    min-width: 100px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .7rem .4rem;
+    color: var(--text);
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+}
+.ep-device-btn:active { border-color: var(--accent); }
+.ep-device-icon { font-size: 1.3rem; display: block; margin-bottom: .2rem; }
+
+.ep-totals-row { display: flex; gap: .75rem; margin-top: 1rem; }
+.ep-total-box { flex: 1; background: var(--bg3); border-radius: 10px; padding: .6rem; text-align: center; }
+.ep-total-num { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
+.ep-total-label { font-size: .68rem; color: var(--muted); margin-top: .1rem; }
+
+.ep-run-list { margin-top: 1rem; display: flex; flex-direction: column; gap: .4rem; max-height: 220px; overflow-y: auto; }
+.ep-run-row { display: flex; justify-content: space-between; font-size: .82rem; padding: .35rem .1rem; border-bottom: 1px solid var(--border); }
+.ep-run-device { font-weight: 600; }
+.ep-run-time { color: var(--muted); }
+.ep-run-cost { color: var(--accent); font-weight: 700; }
+
+/* ── Weekly pattern ── */
+.ep-week-note { color: var(--muted); font-size: .78rem; margin-bottom: .6rem; }
+.ep-week-grid { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
+.ep-week-row { display: contents; }
+.ep-week-daylabel { font-size: .65rem; color: var(--muted); padding-right: .3rem; grid-column: span 24; margin-top: .3rem; }
+.ep-week-cell { aspect-ratio: 1; border-radius: 2px; }
+
+.ep-toast {
+    position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+    background: var(--bg3); border: 1px solid var(--accent); color: var(--text);
+    padding: .6rem 1rem; border-radius: 10px; font-size: .85rem;
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.ep-toast--show { opacity: 1; }
