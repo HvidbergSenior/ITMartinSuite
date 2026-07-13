@@ -86,41 +86,51 @@ public sealed class FileDiscoveryWorkflowStep
                 {
                     current++;
 
-                    var mediaType = _mediaTypeResolver.Resolve(path);
-                    var typeName = mediaType.ToString();
-                    categoryCounts[typeName] =
-                        categoryCounts.GetValueOrDefault(typeName) + 1;
-
-                    LogStepProgress(
-                        _logger,
-                        Name,
-                        current,
-                        total,
-                        Path.GetFileName(path));
-
-                    if (current % 10 == 0 || current == total)
+                    // One malformed file (bad date-in-filename, unreadable, etc.) must
+                    // not abort discovery for the other thousands - skip it and log,
+                    // rather than losing the whole scan to a single bad file.
+                    try
                     {
-                        await _workflowInstanceStore.SetProgressAsync(
-                            context.WorkflowId,
+                        var mediaType = _mediaTypeResolver.Resolve(path);
+                        var typeName = mediaType.ToString();
+                        categoryCounts[typeName] =
+                            categoryCounts.GetValueOrDefault(typeName) + 1;
+
+                        LogStepProgress(
+                            _logger,
+                            Name,
                             current,
                             total,
-                            item: Path.GetFileName(path),
-                            counts: categoryCounts,
-                            cancellationToken: cancellationToken);
+                            Path.GetFileName(path));
+
+                        if (current % 10 == 0 || current == total)
+                        {
+                            await _workflowInstanceStore.SetProgressAsync(
+                                context.WorkflowId,
+                                current,
+                                total,
+                                item: Path.GetFileName(path),
+                                counts: categoryCounts,
+                                cancellationToken: cancellationToken);
+                        }
+
+                        var dateResult =
+                            _mediaDateService.GetBestDate(
+                                new MediaDateRequest(
+                                    path,
+                                    state.OverrideYear));
+
+                        result.Add(new MediaFile(
+                            path,
+                            dateResult.Date,
+                            mediaType,
+                            new FileInfo(path).Length,
+                            dateResult.IsReliable));
                     }
-
-                    var dateResult =
-                        _mediaDateService.GetBestDate(
-                            new MediaDateRequest(
-                                path,
-                                state.OverrideYear));
-
-                    result.Add(new MediaFile(
-                        path,
-                        dateResult.Date,
-                        mediaType,
-                        new FileInfo(path).Length,
-                        dateResult.IsReliable));
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Skipping file during discovery: {Path}", path);
+                    }
                 }
 
                 state.MediaFiles = result;

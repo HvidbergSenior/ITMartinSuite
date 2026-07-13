@@ -201,6 +201,7 @@ public class LibraryExportService
                 "Audio",
                 "Memes",
                 "Screenshots",
+                "LivePhotos",
                 "DeleteCandidates",
                 "Duplicates",
                 "Undated"

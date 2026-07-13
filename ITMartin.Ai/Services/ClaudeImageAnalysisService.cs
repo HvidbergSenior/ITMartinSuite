@@ -77,7 +77,10 @@ public sealed class ClaudeImageAnalysisService
 
             var request = new MessageCreateParams
             {
-                Model = Model.ClaudeOpus4_8,
+                // Haiku, not Opus - this runs once per photo in a library that can run
+                // into the tens of thousands of files. See feedback_package3_cost_ceiling
+                // memory: AI features must never cost thousands of dollars to run.
+                Model = Model.ClaudeHaiku4_5,
                 MaxTokens = 512,
                 System = "You analyze images for photo library management. Be precise about blur, solid-color/blank images, memes, and screenshots. Always call report_image.",
                 Tools = [ReportImageTool],

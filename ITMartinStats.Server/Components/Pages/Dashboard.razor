@@ -65,10 +65,12 @@ else
                 <div class="stat-card">
                     <div class="stat-val">@_totalViews</div>
                     <div class="stat-lbl">Sidevisninger</div>
+                    <div class="stat-note">Det pålidelige tal — hver sidevisning, talt direkte.</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-val">@_uniqueVisitors</div>
                     <div class="stat-lbl">Unikke besøgende</div>
+                    <div class="stat-note">Faktisk "browsere set", ikke personer — samme person på to enheder tæller som 2, incognito tæller som ny hver gang.</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-val">@_todayViews</div>
@@ -324,6 +326,7 @@ else
     .stat-card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px 18px; }
     .stat-val { font-size:28px; font-weight:900; color:#f1f5f9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .stat-lbl { font-size:12px; color:#64748b; margin-top:4px; text-transform:uppercase; letter-spacing:.07em; font-weight:600; }
+    .stat-note { font-size:11px; color:#475569; margin-top:8px; line-height:1.5; font-weight:400; text-transform:none; letter-spacing:normal; }
 
     /* Bar chart */
     .section-card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px 20px; }

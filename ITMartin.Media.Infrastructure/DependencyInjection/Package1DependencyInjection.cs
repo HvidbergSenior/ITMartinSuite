@@ -66,6 +66,9 @@ public static class Package1DependencyInjection
             MediaRulesWorkflowStep>();
 
         services.AddScoped<
+            LivePhotoDetectionWorkflowStep>();
+
+        services.AddScoped<
             VideoNormalizationWorkflowStep>();
 
         services.AddScoped<

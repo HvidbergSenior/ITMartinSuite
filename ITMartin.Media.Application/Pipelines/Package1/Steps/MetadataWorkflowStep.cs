@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
@@ -153,6 +154,12 @@ public sealed class MetadataWorkflowStep
 
                             file.Height =
                                 dimensions.Value.Height;
+                        }
+
+                        if (file.SubCategory == MediaSubCategory.OtherImage &&
+                            MediaRulesWorkflowStep.IsScreenshotResolution(file.Width, file.Height))
+                        {
+                            file.SubCategory = MediaSubCategory.Screenshot;
                         }
                     }
 

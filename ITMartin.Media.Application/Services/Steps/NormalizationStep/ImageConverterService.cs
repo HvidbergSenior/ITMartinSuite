@@ -141,9 +141,26 @@ public class ImageConverterService : IImageConverterService
                 return outputPath;
             }
 
-            await ConvertWithFfmpeg(
-                inputPath,
-                outputPath);
+            var ext = Path.GetExtension(inputPath).ToLowerInvariant();
+
+            // ffmpeg (from plain apt-get, no --enable-libheif) cannot decode
+            // HEIC/HEIF at all - it mis-detects them as an MP4-family container
+            // and fails with "moov atom not found" every time. heif-convert
+            // (libheif-examples) actually decodes the HEIF box structure.
+            // AVIF is a different codec (AV1) that ffmpeg's libaom build
+            // handles fine, so that one keeps using ffmpeg.
+            if (ext is ".heic" or ".heif")
+            {
+                await ConvertWithHeifConvert(
+                    inputPath,
+                    outputPath);
+            }
+            else
+            {
+                await ConvertWithFfmpeg(
+                    inputPath,
+                    outputPath);
+            }
 
             if (!File.Exists(outputPath))
             {
@@ -166,6 +183,61 @@ public class ImageConverterService : IImageConverterService
                 $"[IMAGE CONVERT ERROR] {ex}");
 
             return inputPath;
+        }
+    }
+
+    private static async Task ConvertWithHeifConvert(
+        string inputPath,
+        string outputPath)
+    {
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "heif-convert",
+                Arguments = $"\"{inputPath}\" \"{outputPath}\"",
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            },
+            EnableRaisingEvents = true
+        };
+
+        var tcs = new TaskCompletionSource<int>();
+
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                Console.WriteLine(e.Data);
+            }
+        };
+
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                Console.WriteLine(e.Data);
+            }
+        };
+
+        process.Exited += (_, _) =>
+        {
+            tcs.TrySetResult(process.ExitCode);
+        };
+
+        process.Start();
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        var exitCode = await tcs.Task;
+
+        if (exitCode != 0)
+        {
+            throw new Exception(
+                $"heif-convert failed: {exitCode}");
         }
     }
 

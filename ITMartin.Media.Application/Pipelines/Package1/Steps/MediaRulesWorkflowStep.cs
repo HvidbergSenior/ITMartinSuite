@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Application.Pipelines.Package1.Models;
+﻿using System.Linq;
+using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -66,6 +67,30 @@ public sealed class MediaRulesWorkflowStep
 
     private static readonly string[] MemeKeywords =
         ["fb_img_", "received_", "tumblr_", "meme", "funny_", "ifunny"];
+
+    // iPhone/iPad/Android screenshots are named IMG_XXXX with no keyword, so they can only be
+    // caught by exact device resolution. This runs later, from MetadataWorkflowStep, once
+    // Width/Height are known — ClassifyImageSubCategory below only has the filename to go on.
+    private static readonly (int W, int H)[] ScreenshotResolutions =
+    [
+        (1920, 1080), (1080, 1920),
+        (2560, 1440), (1440, 2560),
+        (2560, 1600), (1600, 2560),
+        (3840, 2160), (2160, 3840),
+        (1280, 800),  (800, 1280),
+        (1366, 768),  (768, 1366),
+        (2732, 2048), (2048, 2732), // iPad
+        (1170, 2532), (2532, 1170), // iPhone 12/13
+        (1284, 2778), (2778, 1284), // iPhone Pro Max
+        (1080, 2340), (2340, 1080), // Android common
+        (1080, 2400), (2400, 1080),
+    ];
+
+    public static bool IsScreenshotResolution(int? width, int? height)
+    {
+        if (width is null || height is null) return false;
+        return ScreenshotResolutions.Contains((width.Value, height.Value));
+    }
 
     private static void ClassifyImageSubCategory(MediaFile mediaFile)
     {

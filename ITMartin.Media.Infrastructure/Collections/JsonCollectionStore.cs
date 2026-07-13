@@ -1,7 +1,6 @@
 using System.Text.Json;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Entities;
-using Microsoft.Extensions.Configuration;
 
 namespace ITMartin.Media.Infrastructure.Collections;
 
@@ -9,34 +8,26 @@ public sealed class JsonCollectionStore : ICollectionStore
 {
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
-    private readonly string _filePath;
-
-    public JsonCollectionStore(IConfiguration configuration)
+    public async Task<List<MediaCollection>> LoadAsync(string libraryPath)
     {
-        var root = configuration["MediaSettings:LibraryRoot"] ?? ".";
-        _filePath = Path.Combine(root, "collections.json");
-    }
-
-    public async Task<List<MediaCollection>> LoadAsync()
-    {
-        if (!File.Exists(_filePath))
+        var filePath = Path.Combine(libraryPath, "collections.json");
+        if (!File.Exists(filePath))
             return [];
 
-        var json = await File.ReadAllTextAsync(_filePath);
+        var json = await File.ReadAllTextAsync(filePath);
 
         return JsonSerializer.Deserialize<List<MediaCollection>>(json, Options) ?? [];
     }
 
-    public async Task SaveAsync(List<MediaCollection> collections)
+    public async Task SaveAsync(string libraryPath, List<MediaCollection> collections)
     {
+        var filePath = Path.Combine(libraryPath, "collections.json");
         try
         {
-            var dir = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrWhiteSpace(dir))
-                Directory.CreateDirectory(dir);
+            Directory.CreateDirectory(libraryPath);
 
             var json = JsonSerializer.Serialize(collections, Options);
-            await File.WriteAllTextAsync(_filePath, json);
+            await File.WriteAllTextAsync(filePath, json);
         }
         catch (UnauthorizedAccessException) { }
         catch (IOException) { }

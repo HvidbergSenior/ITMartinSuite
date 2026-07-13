@@ -43,6 +43,7 @@ else
 
 @code {
     [Parameter, EditorRequired] public Suggestion Suggestion { get; set; } = null!;
+    [Parameter, EditorRequired] public string RootPath { get; set; } = null!;
     [Parameter] public EventCallback OnApplied   { get; set; }
     [Parameter] public EventCallback OnDismissed { get; set; }
 
@@ -54,7 +55,7 @@ else
 
     private async Task ApplyAsync()
     {
-        var collections = await CollectionStore.LoadAsync();
+        var collections = await CollectionStore.LoadAsync(RootPath);
 
         foreach (var item in Suggestion.RenamePreview)
         {
@@ -78,7 +79,7 @@ else
             }
         }
 
-        await CollectionStore.SaveAsync(collections);
+        await CollectionStore.SaveAsync(RootPath, collections);
         _confirmed = true;
         await OnApplied.InvokeAsync();
     }

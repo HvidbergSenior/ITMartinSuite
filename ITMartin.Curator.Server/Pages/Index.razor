@@ -78,6 +78,7 @@
                             {
                                 case SuggestionType.RenameGeneric:
                                     <RenamePreview Suggestion="s"
+                                                   RootPath="@_root"
                                                    OnApplied="() => OnSuggestionApplied(s)"
                                                    OnDismissed="() => s.IsDismissed = true" />
                                     break;
@@ -99,6 +100,7 @@
                                 case SuggestionType.GroupByDate:
                                     <DateClusterReview Suggestion="s"
                                                        CollectionStore="@CollectionStore"
+                                                       RootPath="@_root"
                                                        OnApplied="() => OnSuggestionApplied(s)"
                                                        OnDismissed="() => s.IsDismissed = true" />
                                     break;

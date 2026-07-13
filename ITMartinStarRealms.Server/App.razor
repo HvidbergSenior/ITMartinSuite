@@ -11,6 +11,27 @@
 <body>
     <Routes />
     <script src="js/starrealms.js?v=@CacheBuster"></script>
+    <script>
+    (function(){
+        var vid = localStorage.getItem('_mid');
+        if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); }
+        function track(path, title, referrer) {
+            fetch('https://stats.itmartin.dk/api/hit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path, title: title, referrer: referrer, visitorId: vid, host: location.hostname }),
+                keepalive: true
+            }).catch(function(){});
+        }
+        track(location.pathname + location.search, document.title, document.referrer);
+        document.addEventListener('click', function(e) {
+            var a = e.target.closest('a');
+            if (!a || !a.href || a.href.startsWith('javascript')) return;
+            var href = a.getAttribute('href') || a.href;
+            track('click:' + href, a.textContent.trim().slice(0, 80), location.pathname);
+        }, true);
+    })();
+    </script>
 </body>
 </html>
 

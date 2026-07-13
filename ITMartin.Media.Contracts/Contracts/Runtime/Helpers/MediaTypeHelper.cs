@@ -25,7 +25,10 @@ public static class MediaTypeHelper
             ".webp",
             ".bmp",
             ".gif",
-            ".tiff"
+            ".tiff",
+            ".heic",
+            ".heif",
+            ".avif"
         ];
 
     private static readonly HashSet<string>

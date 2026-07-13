@@ -126,14 +126,25 @@ public class MediaDateService : IMediaDateService
 
         if (match.Success)
         {
-            return new DateTime(
-                int.Parse(match.Groups["year"].Value),
-                int.Parse(match.Groups["month"].Value),
-                int.Parse(match.Groups["day"].Value),
-                int.Parse(match.Groups["hour"].Value),
-                int.Parse(match.Groups["min"].Value),
-                int.Parse(match.Groups["sec"].Value)
-            );
+            // Filenames matching the pattern aren't guaranteed to hold a real date
+            // (e.g. a Dropbox export "2017-22-03 Referat..." has 22 in the month
+            // position) - the constructor throws on out-of-range values instead of
+            // returning false, and that used to crash the entire library scan.
+            try
+            {
+                return new DateTime(
+                    int.Parse(match.Groups["year"].Value),
+                    int.Parse(match.Groups["month"].Value),
+                    int.Parse(match.Groups["day"].Value),
+                    int.Parse(match.Groups["hour"].Value),
+                    int.Parse(match.Groups["min"].Value),
+                    int.Parse(match.Groups["sec"].Value)
+                );
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // fall through to the next, looser pattern
+            }
         }
 
         match = Regex.Match(
@@ -143,11 +154,18 @@ public class MediaDateService : IMediaDateService
 
         if (match.Success)
         {
-            return new DateTime(
-                int.Parse(match.Groups["year"].Value),
-                int.Parse(match.Groups["month"].Value),
-                int.Parse(match.Groups["day"].Value)
-            );
+            try
+            {
+                return new DateTime(
+                    int.Parse(match.Groups["year"].Value),
+                    int.Parse(match.Groups["month"].Value),
+                    int.Parse(match.Groups["day"].Value)
+                );
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return null;
+            }
         }
 
         return null;

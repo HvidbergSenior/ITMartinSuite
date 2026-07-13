@@ -125,7 +125,7 @@
                 }
 
                 <div class="set-icon-grid">
-                    @foreach (var set in FilteredSets.Take(60))
+                    @foreach (var set in FilteredSets)
                     {
                         <div class="set-tile @(set.SetCode == _selectedSetCode ? "set-tile-selected" : "")"
                              @onclick="() => _selectedSetCode = set.SetCode"
@@ -135,6 +135,7 @@
                                 <img src="@set.IconSvgUri" class="set-tile-icon" width="22" height="22" alt="@set.SetCode" />
                             }
                             <div class="set-tile-code">@set.SetCode.ToUpper()</div>
+                            <div class="set-tile-name">@set.SetName</div>
                         </div>
                     }
                     @if (!FilteredSets.Any())

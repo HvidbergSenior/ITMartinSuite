@@ -1,0 +1,128 @@
+@page "/history"
+
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Contracts.Runtime.Models
+
+@inject IPackageHistoryService HistoryService
+
+<PageLayout Title="📜 Package 1 — Run History">
+
+    <div class="filesorter-app">
+
+        <ContentCard>
+            <p class="hero-text">
+                Every sorting run, with proof of whether every source file was accounted for —
+                exported, marked a duplicate, or logged as failed. A "Mismatch" means some files
+                are unaccounted for and the source shouldn't be treated as safely backed up yet.
+            </p>
+        </ContentCard>
+
+        @if (_runs is null)
+        {
+            <ContentCard><p class="hero-text">Loading…</p></ContentCard>
+        }
+        else if (_runs.Count == 0)
+        {
+            <ContentCard><p class="hero-text">No runs yet.</p></ContentCard>
+        }
+        else
+        {
+            @foreach (var run in _runs)
+            {
+                <ContentCard CssClass="p3-person-row">
+                    <div class="p3-person-header">
+                        <span class="@VerdictClass(run.Verdict)">@VerdictLabel(run.Verdict)</span>
+                        <span class="p2-hint">@run.StartedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                        <span class="p2-hint">@run.Status</span>
+                    </div>
+
+                    <div class="mt-2 p2-hint">
+                        <strong>Source:</strong> @(run.SourcePath ?? "—") &nbsp;→&nbsp;
+                        <strong>Output:</strong> @(run.OutputPath ?? "(default library)")
+                    </div>
+
+                    <div class="p2-config-grid mt-2">
+                        <div class="p2-config-row">
+                            <span class="p2-config-key">Source files</span>
+                            <span class="p2-config-val">@run.SourceFileCount (@FormatBytes(run.SourceSizeBytes))</span>
+                        </div>
+                        <div class="p2-config-row">
+                            <span class="p2-config-key">Exported</span>
+                            <span class="p2-config-val">@run.ExportedFileCount (@FormatBytes(run.ExportedSizeBytes))</span>
+                        </div>
+                        <div class="p2-config-row">
+                            <span class="p2-config-key">Duplicates excluded</span>
+                            <span class="p2-config-val">@run.DuplicateFileCount</span>
+                        </div>
+                        <div class="p2-config-row">
+                            <span class="p2-config-key">Failed / skipped</span>
+                            <span class="p2-config-val">@run.FailedFileCount</span>
+                        </div>
+                    </div>
+
+                    @if (run.SourceSizeBytes > 0 && run.ExportedSizeBytes > 0)
+                    {
+                        var shrink = 100.0 * (run.SourceSizeBytes - run.ExportedSizeBytes) / run.SourceSizeBytes;
+                        if (shrink > 1)
+                        {
+                            <div class="mt-2 p2-hint">
+                                Output is @(Math.Round(shrink, 0))% smaller than source — expected from video
+                                re-encoding and/or duplicate removal, not a sign of lost files (see the file
+                                counts above for that proof instead).
+                            </div>
+                        }
+                    }
+
+                    @if (run.FailedFiles.Count > 0)
+                    {
+                        <details class="mt-2">
+                            <summary class="p2-hint" style="cursor:pointer">@run.FailedFiles.Count failed file(s) — click to see why</summary>
+                            <ul class="mt-2">
+                                @foreach (var f in run.FailedFiles)
+                                {
+                                    <li class="p2-hint">@f.FilePath — @f.Reason</li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                </ContentCard>
+            }
+        }
+
+    </div>
+
+</PageLayout>
+
+@code {
+    private List<PackageRunSummary>? _runs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _runs = await HistoryService.GetRunsAsync();
+    }
+
+    private static string VerdictClass(ReconciliationVerdict v) => v switch
+    {
+        ReconciliationVerdict.Verified => "stage stage-done",
+        ReconciliationVerdict.Mismatch => "stage stage-warn",
+        ReconciliationVerdict.InProgress => "stage stage-running",
+        _ => "stage stage-pending"
+    };
+
+    private static string VerdictLabel(ReconciliationVerdict v) => v switch
+    {
+        ReconciliationVerdict.Verified => "✓ Verified — every file accounted for",
+        ReconciliationVerdict.Mismatch => "⚠ Mismatch — some files unaccounted for",
+        ReconciliationVerdict.InProgress => "… Still running — check back once it finishes",
+        _ => "? Unknown — not enough data to verify"
+    };
+
+    private static string FormatBytes(long bytes)
+    {
+        double b = bytes;
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var i = 0;
+        while (b >= 1024 && i < units.Length - 1) { b /= 1024; i++; }
+        return $"{b:0.#} {units[i]}";
+    }
+}

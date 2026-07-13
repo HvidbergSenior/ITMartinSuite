@@ -194,7 +194,7 @@
 
     private async Task LoadCollectionsAsync()
     {
-        _collections = await CollectionStore.LoadAsync();
+        _collections = await CollectionStore.LoadAsync(_root);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -271,7 +271,7 @@
                 var idx = col.FilePaths.IndexOf(file.Path);
                 if (idx >= 0) col.FilePaths[idx] = newPath;
             }
-            _ = CollectionStore.SaveAsync(_collections);
+            _ = CollectionStore.SaveAsync(_root, _collections);
 
             file.Path         = newPath;
             file.Name         = newName;
@@ -342,7 +342,7 @@
                 var i = col.FilePaths.IndexOf(file.Path);
                 if (i >= 0) col.FilePaths[i] = newPath;
             }
-            _ = CollectionStore.SaveAsync(_collections);
+            _ = CollectionStore.SaveAsync(_root, _collections);
 
             _files.Remove(file);
             _preview = null;

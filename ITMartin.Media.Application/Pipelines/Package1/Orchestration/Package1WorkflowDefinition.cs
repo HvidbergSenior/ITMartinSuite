@@ -17,6 +17,7 @@ public sealed class Package1WorkflowDefinition
         DvdJoinWorkflowStep dvdJoinWorkflowStep,
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
         MediaRulesWorkflowStep mediaRulesWorkflowStep,
+        LivePhotoDetectionWorkflowStep livePhotoDetectionWorkflowStep,
         HashWorkflowStep hashWorkflowStep,
         MetadataWorkflowStep metadataWorkflowStep,
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
@@ -37,6 +38,8 @@ public sealed class Package1WorkflowDefinition
             fileDiscoveryWorkflowStep,
 
             mediaRulesWorkflowStep,
+
+            livePhotoDetectionWorkflowStep,
 
             hashWorkflowStep,
 

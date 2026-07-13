@@ -15,6 +15,7 @@
         Clip,
         ScreenRecording,
         PhoneVideo,
+        LivePhotoVideo,
         OtherVideo,
         UnknownVideo,
 

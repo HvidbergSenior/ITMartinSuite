@@ -2,22 +2,19 @@
 <html lang="da">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0d1117" />
-    <link rel="manifest" href="/manifest.json" />
-    <title>Magazine Search</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>PDF-værktøj – ITMartin</title>
     <base href="/" />
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="css/app.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="ITMartinPdf.Server.styles.css" />
 </head>
 <body>
     <Routes />
-    <script src="_framework/blazor.server.js"></script>
-    <div id="components-reconnect-modal">
-        <span class="reconnect-msg">Reconnecting...</span>
-        <span class="reconnect-failed-msg">Connection lost — <button onclick="location.reload()">Reload</button></span>
-    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    </script>
+    <script src="js/pdf-app.js?v=@CacheBuster"></script>
     <script>
     (function(){
         var vid = localStorage.getItem('_mid');
@@ -41,3 +38,7 @@
     </script>
 </body>
 </html>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

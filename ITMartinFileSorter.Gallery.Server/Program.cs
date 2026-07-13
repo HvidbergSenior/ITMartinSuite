@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ITMartin.Media.Contracts.Entities;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 
@@ -140,12 +142,13 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
             var wp  = Web(f, r, g.Slug);
             return new
             {
-                name    = Path.GetFileName(f),
-                relPath = Rel(f, r),
-                webPath = wp,
-                thumb   = IsImg(ext) ? (Thumb(f, r, g.Slug) ?? wp) : (string?)null,
-                isVideo = IsVid(ext),
-                isAudio = IsAud(ext),
+                name      = Path.GetFileName(f),
+                relPath   = Rel(f, r),
+                webPath   = wp,
+                thumb     = IsImg(ext) ? (Thumb(f, r, g.Slug) ?? wp) : (string?)null,
+                isVideo   = IsVid(ext),
+                isAudio   = IsAud(ext),
+                liveVideo = FindLivePhotoVideo(f, r, g.Slug),
             };
         })
         .ToList();
@@ -225,11 +228,70 @@ app.MapGet("/api/playlist", (string gallery, string folder, HttpContext ctx) =>
             var ext = Ext(f);
             return new
             {
-                name    = Path.GetFileName(f),
-                relPath = Rel(f, r),
-                webPath = Web(f, r, g.Slug),
-                isVideo = IsVid(ext),
-                isAudio = IsAud(ext),
+                name      = Path.GetFileName(f),
+                relPath   = Rel(f, r),
+                webPath   = Web(f, r, g.Slug),
+                isVideo   = IsVid(ext),
+                isAudio   = IsAud(ext),
+                liveVideo = FindLivePhotoVideo(f, r, g.Slug),
+            };
+        })
+        .ToList();
+
+    return Results.Ok(new { files });
+});
+
+app.MapGet("/api/collections", (string gallery, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    if (g is null) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
+    var list = LoadCollections(g.Path);
+
+    var summaries = list
+        .Where(c => c.FilePaths.Count > 0)
+        .Select(c => new
+        {
+            name      = c.Name,
+            fileCount = c.FilePaths.Count,
+            cover     = c.FilePaths.Select(f => TryWeb(f, g.Path, g.Slug)).FirstOrDefault(w => w is not null),
+        })
+        .OrderByDescending(c => c.fileCount)
+        .ToList();
+
+    return Results.Ok(new { collections = summaries });
+});
+
+app.MapGet("/api/collections/files", (string gallery, string name, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    if (g is null) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
+    var list = LoadCollections(g.Path);
+    var col = list.FirstOrDefault(c => c.Name == name);
+    if (col is null) return Results.NotFound();
+
+    var files = col.FilePaths
+        .Where(f => File.Exists(f) && IsSafe(f, g.Path))
+        .Select(f =>
+        {
+            var ext = Ext(f);
+            var wp  = Web(f, g.Path, g.Slug);
+            return new
+            {
+                name      = Path.GetFileName(f),
+                relPath   = Rel(f, g.Path),
+                webPath   = wp,
+                thumb     = IsImg(ext) ? (Thumb(f, g.Path, g.Slug) ?? wp) : (string?)null,
+                isVideo   = IsVid(ext),
+                isAudio   = IsAud(ext),
+                liveVideo = FindLivePhotoVideo(f, g.Path, g.Slug),
             };
         })
         .ToList();
@@ -258,6 +320,31 @@ static string? Thumb(string f, string r, string slug)
     return File.Exists(t) ? Web(t, r, slug) : null;
 }
 
+// The still and its Live Photo motion clip are exported into separate
+// top-level folders (Images/ vs LivePhotos/) by Package1, connected only by
+// matching Year/Month/filename - there's no explicit link stored anywhere.
+// This reconstructs that link at read time, same idea as Package1's own
+// LivePhotoDetectionWorkflowStep pairing logic, just applied on already-organized output.
+static string? FindLivePhotoVideo(string imagePath, string r, string slug)
+{
+    if (!IsImg(Ext(imagePath))) return null;
+
+    var rel = Rel(imagePath, r);
+    if (!rel.StartsWith("Images/", StringComparison.OrdinalIgnoreCase)) return null;
+
+    var withoutExt   = Path.ChangeExtension(rel, null) ?? rel;
+    var livePhotoRel = "LivePhotos" + withoutExt["Images".Length..];
+
+    foreach (var vidExt in new[] { ".mp4", ".mov" })
+    {
+        var candidate = Path.Combine(r, livePhotoRel + vidExt);
+        if (File.Exists(candidate))
+            return Web(candidate, r, slug);
+    }
+
+    return null;
+}
+
 static string? FolderCover(string dir, string r, string slug)
 {
     var td = Path.Combine(dir, "thumbnails");
@@ -269,6 +356,24 @@ static string? FolderCover(string dir, string r, string slug)
     var img = Directory.EnumerateFiles(dir).FirstOrDefault(f => IsImg(Ext(f)));
     return img is not null ? Web(img, r, slug) : null;
 }
+
+static List<MediaCollection> LoadCollections(string libraryPath)
+{
+    var path = Path.Combine(libraryPath, "collections.json");
+    if (!File.Exists(path)) return [];
+    try
+    {
+        var json = File.ReadAllText(path);
+        return JsonSerializer.Deserialize<List<MediaCollection>>(json) ?? [];
+    }
+    catch (JsonException)
+    {
+        return [];
+    }
+}
+
+static string? TryWeb(string f, string r, string slug) =>
+    File.Exists(f) && IsSafe(f, r) ? Web(f, r, slug) : null;
 
 record GalleryDef(string Slug, string Name, string Path, string? Password);
 record LoginRequest(string Gallery, string Password);

@@ -1,0 +1,193 @@
+@page "/"
+
+<div id="page-data" data-page="home" style="display:none"></div>
+
+<div id="p-app" class="app-wrap" style="display:none">
+
+    <header class="app-header">
+        <div class="app-title"><span>📄</span> PDF-værktøj</div>
+        <div class="app-sub">Hurtige PDF-opgaver — opret, flet, udfyld, signér</div>
+    </header>
+
+    <ProblemPurposeBanner
+        Problem="At udfylde, underskrive, samle eller lave PDF'er kræver som regel at uploade dine dokumenter til en tilfældig gratis-side på nettet — du ved hverken hvem der driver den, eller hvad der sker med dine oplysninger bagefter."
+        Formaal="Ét sted at oprette, samle, dele op, rotere og udfylde PDF'er — uden at sende dine papirer ud til fremmede." />
+
+    <HowToUseBanner Steps="@(new[] {
+        "Vælg det værktøj du har brug for foroven — opret et nyt dokument, saml billeder til én PDF, organisér sider, udfyld & signér, eller udfyld en formular.",
+        "Skal du underskrive eller udfylde noget: klik direkte på siden hvor teksten, datoen eller signaturen skal stå — du ser præcis hvor den lander, før du gemmer.",
+        "Resultatet lander i listen nedenfor i 24 timer — hent de filer du skal bruge, resten forsvinder af sig selv, uden at du behøver rydde op."
+    })" />
+
+    <nav class="mode-tabs">
+        <button class="mode-tab active" data-mode="create" onclick="pdfApp.showMode('create')">📝 Opret</button>
+        <button class="mode-tab" data-mode="images" onclick="pdfApp.showMode('images')">🖼️ Billeder → PDF</button>
+        <button class="mode-tab" data-mode="organize" onclick="pdfApp.showMode('organize')">📎 Organisér sider</button>
+        <button class="mode-tab" data-mode="sign" onclick="pdfApp.showMode('sign')">✍️ Udfyld & signér</button>
+        <button class="mode-tab" data-mode="form" onclick="pdfApp.showMode('form')">📋 Udfyld formular</button>
+    </nav>
+
+    <main class="app-body">
+
+        <!-- ═══ CREATE ═══ -->
+        <section class="mode-panel" id="mode-create">
+            <div class="panel-card">
+                <label class="field-label">Dine noter</label>
+                <textarea id="c-notes" class="field-textarea" rows="6" placeholder="Skriv løst — punkter, stikord, en hel tekst. Lad AI'en rydde op, eller skriv direkte i felterne nedenfor."></textarea>
+                <button class="btn btn-ghost" onclick="pdfApp.draftWithAi()" id="c-draft-btn">🤖 Forbedre med AI</button>
+
+                <label class="field-label" style="margin-top:16px">Titel</label>
+                <input id="c-title" class="field-input" placeholder="Dokumenttitel" />
+                <label class="field-label">Indhold</label>
+                <textarea id="c-body" class="field-textarea" rows="10" placeholder="Brødtekst — brug en tom linje mellem afsnit"></textarea>
+
+                <button class="btn btn-primary" onclick="pdfApp.createPdf()">📄 Generér PDF</button>
+            </div>
+        </section>
+
+        <!-- ═══ IMAGES -> PDF ═══ -->
+        <section class="mode-panel" id="mode-images" style="display:none">
+            <div class="panel-card">
+                <p class="panel-hint">Vælg et eller flere billeder — hvert billede bliver én side, i den rækkefølge du vælger dem.</p>
+                <label class="btn-file">
+                    📷 Vælg billeder
+                    <input type="file" id="img-files" accept="image/*" multiple style="display:none" onchange="pdfApp.onImagesSelected()" />
+                </label>
+                <div id="img-list" class="file-chip-list"></div>
+                <button class="btn btn-primary" onclick="pdfApp.imagesToPdf()" disabled id="img-run-btn">📄 Lav PDF af billeder</button>
+            </div>
+        </section>
+
+        <!-- ═══ ORGANIZE (merge/split/rotate) ═══ -->
+        <section class="mode-panel" id="mode-organize" style="display:none">
+            <div class="panel-card">
+                <div class="sub-tabs">
+                    <button class="sub-tab active" data-sub="merge" onclick="pdfApp.showSub('organize', 'merge')">Flet filer</button>
+                    <button class="sub-tab" data-sub="split" onclick="pdfApp.showSub('organize', 'split')">Del fil</button>
+                    <button class="sub-tab" data-sub="rotate" onclick="pdfApp.showSub('organize', 'rotate')">Rotér sider</button>
+                </div>
+
+                <div class="sub-panel" id="organize-merge">
+                    <p class="panel-hint">Vælg flere PDF'er — de flettes i den rækkefølge, du vælger dem.</p>
+                    <label class="btn-file">
+                        📎 Vælg PDF'er
+                        <input type="file" id="merge-files" accept="application/pdf" multiple style="display:none" onchange="pdfApp.onMergeFilesSelected()" />
+                    </label>
+                    <div id="merge-list" class="file-chip-list"></div>
+                    <button class="btn btn-primary" onclick="pdfApp.mergePdfs()" disabled id="merge-run-btn">📎 Flet filer</button>
+                </div>
+
+                <div class="sub-panel" id="organize-split" style="display:none">
+                    <label class="btn-file">
+                        📄 Vælg PDF
+                        <input type="file" id="split-file" accept="application/pdf" style="display:none" onchange="pdfApp.onSplitFileSelected()" />
+                    </label>
+                    <div id="split-filename" class="file-chip-list"></div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Fra side</label>
+                            <input id="split-from" class="field-input" type="number" min="1" value="1" />
+                        </div>
+                        <div>
+                            <label class="field-label">Til side</label>
+                            <input id="split-to" class="field-input" type="number" min="1" value="1" />
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="pdfApp.splitPdf()" disabled id="split-run-btn">✂️ Udtræk sider</button>
+                </div>
+
+                <div class="sub-panel" id="organize-rotate" style="display:none">
+                    <label class="btn-file">
+                        📄 Vælg PDF
+                        <input type="file" id="rotate-file" accept="application/pdf" style="display:none" onchange="pdfApp.onRotateFileSelected()" />
+                    </label>
+                    <div id="rotate-filename" class="file-chip-list"></div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Side (0 = alle)</label>
+                            <input id="rotate-page" class="field-input" type="number" min="0" value="0" />
+                        </div>
+                        <div>
+                            <label class="field-label">Grader</label>
+                            <select id="rotate-degrees" class="field-input">
+                                <option value="90">90°</option>
+                                <option value="180">180°</option>
+                                <option value="270">270°</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="pdfApp.rotatePdf()" disabled id="rotate-run-btn">🔄 Rotér</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ FILL & SIGN ═══ -->
+        <section class="mode-panel" id="mode-sign" style="display:none">
+            <div class="panel-card">
+                <p class="panel-hint">Vælg en PDF, klik hvor du vil skrive eller sætte din signatur, tilføj så mange du vil, download til sidst.</p>
+                <label class="btn-file">
+                    📄 Vælg PDF
+                    <input type="file" id="sign-file" accept="application/pdf" style="display:none" onchange="pdfApp.onSignFileSelected()" />
+                </label>
+
+                <div id="sign-workspace" style="display:none">
+                    <div class="sign-toolbar">
+                        <button class="btn btn-ghost" id="sign-mode-text" onclick="pdfApp.setSignTool('text')">🖊️ Tekst</button>
+                        <button class="btn btn-ghost" id="sign-mode-draw" onclick="pdfApp.setSignTool('draw')">✍️ Tegn signatur</button>
+                        <span class="sign-page-nav">
+                            <button class="btn-icon" onclick="pdfApp.signPrevPage()">←</button>
+                            <span id="sign-page-label">Side 1</span>
+                            <button class="btn-icon" onclick="pdfApp.signNextPage()">→</button>
+                        </span>
+                    </div>
+
+                    <div id="sign-text-input" class="sign-text-box" style="display:none">
+                        <input id="sign-text-value" class="field-input" placeholder="Tekst der skal placeres — klik derefter på siden" />
+                    </div>
+                    <div id="sign-draw-pad" class="sign-draw-box" style="display:none">
+                        <canvas id="sign-draw-canvas" width="400" height="150"></canvas>
+                        <div class="sign-draw-actions">
+                            <button class="btn btn-ghost" onclick="pdfApp.clearSignature()">Ryd</button>
+                            <button class="btn btn-ghost" onclick="pdfApp.useSignature()">Brug denne — klik derefter på siden</button>
+                        </div>
+                    </div>
+
+                    <div class="sign-canvas-wrap">
+                        <canvas id="sign-canvas" onclick="pdfApp.onSignCanvasClick(event)"></canvas>
+                    </div>
+
+                    <div id="sign-placed-list" class="file-chip-list"></div>
+                    <button class="btn btn-primary" onclick="pdfApp.saveSignedPdf()" id="sign-run-btn" disabled>💾 Gem PDF</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ FILL FORM ═══ -->
+        <section class="mode-panel" id="mode-form" style="display:none">
+            <div class="panel-card">
+                <p class="panel-hint">Til PDF'er med rigtige udfyldelige formularfelter (fra det offentlige, banker, osv.).</p>
+                <label class="btn-file">
+                    📋 Vælg PDF med formular
+                    <input type="file" id="form-file" accept="application/pdf" style="display:none" onchange="pdfApp.onFormFileSelected()" />
+                </label>
+                <div id="form-fields-list"></div>
+                <div class="form-check" id="form-flatten-row" style="display:none">
+                    <input type="checkbox" id="form-flatten" />
+                    <label for="form-flatten">Lås felterne efter udfyldning (kan ikke redigeres bagefter)</label>
+                </div>
+                <button class="btn btn-primary" onclick="pdfApp.fillForm()" id="form-run-btn" style="display:none">💾 Gem udfyldt PDF</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ═══ RESULTS GALLERY ═══ -->
+    <section class="results-section">
+        <div class="results-header">
+            <span>📥 Resultater</span>
+            <span class="results-hint">Gemmes i 24 timer, download det du skal bruge</span>
+        </div>
+        <div id="results-list" class="results-list"></div>
+    </section>
+
+</div>

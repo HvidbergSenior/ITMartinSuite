@@ -48,6 +48,17 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .folder-info{padding:8px 10px}
 .folder-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* Collections row */
+.collection-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px;scrollbar-width:none}
+.collection-row::-webkit-scrollbar{display:none}
+.collection-card{flex:0 0 128px;background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.collection-card:active{border-color:#8b5cf6}
+.collection-cover{width:128px;height:128px;object-fit:cover;background:#0a0d14;display:flex;align-items:center;justify-content:center;font-size:32px;color:#374151}
+.collection-cover img{width:100%;height:100%;object-fit:cover}
+.collection-info{padding:8px 10px}
+.collection-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.collection-count{font-size:11px;color:#6b7280;margin-top:1px}
+
 /* File grid */
 .file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
 .file-card{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#111827}
@@ -56,6 +67,8 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .file-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px}
 .vid-overlay{background:rgba(0,0,0,.4)}
 .file-tv{position:absolute;top:5px;right:5px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:13px;cursor:pointer;z-index:2;text-decoration:none;line-height:1.5}
+.file-live-badge{position:absolute;top:5px;left:5px;background:rgba(0,0,0,.65);color:#fff;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:800;letter-spacing:.03em;z-index:2;display:flex;align-items:center;gap:3px;pointer-events:none}
+.file-live-badge .dot{width:6px;height:6px;border-radius:50%;background:#fbbf24}
 
 /* Empty */
 .empty{text-align:center;padding:60px 20px;color:#4b5563;font-size:15px}
@@ -82,6 +95,9 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .v-btn{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer}
 .v-stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .v-media{max-width:100%;max-height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
+.v-live-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:999px;display:flex;align-items:center;gap:6px;pointer-events:none;z-index:5;transition:opacity .15s}
+.v-live-hint .dot{width:7px;height:7px;border-radius:50%;background:#fbbf24}
+.v-live-hint.playing{opacity:0}
 .v-audio-bg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#9ca3af}
 .v-audio-icon{font-size:64px}
 .v-zone{position:absolute;top:0;bottom:0;width:40%;cursor:pointer}
@@ -113,6 +129,10 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
         <div class="summary-title">Din samling er klar!</div>
         <div class="summary-sub" id="summaryDates"></div>
         <div class="summary-stats" id="summaryStats"></div>
+      </div>
+      <div id="collectionsSection" style="display:none">
+        <div class="section-label">Samlinger</div>
+        <div class="collection-row" id="collectionRow"></div>
       </div>
       <div id="folderSection">
         <div class="section-label">Mapper</div>
@@ -166,6 +186,9 @@ let playIdx        = 0;
 let pendingSlug    = null;
 let pendingName    = null;
 let summaryData    = null;
+let collectionsData    = null;
+let viewingCollection  = null;
+let galleryDisplayName = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadGalleries();
@@ -174,6 +197,8 @@ loadGalleries();
 async function loadGalleries() {
   currentGallery = null;
   summaryData    = null;
+  collectionsData    = null;
+  viewingCollection  = null;
   const res = await fetch('/api/galleries');
   if (!res.ok) return;
   const list = await res.json();
@@ -204,6 +229,7 @@ async function selectGallery(slug, name) {
   }
   if (!res.ok) return;
   currentGallery = slug;
+  galleryDisplayName = name;
   document.getElementById('galleryPicker').style.display = 'none';
   document.getElementById('fileBrowser').style.display   = '';
   document.getElementById('btnLogout').style.display     = '';
@@ -211,6 +237,7 @@ async function selectGallery(slug, name) {
   parentRelPath = data.parentRelPath;
   renderBrowse(data, name);
   loadSummary(slug);
+  loadCollections(slug);
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────
@@ -247,11 +274,13 @@ async function doLogin() {
     const slug = pendingSlug, name = pendingName;
     hideLogin();
     currentGallery = slug;
+    galleryDisplayName = name;
     document.getElementById('galleryPicker').style.display = 'none';
     document.getElementById('fileBrowser').style.display   = '';
     document.getElementById('btnLogout').style.display     = '';
     await loadBrowse('', name);
     loadSummary(slug);
+    loadCollections(slug);
   } else {
     err.textContent = 'Forkert adgangskode';
     document.getElementById('loginInput').select();
@@ -269,6 +298,8 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
 // ── Browse ────────────────────────────────────────────────────────────────────
 async function loadBrowse(relPath, galleryName) {
   if (!currentGallery) return;
+  viewingCollection = null;
+  document.getElementById('folderSection').style.display = '';
   currentRelPath = relPath ?? '';
   const url = `/api/browse?gallery=${encodeURIComponent(currentGallery)}` +
               (relPath ? `&path=${encodeURIComponent(relPath)}` : '');
@@ -308,6 +339,16 @@ function renderBrowse(data, galleryName) {
     fs.style.display = 'none';
   }
 
+  renderFileGrid(files);
+
+  document.getElementById('collectionsSection').style.display =
+    (atRoot && !viewingCollection && collectionsData && collectionsData.length) ? '' : 'none';
+
+  document.getElementById('emptyState').style.display =
+    (!folders.length && !files.length) ? '' : 'none';
+}
+
+function renderFileGrid(files) {
   const fg2 = document.getElementById('fileGrid');
   const fs2 = document.getElementById('fileSection');
   if (files.length) {
@@ -325,6 +366,7 @@ function renderBrowse(data, galleryName) {
         </div>`;
       return `
         <div class="file-card" onclick="openViewer(${i})">
+          ${f.liveVideo ? '<div class="file-live-badge"><span class="dot"></span>LIVE</div>' : ''}
           <img class="file-thumb" src="${esc(f.thumb ?? f.webPath)}" loading="lazy"
                onerror="this.style.display='none';this.parentElement.querySelector('.file-overlay')||this.insertAdjacentHTML('afterend','<div class=file-overlay>🖼️</div>')" alt="">
         </div>`;
@@ -333,9 +375,52 @@ function renderBrowse(data, galleryName) {
   } else {
     fs2.style.display = 'none';
   }
+}
 
-  document.getElementById('emptyState').style.display =
-    (!folders.length && !files.length) ? '' : 'none';
+// ── Collections (Package3: person/trip albums) ───────────────────────────────
+async function loadCollections(slug) {
+  collectionsData = null;
+  const res = await fetch(`/api/collections?gallery=${encodeURIComponent(slug)}`);
+  if (!res.ok) return;
+  const data = await res.json();
+  collectionsData = data.collections || [];
+  renderCollections();
+  if (currentRelPath === '' && !viewingCollection) {
+    document.getElementById('collectionsSection').style.display = collectionsData.length ? '' : 'none';
+  }
+}
+
+function renderCollections() {
+  if (!collectionsData) return;
+  const row = document.getElementById('collectionRow');
+  row.innerHTML = collectionsData.map(c => `
+    <div class="collection-card" onclick="openCollection('${esc(c.name)}')">
+      <div class="collection-cover">
+        ${c.cover ? `<img src="${esc(c.cover)}" loading="lazy" onerror="this.parentElement.innerHTML='🗂️'" alt="">` : '🗂️'}
+      </div>
+      <div class="collection-info">
+        <div class="collection-name">${esc(c.name)}</div>
+        <div class="collection-count">${c.fileCount} filer</div>
+      </div>
+    </div>`).join('');
+}
+
+async function openCollection(name) {
+  const url = `/api/collections/files?gallery=${encodeURIComponent(currentGallery)}&name=${encodeURIComponent(name)}`;
+  const res = await fetch(url);
+  if (!res.ok) return;
+  const data = await res.json();
+
+  viewingCollection = name;
+  document.getElementById('hdrTitle').textContent      = name;
+  document.getElementById('btnGalleries').style.display = '';
+  document.getElementById('btnBack').style.display      = '';
+  document.getElementById('summaryCard').style.display  = 'none';
+  document.getElementById('collectionsSection').style.display = 'none';
+  document.getElementById('folderSection').style.display = 'none';
+
+  renderFileGrid(data.files);
+  document.getElementById('emptyState').style.display = data.files.length ? 'none' : '';
 }
 
 // ── Welcome summary ───────────────────────────────────────────────────────────
@@ -437,10 +522,66 @@ function renderViewer() {
     el.className = 'v-media';
     el.alt       = f.name;
     el.src       = f.webPath;
-    el.onclick   = () => viewerNav(1);
+    el.onclick   = () => { if (!_liveJustPlayed) viewerNav(1); };
   }
 
   stage.insertBefore(el, stage.querySelector('.v-zone.left'));
+
+  const oldHint = stage.querySelector('.v-live-hint');
+  if (oldHint) oldHint.remove();
+
+  if (!f.isVideo && !f.isAudio && f.liveVideo) {
+    setupLivePhoto(el, f.liveVideo, stage);
+  }
+}
+
+// ── Live Photo press-and-hold ─────────────────────────────────────────────────
+let _liveHoldTimer = null;
+let _liveJustPlayed = false;
+
+function setupLivePhoto(imgEl, videoUrl, stage) {
+  const hint = document.createElement('div');
+  hint.className = 'v-live-hint';
+  hint.innerHTML = '<span class="dot"></span>Hold for at afspille';
+  stage.appendChild(hint);
+
+  let videoEl = null;
+
+  const start = (e) => {
+    if (e.cancelable) e.preventDefault();
+    _liveHoldTimer = setTimeout(() => {
+      videoEl = document.createElement('video');
+      videoEl.className   = 'v-media';
+      videoEl.autoplay    = true;
+      videoEl.loop        = true;
+      videoEl.muted       = false;
+      videoEl.playsinline = true;
+      videoEl.src         = videoUrl;
+      imgEl.style.display = 'none';
+      hint.classList.add('playing');
+      stage.insertBefore(videoEl, stage.querySelector('.v-zone.left'));
+      _liveJustPlayed = true;
+    }, 220);
+  };
+
+  const stop = () => {
+    clearTimeout(_liveHoldTimer);
+    if (videoEl) {
+      videoEl.pause();
+      videoEl.remove();
+      videoEl = null;
+      imgEl.style.display = '';
+      hint.classList.remove('playing');
+      setTimeout(() => { _liveJustPlayed = false; }, 50);
+    }
+  };
+
+  imgEl.addEventListener('mousedown', start);
+  imgEl.addEventListener('touchstart', start, { passive: false });
+  imgEl.addEventListener('mouseup', stop);
+  imgEl.addEventListener('mouseleave', stop);
+  imgEl.addEventListener('touchend', stop);
+  imgEl.addEventListener('touchcancel', stop);
 }
 
 function viewerNav(delta) {
@@ -459,7 +600,15 @@ function onKey(e) {
 }
 
 // ── Navigation buttons ────────────────────────────────────────────────────────
-document.getElementById('btnBack').addEventListener('click', () => loadBrowse(parentRelPath ?? ''));
+document.getElementById('btnBack').addEventListener('click', () => {
+  if (viewingCollection) {
+    viewingCollection = null;
+    document.getElementById('folderSection').style.display = '';
+    loadBrowse('', galleryDisplayName);
+    return;
+  }
+  loadBrowse(parentRelPath ?? '');
+});
 document.getElementById('btnGalleries').addEventListener('click', () => loadGalleries());
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

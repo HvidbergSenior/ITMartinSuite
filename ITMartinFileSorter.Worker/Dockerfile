@@ -19,6 +19,7 @@ RUN apt-get update && \
         ffmpeg \
         libgl1 \
         libglib2.0-0 \
+        libheif-examples \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .

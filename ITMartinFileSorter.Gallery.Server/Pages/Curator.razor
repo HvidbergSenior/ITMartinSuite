@@ -305,7 +305,7 @@
 
     private async Task LoadCollectionsAsync()
     {
-        Collections = await CollectionStore.LoadAsync();
+        Collections = await CollectionStore.LoadAsync(RootPath);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -486,7 +486,7 @@
                 if (idx >= 0) col.FilePaths[idx] = newPath;
             }
 
-            _ = CollectionStore.SaveAsync(Collections);
+            _ = CollectionStore.SaveAsync(RootPath, Collections);
 
             file.Path = newPath;
             file.Name = newName;
@@ -522,7 +522,7 @@
         ActiveCollectionId = col.Id;
         NewCollectionName = "";
 
-        await CollectionStore.SaveAsync(Collections);
+        await CollectionStore.SaveAsync(RootPath, Collections);
     }
 
     private void OnNewCollectionKey(KeyboardEventArgs e)
@@ -544,13 +544,13 @@
         }
 
         SelectedPaths.Clear();
-        await CollectionStore.SaveAsync(Collections);
+        await CollectionStore.SaveAsync(RootPath, Collections);
     }
 
     private async Task RemoveFromCollection(string filePath)
     {
         ActiveCollection?.FilePaths.Remove(filePath);
-        await CollectionStore.SaveAsync(Collections);
+        await CollectionStore.SaveAsync(RootPath, Collections);
     }
 
     private async Task DeleteCollection(MediaCollection col)
@@ -560,7 +560,7 @@
         if (ActiveCollectionId == col.Id)
             ActiveCollectionId = null;
 
-        await CollectionStore.SaveAsync(Collections);
+        await CollectionStore.SaveAsync(RootPath, Collections);
     }
 
     // ---- VIEW MODELS ----
