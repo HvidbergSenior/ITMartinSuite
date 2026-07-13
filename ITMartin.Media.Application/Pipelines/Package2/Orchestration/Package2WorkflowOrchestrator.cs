@@ -52,7 +52,7 @@ public sealed class Package2WorkflowOrchestrator
         {
             "@eadir", "#recycle", "#snapshot", ".@__thumb",
             "@recently-snapshot", ".synophoto", ".package1", ".package2",
-            "thumbnails", "working", "enhanced", "manifests", "temp"
+            "thumbnails", "working", "enhanced", "manifests", "temp", "smartfolders"
         };
 
     private static Package1Manifest ScanLibraryFolder(string libraryPath)

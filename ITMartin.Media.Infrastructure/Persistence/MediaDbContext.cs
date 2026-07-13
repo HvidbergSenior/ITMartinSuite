@@ -31,7 +31,16 @@ public sealed class MediaDbContext
     public DbSet<Package2ManifestEntity>
         Package2Manifests
         => Set<Package2ManifestEntity>();
-    
+
+    public DbSet<PersonEntity> People
+        => Set<PersonEntity>();
+    public DbSet<PersonReferencePhotoEntity> PersonReferencePhotos
+        => Set<PersonReferencePhotoEntity>();
+    public DbSet<MediaFaceEntity> MediaFaces
+        => Set<MediaFaceEntity>();
+    public DbSet<Package3IndexStatusEntity> Package3IndexStatuses
+        => Set<Package3IndexStatusEntity>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -98,5 +107,25 @@ public sealed class MediaDbContext
         modelBuilder.Entity<WorkflowCheckpointEntity>()
             .Property(x => x.Status)
             .IsRequired();
+
+        modelBuilder.Entity<PersonEntity>()
+            .HasKey(x => x.Id);
+
+        modelBuilder.Entity<PersonReferencePhotoEntity>()
+            .HasKey(x => x.Id);
+        modelBuilder.Entity<PersonReferencePhotoEntity>()
+            .HasIndex(x => x.PersonId);
+
+        modelBuilder.Entity<MediaFaceEntity>()
+            .HasKey(x => x.Id);
+        modelBuilder.Entity<MediaFaceEntity>()
+            .HasIndex(x => x.MediaFilePath);
+        modelBuilder.Entity<MediaFaceEntity>()
+            .HasIndex(x => x.MatchedPersonId);
+
+        modelBuilder.Entity<Package3IndexStatusEntity>()
+            .HasKey(x => x.Id);
+        modelBuilder.Entity<Package3IndexStatusEntity>()
+            .HasIndex(x => x.LibraryPath);
     }
 }

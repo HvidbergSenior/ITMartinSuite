@@ -11,6 +11,7 @@ using ITMartin.Media.Infrastructure.Events;
 using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Persistence.Repositories;
+using ITMartin.Media.Infrastructure.Pipelines.Package3;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,6 +54,18 @@ public static class FileSorterDependencyInjection
         services.AddSingleton<
             ICollectionStore,
             JsonCollectionStore>();
+
+        services.AddScoped<
+            IPackage3Service,
+            Package3Service>();
+
+        services.AddScoped<
+            ISmartFoldersService,
+            SmartFoldersService>();
+
+        services.AddScoped<
+            IPackageHistoryService,
+            PackageHistoryService>();
 
         services.AddSingleton<
             IEventPublisher,

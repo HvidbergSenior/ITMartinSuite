@@ -5,6 +5,7 @@ using ITMartinFileSorter.Server;
 using ITMartinFileSorter.Server.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -193,6 +194,83 @@ if (!string.IsNullOrWhiteSpace(sourcePath) &&
 // =========================
 
 app.UseAntiforgery();
+
+// TEMP DEBUG - driving the Google Drive Takeout multi-batch job, removed after
+app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage1Client client) =>
+{
+    await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1.StartPackage1Request
+    {
+        SourceLibraryPath = source,
+        WorkingDirectory = System.IO.Path.Combine(source, ".package1"),
+        OutputPath = output,
+        EnableDeduplication = true,
+        EnableAiClassification = false,
+        EnableOcr = false,
+        Profile = "Package1"
+    }, CancellationToken.None);
+    return Results.Ok("started");
+});
+
+// TEMP DEBUG - testing Package3 face indexing end-to-end, removed after
+app.MapPost("/api/debug/p3-index-faces", (string path, IServiceScopeFactory scopeFactory) =>
+{
+    // Own DI scope, independent of this HTTP request's lifetime - same pattern
+    // Package3.razor uses, so the scoped DbContext factory survives the request.
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service>();
+        await service.IndexFacesAsync(path);
+    });
+    return Results.Ok("started");
+});
+app.MapGet("/api/debug/p3-status", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+{
+    var status = await service.GetIndexStatusAsync(path, ITMartin.Media.Contracts.Contracts.Runtime.Models.Package3IndexType.Faces);
+    return Results.Ok(status);
+});
+
+// TEMP DEBUG - SmartFolders (trip/location + person + yearbook), removed after
+app.MapPost("/api/debug/sf-trips", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.GenerateTripFoldersAsync(path)));
+
+app.MapGet("/api/debug/sf-gps-stats", (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IGpsService gps) =>
+{
+    var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
+        .Where(f => !f.Contains("SmartFolders", StringComparison.OrdinalIgnoreCase))
+        .Where(ITMartin.Media.Contracts.Contracts.Runtime.Helpers.MediaTypeHelper.IsImage)
+        .ToList();
+
+    var withGps = 0;
+    var sample = new List<object>();
+    foreach (var f in files)
+    {
+        var coords = gps.GetCoordinates(f);
+        if (coords is not null)
+        {
+            withGps++;
+            if (sample.Count < 10) sample.Add(new { file = f, lat = coords.Value.lat, lng = coords.Value.lng });
+        }
+    }
+
+    return Results.Ok(new { total = files.Count, withGps, sample });
+});
+
+app.MapPost("/api/debug/sf-add-person", async (string path, string name, string referencePhotoPath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+{
+    var bytes = await File.ReadAllBytesAsync(referencePhotoPath);
+    var personId = await service.AddPersonAsync(name, [new(Path.GetFileName(referencePhotoPath), bytes)], path);
+    return Results.Ok(new { personId });
+});
+
+app.MapPost("/api/debug/sf-person", async (string path, Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.GeneratePersonFolderAsync(path, personId)));
+
+app.MapPost("/api/debug/sf-yearbook", async (string path, int year, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.GenerateYearbookAsync(path, year)));
+
+app.MapPost("/api/debug/sf-homeaway", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.GenerateHomeAwayFoldersAsync(path)));
 
 app.MapControllers();
 

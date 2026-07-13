@@ -31,8 +31,16 @@ public static class DependencyInjection
             ClaudeReceiptExtractionService>();
 
         services.AddSingleton<
+            IElBillExtractionService,
+            ClaudeElBillExtractionService>();
+
+        services.AddSingleton<
             IAuthorSimilarityService,
             ClaudeAuthorSimilarityService>();
+
+        services.AddSingleton<
+            IFaceRecognitionService,
+            FaceOnnxRecognitionService>();
 
         return services;
     }

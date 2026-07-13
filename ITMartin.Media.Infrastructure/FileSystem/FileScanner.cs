@@ -20,7 +20,7 @@ public sealed class FileScanner : IFileScanner
     [
         "@eadir", "@eaDir", "#recycle", "#snapshot",
         ".@__thumb", "@recently-snapshot", ".synophoto",
-        ".package1", ".package2", "thumbnails"
+        ".package1", ".package2", "thumbnails", "SmartFolders"
     ];
 
     public IEnumerable<string> EnumerateFiles(
