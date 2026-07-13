@@ -83,6 +83,45 @@ body {
 .ep-chart-legend { display: flex; gap: 1rem; font-size: .75rem; color: var(--muted); margin-top: .5rem; }
 .ep-legend-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .3rem; vertical-align: middle; }
 
+.ep-list-toggle {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: .78rem;
+    font-weight: 600;
+    padding: .6rem 0 0;
+    cursor: pointer;
+    text-align: center;
+}
+.ep-price-list { margin-top: .6rem; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.ep-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: .82rem;
+    padding: .32rem .5rem;
+    border-radius: 6px;
+}
+.ep-price-row--now { outline: 1px solid var(--accent); }
+.ep-price-time { color: var(--text); }
+.ep-price-time .ep-price-estimated-tag { color: var(--muted); font-size: .68rem; margin-left: .35rem; }
+.ep-price-value { font-weight: 700; }
+.ep-price-value--cheap     { color: var(--cheap); }
+.ep-price-value--mid       { color: var(--mid); }
+.ep-price-value--expensive { color: var(--expensive); }
+
+.ep-estimated-note {
+    background: rgba(245, 158, 11, .12);
+    border: 1px solid var(--mid);
+    color: var(--text);
+    border-radius: 10px;
+    padding: .6rem .8rem;
+    font-size: .8rem;
+    margin-bottom: 1rem;
+}
+
 /* ── Run log ── */
 .ep-device-row { display: flex; gap: .5rem; flex-wrap: wrap; }
 .ep-device-btn {

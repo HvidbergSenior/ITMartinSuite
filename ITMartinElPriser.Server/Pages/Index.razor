@@ -21,6 +21,8 @@
         "Efter en uges brug bygger 'Ugentligt mønster' sig selv op, så du kan se hvilke dage og tider der plejer at være billigst."
     })" />
 
+    <div class="ep-estimated-note" id="estimatedNote" style="display:none">⚠️ Kunne ikke hente live priser lige nu — viser estimerede priser baseret på et typisk mønster.</div>
+
     <div class="ep-card">
         <div class="ep-card-title">Bedste tidspunkt</div>
         <div class="ep-duration-row" id="durationRow">
@@ -43,6 +45,8 @@
             <span><span class="ep-legend-dot" style="background:var(--mid)"></span>Middel</span>
             <span><span class="ep-legend-dot" style="background:var(--expensive)"></span>Dyrt</span>
         </div>
+        <button class="ep-list-toggle" id="toggleListBtn">Vis alle priser ▾</button>
+        <div class="ep-price-list" id="priceList" style="display:none"></div>
     </div>
 
     <div class="ep-card">

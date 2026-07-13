@@ -83,6 +83,40 @@ public sealed class PriceHistoryStore
         }
     }
 
+    // Projects the next N hours using the typical price for that (day-of-week,
+    // hour) combo. Used when live data is unavailable - built from real observed
+    // history, so it's a much better guess than a flat/blank fallback.
+    public List<PricePoint> EstimateUpcoming(string priceArea, int hours)
+    {
+        // lock is reentrant on the same thread, so calling GetWeeklyPattern
+        // (which also locks) from in here is safe.
+        lock (_lock)
+        {
+            var pattern = GetWeeklyPattern(priceArea);
+            if (pattern.Count == 0) return [];
+
+            var byKey = pattern.ToDictionary(p => (p.Day, p.Hour), p => p.AvgPriceKrPerKwh);
+            var startHour = DateTime.Now.Date.AddHours(DateTime.Now.Hour);
+
+            var result = new List<PricePoint>();
+            for (var i = 0; i < hours; i++)
+            {
+                var t = startHour.AddHours(i);
+                if (!byKey.TryGetValue((t.DayOfWeek, t.Hour), out var price)) continue;
+
+                result.Add(new PricePoint
+                {
+                    TimeDk = t,
+                    TimeUtc = t.ToUniversalTime(),
+                    PriceKrPerKwh = price,
+                    IsEstimated = true,
+                });
+            }
+
+            return result;
+        }
+    }
+
     public int DaysOfHistory(string priceArea)
     {
         lock (_lock)

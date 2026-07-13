@@ -38,7 +38,7 @@
             const w = await res.json();
             hero.innerHTML = `
                 <div class="ep-rec-headline">Start <span class="ep-time">${fmtDayTime(w.start)}</span></div>
-                <div class="ep-rec-detail">til ${fmtDayTime(w.end)} · ca. ${w.avgPriceKrPerKwh.toFixed(2)} kr/kWh i gennemsnit</div>
+                <div class="ep-rec-detail">til ${fmtDayTime(w.end)} · ca. ${w.avgPriceKrPerKwh.toFixed(2)} kr/kWh i gennemsnit${w.isEstimated ? ' (estimeret)' : ''}</div>
             `;
         } catch {
             hero.innerHTML = '<div class="ep-rec-loading">Kunne ikke hente priser lige nu.</div>';
@@ -82,12 +82,44 @@
         labels.innerHTML = `<span>${fmtTime(first.timeDk)}</span><span>${fmtTime(last.timeDk)}</span>`;
     }
 
+    function renderPriceList(prices) {
+        const list = document.getElementById('priceList');
+        if (prices.length === 0) {
+            list.innerHTML = '<div class="ep-price-row"><span class="ep-price-time">Ingen priser at vise endnu.</span></div>';
+            return;
+        }
+
+        const now = new Date();
+        const upcoming = prices.filter(p => new Date(p.timeDk) >= new Date(now.getTime() - 3600_000));
+        const min = Math.min(...upcoming.map(p => p.priceKrPerKwh));
+        const maxPrice = Math.max(...upcoming.map(p => p.priceKrPerKwh));
+
+        list.innerHTML = upcoming.map(p => {
+            const tier = priceTier(p.priceKrPerKwh, min, maxPrice);
+            const d = new Date(p.timeDk);
+            const isNow = Math.abs(d - now) < 3600_000 && d <= now;
+            return `
+                <div class="ep-price-row${isNow ? ' ep-price-row--now' : ''}">
+                    <span class="ep-price-time">${fmtDayTime(p.timeDk)}${p.isEstimated ? '<span class="ep-price-estimated-tag">estimeret</span>' : ''}</span>
+                    <span class="ep-price-value ep-price-value--${tier}">${p.priceKrPerKwh.toFixed(2)} kr/kWh</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateEstimatedNote(prices) {
+        const note = document.getElementById('estimatedNote');
+        note.style.display = prices.some(p => p.isEstimated) ? 'block' : 'none';
+    }
+
     async function loadPrices() {
         try {
             const res = await fetch(`/api/prices?area=${AREA}`);
             const prices = await res.json();
             priceCache = prices;
             renderChart(prices);
+            renderPriceList(prices);
+            updateEstimatedNote(prices);
         } catch {
             // chart just stays empty; recommendation card already reports the failure
         }
@@ -188,6 +220,13 @@
 
     document.querySelectorAll('.ep-device-btn').forEach(btn => {
         btn.addEventListener('click', () => logRun(btn.dataset.device, parseFloat(btn.dataset.kwh)));
+    });
+
+    document.getElementById('toggleListBtn').addEventListener('click', e => {
+        const list = document.getElementById('priceList');
+        const show = list.style.display === 'none';
+        list.style.display = show ? 'flex' : 'none';
+        e.target.textContent = show ? 'Skjul alle priser ▴' : 'Vis alle priser ▾';
     });
 
     loadRecommendation();
