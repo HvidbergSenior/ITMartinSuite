@@ -68,6 +68,47 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
+// PhysicalFileProvider/StaticFileMiddleware reports a symlink's own (lstat)
+// size rather than its target's - for SmartFolders' symlinked files that means
+// serving a handful of bytes (the length of the target path string) instead of
+// the real photo/video. Resolve and serve those ourselves; everything else
+// (the vast majority - real files) still goes through StaticFileMiddleware below.
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value ?? "";
+    if (!path.StartsWith("/libraryfiles/", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length < 2) { await next(); return; }
+
+    var g = galleries.FirstOrDefault(x => x.Slug == parts[1]);
+    if (g is null) { await next(); return; }
+
+    var relative = string.Join('/', parts.Skip(2));
+    var physicalPath = Path.GetFullPath(Path.Combine(g.Path, relative));
+
+    if (!File.Exists(physicalPath) || new FileInfo(physicalPath).LinkTarget is null)
+    {
+        await next();
+        return;
+    }
+
+    var realFile = File.ResolveLinkTarget(physicalPath, returnFinalTarget: true) as FileInfo;
+    if (realFile is null || !realFile.Exists)
+    {
+        ctx.Response.StatusCode = 404;
+        return;
+    }
+
+    mime.TryGetContentType(realFile.FullName, out var contentType);
+    var result = Results.File(realFile.FullName, contentType ?? "application/octet-stream", enableRangeProcessing: true);
+    await result.ExecuteAsync(ctx);
+});
+
 // Mount static files per gallery slug
 foreach (var g in galleries)
 {
