@@ -75,21 +75,29 @@ public static class ChordDiagrams
 
     public record DiagramResult(string Svg, string ShapeLabel);
 
-    public static DiagramResult? Get(string? chordName)
+    public static DiagramResult? Get(string? chordName) => GetAll(chordName).FirstOrDefault();
+
+    // Up to 3 real, distinct ways to play the chord: the open/exact shape
+    // (easiest, if one is known) plus the two moveable barre forms (E-form
+    // and A-form) computed from music theory for ANY chord name - not just a
+    // hand-curated list. Ordered easiest-first: open shape, then barre forms
+    // by ascending fret (lower on the neck = smaller reach = "nicer").
+    public static List<DiagramResult> GetAll(string? chordName)
     {
-        if (string.IsNullOrEmpty(chordName)) return null;
+        if (string.IsNullOrEmpty(chordName)) return [];
 
-        // 1. Try exact known shape
+        var results = new List<DiagramResult>();
         if (ExactShapes.TryGetValue(chordName, out var exactFrets))
-            return new DiagramResult(RenderSvg(exactFrets), "");
+            results.Add(new DiagramResult(RenderSvg(exactFrets), "Åben form · nemmest"));
 
-        // 2. Derive moveable barre chord
-        var derived = DeriveMoveable(chordName);
-        if (derived is null) return null;
-        return new DiagramResult(RenderSvg(derived.Value.Frets), derived.Value.Label);
+        foreach (var (frets, label) in DeriveBothForms(chordName)
+                     .OrderBy(f => f.Frets.Where(x => x > 0).DefaultIfEmpty(99).Min()))
+            results.Add(new DiagramResult(RenderSvg(frets), label));
+
+        return results.Take(3).ToList();
     }
 
-    private static (int[] Frets, string Label)? DeriveMoveable(string chordName)
+    private static IEnumerable<(int[] Frets, string Label)> DeriveBothForms(string chordName)
     {
         // Parse root (1 or 2 chars) and quality
         string root, quality;
@@ -98,56 +106,33 @@ public static class ChordDiagrams
         else
         { root = chordName[..1]; quality = chordName[1..]; }
 
-        if (!NoteToSemitone.TryGetValue(root, out int rootSt)) return null;
+        if (!NoteToSemitone.TryGetValue(root, out int rootSt)) yield break;
 
-        // Is it minor?
         bool isMinor = quality.StartsWith('m') && !quality.StartsWith("maj", StringComparison.OrdinalIgnoreCase);
 
-        // E string is semitone 0; A string is semitone 5
-        int eFret = rootSt;                   // E-form: barre this fret
-        int aFret = ((rootSt - 5) + 12) % 12; // A-form: barre this fret
+        // E string is semitone 0; A string is semitone 5. If the barre would
+        // land on fret 0, that IS the plain open chord (already covered by
+        // ExactShapes above) - shift an octave up so it's still a genuinely
+        // distinct, real alternative rather than a duplicate of the open shape.
+        int eFret = rootSt == 0 ? 12 : rootSt;
+        int aFret = ((rootSt - 5) + 12) % 12;
+        if (aFret == 0) aFret = 12;
 
         if (isMinor)
         {
-            // Em-form at eFret vs Am-form at aFret — pick lower
-            // Em-shape: [B, B+2, B+2, B, B, B] — barre all 6 + two dots
-            // Am-shape: [×, B, B+2, B+2, B+1, B]
-            bool eOk = eFret is >= 1 and <= 9;
-            bool aOk = aFret is >= 1 and <= 9;
-
-            if (aOk && (!eOk || aFret <= eFret))
-            {
-                int b = aFret;
-                return ([-1, b, b+2, b+2, b+1, b],
-                    $"Am-form · barre fret {b} · samme greb som Am");
-            }
-            if (eOk)
-            {
-                int b = eFret;
-                return ([b, b+2, b+2, b, b, b],
-                    $"Em-form · barre fret {b} · samme greb som Em");
-            }
+            // Am-shape: [×, B, B+2, B+2, B+1, B] / Em-shape: [B, B+2, B+2, B, B, B]
+            if (aFret is >= 1 and <= 9)
+                yield return ([-1, aFret, aFret+2, aFret+2, aFret+1, aFret], $"Am-form · barre fret {aFret}");
+            if (eFret is >= 1 and <= 9)
+                yield return ([eFret, eFret+2, eFret+2, eFret, eFret, eFret], $"Em-form · barre fret {eFret}");
         }
         else
         {
-            // E-form or A-form — pick lower
-            bool eOk = eFret is >= 1 and <= 9;
-            bool aOk = aFret is >= 1 and <= 9;
-
-            if (aOk && (!eOk || aFret <= eFret))
-            {
-                int b = aFret;
-                return ([-1, b, b+2, b+2, b+2, b],
-                    $"A-form · barre fret {b} · samme greb som A");
-            }
-            if (eOk)
-            {
-                int b = eFret;
-                return ([b, b, b+1, b+2, b+2, b],
-                    $"E-form · barre fret {b} · samme greb som E");
-            }
+            if (aFret is >= 1 and <= 9)
+                yield return ([-1, aFret, aFret+2, aFret+2, aFret+2, aFret], $"A-form · barre fret {aFret}");
+            if (eFret is >= 1 and <= 9)
+                yield return ([eFret, eFret, eFret+1, eFret+2, eFret+2, eFret], $"E-form · barre fret {eFret}");
         }
-        return null;
     }
 
     private static string RenderSvg(int[] frets)

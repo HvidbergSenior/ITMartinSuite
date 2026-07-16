@@ -33,3 +33,18 @@
     font-size: .85rem;
     color: #c7d2fe;
 }
+
+/* Tuned for a dark background - #c7d2fe reads fine there but is nearly
+   invisible as light-indigo-on-white once an app has a light theme. */
+html[data-theme="light"] .itm-pp-text {
+    color: #3730a3;
+}
+
+html[data-theme="light"] .itm-pp-label {
+    color: #4338ca;
+}
+
+html[data-theme="light"] .itm-pp-banner {
+    background: rgba(99, 102, 241, .08);
+    border-color: rgba(99, 102, 241, .3);
+}

@@ -38,17 +38,39 @@ public class MediaClassificationService : IMediaClassificationService
         // ---------- SOURCE ----------
         file.Source = DetectSource(file);
 
-        // ---------- SCREENSHOT ----------
-        if (IsScreenshotByName(name) || IsScreenshotBySize(file))
+        // ---------- PHONE PHOTO (checked before SCREENSHOT) ----------
+        // A camera-style filename or real EXIF camera metadata is decisive
+        // proof this is a real photo, not a screenshot - has to be checked
+        // before the size-based screenshot heuristic below, which otherwise
+        // has no way to tell a real PNG photo that happens to match a phone's
+        // screen resolution (confirmed in production: PNG-exported photos at
+        // 1170x2532 named "IMG 1234.png" were misfiled as screenshots) from an
+        // actual screenshot. "img " (space) is included alongside "img_"
+        // (underscore) since some export/sync tools normalize the underscore
+        // to a space.
+        var isCameraNamed = name.StartsWith("img_") || name.StartsWith("img ");
+        if (isCameraNamed || file.HasExif)
         {
-            file.SubCategory = MediaSubCategory.Screenshot;
+            // An explicit screenshot filename still wins even if it also
+            // happens to start with "img" or carry stray EXIF.
+            if (IsScreenshotByName(name))
+            {
+                file.SubCategory = MediaSubCategory.Screenshot;
+                return;
+            }
+
+            file.SubCategory = MediaSubCategory.PhonePhoto;
             return;
         }
 
-        // ---------- PHONE PHOTO ----------
-        if (name.StartsWith("img_") || file.HasExif)
+        // ---------- SCREENSHOT ----------
+        // Size-only matching is restricted to PNG: real screenshot tools save
+        // lossless PNG, so a JPG at the exact same pixel dimensions as a phone
+        // screen is almost always a real (often message-compressed) photo
+        // that happens to share that resolution, not an actual screenshot.
+        if (IsScreenshotByName(name) || (name.EndsWith(".png") && IsScreenshotBySize(file)))
         {
-            file.SubCategory = MediaSubCategory.PhonePhoto;
+            file.SubCategory = MediaSubCategory.Screenshot;
             return;
         }
 
@@ -94,6 +116,15 @@ public class MediaClassificationService : IMediaClassificationService
             (1284, 2778) or (2778, 1284) => true, // iPhone Pro Max
             (1080, 2340) or (2340, 1080) => true, // Android common
             (1080, 2400) or (2400, 1080) => true,
+            // Older/smaller iPhones - real gap that let a genuine lock-screen
+            // screenshot (640x960) sit misclassified as a real photo in Images.
+            (640, 960)   or (960, 640)   => true, // iPhone 4/4s
+            (640, 1136)  or (1136, 640)  => true, // iPhone 5/5s/SE (1st gen)
+            (750, 1334)  or (1334, 750)  => true, // iPhone 6/7/8/SE (2nd/3rd gen)
+            (1242, 2208) or (2208, 1242) => true, // iPhone 6+/7+/8+
+            (1125, 2436) or (2436, 1125) => true, // iPhone X/XS/11 Pro
+            (828, 1792)  or (1792, 828)  => true, // iPhone XR/11
+            (1242, 2688) or (2688, 1242) => true, // iPhone XS Max/11 Pro Max
             _ => false
         };
     }

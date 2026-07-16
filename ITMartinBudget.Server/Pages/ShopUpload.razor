@@ -1,0 +1,109 @@
+@page "/shop-upload"
+@layout BudgetMainLayout
+@using ITMartinBudget.Server.Budget
+@* No @rendermode: plain HTML form + fetch() below instead of Blazor InputFile,
+   which needs a live SignalR circuit - has previously gotten stuck reconnecting
+   ("Forbinder...") through this app's Cloudflare Tunnel domain. *@
+
+<div class="budget-container">
+
+    <ContentCard>
+
+        <div class="stack">
+
+            <div>
+                <h2>📁 Upload kontoudtog</h2>
+                <div class="meta">
+                    Genkender automatisk kontoudtogets format. Hver konto (Bogshoppen, Hvidberg, ITMartin, ...) holdes helt adskilt fra hinanden.
+                </div>
+            </div>
+
+            <div>
+                <label class="meta" for="ledgerId">Konto-id (bruges i overbliks-linket)</label>
+                <input id="ledgerId" class="input" value="bogshoppen" placeholder="fx bogshoppen" />
+            </div>
+
+            <div id="scopeModePicker">
+                <label class="meta">Hvad indeholder denne konto?</label>
+                <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+                        <input type="radio" name="scopeMode" value="Both" checked /> Både forretning og privat
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+                        <input type="radio" name="scopeMode" value="PrivateOnly" /> Kun privat
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+                        <input type="radio" name="scopeMode" value="BusinessOnly" /> Kun forretning
+                    </label>
+                </div>
+                <div class="meta" style="margin-top:6px">Vælges kun én gang - ved en ny konto. Gælder for alle fremtidige uploads til samme konto-id.</div>
+            </div>
+
+            <div class="upload-box">
+                <input type="file" id="csvFile" accept=".csv" />
+            </div>
+
+            <div id="status"></div>
+
+        </div>
+
+    </ContentCard>
+
+</div>
+
+<script>
+// Deferred one tick: Blazor's DOM-patching (enhanced nav / streaming render)
+// can still be inserting this script's own sibling markup when the script
+// tag itself runs, so an immediate getElementById('csvFile') can race and
+// return null ("Cannot read properties of null") - waiting a tick guarantees
+// the surrounding markup has finished landing in the DOM first.
+setTimeout(function () {
+    const fileInput = document.getElementById('csvFile');
+    const ledgerInput = document.getElementById('ledgerId');
+    const status = document.getElementById('status');
+    if (!fileInput) return;
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        const ledgerId = ledgerInput.value.trim();
+
+        if (!file) return;
+        if (!ledgerId) {
+            status.innerHTML = '<div class="alert error">Angiv et konto-id</div>';
+            fileInput.value = '';
+            return;
+        }
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            status.innerHTML = '<div class="alert error">Kun CSV-filer</div>';
+            fileInput.value = '';
+            return;
+        }
+
+        status.innerHTML = '<div class="meta">Importerer...</div>';
+
+        const scopeMode = document.querySelector('input[name="scopeMode"]:checked')?.value || 'Both';
+
+        const form = new FormData();
+        form.append('ledgerId', ledgerId);
+        form.append('scopeMode', scopeMode);
+        form.append('file', file);
+
+        try {
+            const res = await fetch('/api/shop/upload', { method: 'POST', body: form });
+            if (!res.ok) {
+                status.innerHTML = `<div class="alert error">${await res.text()}</div>`;
+                return;
+            }
+            const body = await res.json();
+            const msg = body.imported > 0
+                ? `✔ Importerede ${body.imported} transaktioner til '${ledgerId}'`
+                : 'Ingen nye transaktioner (dubletter sprunget over)';
+            status.innerHTML = `<div class="alert success">${msg}<div style="margin-top:10px"><a class="btn" href="/shop-overview/${encodeURIComponent(ledgerId)}">Åbn overblik</a></div></div>`;
+        } catch (e) {
+            status.innerHTML = '<div class="alert error">Upload fejlede - prøv igen</div>';
+        } finally {
+            fileInput.value = '';
+        }
+    });
+}, 0);
+</script>

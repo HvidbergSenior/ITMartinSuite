@@ -1,6 +1,7 @@
 using FaceONNX;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using Microsoft.Extensions.Logging;
+using Microsoft.ML.OnnxRuntime;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -8,15 +9,26 @@ namespace ITMartin.Ai.Services;
 
 public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDisposable
 {
-    private readonly FaceDetector _faceDetector = new();
-    private readonly Face68LandmarksExtractor _landmarksExtractor = new();
-    private readonly FaceEmbedder _faceEmbedder = new();
+    private readonly FaceDetector _faceDetector;
+    private readonly Face68LandmarksExtractor _landmarksExtractor;
+    private readonly FaceEmbedder _faceEmbedder;
     private readonly ILogger<FaceOnnxRecognitionService> _logger;
     private readonly object _lock = new();
 
     public FaceOnnxRecognitionService(ILogger<FaceOnnxRecognitionService> logger)
     {
         _logger = logger;
+
+        // Each ONNX session defaults to intra-op parallelism across all CPU cores.
+        // With multiple instances running side by side (bulk indexing pool), that
+        // causes massive thread oversubscription - pin each session to one thread
+        // so real concurrency matches the outer pool size instead of exploding past it.
+        var options = new SessionOptions { IntraOpNumThreads = 1, InterOpNumThreads = 1 };
+        // Preserving FaceDetector's own defaults (0.3/0.4/0.5) since the SessionOptions
+        // overload has no parameterless form.
+        _faceDetector = new FaceDetector(options, 0.3f, 0.4f, 0.5f);
+        _landmarksExtractor = new Face68LandmarksExtractor(options);
+        _faceEmbedder = new FaceEmbedder(options);
     }
 
     public Task<IReadOnlyList<float[]>> ExtractFaceEmbeddingsAsync(string filePath)

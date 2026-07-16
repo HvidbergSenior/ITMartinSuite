@@ -5,7 +5,10 @@
 @inject StudioLibraryService Library
 @inject ChordAiService ChordAi
 @inject StemService StemSvc
+@inject ChordDetectionService ChordDetectSvc
 @inject VocalGuideService VocalGuide
+@inject SpotifyService Spotify
+@inject LyricsService Lyrics
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using Microsoft.EntityFrameworkCore
@@ -83,6 +86,59 @@ else if (_song is not null)
                 }
             </div>
 
+            <!-- Spotify -->
+            <div class="studio-card">
+                <div class="card-header">
+                    <div class="card-label">🎵 Spotify</div>
+                </div>
+                @if (!Spotify.IsConfigured)
+                {
+                    <p class="no-file">Spotify er ikke sat op endnu.</p>
+                }
+                else if (!Spotify.IsConnected)
+                {
+                    <a class="btn-primary" href="/spotify/login" style="display:block;text-align:center;text-decoration:none">
+                        🔗 Forbind til Spotify
+                    </a>
+                }
+                else if (!string.IsNullOrEmpty(_song!.SpotifyTrackId) && !_spotifySearchOpen)
+                {
+                    <p style="font-size:0.85rem;color:#9ca3af;margin-bottom:8px">@_song.SpotifyTrackLabel</p>
+                    <button class="btn-primary" style="width:100%" @onclick="PlaySpotifyTrack">
+                        ▶ Afspil via Spotify (Premium påkrævet)
+                    </button>
+                    <button class="btn-ghost-sm" style="margin-top:6px" @onclick='() => _spotifySearchOpen = true'>
+                        🔍 Skift sang
+                    </button>
+                }
+                else
+                {
+                    <div style="display:flex;gap:6px">
+                        <input class="chord-editor" style="height:auto;padding:8px" placeholder="Søg titel + kunstner..."
+                               value="@_spotifyQuery" @oninput='e => _spotifyQuery = e.Value?.ToString() ?? ""' />
+                        <button class="btn-primary" @onclick="SpotifySearch" disabled="@_spotifySearching">
+                            @(_spotifySearching ? "..." : "🔍")
+                        </button>
+                    </div>
+                    @if (_spotifyResults.Count > 0)
+                    {
+                        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto">
+                            @foreach (var track in _spotifyResults)
+                            {
+                                <button class="btn-ghost" style="width:100%;text-align:left;display:flex;align-items:center;gap:8px"
+                                        @onclick="() => LinkSpotifyTrack(track)">
+                                    @if (!string.IsNullOrEmpty(track.AlbumArtUrl))
+                                    {
+                                        <img src="@track.AlbumArtUrl" style="width:32px;height:32px;border-radius:4px" />
+                                    }
+                                    <span>@track.Name — @track.Artist</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+
             <!-- Find song -->
             <div class="studio-card">
                 <div class="card-label">🔍 Find sang</div>
@@ -119,6 +175,13 @@ else if (_song is not null)
                             <button class="btn-ai" @onclick="AiChords" disabled="@_aiLoading"
                                     title="AI gætter akkorder — bedst til egne sange uden UG-tab">
                                 @(_aiLoading ? "..." : "🤖 AI")
+                            </button>
+                        }
+                        @if (ChordDetectSvc.IsAvailable && _song is not null && !string.IsNullOrEmpty(_song.SourceFile))
+                        {
+                            <button class="btn-ai" @onclick="DetectChordsFromAudio" disabled="@_chordDetecting"
+                                    title="Lyt til kildefilen og gæt akkorderne (eksperimentel, ikke 100% præcis)">
+                                @(_chordDetecting ? "🎧 Lytter..." : "🎧 Fra lyd")
                             </button>
                         }
                         <button class="btn-ghost-sm" @onclick="SimplifyChords" title="Fjern slash-akkorder">简</button>
@@ -313,8 +376,15 @@ else if (_song is not null)
             }
             @if (!_recording)
             {
-                <button class="btn-record" style="padding:6px 16px;font-size:0.9rem"
-                        @onclick="StartRecording">⏺ Optag</button>
+                @if (_recordings.Count >= MaxTakes)
+                {
+                    <span style="font-size:0.8rem;color:#f59e0b">⚠ @MaxTakes takes nået</span>
+                }
+                else
+                {
+                    <button class="btn-record" style="padding:6px 16px;font-size:0.9rem"
+                            @onclick="StartRecording">⏺ Optag (@(_recordings.Count + 1)/@MaxTakes)</button>
+                }
             }
             else
             {
@@ -344,6 +414,15 @@ else if (_song is not null)
                     title="Skift mellem 1 og 2 kolonner">
                 @(_twoColLyrics ? "⊞" : "☰")
             </button>
+            @if (!string.IsNullOrEmpty(_song.SpotifyTrackId))
+            {
+                <button class="btn-ghost-sm @(_karaokeActive ? "active" : "")"
+                        style="padding:5px 10px;font-size:0.8rem"
+                        @onclick="ToggleKaraoke"
+                        title="Afspil på Spotify og følg teksten med">
+                    @(_karaokeActive ? "⏹ Stop" : "🎤 Karaoke")
+                </button>
+            }
         </div>
 
         @if (_recordings.Any())
@@ -413,6 +492,10 @@ else if (_song is not null)
                 <div class="chord-detail-header">
                     <span class="chord-detail-name">@_selectedChord</span>
                     <div style="display:flex;gap:8px;align-items:center">
+                        <button class="btn-ghost-sm" @onclick="() => _showPiano = !_showPiano"
+                                title="Skift mellem guitar og klaver">
+                            @(_showPiano ? "🎸 Guitar" : "🎹 Klaver")
+                        </button>
                         @if (!_selectedChordLoading && ChordAi.IsAvailable)
                         {
                             <button class="btn-ai" @onclick="ShowChordTransition"
@@ -425,18 +508,32 @@ else if (_song is not null)
                     </div>
                 </div>
                 <div class="chord-detail-body">
-                    @{
-                        var diagram = ChordDiagrams.Get(_selectedChord);
-                    }
-                    @if (diagram is not null)
+                    @if (_showPiano)
                     {
-                        <div class="chord-detail-diagram">
-                            @((MarkupString)diagram.Svg)
-                            @if (!string.IsNullOrEmpty(diagram.ShapeLabel))
+                        var pianoSvg = PianoDiagrams.GetSvg(_selectedChord);
+                        @if (pianoSvg is not null)
+                        {
+                            <div class="chord-detail-diagram">@((MarkupString)pianoSvg)</div>
+                        }
+                    }
+                    else
+                    {
+                        var diagrams = ChordDiagrams.GetAll(_selectedChord);
+                        @if (diagrams.Count > 0)
+                        {
+                        <div style="display:flex;gap:10px;flex-wrap:wrap">
+                            @foreach (var diagram in diagrams)
                             {
-                                <div style="font-size:0.7rem;color:#64748b;margin-top:4px;text-align:center;max-width:80px">@diagram.ShapeLabel</div>
+                                <div class="chord-detail-diagram">
+                                    @((MarkupString)diagram.Svg)
+                                    @if (!string.IsNullOrEmpty(diagram.ShapeLabel))
+                                    {
+                                        <div style="font-size:0.7rem;color:#64748b;margin-top:4px;text-align:center;max-width:80px">@diagram.ShapeLabel</div>
+                                    }
+                                </div>
                             }
                         </div>
+                    }
                     }
                     @if (_selectedChordLoading)
                     {
@@ -512,6 +609,22 @@ else if (_song is not null)
                 }
             </div>
         }
+        else if (!string.IsNullOrWhiteSpace(_song?.SyncedLyrics))
+        {
+            <div id="lyric-sync-container" class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
+                @foreach (var (seconds, text) in LyricsService.ParseLrc(_song.SyncedLyrics))
+                {
+                    @if (string.IsNullOrWhiteSpace(text))
+                    {
+                        <div class="perform-spacer"></div>
+                    }
+                    else
+                    {
+                        <div class="perform-plain-line" data-time="@seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)">@text</div>
+                    }
+                }
+            </div>
+        }
         else if (!string.IsNullOrWhiteSpace(_lyricsEdit))
         {
             <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
@@ -562,29 +675,51 @@ else if (_song is not null)
 
             @if (!_recording)
             {
-                <p style="font-size:0.8rem;color:#6b7280;margin-bottom:10px">
-                    Klar til det rigtige take? Øv i <strong>Øv & Spil</strong> — og indspil din bedste version her.
-                </p>
-                <div class="rec-mode-toggle" style="margin-bottom:10px">
-                    <button class="rec-mode-btn @(_videoMode ? "" : "rec-mode-btn--active")"
-                            @onclick='() => _videoMode = false'>🎙 Lyd</button>
-                    <button class="rec-mode-btn @(_videoMode ? "rec-mode-btn--active" : "")"
-                            @onclick='() => _videoMode = true'>📹 Video</button>
-                </div>
-                <div class="optag-main-buttons">
-                    <button class="btn-record" style="width:100%;padding:10px" @onclick='async () => { _tab = "spilleguide"; await StartRecording(); }'>
-                        ⏺ Optag i Øv & Spil
-                    </button>
-                    @if (_recordings.Any())
+                @if (_recordings.Count >= MaxTakes)
+                {
+                    <p style="font-size:0.85rem;color:#f59e0b;margin-bottom:10px">
+                        ⚠ @MaxTakes optagelser nået. Lyt til dem og slet en i <strong>📼 Optagelser</strong>-listen nedenfor for at optage mere.
+                    </p>
+                }
+                else
+                {
+                    <p style="font-size:0.8rem;color:#6b7280;margin-bottom:10px">
+                        Klar til det rigtige take? Øv i <strong>Øv & Spil</strong> — og indspil din bedste version her.
+                        Take @(_recordings.Count + 1) af @MaxTakes.
+                    </p>
+                    <div class="rec-mode-toggle" style="margin-bottom:10px">
+                        <button class="rec-mode-btn @(_videoMode ? "" : "rec-mode-btn--active")"
+                                @onclick='() => _videoMode = false'>🎙 Lyd</button>
+                        <button class="rec-mode-btn @(_videoMode ? "rec-mode-btn--active" : "")"
+                                @onclick='() => _videoMode = true'>📹 Video</button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_song!.SourceFile) && Library.Exists(_song.SourceFile))
                     {
                         <button class="btn-record btn-record--big"
-                                style="background:#1d4ed8;border-color:#1d4ed8"
-                                @onclick="StartOverdubRecording"
-                                title="Afspil seneste optagelse i høretelefoner og optag nyt spor ovenpå">
-                            ⏺ Overdub
+                                style="width:100%;padding:10px;margin-bottom:8px;background:#1d4ed8;border-color:#1d4ed8"
+                                @onclick='() => StartOverdubFromUrl($"/stream?path={Uri.EscapeDataString(_song.SourceFile)}")'
+                                title="Afspiller sangen mens du synger - optagelsen fanger kun din mikrofon, ikke sangen selv">
+                            🎧 Optag med sangen i baggrunden
                         </button>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:10px">
+                            Brug høretelefoner - så hører kun du sangen, og optagelsen bliver ren vokal.
+                        </p>
                     }
-                </div>
+                    <div class="optag-main-buttons">
+                        <button class="btn-record" style="width:100%;padding:10px" @onclick='async () => { _tab = "spilleguide"; await StartRecording(); }'>
+                            ⏺ Optag i Øv & Spil
+                        </button>
+                        @if (_recordings.Any())
+                        {
+                            <button class="btn-record btn-record--big"
+                                    style="background:#1d4ed8;border-color:#1d4ed8"
+                                    @onclick="StartOverdubRecording"
+                                    title="Afspil seneste optagelse i høretelefoner og optag nyt spor ovenpå">
+                                ⏺ Overdub (seneste take)
+                            </button>
+                        }
+                    </div>
+                }
                 @if (_recordings.Count >= 2)
                 {
                     @if (!_mixing)
@@ -695,17 +830,29 @@ else if (_song is not null)
         </div>
         }
 
+        <!-- AI take upload - manually downloaded from Suno (no official API, see /songwriter), attached here so it sits alongside the sung takes for this song instead of floating unclaimed on the Songs page -->
+        <div class="studio-card">
+            <div class="card-label" style="margin-bottom:10px">🤖 Tilføj AI-version (fra Suno)</div>
+            <InputFile OnChange="UploadAiTake" accept="audio/*" />
+            @if (!string.IsNullOrEmpty(_aiUploadStatus))
+            {
+                <div style="font-size:0.85rem;color:var(--muted);margin-top:6px">@_aiUploadStatus</div>
+            }
+        </div>
+
         <!-- Recordings list -->
         @if (_recordings.Any())
         {
         <div class="studio-card">
-            <div class="card-label" style="margin-bottom:10px">📼 Optagelser</div>
+            <div class="card-label" style="margin-bottom:10px">📼 Optagelser (@_recordings.Count/@MaxTakes)</div>
             <div class="rec-list">
-                @foreach (var r in _recordings)
+                @{ var _takeNumber = 0; }
+                @foreach (var r in _recordings.OrderBy(x => x.CreatedAt))
                 {
+                    _takeNumber++;
                     <div class="rec-item">
                         <div class="rec-item-info">
-                            <span class="rec-item-name">@(r.IsVideo ? "📹" : "🎙") @r.Name</span>
+                            <span class="rec-item-name">@(r.IsAi ? "🤖" : r.IsVideo ? "📹" : "🎙") @(r.IsAi ? "AI-version" : $"Take {_takeNumber}") — @r.Name</span>
                             <span class="rec-item-date">@r.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
                         </div>
                         @if (r.IsVideo)
@@ -994,6 +1141,12 @@ else if (_song is not null)
 
     private string _tab = "forbered";
 
+    // ── Spotify ───────────────────────────────────────────────────────────
+    private string _spotifyQuery = "";
+    private bool _spotifySearching;
+    private bool _spotifySearchOpen;
+    private List<SpotifyTrack> _spotifyResults = [];
+
     private string _chordEdit = "";
     private string _lyricsEdit = "";
     private string _notesEdit = "";
@@ -1008,15 +1161,18 @@ else if (_song is not null)
 
     private bool _patternsLoading;
     private bool _aiLoading;
+    private bool _chordDetecting;
     private string? _saveStatus;
     private System.Timers.Timer? _saveTimer;
     private bool _disposed;
     private System.Timers.Timer? _recTimer_t;
     private int _recTimer;
 
+    private const int MaxTakes = 5;
     private bool _recording;
     private bool _videoMode;
     private List<RecordingFile> _recordings = [];
+    private string _aiUploadStatus = "";
     private int _beat = -1;
     private System.Timers.Timer? _beatTimer;
 
@@ -1046,6 +1202,7 @@ else if (_song is not null)
     private string? _selectedChord;
     private string _selectedChordInfo = "";
     private bool _selectedChordLoading;
+    private bool _showPiano;
 
     private static readonly string[] MajorKeys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] MinorKeys = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"];
@@ -1132,6 +1289,82 @@ else if (_song is not null)
         _saveTimer.Start();
     }
 
+    // ── Spotify ───────────────────────────────────────────────────────────
+
+    private async Task SpotifySearch()
+    {
+        if (string.IsNullOrWhiteSpace(_spotifyQuery)) return;
+        _spotifySearching = true;
+        try
+        {
+            _spotifyResults = await Spotify.SearchTracksAsync(_spotifyQuery);
+        }
+        finally
+        {
+            _spotifySearching = false;
+        }
+    }
+
+    private async Task LinkSpotifyTrack(SpotifyTrack track)
+    {
+        if (_song is null) return;
+        _song.SpotifyTrackId = track.Id;
+        _song.SpotifyTrackLabel = $"{track.Name} — {track.Artist}";
+        _song.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+
+        // A fresh lyrics lookup for the newly-linked song, if we don't already
+        // have one - separate from Spotify (see LyricsService) since Spotify's
+        // API has no lyrics endpoint at all.
+        if (string.IsNullOrEmpty(_song.SyncedLyrics))
+        {
+            var (synced, plain) = await Lyrics.FindLyricsAsync(track.Name, track.Artist);
+            _song.SyncedLyrics = synced;
+
+            // Fill the existing free-text Lyrics field too, but only if it's
+            // still empty - never overwrite lyrics the user already typed/edited.
+            if (string.IsNullOrWhiteSpace(_song.Lyrics) && !string.IsNullOrWhiteSpace(plain))
+            {
+                _song.Lyrics = plain;
+                _lyricsEdit = plain;
+            }
+
+            await Db.SaveChangesAsync();
+        }
+
+        _spotifySearchOpen = false;
+        _spotifyResults = [];
+        _spotifyQuery = "";
+    }
+
+    private async Task PlaySpotifyTrack()
+    {
+        if (_song?.SpotifyTrackId is null) return;
+        await JS.InvokeVoidAsync("spotifyPlayer.playTrack", _song.SpotifyTrackId);
+    }
+
+    private bool _karaokeActive;
+
+    // Plays the linked Spotify track and starts polling playback position to
+    // highlight the matching line in #lyric-sync-container (see spotify.js) -
+    // pure client-side after this call, not driven by further Blazor round-trips.
+    private async Task ToggleKaraoke()
+    {
+        if (_song?.SpotifyTrackId is null) return;
+
+        if (_karaokeActive)
+        {
+            await JS.InvokeVoidAsync("spotifyPlayer.stopLyricSync");
+            _karaokeActive = false;
+            return;
+        }
+
+        await JS.InvokeVoidAsync("spotifyPlayer.playTrack", _song.SpotifyTrackId);
+        if (!string.IsNullOrWhiteSpace(_song.SyncedLyrics))
+            await JS.InvokeVoidAsync("spotifyPlayer.startLyricSync", "lyric-sync-container");
+        _karaokeActive = true;
+    }
+
     private void OnKeyChanged(ChangeEventArgs e)
     {
         if (_song is null) return;
@@ -1204,6 +1437,41 @@ else if (_song is not null)
         _aiLoading = false;
     }
 
+    // Unlike AiChords (Claude recalling a known song by name/lyrics), this
+    // actually listens to the source file - the only option for a private
+    // Suno original Claude has never heard. Template-matching, not a trained
+    // model, so treat the result as a starting guess to correct by ear, same
+    // spirit as the AI chord suggestion.
+    private async Task DetectChordsFromAudio()
+    {
+        if (_song is null || string.IsNullOrEmpty(_song.SourceFile)) return;
+        _chordDetecting = true;
+        StateHasChanged();
+        try
+        {
+            var inputPath = Path.GetFullPath(Path.Combine(Library.Root, _song.SourceFile));
+            var segments = await ChordDetectSvc.DetectAsync(inputPath);
+            if (segments.Count > 0)
+            {
+                _chordEdit = "# Automatisk fundet fra lyd - tjek/ret efter øre\n" + ChordDetectionService.FormatAsChordChart(segments);
+                AutoSave();
+            }
+            else
+            {
+                _saveStatus = "Kunne ikke finde tydelige akkorder i lydfilen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = $"Akkordgenkendelse fejl: {ex.Message}";
+        }
+        finally
+        {
+            _chordDetecting = false;
+            StateHasChanged();
+        }
+    }
+
     // ── Recording ─────────────────────────────────────────────────────────────
 
     private void StartBeatTimer()
@@ -1238,6 +1506,15 @@ else if (_song is not null)
 
     private async Task StartRecording()
     {
+        // Enforced here (not just by hiding the button in the Optag tab) so
+        // the "Øv & Spil" tab's own record button - a separate entry point -
+        // can't be used to slip past the take cap.
+        if (_recordings.Count >= MaxTakes)
+        {
+            _saveStatus = $"{MaxTakes} optagelser nået — slet en for at optage mere.";
+            return;
+        }
+
         _recording = true;
         StartRecTimer();
         StartBeatTimer();
@@ -1281,6 +1558,12 @@ else if (_song is not null)
 
     private async Task StartOverdubFromUrl(string playUrl)
     {
+        if (_recordings.Count >= MaxTakes)
+        {
+            _saveStatus = $"{MaxTakes} optagelser nået — slet en for at optage mere.";
+            return;
+        }
+
         _recording = true;
         StartRecTimer();
         StartBeatTimer();
@@ -1328,21 +1611,41 @@ else if (_song is not null)
 
     private async Task Publish(RecordingFile r)
     {
-        using var http = new HttpClient();
-        var baseUrl = Nav.BaseUri.TrimEnd('/');
-        await http.PostAsJsonAsync($"{baseUrl}/api/publish/{SongKey}",
-            new { relativePath = r.RelativePath });
+        Library.PublishRecording(SongKey, r.RelativePath);
         _saveStatus = "🚀 Publiceret!";
         await Task.Delay(2000);
         _saveStatus = null;
     }
 
-    private async Task DeleteRecording(RecordingFile r)
+    private Task DeleteRecording(RecordingFile r)
     {
-        using var http = new HttpClient();
-        var baseUrl = Nav.BaseUri.TrimEnd('/');
-        await http.DeleteAsync($"{baseUrl}/api/recording?path={Uri.EscapeDataString(r.RelativePath)}");
+        Library.DeleteRecording(r.RelativePath);
         _recordings = Library.GetRecordings(SongKey);
+        return Task.CompletedTask;
+    }
+
+    private async Task UploadAiTake(InputFileChangeEventArgs e)
+    {
+        if (_recordings.Count >= MaxTakes)
+        {
+            _aiUploadStatus = $"{MaxTakes} optagelser nået — slet en for at tilføje flere.";
+            return;
+        }
+
+        _aiUploadStatus = "Uploader...";
+        StateHasChanged();
+        try
+        {
+            var file = e.File;
+            await using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+            await Library.SaveAiTakeAsync(SongKey, file.Name, stream);
+            _recordings = Library.GetRecordings(SongKey);
+            _aiUploadStatus = "✔ Tilføjet";
+        }
+        catch
+        {
+            _aiUploadStatus = "Kunne ikke uploade filen - prøv igen.";
+        }
     }
 
     // ── Photo capture ─────────────────────────────────────────────────────────

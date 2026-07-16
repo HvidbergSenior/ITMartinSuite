@@ -3,6 +3,7 @@ using System.Text;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Entities;
 using ITMartin.Media.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,8 @@ public sealed class SmartFoldersService : ISmartFoldersService
             // Same reasoning as Package3Service - motion-clip companions to
             // already-counted stills, not standalone content.
             "LivePhotos",
+            // Generated offline-gallery thumbnails - not real content.
+            "_Galleri",
         };
 
     // Coarse, offline country lookup for trip-folder naming - deliberately rough
@@ -57,6 +60,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
     private readonly IPackage3Service _package3;
     private readonly IGpsService _gps;
     private readonly IMediaDateService _dateService;
+    private readonly ICollectionStore _collectionStore;
     private readonly ILogger<SmartFoldersService> _logger;
 
     public SmartFoldersService(
@@ -64,12 +68,14 @@ public sealed class SmartFoldersService : ISmartFoldersService
         IPackage3Service package3,
         IGpsService gps,
         IMediaDateService dateService,
+        ICollectionStore collectionStore,
         ILogger<SmartFoldersService> logger)
     {
         _dbFactory = dbFactory;
         _package3 = package3;
         _gps = gps;
         _dateService = dateService;
+        _collectionStore = collectionStore;
         _logger = logger;
     }
 
@@ -94,7 +100,12 @@ public sealed class SmartFoldersService : ISmartFoldersService
     private List<(string Path, DateTime Date, double? Lat, double? Lng)> GatherDateAndGpsPoints(
         string libraryPath, CancellationToken cancellationToken)
     {
-        var files = EnumerateLibraryImages(libraryPath).ToList();
+        // Images only - same reasoning as GenerateYearbookAsync: video date
+        // extraction shells out to ffprobe per file, turning this into a
+        // multi-hour scan on a large, video-heavy library for what should be
+        // a quick Home/Away or Trip pass. GPS-tagged videos are rare enough
+        // that Trips/Home-Away built from photos alone are still meaningful.
+        var files = EnumerateLibraryImages(libraryPath).Where(MediaTypeHelper.IsImage).ToList();
         var points = new List<(string Path, DateTime Date, double? Lat, double? Lng)>();
 
         foreach (var file in files)
@@ -201,6 +212,12 @@ public sealed class SmartFoldersService : ISmartFoldersService
 
         var results = new List<TripFolderResult>();
 
+        // Two separate trips can easily share the same "Country Year" name
+        // (e.g. two different Denmark trips in 2013) - LinkFiles clears its
+        // target folder on every call, so without disambiguating, the second
+        // trip sharing a name would silently wipe out the first one's folder.
+        var usedTripNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var awayCluster in awayClusters)
         {
             var start = awayCluster[0].Date;
@@ -218,9 +235,18 @@ public sealed class SmartFoldersService : ISmartFoldersService
             if ((end - start).TotalHours < minSpanHours) continue;
 
             var country = GuessCountry(awayCluster);
-            var name = country is not null
+            var baseName = country is not null
                 ? $"{country} {start:yyyy}"
                 : $"Rejse {start:yyyy-MM-dd} til {end:yyyy-MM-dd}";
+
+            var name = baseName;
+            if (!usedTripNames.Add(name))
+            {
+                name = $"{baseName} ({start:d. MMMM})";
+                var attempt = 2;
+                while (!usedTripNames.Add(name))
+                    name = $"{baseName} ({start:d. MMMM} #{attempt++})";
+            }
 
             var folderPath = Path.Combine(libraryPath, RootFolderName, "Trips", SanitizeName(name));
             LinkFiles(fullCluster.Select(c => c.Path), folderPath);
@@ -262,7 +288,10 @@ public sealed class SmartFoldersService : ISmartFoldersService
 
     public Task<YearbookResult?> GenerateYearbookAsync(string libraryPath, int year, CancellationToken cancellationToken = default)
     {
-        var files = EnumerateLibraryImages(libraryPath).ToList();
+        // Images only - video date extraction shells out to ffprobe per file,
+        // which on a large, video-heavy library turns this into a multi-hour
+        // scan for what's meant to be a quick "year in review" sample.
+        var files = EnumerateLibraryImages(libraryPath).Where(MediaTypeHelper.IsImage).ToList();
         var dated = new List<(string Path, DateTime Date)>();
 
         foreach (var file in files)
@@ -304,6 +333,83 @@ public sealed class SmartFoldersService : ISmartFoldersService
             FolderPath = folderPath,
             HtmlPath = htmlPath,
         });
+    }
+
+    public async Task SyncGalleryCollectionsAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var smartFoldersRoot = Path.Combine(libraryPath, RootFolderName);
+        var collections = new List<MediaCollection>();
+
+        void AddCollection(string name, string folder)
+        {
+            if (!Directory.Exists(folder)) return;
+            var files = Directory.EnumerateFiles(folder).ToList();
+            if (files.Count == 0) return;
+            collections.Add(new MediaCollection { Name = name, FilePaths = files });
+        }
+
+        // Home/Away is a coarse yes/no split, not something worth a customer's
+        // attention as a "look what we found" example - a couple of real Trips
+        // (each a specific place + date range) demonstrate the same underlying
+        // detection in a way that's actually interesting to browse. Capped so a
+        // library with dozens of detected trips doesn't turn "an example" into
+        // a wall of cards.
+        //
+        // Away-from-home clustering fires on every gap, not just real vacations -
+        // a library can end up with a couple of real trips abroad alongside dozens
+        // of near-noise "Danmark ..." weekend clusters. Prefer trips whose name
+        // isn't a bare "Danmark ..."/"Rejse ..." fallback (i.e. a named country
+        // GuessCountry actually resolved), then the largest of those, so the
+        // example is an actual vacation rather than an arbitrary weekend.
+        const int maxTripCollections = 5;
+        var tripsRoot = Path.Combine(smartFoldersRoot, "Trips");
+        if (Directory.Exists(tripsRoot))
+        {
+            // Select the biggest/most-real vacations (so the example is an
+            // actual trip, not an arbitrary weekend), but then display them
+            // smallest-first - a quick "oh, a weekend away" before the bigger
+            // "USA 2015" reveal reads better than leading with the biggest.
+            var chosenTrips = Directory.EnumerateDirectories(tripsRoot)
+                .Select(d => (Dir: d, Name: Path.GetFileName(d), FileCount: Directory.EnumerateFiles(d).Count()))
+                .Where(t => t.FileCount > 0)
+                .OrderByDescending(t => IsNamedTrip(t.Name))
+                .ThenByDescending(t => t.FileCount)
+                .Take(maxTripCollections)
+                .OrderBy(t => t.FileCount);
+
+            foreach (var trip in chosenTrips)
+                AddCollection(trip.Name, trip.Dir);
+        }
+
+        var peopleRoot = Path.Combine(smartFoldersRoot, "People");
+        if (Directory.Exists(peopleRoot))
+        {
+            foreach (var personDir in Directory.EnumerateDirectories(peopleRoot))
+                AddCollection(Path.GetFileName(personDir), personDir);
+        }
+
+        // One collection per year, not one giant merged "Årbøger" bucket -
+        // browsing every year's yearbook photos as a single undifferentiated
+        // pile isn't useful; each year is its own card.
+        var yearbookRoot = Path.Combine(smartFoldersRoot, "Yearbook");
+        if (Directory.Exists(yearbookRoot))
+        {
+            foreach (var yearDir in Directory.EnumerateDirectories(yearbookRoot).OrderBy(Path.GetFileName))
+            {
+                var year = Path.GetFileName(yearDir);
+                var yearFiles = Directory.EnumerateFiles(yearDir)
+                    .Where(f => !Path.GetFileName(f).Equals("index.html", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (yearFiles.Count > 0)
+                    collections.Add(new MediaCollection { Name = $"Årbog {year}", FilePaths = yearFiles });
+            }
+        }
+
+        await _collectionStore.SaveAsync(libraryPath, collections);
+
+        _logger.LogInformation(
+            "Synced {Count} gallery collections for {LibraryPath}: {Names}",
+            collections.Count, libraryPath, string.Join(", ", collections.Select(c => c.Name)));
     }
 
     private static string BuildYearbookHtml(int year, List<(string Path, DateTime Date)> selected, Dictionary<string, string> mapping)
@@ -428,6 +534,15 @@ public sealed class SmartFoldersService : ISmartFoldersService
         var cleaned = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim();
         return string.IsNullOrWhiteSpace(cleaned) ? "Unavngivet" : cleaned;
     }
+
+    // A trip named "Danmark ..." or the bare "Rejse <start> til <end>" fallback
+    // came from GenerateTripFoldersAsync failing to resolve a real country (see
+    // GuessCountry) - almost always just an ordinary away-from-home weekend, not
+    // a vacation worth showing off as an example.
+    private static bool IsNamedTrip(string name) =>
+        !name.StartsWith("Danmark ", StringComparison.OrdinalIgnoreCase) &&
+        !name.Equals("Danmark", StringComparison.OrdinalIgnoreCase) &&
+        !name.StartsWith("Rejse ", StringComparison.OrdinalIgnoreCase);
 
     private static IEnumerable<string> EnumerateLibraryImages(string libraryPath)
     {

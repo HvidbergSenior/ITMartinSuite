@@ -1,0 +1,629 @@
+@page "/shop-overview/{LedgerId}"
+@* No @rendermode: purely a display page (no @onclick/@onchange/@bind anywhere),
+   so it never needs a live SignalR circuit - which is important, since Blazor
+   Server through the Cloudflare Tunnel domains has previously caused a stuck
+   "Forbinder..." reconnect loop. Static server rendering avoids the whole
+   failure mode for a page that doesn't need interactivity anyway. *@
+@using ITMartinBudget.Domain.Entities
+@using ITMartinBudget.Domain.Enums
+@using ITMartinBudget.Infrastructure
+@using Microsoft.EntityFrameworkCore
+@using System.Globalization
+
+@inject BudgetDbContext Db
+
+<PageTitle>Overblik - @LedgerId</PageTitle>
+
+@if (_loading)
+{
+    <div style="padding:48px;color:var(--muted)">Indlæser...</div>
+}
+else if (_all.Count == 0)
+{
+    <div class="stack">
+        <div class="alert warning">
+            Ingen transaktioner fundet for '@LedgerId'. Upload en CSV på <a href="/shop-upload" data-enhance-nav="false">/shop-upload</a> først.
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+
+        @if (_scopeMode == LedgerScopeMode.Both)
+        {
+            <ProblemPurposeBanner
+                Problem="Når forretning og privatøkonomi deler samme bankkonto, er det svært at se om butikken reelt kan løbe rundt, eller om det kun hænger sammen fordi ejeren tilfører private penge."
+                Formaal="Adskille butik fra privat i det samme kontoudtog, så du kan se butikkens reelle resultat - og hvad der trækkes ud privat." />
+        }
+        else if (_scopeMode == LedgerScopeMode.PrivateOnly)
+        {
+            <ProblemPurposeBanner
+                Problem="Et råt kontoudtog viser kun beløb og en kort tekst - svært at se hvor pengene reelt går hen uden at kategorisere hver post."
+                Formaal="Give et samlet overblik over indtægter og forbrug, kategoriseret så det er nemt at se og handle på." />
+        }
+        else
+        {
+            <ProblemPurposeBanner
+                Problem="Et råt kontoudtog viser kun beløb og en kort tekst - svært at se det reelle forretningsresultat uden at kategorisere hver post."
+                Formaal="Give et samlet overblik over forretningens omsætning og udgifter, kategoriseret så det er nemt at se og handle på." />
+        }
+
+        <div>
+            <h1 class="page-title">@LedgerIcon() @LedgerId</h1>
+            <div class="meta">
+                @_dateFrom.ToString("d. MMM yyyy", _da) - @_dateTo.ToString("d. MMM yyyy", _da)
+                &nbsp;·&nbsp; @_all.Count transaktioner
+                @if (_periodFrom.HasValue || _periodTo.HasValue)
+                {
+                    <text>(ud af @_totalAllTime i alt)</text>
+                }
+                @if (_startBalance.HasValue && _endBalance.HasValue)
+                {
+                    <text>&nbsp;·&nbsp; saldo @_startBalance.Value.ToString("N0") → @_endBalance.Value.ToString("N0") kr.</text>
+                }
+            </div>
+            <div style="margin-top:10px">
+                <a class="btn" href="/shop-categorize/@LedgerId" data-enhance-nav="false">Kategoriser transaktioner</a>
+            </div>
+        </div>
+
+        @* ============ Period filter - plain GET links/form, no JS/rendermode needed. Old halves of a long-running account (e.g. first half of 2025) stop being relevant day-to-day, but stay one click away for comparison. ============ *@
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-radius:16px;background:var(--card-light);border:1px solid var(--card-border)">
+            <span class="meta" style="font-weight:700">Periode:</span>
+            <a class="btn" href="/shop-overview/@LedgerId" data-enhance-nav="false">Hele perioden</a>
+            <a class="btn" href="/shop-overview/@LedgerId?from=@DateTime.Today.AddMonths(-6).ToString("yyyy-MM-dd")" data-enhance-nav="false">Sidste 6 mdr.</a>
+            <a class="btn" href="/shop-overview/@LedgerId?from=@(new DateTime(DateTime.Today.Year, 1, 1).ToString("yyyy-MM-dd"))" data-enhance-nav="false">@DateTime.Today.Year</a>
+            <a class="btn" href="/shop-overview/@LedgerId?from=@(new DateTime(DateTime.Today.Year - 1, 1, 1).ToString("yyyy-MM-dd"))&to=@(new DateTime(DateTime.Today.Year - 1, 12, 31).ToString("yyyy-MM-dd"))" data-enhance-nav="false">@(DateTime.Today.Year - 1)</a>
+            <form method="get" style="display:flex;gap:6px;align-items:center;margin-left:auto">
+                @if (!string.IsNullOrWhiteSpace(FocusParam))
+                {
+                    <input type="hidden" name="focus" value="@FocusParam" />
+                }
+                <input class="input" type="date" name="from" value="@(_periodFrom?.ToString("yyyy-MM-dd"))" style="padding:6px 10px" />
+                <span class="meta">–</span>
+                <input class="input" type="date" name="to" value="@(_periodTo?.ToString("yyyy-MM-dd"))" style="padding:6px 10px" />
+                <button class="btn btn-primary" type="submit">Vis</button>
+            </form>
+        </div>
+
+        @* ============ Scope focus - only meaningful when business and private share the same account (Both mode); a single-scope ledger like Hvidberg/ITMartin has nothing to toggle ============ *@
+        @if (_scopeMode == LedgerScopeMode.Both)
+        {
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <span class="meta" style="font-weight:700">Fokus:</span>
+                <a class="btn @(_focus == Focus.All ? "btn-primary" : "")" href="@FocusLink(null)" data-enhance-nav="false">Alt</a>
+                <a class="btn @(_focus == Focus.Business ? "btn-primary" : "")" href="@FocusLink("business")" data-enhance-nav="false">🏪 Kun forretning</a>
+                <a class="btn @(_focus == Focus.Private ? "btn-primary" : "")" href="@FocusLink("private")" data-enhance-nav="false">🏠 Kun privat</a>
+            </div>
+        }
+
+        @* ============ AI Q&A - free-form questions answered from a monthly/category digest, same "user-triggered, one call, shown inline" pattern as the Investigate button on /shop-categorize ============ *@
+        <div class="category-summary-card" style="display:flex;flex-direction:column;gap:10px;margin-bottom:0">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input class="input" id="askInput" style="flex:1;min-width:220px" placeholder='Fx: "Hvad er gennemsnitsindtægten i 2025?"' />
+                <button class="btn btn-primary" id="askBtn">❓ Spørg</button>
+            </div>
+            <div id="askAnswer" style="display:none;white-space:pre-wrap;font-size:14px"></div>
+        </div>
+
+        @* ============ HEADLINE: is the shop itself viable? - skipped entirely for a private-only ledger like Hvidberg, nothing business-scoped can ever exist there, or when the user has focused the view on private only ============ *@
+        @if (_scopeMode != LedgerScopeMode.PrivateOnly && _focus != Focus.Private)
+        {
+            <div>
+                <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:16px">@(_scopeMode == LedgerScopeMode.BusinessOnly ? "Resultat" : "Butikkens eget resultat (uden private hævninger)")</h2>
+                <div class="financial-overview-card">
+                    <div class="financial-item income">
+                        <div class="financial-label">Omsætning (kortbetalinger m.v.)</div>
+                        <div class="financial-value">@_businessRevenue.ToString("N0") kr.</div>
+                    </div>
+                    <div class="financial-item expense">
+                        <div class="financial-label">Forretningsudgifter</div>
+                        <div class="financial-value">@Math.Abs(_businessExpenses).ToString("N0") kr.</div>
+                    </div>
+                    <div class="financial-item result">
+                        <div class="financial-label">@(_businessNet >= 0 ? "Overskud" : "Underskud")</div>
+                        <div class="financial-value">@_businessNet.ToString("N0") kr.</div>
+                    </div>
+                </div>
+                @if (_scopeMode == LedgerScopeMode.Both)
+                {
+                    <div class="meta" style="margin-top:8px">
+                        Kun transaktioner tagget "Forretning" tæller med her - se nedenfor hvordan tagging virker og hvad der endnu ikke er kategoriseret.
+                    </div>
+                }
+            </div>
+        }
+
+        @* ============ PRIVATE breakdown - visible, actionable on its own - skipped entirely for a business-only ledger like ITMartin, or when the user has focused the view on business only ============ *@
+        @if (_scopeMode != LedgerScopeMode.BusinessOnly && _focus != Focus.Business)
+        {
+            <div>
+                <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:16px">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Overblik" : "Privat på samme konto")</h2>
+                <div class="financial-overview-card">
+                    <div class="financial-item expense">
+                        <div class="financial-label">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Udgifter" : "Private hævninger")</div>
+                        <div class="financial-value">@Math.Abs(_privateOut).ToString("N0") kr.</div>
+                    </div>
+                    <div class="financial-item income">
+                        <div class="financial-label">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Indtægt" : "Privat ind (fx forsikringsudbetaling)")</div>
+                        <div class="financial-value">@_privateIn.ToString("N0") kr.</div>
+                    </div>
+                    @if (_scopeMode == LedgerScopeMode.Both)
+                    {
+                        <div class="financial-item result">
+                            <div class="financial-label">Privat andel af omsætning</div>
+                            <div class="financial-value">@_privateShareOfRevenuePct.ToString("N0")%</div>
+                        </div>
+                    }
+                </div>
+
+                @if (_topPrivate.Count > 0)
+                {
+                    <div style="margin-top:16px" class="meta">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Forbrug" : "Privat forbrug") - klik en kategori for at se de faktiske posteringer</div>
+                    @foreach (var g in _topPrivate)
+                    {
+                        @CategoryCard(g, negative: true)
+                    }
+                }
+                @if (_privateIncomeByCategory.Count > 0)
+                {
+                    <div style="margin-top:16px" class="meta">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Indbetalt" : "Privat indbetalt")</div>
+                    @foreach (var g in _privateIncomeByCategory)
+                    {
+                        @CategoryCard(g, negative: false)
+                    }
+                }
+            </div>
+        }
+
+        @* ============ Critical flags: helper view - what's wrong AND what's fine ============ *@
+        <div>
+            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:16px">Status</h2>
+            <div style="display:flex;flex-direction:column;gap:10px">
+                @foreach (var flag in _flags)
+                {
+                    <div class="alert @(flag.Critical ? "error" : "success")">
+                        @(flag.Critical ? "⚠" : "✔") @flag.Text
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ============ Monthly trend - income/expense overview for the owner ============ *@
+        <div>
+            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:16px">Måned for måned</h2>
+            <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;min-width:640px">
+                    <thead>
+                        <tr style="text-align:left;color:var(--muted);font-size:13px">
+                            <th style="padding:8px">Måned</th>
+                            <th style="padding:8px">Omsætning</th>
+                            <th style="padding:8px">Udgifter (butik)</th>
+                            <th style="padding:8px">Butiksresultat</th>
+                            <th style="padding:8px">Privat hævet</th>
+                            <th style="padding:8px">Saldo v. mdr. slut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in _monthly)
+                        {
+                            <tr style="border-top:1px solid var(--border)">
+                                <td style="padding:8px">@m.Label</td>
+                                <td style="padding:8px;color:var(--green)">@m.Revenue.ToString("N0")</td>
+                                <td style="padding:8px;color:var(--red)">@Math.Abs(m.Expenses).ToString("N0")</td>
+                                <td style="padding:8px;color:@(m.Net >= 0 ? "var(--green)" : "var(--red)")">@m.Net.ToString("N0")</td>
+                                <td style="padding:8px;color:var(--orange)">@Math.Abs(m.PrivateOut).ToString("N0")</td>
+                                <td style="padding:8px">@(m.EndBalance?.ToString("N0") ?? "-")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @* ============ Business revenue and expenses, by category - each expandable to the actual transactions - not relevant for a private-only ledger like Hvidberg, or when focused on private only ============ *@
+        @if (_scopeMode != LedgerScopeMode.PrivateOnly && _focus != Focus.Private)
+        {
+            <div>
+                <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:4px">@(_scopeMode == LedgerScopeMode.BusinessOnly ? "Omsætning og udgifter" : "Forretningens omsætning og udgifter")</h2>
+                <div class="meta" style="margin-bottom:16px">Klik en kategori for hurtigt at se de faktiske posteringer bag tallet.</div>
+
+                @if (_businessRevenueByCategory.Count > 0)
+                {
+                    <div class="meta" style="margin-bottom:6px">Omsætning</div>
+                    @foreach (var g in _businessRevenueByCategory)
+                    {
+                        @CategoryCard(g, negative: false)
+                    }
+                }
+
+                @if (_topBusinessExpenses.Count > 0)
+                {
+                    <div class="meta" style="margin:16px 0 6px">Udgifter</div>
+                    @foreach (var g in _topBusinessExpenses)
+                    {
+                        @CategoryCard(g, negative: true)
+                    }
+                }
+            </div>
+        }
+
+        @* ============ Full transaction list - everything, including Unknown ============ *@
+        <div>
+            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:4px">Alle transaktioner (@_all.Count)</h2>
+            <div class="meta" style="margin-bottom:16px">
+                @if (_scopeMode == LedgerScopeMode.Both)
+                {
+                    <text>Inkl. @_unknownCount ukategoriserede - de tæller ikke med i butik eller privat ovenfor, indtil de er tagget.</text>
+                }
+                else if (_unknownCount > 0)
+                {
+                    <text>Inkl. @_unknownCount ukategoriserede - de tæller ikke med i tallene ovenfor, indtil de er tagget.</text>
+                }
+            </div>
+            <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;min-width:760px">
+                    <thead>
+                        <tr style="text-align:left;color:var(--muted);font-size:13px">
+                            <th style="padding:8px">Dato</th>
+                            <th style="padding:8px">Beskrivelse</th>
+                            <th style="padding:8px">Beløb</th>
+                            <th style="padding:8px">Type</th>
+                            <th style="padding:8px">Kategori</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tx in _all.OrderByDescending(x => x.Date))
+                        {
+                            <tr style="border-top:1px solid var(--border)">
+                                <td style="padding:8px;white-space:nowrap">@tx.Date.ToString("dd/MM/yy")</td>
+                                <td style="padding:8px">@tx.Description</td>
+                                <td style="padding:8px;color:@(tx.Amount >= 0 ? "var(--green)" : "var(--red)");white-space:nowrap">@tx.Amount.ToString("N0") kr.</td>
+                                <td style="padding:8px">
+                                    <span style="padding:2px 8px;border-radius:999px;font-size:12px;background:@ScopeColor(tx.Scope)">@ScopeLabel(tx.Scope)</span>
+                                </td>
+                                <td style="padding:8px;color:var(--muted);font-size:13px">@(!string.IsNullOrWhiteSpace(tx.UserCategoryName) ? tx.UserCategoryName : BusinessCategoryLabel(tx.BusinessCategory))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+}
+
+<script>
+setTimeout(function () {
+    const askBtn = document.getElementById('askBtn');
+    const askInput = document.getElementById('askInput');
+    const askAnswer = document.getElementById('askAnswer');
+    if (!askBtn || !askInput || !askAnswer) return;
+
+    const ledgerId = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop());
+
+    async function ask() {
+        const question = askInput.value.trim();
+        if (!question) return;
+        askBtn.disabled = true;
+        askBtn.textContent = '❓ Spørger...';
+        askAnswer.style.display = '';
+        askAnswer.textContent = 'Analyserer...';
+        try {
+            const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question }),
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            askAnswer.textContent = data.answer;
+        } catch {
+            askAnswer.textContent = 'Kunne ikke hente svar - prøv igen.';
+        } finally {
+            askBtn.disabled = false;
+            askBtn.textContent = '❓ Spørg';
+        }
+    }
+
+    askBtn.addEventListener('click', ask);
+    askInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') ask();
+    });
+}, 0);
+</script>
+
+@code {
+    // Native <details>/<summary> instead of a click handler - this page has
+    // no @rendermode (see the note at the top), so any expand/collapse has
+    // to work without a live circuit or JS. Card header = category totals,
+    // body = the real underlying transactions for quick investigation
+    // (same "don't just show me a number, show me what's behind it" need
+    // that drove the sample-transaction text on /shop-categorize).
+    private RenderFragment CategoryCard(GroupedAmount g, bool negative) => __builder =>
+    {
+        <details class="category-summary-card category-summary-card--compact" style="margin-bottom:8px">
+            <summary style="cursor:pointer;list-style:none">
+                <div class="category-summary-top">
+                    <span class="category-summary-title" style="font-size:15px">@g.Description</span>
+                    <span class="@(negative ? "amount-negative" : "amount-positive")" style="white-space:nowrap;margin-left:12px">
+                        @g.Count stk. · @(negative ? "−" : "+")@Math.Abs(g.Sum).ToString("N0") kr.
+                    </span>
+                </div>
+            </summary>
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+                @foreach (var tx in g.Transactions)
+                {
+                    <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;border-top:1px solid var(--border)">
+                        <span style="color:var(--muted);white-space:nowrap">@tx.Date.ToString("dd/MM/yy")</span>
+                        <span style="flex:1">@tx.Description</span>
+                        <span class="@(tx.Amount < 0 ? "amount-negative" : "amount-positive")" style="white-space:nowrap">
+                            @(tx.Amount < 0 ? "−" : "+")@Math.Abs(tx.Amount).ToString("N0") kr.
+                        </span>
+                    </div>
+                }
+            </div>
+        </details>
+    };
+
+    private string LedgerIcon() => _scopeMode switch
+    {
+        LedgerScopeMode.PrivateOnly => "🏠",
+        LedgerScopeMode.BusinessOnly => "💼",
+        _ => "🏪",
+    };
+
+    [Parameter] public string LedgerId { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "from")] public string? FromParam { get; set; }
+    [SupplyParameterFromQuery(Name = "to")] public string? ToParam { get; set; }
+    [SupplyParameterFromQuery(Name = "focus")] public string? FocusParam { get; set; }
+
+    private enum Focus { All, Business, Private }
+
+    private string FocusLink(string? focus)
+    {
+        var qs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(focus)) qs.Add($"focus={focus}");
+        if (_periodFrom.HasValue) qs.Add($"from={_periodFrom:yyyy-MM-dd}");
+        if (_periodTo.HasValue) qs.Add($"to={_periodTo:yyyy-MM-dd}");
+        return $"/shop-overview/{LedgerId}" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+    }
+
+    private readonly CultureInfo _da = new("da-DK");
+    private bool _loading = true;
+    private List<BankTransaction> _all = new();
+    private LedgerScopeMode _scopeMode = LedgerScopeMode.Both;
+    private Focus _focus = Focus.All;
+    private DateTime? _periodFrom, _periodTo;
+    private int _totalAllTime;
+
+    private DateTime _dateFrom, _dateTo;
+    private decimal? _startBalance, _endBalance;
+
+    private decimal _businessRevenue, _businessExpenses, _businessNet;
+    private decimal _privateOut, _privateIn;
+    private double _privateShareOfRevenuePct;
+    private int _unknownCount;
+
+    private sealed record Flag(bool Critical, string Text);
+    private List<Flag> _flags = new();
+
+    private sealed record GroupedAmount(string Description, string Category, decimal Sum, int Count, List<BankTransaction> Transactions);
+    private List<GroupedAmount> _topBusinessExpenses = new();
+    private List<GroupedAmount> _businessRevenueByCategory = new();
+    private List<GroupedAmount> _topPrivate = new();
+    private List<GroupedAmount> _privateIncomeByCategory = new();
+
+    private sealed record MonthRow(string Label, decimal Revenue, decimal Expenses, decimal Net, decimal PrivateOut, decimal? EndBalance);
+    private List<MonthRow> _monthly = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var config = await Db.LedgerConfigs.FindAsync(LedgerId);
+        _scopeMode = config?.ScopeMode ?? LedgerScopeMode.Both;
+
+        _periodFrom = DateTime.TryParse(FromParam, out var f) ? f.Date : null;
+        _periodTo = DateTime.TryParse(ToParam, out var t) ? t.Date : null;
+        _focus = FocusParam?.ToLowerInvariant() switch
+        {
+            "business" => Focus.Business,
+            "private" => Focus.Private,
+            _ => Focus.All,
+        };
+
+        var all = await Db.Transactions
+            .Where(x => x.LedgerId == LedgerId)
+            .OrderBy(x => x.Date)
+            .ToListAsync();
+        _totalAllTime = all.Count;
+
+        IEnumerable<BankTransaction> filtered = all;
+        if (_periodFrom.HasValue) filtered = filtered.Where(x => x.Date >= _periodFrom.Value);
+        if (_periodTo.HasValue) filtered = filtered.Where(x => x.Date <= _periodTo.Value.AddDays(1).AddTicks(-1));
+        if (_focus == Focus.Business) filtered = filtered.Where(x => x.Scope == TransactionScope.Business);
+        else if (_focus == Focus.Private) filtered = filtered.Where(x => x.Scope == TransactionScope.Private);
+        _all = filtered.ToList();
+
+        if (_all.Count > 0)
+        {
+            Compute();
+        }
+
+        _loading = false;
+    }
+
+    private void Compute()
+    {
+        _dateFrom = _all.First().Date;
+        _dateTo = _all.Last().Date;
+
+        _startBalance = _all.First().Balance - _all.First().Amount;
+        _endBalance = _all.Last().Balance;
+
+        var business = _all.Where(x => x.Scope == TransactionScope.Business).ToList();
+        var priv = _all.Where(x => x.Scope == TransactionScope.Private).ToList();
+        _unknownCount = _all.Count(x => x.Scope == TransactionScope.Unknown);
+
+        _businessRevenue = business.Where(x => x.Amount > 0).Sum(x => x.Amount);
+        _businessExpenses = business.Where(x => x.Amount < 0).Sum(x => x.Amount);
+        _businessNet = _businessRevenue + _businessExpenses;
+
+        _privateOut = priv.Where(x => x.Amount < 0).Sum(x => x.Amount);
+        _privateIn = priv.Where(x => x.Amount > 0).Sum(x => x.Amount);
+        _privateShareOfRevenuePct = _businessRevenue > 0
+            ? (double)(Math.Abs(_privateOut) / _businessRevenue * 100m)
+            : 0.0;
+
+        // Grouped by category (Husleje, Varme, ...), not raw counterparty
+        // description - "Bogshoppen: Husleje 25.000, Varme 3.000" reads as an
+        // actual chart of accounts, not a list of messy bank-statement text.
+        // UserCategoryName (see /shop-categorize) always wins once set - it's
+        // the human's own final word, not a guess.
+        _topBusinessExpenses = business.Where(x => x.Amount < 0)
+            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : BusinessCategoryLabel(x.BusinessCategory))
+            .Select(g => new GroupedAmount(
+                g.Key,
+                $"{g.Count()} stk.",
+                g.Sum(x => x.Amount),
+                g.Count(),
+                g.OrderByDescending(x => x.Date).ToList()))
+            .OrderBy(g => g.Sum)
+            .ToList();
+
+        _businessRevenueByCategory = business.Where(x => x.Amount > 0)
+            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : BusinessCategoryLabel(x.BusinessCategory))
+            .Select(g => new GroupedAmount(
+                g.Key,
+                $"{g.Count()} stk.",
+                g.Sum(x => x.Amount),
+                g.Count(),
+                g.OrderByDescending(x => x.Date).ToList()))
+            .OrderByDescending(g => g.Sum)
+            .ToList();
+
+        // Private spending reuses the family budget's own Category enum (see
+        // RawBankStatementCsvService - private-scope rows run through the
+        // same ITransactionCategorizer the family dashboard uses), so this
+        // reads the same way: "Privat: Husleje 5.000, Dagligvarer 4.000".
+        _topPrivate = priv.Where(x => x.Amount < 0)
+            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : x.Category.ToString())
+            .Select(g => new GroupedAmount(
+                g.Key,
+                $"{g.Count()} stk.",
+                g.Sum(x => x.Amount),
+                g.Count(),
+                g.OrderByDescending(x => x.Date).ToList()))
+            .OrderBy(g => g.Sum)
+            .ToList();
+
+        _privateIncomeByCategory = priv.Where(x => x.Amount > 0)
+            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : x.Category.ToString())
+            .Select(g => new GroupedAmount(
+                g.Key,
+                $"{g.Count()} stk.",
+                g.Sum(x => x.Amount),
+                g.Count(),
+                g.OrderByDescending(x => x.Date).ToList()))
+            .OrderByDescending(g => g.Sum)
+            .ToList();
+
+        _monthly = _all
+            .GroupBy(x => new DateTime(x.Date.Year, x.Date.Month, 1))
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var biz = g.Where(x => x.Scope == TransactionScope.Business).ToList();
+                var rev = biz.Where(x => x.Amount > 0).Sum(x => x.Amount);
+                var exp = biz.Where(x => x.Amount < 0).Sum(x => x.Amount);
+                var privOut = g.Where(x => x.Scope == TransactionScope.Private && x.Amount < 0).Sum(x => x.Amount);
+                var endBal = g.OrderBy(x => x.Date).Last().Balance;
+                return new MonthRow(g.Key.ToString("MMM yyyy", _da), rev, exp, rev + exp, privOut, endBal);
+            })
+            .ToList();
+
+        BuildFlags();
+    }
+
+    private void BuildFlags()
+    {
+        var flags = new List<Flag>();
+
+        if (_businessNet < 0)
+            flags.Add(new Flag(true, $"Butikken har underskud på eget regnskab: {_businessNet:N0} kr. i den viste periode (omsætning {_businessRevenue:N0} kr. minus forretningsudgifter {Math.Abs(_businessExpenses):N0} kr.)."));
+        else
+            flags.Add(new Flag(false, $"Butikken har overskud på eget regnskab, før private hævninger: {_businessNet:N0} kr."));
+
+        if (_endBalance is < 0)
+            flags.Add(new Flag(true, $"Kontoen er i minus lige nu: {_endBalance:N0} kr."));
+
+        if (_startBalance.HasValue && _endBalance.HasValue && _endBalance < _startBalance)
+            flags.Add(new Flag(true, $"Saldoen er faldet med {(_startBalance - _endBalance):N0} kr. over hele perioden."));
+
+        if (_privateShareOfRevenuePct > 40)
+            flags.Add(new Flag(true, $"Private hævninger ({Math.Abs(_privateOut):N0} kr.) udgør {_privateShareOfRevenuePct:N0}% af butikkens omsætning - en stor del af det, butikken tjener, går til privatforbrug."));
+        else if (_privateShareOfRevenuePct > 0)
+            flags.Add(new Flag(false, $"Private hævninger udgør {_privateShareOfRevenuePct:N0}% af omsætningen - ikke urimeligt højt."));
+
+        if (_monthly.Count >= 4)
+        {
+            var half = _monthly.Count / 2;
+            var firstHalfAvg = _monthly.Take(half).Average(m => m.Revenue);
+            var secondHalfAvg = _monthly.Skip(_monthly.Count - half).Average(m => m.Revenue);
+            if (firstHalfAvg > 0)
+            {
+                var changePct = (double)((secondHalfAvg - firstHalfAvg) / firstHalfAvg * 100m);
+                if (changePct <= -15)
+                    flags.Add(new Flag(true, $"Omsætningen er faldet markant: {changePct:N0}% fra første til seneste halvdel af perioden ({firstHalfAvg:N0} → {secondHalfAvg:N0} kr./md i snit)."));
+                else if (changePct >= 15)
+                    flags.Add(new Flag(false, $"Omsætningen er steget {changePct:N0}% fra første til seneste halvdel af perioden."));
+                else
+                    flags.Add(new Flag(false, "Omsætningen er nogenlunde stabil hen over perioden."));
+            }
+        }
+
+        var feeMarkers = new[] { "overtræk", "rykker", "inkasso" };
+        var feeHits = _all.Count(x => feeMarkers.Any(m => x.Description.Contains(m, StringComparison.OrdinalIgnoreCase) || x.RawDetails.Contains(m, StringComparison.OrdinalIgnoreCase)));
+        if (feeHits > 0)
+            flags.Add(new Flag(true, $"{feeHits} transaktion(er) ligner overtræks-/rykkergebyrer - tjek dem i listen nedenfor."));
+        else
+            flags.Add(new Flag(false, "Ingen tegn på overtræks- eller rykkergebyrer i teksterne."));
+
+        if (_unknownCount > 0)
+            flags.Add(new Flag(false, $"{_unknownCount} transaktion(er) er endnu ikke kategoriseret som forretning/privat - de er stadig synlige i den fulde liste nedenfor, men tæller ikke med i tallene ovenfor."));
+
+        _flags = flags;
+    }
+
+    private static string ScopeLabel(TransactionScope s) => s switch
+    {
+        TransactionScope.Business => "Forretning",
+        TransactionScope.Private => "Privat",
+        _ => "Ukendt",
+    };
+
+    private static string ScopeColor(TransactionScope s) => s switch
+    {
+        TransactionScope.Business => "rgba(34,197,94,.18)",
+        TransactionScope.Private => "rgba(249,115,22,.18)",
+        _ => "rgba(136,144,166,.18)",
+    };
+
+    private static string BusinessCategoryLabel(BusinessCategory c) => c switch
+    {
+        BusinessCategory.Revenue => "Omsætning",
+        BusinessCategory.Rent => "Husleje",
+        BusinessCategory.Utilities => "Forsyning",
+        BusinessCategory.Insurance => "Forsikring",
+        BusinessCategory.Subscriptions => "Abonnement",
+        BusinessCategory.PaymentProcessorFees => "Betalingsgebyr",
+        BusinessCategory.Supplies => "Varekøb",
+        BusinessCategory.BankFees => "Bankgebyr",
+        BusinessCategory.Salary => "Løn",
+        BusinessCategory.Tax => "Skat/moms",
+        BusinessCategory.PrivateDraw => "Privat hævning",
+        BusinessCategory.Other => "Andet",
+        _ => "-",
+    };
+}

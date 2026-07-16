@@ -78,11 +78,46 @@
         </div>
     }
 
-    <!-- Step 4: Song name + create -->
-    @if (_chosenPat is not null)
+    <!-- Step 4: Melody ideas (optional - pick any you like, or skip) -->
+    @if (_chosenBpm.HasValue)
     {
         <div class="sw-section">
-            <div class="sw-step-label">4. Hvad skal sangen hedde?</div>
+            <div class="sw-step-label">4. Melodi-idéer (valgfrit)</div>
+            <div class="sw-cards">
+                @foreach (var idea in _melodyIdeas)
+                {
+                    var active = _chosenMelodyIdeas.Contains(idea);
+                    <button class="sw-card @(active ? "sw-card--active" : "")"
+                            @onclick="() => ToggleMelodyIdea(idea)">
+                        <div class="sw-card-mood">@idea.Title</div>
+                        <div class="sw-card-desc">@idea.Description</div>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- Step 5: Song structure -->
+        <div class="sw-section">
+            <div class="sw-step-label">5. Sangstruktur</div>
+            <div class="sw-cards">
+                @foreach (var s in _structures)
+                {
+                    var active = _chosenStructure == s;
+                    <button class="sw-card @(active ? "sw-card--active" : "")"
+                            @onclick="() => _chosenStructure = s">
+                        <div class="sw-card-mood">@s.Name</div>
+                        <div class="sw-card-chords">@string.Join(" – ", s.Sections)</div>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Step 6: Song name + create -->
+    @if (_chosenStructure is not null)
+    {
+        <div class="sw-section">
+            <div class="sw-step-label">6. Hvad skal sangen hedde?</div>
             <input class="sw-input" type="text" placeholder="Sangtitel..."
                    @bind="_title" @bind:event="oninput"
                    @onkeydown="OnKey" />
@@ -207,6 +242,21 @@
     private string       _error   = "";
     private bool         _creating;
 
+    private readonly HashSet<MelodyIdea> _chosenMelodyIdeas = [];
+    private readonly List<SongStructure> _structures = SongStructures.GetStructures();
+    private SongStructure? _chosenStructure;
+
+    // Depends on the chosen chord progression, so computed rather than stored
+    // - re-evaluates automatically if the user goes back and picks a
+    // different progression before reaching this step.
+    private List<MelodyIdea> _melodyIdeas =>
+        _chosenProg is null ? [] : ITMartinMusikStudio.Server.Services.MelodyIdeas.GetIdeas(_chosenProg.Chords);
+
+    private void ToggleMelodyIdea(MelodyIdea idea)
+    {
+        if (!_chosenMelodyIdeas.Remove(idea)) _chosenMelodyIdeas.Add(idea);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -224,7 +274,7 @@
     private async Task CreateAsync()
     {
         var title = _title.Trim();
-        if (string.IsNullOrWhiteSpace(title) || _chosenProg is null || _chosenPat is null) return;
+        if (string.IsNullOrWhiteSpace(title) || _chosenProg is null || _chosenPat is null || _chosenStructure is null) return;
 
         _creating = true;
         _error    = "";
@@ -239,7 +289,21 @@
             ? baseKey + "_" + Guid.NewGuid().ToString("N")[..4]
             : baseKey;
 
-        var chordChart = string.Join("  ", _chosenProg.Chords);
+        // Per-section chord chart (e.g. "Intro: Em C G D" / "Omkvæd: F# D# A# F#"
+        // once the structure's own variation - lift/invert/drop-last - is
+        // applied) rather than just the flat progression, so the chart on the
+        // song page already reflects the chosen structure.
+        var steps = SongStructures.GeneratePracticeSteps(_chosenProg.Chords, _chosenStructure);
+        var chordChart = string.Join("\n", steps.Select(s => $"{s.Section}: {string.Join(" ", s.Chords)}"));
+
+        var notesLines = new List<string> { $"🎵 Sangstruktur: {_chosenStructure.Name}", "" };
+        notesLines.AddRange(steps.Where(s => s.Note is not null).Select(s => $"{s.Section}: {s.Note}"));
+        if (_chosenMelodyIdeas.Count > 0)
+        {
+            notesLines.Add("");
+            notesLines.Add("💡 Melodi-idéer:");
+            notesLines.AddRange(_chosenMelodyIdeas.Select(i => $"- {i.Title}: {i.Description}"));
+        }
 
         var song = new StudioSong
         {
@@ -248,6 +312,7 @@
             ChordChart        = chordChart,
             FingerpickPattern = _chosenPat.Notation,
             Tempo             = _chosenBpm,
+            Notes             = string.Join("\n", notesLines),
         };
 
         Db.Songs.Add(song);

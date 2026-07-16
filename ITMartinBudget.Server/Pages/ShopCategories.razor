@@ -1,0 +1,298 @@
+@page "/shop-categories/{LedgerId}"
+@* No @rendermode: plain REST + vanilla JS, same reasoning as /shop-categorize -
+   Blazor Server needs a persistent SignalR circuit, which has previously
+   gotten stuck reconnecting ("Forbinder...") through this app's Cloudflare
+   Tunnel domain. *@
+
+<PageTitle>Kategorier - @LedgerId</PageTitle>
+
+<div class="budget-container">
+    <ContentCard>
+        <div class="stack">
+
+            <ProblemPurposeBanner
+                Problem="Efter den første runde kategorisering ender man tit med mange små, ensartede kategorier (Shell, Q8, Uno-X) i stedet for én samlet (Benzin)."
+                Formaal="Vælg flere kategorier og flet dem til én - de underliggende genkendelsesregler pr. post ændres ikke, kun navnet de peger på." />
+
+            <div>
+                <h1 class="page-title">Kategorier - @LedgerId</h1>
+                <div class="meta" id="summaryCount">Indlæser... · <a href="/shop-categorize/@LedgerId" data-enhance-nav="false">Kategoriser poster</a> · <a href="/shop-overview/@LedgerId" data-enhance-nav="false">Se overblik</a></div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 18px;border-radius:16px;background:var(--card-light);border:1px solid var(--card-border)">
+                <span class="meta" id="selectedCount">0 valgt</span>
+                <input class="input" id="targetName" list="existingCategories" style="flex:1;min-width:180px" placeholder="Flet valgte til (fx Benzin)..." />
+                <datalist id="existingCategories"></datalist>
+                <button class="btn btn-primary" id="mergeBtn" disabled>Flet</button>
+                <button class="btn" id="suggestBtn">💡 Foreslå grupperinger</button>
+            </div>
+
+            <div id="suggestionsSection" style="display:none">
+                <div class="meta" style="margin-bottom:6px">Forslag - klik "Brug forslag" for at forudvælge og udfylde, gennemgå og tryk Flet.</div>
+                <div id="suggestionsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+            </div>
+
+            <div id="categorySections"></div>
+
+        </div>
+    </ContentCard>
+</div>
+
+<script>
+setTimeout(function () {
+    const ledgerId = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop());
+    const selected = new Set();
+
+    function esc(s) {
+        if (s == null) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    const scopeLabelDa = { Business: 'Forretning', Private: 'Privat', Unknown: 'Ukendt' };
+    let selectedScope = null; // Business/Private - locks the other scope's checkboxes while set
+
+    let cardIdCounter = 0;
+    function categoryCardHtml(c) {
+        const cbId = `catpick-${cardIdCounter++}`;
+        // Flip-scope only makes sense for a clean single-scope category - a
+        // mixed one needs the underlying split fixed first, not a blanket flip.
+        const flipTarget = c.scope === 'Business' ? 'Private' : 'Business';
+        const flipBtn = c.isMixedScope ? '' : `
+            <button class="btn" data-role="flipScope" data-target="${flipTarget}" style="font-size:12px;padding:4px 10px;white-space:nowrap"
+                    title="Flyt hele kategorien til ${scopeLabelDa[flipTarget]}">
+                → ${scopeLabelDa[flipTarget]}
+            </button>`;
+        return `
+            <div class="category-summary-card category-summary-card--compact" style="margin-bottom:0" data-category="${esc(c.name)}">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <input type="checkbox" id="${cbId}" data-role="pick" data-scope="${esc(c.scope)}" value="${esc(c.name)}" style="width:18px;height:18px;flex-shrink:0" />
+                    <label for="${cbId}" style="flex:1;cursor:pointer;margin-bottom:0">
+                        <div class="category-summary-title" style="font-size:15px">${esc(c.name)}</div>
+                        <div class="meta">${c.isMixedScope ? 'Blandet (Forretning/Privat)' : (scopeLabelDa[c.scope] || c.scope)} · ${c.count} stk.</div>
+                    </label>
+                    <div class="${c.sum < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">
+                        ${c.sum < 0 ? '−' : '+'}${Math.round(Math.abs(c.sum)).toLocaleString('da-DK')} kr.
+                    </div>
+                    ${flipBtn}
+                </div>
+                <details data-role="detail" style="margin-top:8px">
+                    <summary style="cursor:pointer;list-style:none;color:var(--blue);font-size:13px">📋 Se ${c.count} transaktioner</summary>
+                    <div data-role="txList" style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+                        <div class="meta">Indlæser...</div>
+                    </div>
+                </details>
+            </div>`;
+    }
+
+    function fmtDate(iso) {
+        const d = new Date(iso);
+        return d.toLocaleDateString('da-DK', { year: 'numeric', month: 'short', day: '2-digit' });
+    }
+
+    function wireDetailToggles(root) {
+        root.querySelectorAll('[data-role="detail"]').forEach(details => {
+            let loaded = false;
+            details.addEventListener('toggle', async () => {
+                if (!details.open || loaded) return;
+                loaded = true;
+                const category = details.closest('[data-category]').dataset.category;
+                const txList = details.querySelector('[data-role="txList"]');
+                const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/transactions-by-category?category=${encodeURIComponent(category)}`);
+                const txs = await res.json();
+                txList.innerHTML = txs.map(tx => `
+                    <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;border-top:1px solid var(--border)">
+                        <span style="color:var(--muted);white-space:nowrap">${fmtDate(tx.date)}</span>
+                        <span style="flex:1">${esc(tx.description)}</span>
+                        <span class="${tx.amount < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">
+                            ${tx.amount < 0 ? '−' : '+'}${Math.round(Math.abs(tx.amount)).toLocaleString('da-DK')} kr.
+                        </span>
+                    </div>
+                `).join('');
+            });
+        });
+    }
+
+    function updateToolbar() {
+        document.getElementById('selectedCount').textContent = `${selected.size} valgt`;
+        document.getElementById('mergeBtn').disabled = selected.size === 0;
+        // A category can only merge with others of the same scope (Business
+        // and Private are never the same kind of money) - once one scope is
+        // selected, grey out and disable checkboxes from the other scope
+        // instead of letting a bad cross-scope merge happen and catching it
+        // after the fact.
+        document.querySelectorAll('[data-role="pick"]').forEach(cb => {
+            const blocked = selectedScope && cb.dataset.scope !== selectedScope && !cb.checked;
+            cb.disabled = !!blocked;
+            cb.closest('[data-category]').style.opacity = blocked ? '0.4' : '1';
+        });
+    }
+
+    async function load() {
+        // Every reload (initial load, after a flip, after a merge, after
+        // applying a suggestion) rebuilds the category cards from scratch as
+        // fresh, unchecked checkboxes - any selection/lock from before this
+        // reload no longer corresponds to anything on screen, so carrying
+        // selectedScope over would silently disable a whole column even
+        // though nothing is actually checked. Reset here, not just on merge.
+        selected.clear();
+        selectedScope = null;
+
+        const [summaryRes, categoriesRes] = await Promise.all([
+            fetch(`/api/shop/${encodeURIComponent(ledgerId)}/category-summary`),
+            fetch(`/api/shop/${encodeURIComponent(ledgerId)}/categories`),
+        ]);
+        const summary = await summaryRes.json();
+        const categories = await categoriesRes.json();
+
+        document.getElementById('summaryCount').innerHTML =
+            `${summary.length} kategorier · <a href="/shop-categorize/${esc(ledgerId)}" data-enhance-nav="false">Kategoriser poster</a> · <a href="/shop-overview/${esc(ledgerId)}" data-enhance-nav="false">Se overblik</a>`;
+
+        document.getElementById('existingCategories').innerHTML =
+            categories.map(name => `<option value="${esc(name)}"></option>`).join('');
+
+        // Grouped so Business and Private are always visually separate -
+        // cross-scope mistakes are structurally harder to make this way.
+        const business = summary.filter(c => !c.isMixedScope && c.scope === 'Business');
+        const privateCats = summary.filter(c => !c.isMixedScope && c.scope === 'Private');
+        const needsReview = summary.filter(c => c.isMixedScope || c.scope === 'Unknown');
+
+        function section(title, cats) {
+            if (cats.length === 0) return '';
+            return `
+                <div style="margin-top:20px">
+                    <div class="meta" style="margin-bottom:6px;font-weight:700">${title} (${cats.length})</div>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                        ${cats.map(categoryCardHtml).join('')}
+                    </div>
+                </div>`;
+        }
+
+        // Business and Private side by side - two columns makes it easy to
+        // compare/scan both at once instead of scrolling through one long
+        // stacked list. Stacks back to one column automatically on narrow
+        // screens via minmax/auto-fit.
+        document.getElementById('categorySections').innerHTML =
+            (needsReview.length > 0 ? `<div class="alert error" style="margin-bottom:0">⚠ ${needsReview.length} kategori(er) er stadig blandet eller ukendt scope - se nederst</div>` : '') +
+            `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;align-items:start">
+                <div>${section('🏪 Forretning', business)}</div>
+                <div>${section('🏠 Privat', privateCats)}</div>
+            </div>` +
+            section('⚠ Skal gennemgås (blandet/ukendt)', needsReview);
+
+        document.querySelectorAll('[data-role="pick"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (cb.checked) {
+                    selected.add(cb.value);
+                    if (!selectedScope) selectedScope = cb.dataset.scope;
+                } else {
+                    selected.delete(cb.value);
+                    if (selected.size === 0) selectedScope = null;
+                }
+                updateToolbar();
+            });
+        });
+
+        wireDetailToggles(document.getElementById('categorySections'));
+        updateToolbar();
+
+        document.querySelectorAll('[data-role="flipScope"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const categoryName = btn.closest('[data-category]').dataset.category;
+                const target = btn.dataset.target;
+                btn.disabled = true;
+                try {
+                    const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/set-category-scope`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ categoryName, scope: target }),
+                    });
+                    if (!res.ok) throw new Error();
+                    await load();
+                } catch {
+                    alert('Kunne ikke skifte scope - prøv igen');
+                    btn.disabled = false;
+                }
+            });
+        });
+    }
+
+    document.getElementById('suggestBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('suggestBtn');
+        btn.disabled = true;
+        btn.textContent = '💡 Analyserer...';
+        try {
+            const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/suggest-merges`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+            const suggestions = await res.json();
+            const section = document.getElementById('suggestionsSection');
+            const listEl = document.getElementById('suggestionsList');
+            if (suggestions.length === 0) {
+                section.style.display = '';
+                listEl.innerHTML = '<div class="meta">Ingen tydelige grupperinger fundet.</div>';
+                return;
+            }
+            section.style.display = '';
+            listEl.innerHTML = suggestions.map((s, i) => `
+                <div class="category-summary-card category-summary-card--compact" style="display:flex;align-items:center;gap:12px;margin-bottom:0">
+                    <div style="flex:1">
+                        <div class="category-summary-title" style="font-size:15px">${s.sourceNames.map(esc).join(' + ')} → <span class="amount-positive">${esc(s.suggestedTargetName)}</span></div>
+                        <div class="meta">${esc(s.reasoning)}</div>
+                    </div>
+                    <button class="btn" data-role="useSuggestion" data-index="${i}">Brug forslag</button>
+                </div>
+            `).join('');
+            listEl.querySelectorAll('[data-role="useSuggestion"]').forEach(useBtn => {
+                useBtn.addEventListener('click', () => {
+                    const s = suggestions[parseInt(useBtn.dataset.index, 10)];
+                    selected.clear();
+                    document.querySelectorAll('[data-role="pick"]').forEach(cb => {
+                        cb.checked = s.sourceNames.includes(cb.value);
+                        if (cb.checked) selected.add(cb.value);
+                    });
+                    document.getElementById('targetName').value = s.suggestedTargetName;
+                    updateToolbar();
+                    document.getElementById('targetName').scrollIntoView({ block: 'center', behavior: 'smooth' });
+                });
+            });
+        } catch {
+            alert('Kunne ikke hente forslag - prøv igen');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '💡 Foreslå grupperinger';
+        }
+    });
+
+    document.getElementById('mergeBtn').addEventListener('click', async () => {
+        const targetName = document.getElementById('targetName').value.trim();
+        if (!targetName) { alert('Angiv navnet på den samlede kategori'); return; }
+        if (selected.size === 0) return;
+
+        const btn = document.getElementById('mergeBtn');
+        btn.disabled = true;
+        btn.textContent = 'Fletter...';
+        try {
+            const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/merge-categories`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sourceNames: Array.from(selected), targetName }),
+            });
+            if (!res.ok) throw new Error();
+            selected.clear();
+            document.getElementById('targetName').value = '';
+            await load();
+            updateToolbar();
+        } catch {
+            alert('Kunne ikke flette - prøv igen');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Flet';
+        }
+    });
+
+    load();
+}, 0);
+</script>
+
+@code {
+    [Parameter] public string LedgerId { get; set; } = "";
+}

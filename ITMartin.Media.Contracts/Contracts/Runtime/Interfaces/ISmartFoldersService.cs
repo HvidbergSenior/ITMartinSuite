@@ -35,4 +35,12 @@ public interface ISmartFoldersService
     /// libraries with little/no location metadata will see very few files sorted.
     /// </summary>
     Task<HomeAwayResult> GenerateHomeAwayFoldersAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Publishes the already-generated SmartFolders (Home/Outside/People/Yearbook)
+    /// into the Gallery web app's own "Samlinger" (Collections) feature - so they
+    /// show as a grouped row of Danish-labeled cards on the gallery's home page,
+    /// instead of requiring a click into a raw "SmartFolders" folder to find them.
+    /// </summary>
+    Task SyncGalleryCollectionsAsync(string libraryPath, CancellationToken cancellationToken = default);
 }

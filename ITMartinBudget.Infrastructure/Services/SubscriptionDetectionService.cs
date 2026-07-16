@@ -20,7 +20,7 @@ public sealed class SubscriptionDetectionService : ISubscriptionDetectionService
         // something to reconsider cancelling - same exclusion DashboardService
         // applies to its own aggregates.
         var expenses = await _db.Transactions
-            .Where(x => x.Amount < 0 && x.BudgetGroup != BudgetGroup.OverførslerTilFraOpsparingsKonto)
+            .Where(x => x.LedgerId == "family" && x.Amount < 0 && x.BudgetGroup != BudgetGroup.OverførslerTilFraOpsparingsKonto)
             .OrderBy(x => x.Date)
             .ToListAsync();
 

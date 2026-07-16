@@ -22,40 +22,36 @@ public sealed class Package3Service : IPackage3Service
             // stills (same moment, not standalone content) - indexing/enumerating
             // them separately would double-count and, for video, means an ffprobe
             // subprocess per clip for no benefit.
-            "livephotos"
+            "livephotos",
+            // Generated offline-gallery thumbnails - not real content, and
+            // re-indexing them would duplicate faces already found in the originals.
+            "_galleri"
         };
 
     private readonly IDbContextFactory<MediaDbContext> _dbFactory;
-    private readonly IFaceRecognitionService _faceRecognition;
+    private readonly Func<IFaceRecognitionService> _faceRecognitionFactory;
     private readonly IThumbnailService _thumbnailService;
     private readonly ICollectionStore _collectionStore;
     private readonly ILogger<Package3Service> _logger;
 
     public Package3Service(
         IDbContextFactory<MediaDbContext> dbFactory,
-        IFaceRecognitionService faceRecognition,
+        Func<IFaceRecognitionService> faceRecognitionFactory,
         IThumbnailService thumbnailService,
         ICollectionStore collectionStore,
         ILogger<Package3Service> logger)
     {
         _dbFactory = dbFactory;
-        _faceRecognition = faceRecognition;
+        _faceRecognitionFactory = faceRecognitionFactory;
         _thumbnailService = thumbnailService;
         _collectionStore = collectionStore;
         _logger = logger;
     }
 
-    public Task IndexFacesAsync(string libraryPath, CancellationToken cancellationToken = default) =>
-        RunIndexAsync(libraryPath, Package3IndexType.Faces, IndexFaceForFileAsync, cancellationToken);
-
-    private async Task RunIndexAsync(
-        string libraryPath,
-        Package3IndexType indexType,
-        Func<MediaDbContext, string, CancellationToken, Task> indexOneFile,
-        CancellationToken cancellationToken)
+    public async Task IndexFacesAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
         var files = EnumerateLibraryImages(libraryPath).ToList();
-        var typeName = indexType.ToString();
+        var typeName = Package3IndexType.Faces.ToString();
 
         await using (var db = await _dbFactory.CreateDbContextAsync(cancellationToken))
         {
@@ -89,36 +85,74 @@ public sealed class Package3Service : IPackage3Service
 
         var processed = 0;
 
+        // CPU-bound face extraction was running one file at a time, leaving
+        // every core but one idle. FaceOnnxRecognitionService serializes all
+        // calls behind its own internal lock, so real parallelism needs one
+        // independent recognizer per concurrent worker, not a shared instance.
+        // WAL mode + a 5s busy_timeout (SqliteWalInterceptor) make concurrent
+        // SQLite writers safe; status writes are still throttled to keep
+        // contention low.
+        // Each worker loads its own copy of 3 ONNX models (detector, landmarks,
+        // embedder) - going to ProcessorCount-1 (11 here) OOM-killed the whole
+        // container. Capped at 4 concurrent recognizers as a safer starting
+        // point; revisit upward only while watching real memory usage.
+        var degreeOfParallelism = Math.Min(2, Math.Max(1, Environment.ProcessorCount - 1));
+        var recognizerPool = new System.Collections.Concurrent.ConcurrentBag<IFaceRecognitionService>();
+        for (var i = 0; i < degreeOfParallelism; i++)
+            recognizerPool.Add(_faceRecognitionFactory());
+
         try
         {
-            foreach (var file in files)
+            var parallelOptions = new ParallelOptions
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                MaxDegreeOfParallelism = degreeOfParallelism,
+                CancellationToken = cancellationToken,
+            };
 
-                await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+            await Parallel.ForEachAsync(files, parallelOptions, async (file, ct) =>
+            {
+                if (!recognizerPool.TryTake(out var recognizer))
+                    recognizer = _faceRecognitionFactory(); // pool momentarily empty - safe to just make an extra one
 
-                await indexOneFile(db, file, cancellationToken);
+                try
+                {
+                    await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-                processed++;
+                    await IndexFaceForFileAsync(db, file, recognizer, ct);
 
-                var status = await db.Package3IndexStatuses.FirstAsync(x => x.LibraryPath == libraryPath && x.IndexType == typeName, cancellationToken);
-                status.ProcessedFiles = processed;
-                status.CurrentFile = file;
+                    var count = Interlocked.Increment(ref processed);
 
-                await db.SaveChangesAsync(cancellationToken);
-            }
+                    // Every file still gets its own index row saved (above);
+                    // the shared progress counter is only written periodically
+                    // (and always on the very last file) so dozens of concurrent
+                    // workers aren't all fighting to update the same status row.
+                    if (count % 10 == 0 || count == files.Count)
+                    {
+                        var status = await db.Package3IndexStatuses.FirstAsync(x => x.LibraryPath == libraryPath && x.IndexType == typeName, ct);
+                        status.ProcessedFiles = count;
+                        status.CurrentFile = file;
+                    }
+
+                    await db.SaveChangesAsync(ct);
+                }
+                finally
+                {
+                    recognizerPool.Add(recognizer);
+                }
+            });
 
             await using (var db = await _dbFactory.CreateDbContextAsync(cancellationToken))
             {
                 var status = await db.Package3IndexStatuses.FirstAsync(x => x.LibraryPath == libraryPath && x.IndexType == typeName, cancellationToken);
                 status.Status = "Completed";
+                status.ProcessedFiles = processed;
                 status.CompletedAtUtc = DateTimeOffset.UtcNow;
                 await db.SaveChangesAsync(cancellationToken);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Package3 {IndexType} indexing failed for {LibraryPath}", indexType, libraryPath);
+            _logger.LogError(ex, "Package3 face indexing failed for {LibraryPath}", libraryPath);
 
             await using var db = await _dbFactory.CreateDbContextAsync(CancellationToken.None);
             var status = await db.Package3IndexStatuses.FirstAsync(x => x.LibraryPath == libraryPath && x.IndexType == typeName, CancellationToken.None);
@@ -126,9 +160,14 @@ public sealed class Package3Service : IPackage3Service
             status.ErrorMessage = ex.Message;
             await db.SaveChangesAsync(CancellationToken.None);
         }
+        finally
+        {
+            foreach (var recognizer in recognizerPool)
+                (recognizer as IDisposable)?.Dispose();
+        }
     }
 
-    private async Task IndexFaceForFileAsync(MediaDbContext db, string file, CancellationToken cancellationToken)
+    private async Task IndexFaceForFileAsync(MediaDbContext db, string file, IFaceRecognitionService recognizer, CancellationToken cancellationToken)
     {
         var alreadyFaceScanned = await db.MediaFaces.AnyAsync(x => x.MediaFilePath == file, cancellationToken);
         if (alreadyFaceScanned) return;
@@ -165,7 +204,7 @@ public sealed class Package3Service : IPackage3Service
 
         try
         {
-            var embeddings = await _faceRecognition.ExtractFaceEmbeddingsAsync(framePath);
+            var embeddings = await recognizer.ExtractFaceEmbeddingsAsync(framePath);
             foreach (var embedding in embeddings)
             {
                 db.MediaFaces.Add(new MediaFaceEntity
@@ -279,6 +318,17 @@ public sealed class Package3Service : IPackage3Service
         await db.SaveChangesAsync();
     }
 
+    // Multiple mount aliases have pointed at the same physical Vibeke library
+    // over the course of local Package3 testing (see docker-compose.yaml):
+    // the NAS-equivalent path, and the literal host folder name before the
+    // "/library/vibeke" alias mount was used consistently. All collapse to
+    // the one canonical form so the same photo is never treated as "two
+    // different files" just because of which path indexed it.
+    private static string NormalizeMediaFilePath(string path) =>
+        path
+            .Replace("/volume1/docker/filesorter/library/", "/library/", StringComparison.OrdinalIgnoreCase)
+            .Replace("/library/vibz-icloud-output/", "/library/vibeke/", StringComparison.OrdinalIgnoreCase);
+
     public async Task<List<PersonMatchResult>> FindMatchesAsync(Guid personId, double threshold = 0.45)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
@@ -303,14 +353,29 @@ public sealed class Package3Service : IPackage3Service
 
         // Group by file since a photo can have multiple detected faces - keep the
         // best-matching face per file so one photo doesn't appear twice in results.
-        foreach (var group in allFaces.GroupBy(x => x.MediaFilePath))
+        // Normalized because the same physical file was, for a while, indexed
+        // under two different mount paths (a NAS-equivalent alias used for local
+        // Package3 testing) - without this, the same photo shows up as two
+        // "different" files and gets symlinked twice (once as "_1").
+        foreach (var group in allFaces.GroupBy(x => NormalizeMediaFilePath(x.MediaFilePath)))
         {
             double best = 0;
             bool confirmed = false;
 
             foreach (var face in group)
             {
-                var vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? [];
+                float[] vector;
+                try
+                {
+                    vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? [];
+                }
+                catch (JsonException ex)
+                {
+                    // A single malformed embedding (e.g. from a prior storage
+                    // fault) should never take down matching for everyone else.
+                    _logger.LogWarning(ex, "Skipping unparsable embedding for {MediaFilePath}", face.MediaFilePath);
+                    continue;
+                }
                 if (vector.Length == 0) continue;
 
                 foreach (var reference in references)
@@ -383,6 +448,8 @@ public sealed class Package3Service : IPackage3Service
         var peopleDir = Path.Combine(libraryPath, ".package3", "people", personId.ToString("N"));
         Directory.CreateDirectory(peopleDir);
 
+        var recognizer = _faceRecognitionFactory();
+
         foreach (var photo in referencePhotos)
         {
             var extension = Path.GetExtension(photo.FileName);
@@ -391,7 +458,7 @@ public sealed class Package3Service : IPackage3Service
             var savedPath = Path.Combine(peopleDir, $"{Guid.NewGuid():N}{extension}");
             await File.WriteAllBytesAsync(savedPath, photo.Bytes);
 
-            var embeddings = await _faceRecognition.ExtractFaceEmbeddingsAsync(savedPath);
+            var embeddings = await recognizer.ExtractFaceEmbeddingsAsync(savedPath);
             if (embeddings.Count == 0)
             {
                 _logger.LogWarning("No face found in reference photo {FileName} for person {PersonId}", photo.FileName, personId);
@@ -409,6 +476,8 @@ public sealed class Package3Service : IPackage3Service
                 CreatedAtUtc = DateTimeOffset.UtcNow
             });
         }
+
+        (recognizer as IDisposable)?.Dispose();
     }
 
     private static double CosineSimilarity(float[] a, float[] b)

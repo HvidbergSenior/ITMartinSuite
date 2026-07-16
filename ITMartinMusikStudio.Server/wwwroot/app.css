@@ -15,6 +15,30 @@
     --radius: 14px;
 }
 
+/* Light theme - toggled via the button in App.razor, state kept in
+   localStorage (same pattern as Budget's theme toggle). Accent/status
+   colors (accent/purple/green/red/yellow) stay the same across both themes -
+   only the neutral bg/surface/card/border/text/muted scale flips. */
+html[data-theme="light"] {
+    --bg: #f4f5f9;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --border: #d7dbe4;
+    --text: #14161f;
+    --muted: #5b6172;
+}
+
+/* Structural chrome uses a hardcoded near-black rgba() rather than the
+   variables above, so it needs its own explicit light override - otherwise
+   it stays a black bar over an otherwise light page. */
+html[data-theme="light"] .studio-topbar {
+    background: rgba(255,255,255,.92);
+}
+html[data-theme="light"] .meta-select option {
+    background: #ffffff;
+    color: #14161f;
+}
+
 html, body {
     height: 100%;
     background: var(--bg);
@@ -1003,7 +1027,9 @@ html, body {
 .perform-chord-inline--active { color: #fff; background: rgba(29,78,216,.8); padding: 0 5px; }
 .perform-word { font-size: 24px; line-height: 1.3; color: var(--text); }
 .perform-spacer { height: 18px; }
-.perform-plain-line { font-size: 24px; line-height: 1.6; color: var(--text); }
+.perform-plain-line { font-size: 24px; line-height: 1.6; color: var(--text); transition: color .15s, opacity .15s; }
+.perform-plain-line[data-time] { color: #64748b; opacity: .6; }
+.perform-plain-line.lyric-line--active { color: #fff; opacity: 1; font-weight: 600; }
 .perform-empty {
     text-align: center;
     padding: 80px 20px;

@@ -16,7 +16,10 @@ builder.Services.AddHttpClient("fal");
 builder.Services.AddScoped<StudioLibraryService>();
 builder.Services.AddSingleton<ChordAiService>();
 builder.Services.AddSingleton<StemService>();
+builder.Services.AddSingleton<ChordDetectionService>();
 builder.Services.AddSingleton<VocalGuideService>();
+builder.Services.AddSingleton<SpotifyService>();
+builder.Services.AddSingleton<LyricsService>();
 
 var app = builder.Build();
 
@@ -28,6 +31,9 @@ using (var scope = app.Services.CreateScope())
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN FingerpickPattern TEXT NOT NULL DEFAULT ''"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN StrumPattern TEXT NOT NULL DEFAULT ''"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN Artist TEXT NOT NULL DEFAULT ''"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackId TEXT NULL"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackLabel TEXT NULL"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SyncedLyrics TEXT NULL"); } catch { }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -108,6 +114,34 @@ app.MapDelete("/api/recording", (string path, IConfiguration cfg) =>
     if (File.Exists(full)) File.Delete(full);
     return Results.Ok();
 });
+
+// ── Spotify ───────────────────────────────────────────────────────────────
+
+app.MapGet("/spotify/login", (SpotifyService spotify) =>
+{
+    if (!spotify.IsConfigured) return Results.Problem("Spotify:ClientId/ClientSecret not configured");
+    return Results.Redirect(spotify.GetAuthorizeUrl(state: Guid.NewGuid().ToString("N")));
+});
+
+app.MapGet("/spotify/callback", async (string? code, string? error, SpotifyService spotify) =>
+{
+    if (!string.IsNullOrEmpty(error)) return Results.Redirect("/?spotify=error");
+    if (string.IsNullOrEmpty(code)) return Results.BadRequest();
+
+    var ok = await spotify.HandleCallbackAsync(code);
+    return Results.Redirect(ok ? "/?spotify=connected" : "/?spotify=error");
+});
+
+// The Web Playback SDK (client-side JS) needs a bearer token to hand to
+// Spotify.Player - this is that token, refreshed transparently server-side.
+app.MapGet("/api/spotify/token", async (SpotifyService spotify) =>
+{
+    var token = await spotify.GetValidAccessTokenAsync();
+    return token is null ? Results.Unauthorized() : Results.Ok(new { accessToken = token });
+});
+
+app.MapGet("/api/spotify/search", async (string q, SpotifyService spotify) =>
+    Results.Ok(await spotify.SearchTracksAsync(q)));
 
 app.MapRazorComponents<ITMartinMusikStudio.Server.App>()
     .AddInteractiveServerRenderMode();

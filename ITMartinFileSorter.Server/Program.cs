@@ -272,6 +272,68 @@ app.MapPost("/api/debug/sf-yearbook", async (string path, int year, ITMartin.Med
 app.MapPost("/api/debug/sf-homeaway", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.GenerateHomeAwayFoldersAsync(path)));
 
+app.MapPost("/api/debug/sf-sync-collections", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+{
+    await service.SyncGalleryCollectionsAsync(path);
+    return Results.Ok("synced");
+});
+
+app.MapGet("/api/debug/mediafaces-paths", async (string like, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var rows = await db.MediaFaces
+        .Where(x => x.MediaFilePath.Contains(like))
+        .Select(x => x.MediaFilePath)
+        .ToListAsync();
+    return Results.Ok(rows);
+});
+
+// TEMP DEBUG - final delivery polish (empty folders, OS junk, hide manifest), removed after
+app.MapPost("/api/debug/library-polish", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.PolishAsync(path)));
+
+// TEMP DEBUG - static offline gallery export (thumbnails + HTML pages), removed after
+app.MapPost("/api/debug/gallery-export", (string path, IServiceScopeFactory scopeFactory) =>
+{
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IStaticGalleryExportService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        try
+        {
+            var result = await service.ExportAsync(path);
+            logger.LogInformation("Gallery export finished: {Total} files, {Generated} new thumbnails, {Years} years", result.TotalFiles, result.ThumbnailsGenerated, result.YearsGenerated);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Gallery export failed for {Path}", path);
+        }
+    });
+    return Results.Ok("started");
+});
+
+// TEMP DEBUG - per-folder gallery grid thumbnails (fixes slow-loading live gallery), removed after
+app.MapPost("/api/debug/gallery-thumbnails", (string path, IServiceScopeFactory scopeFactory) =>
+{
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IGalleryThumbnailService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        try
+        {
+            var generated = await service.GenerateAsync(path);
+            logger.LogInformation("Gallery thumbnail generation finished: {Generated} new thumbnails", generated);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Gallery thumbnail generation failed for {Path}", path);
+        }
+    });
+    return Results.Ok("started");
+});
+
 app.MapControllers();
 
 app.MapMediaSignalRHubs();

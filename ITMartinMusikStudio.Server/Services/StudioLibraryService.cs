@@ -66,6 +66,31 @@ public sealed class StudioLibraryService
         return full.StartsWith(Root, StringComparison.OrdinalIgnoreCase) && File.Exists(full);
     }
 
+    // Same reasoning as DeleteRecording below - direct call instead of a
+    // loopback HTTP request to this app's own external URL.
+    public bool PublishRecording(string songKey, string relativePath)
+    {
+        if (!Exists(relativePath)) return false;
+        var src = Path.GetFullPath(Path.Combine(Root, relativePath));
+        Directory.CreateDirectory(MyVersionsDir);
+        var dest = Path.Combine(MyVersionsDir, $"{songKey}.webm");
+        File.Copy(src, dest, overwrite: true);
+        return true;
+    }
+
+    // Deletes a recording file directly rather than the caller making a
+    // loopback HTTP call to this same app's own external URL for it - that
+    // self-call broke when accessed through a reverse proxy (e.g. Tailscale
+    // Serve) whose hostname isn't reachable from inside the container's own
+    // network namespace. Same path-traversal guard as Exists().
+    public bool DeleteRecording(string relativePath)
+    {
+        if (!Exists(relativePath)) return false;
+        var full = Path.GetFullPath(Path.Combine(Root, relativePath));
+        File.Delete(full);
+        return true;
+    }
+
     public List<RecordingFile> GetRecordings(string songKey)
     {
         var dir = Path.Combine(RecordingsDir, songKey);
@@ -78,9 +103,24 @@ public sealed class StudioLibraryService
                 Path.GetRelativePath(Root, f).Replace('\\', '/'),
                 Path.GetFileNameWithoutExtension(f),
                 new FileInfo(f).CreationTimeUtc,
-                Path.GetFileNameWithoutExtension(f).StartsWith("vtake")))
+                Path.GetFileNameWithoutExtension(f).StartsWith("vtake"),
+                Path.GetFileNameWithoutExtension(f).StartsWith("aitake")))
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
+    }
+
+    // Manually downloaded from Suno (no official API to automate this, see
+    // /songwriter) and uploaded here to sit alongside the sung takes for the
+    // same song - same "aitake"/"vtake"/"take" filename-prefix convention
+    // GetRecordings() already reads IsVideo/IsAi from, just a new prefix.
+    public async Task SaveAiTakeAsync(string songKey, string originalFileName, Stream content)
+    {
+        var dir = Path.Combine(RecordingsDir, songKey);
+        Directory.CreateDirectory(dir);
+        var ext = Path.GetExtension(originalFileName) is { Length: > 0 } e ? e : ".mp3";
+        var dest = Path.Combine(dir, $"aitake-{DateTime.UtcNow:yyyyMMdd-HHmmss}{ext}");
+        await using var fs = File.Create(dest);
+        await content.CopyToAsync(fs);
     }
 
     public string SafeKey(string sourceFile) =>
@@ -91,4 +131,4 @@ public sealed class StudioLibraryService
 }
 
 public record SourceFile(string RelativePath, string Title);
-public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo);
+public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo, bool IsAi = false);

@@ -15,9 +15,21 @@ window.studio = (function() {
         _videoMode = !!videoMode;
         _chunks = [];
 
+        // Explicitly OFF: these are WebRTC voice-call constraints (tuned for
+        // laptop mics in noisy rooms), and on a real condenser/USB mic they
+        // actively hurt quality - pumping/gating artifacts that read as
+        // "background noise", and a processed, degraded vocal tone. The
+        // correct way to avoid backing-track bleed during overdub is
+        // headphones (see the hint next to the "optag med sangen" button),
+        // not browser-side audio processing on the mic signal.
+        var micConstraints = {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+        };
         var constraints = _videoMode
-            ? { audio: true, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
-            : { audio: true, video: false };
+            ? { audio: micConstraints, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
+            : { audio: micConstraints, video: false };
 
         return navigator.mediaDevices.getUserMedia(constraints)
             .then(function(stream) {
@@ -40,7 +52,10 @@ window.studio = (function() {
                     mimeType = "";
                 }
 
-                var opts = mimeType ? { mimeType: mimeType } : {};
+                // Default Opus bitrate leans low (voice-call territory) -
+                // 192kbps gives a real condenser mic's vocal recording
+                // noticeably more headroom/clarity than the browser default.
+                var opts = mimeType ? { mimeType: mimeType, audioBitsPerSecond: 192000 } : {};
                 _mediaRecorder = new MediaRecorder(stream, opts);
 
                 _mediaRecorder.ondataavailable = function(e) {

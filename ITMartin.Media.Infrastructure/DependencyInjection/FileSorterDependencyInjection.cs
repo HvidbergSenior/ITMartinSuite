@@ -64,6 +64,18 @@ public static class FileSorterDependencyInjection
             SmartFoldersService>();
 
         services.AddScoped<
+            IStaticGalleryExportService,
+            StaticGalleryExportService>();
+
+        services.AddScoped<
+            ILibraryPolishService,
+            LibraryPolishService>();
+
+        services.AddScoped<
+            IGalleryThumbnailService,
+            GalleryThumbnailService>();
+
+        services.AddScoped<
             IPackageHistoryService,
             PackageHistoryService>();
 

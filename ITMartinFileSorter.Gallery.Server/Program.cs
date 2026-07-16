@@ -28,6 +28,68 @@ mime.Mappings[".mp3"]  = "audio/mpeg";
 mime.Mappings[".m4a"]  = "audio/mp4";
 mime.Mappings[".aac"]  = "audio/aac";
 mime.Mappings[".wav"]  = "audio/wav";
+
+// Root-level category folders Package1/2/3 create that hold implementation
+// detail, redundant companion content, or content already surfaced through
+// the "Samlinger" (Collections) row - not something a non-technical viewer
+// should browse directly. Hidden only at the library root, never inside a
+// real content folder (so a legitimately-named subfolder deeper in someone's
+// own photos is never affected). SmartFolders' content (Home/Outside/People/
+// Yearbook) is synced into collections.json instead, so it shows as grouped
+// cards up top rather than requiring a click into a raw folder.
+var RootFoldersHiddenFromBrowsing = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "_Galleri", "DeleteCandidates", "LivePhotos", "SmartFolders",
+    // Videos LibraryPolishService couldn't confirm are playable (see
+    // LibraryPolishService.UnplayableFolderName) - a human needs to look at
+    // these, not a customer browsing their gallery.
+    "Afspilningsfejl",
+    // Real content, but a raw "here are your undated files"/"here are your
+    // duplicates" folder reads as clutter/confusing rather than something
+    // worth showing - not something a non-technical viewer needs to browse
+    // directly. Musik/Screenshots: explicitly requested hidden for Mie.
+    "Undated", "Duplicates", "Musik", "Screenshots",
+};
+
+// Friendly Danish labels for the root-level folders that do stay visible -
+// the folder name on disk never changes (other pipeline code depends on the
+// exact name), this only changes what's displayed to the viewer.
+var RootFolderDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    ["Images"] = "Billeder",
+    ["Videos"] = "Videoer",
+    ["Audio"] = "Lyd",
+    ["Documents"] = "Dokumenter",
+};
+
+// Billeder/Videoer are the primary content and should lead - everything else
+// sorts after, alphabetically among itself.
+var RootFolderSortPriority = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+{
+    ["Images"] = 0,
+    ["Videos"] = 1,
+};
+
+// Package1 names month folders "NN-EnglishMonth" (e.g. "05-May") regardless of
+// gallery language - translate just the month word, at any depth (not only the
+// library root, unlike RootFolderDisplayNames), so headers stay Danish once
+// you've navigated into Billeder/2024/etc, not just on the root folder cards.
+var DanishMonthNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    ["January"] = "Januar", ["February"] = "Februar", ["March"] = "Marts",
+    ["April"] = "April", ["May"] = "Maj", ["June"] = "Juni",
+    ["July"] = "Juli", ["August"] = "August", ["September"] = "September",
+    ["October"] = "Oktober", ["November"] = "November", ["December"] = "December",
+};
+var MonthFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{2})-([A-Za-z]+)$");
+
+string DanishFolderName(string rawName)
+{
+    var monthMatch = MonthFolderPattern.Match(rawName);
+    if (monthMatch.Success && DanishMonthNames.TryGetValue(monthMatch.Groups[2].Value, out var danishMonth))
+        return $"{monthMatch.Groups[1].Value}-{danishMonth}";
+    return rawName;
+}
 mime.Mappings[".flac"] = "audio/flac";
 mime.Mappings[".ogg"]  = "audio/ogg";
 
@@ -35,12 +97,21 @@ var galleries = app.Configuration
     .GetSection("Galleries")
     .GetChildren()
     .Select(s => new GalleryDef(
-        Slug:     s["Slug"]     ?? "",
-        Name:     s["Name"]     ?? "",
-        Path:     s["Path"]     ?? "",
-        Password: s["Password"]))
+        Slug:        s["Slug"]     ?? "",
+        Name:        s["Name"]     ?? "",
+        Path:        s["Path"]     ?? "",
+        Password:    s["Password"],
+        ShowSummary: s.GetValue<bool>("ShowSummary")))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
+
+// /api/browse is read-heavy per folder navigation (a FolderCover() disk check
+// per subfolder, a FindLivePhotoVideo() pair of File.Exists per image) against
+// a library that essentially never changes mid-session - caching makes
+// forward/back navigation between already-visited folders instant instead of
+// re-walking the filesystem every time. Short TTL rather than no expiry so a
+// freshly-delivered library still shows up without a container restart.
+var browseCache = new System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Expires, object Payload)>();
 
 // Guard static library files with cookie auth
 app.Use(async (ctx, next) =>
@@ -157,22 +228,44 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
         return Results.Unauthorized();
 
+    var cacheKey = $"{gallery}|{path}";
+    if (browseCache.TryGetValue(cacheKey, out var cachedBrowse) && cachedBrowse.Expires > DateTime.UtcNow)
+        return Results.Ok(cachedBrowse.Payload);
+
     var r       = g.Path;
     var current = string.IsNullOrWhiteSpace(path) ? r : Path.GetFullPath(Path.Combine(r, path));
 
     if (!Directory.Exists(current)) return Results.NotFound();
     if (!IsSafe(current, r))        return Results.BadRequest("path outside library");
 
-    var folders = Directory.EnumerateDirectories(current)
+    var atRoot = IsSameDir(current, r);
+
+    FolderEntry ToEntry(string d, string? nameOverride = null) => new(
+        nameOverride ?? (atRoot && RootFolderDisplayNames.TryGetValue(Path.GetFileName(d), out var friendly) ? friendly : DanishFolderName(Path.GetFileName(d))),
+        Rel(d, r),
+        FolderCover(d, r, g.Slug));
+
+    var priorityFolders = Directory.EnumerateDirectories(current)
         .Where(d => !Path.GetFileName(d).StartsWith('.'))
-        .OrderBy(Path.GetFileName)
-        .Select(d => new
-        {
-            name    = Path.GetFileName(d),
-            relPath = Rel(d, r),
-            cover   = FolderCover(d, r, g.Slug),
-        })
+        .Where(d => atRoot && RootFolderSortPriority.ContainsKey(Path.GetFileName(d)))
+        .OrderBy(d => RootFolderSortPriority[Path.GetFileName(d)])
+        .Select(d => ToEntry(d))
         .ToList();
+
+    var restFolders = Directory.EnumerateDirectories(current)
+        .Where(d => !Path.GetFileName(d).StartsWith('.'))
+        .Where(d => !atRoot || (!RootFoldersHiddenFromBrowsing.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))))
+        .OrderBy(Path.GetFileName)
+        .Select(d => ToEntry(d))
+        .ToList();
+
+    // SmartFolders' content (Home/Outside/People/Yearbook) is deliberately
+    // NOT surfaced here as browsable folders - it's already shown once, as
+    // the "Samlinger" row, via collections.json (see SyncGalleryCollectionsAsync
+    // and /api/collections below). Showing it twice, once unlabeled in this
+    // plain folder grid and once as a labeled example row, is confusing for a
+    // non-technical viewer - keep exactly one place it appears.
+    var folders = priorityFolders.Concat(restFolders).ToList();
 
     var files = Directory.EnumerateFiles(current)
         .Where(IsMedia)
@@ -194,30 +287,38 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         })
         .ToList();
 
-    var atRoot     = IsSameDir(current, r);
     var parentFull = atRoot ? null : Directory.GetParent(current)?.FullName;
     var parentRel  = parentFull is null ? null : NormalizeRel(Rel(parentFull, r));
 
-    return Results.Ok(new { atRoot, parentRelPath = parentRel, folders, files });
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files };
+    browseCache[cacheKey] = (DateTime.UtcNow.AddMinutes(10), browsePayload);
+    return Results.Ok(browsePayload);
 });
 
 app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
 {
     var g = galleries.FirstOrDefault(x => x.Slug == gallery);
-    if (g is null) return Results.NotFound();
+    if (g is null || !g.ShowSummary) return Results.NotFound();
     if (!string.IsNullOrEmpty(g.Password) &&
         ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
         return Results.Unauthorized();
 
     if (!Directory.Exists(g.Path)) return Results.NotFound();
 
+    // Same root-level exclusions as folderCount below (RootFoldersHiddenFromBrowsing)
+    // plus "thumbnails" wherever it appears - _Galleri/SmartFolders hold generated
+    // thumbnails or symlinks back to files already counted, LivePhotos holds the
+    // motion-clip companion to a still already counted in Images, and
+    // DeleteCandidates holds flagged duplicates that aren't part of the real
+    // collection. Leaving any of these in inflates the "Din samling er klar" stats.
     var mediaFiles = Directory.EnumerateFiles(g.Path, "*.*", SearchOption.AllDirectories)
         .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}thumbnails{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+        .Where(f => RootFoldersHiddenFromBrowsing.All(hidden =>
+            !f.Contains($"{Path.DirectorySeparatorChar}{hidden}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)))
         .Where(IsMedia);
 
     int photoCount = 0, videoCount = 0, audioCount = 0, totalCount = 0;
     long totalBytes = 0;
-    DateTime? earliest = null, latest = null;
 
     foreach (var f in mediaFiles)
     {
@@ -227,23 +328,18 @@ app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
         else if (IsAud(ext)) audioCount++;
         totalCount++;
 
-        var fi = new FileInfo(f);
-        totalBytes += fi.Length;
-        var t = fi.LastWriteTimeUtc;
-        if (earliest is null || t < earliest) earliest = t;
-        if (latest is null || t > latest) latest = t;
+        totalBytes += new FileInfo(f).Length;
     }
 
     var folderCount = Directory.EnumerateDirectories(g.Path)
         .Count(d => !Path.GetFileName(d).StartsWith('.') &&
-                    !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase));
+                    !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase) &&
+                    !RootFoldersHiddenFromBrowsing.Contains(Path.GetFileName(d)));
 
     return Results.Ok(new
     {
         totalCount, photoCount, videoCount, audioCount, folderCount,
-        earliestDate = earliest,
-        latestDate   = latest,
-        totalGb      = Math.Round(totalBytes / 1024.0 / 1024.0 / 1024.0, 1),
+        totalGb = Math.Round(totalBytes / 1024.0 / 1024.0 / 1024.0, 1),
     });
 });
 
@@ -292,15 +388,18 @@ app.MapGet("/api/collections", (string gallery, HttpContext ctx) =>
 
     var list = LoadCollections(g.Path);
 
+    // Preserve collections.json's own order (SmartFoldersService already
+    // orders each kind the way it should read - trips smallest-first,
+    // yearbooks oldest-first) rather than flattening everything into one
+    // biggest-first list regardless of kind.
     var summaries = list
         .Where(c => c.FilePaths.Count > 0)
         .Select(c => new
         {
             name      = c.Name,
             fileCount = c.FilePaths.Count,
-            cover     = c.FilePaths.Select(f => TryWeb(f, g.Path, g.Slug)).FirstOrDefault(w => w is not null),
+            cover     = c.FilePaths.Select(f => TryThumbOrWeb(f, g.Path, g.Slug)).FirstOrDefault(w => w is not null),
         })
-        .OrderByDescending(c => c.fileCount)
         .ToList();
 
     return Results.Ok(new { collections = summaries });
@@ -355,10 +454,29 @@ static string  Rel(string abs, string r)     => Path.GetRelativePath(r, abs).Rep
 static string  NormalizeRel(string rel)      => rel == "." ? "" : rel;
 static string  Web(string abs, string r, string slug) => $"/libraryfiles/{slug}/" + Rel(abs, r);
 
+// Samlinger entries (Person/Trip/Yearbook) are SmartFolders symlinks pointing
+// back to the real file elsewhere in the library - the generated thumbnails
+// live next to the real file's own folder, not next to the symlink, so this
+// has to resolve first or every collection view silently falls back to
+// full-resolution originals despite thumbnails existing.
 static string? Thumb(string f, string r, string slug)
 {
-    var t = Path.Combine(Path.GetDirectoryName(f)!, "thumbnails", Path.GetFileNameWithoutExtension(f) + ".jpg");
+    var real = ResolveIfSymlink(f);
+    var t = Path.Combine(Path.GetDirectoryName(real)!, "thumbnails", Path.GetFileNameWithoutExtension(real) + ".jpg");
     return File.Exists(t) ? Web(t, r, slug) : null;
+}
+
+static string ResolveIfSymlink(string path)
+{
+    try
+    {
+        var target = File.ResolveLinkTarget(path, returnFinalTarget: true);
+        return target?.FullName ?? path;
+    }
+    catch
+    {
+        return path;
+    }
 }
 
 // The still and its Live Photo motion clip are exported into separate
@@ -413,8 +531,13 @@ static List<MediaCollection> LoadCollections(string libraryPath)
     }
 }
 
-static string? TryWeb(string f, string r, string slug) =>
-    File.Exists(f) && IsSafe(f, r) ? Web(f, r, slug) : null;
+static string? TryThumbOrWeb(string f, string r, string slug) =>
+    File.Exists(f) && IsSafe(f, r) ? (Thumb(f, r, slug) ?? Web(f, r, slug)) : null;
 
-record GalleryDef(string Slug, string Name, string Path, string? Password);
+// ShowSummary: the "Din samling er klar!" hero card (readiness message, date
+// range, folder/photo counts) is a one-time customer-handoff moment, not
+// something a family member visiting a shared link should see - opt-in per
+// gallery (Galleries__N__ShowSummary=true) rather than on by default.
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary);
 record LoginRequest(string Gallery, string Password);
+record FolderEntry(string name, string relPath, string? cover);

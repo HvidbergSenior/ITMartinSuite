@@ -49,6 +49,8 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .folder-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Collections row */
+.collection-sub{font-size:12px;color:#6b7280;margin:-6px 0 10px;line-height:1.4}
+.collection-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#c4b5fd;background:#2e1f5e;padding:2px 7px;border-radius:999px;vertical-align:middle;margin-left:6px}
 .collection-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px;scrollbar-width:none}
 .collection-row::-webkit-scrollbar{display:none}
 .collection-card{flex:0 0 128px;background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
@@ -127,11 +129,11 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
       <div class="summary-card" id="summaryCard" style="display:none">
         <div class="summary-icon">🎉</div>
         <div class="summary-title">Din samling er klar!</div>
-        <div class="summary-sub" id="summaryDates"></div>
         <div class="summary-stats" id="summaryStats"></div>
       </div>
       <div id="collectionsSection" style="display:none">
-        <div class="section-label">Samlinger</div>
+        <div class="section-label">Samlinger<span class="collection-badge">Eksempel</span></div>
+        <div class="collection-sub">Fundet automatisk (ansigter, sted &amp; år) — smagsprøve på, hvad der kan bygges videre til hele biblioteket.</div>
         <div class="collection-row" id="collectionRow"></div>
       </div>
       <div id="folderSection">
@@ -296,7 +298,11 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
 });
 
 // ── Browse ────────────────────────────────────────────────────────────────────
-async function loadBrowse(relPath, galleryName) {
+// titleOverride: the friendly name shown on the folder card that was clicked
+// (e.g. "Billeder") - used verbatim as the header once inside that folder,
+// since the API only translates folder names at the library root and a
+// nested path segment (e.g. "Images") would otherwise show up untranslated.
+async function loadBrowse(relPath, titleOverride) {
   if (!currentGallery) return;
   viewingCollection = null;
   document.getElementById('folderSection').style.display = '';
@@ -308,15 +314,15 @@ async function loadBrowse(relPath, galleryName) {
   if (!res.ok) return;
   const data = await res.json();
   parentRelPath = data.parentRelPath;
-  renderBrowse(data, galleryName);
+  renderBrowse(data, titleOverride);
 }
 
-function renderBrowse(data, galleryName) {
+function renderBrowse(data, titleOverride) {
   const { atRoot, folders, files } = data;
 
   const title = atRoot
-    ? (galleryName || currentGallery)
-    : currentRelPath.split('/').pop();
+    ? (galleryDisplayName || currentGallery)
+    : (titleOverride || currentRelPath.split('/').pop());
   document.getElementById('hdrTitle').textContent       = title;
   document.getElementById('btnGalleries').style.display = '';
   document.getElementById('btnBack').style.display      = atRoot ? 'none' : '';
@@ -327,7 +333,7 @@ function renderBrowse(data, galleryName) {
   if (folders.length) {
     fs.style.display = '';
     fg.innerHTML = folders.map(f => `
-      <div class="folder-card" onclick="loadBrowse('${esc(f.relPath)}')">
+      <div class="folder-card" onclick="loadBrowse('${esc(f.relPath)}','${esc(f.name)}')">
         <div class="folder-cover">
           ${f.cover ? `<img src="${esc(f.cover)}" loading="lazy" onerror="this.parentElement.innerHTML='📁'" alt="">` : '📁'}
         </div>
@@ -438,11 +444,6 @@ function renderSummary() {
   if (!summaryData) return;
   const s = summaryData;
 
-  const fmt = d => d ? new Date(d).toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
-  const from = fmt(s.earliestDate), to = fmt(s.latestDate);
-  document.getElementById('summaryDates').textContent =
-    (from && to) ? (from === to ? `Fra ${from}` : `Fra ${from} til ${to}`) : '';
-
   const stats = [];
   if (s.photoCount) stats.push([s.photoCount.toLocaleString('da-DK'), 'Billeder']);
   if (s.videoCount) stats.push([s.videoCount.toLocaleString('da-DK'), 'Videoer']);
@@ -458,14 +459,13 @@ function renderSummary() {
 }
 
 // ── Viewer ────────────────────────────────────────────────────────────────────
-async function openViewer(idx) {
-  const url = `/api/playlist?gallery=${encodeURIComponent(currentGallery)}` +
-              `&folder=${encodeURIComponent(currentRelPath || '.')}`;
-  const res = await fetch(url);
-  if (res.ok) {
-    const data = await res.json();
-    playlist = data.files;
-  }
+// `playlist` is already set by renderFileGrid() - whichever view is currently
+// open (a folder via renderBrowse, or a Samlinger collection via openCollection)
+// - re-fetching here by currentRelPath used to silently replace it with the
+// current *folder*'s files even when viewing a collection (currentRelPath
+// stays '' while viewingCollection is set), so next/prev inside a collection
+// would jump to unrelated root-level photos instead of staying within it.
+function openViewer(idx) {
   playIdx = idx;
   document.getElementById('viewer').classList.add('active');
   renderViewer();

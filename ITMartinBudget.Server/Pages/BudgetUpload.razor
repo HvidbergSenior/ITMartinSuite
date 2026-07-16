@@ -1,18 +1,13 @@
-﻿@page "/budget-upload"
+@page "/budget-upload"
 @layout BudgetMainLayout
-@rendermode InteractiveServer
-
 @using ITMartinBudget.Infrastructure
-@using ITMartinBudget.Infrastructure.Services
 @using ITMartinBudget.Server.Budget
-@using ITMartinBudget.Server.Services
 @using Microsoft.EntityFrameworkCore
+@* No @rendermode: plain HTML form + fetch() below instead of Blazor InputFile,
+   which needs a live SignalR circuit - has previously gotten stuck reconnecting
+   ("Forbinder...") through this app's Cloudflare Tunnel domain. *@
 
 @inject BudgetDbContext Db
-@inject BankTransactionCsvService CsvService
-@inject NavigationManager Nav
-@inject IJSRuntime Js
-@inject ToastService Toast
 
 <div class="budget-container">
 
@@ -21,71 +16,27 @@
         <div class="stack">
 
             <div>
-
-                <h2>
-                    📁 Upload Budget CSV
-                </h2>
-
-                <div class="meta">
-                    Upload your bank export file
-                </div>
-
+                <h2>📁 Upload Budget CSV</h2>
+                <div class="meta">Upload your bank export file</div>
             </div>
 
             <div class="header-actions">
-
-                <button class="btn"
-                        @onclick="GoToDashboard">
-
-                    Open Dashboard
-
-                </button>
-
+                <a class="btn" href="/">Open Dashboard</a>
             </div>
 
             @if (_hasExistingData)
             {
                 <div class="alert warning">
-
                     ⚠ Existing data detected
-
-                    <button class="btn btn-danger"
-                            @onclick="ConfirmReset">
-
-                        Delete all data
-
-                    </button>
-
+                    <button class="btn btn-danger" id="resetBtn">Delete all data</button>
                 </div>
             }
 
             <div class="upload-box">
-
-                <InputFile OnChange="HandleBankCsvUpload"
-                           disabled="@_isUploading" />
-
+                <input type="file" id="csvFile" accept=".csv" />
             </div>
 
-            @if (_isUploading)
-            {
-                <div class="meta">
-                    Uploading CSV...
-                </div>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(_message))
-            {
-                <div class="alert success">
-                    @_message
-                </div>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(_error))
-            {
-                <div class="alert error">
-                    @_error
-                </div>
-            }
+            <div id="status"></div>
 
         </div>
 
@@ -93,106 +44,69 @@
 
 </div>
 
-@code {
+<script>
+// Deferred one tick: Blazor's DOM-patching (enhanced nav / streaming render)
+// can still be inserting this script's own sibling markup when the script
+// tag itself runs, so an immediate getElementById('csvFile') can race and
+// return null ("Cannot read properties of null") - waiting a tick guarantees
+// the surrounding markup has finished landing in the DOM first.
+setTimeout(function () {
+    const fileInput = document.getElementById('csvFile');
+    const status = document.getElementById('status');
+    const resetBtn = document.getElementById('resetBtn');
+    if (!fileInput) return;
 
-    private bool _hasExistingData;
-
-    private bool _isUploading;
-
-    private string? _message;
-
-    private string? _error;
-
-    protected override async Task OnInitializedAsync()
-    {
-        _hasExistingData =
-            await Db.Transactions.AnyAsync();
-    }
-
-    private async Task HandleBankCsvUpload(
-        InputFileChangeEventArgs e)
-    {
-        if (_isUploading)
-        {
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            status.innerHTML = '<div class="alert error">Only CSV files allowed</div>';
+            fileInput.value = '';
             return;
         }
 
-        try
-        {
-            _isUploading = true;
+        status.innerHTML = '<div class="meta">Uploading CSV...</div>';
 
-            _error = null;
+        const form = new FormData();
+        form.append('file', file);
 
-            _message = null;
-
-            var file = e.File;
-
-            if (file == null)
-            {
-                throw new Exception(
-                    "No file selected");
+        try {
+            const res = await fetch('/api/budget/upload', { method: 'POST', body: form });
+            if (!res.ok) {
+                status.innerHTML = `<div class="alert error">${await res.text()}</div>`;
+                return;
             }
+            const body = await res.json();
+            const msg = body.imported > 0
+                ? `✔ Imported ${body.imported} transactions`
+                : 'No new transactions (duplicates skipped)';
+            status.innerHTML = `<div class="alert success">${msg}</div>`;
+            setTimeout(() => { location.href = '/'; }, 1500);
+        } catch (e) {
+            status.innerHTML = '<div class="alert error">Upload failed - try again</div>';
+        } finally {
+            fileInput.value = '';
+        }
+    });
 
-            if (!file.Name.EndsWith(
-                    ".csv",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                throw new Exception(
-                    "Only CSV files allowed");
+    if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+            if (!confirm('Delete ALL budget data?')) return;
+            const res = await fetch('/api/budget/reset', { method: 'POST' });
+            if (res.ok) {
+                status.innerHTML = '<div class="alert success">All data deleted</div>';
+                resetBtn.closest('.alert').style.display = 'none';
             }
-
-            using var stream =
-                file.OpenReadStream(long.MaxValue);
-
-            var newTransactions =
-                await CsvService.ImportAsync(stream);
-
-            var msg =
-                newTransactions.Any()
-                    ? $"✔ Imported {newTransactions.Count} transactions"
-                    : "No new transactions (duplicates skipped)";
-
-            _message = msg;
-            Toast.Show(msg, "success");
-
-            await Task.Delay(1500);
-
-            Nav.NavigateTo("/", true);
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
-        finally
-        {
-            _isUploading = false;
-        }
+        });
     }
+}, 0);
+</script>
 
-    private void GoToDashboard()
+@code {
+    private bool _hasExistingData;
+
+    protected override async Task OnInitializedAsync()
     {
-        Nav.NavigateTo("/");
-    }
-
-    private async Task ConfirmReset()
-    {
-        if (await Js.InvokeAsync<bool>(
-                "confirm",
-                "Delete ALL budget data?"))
-        {
-            await FullReset();
-        }
-    }
-
-    private async Task FullReset()
-    {
-        Db.Transactions.RemoveRange(
-            Db.Transactions);
-
-        await Db.SaveChangesAsync();
-
-        _hasExistingData = false;
-
-        _message = "All data deleted";
+        _hasExistingData = await Db.Transactions.AnyAsync(x => x.LedgerId == "family");
     }
 }

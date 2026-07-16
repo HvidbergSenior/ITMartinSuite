@@ -26,7 +26,13 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal?>("Balance")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("BudgetGroup")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BusinessCategory")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Category")
@@ -43,13 +49,25 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ImportedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("LedgerId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("NormalizedDescription")
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RawDetails")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("RecurringIntervalMonths")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -59,6 +77,9 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
                     b.Property<int>("TransactionType")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("UserCategoryName")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BudgetGroup");
@@ -67,11 +88,65 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ImportedAt");
 
+                    b.HasIndex("LedgerId");
+
                     b.HasIndex("TransactionType");
 
-                    b.HasIndex("Date", "Amount", "NormalizedDescription");
+                    b.HasIndex("LedgerId", "Date", "Amount", "NormalizedDescription");
 
                     b.ToTable("Transactions");
+                });
+
+            modelBuilder.Entity("ITMartinBudget.Domain.Entities.CategoryRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LedgerId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LedgerId", "Pattern")
+                        .IsUnique();
+
+                    b.ToTable("CategoryRules");
+                });
+
+            modelBuilder.Entity("ITMartinBudget.Domain.Entities.LedgerConfig", b =>
+                {
+                    b.Property<string>("LedgerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ScopeMode")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("LedgerId");
+
+                    b.ToTable("LedgerConfigs");
                 });
 
             modelBuilder.Entity("ITMartinBudget.Domain.Entities.PlannedTransaction", b =>
@@ -112,6 +187,36 @@ namespace ITMartinBudget.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PlannedTransactions");
+                });
+
+            modelBuilder.Entity("ITMartinBudget.Domain.Entities.TransactionInvestigation", b =>
+                {
+                    b.Property<string>("LedgerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Pattern")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Confidence")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reasoning")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SuggestedScope")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("LedgerId", "Pattern");
+
+                    b.ToTable("TransactionInvestigations");
                 });
 #pragma warning restore 612, 618
         }

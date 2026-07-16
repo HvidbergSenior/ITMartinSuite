@@ -25,6 +25,74 @@
     --purple: #a855f7;
 
     --radius: 28px;
+
+    --card-grad-1: #181818;
+
+    --card-grad-2: #101010;
+
+    --card-border: #2a2a2a;
+
+    --card-border-hover: #3a3a3a;
+}
+
+/* Light theme - toggled via the button in the header (see App.razor), state
+   kept in localStorage. Readability in direct sunlight was the actual
+   trigger for this (dark text on light background reflects less glare than
+   light-on-dark), not a general design preference - so this prioritizes
+   contrast over trying to be a pixel-perfect mirror of the dark palette. */
+html[data-theme="light"] {
+
+    --bg: #f4f5f9;
+
+    --card: #ffffff;
+
+    --card-light: #eef0f6;
+
+    --border: #d7dbe4;
+
+    --border-hover: #b9c0d1;
+
+    --text: #14161f;
+
+    --muted: #5b6172;
+
+    --card-grad-1: #ffffff;
+
+    --card-grad-2: #f2f3f8;
+
+    --card-border: #dde1ea;
+
+    --card-border-hover: #b9c0d1;
+}
+
+/* Structural chrome (header/nav bar) uses hardcoded near-black rgba() values
+   throughout this file rather than the CSS variables above, so it needs its
+   own explicit light-theme override - otherwise it'd stay a black bar
+   sitting above an otherwise light page. */
+html[data-theme="light"] .app-header {
+
+    background: rgba(255,255,255,.85);
+
+    border-bottom-color: #e2e5ec;
+}
+
+html[data-theme="light"] .budget-nav {
+
+    background: rgba(255,255,255,.85);
+
+    box-shadow: 0 10px 30px rgba(20,22,31,.12);
+}
+
+html[data-theme="light"] .budget-nav-link {
+
+    border-color: #dde1ea;
+
+    color: var(--text);
+}
+
+html[data-theme="light"] .budget-nav-link:hover {
+
+    background: #e9ecf3;
 }
 
 /* =========================================
@@ -166,7 +234,7 @@ a {
 
     background: rgba(15,15,15,.88);
 
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
 
     backdrop-filter: blur(18px);
 
@@ -188,7 +256,7 @@ a {
 
     border-radius: 14px;
 
-    background: #181818;
+    background: var(--card-grad-1);
 
     border: 1px solid #2b2b2b;
 
@@ -210,7 +278,7 @@ a {
 
     background: #222222;
 
-    border-color: #3b3b3b;
+    border-color: var(--card-border-hover);
 
     transform: translateY(-1px);
 }
@@ -240,11 +308,11 @@ a {
     background:
             linear-gradient(
                     180deg,
-                    #141414,
+                    var(--card-grad-2),
                     #0c0c0c);
 
     border:
-            1px solid #252525;
+            1px solid var(--card-border);
 
     border-radius: 36px;
 
@@ -291,6 +359,23 @@ h3 {
     font-size: 15px;
 }
 
+/* Amount sign needs to be unambiguous at a glance in a scannable list - the
+   muted grey .meta color made the minus sign nearly invisible next to a
+   long series of similar-looking numbers. */
+.amount-negative {
+
+    color: var(--red);
+
+    font-weight: 700;
+}
+
+.amount-positive {
+
+    color: var(--green);
+
+    font-weight: 700;
+}
+
 /* =========================================
    BUTTONS
 ========================================= */
@@ -313,6 +398,41 @@ h3 {
 .btn:hover {
 
     transform: translateY(-2px);
+}
+
+.btn {
+
+    background: var(--card-light);
+
+    color: var(--text);
+}
+
+/* Text/select inputs used outside the Blazor-interactive pages (plain HTML
+   forms + fetch) - without this, native <select>/<input> render with the
+   browser's default white background, which looks broken against this
+   app's dark cards. */
+.input {
+
+    background: var(--card-light);
+
+    color: var(--text);
+
+    border: 1px solid var(--border);
+
+    border-radius: 10px;
+
+    padding: 10px 12px;
+
+    font-size: 14px;
+
+    font-family: inherit;
+}
+
+.input:focus {
+
+    outline: none;
+
+    border-color: var(--blue);
 }
 
 .btn-primary {
@@ -412,11 +532,11 @@ h3 {
     background:
             linear-gradient(
                     180deg,
-                    #181818,
-                    #101010);
+                    var(--card-grad-1),
+                    var(--card-grad-2));
 
     border:
-            1px solid #2a2a2a;
+            1px solid var(--card-border);
 
     display: flex;
 
@@ -444,7 +564,7 @@ h3 {
 
     transform: translateY(-4px);
 
-    border-color: #3b3b3b;
+    border-color: var(--card-border-hover);
 }
 
 .kpi-card::before {
@@ -507,10 +627,10 @@ h3 {
 
     background: linear-gradient(
             180deg,
-            #181818,
-            #101010);
+            var(--card-grad-1),
+            var(--card-grad-2));
 
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
 }
 
 .financial-item {
@@ -562,9 +682,9 @@ h3 {
 
     border-radius: 20px;
 
-    background: #141414;
+    background: var(--card-grad-2);
 
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
 }
 
 .budget-column-header.income {
@@ -605,11 +725,11 @@ h3 {
     background:
             linear-gradient(
                     180deg,
-                    #171717,
-                    #101010);
+                    var(--card-grad-1),
+                    var(--card-grad-2));
 
     border:
-            1px solid #2a2a2a;
+            1px solid var(--card-border);
 
     transition:
             transform .15s ease,
@@ -628,7 +748,43 @@ h3 {
 {
     transform: translateY(-3px);
 
-    border-color: #3a3a3a;
+    border-color: var(--card-border-hover);
+}
+
+/* Tighter row layout for long scannable lists (e.g. /shop-categorize's ~200+
+   clusters) instead of the big stat-tile sizing the base class was designed
+   for elsewhere (family dashboard's category cards). */
+.category-summary-card--compact
+{
+    min-height: unset;
+
+    padding: 14px 18px;
+}
+
+.category-summary-card--compact .category-summary-title
+{
+    font-size: 15px;
+
+    font-weight: 700;
+}
+
+.category-summary-card--compact:hover
+{
+    transform: none;
+}
+
+/* Flags a cluster that's still Unknown scope and hasn't been categorized yet
+   - the thing that most needs a decision, so it should stand out at a glance
+   while scanning a long list. */
+.category-summary-card--unknown
+{
+    border-color: var(--orange);
+
+    background:
+            linear-gradient(
+                    180deg,
+                    #221a10,
+                    #171210);
 }
 
 .category-summary-top
@@ -850,7 +1006,7 @@ h3 {
 
     background: #151515;
 
-    border-color: #3a3a3a;
+    border-color: var(--card-border-hover);
 }
 
 .transaction-row::before {
@@ -867,7 +1023,7 @@ h3 {
 
     width: 4px;
 
-    background: #2a2a2a;
+    background: var(--card-border);
 }
 
 .transaction-row.income::before {
@@ -1040,10 +1196,10 @@ h3 {
 .family-kpi {
     background: linear-gradient(
             180deg,
-            #181818,
-            #101010);
+            var(--card-grad-1),
+            var(--card-grad-2));
 
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--card-border);
 
     border-radius: 24px;
 
@@ -1082,7 +1238,7 @@ h3 {
 
     background: #111;
 
-    border: 1px solid #252525;
+    border: 1px solid var(--card-border);
 
     border-radius: 24px;
 
@@ -1193,8 +1349,8 @@ h3 {
 }
 
 .forecast-kpi {
-    background: linear-gradient(180deg, #181818, #101010);
-    border: 1px solid #2a2a2a;
+    background: linear-gradient(180deg, var(--card-grad-1), var(--card-grad-2));
+    border: 1px solid var(--card-border);
     border-radius: 24px;
     padding: 22px 24px;
     display: flex;
@@ -1224,8 +1380,8 @@ h3 {
 ========================================= */
 
 .forecast-chart-card {
-    background: linear-gradient(180deg, #181818, #101010);
-    border: 1px solid #2a2a2a;
+    background: linear-gradient(180deg, var(--card-grad-1), var(--card-grad-2));
+    border: 1px solid var(--card-border);
     border-radius: 28px;
     padding: 28px;
 }
@@ -1283,8 +1439,8 @@ h3 {
 ========================================= */
 
 .cut-expense-row {
-    background: linear-gradient(180deg, #171717, #101010);
-    border: 1px solid #2a2a2a;
+    background: linear-gradient(180deg, var(--card-grad-1), var(--card-grad-2));
+    border: 1px solid var(--card-border);
     border-radius: 20px;
     padding: 18px 22px;
     margin-bottom: 12px;
@@ -1292,7 +1448,7 @@ h3 {
 }
 
 .cut-expense-row:hover {
-    border-color: #3a3a3a;
+    border-color: var(--card-border-hover);
     transform: translateY(-2px);
 }
 
@@ -1410,8 +1566,8 @@ h3 {
 }
 
 .claude-loading-card {
-    background: linear-gradient(180deg, #181818, #101010);
-    border: 1px solid #2a2a2a;
+    background: linear-gradient(180deg, var(--card-grad-1), var(--card-grad-2));
+    border: 1px solid var(--card-border);
     border-radius: 24px;
     padding: 32px;
     display: flex;
@@ -1523,7 +1679,7 @@ h3 {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    border: 3px solid #2a2a2a;
+    border: 3px solid var(--card-border);
     border-top-color: #60a5fa;
     animation: spin .8s linear infinite;
 }
@@ -1612,7 +1768,7 @@ h3 {
 
         background: rgba(15,15,15,.88);
 
-        border: 1px solid #2a2a2a;
+        border: 1px solid var(--card-border);
 
         backdrop-filter: blur(18px);
 

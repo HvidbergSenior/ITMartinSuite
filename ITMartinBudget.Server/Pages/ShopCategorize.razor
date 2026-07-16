@@ -1,0 +1,278 @@
+@page "/shop-categorize/{LedgerId}"
+@* No @rendermode: plain REST + vanilla JS below instead of Blazor interactivity -
+   Blazor Server needs a persistent SignalR circuit, which has previously gotten
+   stuck reconnecting ("Forbinder...") through this app's Cloudflare Tunnel
+   domain. Same reasoning ITMartinLive/ITMartinStream use REST+polling instead
+   of SignalR. *@
+
+<PageTitle>Kategoriser - @LedgerId</PageTitle>
+
+<div class="budget-container">
+    <ContentCard>
+        <div class="stack">
+
+            <ProblemPurposeBanner
+                Problem="En automatisk klassificering rammer aldrig alt rigtigt, og et bankudtog fra en delt konto har brug for et menneskes ord på, hvad tingene faktisk er."
+                Formaal="Hver tilbagevendende post for sig (Føtex, Husleje, ...) - sæt en kategori og om det er forretning eller privat. Gemmes og bruges automatisk næste gang der uploades en ny CSV til samme konto." />
+
+            <div>
+                <h1 class="page-title">Kategoriser - @LedgerId</h1>
+                <div class="meta" id="clusterCount">Indlæser... · <a href="/shop-overview/@LedgerId">Se overblik</a></div>
+                <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <button class="btn btn-primary" id="saveAllBtn">💾 Gem alle synlige</button>
+                    <span class="meta">Gemmer det der allerede står i felterne for hvert kort - kategorien er forudfyldt, ret den du vil ændre først.</span>
+                </div>
+                <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <button class="btn" id="investigateAllBtn">🔍 Undersøg alle resterende</button>
+                    <span class="meta" id="investigateAllStatus">Spørger AI om hver ikke-undersøgt, ukategoriseret post - gemmes, så det kun sker én gang pr. post.</span>
+                </div>
+            </div>
+
+            <div id="clusters" style="display:flex;flex-direction:column;gap:10px"></div>
+
+        </div>
+    </ContentCard>
+</div>
+
+<script>
+// Deferred one tick - see the same guard in ShopUpload.razor/BudgetUpload.razor:
+// Blazor's DOM-patching can still be inserting this script's own sibling
+// markup (#clusterCount, #clusters) when the script tag itself runs.
+setTimeout(function () {
+    // Read straight from the URL rather than interpolating server-side -
+    // this page renders with no live circuit (see the note above), so
+    // there's no Blazor state to pull LedgerId from client-side anyway.
+    const ledgerId = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop());
+    let categories = [];
+
+    function esc(s) {
+        if (s == null) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtDate(iso) {
+        const d = new Date(iso);
+        return d.toLocaleDateString('da-DK', { year: 'numeric', month: 'short' });
+    }
+
+    const scopeLabel = { Unknown: 'Ukendt', Business: 'Forretning', Private: 'Privat' };
+    const scopeLabelDa = { Business: 'Forretning', Private: 'Privat', Unsure: 'Usikker' };
+    let scopeMode = 'Both';
+
+    function investigateResultHtml(result) {
+        return `
+            <div class="alert" style="margin-top:8px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3)">
+                <div style="font-size:13px">${esc(result.reasoning)}</div>
+                <div class="meta" style="margin-top:4px">
+                    Gæt: <strong>${scopeLabelDa[result.suggestedScope] || result.suggestedScope}</strong> · Sikkerhed: ${result.confidence}
+                </div>
+            </div>`;
+    }
+
+    async function investigate(card) {
+        const resultBox = card.querySelector('[data-role="investigateResult"]');
+        const btn = card.querySelector('[data-role="investigate"]');
+        if (btn) { btn.disabled = true; btn.textContent = '🔍 Undersøger...'; }
+        try {
+            const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/investigate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pattern: card.dataset.pattern,
+                    label: card.dataset.label,
+                    sampleRawDetails: card.dataset.raw,
+                    count: parseInt(card.dataset.count, 10),
+                    totalAmount: parseFloat(card.dataset.sum),
+                }),
+            });
+            if (!res.ok) throw new Error();
+            const result = await res.json();
+            resultBox.innerHTML = investigateResultHtml(result);
+            return true;
+        } catch {
+            resultBox.innerHTML = '<div class="alert error" style="margin-top:8px">Kunne ikke undersøge - prøv igen</div>';
+            return false;
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '🔍 Undersøg'; }
+        }
+    }
+
+    async function load() {
+        const [clustersRes, categoriesRes, scopeModeRes] = await Promise.all([
+            fetch(`/api/shop/${encodeURIComponent(ledgerId)}/clusters`),
+            fetch(`/api/shop/${encodeURIComponent(ledgerId)}/categories`),
+            fetch(`/api/shop/${encodeURIComponent(ledgerId)}/scope-mode`),
+        ]);
+        const clusters = await clustersRes.json();
+        categories = await categoriesRes.json();
+        scopeMode = (await scopeModeRes.json()).scopeMode;
+        const fixedScope = scopeMode === 'PrivateOnly' ? 'Private' : scopeMode === 'BusinessOnly' ? 'Business' : null;
+
+        const done = clusters.filter(c => c.currentCategoryName).length;
+        document.getElementById('clusterCount').innerHTML =
+            `${done} / ${clusters.length} kategoriseret · <a href="/shop-categories/${esc(ledgerId)}" data-enhance-nav="false">Flet kategorier</a> · <a href="/shop-overview/${esc(ledgerId)}">Se overblik</a>`;
+
+        const container = document.getElementById('clusters');
+        container.innerHTML = clusters.map((c, i) => {
+            const dateRange = c.firstDate && c.lastDate
+                ? (fmtDate(c.firstDate) === fmtDate(c.lastDate) ? fmtDate(c.firstDate) : `${fmtDate(c.firstDate)} - ${fmtDate(c.lastDate)}`)
+                : '';
+            const defaultCategory = c.currentCategoryName || c.label;
+            // A single-scope ledger (Hvidberg=private-only, ITMartin=business-only)
+            // has nothing to choose - skip the dropdown and needs-review flag,
+            // since there's no ambiguity a human has to resolve.
+            const scopeField = fixedScope
+                ? `<input type="hidden" data-role="scope" value="${fixedScope}" />`
+                : `<select class="input" style="width:auto" data-role="scope">
+                        <option value="Unknown" ${c.scope === 'Unknown' ? 'selected' : ''}>Ukendt</option>
+                        <option value="Business" ${c.scope === 'Business' ? 'selected' : ''}>Forretning</option>
+                        <option value="Private" ${c.scope === 'Private' ? 'selected' : ''}>Privat</option>
+                    </select>`;
+            const needsReview = !fixedScope && c.scope === 'Unknown' && !c.currentCategoryName;
+            // Only worth an expand-to-inspect affordance when there's more
+            // than one transaction behind the pattern - a single-transaction
+            // cluster already shows everything relevant in the row itself.
+            const detail = c.count > 1
+                ? `<details data-role="detail">
+                        <summary style="cursor:pointer;list-style:none;color:var(--blue);font-size:13px;margin-top:8px">📋 Se ${c.count} transaktioner</summary>
+                        <div data-role="txList" style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+                            <div class="meta">Indlæser...</div>
+                        </div>
+                    </details>`
+                : '';
+            return `
+            <div class="category-summary-card category-summary-card--compact ${needsReview ? 'category-summary-card--unknown' : ''}"
+                 data-pattern="${esc(c.pattern)}" data-label="${esc(c.label)}" data-raw="${esc(c.sampleRawDetails || '')}"
+                 data-count="${c.count}" data-sum="${c.sum}">
+                <div class="category-summary-top">
+                    <div>
+                        <div class="category-summary-title">${esc(c.label)}</div>
+                        <div class="meta">${dateRange}${c.sampleRawDetails ? ` · fx: ${esc(c.sampleRawDetails.trim().slice(0, 60))}` : ''}</div>
+                    </div>
+                    <div class="meta ${c.sum < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">${c.count} stk. · ${c.sum < 0 ? '−' : '+'}${Math.round(Math.abs(c.sum)).toLocaleString('da-DK')} kr. i alt</div>
+                </div>
+                ${detail}
+                <div data-role="investigateResult">${c.investigationReasoning ? investigateResultHtml({ reasoning: c.investigationReasoning, suggestedScope: c.investigationSuggestedScope, confidence: c.investigationConfidence }) : ''}</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
+                    ${scopeField}
+                    <input class="input" style="width:auto" data-role="category"
+                           value="${esc(defaultCategory)}" placeholder="Kategori..." />
+                    <select class="input" style="width:auto" data-role="categoryPicker">
+                        <option value="">Vælg eksisterende...</option>
+                        ${categories.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}
+                    </select>
+                    <button class="btn" data-role="save">Gem</button>
+                    <button class="btn" data-role="investigate" title="Spørg AI hvad dette sandsynligvis er">${c.investigationReasoning ? '🔄 Undersøg igen' : '🔍 Undersøg'}</button>
+                    <span class="meta" data-role="savedMark">${c.currentCategoryName ? '✔ gemt' : ''}</span>
+                </div>
+            </div>
+        `; }).join('');
+
+        container.querySelectorAll('[data-role="detail"]').forEach(details => {
+            let loaded = false;
+            details.addEventListener('toggle', async () => {
+                if (!details.open || loaded) return;
+                loaded = true;
+                const pattern = details.closest('.category-summary-card').dataset.pattern;
+                const txList = details.querySelector('[data-role="txList"]');
+                const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/transactions?pattern=${encodeURIComponent(pattern)}`);
+                const txs = await res.json();
+                txList.innerHTML = txs.map(tx => `
+                    <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;border-top:1px solid var(--border)">
+                        <span style="color:var(--muted);white-space:nowrap">${fmtDate(tx.date)}</span>
+                        <span style="flex:1">${esc(tx.description)}</span>
+                        <span class="${tx.amount < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">
+                            ${tx.amount < 0 ? '−' : '+'}${Math.round(Math.abs(tx.amount)).toLocaleString('da-DK')} kr.
+                        </span>
+                    </div>
+                `).join('');
+            });
+        });
+
+        container.querySelectorAll('[data-role="save"]').forEach(btn => {
+            btn.addEventListener('click', () => save(btn.closest('.category-summary-card')));
+        });
+
+        container.querySelectorAll('[data-role="categoryPicker"]').forEach(picker => {
+            picker.addEventListener('change', () => {
+                if (!picker.value) return;
+                const card = picker.closest('.category-summary-card');
+                card.querySelector('[data-role="category"]').value = picker.value;
+                picker.value = '';
+            });
+        });
+
+        container.querySelectorAll('[data-role="investigate"]').forEach(btn => {
+            btn.addEventListener('click', () => investigate(btn.closest('.category-summary-card')));
+        });
+    }
+
+    async function save(card) {
+        const pattern = card.dataset.pattern;
+        const scope = card.querySelector('[data-role="scope"]').value;
+        const categoryName = card.querySelector('[data-role="category"]').value.trim();
+
+        if (!categoryName) {
+            alert('Angiv en kategori først');
+            return false;
+        }
+
+        const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pattern, categoryName, scope }),
+        });
+
+        if (res.ok) {
+            if (!categories.includes(categoryName)) categories.push(categoryName);
+            card.querySelector('[data-role="savedMark"]').textContent = '✔ gemt';
+            card.classList.remove('category-summary-card--unknown');
+            return true;
+        } else {
+            alert('Kunne ikke gemme - prøv igen');
+            return false;
+        }
+    }
+
+    document.getElementById('saveAllBtn').addEventListener('click', async () => {
+        const cards = Array.from(document.querySelectorAll('.category-summary-card'));
+        let saved = 0;
+        for (const card of cards) {
+            const categoryName = card.querySelector('[data-role="category"]').value.trim();
+            if (!categoryName) continue;
+            const ok = await save(card);
+            if (ok) saved++;
+        }
+        document.getElementById('clusterCount').innerHTML = `Gemte ${saved} · genindlæser...`;
+        await load();
+    });
+
+    document.getElementById('investigateAllBtn').addEventListener('click', async () => {
+        const statusEl = document.getElementById('investigateAllStatus');
+        // Only clusters with no cached result yet - already-investigated ones
+        // stay as-is (no point paying for the same answer twice).
+        const cards = Array.from(document.querySelectorAll('.category-summary-card'))
+            .filter(card => !card.dataset.pattern || !card.querySelector('[data-role="investigateResult"]').innerHTML.trim());
+        if (cards.length === 0) {
+            statusEl.textContent = 'Alle poster er allerede undersøgt.';
+            return;
+        }
+        let done = 0;
+        for (const card of cards) {
+            statusEl.textContent = `Undersøger ${done + 1} / ${cards.length}...`;
+            await investigate(card);
+            done++;
+        }
+        statusEl.textContent = `Færdig - undersøgte ${done} post(er).`;
+    });
+
+    load();
+}, 0);
+</script>
+
+@code {
+    // Still needed even with no @rendermode - the {LedgerId} route token has
+    // to bind to a component parameter for server-side prerendering (used in
+    // the PageTitle/link above) regardless of whether the page is interactive.
+    [Parameter] public string LedgerId { get; set; } = "";
+}

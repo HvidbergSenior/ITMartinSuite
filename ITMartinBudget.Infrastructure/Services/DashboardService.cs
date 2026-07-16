@@ -20,8 +20,13 @@ public sealed class DashboardService
     public async Task<DashboardViewModel>
         BuildDashboardAsync()
     {
+        // This service is the family budget dashboard specifically - a client
+        // ledger like "bogshoppen" (see ShopOverview.razor, which queries
+        // Db.Transactions directly and scopes by its own LedgerId) must never
+        // show up here.
         var transactions =
             await _db.Transactions
+                .Where(x => x.LedgerId == "family")
                 .ToListAsync();
 
         var firstDate =

@@ -159,6 +159,8 @@ public class BankTransactionCsvService
     {
         return (await _db.Transactions
 
+                .Where(x => x.LedgerId == "family")
+
                 .Select(x => new
                 {
                     x.Date,
