@@ -676,3 +676,224 @@ body {
     .op-tile { width: 76px; }
     .op-img { width: 44px; height: 44px; }
 }
+
+/* ── Settings guide: icon-tile picker (ported from Magic's set-icon-grid) ── */
+.settings-guide-page { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+
+.sg-header { margin-bottom: 16px; }
+.sg-back { color: var(--text-muted); font-size: .85rem; text-decoration: none; }
+.sg-back:hover { color: var(--text); }
+.sg-title { color: var(--accent); font-size: 1.4rem; margin: 6px 0 4px; text-wrap: balance; }
+.sg-sub { color: var(--text-muted); font-size: .85rem; line-height: 1.5; margin: 0; }
+.sg-empty { color: var(--text-muted); font-size: .85rem; margin-top: 16px; }
+
+.sg-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: .88rem;
+    margin-top: 18px;
+}
+.sg-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(232,200,75,.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: sg-spin .7s linear infinite;
+}
+@keyframes sg-spin { to { transform: rotate(360deg); } }
+
+/* Fixed-size badge so emoji render consistently regardless of platform/font,
+   instead of raw floating characters at inconsistent visual weight. */
+.icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    font-size: 17px;
+    line-height: 1;
+    background: rgba(232,200,75,.1);
+    border-radius: 9px;
+}
+.icon-badge--lg { width: 44px; height: 44px; font-size: 22px; border-radius: 12px; }
+
+.sg-focus-back {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: .85rem;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 14px;
+}
+.sg-focus-back:hover { color: var(--accent); }
+
+.setting-search {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 8px;
+    font-size: .9rem;
+}
+.setting-search:focus { outline: none; border-color: var(--accent); }
+
+.setting-group-label {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 18px 0 8px;
+}
+
+.set-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.set-tile {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    min-height: 44px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+}
+.set-tile:hover { border-color: rgba(232,200,75,.4); }
+.set-tile:active { background: rgba(255,255,255,.06); }
+
+.set-tile-name {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-align: left;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Below ~480px, a multi-column grid of tiles just crams the longer Danish
+   setting names into truncated fragments. Drop to a single full-width column
+   so every tile reads as a normal row (icon + name, no wrapping fight). */
+@media (max-width: 480px) {
+    .set-icon-grid { grid-template-columns: 1fr; }
+    .set-tile { padding: 12px 14px; }
+    .set-tile-name { font-size: 13.5px; -webkit-line-clamp: unset; }
+}
+
+.selected-set-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+}
+.selected-set-text { flex: 1; }
+.selected-set-name { font-size: .92rem; font-weight: 700; color: var(--text); }
+.selected-set-code { font-size: .7rem; color: var(--text-muted); letter-spacing: .05em; }
+.selected-set-clear {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+.selected-set-clear:hover { color: var(--text); }
+
+/* ── Explanation card: structured sections instead of a flat text dump ── */
+.explain-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 18px 20px 20px;
+    margin-top: 18px;
+}
+
+.explain-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.explain-lede {
+    font-size: .94rem;
+    line-height: 1.6;
+    color: var(--text);
+    margin: 0 0 16px;
+}
+
+/* Orange = "turn it up", cyan = "turn it down" - matches R6's own tactical
+   HUD convention (attacker/hot vs. defender/cold), grounded in the subject
+   rather than an arbitrary color pick. */
+.explain-updown {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+@media (max-width: 480px) {
+    .explain-updown { grid-template-columns: 1fr; }
+}
+.explain-updown-item {
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: .86rem;
+    line-height: 1.5;
+    color: var(--text);
+}
+.explain-up { background: rgba(240,160,75,.1); border: 1px solid rgba(240,160,75,.25); }
+.explain-down { background: rgba(75,163,240,.1); border: 1px solid rgba(75,163,240,.25); }
+.explain-updown-label { font-size: .72rem; font-weight: 700; letter-spacing: .04em; margin-bottom: 5px; }
+.explain-up .explain-updown-label { color: #f0a04b; }
+.explain-down .explain-updown-label { color: #4ba3f0; }
+
+.explain-scenario {
+    background: rgba(255,255,255,.04);
+    border-left: 3px solid var(--text-muted);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: .86rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+.explain-scenario-label { font-size: .72rem; font-weight: 700; letter-spacing: .04em; color: var(--text); margin-bottom: 5px; }
+
+.explain-recommend {
+    background: rgba(232,200,75,.1);
+    border: 1px solid rgba(232,200,75,.3);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: .9rem;
+    line-height: 1.55;
+    color: var(--text);
+}
+.explain-recommend-label { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); margin-bottom: 5px; }

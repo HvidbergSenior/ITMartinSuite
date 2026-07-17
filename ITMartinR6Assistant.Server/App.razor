@@ -10,7 +10,13 @@
     <title>R6 Assistant</title>
 
     <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Shared.css" />
-    <link rel="stylesheet" href="css/R6Assistant.css" />
+    @* Cache-busted by app start time - without this, Cloudflare's edge cache
+       (Cache-Control: max-age=14400) keeps serving the CSS from before the
+       last deploy until it naturally expires, so a redeployed stylesheet can
+       silently not show up for hours. Value is stable per process lifetime
+       (set once at startup, not per-request), so normal caching still works
+       between deploys - only a fresh deploy/restart changes it. *@
+    <link rel="stylesheet" href="css/R6Assistant.css?v=@ITMartinR6Assistant.Server.BuildInfo.Version" />
 
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>

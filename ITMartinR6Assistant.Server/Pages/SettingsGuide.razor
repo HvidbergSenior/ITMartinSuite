@@ -1,0 +1,180 @@
+@page "/indstillinger"
+@layout R6AssistantLayout
+@inject SettingsGuideService Guide
+@using ITMartinR6Assistant.Server.Services
+
+<div class="settings-guide-page">
+
+    <div class="sg-header">
+        <a href="/" class="sg-back">← Tilbage</a>
+        <h1 class="sg-title">Indstillinger — hvad betyder de?</h1>
+        <p class="sg-sub">Vælg en indstilling for at se hvad den faktisk gør, og hvad der sker når du skruer op eller ned.</p>
+    </div>
+
+    @if (_selectedEntry is null)
+    {
+        @* Browse mode: search + grid. Picking one switches fully to focus mode
+           below - the list disappears instead of the explanation landing at
+           the bottom of a long scroll past everything you didn't pick. *@
+        <input class="setting-search" placeholder="🔍 Søg indstilling..." value="@_search"
+               @oninput='e => _search = e.Value?.ToString() ?? ""' />
+
+        @foreach (var group in FilteredSettings.GroupBy(s => s.Category))
+        {
+            <div class="setting-group-label">@group.Key</div>
+            <div class="set-icon-grid">
+                @foreach (var entry in group)
+                {
+                    <div class="set-tile" @onclick="() => Select(entry)" title="@entry.Name">
+                        <span class="icon-badge">@entry.Icon</span>
+                        <div class="set-tile-name">@entry.Name</div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (!FilteredSettings.Any())
+        {
+            <p class="sg-empty">Ingen indstillinger matcher "@_search".</p>
+        }
+    }
+    else
+    {
+        @* Focus mode: only the chosen setting, nothing else competing for attention. *@
+        <button class="sg-focus-back" @onclick="Clear">← Vælg en anden indstilling</button>
+
+        <div class="selected-set-display">
+            <span class="icon-badge icon-badge--lg">@_selectedEntry.Icon</span>
+            <div class="selected-set-text">
+                <div class="selected-set-name">@_selectedEntry.Name</div>
+                <div class="selected-set-code">@_selectedEntry.Category.ToUpperInvariant()</div>
+            </div>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="sg-loading">
+                <span class="sg-spinner"></span> Genererer forklaring...
+            </div>
+        }
+        else if (_sections is not null)
+        {
+            <div class="explain-card">
+                @if (!string.IsNullOrWhiteSpace(_sections.HvadDetGoer))
+                {
+                    <p class="explain-lede">@_sections.HvadDetGoer</p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_sections.SkruerOp) || !string.IsNullOrWhiteSpace(_sections.SkruerNed))
+                {
+                    <div class="explain-updown">
+                        @if (!string.IsNullOrWhiteSpace(_sections.SkruerOp))
+                        {
+                            <div class="explain-updown-item explain-up">
+                                <div class="explain-updown-label">▲ Skruer du op</div>
+                                <div>@_sections.SkruerOp</div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_sections.SkruerNed))
+                        {
+                            <div class="explain-updown-item explain-down">
+                                <div class="explain-updown-label">▼ Skruer du ned</div>
+                                <div>@_sections.SkruerNed</div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_sections.IPraksis))
+                {
+                    <div class="explain-scenario">
+                        <div class="explain-scenario-label">🎮 I praksis</div>
+                        <div>@_sections.IPraksis</div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_sections.Anbefaling))
+                {
+                    <div class="explain-recommend">
+                        <div class="explain-recommend-label">Anbefaling til konkurrence-spil</div>
+                        <div>@_sections.Anbefaling</div>
+                    </div>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_explanationRaw))
+        {
+            @* Fallback if the AI ever deviates from the expected format - still show something rather than nothing. *@
+            <div class="explain-card">
+                <p class="explain-lede" style="white-space:pre-wrap">@_explanationRaw</p>
+            </div>
+        }
+    }
+
+</div>
+
+@code {
+    private string _search = "";
+    private SettingsGuideService.SettingEntry? _selectedEntry;
+    private string _explanationRaw = "";
+    private ExplanationSections? _sections;
+    private bool _loading;
+
+    private sealed record ExplanationSections(string HvadDetGoer, string SkruerOp, string SkruerNed, string IPraksis, string Anbefaling);
+
+    private IEnumerable<SettingsGuideService.SettingEntry> FilteredSettings =>
+        string.IsNullOrWhiteSpace(_search)
+            ? SettingsGuideService.Settings
+            : SettingsGuideService.Settings.Where(s =>
+                s.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                s.Category.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private void Clear()
+    {
+        _selectedEntry = null;
+        _explanationRaw = "";
+        _sections = null;
+    }
+
+    private async Task Select(SettingsGuideService.SettingEntry entry)
+    {
+        _selectedEntry = entry;
+        _explanationRaw = "";
+        _sections = null;
+        _loading = true;
+        StateHasChanged();
+        _explanationRaw = await Guide.ExplainAsync(entry.Key);
+        _sections = ParseExplanation(_explanationRaw);
+        _loading = false;
+    }
+
+    // The AI is asked (see SettingsGuideService) to reply in a fixed labeled
+    // format - parse it into real sections instead of dumping raw text, so
+    // the answer actually reads as a designed explanation, not a text blob.
+    // Falls back to null (raw text shown instead) if the format ever drifts.
+    private static ExplanationSections? ParseExplanation(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        string Extract(string label, string? nextLabel)
+        {
+            var start = raw.IndexOf(label, StringComparison.OrdinalIgnoreCase);
+            if (start < 0) return "";
+            start += label.Length;
+            var end = nextLabel is null ? raw.Length : raw.IndexOf(nextLabel, start, StringComparison.OrdinalIgnoreCase);
+            if (end < 0) end = raw.Length;
+            return raw[start..end].Trim();
+        }
+
+        var hvad = Extract("HVAD DET GØR:", "SKRUER DU OP:");
+        var op = Extract("SKRUER DU OP:", "SKRUER DU NED:");
+        var ned = Extract("SKRUER DU NED:", "I PRAKSIS:");
+        var praksis = Extract("I PRAKSIS:", "ANBEFALING");
+        var anbefaling = Extract("ANBEFALING TIL KONKURRENCE-SPIL:", null);
+
+        if (string.IsNullOrWhiteSpace(hvad) && string.IsNullOrWhiteSpace(op) && string.IsNullOrWhiteSpace(ned))
+            return null;
+
+        return new ExplanationSections(hvad, op, ned, praksis, anbefaling);
+    }
+}

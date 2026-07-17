@@ -1,0 +1,33 @@
+@page "/pregame"
+@layout R6AssistantLayout
+
+<div style="max-width:720px;margin:0 auto;padding:20px 16px 60px">
+
+    <div style="margin-bottom:18px">
+        <a href="/" style="color:var(--text-muted);font-size:.85rem;text-decoration:none">← Tilbage</a>
+        <h1 style="color:var(--accent);font-size:1.4rem;margin:6px 0 4px">Pre-game tjek</h1>
+        <p style="color:var(--text-muted);font-size:.85rem">
+            Et script du kører lokalt, 2 minutter før I spiller — tjekker netværk, lyd/Discord, spil/launcher og system,
+            og giver en tjekliste over hvad der skal rettes. Ingen admin-rettigheder nødvendige. Del scriptet med resten af holdet.
+        </p>
+    </div>
+
+    <div style="background:var(--bg-card);border-radius:10px;padding:18px 20px;margin-bottom:16px">
+        <div style="color:var(--accent);font-weight:700;margin-bottom:10px">Sådan bruger du det</div>
+        <ol style="color:var(--text);font-size:.9rem;line-height:1.8;padding-left:20px;margin:0">
+            <li>Download <code>PreGameCheck.ps1</code> nedenfor</li>
+            <li>Højreklik → "Kør med PowerShell" (eller åbn en PowerShell-terminal og kør den)</li>
+            <li>Scriptet indsamler systemtilstand og viser en tjekliste direkte i terminalen</li>
+        </ol>
+        <a class="admin-back-btn" style="display:inline-block;margin-top:14px;text-decoration:none"
+           href="/scripts/PreGameCheck.ps1" download>⬇ Download PreGameCheck.ps1</a>
+    </div>
+
+    <div style="background:var(--bg-card);border-radius:10px;padding:18px 20px">
+        <div style="color:var(--text-muted);font-size:.82rem;line-height:1.6">
+            Scriptet sender kun tekniske systemoplysninger (netværkstype, driverversioner, om processer kører osv.)
+            til serveren for at få en tjekliste tilbage — ingen personlige filer eller loginoplysninger.
+        </div>
+    </div>
+
+</div>
