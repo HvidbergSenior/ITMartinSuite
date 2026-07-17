@@ -98,6 +98,15 @@ else
             </div>
         }
 
+        @* ============ Excluded categories - lets you ask "what does the result look like without Husleje" etc. Toggled per-category from the cards below. ============ *@
+        @if (_excludedCategories.Count > 0)
+        {
+            <div class="alert warning" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                <span>🚫 Ekskluderet fra tallene nedenfor: @string.Join(", ", _excludedCategories.OrderBy(e => e, StringComparer.Ordinal))</span>
+                <a class="btn" href="@ClearExcludeLink()" data-enhance-nav="false">Nulstil</a>
+            </div>
+        }
+
         @* ============ AI Q&A - free-form questions answered from a monthly/category digest, same "user-triggered, one call, shown inline" pattern as the Investigate button on /shop-categorize ============ *@
         <div class="category-summary-card" style="display:flex;flex-direction:column;gap:10px;margin-bottom:0">
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -343,15 +352,21 @@ setTimeout(function () {
     // that drove the sample-transaction text on /shop-categorize).
     private RenderFragment CategoryCard(GroupedAmount g, bool negative) => __builder =>
     {
-        <details class="category-summary-card category-summary-card--compact" style="margin-bottom:8px">
+        var isExcluded = _excludedCategories.Contains(g.Description);
+        <details class="category-summary-card category-summary-card--compact" style="margin-bottom:8px@(isExcluded ? ";opacity:.55" : "")">
             <summary style="cursor:pointer;list-style:none">
                 <div class="category-summary-top">
-                    <span class="category-summary-title" style="font-size:15px">@g.Description</span>
+                    <span class="category-summary-title" style="font-size:15px@(isExcluded ? ";text-decoration:line-through" : "")">@g.Description</span>
                     <span class="@(negative ? "amount-negative" : "amount-positive")" style="white-space:nowrap;margin-left:12px">
                         @g.Count stk. · @(negative ? "−" : "+")@Math.Abs(g.Sum).ToString("N0") kr.
                     </span>
                 </div>
             </summary>
+            <div style="margin-top:10px">
+                <a class="btn" style="font-size:12px;padding:4px 10px" href="@ExcludeToggleLink(g.Description)" data-enhance-nav="false">
+                    @(isExcluded ? "↩ Medtag i total igen" : "🚫 Ekskluder fra total")
+                </a>
+            </div>
             <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
                 @foreach (var tx in g.Transactions)
                 {
@@ -379,23 +394,49 @@ setTimeout(function () {
     [SupplyParameterFromQuery(Name = "from")] public string? FromParam { get; set; }
     [SupplyParameterFromQuery(Name = "to")] public string? ToParam { get; set; }
     [SupplyParameterFromQuery(Name = "focus")] public string? FocusParam { get; set; }
+    [SupplyParameterFromQuery(Name = "exclude")] public string? ExcludeParam { get; set; }
 
     private enum Focus { All, Business, Private }
 
-    private string FocusLink(string? focus)
+    // Builds a /shop-overview link carrying the given focus + excluded-category
+    // set forward, always preserving the current period filter - shared by
+    // FocusLink and the per-category exclude toggle so period/focus never get
+    // silently dropped when the user is mid-investigation.
+    private string BuildLink(Focus focus, IEnumerable<string> excluded)
     {
         var qs = new List<string>();
-        if (!string.IsNullOrWhiteSpace(focus)) qs.Add($"focus={focus}");
+        if (focus != Focus.All) qs.Add($"focus={(focus == Focus.Business ? "business" : "private")}");
+        var exList = excluded.Where(e => !string.IsNullOrWhiteSpace(e)).OrderBy(e => e, StringComparer.Ordinal).ToList();
+        if (exList.Count > 0) qs.Add($"exclude={Uri.EscapeDataString(string.Join(",", exList))}");
         if (_periodFrom.HasValue) qs.Add($"from={_periodFrom:yyyy-MM-dd}");
         if (_periodTo.HasValue) qs.Add($"to={_periodTo:yyyy-MM-dd}");
         return $"/shop-overview/{LedgerId}" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
     }
+
+    private string FocusLink(string? focus)
+    {
+        var f = focus?.ToLowerInvariant() switch { "business" => Focus.Business, "private" => Focus.Private, _ => Focus.All };
+        return BuildLink(f, _excludedCategories);
+    }
+
+    // Toggle one category in/out of the excluded set - lets the user ask "what
+    // does the result look like without Husleje Butik" (or any other category)
+    // directly from the category card, without losing their place.
+    private string ExcludeToggleLink(string category)
+    {
+        var set = new HashSet<string>(_excludedCategories, StringComparer.Ordinal);
+        if (!set.Remove(category)) set.Add(category);
+        return BuildLink(_focus, set);
+    }
+
+    private string ClearExcludeLink() => BuildLink(_focus, Array.Empty<string>());
 
     private readonly CultureInfo _da = new("da-DK");
     private bool _loading = true;
     private List<BankTransaction> _all = new();
     private LedgerScopeMode _scopeMode = LedgerScopeMode.Both;
     private Focus _focus = Focus.All;
+    private HashSet<string> _excludedCategories = new(StringComparer.Ordinal);
     private DateTime? _periodFrom, _periodTo;
     private int _totalAllTime;
 
@@ -432,6 +473,9 @@ setTimeout(function () {
             "private" => Focus.Private,
             _ => Focus.All,
         };
+        _excludedCategories = string.IsNullOrWhiteSpace(ExcludeParam)
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : new HashSet<string>(ExcludeParam.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), StringComparer.Ordinal);
 
         var all = await Db.Transactions
             .Where(x => x.LedgerId == LedgerId)
@@ -466,12 +510,18 @@ setTimeout(function () {
         var priv = _all.Where(x => x.Scope == TransactionScope.Private).ToList();
         _unknownCount = _all.Count(x => x.Scope == TransactionScope.Unknown);
 
-        _businessRevenue = business.Where(x => x.Amount > 0).Sum(x => x.Amount);
-        _businessExpenses = business.Where(x => x.Amount < 0).Sum(x => x.Amount);
+        // Excluded categories still show up in the breakdown lists below (so
+        // the toggle stays visible/clickable to bring them back) but drop out
+        // of every summed total - headline, monthly trend, flags.
+        bool BizIncluded(BankTransaction x) => !_excludedCategories.Contains(CategoryKeyBusiness(x));
+        bool PrivIncluded(BankTransaction x) => !_excludedCategories.Contains(CategoryKeyPrivate(x));
+
+        _businessRevenue = business.Where(x => x.Amount > 0 && BizIncluded(x)).Sum(x => x.Amount);
+        _businessExpenses = business.Where(x => x.Amount < 0 && BizIncluded(x)).Sum(x => x.Amount);
         _businessNet = _businessRevenue + _businessExpenses;
 
-        _privateOut = priv.Where(x => x.Amount < 0).Sum(x => x.Amount);
-        _privateIn = priv.Where(x => x.Amount > 0).Sum(x => x.Amount);
+        _privateOut = priv.Where(x => x.Amount < 0 && PrivIncluded(x)).Sum(x => x.Amount);
+        _privateIn = priv.Where(x => x.Amount > 0 && PrivIncluded(x)).Sum(x => x.Amount);
         _privateShareOfRevenuePct = _businessRevenue > 0
             ? (double)(Math.Abs(_privateOut) / _businessRevenue * 100m)
             : 0.0;
@@ -482,7 +532,7 @@ setTimeout(function () {
         // UserCategoryName (see /shop-categorize) always wins once set - it's
         // the human's own final word, not a guess.
         _topBusinessExpenses = business.Where(x => x.Amount < 0)
-            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : BusinessCategoryLabel(x.BusinessCategory))
+            .GroupBy(CategoryKeyBusiness)
             .Select(g => new GroupedAmount(
                 g.Key,
                 $"{g.Count()} stk.",
@@ -493,7 +543,7 @@ setTimeout(function () {
             .ToList();
 
         _businessRevenueByCategory = business.Where(x => x.Amount > 0)
-            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : BusinessCategoryLabel(x.BusinessCategory))
+            .GroupBy(CategoryKeyBusiness)
             .Select(g => new GroupedAmount(
                 g.Key,
                 $"{g.Count()} stk.",
@@ -508,7 +558,7 @@ setTimeout(function () {
         // same ITransactionCategorizer the family dashboard uses), so this
         // reads the same way: "Privat: Husleje 5.000, Dagligvarer 4.000".
         _topPrivate = priv.Where(x => x.Amount < 0)
-            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : x.Category.ToString())
+            .GroupBy(CategoryKeyPrivate)
             .Select(g => new GroupedAmount(
                 g.Key,
                 $"{g.Count()} stk.",
@@ -519,7 +569,7 @@ setTimeout(function () {
             .ToList();
 
         _privateIncomeByCategory = priv.Where(x => x.Amount > 0)
-            .GroupBy(x => !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : x.Category.ToString())
+            .GroupBy(CategoryKeyPrivate)
             .Select(g => new GroupedAmount(
                 g.Key,
                 $"{g.Count()} stk.",
@@ -535,9 +585,9 @@ setTimeout(function () {
             .Select(g =>
             {
                 var biz = g.Where(x => x.Scope == TransactionScope.Business).ToList();
-                var rev = biz.Where(x => x.Amount > 0).Sum(x => x.Amount);
-                var exp = biz.Where(x => x.Amount < 0).Sum(x => x.Amount);
-                var privOut = g.Where(x => x.Scope == TransactionScope.Private && x.Amount < 0).Sum(x => x.Amount);
+                var rev = biz.Where(x => x.Amount > 0 && BizIncluded(x)).Sum(x => x.Amount);
+                var exp = biz.Where(x => x.Amount < 0 && BizIncluded(x)).Sum(x => x.Amount);
+                var privOut = g.Where(x => x.Scope == TransactionScope.Private && x.Amount < 0 && PrivIncluded(x)).Sum(x => x.Amount);
                 var endBal = g.OrderBy(x => x.Date).Last().Balance;
                 return new MonthRow(g.Key.ToString("MMM yyyy", _da), rev, exp, rev + exp, privOut, endBal);
             })
@@ -609,6 +659,12 @@ setTimeout(function () {
         TransactionScope.Private => "rgba(249,115,22,.18)",
         _ => "rgba(136,144,166,.18)",
     };
+
+    private static string CategoryKeyBusiness(BankTransaction x) =>
+        !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : BusinessCategoryLabel(x.BusinessCategory);
+
+    private static string CategoryKeyPrivate(BankTransaction x) =>
+        !string.IsNullOrWhiteSpace(x.UserCategoryName) ? x.UserCategoryName! : x.Category.ToString();
 
     private static string BusinessCategoryLabel(BusinessCategory c) => c switch
     {
