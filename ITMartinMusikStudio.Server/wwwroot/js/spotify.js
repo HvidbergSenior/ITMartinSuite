@@ -75,6 +75,17 @@ window.spotifyPlayer = (function () {
         if (_player) _player.resume();
     }
 
+    // "Sang" slider needs to control THIS player's volume for a Spotify-linked
+    // song - studio.js's setMixVolume only affects locally-uploaded file
+    // playback, a completely separate audio path that Spotify never goes
+    // through. If the SDK isn't connected yet, ensureConnected() first so the
+    // volume takes effect as soon as playback starts.
+    function setVolume(vol) {
+        return ensureConnected().then(function () {
+            if (_player) return _player.setVolume(Math.max(0, Math.min(1, vol)));
+        });
+    }
+
     // Returns { positionMs, durationMs, paused } or null if nothing's loaded -
     // polled client-side to drive lyric-line highlighting.
     function getState() {
@@ -131,6 +142,7 @@ window.spotifyPlayer = (function () {
         playTrack: playTrack,
         pause: pause,
         resume: resume,
+        setVolume: setVolume,
         getState: getState,
         startLyricSync: startLyricSync,
         stopLyricSync: stopLyricSync

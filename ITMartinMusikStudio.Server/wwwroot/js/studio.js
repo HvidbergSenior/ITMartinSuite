@@ -7,6 +7,10 @@ window.studio = (function() {
     var _songKey = null;
     var _videoMode = false;
     var _mixAudios = [];
+    var _mixVolume = 0.5; // default lower than full - reduces speaker bleed into the mic when no headphones are used
+    var _audioCtx = null;
+    var _micGainNode = null;
+    var _micGain = 1.5; // default boost - "record me higher"
 
     // ── Recording ──────────────────────────────────────────────────────────────
 
@@ -44,6 +48,22 @@ window.studio = (function() {
                     }
                 }
 
+                // A plain linear gain boost on the raw mic signal - not the
+                // same thing as the AGC/noise-suppression left off above.
+                // Those are adaptive/dynamic processing that degrades tone;
+                // this is just "make the whole recorded signal louder",
+                // which is what "record me higher" actually needs.
+                _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                var micSource = _audioCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
+                _micGainNode = _audioCtx.createGain();
+                _micGainNode.gain.value = _micGain;
+                var dest = _audioCtx.createMediaStreamDestination();
+                micSource.connect(_micGainNode).connect(dest);
+
+                var recordStream = _videoMode
+                    ? new MediaStream(stream.getVideoTracks().concat(dest.stream.getAudioTracks()))
+                    : dest.stream;
+
                 var mimeType = _videoMode ? "video/webm;codecs=vp8,opus" : "audio/webm";
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
                     mimeType = "video/webm";
@@ -56,7 +76,7 @@ window.studio = (function() {
                 // 192kbps gives a real condenser mic's vocal recording
                 // noticeably more headroom/clarity than the browser default.
                 var opts = mimeType ? { mimeType: mimeType, audioBitsPerSecond: 192000 } : {};
-                _mediaRecorder = new MediaRecorder(stream, opts);
+                _mediaRecorder = new MediaRecorder(recordStream, opts);
 
                 _mediaRecorder.ondataavailable = function(e) {
                     if (e.data && e.data.size > 0) _chunks.push(e.data);
@@ -76,10 +96,29 @@ window.studio = (function() {
         _mixAudios = [];
     }
 
+    // Boosts your recorded mic level (voice + guitar picked up together, e.g.
+    // by a HyperX QuadCast) - takes effect immediately if a recording is
+    // already running, and carries over as the default for the next one.
+    function setMicGain(gain) {
+        _micGain = Math.max(0.1, Math.min(4, gain));
+        if (_micGainNode) _micGainNode.gain.value = _micGain;
+    }
+
+    // Volume of the reference/backing track only - this plays through your own
+    // speakers/headphones for timing, it is never part of the recorded file
+    // (recording is mic-only, see startRecording above). Turning this down
+    // makes it easier to hear your own playing while performing; it does not
+    // change the balance of anything already in the recording.
+    function setMixVolume(vol) {
+        _mixVolume = Math.max(0, Math.min(1, vol));
+        _mixAudios.forEach(function(a) { a.volume = _mixVolume; });
+    }
+
     function playMix(urls) {
         stopMix();
         _mixAudios = urls.map(function(url) {
             var a = new Audio(url);
+            a.volume = _mixVolume;
             a.play().catch(function(e) { console.error("Mix playback failed", e); });
             return a;
         });
@@ -88,6 +127,7 @@ window.studio = (function() {
     function startOverdub(songKey, playUrl, videoMode) {
         stopMix();
         var playback = new Audio(playUrl);
+        playback.volume = _mixVolume;
         playback.play().catch(function(e) { console.error("Overdub playback failed", e); });
         _mixAudios = [playback];
         return startRecording(songKey, videoMode);
@@ -231,6 +271,8 @@ window.studio = (function() {
         startOverdub: startOverdub,
         playMix: playMix,
         stopMix: stopMix,
+        setMixVolume: setMixVolume,
+        setMicGain: setMicGain,
         startCamera: startCamera,
         stopCamera: stopCamera,
         capturePhoto: capturePhoto

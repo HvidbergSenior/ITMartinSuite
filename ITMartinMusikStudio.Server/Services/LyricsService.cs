@@ -24,7 +24,15 @@ public sealed class LyricsService
     // returns both directly, no need to derive one from the other.
     // Either can be "" if nothing was found (not null - null is reserved by
     // the caller for "never looked up").
-    public async Task<(string Synced, string Plain)> FindLyricsAsync(string title, string artist, CancellationToken ct = default)
+    //
+    // targetDurationMs (usually the linked Spotify track's own duration) picks
+    // the right take when lrclib has both a studio and a live/alternate entry -
+    // search text alone ("Song - Live") isn't reliable since lrclib ranks by
+    // its own relevance, not by matching our version qualifier. A live take is
+    // almost always a noticeably different length than the studio one, so the
+    // closest-duration result is a much safer signal than "just take the first
+    // hit with any lyrics."
+    public async Task<(string Synced, string Plain)> FindLyricsAsync(string title, string artist, int? targetDurationMs = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(title)) return ("", "");
 
@@ -36,8 +44,14 @@ public sealed class LyricsService
         if (!resp.IsSuccessStatusCode) return ("", "");
 
         var results = await resp.Content.ReadFromJsonAsync<List<LrcLibResult>>(cancellationToken: ct);
-        var best = results?.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.SyncedLyrics) || !string.IsNullOrWhiteSpace(r.PlainLyrics));
-        return (best?.SyncedLyrics ?? "", best?.PlainLyrics ?? "");
+        var candidates = results?.Where(r => !string.IsNullOrWhiteSpace(r.SyncedLyrics) || !string.IsNullOrWhiteSpace(r.PlainLyrics)).ToList();
+        if (candidates is null || candidates.Count == 0) return ("", "");
+
+        var best = targetDurationMs is int targetMs
+            ? candidates.OrderBy(r => Math.Abs((r.Duration ?? 0) * 1000 - targetMs)).First()
+            : candidates.First();
+
+        return (best.SyncedLyrics ?? "", best.PlainLyrics ?? "");
     }
 
     // Parses "[mm:ss.xx]line" (or "[mm:ss.xxx]") into (seconds, text) pairs,
@@ -74,5 +88,6 @@ public sealed class LyricsService
     {
         [JsonPropertyName("syncedLyrics")] public string? SyncedLyrics { get; set; }
         [JsonPropertyName("plainLyrics")] public string? PlainLyrics { get; set; }
+        [JsonPropertyName("duration")] public double? Duration { get; set; } // seconds
     }
 }

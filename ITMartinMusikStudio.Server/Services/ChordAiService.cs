@@ -402,7 +402,7 @@ public sealed class ChordAiService
         var songLabel = string.IsNullOrWhiteSpace(artist) ? title : $"{title} — {artist}";
         var chordHint = string.IsNullOrWhiteSpace(chordChart)
             ? "No chord chart provided — use your knowledge of the song."
-            : $"Chord chart:\n{chordChart}";
+            : $"Chord chart (AUTHORITATIVE — see rule below):\n{chordChart}";
 
         var response = await _client.Messages.Create(new MessageCreateParams
         {
@@ -414,6 +414,13 @@ public sealed class ChordAiService
                 Keep section labels (Verse:, Chorus:, Bridge: etc.) as plain text lines with no chord markers.
                 Empty lines between sections must remain as empty lines.
                 Return ONLY the annotated lyrics — no explanation, no intro text, nothing else.
+
+                CRITICAL: if a chord chart is provided, it is the single source of truth for this song -
+                use ONLY the chords listed there, in the order given per section, cycling through them as
+                needed to cover the section's lines. Do NOT substitute, add, reorder, or "correct" chords
+                based on your own memory of the song, even if you believe you know a different progression -
+                the chart may reflect a specific recording/arrangement you don't know. Only fall back to your
+                own knowledge of the song when no chord chart is provided at all.
 
                 Example output format:
                 Verse:
@@ -429,6 +436,54 @@ public sealed class ChordAiService
                 {
                     Role = Role.User,
                     Content = $"Song: {songLabel}\nKey: {musicKey}\n\n{chordHint}\n\nPlain lyrics to annotate:\n{lyrics}"
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
+    // Places [Chord] markers onto a FIXED, already-correct lyrics text (e.g.
+    // from lrclib), using a reference tab purely to learn chord positions -
+    // not as a source of the words themselves. This is the judgment call that
+    // still needs AI (the reference tab's line breaks/phrasing may not match
+    // the target text exactly, and not every word carries a chord change),
+    // but word fidelity is enforced by the caller re-checking the output
+    // against exactLyrics, not by trusting the model alone.
+    public async Task<string> PlaceChordsFromTabAsync(string exactLyrics, string referenceTab)
+    {
+        if (_client is null) return "";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeSonnet4_6,
+            MaxTokens = 2000,
+            System = """
+                You place chord markers onto a fixed lyrics text, using a reference guitar tab
+                only to learn WHERE chords go and WHICH chords to use - never as a source of words.
+
+                ABSOLUTE RULE: the words you output must be character-for-character identical to
+                "Target lyrics" below - same words, same order, same line breaks, same capitalization
+                and punctuation. Do not paraphrase, correct, reorder, add, or drop a single word, even
+                if the reference tab's wording differs slightly. If a line in the target doesn't clearly
+                correspond to a line in the reference tab, leave that line without chord markers rather
+                than guessing.
+
+                Insert [Chord] immediately before the word it starts on, no space between the marker
+                and the word. Not every word needs a marker - a chord holds until the next one appears
+                in the reference tab, so only mark the words where the reference tab shows an actual
+                chord change. Keep section labels and blank lines exactly as they appear in the target.
+
+                Return ONLY the annotated target lyrics - no explanation, no intro text.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Target lyrics (reproduce exactly, only add [Chord] markers):\n{exactLyrics}\n\nReference tab (for chord positions only):\n{referenceTab}"
                 }
             ]
         });

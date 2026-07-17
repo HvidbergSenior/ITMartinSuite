@@ -56,6 +56,25 @@ else if (_song is not null)
                 @onclick='() => _tab = "optag"'>⭐ Indspil</button>
     </div>
 
+    <!-- Persistent Spotify mini-control - the full card (search/link UI) lives
+         in Forbered only, but play/stop needs to work from every tab, since
+         Øv & Spil and Indspil are exactly where you'd want the backing track
+         playing. -->
+    @if (Spotify.IsConnected && !string.IsNullOrEmpty(_song.SpotifyTrackId))
+    {
+        <div class="spotify-mini-bar">
+            <span class="spotify-mini-label">🎵 @_song.SpotifyTrackLabel</span>
+            @if (_spotifyPlaying)
+            {
+                <button class="btn-ghost-sm" @onclick="StopSpotifyTrack">⏹ Stop</button>
+            }
+            else
+            {
+                <button class="btn-ghost-sm" @onclick="PlaySpotifyTrack">▶ Afspil</button>
+            }
+        </div>
+    }
+
     <!-- ════════════════ TAB: FORBERED ════════════════ -->
     @if (_tab == "forbered")
     {
@@ -104,9 +123,18 @@ else if (_song is not null)
                 else if (!string.IsNullOrEmpty(_song!.SpotifyTrackId) && !_spotifySearchOpen)
                 {
                     <p style="font-size:0.85rem;color:#9ca3af;margin-bottom:8px">@_song.SpotifyTrackLabel</p>
-                    <button class="btn-primary" style="width:100%" @onclick="PlaySpotifyTrack">
-                        ▶ Afspil via Spotify (Premium påkrævet)
-                    </button>
+                    @if (_spotifyPlaying)
+                    {
+                        <button class="btn-primary" style="width:100%" @onclick="StopSpotifyTrack">
+                            ⏹ Stop
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn-primary" style="width:100%" @onclick="PlaySpotifyTrack">
+                            ▶ Afspil via Spotify (Premium påkrævet)
+                        </button>
+                    }
                     <button class="btn-ghost-sm" style="margin-top:6px" @onclick='() => _spotifySearchOpen = true'>
                         🔍 Skift sang
                     </button>
@@ -170,13 +198,6 @@ else if (_song is not null)
                             <button class="t-btn" @onclick="() => AdjustT(-1)" title="Transponer ned">−</button>
                             <button class="t-btn" @onclick="() => AdjustT(1)"  title="Transponer op">+</button>
                         </div>
-                        @if (ChordAi.IsAvailable)
-                        {
-                            <button class="btn-ai" @onclick="AiChords" disabled="@_aiLoading"
-                                    title="AI gætter akkorder — bedst til egne sange uden UG-tab">
-                                @(_aiLoading ? "..." : "🤖 AI")
-                            </button>
-                        }
                         @if (ChordDetectSvc.IsAvailable && _song is not null && !string.IsNullOrEmpty(_song.SourceFile))
                         {
                             <button class="btn-ai" @onclick="DetectChordsFromAudio" disabled="@_chordDetecting"
@@ -693,6 +714,28 @@ else if (_song is not null)
                         <button class="rec-mode-btn @(_videoMode ? "rec-mode-btn--active" : "")"
                                 @onclick='() => _videoMode = true'>📹 Video</button>
                     </div>
+
+                    <!-- Visible regardless of whether the reference track is a
+                         local file or a linked Spotify song - "Sang" targets
+                         whichever is actually playing (both calls are no-ops
+                         if that source isn't active), "Dig" always applies to
+                         the mic since recording is mic-only either way. -->
+                    <p style="font-size:0.75rem;color:#6b7280;margin-bottom:4px">
+                        Med høretelefoner fanger optagelsen kun mikrofonen - sangen er slet ikke med i filen.
+                        Skru sangen ned herunder hvis den fylder for meget i dine ører mens du spiller,
+                        og skru dig selv op hvis du/guitaren skal stå tydeligere i optagelsen.
+                    </p>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                        <span style="font-size:0.75rem;color:#6b7280;min-width:70px">🔉 Sang (i øret)</span>
+                        <input type="range" min="0" max="100" value="50" style="flex:1"
+                               @oninput='e => { var v = (double.TryParse(e.Value?.ToString(), out var vv) ? vv : 50) / 100.0; JS.InvokeVoidAsync("studio.setMixVolume", v); JS.InvokeVoidAsync("spotifyPlayer.setVolume", v); }' />
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                        <span style="font-size:0.75rem;color:#6b7280;min-width:70px">🎙 Dig (optaget)</span>
+                        <input type="range" min="50" max="400" value="150" style="flex:1"
+                               @oninput='e => JS.InvokeVoidAsync("studio.setMicGain", (double.TryParse(e.Value?.ToString(), out var g) ? g : 150) / 100.0)' />
+                    </div>
+
                     @if (!string.IsNullOrEmpty(_song!.SourceFile) && Library.Exists(_song.SourceFile))
                     {
                         <button class="btn-record btn-record--big"
@@ -701,9 +744,15 @@ else if (_song is not null)
                                 title="Afspiller sangen mens du synger - optagelsen fanger kun din mikrofon, ikke sangen selv">
                             🎧 Optag med sangen i baggrunden
                         </button>
-                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:10px">
-                            Brug høretelefoner - så hører kun du sangen, og optagelsen bliver ren vokal.
-                        </p>
+                    }
+                    else if (!string.IsNullOrEmpty(_song!.SpotifyTrackId) && Spotify.IsConnected)
+                    {
+                        <button class="btn-record btn-record--big"
+                                style="width:100%;padding:10px;margin-bottom:8px;background:#1d4ed8;border-color:#1d4ed8"
+                                @onclick="StartRecordingWithSpotify"
+                                title="Afspiller sangen via Spotify mens du synger - optagelsen fanger kun din mikrofon, ikke sangen selv">
+                            🎧 Optag med Spotify-sangen i baggrunden
+                        </button>
                     }
                     <div class="optag-main-buttons">
                         <button class="btn-record" style="width:100%;padding:10px" @onclick='async () => { _tab = "spilleguide"; await StartRecording(); }'>
@@ -1145,6 +1194,7 @@ else if (_song is not null)
     private string _spotifyQuery = "";
     private bool _spotifySearching;
     private bool _spotifySearchOpen;
+    private bool _spotifyPlaying;
     private List<SpotifyTrack> _spotifyResults = [];
 
     private string _chordEdit = "";
@@ -1160,7 +1210,6 @@ else if (_song is not null)
     private bool _twoColLyrics;
 
     private bool _patternsLoading;
-    private bool _aiLoading;
     private bool _chordDetecting;
     private string? _saveStatus;
     private System.Timers.Timer? _saveTimer;
@@ -1308,6 +1357,19 @@ else if (_song is not null)
     private async Task LinkSpotifyTrack(SpotifyTrack track)
     {
         if (_song is null) return;
+
+        // Fire the UG search window.open as the very first thing, before any
+        // await - browsers (incognito especially) only allow window.open as a
+        // direct result of the click; once an await has yielded back to the
+        // event loop, the click's "user activation" is gone and the popup gets
+        // silently blocked. The paste box (_ugPasteOpen) has no such
+        // restriction since it's just a Blazor state change, not a new window.
+        if (string.IsNullOrWhiteSpace(_chordEdit))
+        {
+            await SearchUltimateGuitar();
+            _ugPasteOpen = true;
+        }
+
         _song.SpotifyTrackId = track.Id;
         _song.SpotifyTrackLabel = $"{track.Name} — {track.Artist}";
         _song.UpdatedAt = DateTime.UtcNow;
@@ -1318,7 +1380,7 @@ else if (_song is not null)
         // API has no lyrics endpoint at all.
         if (string.IsNullOrEmpty(_song.SyncedLyrics))
         {
-            var (synced, plain) = await Lyrics.FindLyricsAsync(track.Name, track.Artist);
+            var (synced, plain) = await Lyrics.FindLyricsAsync(track.Name, track.Artist, track.DurationMs);
             _song.SyncedLyrics = synced;
 
             // Fill the existing free-text Lyrics field too, but only if it's
@@ -1337,10 +1399,27 @@ else if (_song is not null)
         _spotifyQuery = "";
     }
 
+    // Always restarts from the beginning (Spotify's /play endpoint re-issues
+    // the URI) - that's the "play it again" behavior, not resume-from-position.
     private async Task PlaySpotifyTrack()
     {
         if (_song?.SpotifyTrackId is null) return;
         await JS.InvokeVoidAsync("spotifyPlayer.playTrack", _song.SpotifyTrackId);
+        _spotifyPlaying = true;
+    }
+
+    // Actually pauses the Spotify audio - not just the lyric-sync poll (see
+    // ToggleKaraoke below, which used to only stop highlighting while the
+    // track kept playing underneath).
+    private async Task StopSpotifyTrack()
+    {
+        await JS.InvokeVoidAsync("spotifyPlayer.pause");
+        if (_karaokeActive)
+        {
+            await JS.InvokeVoidAsync("spotifyPlayer.stopLyricSync");
+            _karaokeActive = false;
+        }
+        _spotifyPlaying = false;
     }
 
     private bool _karaokeActive;
@@ -1355,7 +1434,9 @@ else if (_song is not null)
         if (_karaokeActive)
         {
             await JS.InvokeVoidAsync("spotifyPlayer.stopLyricSync");
+            await JS.InvokeVoidAsync("spotifyPlayer.pause");
             _karaokeActive = false;
+            _spotifyPlaying = false;
             return;
         }
 
@@ -1363,6 +1444,7 @@ else if (_song is not null)
         if (!string.IsNullOrWhiteSpace(_song.SyncedLyrics))
             await JS.InvokeVoidAsync("spotifyPlayer.startLyricSync", "lyric-sync-container");
         _karaokeActive = true;
+        _spotifyPlaying = true;
     }
 
     private void OnKeyChanged(ChangeEventArgs e)
@@ -1385,7 +1467,7 @@ else if (_song is not null)
     {
         if (d == 0 || _song is null) return;
         _lyricsEdit    = TransposeChordsInText(_lyricsEdit, d);
-        _chordEdit     = TransposeChordsInText(_chordEdit, d);
+        _chordEdit     = TransposeChordChart(_chordEdit, d);
         _song.MusicKey = TransposeNote(_song.MusicKey, d);
         AutoSave();
     }
@@ -1422,22 +1504,111 @@ else if (_song is not null)
         return Notes.Contains(root) || NotesFlat.Contains(root);
     }
 
-    // ── AI chords ─────────────────────────────────────────────────────────────
-
-    private async Task AiChords()
+    // Akkorder's chart is plain "Verse: D A/D Bm A G" - no [brackets] like the
+    // inline-lyrics format, so TransposeChordsInText's regex never matches it.
+    // Transpose each whitespace-separated token instead, leaving section
+    // labels ("Verse:") alone and transposing both sides of a slash chord.
+    private static string TransposeChordChart(string chart, int semitones)
     {
-        if (_song is null) return;
-        _aiLoading = true;
-        var result = await ChordAi.SuggestChordsAsync(_song.Title, _song.MusicKey, _song.Tempo, _lyricsEdit);
-        if (!string.IsNullOrEmpty(result))
+        if (string.IsNullOrEmpty(chart) || semitones == 0) return chart;
+
+        var lines = chart.Split('\n');
+        for (var i = 0; i < lines.Length; i++)
         {
-            _chordEdit = result;
-            AutoSave();
+            var colonIdx = lines[i].IndexOf(':');
+            var label = colonIdx >= 0 ? lines[i][..(colonIdx + 1)] : "";
+            var rest = colonIdx >= 0 ? lines[i][(colonIdx + 1)..] : lines[i];
+
+            var tokens = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(token => token.Contains('/')
+                    ? string.Join("/", token.Split('/').Select(p => IsChord(p) ? TransposeNote(p, semitones) : p))
+                    : IsChord(token) ? TransposeNote(token, semitones) : token);
+
+            lines[i] = label + (label.Length > 0 ? " " : "") + string.Join(" ", tokens);
         }
-        _aiLoading = false;
+        return string.Join('\n', lines);
     }
 
-    // Unlike AiChords (Claude recalling a known song by name/lyrics), this
+    // ── Mechanical UG tab → inline chords (no AI) ───────────────────────────
+    // A standard tab has a chord-only line positioned directly above the lyric
+    // line it applies to, chords aligned by column to the syllable they land
+    // on. Converting this to [Chord]word format is a pure text-layout problem -
+    // doing it as a regex/string transform instead of an AI completion means
+    // the lyric text passes through completely untouched (no paraphrasing risk)
+    // and every chord's exact column position is preserved (no dropped
+    // mid-line changes), which is the AI route's two failure modes.
+    private static string MergeTabToInlineChords(string rawTab)
+    {
+        if (string.IsNullOrWhiteSpace(rawTab)) return "";
+
+        var lines = rawTab.Replace("\r\n", "\n").Split('\n');
+        var output = new List<string>();
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            if (IsChordOnlyLine(line) && i + 1 < lines.Length && !string.IsNullOrWhiteSpace(lines[i + 1]) && !IsChordOnlyLine(lines[i + 1]))
+            {
+                output.Add(MergeChordLineIntoLyricLine(line, lines[i + 1]));
+                i++; // the lyric line is now consumed
+            }
+            else if (IsChordOnlyLine(line))
+            {
+                // Chord line with nothing to attach to (e.g. an instrumental
+                // break) - keep the chords visible as a bracketed list.
+                var chords = System.Text.RegularExpressions.Regex.Matches(line, @"\S+").Select(m => "[" + m.Value + "]");
+                output.Add(string.Concat(chords));
+            }
+            else
+            {
+                output.Add(line);
+            }
+        }
+        return string.Join('\n', output);
+    }
+
+    private static bool IsChordOnlyLine(string line)
+    {
+        var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Length > 0 && tokens.All(IsChordToken);
+    }
+
+    private static bool IsChordToken(string token) =>
+        token.Contains('/') ? token.Split('/').All(IsChord) : IsChord(token);
+
+    private static string MergeChordLineIntoLyricLine(string chordLine, string lyricLine)
+    {
+        var matches = System.Text.RegularExpressions.Regex.Matches(chordLine, @"\S+");
+        var sb = new System.Text.StringBuilder(lyricLine);
+        // Insert right-to-left so earlier column positions stay valid as later
+        // insertions lengthen the string.
+        foreach (var m in matches.Cast<System.Text.RegularExpressions.Match>().OrderByDescending(m => m.Index))
+        {
+            var col = Math.Min(m.Index, sb.Length);
+            sb.Insert(col, "[" + m.Value + "]");
+        }
+        return sb.ToString();
+    }
+
+    // ── Word-fidelity check for AI chord placement ──────────────────────────
+    // Any AI step that's supposed to only ADD chord markers to existing words
+    // must be verified afterward, not trusted - the model can still quietly
+    // alter wording. Strip markers back out and compare against the original;
+    // whitespace/case differences are tolerated, but any real word change
+    // fails the check and the AI's output must be discarded.
+
+    private static string StripChordMarkers(string text) =>
+        System.Text.RegularExpressions.Regex.Replace(text ?? "", @"\[[^\]]*\]", "");
+
+    private static string NormalizeForCompare(string text) =>
+        System.Text.RegularExpressions.Regex.Replace((text ?? "").ToLowerInvariant(), @"\s+", " ").Trim();
+
+    private static bool PreservesWords(string original, string candidateWithMarkers) =>
+        NormalizeForCompare(original) == NormalizeForCompare(StripChordMarkers(candidateWithMarkers));
+
+    // Unlike the removed pure-guess AI chords button (Claude recalling a known
+    // song by name/lyrics with nothing to check it against - always a risk of
+    // being wrong, so it was dropped entirely), this
     // actually listens to the source file - the only option for a private
     // Suno original Claude has never heard. Template-matching, not a trained
     // model, so treat the result as a starting guess to correct by ear, same
@@ -1578,6 +1749,41 @@ else if (_song is not null)
             _recTimer = 0;
             _recording = false;
             _saveStatus = $"Mikrofon fejl: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // Spotify equivalent of StartOverdubFromUrl - Spotify plays through its own
+    // Web Playback SDK (spotifyPlayer.js), a completely separate audio path
+    // from studio.js's local-file mix/overdub, so it needs its own trigger
+    // that starts Spotify playback and the mic recording together.
+    private async Task StartRecordingWithSpotify()
+    {
+        if (_song?.SpotifyTrackId is null) return;
+        if (_recordings.Count >= MaxTakes)
+        {
+            _saveStatus = $"{MaxTakes} optagelser nået — slet en for at optage mere.";
+            return;
+        }
+
+        _recording = true;
+        StartRecTimer();
+        StartBeatTimer();
+        try
+        {
+            await JS.InvokeVoidAsync("spotifyPlayer.playTrack", _song.SpotifyTrackId);
+            _spotifyPlaying = true;
+            await JS.InvokeVoidAsync("studio.startRecording", SongKey, _videoMode);
+        }
+        catch (JSException ex)
+        {
+            _recTimer_t?.Stop();
+            _recTimer_t?.Dispose();
+            _recTimer = 0;
+            _recording = false;
+            _saveStatus = _videoMode
+                ? "Ingen kamera fundet — prøv lydoptagelse i stedet"
+                : $"Mikrofon fejl: {ex.Message}";
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -1920,11 +2126,51 @@ else if (_song is not null)
     {
         if (string.IsNullOrWhiteSpace(_ugPasteText)) return;
         _ugParsing = true;
+        _saveStatus = null;
         StateHasChanged();
-        var result = await ChordAi.ParseUltimateGuitarTabAsync(_ugPasteText);
-        if (!string.IsNullOrEmpty(result.Chords)) { _chordEdit  = result.Chords; }
-        if (!string.IsNullOrEmpty(result.Lyrics)) { _lyricsEdit = result.Lyrics; }
-        AutoSave();
+        try
+        {
+            // Chords only - lyrics stay sourced from lrclib.net (LyricsService),
+            // which gives synced timing UG's plain tab text never has. Taking UG's
+            // lyrics here would silently overwrite a better, already-synced version.
+            var result = await ChordAi.ParseUltimateGuitarTabAsync(_ugPasteText);
+            if (string.IsNullOrEmpty(result.Chords))
+            {
+                _saveStatus = "Ingen akkorder fundet i den indsatte tekst.";
+            }
+            else
+            {
+                _chordEdit = result.Chords;
+
+                // Prefer placing chords onto the FIXED lrclib lyrics (correct
+                // words, correct version) using the pasted tab only to learn
+                // chord positions - AI is genuinely useful for that alignment
+                // judgment (line breaks/phrasing won't match exactly, and not
+                // every word carries a chord). But it's verified, not trusted:
+                // if the output doesn't preserve the target words exactly, it's
+                // discarded and we fall back to merging straight from the
+                // pasted tab's own text instead, which can never alter wording
+                // since it's pure string insertion, not a model completion.
+                var target = StripChordMarkers(_lyricsEdit);
+                string? placed = null;
+                if (!string.IsNullOrWhiteSpace(target))
+                {
+                    var candidate = await ChordAi.PlaceChordsFromTabAsync(target, _ugPasteText);
+                    if (!string.IsNullOrWhiteSpace(candidate) && PreservesWords(target, candidate))
+                        placed = candidate;
+                }
+
+                _lyricsEdit = placed ?? MergeTabToInlineChords(_ugPasteText);
+                if (placed is null && !string.IsNullOrWhiteSpace(target))
+                    _saveStatus = "AI-placering afvist (ændrede ord) - brugte akkorderne fra din indsatte tab i stedet.";
+
+                AutoSave();
+            }
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = $"AI fejl: {ex.Message}";
+        }
         _ugParsing   = false;
         _ugPasteOpen = false;
         _ugPasteText = "";
@@ -2003,9 +2249,18 @@ else if (_song is not null)
         StateHasChanged();
         try
         {
+            var original = _lyricsEdit;
             var result = await ChordAi.AnnotateLyricsWithChordsAsync(
                 _lyricsEdit, _chordEdit, _song.MusicKey, _song.Title, _song.Artist);
-            if (!string.IsNullOrWhiteSpace(result))
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                // no-op
+            }
+            else if (!PreservesWords(original, result))
+            {
+                _saveStatus = "AI ændrede ordene i teksten - ignoreret for at undgå forkert tekst.";
+            }
+            else
             {
                 _lyricsEdit = result;
                 AutoSave();
