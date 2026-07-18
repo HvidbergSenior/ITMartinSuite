@@ -80,6 +80,7 @@
                                 {
                                     <div class="receipt-history-total">@tx.Currency @tx.TotalAmount.Value.ToString("F2")</div>
                                 }
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/history/{tx.Id}")">View</a>
                                 <button class="btn btn-sm @(tx.IsTemplate ? "btn-warning" : "btn-outline-secondary")"
                                         @onclick="() => ToggleTemplate(tx)">
                                     @(tx.IsTemplate ? "Unset Template" : "Set Template")

@@ -22,7 +22,7 @@ public sealed class GeneralOcrService
                     Path.Combine(
                         AppContext.BaseDirectory,
                         "tessdata"),
-                    "eng",
+                    "dan",
                     EngineMode.Default);
 
             using var image =

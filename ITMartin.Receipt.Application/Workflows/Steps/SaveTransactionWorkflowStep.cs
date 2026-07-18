@@ -30,7 +30,16 @@ public sealed class SaveTransactionWorkflowStep
 
         var id = Guid.NewGuid();
 
-        var appItems = PairItems(extraction.Items);
+        var appItems = extraction.Items
+            .Select(line => new ReceiptTransactionItem
+            {
+                Description    = line.Description,
+                OriginalPrice  = line.Amount,
+                DiscountAmount = line.DiscountAmount,
+                DiscountType   = line.DiscountLabel,
+                IsSuspicious   = line.Suspicious,
+            })
+            .ToList();
 
         var purchaseDate = DateTime.TryParse(extraction.PurchaseDate, out var d) ? d : (DateTime?)null;
 
@@ -68,49 +77,5 @@ public sealed class SaveTransactionWorkflowStep
             };
 
         await _repository.SaveAsync(domainTransaction, cancellationToken);
-    }
-
-    // If a line is a discount keyword line, merge it with the product above it.
-    private static List<ReceiptTransactionItem> PairItems(
-        IEnumerable<ITMartin.Ai.Models.ReceiptLineItem> rawLines)
-    {
-        var result = new List<ReceiptTransactionItem>();
-
-        foreach (var line in rawLines)
-        {
-            var discountType = DetectDiscountType(line.Description);
-
-            if (discountType != null && result.Count > 0)
-            {
-                var prev = result[^1];
-                prev.DiscountAmount = line.Amount;
-                prev.DiscountType   = discountType;
-            }
-            else
-            {
-                result.Add(new ReceiptTransactionItem
-                {
-                    Description   = line.Description,
-                    OriginalPrice = line.Amount,
-                    IsSuspicious  = line.Suspicious,
-                });
-            }
-        }
-
-        return result;
-    }
-
-    private static string? DetectDiscountType(string description)
-    {
-        var d = description.ToLowerInvariant();
-
-        if (d.Contains("pluskupon") || d.Contains("plus-kupon") ||
-            d.Contains("plus kupon") || d.Contains("lidl plus"))
-            return "Plus-kupon";
-
-        if (d.Contains("rabat"))
-            return "Rabat";
-
-        return null;
     }
 }

@@ -30,6 +30,15 @@ public sealed class ReceiptRepository : IReceiptRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<ReceiptTransaction?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Transactions
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
     public async Task SetTemplateAsync(
         Guid id,
         bool isTemplate,

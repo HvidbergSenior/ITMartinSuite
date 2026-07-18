@@ -40,15 +40,28 @@ public sealed class ClaudeReceiptExtractionService
                 ["items"] = JsonDocument.Parse("""
                     {
                         "type": "array",
-                        "description": "Every line item on the receipt including discount lines",
+                        "description": "Every purchased product on the receipt, one entry per product. Do not report a discount/coupon line as its own separate entry — fold it into the product it discounts.",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "description": { "type": "string" },
-                                "amount":      { "type": "number" },
+                                "description":    { "type": "string" },
+                                "amount":         { "type": "number" },
+                                "discountAmount":  { "type": "number", "description": "If a discount, coupon, or member price applies to this product, the discount as a negative number. Omit if no discount applies." },
+                                "discountLabel":   { "type": "string", "description": "Exact wording of the discount as printed on the receipt, e.g. Rabat, Tilbud, Fordelspris, Medlemsrabat, Pluskupon. Omit if no discount applies." },
                                 "suspicious":  { "type": "boolean", "description": "True if the price looks wrong or unusually high for this item type (e.g. bananas at 150 DKK)" }
                             },
                             "required": ["description"]
+                        }
+                    }
+                    """).RootElement,
+                ["loyaltyAccount"] = JsonDocument.Parse("""
+                    {
+                        "type": "object",
+                        "description": "Only if the receipt shows a store loyalty/membership program section separate from the per-item discounts above (e.g. 'LidlPlus konto', a Fordelskort/Bilka Plus/Føtex Plus summary, a Coop medlem section, or a REMA 1000 Æ summary) — typically a running total saved, points balance, or member number. Omit entirely if the receipt has no such section.",
+                        "properties": {
+                            "programName":       { "type": "string", "description": "Name of the loyalty program as printed, e.g. LidlPlus, Føtex Fordelskort, Coop medlem" },
+                            "accountIdentifier": { "type": "string", "description": "Member/card number if printed on the receipt" },
+                            "totalSaved":        { "type": "number", "description": "Total saved via this loyalty program, if printed as its own figure separate from item discounts" }
                         }
                     }
                     """).RootElement
@@ -83,10 +96,10 @@ public sealed class ClaudeReceiptExtractionService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 1024,
             System = """
-                You are a receipt extraction system for Danish grocery receipts.
-                Extract every line on the receipt exactly as it appears — including discount lines like 'Rabat' and 'Lidl Plus-kupon'.
-                Report each line as its own item with description and amount.
+                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, etc.).
+                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
                 Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK).
+                If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],
@@ -172,10 +185,10 @@ public sealed class ClaudeReceiptExtractionService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 1024,
             System = """
-                You are a receipt extraction system for Danish grocery receipts.
-                Extract every line on the receipt exactly as it appears — including discount lines like 'Rabat' and 'Lidl Plus-kupon'.
-                Report each line as its own item with description and amount.
+                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, etc.).
+                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
                 Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK).
+                If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],

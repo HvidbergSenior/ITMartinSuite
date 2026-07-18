@@ -5,6 +5,7 @@
 @using ITMartin.Receipt.Application.Interfaces
 @using ITMartin.Receipt.Application.Models
 @using ITMartin.Receipt.Application.Workflows
+@using ITMartin.Receipt.Server.Components
 @using Microsoft.JSInterop
 
 @inject IJSRuntime JS
@@ -89,99 +90,18 @@
 
     @if (_context != null && !_context.Failed && _context.Transaction != null)
     {
-        var tx = _context.Transaction;
-
         <div class="result-panel">
-
-            <div class="receipt-result" style="font-size: @(_zoom)rem;">
-
-                <div class="receipt-header-row">
-
-                    <div>
-                        <h2 class="receipt-merchant">
-                            @(string.IsNullOrWhiteSpace(tx.MerchantName)
-                                ? "Unknown Merchant"
-                                : tx.MerchantName)
-                        </h2>
-
-                        @if (tx.PurchaseDate.HasValue)
-                        {
-                            <div class="receipt-date">
-                                @tx.PurchaseDate.Value.ToString("dd MMM yyyy")
-                            </div>
-                        }
+            <ReceiptSummary Transaction="_context.Transaction"
+                            LoyaltyAccount="_context.ExtractionResult?.LoyaltyAccount"
+                            FontSizeRem="_zoom">
+                <HeaderExtra>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" @onclick="ZoomOut" disabled="@(_zoom <= 0.8)">A−</button>
+                        <button class="zoom-btn" @onclick="ZoomReset">A</button>
+                        <button class="zoom-btn" @onclick="ZoomIn" disabled="@(_zoom >= 2.0)">A+</button>
                     </div>
-
-                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-                        @if (tx.TotalAmount.HasValue)
-                        {
-                            <div class="receipt-total">
-                                <span>Total</span>
-                                <strong>@tx.Currency @tx.TotalAmount.Value.ToString("F2")</strong>
-                            </div>
-                        }
-                        <div class="zoom-controls">
-                            <button class="zoom-btn" @onclick="ZoomOut" disabled="@(_zoom <= 0.8)">A−</button>
-                            <button class="zoom-btn" @onclick="ZoomReset">A</button>
-                            <button class="zoom-btn" @onclick="ZoomIn" disabled="@(_zoom >= 2.0)">A+</button>
-                        </div>
-                    </div>
-
-                </div>
-
-                @if (tx.Items.Any())
-                {
-                    <div class="receipt-items">
-                        @foreach (var item in tx.Items)
-                        {
-                            var hasDiscount  = item.DiscountAmount.HasValue && item.DiscountAmount != 0;
-                            var netPrice     = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
-                            var isKupon      = item.DiscountType == "Plus-kupon";
-                            var itemClass    = item.IsSuspicious ? "receipt-item receipt-item-suspicious"
-                                             : "receipt-item";
-
-                            <div class="@itemClass">
-
-                                <div class="receipt-item-main">
-                                    <span class="item-desc">
-                                        @item.Description
-                                        @if (item.IsSuspicious)
-                                        {
-                                            <span class="suspicious-badge" title="Price may be wrong">⚠</span>
-                                        }
-                                    </span>
-                                    <span class="item-price">
-                                        @if (hasDiscount && item.OriginalPrice.HasValue)
-                                        {
-                                            <span class="item-price-struck">@($"{tx.Currency} {item.OriginalPrice.Value:F2}")</span>
-                                        }
-                                        else if (item.OriginalPrice.HasValue)
-                                        {
-                                            @($"{tx.Currency} {item.OriginalPrice.Value:F2}")
-                                        }
-                                    </span>
-                                </div>
-
-                                @if (hasDiscount)
-                                {
-                                    <div class="receipt-item-sub @(isKupon ? "sub-kupon" : "")">
-                                        <span class="sub-label">@(item.DiscountType ?? "Rabat")</span>
-                                        <span class="sub-amount">- @($"{tx.Currency} {Math.Abs(item.DiscountAmount ?? 0):F2}")</span>
-                                    </div>
-
-                                    <div class="receipt-item-net">
-                                        <span>Netto</span>
-                                        <span>@($"{tx.Currency} {netPrice:F2}")</span>
-                                    </div>
-                                }
-
-                            </div>
-                        }
-                    </div>
-                }
-
-            </div>
-
+                </HeaderExtra>
+            </ReceiptSummary>
         </div>
     }
 

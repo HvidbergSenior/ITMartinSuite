@@ -13,4 +13,6 @@ public sealed class ReceiptExtractionResult
     public string? Currency { get; set; }
 
     public List<ReceiptLineItem> Items { get; set; } = [];
+
+    public LoyaltyAccountInfo? LoyaltyAccount { get; set; }
 }

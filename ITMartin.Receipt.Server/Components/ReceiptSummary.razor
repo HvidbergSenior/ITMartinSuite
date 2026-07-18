@@ -1,0 +1,158 @@
+@using ITMartin.Ai.Models
+@using ITMartin.Receipt.Application.Models
+
+<div class="receipt-result" style="font-size: @(FontSizeRem)rem;">
+
+    <div class="receipt-header-row">
+
+        <div>
+            <h2 class="receipt-merchant">
+                @(string.IsNullOrWhiteSpace(Transaction.MerchantName)
+                    ? "Unknown Merchant"
+                    : Transaction.MerchantName)
+            </h2>
+
+            @if (Transaction.PurchaseDate.HasValue)
+            {
+                <div class="receipt-date">
+                    @Transaction.PurchaseDate.Value.ToString("dd MMM yyyy")
+                </div>
+            }
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+            @if (Transaction.TotalAmount.HasValue)
+            {
+                <div class="receipt-total">
+                    <span>Total</span>
+                    <strong>@Transaction.Currency @Transaction.TotalAmount.Value.ToString("F2")</strong>
+                </div>
+            }
+            @if (HeaderExtra is not null)
+            {
+                @HeaderExtra
+            }
+        </div>
+
+    </div>
+
+    @if (LoyaltyAccount is not null && !string.IsNullOrWhiteSpace(LoyaltyAccount.ProgramName))
+    {
+        <div class="loyalty-badge">
+            <span class="loyalty-name">@LoyaltyAccount.ProgramName</span>
+            @if (LoyaltyAccount.TotalSaved.HasValue)
+            {
+                <span class="loyalty-saved">Sparet: @Transaction.Currency @LoyaltyAccount.TotalSaved.Value.ToString("F2")</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(LoyaltyAccount.AccountIdentifier))
+            {
+                <span class="loyalty-account-id">@LoyaltyAccount.AccountIdentifier</span>
+            }
+        </div>
+    }
+
+    @if (Transaction.Items.Any())
+    {
+        var discounted    = Transaction.Items.Where(i => i.DiscountAmount is not null && i.DiscountAmount != 0).ToList();
+        var notDiscounted = Transaction.Items.Except(discounted).ToList();
+        var totalSaved    = discounted.Sum(i => Math.Abs(i.DiscountAmount ?? 0));
+
+        <div class="quick-overview">
+
+            <div class="quick-overview-headline">
+                @if (discounted.Count > 0)
+                {
+                    <span>💰 Du sparede @Transaction.Currency @totalSaved.ToString("F2") på @discounted.Count af @Transaction.Items.Count varer</span>
+                }
+                else
+                {
+                    <span>Ingen rabatter fundet på denne kvittering</span>
+                }
+            </div>
+
+            @if (discounted.Count > 0)
+            {
+                <div class="quick-overview-columns">
+                    <div class="quick-col quick-col-yes">
+                        <div class="quick-col-title">Rabat ✓</div>
+                        @foreach (var i in discounted)
+                        {
+                            <div class="quick-item">@i.Description</div>
+                        }
+                    </div>
+                    <div class="quick-col quick-col-no">
+                        <div class="quick-col-title">Ingen rabat</div>
+                        @foreach (var i in notDiscounted)
+                        {
+                            <div class="quick-item">@i.Description</div>
+                        }
+                    </div>
+                </div>
+            }
+
+        </div>
+
+        <div class="receipt-items">
+            @foreach (var item in Transaction.Items)
+            {
+                var hasDiscount = item.DiscountAmount.HasValue && item.DiscountAmount != 0;
+                var netPrice    = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
+                var isKupon     = item.DiscountType?.Contains("plus", StringComparison.OrdinalIgnoreCase) == true;
+                var itemClass   = item.IsSuspicious ? "receipt-item receipt-item-suspicious"
+                                 : "receipt-item";
+
+                <div class="@itemClass">
+
+                    <div class="receipt-item-main">
+                        <span class="item-desc">
+                            @item.Description
+                            @if (item.IsSuspicious)
+                            {
+                                <span class="suspicious-badge" title="Price may be wrong">⚠</span>
+                            }
+                        </span>
+                        <span class="item-price">
+                            @if (hasDiscount && item.OriginalPrice.HasValue)
+                            {
+                                <span class="item-price-struck">@($"{Transaction.Currency} {item.OriginalPrice.Value:F2}")</span>
+                            }
+                            else if (item.OriginalPrice.HasValue)
+                            {
+                                @($"{Transaction.Currency} {item.OriginalPrice.Value:F2}")
+                            }
+                        </span>
+                    </div>
+
+                    @if (hasDiscount)
+                    {
+                        <div class="receipt-item-sub @(isKupon ? "sub-kupon" : "")">
+                            <span class="sub-label">@(item.DiscountType ?? "Rabat")</span>
+                            <span class="sub-amount">- @($"{Transaction.Currency} {Math.Abs(item.DiscountAmount ?? 0):F2}")</span>
+                        </div>
+
+                        <div class="receipt-item-net">
+                            <span>Netto</span>
+                            <span>@($"{Transaction.Currency} {netPrice:F2}")</span>
+                        </div>
+                    }
+
+                </div>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ReceiptTransaction Transaction { get; set; } = null!;
+
+    [Parameter]
+    public LoyaltyAccountInfo? LoyaltyAccount { get; set; }
+
+    [Parameter]
+    public double FontSizeRem { get; set; } = 1.0;
+
+    [Parameter]
+    public RenderFragment? HeaderExtra { get; set; }
+}
