@@ -1,3 +1,63 @@
+:root {
+
+    --bg-grad-1: #07111f;
+    --bg-grad-2: #0f172a;
+    --bg-grad-3: #111827;
+
+    --text: #ffffff;
+    --muted: #94a3b8;
+    --struck: #64748b;
+
+    --border-subtlest: rgba(255,255,255,.05);
+    --border-subtle:   rgba(255,255,255,.08);
+    --border-medium:   rgba(255,255,255,.1);
+    --border-strong:   rgba(255,255,255,.15);
+
+    --overlay-1: rgba(255,255,255,.04);
+    --overlay-2: rgba(255,255,255,.05);
+    --overlay-3: rgba(255,255,255,.06);
+    --overlay-4: rgba(255,255,255,.07);
+    --overlay-hover: rgba(255,255,255,.12);
+}
+
+/* Light theme - toggled via the button in App.razor, state kept in
+   localStorage (same pattern as ITMartinBudget.Server). The camera preview
+   itself (.scanner-wrapper, .scanner-guide, .scanner-overlay, .guide-text)
+   stays dark in both themes on purpose - it's a video viewfinder, not page
+   chrome, and looks like one regardless of site theme. */
+html[data-theme="light"] {
+
+    /* Shared.UI's header/nav chrome (app-header, header-title, etc.) reads
+       these same token names from Shared.css's own :root - overriding them
+       here re-themes that shared chrome without touching Shared.css itself
+       or duplicating its selectors, since this file loads after it. */
+    --bg-main: #f4f5f9;
+    --bg-card: #ffffff;
+    --bg-soft: #eef0f6;
+    --text-main: #14161f;
+    --text-muted: #5b6172;
+    --border: #d7dbe4;
+
+    --bg-grad-1: #f4f5f9;
+    --bg-grad-2: #eef0f6;
+    --bg-grad-3: #e4e7ef;
+
+    --text: #14161f;
+    --muted: #5b6172;
+    --struck: #8890a6;
+
+    --border-subtlest: rgba(0,0,0,.05);
+    --border-subtle:   rgba(0,0,0,.08);
+    --border-medium:   rgba(0,0,0,.1);
+    --border-strong:   rgba(0,0,0,.15);
+
+    --overlay-1: rgba(0,0,0,.03);
+    --overlay-2: rgba(0,0,0,.04);
+    --overlay-3: rgba(0,0,0,.05);
+    --overlay-4: rgba(0,0,0,.06);
+    --overlay-hover: rgba(0,0,0,.08);
+}
+
 .scanner-page {
 
     min-height: 100vh;
@@ -12,11 +72,11 @@
     background:
             linear-gradient(
                     to bottom,
-                    #07111f 0%,
-                    #0f172a 40%,
-                    #111827 100%);
+                    var(--bg-grad-1) 0%,
+                    var(--bg-grad-2) 40%,
+                    var(--bg-grad-3) 100%);
 
-    color: white;
+    color: var(--text);
 }
 
 .info-toggle-row {
@@ -28,10 +88,10 @@
 .info-toggle-btn {
     padding: 8px 18px;
     border-radius: 999px;
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.15);
+    background: var(--overlay-3);
+    border: 1px solid var(--border-strong);
     backdrop-filter: blur(12px);
-    color: #cbd5e1;
+    color: var(--muted);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -39,8 +99,8 @@
 }
 
 .info-toggle-btn:hover {
-    background: rgba(255,255,255,.12);
-    color: white;
+    background: var(--overlay-hover);
+    color: var(--text);
 }
 
 /* =========================================
@@ -69,7 +129,7 @@ HEADER
 
     margin-top: 6px;
 
-    color: #94a3b8;
+    color: var(--muted);
 
     font-size: 15px;
 }
@@ -286,52 +346,11 @@ RESULT PANEL
     margin-top: 32px;
 }
 
-/* =========================================
-COMPARE PANEL (photo vs. parsed result)
-========================================= */
-
-.compare-panel {
-    display: flex;
-    gap: 24px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-
-.compare-photo {
-    flex: 1 1 320px;
-    max-width: 420px;
-    position: sticky;
-    top: 16px;
-}
-
-.compare-photo-label {
-    font-size: 14px;
-    color: #94a3b8;
-    margin-bottom: 8px;
-}
-
-.compare-photo img {
-    width: 100%;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,.1);
-}
-
-.compare-result {
-    flex: 2 1 400px;
-}
-
-@media (max-width: 720px) {
-    .compare-photo {
-        position: static;
-        max-width: 100%;
-    }
-}
-
 .receipt-result {
 
-    background: rgba(255,255,255,.05);
+    background: var(--overlay-2);
 
-    border: 1px solid rgba(255,255,255,.1);
+    border: 1px solid var(--border-medium);
 
     border-radius: 20px;
 
@@ -360,7 +379,7 @@ COMPARE PANEL (photo vs. parsed result)
 
     margin-top: 6px;
 
-    color: #94a3b8;
+    color: var(--muted);
 
     font-size: 14px;
 }
@@ -376,7 +395,7 @@ COMPARE PANEL (photo vs. parsed result)
 
     font-size: 12px;
 
-    color: #94a3b8;
+    color: var(--muted);
 
     text-transform: uppercase;
 
@@ -393,7 +412,7 @@ COMPARE PANEL (photo vs. parsed result)
 
 .receipt-items {
 
-    border-top: 1px solid rgba(255,255,255,.08);
+    border-top: 1px solid var(--border-subtle);
 
     padding-top: 16px;
 }
@@ -402,7 +421,7 @@ COMPARE PANEL (photo vs. parsed result)
 
     padding: 10px 0;
 
-    border-bottom: 1px solid rgba(255,255,255,.05);
+    border-bottom: 1px solid var(--border-subtlest);
 }
 
 .receipt-item-main {
@@ -420,7 +439,7 @@ COMPARE PANEL (photo vs. parsed result)
 
     font-size: 15px;
 
-    color: white;
+    color: var(--text);
 }
 
 .item-price {
@@ -431,14 +450,14 @@ COMPARE PANEL (photo vs. parsed result)
 
     white-space: nowrap;
 
-    color: white;
+    color: var(--text);
 }
 
 .item-price-struck {
 
     text-decoration: line-through;
 
-    color: #64748b;
+    color: var(--struck);
 
     font-weight: 400;
 }
@@ -482,7 +501,7 @@ COMPARE PANEL (photo vs. parsed result)
 
     font-weight: 700;
 
-    color: white;
+    color: var(--text);
 }
 
 .receipt-item-raw {
@@ -507,92 +526,9 @@ COMPARE PANEL (photo vs. parsed result)
     display: block;
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--muted);
     white-space: pre-wrap;
     word-break: break-word;
-}
-
-.item-description {
-
-    font-size: 15px;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 8px;
-}
-
-.item-category {
-
-    font-size: 11px;
-
-    background: rgba(245,158,11,.15);
-
-    color: #f59e0b;
-
-    border-radius: 999px;
-
-    padding: 2px 8px;
-}
-
-.item-amount {
-
-    font-size: 15px;
-    font-weight: 600;
-
-    white-space: nowrap;
-
-    margin-left: 16px;
-}
-
-.item-amount-discount {
-
-    color: #4ade80;
-}
-
-.item-group-header {
-
-    display: flex;
-
-    justify-content: space-between;
-    align-items: center;
-
-    margin-top: 20px;
-    margin-bottom: 6px;
-    padding: 6px 10px;
-
-    border-radius: 8px;
-
-    font-size: 12px;
-    font-weight: 700;
-
-    text-transform: uppercase;
-    letter-spacing: .08em;
-
-    background: rgba(255,255,255,.06);
-
-    color: #94a3b8;
-}
-
-.item-group-rabat {
-
-    background: rgba(74,222,128,.1);
-
-    color: #4ade80;
-}
-
-.item-group-kupon {
-
-    background: rgba(251,191,36,.1);
-
-    color: #fbbf24;
-}
-
-.group-subtotal {
-
-    font-size: 13px;
-    font-weight: 800;
 }
 
 /* =========================================
@@ -605,9 +541,9 @@ ZOOM CONTROLS
 }
 
 .zoom-btn {
-    border: 1px solid rgba(255,255,255,.15);
-    background: rgba(255,255,255,.07);
-    color: white;
+    border: 1px solid var(--border-strong);
+    background: var(--overlay-4);
+    color: var(--text);
     border-radius: 10px;
     padding: 10px 16px;
     font-size: 15px;
@@ -617,7 +553,7 @@ ZOOM CONTROLS
 }
 
 .zoom-btn:hover:not(:disabled) {
-    background: rgba(255,255,255,.15);
+    background: var(--overlay-hover);
 }
 
 .zoom-btn:disabled {
@@ -665,7 +601,7 @@ LOYALTY ACCOUNT
 }
 
 .loyalty-account-id {
-    color: #94a3b8;
+    color: var(--muted);
     margin-left: auto;
 }
 
