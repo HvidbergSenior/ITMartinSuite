@@ -486,13 +486,28 @@ COMPARE PANEL (photo vs. parsed result)
 }
 
 .receipt-item-raw {
-    margin-top: 6px;
+    margin-top: 8px;
     padding: 6px 10px;
-    border-radius: 8px;
-    background: rgba(255,255,255,.04);
+    border-radius: 6px;
+    border-left: 3px solid #7c3aed;
+    background: rgba(124,58,237,.07);
+}
+
+.receipt-item-raw-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #a78bfa;
+    margin-bottom: 3px;
+}
+
+.receipt-item-raw-text {
+    display: block;
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
     font-size: 11px;
-    color: #64748b;
+    color: #94a3b8;
     white-space: pre-wrap;
     word-break: break-word;
 }

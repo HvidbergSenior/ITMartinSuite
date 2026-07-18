@@ -99,7 +99,10 @@
 
                     @if (!string.IsNullOrWhiteSpace(item.RawText))
                     {
-                        <div class="receipt-item-raw" title="Sådan står linjen på selve kvitteringen">@item.RawText</div>
+                        <div class="receipt-item-raw" title="Sådan står linjen på selve kvitteringen">
+                            <span class="receipt-item-raw-label">📄 Original kvitteringstekst</span>
+                            <span class="receipt-item-raw-text">@item.RawText</span>
+                        </div>
                     }
 
                 </div>
