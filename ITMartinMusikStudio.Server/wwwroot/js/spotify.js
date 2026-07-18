@@ -103,6 +103,15 @@ window.spotifyPlayer = (function () {
     // this app's circuit has to survive a reverse proxy (Tailscale Serve).
 
     var _lyricSyncTimer = null;
+    var _lyricSyncScrollHandler = null;
+    var _lastManualScroll = 0;
+
+    // Auto-scroll fires every 300ms and was unconditional - it fought any
+    // manual scroll attempt (e.g. while recording, scrolling ahead to read
+    // upcoming lines) by snapping straight back to the active line on the
+    // very next tick, making the page feel stuck. Now it backs off for a few
+    // seconds after the user scrolls by hand.
+    var MANUAL_SCROLL_PAUSE_MS = 2500;
 
     function startLyricSync(containerId) {
         stopLyricSync();
@@ -111,6 +120,11 @@ window.spotifyPlayer = (function () {
 
         var lines = Array.prototype.slice.call(container.querySelectorAll("[data-time]"));
         if (lines.length === 0) return;
+
+        _lastManualScroll = 0;
+        _lyricSyncScrollHandler = function () { _lastManualScroll = Date.now(); };
+        window.addEventListener("wheel", _lyricSyncScrollHandler, { passive: true });
+        window.addEventListener("touchmove", _lyricSyncScrollHandler, { passive: true });
 
         _lyricSyncTimer = setInterval(function () {
             getState().then(function (state) {
@@ -126,7 +140,8 @@ window.spotifyPlayer = (function () {
                 for (var j = 0; j < lines.length; j++) {
                     lines[j].classList.toggle("lyric-line--active", j === activeIndex);
                 }
-                if (activeIndex >= 0) {
+                var recentlyScrolledByHand = (Date.now() - _lastManualScroll) < MANUAL_SCROLL_PAUSE_MS;
+                if (activeIndex >= 0 && !recentlyScrolledByHand) {
                     lines[activeIndex].scrollIntoView({ block: "center", behavior: "smooth" });
                 }
             });
@@ -135,6 +150,11 @@ window.spotifyPlayer = (function () {
 
     function stopLyricSync() {
         if (_lyricSyncTimer) { clearInterval(_lyricSyncTimer); _lyricSyncTimer = null; }
+        if (_lyricSyncScrollHandler) {
+            window.removeEventListener("wheel", _lyricSyncScrollHandler);
+            window.removeEventListener("touchmove", _lyricSyncScrollHandler);
+            _lyricSyncScrollHandler = null;
+        }
     }
 
     return {

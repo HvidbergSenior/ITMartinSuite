@@ -72,6 +72,10 @@ else if (_song is not null)
             {
                 <button class="btn-ghost-sm" @onclick="PlaySpotifyTrack">▶ Afspil</button>
             }
+            <span style="font-size:0.75rem;color:#6b7280;margin-left:8px">🔉</span>
+            <input type="range" min="0" max="100" value="50" style="width:90px"
+                   title="Spotify-lydstyrke"
+                   @oninput='e => JS.InvokeVoidAsync("spotifyPlayer.setVolume", (double.TryParse(e.Value?.ToString(), out var v) ? v : 50) / 100.0)' />
         </div>
     }
 
@@ -755,8 +759,8 @@ else if (_song is not null)
                         </button>
                     }
                     <div class="optag-main-buttons">
-                        <button class="btn-record" style="width:100%;padding:10px" @onclick='async () => { _tab = "spilleguide"; await StartRecording(); }'>
-                            ⏺ Optag i Øv & Spil
+                        <button class="btn-record" style="width:100%;padding:10px" @onclick="StartRecording">
+                            ⏺ Optag
                         </button>
                         @if (_recordings.Any())
                         {
@@ -1022,7 +1026,7 @@ else if (_song is not null)
         <!-- Lyrics -->
         @if (HasInlineChords)
         {
-            <div class="perform-sheet">
+            <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
                 @foreach (var line in _lyricsEdit.Split('\n'))
                 {
                     @if (string.IsNullOrWhiteSpace(line))
@@ -1059,7 +1063,7 @@ else if (_song is not null)
         }
         else if (!string.IsNullOrWhiteSpace(_lyricsEdit))
         {
-            <div class="perform-sheet">
+            <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
                 @foreach (var line in _lyricsEdit.Split('\n'))
                 {
                     @if (string.IsNullOrWhiteSpace(line))
@@ -1794,7 +1798,12 @@ else if (_song is not null)
         var urls = _recordings
             .Select(r => $"/stream?path={Uri.EscapeDataString(r.RelativePath)}")
             .ToArray();
-        await JS.InvokeVoidAsync("studio.playMix", urls);
+        // Passing a string[] directly as the single JS arg gets spread by C#'s
+        // params object?[] into separate arguments instead of one array - JS's
+        // playMix(urls) then only ever received the first URL as a plain
+        // string, and .map() on a string throws "urls.map is not a function".
+        // Casting to object forces it through as one value.
+        await JS.InvokeVoidAsync("studio.playMix", (object)urls);
     }
 
     private async Task StopMix()
@@ -1825,8 +1834,15 @@ else if (_song is not null)
 
     private Task DeleteRecording(RecordingFile r)
     {
-        Library.DeleteRecording(r.RelativePath);
-        _recordings = Library.GetRecordings(SongKey);
+        if (Library.DeleteRecording(r.RelativePath))
+        {
+            _recordings = Library.GetRecordings(SongKey);
+            _saveStatus = null;
+        }
+        else
+        {
+            _saveStatus = "Kunne ikke slette - filen er sandsynligvis i brug. Stop evt. afspilning af den og prøv igen.";
+        }
         return Task.CompletedTask;
     }
 
@@ -2153,16 +2169,35 @@ else if (_song is not null)
                 // since it's pure string insertion, not a model completion.
                 var target = StripChordMarkers(_lyricsEdit);
                 string? placed = null;
+                var aiSkipped = false;
                 if (!string.IsNullOrWhiteSpace(target))
                 {
-                    var candidate = await ChordAi.PlaceChordsFromTabAsync(target, _ugPasteText);
-                    if (!string.IsNullOrWhiteSpace(candidate) && PreservesWords(target, candidate))
-                        placed = candidate;
+                    try
+                    {
+                        var candidate = await ChordAi.PlaceChordsFromTabAsync(target, _ugPasteText);
+                        if (!string.IsNullOrWhiteSpace(candidate) && PreservesWords(target, candidate))
+                            placed = candidate;
+                    }
+                    catch (Exception)
+                    {
+                        // Anthropic's own API can legitimately refuse this call
+                        // outright (400 content-filtering) for a well-known
+                        // copyrighted song's lyrics, separate from the
+                        // word-preservation check above ever running at all.
+                        // Either way the mechanical merge below is the correct
+                        // fallback - it never sends lyrics to any AI, so it
+                        // can't be blocked the same way.
+                        aiSkipped = true;
+                    }
                 }
 
                 _lyricsEdit = placed ?? MergeTabToInlineChords(_ugPasteText);
                 if (placed is null && !string.IsNullOrWhiteSpace(target))
-                    _saveStatus = "AI-placering afvist (ændrede ord) - brugte akkorderne fra din indsatte tab i stedet.";
+                {
+                    _saveStatus = aiSkipped
+                        ? "AI kunne ikke behandle teksten (sandsynligvis en kendt sang) - brugte akkorderne fra din indsatte tab i stedet."
+                        : "AI-placering afvist (ændrede ord) - brugte akkorderne fra din indsatte tab i stedet.";
+                }
 
                 AutoSave();
             }
@@ -2278,12 +2313,22 @@ else if (_song is not null)
 
     // ── Simplify chords ───────────────────────────────────────────────────────
 
+    private static readonly System.Text.RegularExpressions.Regex SlashChordRegex = new(
+        @"([A-G][#b]?(?:maj|min|m|dim|aug|sus\d?|add\d|M|\d)*)/[A-G][#b]?");
+
     private void SimplifyChords()
     {
-        _chordEdit = System.Text.RegularExpressions.Regex.Replace(
-            _chordEdit,
-            @"([A-G][#b]?(?:maj|min|m|dim|aug|sus\d?|add\d|M|\d)*)/[A-G][#b]?",
-            m => m.Groups[1].Value);
+        _chordEdit = SlashChordRegex.Replace(_chordEdit, m => m.Groups[1].Value);
+
+        // Akkorder and Tekst/Lyrics store chords in two different formats
+        // (plain "Am G F" vs inline "[Am]word") - the plain-text regex above
+        // never matches inside [brackets], so slash chords in the lyrics view
+        // were silently left untouched. Same fix shape as the transpose bug.
+        _lyricsEdit = System.Text.RegularExpressions.Regex.Replace(
+            _lyricsEdit,
+            @"\[([A-G][^\]]*)\]",
+            m => "[" + SlashChordRegex.Replace(m.Groups[1].Value, mm => mm.Groups[1].Value) + "]");
+
         AutoSave();
         StateHasChanged();
     }

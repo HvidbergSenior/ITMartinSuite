@@ -87,8 +87,21 @@ public sealed class StudioLibraryService
     {
         if (!Exists(relativePath)) return false;
         var full = Path.GetFullPath(Path.Combine(Root, relativePath));
-        File.Delete(full);
-        return true;
+        try
+        {
+            File.Delete(full);
+            return true;
+        }
+        catch (IOException)
+        {
+            // Most commonly: the file is still open in an <audio> player on
+            // the page (very plausible when someone's listening through
+            // several takes before deleting one) - Windows locks it and
+            // File.Delete throws. Previously this was unhandled and crashed
+            // the whole Blazor circuit, which looked like "delete does
+            // nothing" with no indication why.
+            return false;
+        }
     }
 
     public List<RecordingFile> GetRecordings(string songKey)

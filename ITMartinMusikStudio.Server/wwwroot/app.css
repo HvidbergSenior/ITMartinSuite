@@ -1079,6 +1079,11 @@ html, body {
 
 /* ── Two-column lyrics ──────────────────────────────────────────────────────── */
 .perform-sheet--two-col {
+    /* column-count has no effect on a flex container (.perform-sheet is
+       display:flex by default) - flex and multi-column are mutually
+       exclusive layout modes, so this class was applying but doing nothing
+       until display is overridden back to block here. */
+    display: block;
     column-count: 2;
     column-gap: 28px;
     column-rule: 1px solid #1e293b;

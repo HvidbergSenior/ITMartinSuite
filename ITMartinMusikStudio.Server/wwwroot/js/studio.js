@@ -54,6 +54,14 @@ window.studio = (function() {
                 // this is just "make the whole recorded signal louder",
                 // which is what "record me higher" actually needs.
                 _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                // Reused across recordings, so it can be auto-suspended by the
+                // browser (tab lost focus, idle timeout, etc.) between takes -
+                // e.g. while you're listening back to the previous one. If
+                // suspended, node creation/connection still succeeds silently,
+                // but no audio actually flows through, producing a 0-byte
+                // recording with no visible error. resume() is always safe to
+                // call even if already running.
+                _audioCtx.resume();
                 var micSource = _audioCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
                 _micGainNode = _audioCtx.createGain();
                 _micGainNode.gain.value = _micGain;
