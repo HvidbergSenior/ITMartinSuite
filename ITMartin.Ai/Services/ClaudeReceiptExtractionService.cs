@@ -48,6 +48,7 @@ public sealed class ClaudeReceiptExtractionService
                                 "amount":         { "type": "number" },
                                 "discountAmount":  { "type": "number", "description": "If a discount, coupon, or member price applies to this product, the discount as a negative number. Omit if no discount applies." },
                                 "discountLabel":   { "type": "string", "description": "Exact wording of the discount as printed on the receipt, e.g. Rabat, Tilbud, Fordelspris, Medlemsrabat, Pluskupon. Omit if no discount applies." },
+                                "rawText":         { "type": "string", "description": "The exact text as printed on the receipt for this product's line(s), verbatim, including quantity/unit-price notation and its discount line if any (e.g. 'BASIC SOKKER 3STK 3 X 70,00 LINJERABAT -110,00'). Used so the user can compare the app's reading against what the receipt actually says — copy it letter-for-letter, don't paraphrase or clean it up." },
                                 "suspicious":  { "type": "boolean", "description": "True if the price looks wrong or unusually high for this item type (e.g. bananas at 150 DKK)" }
                             },
                             "required": ["description"]
@@ -104,6 +105,7 @@ public sealed class ClaudeReceiptExtractionService
                 Sanity check before reporting: amount + discountAmount must equal the actual final price paid for that line, and must never be negative. If your numbers would make it negative, you have the original/discount reversed — re-derive amount from quantity x unit price instead.
                 Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
                 If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
+                For every item, also copy its rawText verbatim from the receipt (including its quantity/unit-price notation and discount line) so the user can compare your reading against the original — do not paraphrase this field.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],
@@ -207,6 +209,7 @@ public sealed class ClaudeReceiptExtractionService
                 Sanity check before reporting: amount + discountAmount must equal the actual final price paid for that line, and must never be negative. If your numbers would make it negative, you have the original/discount reversed — re-derive amount from quantity x unit price instead.
                 Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
                 If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
+                For every item, also copy its rawText verbatim from the receipt (including its quantity/unit-price notation and discount line) so the user can compare your reading against the original — do not paraphrase this field.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],

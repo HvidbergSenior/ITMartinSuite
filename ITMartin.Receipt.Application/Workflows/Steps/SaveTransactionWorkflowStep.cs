@@ -41,6 +41,7 @@ public sealed class SaveTransactionWorkflowStep
                     OriginalPrice  = line.Amount,
                     DiscountAmount = line.DiscountAmount,
                     DiscountType   = line.DiscountLabel,
+                    RawText        = line.RawText,
                     // A negative net price means the AI got the original/discount reversed
                     // (e.g. an already-discounted printed amount treated as the pre-discount price).
                     IsSuspicious   = line.Suspicious || (line.DiscountAmount.HasValue && netPrice < 0),
@@ -91,6 +92,7 @@ public sealed class SaveTransactionWorkflowStep
                         OriginalPrice  = x.OriginalPrice,
                         DiscountAmount = x.DiscountAmount,
                         DiscountType   = x.DiscountType,
+                        RawText        = x.RawText,
                         IsSuspicious   = x.IsSuspicious
                     })
                     .ToList(),

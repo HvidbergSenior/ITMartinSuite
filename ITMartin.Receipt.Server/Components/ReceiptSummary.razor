@@ -53,45 +53,6 @@
 
     @if (Transaction.Items.Any())
     {
-        var discounted    = Transaction.Items.Where(i => i.DiscountAmount is not null && i.DiscountAmount != 0).ToList();
-        var notDiscounted = Transaction.Items.Except(discounted).ToList();
-        var totalSaved    = discounted.Sum(i => Math.Abs(i.DiscountAmount ?? 0));
-
-        <div class="quick-overview">
-
-            <div class="quick-overview-headline">
-                @if (discounted.Count > 0)
-                {
-                    <span>💰 Du sparede @Transaction.Currency @totalSaved.ToString("F2") på @discounted.Count af @Transaction.Items.Count varer</span>
-                }
-                else
-                {
-                    <span>Ingen rabatter fundet på denne kvittering</span>
-                }
-            </div>
-
-            @if (discounted.Count > 0)
-            {
-                <div class="quick-overview-columns">
-                    <div class="quick-col quick-col-yes">
-                        <div class="quick-col-title">Rabat ✓</div>
-                        @foreach (var i in discounted)
-                        {
-                            <div class="quick-item">@i.Description</div>
-                        }
-                    </div>
-                    <div class="quick-col quick-col-no">
-                        <div class="quick-col-title">Ingen rabat</div>
-                        @foreach (var i in notDiscounted)
-                        {
-                            <div class="quick-item">@i.Description</div>
-                        }
-                    </div>
-                </div>
-            }
-
-        </div>
-
         <div class="receipt-items">
             @foreach (var item in Transaction.Items)
             {
@@ -134,6 +95,11 @@
                             <span>Netto</span>
                             <span>@($"{Transaction.Currency} {netPrice:F2}")</span>
                         </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(item.RawText))
+                    {
+                        <div class="receipt-item-raw" title="Sådan står linjen på selve kvitteringen">@item.RawText</div>
                     }
 
                 </div>

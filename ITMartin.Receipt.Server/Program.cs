@@ -45,6 +45,7 @@ using (var scope = app.Services.CreateScope())
     try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Transactions\" ADD COLUMN \"IsTemplate\" INTEGER NOT NULL DEFAULT 0"); } catch { }
     try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ReceiptTransactionItem\" ADD COLUMN \"IsSuspicious\" INTEGER NOT NULL DEFAULT 0"); } catch { }
     try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"Transactions\" ADD COLUMN \"ImageFileName\" TEXT"); } catch { }
+    try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ReceiptTransactionItem\" ADD COLUMN \"RawText\" TEXT"); } catch { }
 }
 
 if (!app.Environment.IsDevelopment())

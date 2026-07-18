@@ -17,8 +17,8 @@
 <div class="scanner-page">
 
     <div class="info-toggle-row">
-        <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleInfo">
-            @(_showInfo ? "Skjul info" : "Vis info")
+        <button class="info-toggle-btn" @onclick="ToggleInfo">
+            @(_showInfo ? "🙈 Skjul info" : "ℹ️ Vis info")
         </button>
     </div>
 
@@ -76,7 +76,7 @@
 
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
-                disabled="@_isProcessing">
+                disabled="@(_isProcessing || !_cameraStarted)">
             @if (_isProcessing)
             {
                 <span>Scanner...</span>
@@ -226,6 +226,13 @@
     private async Task Capture()
     {
         if (_isProcessing || _disposed) return;
+
+        if (!_cameraStarted)
+        {
+            _statusText = "Start kameraet, før du scanner.";
+            StateHasChanged();
+            return;
+        }
 
         try
         {

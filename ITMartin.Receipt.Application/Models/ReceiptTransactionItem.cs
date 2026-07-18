@@ -10,5 +10,7 @@ public sealed class ReceiptTransactionItem
 
     public string? DiscountType { get; set; }
 
+    public string? RawText { get; set; }
+
     public bool IsSuspicious { get; set; }
 }
