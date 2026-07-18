@@ -1,7 +1,6 @@
 using ITMartin.Ai;
 using ITMartin.OCR;
 using ITMartin.Receipt.Application;
-using ITMartin.Receipt.Application.Interfaces;
 using ITMartin.Receipt.Infrastructure;
 using ITMartin.Receipt.Server;
 using ITMartin.Receipt.Server.Services;
@@ -63,19 +62,6 @@ app.UseAntiforgery();
 
 Directory.CreateDirectory("data");
 Directory.CreateDirectory("data/receipts");
-
-app.MapGet("/receipt-image/{id:guid}", async (Guid id, IReceiptRepository repository) =>
-{
-    var tx = await repository.GetByIdAsync(id);
-    if (tx?.ImageFileName is null)
-        return Results.NotFound();
-
-    var path = Path.Combine(Directory.GetCurrentDirectory(), "data", "receipts", tx.ImageFileName);
-    if (!File.Exists(path))
-        return Results.NotFound();
-
-    return Results.File(path, "image/jpeg");
-});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

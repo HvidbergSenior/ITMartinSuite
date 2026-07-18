@@ -19,6 +19,12 @@
     color: white;
 }
 
+.info-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
 /* =========================================
 HEADER
 ========================================= */

@@ -16,17 +16,24 @@
 
 <div class="scanner-page">
 
-    <ProblemPurposeBanner
-        Problem="Det er svært at se på en kvittering, hvad du faktisk fik rabat på, og nemt at overse særlige medlemsfordele som LidlPlus konto eller Fordelskort."
-        Formaal="Tag et billede af kvitteringen og få med det samme et overblik: hvad der var rabat på, hvad der ikke var, og eventuelle medlemsfordele." />
+    <div class="info-toggle-row">
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleInfo">
+            @(_showInfo ? "Skjul info" : "Vis info")
+        </button>
+    </div>
 
-    <HowToUseBanner Steps='@(new[]
+    @if (_showInfo)
     {
-        "Tag et billede af kvitteringen mens du stadig står i butikken — eller lige når du kommer hjem.",
-        "Se med det samme, hvad du fik rabat på, og hvad du ikke gjorde.",
-        "Find en tidligere kvittering igen under Historik, også dage senere — sammenlign billedet med det, appen læste ud af det.",
-        "Appen husker selv, hvordan den skal læse en given butiks kvitteringer bedre og bedre — du skal ikke gøre noget for det."
-    })' />
+        <ProblemPurposeBanner
+            Problem="Det er svært at se på en kvittering, hvad du fik rabat på."
+            Formaal="Tag et billede af kvitteringen, og se varerne du har købt og rabatten på dem." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Tag et billede af kvitteringen.",
+            "Se med det samme varerne du har købt, og hvad du fik rabat på."
+        })' />
+    }
 
     <div class="scanner-wrapper">
 
@@ -132,6 +139,7 @@
     private bool _disposed;
     private ReceiptContext? _context;
     private double _zoom = 1.0;
+    private bool _showInfo = true;
 
     private void ZoomIn()  => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
     private void ZoomOut() => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
@@ -143,6 +151,24 @@
     {
         _ = RunWorkerAsync();
         return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "receipt_show_info");
+        if (stored == "hidden")
+        {
+            _showInfo = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleInfo()
+    {
+        _showInfo = !_showInfo;
+        await JS.InvokeVoidAsync("localStorage.setItem", "receipt_show_info", _showInfo ? "shown" : "hidden");
     }
 
     public async ValueTask DisposeAsync()
