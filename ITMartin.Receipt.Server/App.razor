@@ -1,4 +1,5 @@
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
+@inject IWebHostEnvironment Env
 
 <!DOCTYPE html>
 <html lang="en">
@@ -25,7 +26,7 @@
           href="_content/ITMartin.Shared.UI/css/Shared.css" />
 
     <link rel="stylesheet"
-          href="css/Receipt.css" />
+          href="@($"css/Receipt.css?v={CssVersion}")" />
 
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
@@ -87,3 +88,20 @@
 </script>
 </body>
 </html>
+
+@code {
+    // Cache-busting via the file's own last-write time, so every deploy that
+    // touches this CSS gets a URL Cloudflare/browsers have never cached
+    // before - no more remembering to manually purge the edge cache after a
+    // styling change (bit us twice in one session before this existed).
+    private string CssVersion
+    {
+        get
+        {
+            var path = Path.Combine(Env.WebRootPath, "css", "Receipt.css");
+            return File.Exists(path)
+                ? File.GetLastWriteTimeUtc(path).Ticks.ToString()
+                : "0";
+        }
+    }
+}
