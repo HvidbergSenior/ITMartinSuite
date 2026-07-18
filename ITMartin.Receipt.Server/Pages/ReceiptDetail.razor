@@ -35,8 +35,17 @@
     }
     else
     {
-        <div class="result-panel">
-            <ReceiptSummary Transaction="_transaction" />
+        <div class="compare-panel">
+            @if (!string.IsNullOrWhiteSpace(_transaction.ImageFileName))
+            {
+                <div class="compare-photo">
+                    <div class="compare-photo-label">Det scannede billede</div>
+                    <img src="@($"/receipt-image/{_transaction.Id}")" alt="Kvitteringsfoto" />
+                </div>
+            }
+            <div class="compare-result">
+                <ReceiptSummary Transaction="_transaction" />
+            </div>
         </div>
     }
 
@@ -66,6 +75,7 @@
                 TotalAmount = tx.TotalAmount,
                 VatAmount = tx.VatAmount,
                 Currency = tx.Currency,
+                ImageFileName = tx.ImageFileName,
                 Items = tx.Items
                     .Select(i => new AppModels.ReceiptTransactionItem
                     {

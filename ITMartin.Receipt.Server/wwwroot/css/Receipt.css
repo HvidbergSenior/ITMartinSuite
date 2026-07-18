@@ -50,23 +50,6 @@ HEADER
     font-size: 15px;
 }
 
-.ai-badge {
-
-    padding: 10px 16px;
-
-    border-radius: 999px;
-
-    background: rgba(255,255,255,.08);
-
-    border: 1px solid rgba(255,255,255,.12);
-
-    backdrop-filter: blur(12px);
-
-    font-weight: 700;
-
-    color: white;
-}
-
 /* =========================================
 SCANNER
 ========================================= */
@@ -277,6 +260,47 @@ RESULT PANEL
 .result-panel {
 
     margin-top: 32px;
+}
+
+/* =========================================
+COMPARE PANEL (photo vs. parsed result)
+========================================= */
+
+.compare-panel {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.compare-photo {
+    flex: 1 1 320px;
+    max-width: 420px;
+    position: sticky;
+    top: 16px;
+}
+
+.compare-photo-label {
+    font-size: 14px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.compare-photo img {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,.1);
+}
+
+.compare-result {
+    flex: 2 1 400px;
+}
+
+@media (max-width: 720px) {
+    .compare-photo {
+        position: static;
+        max-width: 100%;
+    }
 }
 
 .receipt-result {
@@ -533,9 +557,9 @@ ZOOM CONTROLS
     border: 1px solid rgba(255,255,255,.15);
     background: rgba(255,255,255,.07);
     color: white;
-    border-radius: 8px;
-    padding: 4px 10px;
-    font-size: 13px;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     transition: background .15s;

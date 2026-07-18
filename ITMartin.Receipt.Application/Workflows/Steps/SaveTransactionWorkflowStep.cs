@@ -49,6 +49,7 @@ public sealed class SaveTransactionWorkflowStep
             .ToList();
 
         var purchaseDate = DateTime.TryParse(extraction.PurchaseDate, out var d) ? d : (DateTime?)null;
+        var imageFileName = Path.GetFileName(context.State.ImagePath);
 
         context.State.Transaction =
             new ReceiptTransaction
@@ -59,7 +60,8 @@ public sealed class SaveTransactionWorkflowStep
                 TotalAmount = extraction.TotalAmount,
                 VatAmount = extraction.VatAmount,
                 Currency = extraction.Currency ?? "DKK",
-                Items = appItems
+                Items = appItems,
+                ImageFileName = imageFileName
             };
 
         var domainTransaction =
@@ -80,7 +82,8 @@ public sealed class SaveTransactionWorkflowStep
                         DiscountType   = x.DiscountType,
                         IsSuspicious   = x.IsSuspicious
                     })
-                    .ToList()
+                    .ToList(),
+                ImageFileName = imageFileName
             };
 
         await _repository.SaveAsync(domainTransaction, cancellationToken);

@@ -19,4 +19,6 @@ public sealed class ReceiptTransaction
     public DateTime ScannedAt { get; init; } = DateTime.UtcNow;
 
     public bool IsTemplate { get; set; }
+
+    public string? ImageFileName { get; set; }
 }

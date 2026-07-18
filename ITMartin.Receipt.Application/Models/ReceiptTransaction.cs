@@ -15,4 +15,6 @@ public sealed class ReceiptTransaction
     public string Currency { get; set; } = "DKK";
 
     public List<ReceiptTransactionItem> Items { get; set; } = [];
+
+    public string? ImageFileName { get; set; }
 }

@@ -56,6 +56,13 @@ public sealed class ReceiptRepository : IReceiptRepository
             .Include(x => x.Items)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (tx is null) return;
+
+        if (tx.ImageFileName is not null)
+        {
+            var path = Path.Combine(Directory.GetCurrentDirectory(), "data", "receipts", tx.ImageFileName);
+            try { if (File.Exists(path)) File.Delete(path); } catch { /* best-effort cleanup */ }
+        }
+
         _db.Transactions.Remove(tx);
         await _db.SaveChangesAsync(cancellationToken);
     }

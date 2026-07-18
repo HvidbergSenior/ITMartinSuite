@@ -14,20 +14,9 @@
 @inject IReceiptRepository ReceiptRepository
 @implements IAsyncDisposable
 
-<PageTitle>Kvitteringsscanner</PageTitle>
+<PageTitle>Kvitteringer</PageTitle>
 
 <div class="scanner-page">
-
-    <div class="scanner-header">
-
-        <div>
-            <h1 class="scanner-title">Kvitteringsscanner</h1>
-            <div class="scanner-subtitle">AI-drevet kvitteringsanalyse</div>
-        </div>
-
-        <div class="ai-badge">AI-scanning</div>
-
-    </div>
 
     @if (_templates.Count > 0)
     {
@@ -112,9 +101,8 @@
                             FontSizeRem="_zoom">
                 <HeaderExtra>
                     <div class="zoom-controls">
-                        <button class="zoom-btn" @onclick="ZoomOut" disabled="@(_zoom <= 0.8)">A−</button>
-                        <button class="zoom-btn" @onclick="ZoomReset">A</button>
-                        <button class="zoom-btn" @onclick="ZoomIn" disabled="@(_zoom >= 2.0)">A+</button>
+                        <button class="zoom-btn" @onclick="ZoomOut" disabled="@(_zoom <= 0.8)">Formindsk</button>
+                        <button class="zoom-btn" @onclick="ZoomIn" disabled="@(_zoom >= 2.0)">Forstør</button>
                     </div>
                 </HeaderExtra>
             </ReceiptSummary>
@@ -151,9 +139,8 @@
     private List<DomainEntities.ReceiptTransaction> _templates = [];
     private string? _selectedTemplateIdRaw;
 
-    private void ZoomIn()    => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
-    private void ZoomOut()   => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
-    private void ZoomReset() => _zoom = 1.0;
+    private void ZoomIn()  => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
+    private void ZoomOut() => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
 
     private readonly Channel<(string ImagePath, Guid? TemplateId)> _workChannel =
         Channel.CreateBounded<(string, Guid?)>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
