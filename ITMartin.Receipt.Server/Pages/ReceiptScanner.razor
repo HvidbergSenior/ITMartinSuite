@@ -7,25 +7,41 @@
 @using ITMartin.Receipt.Application.Workflows
 @using ITMartin.Receipt.Server.Components
 @using Microsoft.JSInterop
+@using DomainEntities = ITMartin.Receipt.Domain.Entities
 
 @inject IJSRuntime JS
 @inject IReceiptWorkflowOrchestrator ReceiptOrchestrator
+@inject IReceiptRepository ReceiptRepository
 @implements IAsyncDisposable
 
-<PageTitle>Receipt Scanner</PageTitle>
+<PageTitle>Kvitteringsscanner</PageTitle>
 
 <div class="scanner-page">
 
     <div class="scanner-header">
 
         <div>
-            <h1 class="scanner-title">Receipt Scanner</h1>
-            <div class="scanner-subtitle">AI-powered receipt analysis</div>
+            <h1 class="scanner-title">Kvitteringsscanner</h1>
+            <div class="scanner-subtitle">AI-drevet kvitteringsanalyse</div>
         </div>
 
-        <div class="ai-badge">AI Vision</div>
+        <div class="ai-badge">AI-scanning</div>
 
     </div>
+
+    @if (_templates.Count > 0)
+    {
+        <div class="store-hint-row">
+            <label for="storeHint" class="store-hint-label">Butik (valgfrit)</label>
+            <select id="storeHint" class="store-hint-select" @bind="_selectedTemplateIdRaw">
+                <option value="">Automatisk genkendelse</option>
+                @foreach (var t in _templates)
+                {
+                    <option value="@t.Id">@t.MerchantName</option>
+                }
+            </select>
+        </div>
+    }
 
     <div class="scanner-wrapper">
 
@@ -33,7 +49,7 @@
         {
             <div class="camera-start-panel">
                 <button @onclick="StartCamera">
-                    Start Camera
+                    Start kamera
                 </button>
             </div>
         }
@@ -48,7 +64,7 @@
             </video>
 
             <div class="scanner-guide">
-                <div class="guide-text">Align receipt inside frame</div>
+                <div class="guide-text">Placér kvitteringen i rammen</div>
             </div>
         }
 
@@ -71,11 +87,11 @@
                 disabled="@_isProcessing">
             @if (_isProcessing)
             {
-                <span>Scanning...</span>
+                <span>Scanner...</span>
             }
             else
             {
-                <span>Scan Receipt</span>
+                <span>Scan kvittering</span>
             }
         </button>
 
@@ -115,7 +131,7 @@
     @if (!string.IsNullOrWhiteSpace(_capturedImage))
     {
         <div class="mt-4">
-            <h5>Captured Image</h5>
+            <h5>Billede taget</h5>
             <img src="@_capturedImage"
                  style="max-width:400px; border-radius:12px; border:2px solid #444;" />
         </div>
@@ -132,18 +148,20 @@
     private bool _disposed;
     private ReceiptContext? _context;
     private double _zoom = 1.0;
+    private List<DomainEntities.ReceiptTransaction> _templates = [];
+    private string? _selectedTemplateIdRaw;
 
     private void ZoomIn()    => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
     private void ZoomOut()   => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
     private void ZoomReset() => _zoom = 1.0;
 
-    private readonly Channel<string> _workChannel =
-        Channel.CreateBounded<string>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
+    private readonly Channel<(string ImagePath, Guid? TemplateId)> _workChannel =
+        Channel.CreateBounded<(string, Guid?)>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
+        _templates = await ReceiptRepository.GetTemplatesAsync();
         _ = RunWorkerAsync();
-        return Task.CompletedTask;
     }
 
     public async ValueTask DisposeAsync()
@@ -155,17 +173,17 @@
 
     private async Task RunWorkerAsync()
     {
-        await foreach (var imagePath in _workChannel.Reader.ReadAllAsync())
+        await foreach (var (imagePath, templateId) in _workChannel.Reader.ReadAllAsync())
         {
             if (_disposed) break;
             try
             {
-                var result = await ReceiptOrchestrator.ExecuteAsync(imagePath, CancellationToken.None);
+                var result = await ReceiptOrchestrator.ExecuteAsync(imagePath, templateId, CancellationToken.None);
                 await InvokeAsync(() =>
                 {
                     _context = result;
                     _isProcessing = false;
-                    _statusText = result.Failed ? result.FailureReason : "Scan complete";
+                    _statusText = result.Failed ? result.FailureReason : "Scanning fuldført";
                     StateHasChanged();
                 });
             }
@@ -205,7 +223,7 @@
         try
         {
             _isProcessing = true;
-            _statusText = "Capturing receipt...";
+            _statusText = "Tager billede af kvitteringen...";
             _context = null;
             StateHasChanged();
 
@@ -221,8 +239,9 @@
             await File.WriteAllBytesAsync(imagePath, bytes);
 
             _capturedImage = $"data:image/jpeg;base64,{clean}";
-            _statusText = "Analyzing receipt...";
-            _workChannel.Writer.TryWrite(imagePath);
+            _statusText = "Analyserer kvittering...";
+            var templateId = Guid.TryParse(_selectedTemplateIdRaw, out var parsed) ? parsed : (Guid?)null;
+            _workChannel.Writer.TryWrite((imagePath, templateId));
             StateHasChanged();
         }
         catch (Exception ex)

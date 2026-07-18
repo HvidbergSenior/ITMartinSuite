@@ -60,20 +60,13 @@ public sealed class ReceiptRepository : IReceiptRepository
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<ReceiptTransaction?> GetTemplateAsync(
-        string merchantName,
+    public async Task<List<ReceiptTransaction>> GetTemplatesAsync(
         CancellationToken cancellationToken = default)
     {
         return await _db.Transactions
             .Include(x => x.Items)
-            .Where(x => x.IsTemplate &&
-                x.MerchantName.ToLower() == merchantName.ToLower())
-            .OrderByDescending(x => x.ScannedAt)
-            .FirstOrDefaultAsync(cancellationToken)
-            ?? await _db.Transactions
-                .Include(x => x.Items)
-                .Where(x => x.IsTemplate)
-                .OrderByDescending(x => x.ScannedAt)
-                .FirstOrDefaultAsync(cancellationToken);
+            .Where(x => x.IsTemplate)
+            .OrderBy(x => x.MerchantName)
+            .ToListAsync(cancellationToken);
     }
 }

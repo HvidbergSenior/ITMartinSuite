@@ -31,13 +31,20 @@ public sealed class SaveTransactionWorkflowStep
         var id = Guid.NewGuid();
 
         var appItems = extraction.Items
-            .Select(line => new ReceiptTransactionItem
+            .Select(line =>
             {
-                Description    = line.Description,
-                OriginalPrice  = line.Amount,
-                DiscountAmount = line.DiscountAmount,
-                DiscountType   = line.DiscountLabel,
-                IsSuspicious   = line.Suspicious,
+                var netPrice = (line.Amount ?? 0) + (line.DiscountAmount ?? 0);
+
+                return new ReceiptTransactionItem
+                {
+                    Description    = line.Description,
+                    OriginalPrice  = line.Amount,
+                    DiscountAmount = line.DiscountAmount,
+                    DiscountType   = line.DiscountLabel,
+                    // A negative net price means the AI got the original/discount reversed
+                    // (e.g. an already-discounted printed amount treated as the pre-discount price).
+                    IsSuspicious   = line.Suspicious || (line.DiscountAmount.HasValue && netPrice < 0),
+                };
             })
             .ToList();
 

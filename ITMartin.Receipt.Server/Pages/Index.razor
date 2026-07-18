@@ -5,42 +5,42 @@
 
 @inject IReceiptRepository ReceiptRepository
 
-<PageTitle>Receipt History</PageTitle>
+<PageTitle>Kvitteringshistorik</PageTitle>
 
 <div class="page-container">
 
     <div class="scanner-header">
         <div>
-            <h1 class="scanner-title">Receipt History</h1>
-            <div class="scanner-subtitle">All scanned receipts</div>
+            <h1 class="scanner-title">Kvitteringshistorik</h1>
+            <div class="scanner-subtitle">Alle scannede kvitteringer</div>
         </div>
-        <a href="/" class="btn btn-success">+ Scan Receipt</a>
+        <a href="/" class="btn btn-success">+ Scan kvittering</a>
     </div>
 
     @if (_transactions is null)
     {
-        <div class="text-muted">Loading...</div>
+        <div class="text-muted">Indlæser...</div>
     }
     else
     {
         <div class="dashboard-stats-grid">
             <div class="content-card stat-card">
                 <h3>@_transactions.Count</h3>
-                <p>Total Receipts</p>
+                <p>Kvitteringer i alt</p>
             </div>
             <div class="content-card stat-card">
                 <h3>@_transactions.Select(x => x.Currency).Distinct().Count()</h3>
-                <p>Currencies</p>
+                <p>Valutaer</p>
             </div>
             <div class="content-card stat-card">
                 <h3>@_totalSpend.ToString("F2")</h3>
-                <p>Total Spend (DKK)</p>
+                <p>Samlet forbrug (DKK)</p>
             </div>
         </div>
 
         <div class="content-card" style="padding:12px 16px; margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">
             <input class="inv-search" style="flex:1; min-width:180px;"
-                   type="search" placeholder="Search merchant..."
+                   type="search" placeholder="Søg efter butik..."
                    @bind="_search" @bind:event="oninput" />
             <input class="inv-search" style="width:150px;"
                    type="date" @bind="_fromDate" @bind:event="onchange" />
@@ -52,7 +52,7 @@
         {
             <div class="content-card" style="text-align:center; padding:40px;">
                 <div style="font-size:48px; margin-bottom:12px;">🧾</div>
-                <div style="color:var(--text-muted);">@(_transactions.Any() ? "No receipts match your search." : "No receipts scanned yet.")</div>
+                <div style="color:var(--text-muted);">@(_transactions.Any() ? "Ingen kvitteringer matcher din søgning." : "Ingen kvitteringer scannet endnu.")</div>
             </div>
         }
         else
@@ -64,8 +64,8 @@
                         <div class="receipt-history-row">
                             <div>
                                 <div class="receipt-history-merchant">
-                                    @(string.IsNullOrWhiteSpace(tx.MerchantName) ? "Unknown Merchant" : tx.MerchantName)
-                                    @if (tx.IsTemplate) { <span class="template-badge">Template</span> }
+                                    @(string.IsNullOrWhiteSpace(tx.MerchantName) ? "Ukendt butik" : tx.MerchantName)
+                                    @if (tx.IsTemplate) { <span class="template-badge">Skabelon</span> }
                                 </div>
                                 <div class="text-muted" style="font-size:13px; margin-top:4px;">
                                     @tx.ScannedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
@@ -80,15 +80,15 @@
                                 {
                                     <div class="receipt-history-total">@tx.Currency @tx.TotalAmount.Value.ToString("F2")</div>
                                 }
-                                <a class="btn btn-sm btn-outline-secondary" href="@($"/history/{tx.Id}")">View</a>
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/history/{tx.Id}")">Vis</a>
                                 <button class="btn btn-sm @(tx.IsTemplate ? "btn-warning" : "btn-outline-secondary")"
                                         @onclick="() => ToggleTemplate(tx)">
-                                    @(tx.IsTemplate ? "Unset Template" : "Set Template")
+                                    @(tx.IsTemplate ? "Fjern skabelon" : "Sæt som skabelon")
                                 </button>
                                 @if (_deleteConfirmId == tx.Id)
                                 {
-                                    <button class="btn btn-sm btn-danger"     @onclick="() => ConfirmDelete(tx.Id)">✓ Delete</button>
-                                    <button class="btn btn-sm btn-secondary"  @onclick="CancelDelete">Cancel</button>
+                                    <button class="btn btn-sm btn-danger"     @onclick="() => ConfirmDelete(tx.Id)">✓ Slet</button>
+                                    <button class="btn btn-sm btn-secondary"  @onclick="CancelDelete">Annuller</button>
                                 }
                                 else
                                 {
@@ -112,7 +112,7 @@
                                 }
                                 @if (tx.Items.Count > 3)
                                 {
-                                    <div class="text-muted" style="font-size:12px; margin-top:4px;">+ @(tx.Items.Count - 3) more items</div>
+                                    <div class="text-muted" style="font-size:12px; margin-top:4px;">+ @(tx.Items.Count - 3) flere varer</div>
                                 }
                             </div>
                         }

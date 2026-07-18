@@ -89,6 +89,7 @@ public sealed class ClaudeReceiptExtractionService
 
     public async Task<ReceiptExtractionResult> ExtractAsync(
         string receiptText,
+        ReceiptExtractionResult? template = null,
         CancellationToken cancellationToken = default)
     {
         var request = new MessageCreateParams
@@ -96,9 +97,12 @@ public sealed class ClaudeReceiptExtractionService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 1024,
             System = """
-                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, etc.).
-                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
-                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK).
+                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, Sport24, etc.).
+                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
+                amount must always be the ORIGINAL pre-discount price for the item. If the receipt has a quantity/unit-price layout (e.g. 'Antal: 3 x 70'), the original amount is quantity times unit price (210 in that example) — use that, never a column that already has the discount subtracted out of it.
+                Some receipts print the item's final column as the amount already AFTER its own discount (i.e. the discount is already subtracted from the number in that column). If so, add the discount back on top of that printed number to get the original pre-discount amount — do not treat an already-discounted number as the original and then subtract the discount from it again.
+                Sanity check before reporting: amount + discountAmount must equal the actual final price paid for that line, and must never be negative. If your numbers would make it negative, you have the original/discount reversed — re-derive amount from quantity x unit price instead.
+                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
                 If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
                 Omit fields you cannot determine — never guess.
                 """,
@@ -109,18 +113,29 @@ public sealed class ClaudeReceiptExtractionService
                 new()
                 {
                     Role = Role.User,
-                    Content = $"""
-                        Extract the receipt data from the following text and call the report_receipt tool.
+                    Content = template is null
+                        ? $"""
+                           Extract the receipt data from the following text and call the report_receipt tool.
 
-                        Receipt text:
+                           Receipt text:
 
-                        {receiptText}
-                        """
+                           {receiptText}
+                           """
+                        : $"""
+                           Extract the receipt data from the following text and call the report_receipt tool.
+
+                           Use this verified receipt from the same store as a structural reference — it was corrected by hand, so match its conventions for how items, quantities, discounts, and loyalty info are resolved:
+                           {JsonSerializer.Serialize(template, JsonOptions)}
+
+                           Receipt text:
+
+                           {receiptText}
+                           """
                 }
             ]
         };
 
-        var response = await _client.Messages.Create(request);
+        var response = await _client.Messages.Create(request, cancellationToken);
 
         ToolUseBlock? toolUse = null;
         foreach (var block in response.Content)
@@ -185,9 +200,12 @@ public sealed class ClaudeReceiptExtractionService
             Model = Model.ClaudeHaiku4_5,
             MaxTokens = 1024,
             System = """
-                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, etc.).
-                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
-                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK).
+                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, Sport24, etc.).
+                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
+                amount must always be the ORIGINAL pre-discount price for the item. If the receipt has a quantity/unit-price layout (e.g. 'Antal: 3 x 70'), the original amount is quantity times unit price (210 in that example) — use that, never a column that already has the discount subtracted out of it.
+                Some receipts print the item's final column as the amount already AFTER its own discount (i.e. the discount is already subtracted from the number in that column). If so, add the discount back on top of that printed number to get the original pre-discount amount — do not treat an already-discounted number as the original and then subtract the discount from it again.
+                Sanity check before reporting: amount + discountAmount must equal the actual final price paid for that line, and must never be negative. If your numbers would make it negative, you have the original/discount reversed — re-derive amount from quantity x unit price instead.
+                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
                 If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
                 Omit fields you cannot determine — never guess.
                 """,

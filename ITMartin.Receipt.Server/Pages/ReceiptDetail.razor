@@ -7,31 +7,31 @@
 
 @inject IReceiptRepository ReceiptRepository
 
-<PageTitle>Receipt Detail</PageTitle>
+<PageTitle>Kvitteringsdetaljer</PageTitle>
 
 <div class="page-container">
 
     <div class="scanner-header">
         <div>
-            <h1 class="scanner-title">Receipt Detail</h1>
+            <h1 class="scanner-title">Kvitteringsdetaljer</h1>
             @if (_scannedAt.HasValue)
             {
-                <div class="scanner-subtitle">Scanned @_scannedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
+                <div class="scanner-subtitle">Scannet @_scannedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
             }
         </div>
-        <a href="/history" class="btn btn-outline-secondary">&larr; Back to History</a>
+        <a href="/history" class="btn btn-outline-secondary">&larr; Tilbage til historik</a>
     </div>
 
     @if (_notFound)
     {
         <div class="content-card" style="text-align:center; padding:40px;">
             <div style="font-size:48px; margin-bottom:12px;">🧾</div>
-            <div style="color:var(--text-muted);">Receipt not found.</div>
+            <div style="color:var(--text-muted);">Kvittering ikke fundet.</div>
         </div>
     }
     else if (_transaction is null)
     {
-        <div class="text-muted">Loading...</div>
+        <div class="text-muted">Indlæser...</div>
     }
     else
     {
