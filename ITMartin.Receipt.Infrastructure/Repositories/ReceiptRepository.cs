@@ -42,4 +42,13 @@ public sealed class ReceiptRepository : IReceiptRepository
             .Include(x => x.Items)
             .FirstOrDefaultAsync(x => x.IsTemplate && x.MerchantName.ToLower() == merchantName.ToLower(), cancellationToken);
     }
+
+    public async Task<List<ReceiptTransaction>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Transactions
+            .Include(x => x.Items)
+            .OrderByDescending(x => x.ScannedAt)
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -6,4 +6,5 @@ public interface IReceiptRepository
 {
     Task SaveAsync(ReceiptTransaction transaction, CancellationToken cancellationToken = default);
     Task<ReceiptTransaction?> GetReferenceAsync(string merchantName, CancellationToken cancellationToken = default);
+    Task<List<ReceiptTransaction>> GetAllAsync(CancellationToken cancellationToken = default);
 }

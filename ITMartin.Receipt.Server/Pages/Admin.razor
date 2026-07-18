@@ -1,0 +1,194 @@
+@page "/admin"
+
+@using ITMartin.Receipt.Application.Interfaces
+@using ITMartin.Receipt.Domain.Entities
+
+@inject IReceiptRepository ReceiptRepository
+@inject IConfiguration Config
+
+<PageTitle>Admin</PageTitle>
+
+@if (!_authed)
+{
+    <div class="auth-wrap">
+        <div class="auth-card">
+            <div style="font-size:40px;margin-bottom:12px">🔐</div>
+            <h2 class="auth-title">Admin</h2>
+            <input @bind="_pin" type="password" class="auth-input" placeholder="PIN-kode" @onkeydown="OnKey" />
+            @if (_authError != null) { <div class="auth-error">@_authError</div> }
+            <button class="auth-btn" @onclick="AuthAsync">Log ind</button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="admin-wrap">
+
+        <h1 class="admin-title">Kvitteringer — admin</h1>
+
+        <section class="admin-section">
+            <h2 class="admin-subtitle">Aktive referencer (@_references.Count)</h2>
+            <div class="admin-hint">Den kvittering pr. butik, som appen lige nu bruger til at kalibrere sig selv med. Tjek her hvis en butik pludselig læses forkert.</div>
+
+            @if (_references.Count == 0)
+            {
+                <div class="empty">Ingen referencer endnu.</div>
+            }
+            else
+            {
+                <div class="receipt-list">
+                    @foreach (var tx in _references)
+                    {
+                        @RenderRow(tx, isReference: true)
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="admin-section">
+            <h2 class="admin-subtitle">Alle scannede kvitteringer (@_all.Count)</h2>
+
+            @if (_all.Count == 0)
+            {
+                <div class="empty">Ingen kvitteringer scannet endnu.</div>
+            }
+            else
+            {
+                <div class="receipt-list">
+                    @foreach (var tx in _all)
+                    {
+                        @RenderRow(tx, isReference: false)
+                    }
+                </div>
+            }
+        </section>
+
+    </div>
+}
+
+@code {
+    private bool _authed;
+    private string _pin = "";
+    private string? _authError;
+    private List<ReceiptTransaction> _all = [];
+    private List<ReceiptTransaction> _references = [];
+    private readonly HashSet<Guid> _expanded = [];
+    private readonly Dictionary<Guid, string?> _imageDataUris = [];
+
+    private async Task AuthAsync()
+    {
+        var expected = Config["Receipt:AdminPin"] ?? "1234";
+        if (_pin.Trim() != expected)
+        {
+            _authError = "Forkert PIN-kode.";
+            return;
+        }
+
+        _authed = true;
+        _all = await ReceiptRepository.GetAllAsync();
+        _references = _all.Where(x => x.IsTemplate).ToList();
+    }
+
+    private async Task OnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AuthAsync();
+    }
+
+    private async Task ToggleExpand(Guid id, string? imageFileName)
+    {
+        if (!_expanded.Add(id))
+        {
+            _expanded.Remove(id);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(imageFileName) && !_imageDataUris.ContainsKey(id))
+        {
+            _imageDataUris[id] = await LoadImageDataUriAsync(imageFileName);
+        }
+    }
+
+    private static async Task<string?> LoadImageDataUriAsync(string imageFileName)
+    {
+        var path = Path.Combine(Directory.GetCurrentDirectory(), "data", "receipts", imageFileName);
+        if (!File.Exists(path)) return null;
+
+        var bytes = await File.ReadAllBytesAsync(path);
+        return $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
+    }
+
+    private RenderFragment RenderRow(ReceiptTransaction tx, bool isReference) => @<div class="receipt-row">
+        <div class="receipt-row-header" @onclick="() => ToggleExpand(tx.Id, tx.ImageFileName)">
+            <div>
+                <span class="receipt-merchant-name">@(string.IsNullOrWhiteSpace(tx.MerchantName) ? "Ukendt butik" : tx.MerchantName)</span>
+                @if (isReference) { <span class="ref-badge">Reference</span> }
+                @if (tx.Items.Any(i => i.IsSuspicious)) { <span class="suspicious-flag-badge">⚠ mistænkelig</span> }
+            </div>
+            <div class="receipt-row-meta">
+                <span>@tx.ScannedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</span>
+                @if (tx.TotalAmount.HasValue) { <span>@tx.Currency @tx.TotalAmount.Value.ToString("F2")</span> }
+                <span class="expand-arrow">@(_expanded.Contains(tx.Id) ? "▲" : "▼")</span>
+            </div>
+        </div>
+
+        @if (_expanded.Contains(tx.Id))
+        {
+            <div class="receipt-row-detail">
+                @if (_imageDataUris.TryGetValue(tx.Id, out var uri) && uri is not null)
+                {
+                    <img src="@uri" class="receipt-row-image" alt="Kvitteringsfoto" />
+                }
+                else if (tx.ImageFileName is not null)
+                {
+                    <div class="empty">Billede ikke fundet.</div>
+                }
+
+                <div class="receipt-row-items">
+                    @foreach (var item in tx.Items)
+                    {
+                        var net = (item.OriginalPrice ?? 0) + (item.DiscountAmount ?? 0);
+                        <div class="receipt-row-item">
+                            <span>@item.Description@(item.IsSuspicious ? " ⚠" : "")</span>
+                            <span>@tx.Currency @net.ToString("F2")</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(item.RawText))
+                        {
+                            <div class="receipt-row-item-raw">@item.RawText</div>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>;
+}
+
+<style>
+    .auth-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+    .auth-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 360px; text-align: center; }
+    .auth-title { font-size: 22px; font-weight: 800; margin: 0 0 20px; color: var(--text, white); }
+    .auth-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; margin-bottom: 12px; }
+    .auth-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .auth-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #f87171; margin-bottom: 10px; }
+
+    .admin-wrap { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; color: var(--text, white); }
+    .admin-title { font-size: 24px; font-weight: 900; margin-bottom: 24px; }
+    .admin-section { margin-bottom: 36px; }
+    .admin-subtitle { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .admin-hint { font-size: 13px; color: var(--muted, #94a3b8); margin-bottom: 14px; }
+    .empty { color: var(--muted, #94a3b8); padding: 20px 0; text-align: center; font-size: 14px; }
+
+    .receipt-list { display: flex; flex-direction: column; gap: 8px; }
+    .receipt-row { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; overflow: hidden; }
+    .receipt-row-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; flex-wrap: wrap; gap: 8px; }
+    .receipt-merchant-name { font-weight: 700; }
+    .ref-badge { font-size: 10px; font-weight: 700; background: rgba(245,158,11,.2); color: #f59e0b; border-radius: 999px; padding: 2px 8px; margin-left: 8px; }
+    .suspicious-flag-badge { font-size: 10px; font-weight: 700; background: rgba(239,68,68,.15); color: #ef4444; border-radius: 999px; padding: 2px 8px; margin-left: 8px; }
+    .receipt-row-meta { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted, #94a3b8); }
+    .expand-arrow { font-size: 10px; }
+
+    .receipt-row-detail { padding: 0 16px 16px; border-top: 1px solid rgba(255,255,255,.06); }
+    .receipt-row-image { max-width: 100%; max-height: 480px; border-radius: 10px; margin: 14px 0; display: block; }
+    .receipt-row-items { display: flex; flex-direction: column; gap: 4px; }
+    .receipt-row-item { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .receipt-row-item-raw { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 10px; color: var(--muted, #94a3b8); padding: 2px 0 6px; white-space: pre-wrap; word-break: break-word; }
+</style>
