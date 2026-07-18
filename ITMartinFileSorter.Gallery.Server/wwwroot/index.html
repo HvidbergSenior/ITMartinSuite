@@ -1,69 +1,99 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
+<script>
+// Applied before first paint to avoid a flash of the wrong theme - must run
+// this early, not deferred to the bottom script block like the rest of the JS.
+(function () {
+  var theme = localStorage.getItem('gallery_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0a0d14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Galleri</title>
 <style>
+:root{
+  --bg:#0a0d14; --bg-card:#111827; --bg-btn:#1f2937; --border:#1f2937;
+  --text:#f0f0f0; --text-muted:#9ca3af; --text-dim:#6b7280; --text-dimmer:#4b5563;
+  --icon-placeholder:#374151;
+  --hdr-bg:rgba(10,13,20,.97);
+  --summary-grad-1:#1e3a5f; --summary-grad-2:#0f2942; --summary-border:#2d5a8f;
+  --summary-sub:#93c5fd; --summary-num:#60a5fa;
+  --modal-backdrop:rgba(0,0,0,.85);
+}
+/* Theme toggle button in the header flips this attribute on <html>, persisted
+   via localStorage (same pattern as Budget/MusikStudio/Receipt). The full-screen
+   photo/video viewer below (#viewer, .v-*) stays dark in both themes on purpose -
+   it's a media stage shown against actual photos, not page chrome. */
+html[data-theme="light"]{
+  --bg:#f4f5f9; --bg-card:#ffffff; --bg-btn:#e9ecf3; --border:#dde1ea;
+  --text:#14161f; --text-muted:#5b6172; --text-dim:#6b7280; --text-dimmer:#94a3b8;
+  --icon-placeholder:#cbd5e1;
+  --hdr-bg:rgba(255,255,255,.92);
+  --summary-grad-1:#dbeafe; --summary-grad-2:#eff6ff; --summary-border:#93c5fd;
+  --summary-sub:#2563eb; --summary-num:#2563eb;
+  --modal-backdrop:rgba(0,0,0,.45);
+}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
 
 /* Header */
-.hdr{position:sticky;top:0;z-index:50;background:rgba(10,13,20,.97);border-bottom:1px solid #1f2937;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.hdr{position:sticky;top:0;z-index:50;background:var(--hdr-bg);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px}
 .hdr-title{font-size:17px;font-weight:800;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hdr-btn{background:#1f2937;border:none;color:#9ca3af;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
-.hdr-btn:hover{color:#f0f0f0}
+.hdr-btn{background:var(--bg-btn);border:none;color:var(--text-muted);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
+.hdr-btn:hover{color:var(--text)}
 
 /* Content */
 .content{padding:14px 14px 80px}
-.section-label{font-size:11px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.08em;margin:16px 0 10px}
+.section-label{font-size:11px;font-weight:700;color:var(--text-dimmer);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 10px}
 
 /* Gallery picker */
 .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:16px}
-.gallery-card{background:#111827;border:1px solid #1f2937;border-radius:14px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .1s}
+.gallery-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .1s}
 .gallery-card:active{border-color:#3b82f6;transform:scale(.97)}
-.gallery-card-cover{width:100%;aspect-ratio:1;object-fit:cover;background:#0a0d14;display:flex;align-items:center;justify-content:center;font-size:48px;color:#374151}
+.gallery-card-cover{width:100%;aspect-ratio:1;object-fit:cover;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--icon-placeholder)}
 .gallery-card-cover img{width:100%;height:100%;object-fit:cover}
 .gallery-card-info{padding:10px 12px}
 .gallery-card-name{font-size:15px;font-weight:700}
 
 /* Welcome summary */
-.summary-card{background:linear-gradient(135deg,#1e3a5f,#0f2942);border:1px solid #2d5a8f;border-radius:16px;padding:24px 20px;margin-bottom:18px;text-align:center}
+.summary-card{background:linear-gradient(135deg,var(--summary-grad-1),var(--summary-grad-2));border:1px solid var(--summary-border);border-radius:16px;padding:24px 20px;margin-bottom:18px;text-align:center}
 .summary-icon{font-size:40px;margin-bottom:8px}
 .summary-title{font-size:19px;font-weight:800;margin-bottom:4px}
-.summary-sub{font-size:13px;color:#93c5fd;margin-bottom:16px}
+.summary-sub{font-size:13px;color:var(--summary-sub);margin-bottom:16px}
 .summary-stats{display:flex;flex-wrap:wrap;justify-content:center;gap:20px 28px}
 .summary-stat{display:flex;flex-direction:column;gap:2px}
-.summary-stat-num{font-size:24px;font-weight:900;color:#60a5fa}
-.summary-stat-label{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em}
+.summary-stat-num{font-size:24px;font-weight:900;color:var(--summary-num)}
+.summary-stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
 
 /* Folder grid */
 .folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:6px}
-.folder-card{background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.folder-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
 .folder-card:active{border-color:#3b82f6}
-.folder-cover{width:100%;aspect-ratio:1;object-fit:cover;background:#0a0d14;display:flex;align-items:center;justify-content:center;font-size:32px;color:#374151}
+.folder-cover{width:100%;aspect-ratio:1;object-fit:cover;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--icon-placeholder)}
 .folder-cover img{width:100%;height:100%;object-fit:cover}
 .folder-info{padding:8px 10px}
 .folder-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Collections row */
-.collection-sub{font-size:12px;color:#6b7280;margin:-6px 0 10px;line-height:1.4}
+.collection-sub{font-size:12px;color:var(--text-dim);margin:-6px 0 10px;line-height:1.4}
 .collection-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#c4b5fd;background:#2e1f5e;padding:2px 7px;border-radius:999px;vertical-align:middle;margin-left:6px}
 .collection-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px;scrollbar-width:none}
 .collection-row::-webkit-scrollbar{display:none}
-.collection-card{flex:0 0 128px;background:#111827;border:1px solid #1f2937;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.collection-card{flex:0 0 128px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
 .collection-card:active{border-color:#8b5cf6}
-.collection-cover{width:128px;height:128px;object-fit:cover;background:#0a0d14;display:flex;align-items:center;justify-content:center;font-size:32px;color:#374151}
+.collection-cover{width:128px;height:128px;object-fit:cover;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--icon-placeholder)}
 .collection-cover img{width:100%;height:100%;object-fit:cover}
 .collection-info{padding:8px 10px}
 .collection-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.collection-count{font-size:11px;color:#6b7280;margin-top:1px}
+.collection-count{font-size:11px;color:var(--text-dim);margin-top:1px}
 
 /* File grid */
 .file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
-.file-card{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#111827}
+.file-card{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:var(--bg-card)}
 .file-card:active{opacity:.8}
 .file-thumb{width:100%;height:100%;object-fit:cover}
 .file-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px}
@@ -73,21 +103,21 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .file-live-badge .dot{width:6px;height:6px;border-radius:50%;background:#fbbf24}
 
 /* Empty */
-.empty{text-align:center;padding:60px 20px;color:#4b5563;font-size:15px}
+.empty{text-align:center;padding:60px 20px;color:var(--text-dimmer);font-size:15px}
 
 /* ── LOGIN MODAL ─────────────── */
-#loginModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center}
+#loginModal{display:none;position:fixed;inset:0;background:var(--modal-backdrop);z-index:200;align-items:center;justify-content:center}
 #loginModal.active{display:flex}
-.login-box{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:32px 28px;width:min(340px,90vw);display:flex;flex-direction:column;gap:16px}
+.login-box{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:32px 28px;width:min(340px,90vw);display:flex;flex-direction:column;gap:16px}
 .login-title{font-size:20px;font-weight:800;text-align:center}
-.login-sub{font-size:14px;color:#6b7280;text-align:center}
-.login-input{background:#0a0d14;border:1px solid #374151;border-radius:10px;color:#f0f0f0;font-size:16px;padding:12px 14px;width:100%;outline:none}
+.login-sub{font-size:14px;color:var(--text-dim);text-align:center}
+.login-input{background:var(--bg);border:1px solid var(--icon-placeholder);border-radius:10px;color:var(--text);font-size:16px;padding:12px 14px;width:100%;outline:none}
 .login-input:focus{border-color:#3b82f6}
 .login-error{color:#ef4444;font-size:13px;text-align:center;min-height:18px}
 .login-btn{background:#3b82f6;border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:700;padding:13px;cursor:pointer;width:100%}
 .login-btn:active{background:#2563eb}
-.login-cancel{background:none;border:none;color:#6b7280;font-size:14px;cursor:pointer;text-align:center;padding:4px}
-.login-cancel:hover{color:#9ca3af}
+.login-cancel{background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;text-align:center;padding:4px}
+.login-cancel:hover{color:var(--text-muted)}
 
 /* ── VIEWER ─────────────────── */
 #viewer{display:none;position:fixed;inset:0;background:#000;z-index:100;flex-direction:column}
@@ -120,6 +150,7 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="hdr-btn" id="btnBack" style="display:none">← Tilbage</button>
     <div class="hdr-title" id="hdrTitle">🖼️ Gallerier</div>
     <button class="hdr-btn" id="btnLogout" style="display:none">Log ud</button>
+    <button class="hdr-btn" id="btnTheme" title="Skift lys/mørk visning">🌓</button>
   </div>
   <div class="content">
     <div id="galleryPicker">
@@ -626,6 +657,23 @@ function tvUrl(webPath) {
   const token = currentGallery ? getCookie('gallery_' + currentGallery) : null;
   return token ? webPath + '?token=' + encodeURIComponent(token) : webPath;
 }
+</script>
+<script>
+(function () {
+    var btn = document.getElementById('btnTheme');
+    function sync() {
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
+        btn.textContent = current === 'light' ? '🌙' : '☀️';
+    }
+    btn.addEventListener('click', function () {
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
+        var next = current === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('gallery_theme', next);
+        sync();
+    });
+    sync();
+})();
 </script>
 <script>
 (function(){
