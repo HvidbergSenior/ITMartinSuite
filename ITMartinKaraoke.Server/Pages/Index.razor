@@ -1,0 +1,58 @@
+@page "/"
+@inject NavigationManager Nav
+@inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
+
+<div class="ka-page">
+    <div class="ka-card">
+        <div style="font-size:3rem;text-align:center">🎤</div>
+        <h1 class="ka-title">Karaoke</h1>
+        <p class="ka-sub">Én synger, alle er med</p>
+
+        <ProblemPurposeBanner
+            Problem="Karaoke-aftener ender som soloforestilling foran en skærm - kun én synger ad gangen, og resten sidder og kigger."
+            Formaal="Start en aften med én kode: TV'et viser sangen og teksten, alle andre er med fra deres egen telefon - som sanger i kø, som perkussion, eller bare med til at synge omkvædet." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Tryk 'Start karaoke-aften' - en kode vises på skærmen.",
+            "Åbn TV-visningen på et TV eller en stor skærm - det er den, alle kigger på.",
+            "Alle andre går ind på /join på deres egen telefon, taster koden ind, og vælger hvad de vil være: vælge sange, tromme med, eller optage."
+        })' />
+
+        <button class="ka-btn-big" @onclick="StartSession" disabled="@_starting">
+            @(_starting ? "Starter..." : "🎉 Start karaoke-aften")
+        </button>
+
+        @if (_code is not null)
+        {
+            <div class="ka-code">@_code</div>
+            <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo($"/stage/{_code}")'>📺 Åbn TV-visning</button>
+            <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo($"/join?code={_code}")'>📱 Deltag selv fra denne enhed</button>
+            <p class="ka-sub" style="margin-top:10px">Del koden <strong>@_code</strong> - alle andre går ind på <code>/join</code> og taster den ind.</p>
+        }
+
+        <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo("/recordings")'>🎧 Tidligere optagelser</button>
+    </div>
+</div>
+
+@code {
+    private string? _code;
+    private bool _starting;
+
+    private async Task StartSession()
+    {
+        _starting = true;
+        var session = new ITMartinKaraoke.Server.Data.Entities.KaraokeSession { Code = NewCode() };
+        Db.Sessions.Add(session);
+        await Db.SaveChangesAsync();
+        _code = session.Code;
+        _starting = false;
+    }
+
+    private static string NewCode()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        var rnd = Random.Shared;
+        return new string(Enumerable.Range(0, 5).Select(_ => chars[rnd.Next(chars.Length)]).ToArray());
+    }
+}

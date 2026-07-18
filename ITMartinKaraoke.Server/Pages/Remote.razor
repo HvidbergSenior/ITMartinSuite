@@ -1,0 +1,140 @@
+@page "/remote/{Code}"
+@implements IDisposable
+@using Microsoft.EntityFrameworkCore
+@inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
+@inject SpotifyService Spotify
+@inject LyricsService Lyrics
+@inject KaraokeLibraryService Library
+@inject PosterService Posters
+
+<div class="ka-page">
+    <div class="ka-card">
+        <h1 class="ka-title">🎵 Vælg en sang</h1>
+        <p class="ka-sub">Kode: <strong>@Code</strong> @(string.IsNullOrWhiteSpace(Name) ? "" : $"· {Name}")</p>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+            <button class="ka-btn-ghost" style="margin:0" @onclick='() => _tab = "spotify"'>Spotify</button>
+            <button class="ka-btn-ghost" style="margin:0" @onclick='() => _tab = "library"'>CD-ripninger</button>
+        </div>
+
+        @if (_tab == "spotify")
+        {
+            <div class="ka-search-row">
+                <input class="ka-input" style="margin:0" placeholder="Søg efter sang eller kunstner..." @bind="_query" @bind:event="oninput" @onkeyup="OnSpotifyKeyUp" />
+            </div>
+            @foreach (var t in _spotifyResults)
+            {
+                <div class="ka-track-item" @onclick="() => AddToQueue(t.Name, t.Artist, t.Id, null)">
+                    @if (t.AlbumArtUrl is not null) { <img src="@t.AlbumArtUrl" /> }
+                    <div class="meta"><div class="t">@t.Name</div><div class="a">@t.Artist</div></div>
+                    <span>➕</span>
+                </div>
+            }
+        }
+        else
+        {
+            @if (_library.Count == 0)
+            {
+                <p class="ka-sub">Ingen ripninger fundet endnu.</p>
+            }
+            @foreach (var t in _library)
+            {
+                <div class="ka-track-item" @onclick="() => AddToQueue(t.Title, t.Artist, null, t.RelativePath)">
+                    <div class="meta"><div class="t">@t.Title</div><div class="a">@t.Artist</div></div>
+                    <span>➕</span>
+                </div>
+            }
+        }
+    </div>
+
+    @if (_queue.Count > 0)
+    {
+        <div class="ka-card">
+            <h2 style="margin-top:0">Kø</h2>
+            @foreach (var q in _queue)
+            {
+                <div class="ka-queue-item @(q.Status == "Playing" ? "playing" : "")">
+                    <div><strong>@q.Title</strong> - @q.Artist<br /><span style="font-size:0.85rem;color:var(--text-muted)">@q.SingerName @(q.Status == "Playing" ? "· spiller nu" : "")</span></div>
+                    @if (q.PosterUrl is null)
+                    {
+                        <button class="ka-btn-ghost" style="width:auto;margin:0;padding:8px 12px" @onclick="() => MakePoster(q.Id)" disabled="@_posterLoading">🎨</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+    [SupplyParameterFromQuery] public string? Name { get; set; }
+
+    private string _tab = "spotify";
+    private string _query = "";
+    private List<SpotifyTrack> _spotifyResults = [];
+    private List<LibraryTrack> _library = [];
+    private List<Data.Entities.QueueEntry> _queue = [];
+    private bool _posterLoading;
+    private int _sessionId;
+    private System.Threading.Timer? _pollTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _library = Library.GetTracks();
+
+        var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Code == Code.ToUpperInvariant());
+        _sessionId = session?.Id ?? 0;
+
+        await RefreshQueue();
+        _pollTimer = new System.Threading.Timer(async _ => await InvokeAsync(async () => { await RefreshQueue(); StateHasChanged(); }), null, 3000, 3000);
+    }
+
+    private async Task OnSpotifyKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_query)) { _spotifyResults = []; return; }
+        _spotifyResults = await Spotify.SearchTracksAsync(_query);
+    }
+
+    private async Task AddToQueue(string title, string artist, string? spotifyTrackId, string? sourceFile)
+    {
+        var (synced, plain) = await Lyrics.FindLyricsAsync(title, artist);
+        Db.QueueEntries.Add(new Data.Entities.QueueEntry
+        {
+            SessionId = _sessionId,
+            SingerName = string.IsNullOrWhiteSpace(Name) ? "Gæst" : Name,
+            Title = title,
+            Artist = artist,
+            SpotifyTrackId = spotifyTrackId,
+            SourceFile = sourceFile,
+            SyncedLyrics = synced,
+            PlainLyrics = plain,
+            Status = "Queued",
+        });
+        await Db.SaveChangesAsync();
+        await RefreshQueue();
+    }
+
+    private async Task RefreshQueue()
+    {
+        _queue = await Db.QueueEntries
+            .Where(q => q.SessionId == _sessionId && q.Status != "Done")
+            .OrderBy(q => q.CreatedAt)
+            .ToListAsync();
+    }
+
+    private async Task MakePoster(int id)
+    {
+        if (!Posters.IsAvailable) return;
+        _posterLoading = true;
+        var entry = await Db.QueueEntries.FindAsync(id);
+        if (entry is not null)
+        {
+            entry.PosterUrl = await Posters.GeneratePosterAsync(entry.Title, entry.Artist, entry.SingerName);
+            await Db.SaveChangesAsync();
+        }
+        _posterLoading = false;
+        await RefreshQueue();
+    }
+
+    public void Dispose() => _pollTimer?.Dispose();
+}

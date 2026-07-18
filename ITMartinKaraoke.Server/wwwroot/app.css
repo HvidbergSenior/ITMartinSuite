@@ -1,0 +1,192 @@
+:root,
+html[data-theme="dark"] {
+    --bg-main: #0a0d14;
+    --bg-card: #171a26;
+    --bg-soft: #21253a;
+    --text-main: #f0f0f0;
+    --text-muted: #8890a6;
+    --accent: #a855f7;
+    --accent-hover: #9333ea;
+    --border: #2a2d3d;
+}
+
+html[data-theme="light"] {
+    --bg-main: #faf7fd;
+    --bg-card: #ffffff;
+    --bg-soft: #f1e9fb;
+    --text-main: #221933;
+    --text-muted: #6b6480;
+    --accent: #a855f7;
+    --accent-hover: #9333ea;
+    --border: #e3d8f2;
+}
+
+html, body {
+    margin: 0; padding: 0;
+    background: var(--bg-main);
+    color: var(--text-main);
+    font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.ka-root { min-height: 100vh; display: flex; flex-direction: column; }
+
+.ka-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 18px 80px;
+}
+
+.ka-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 24px;
+    margin-bottom: 18px;
+}
+
+.ka-title { font-size: 1.6rem; font-weight: 800; margin: 0 0 4px; text-align: center; }
+.ka-sub { color: var(--text-muted); text-align: center; margin: 0 0 18px; }
+
+.ka-btn-big {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 18px;
+    border: none;
+    color: white;
+    background: linear-gradient(135deg, #f472b6, #a855f7);
+    cursor: pointer;
+    margin-bottom: 14px;
+}
+.ka-btn-big:disabled { opacity: 0.5; cursor: default; }
+
+.ka-btn-ghost {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 16px;
+    border: 2px solid var(--border);
+    color: var(--text-main);
+    background: transparent;
+    cursor: pointer;
+    margin-bottom: 14px;
+}
+
+.ka-code {
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: 0.25em;
+    text-align: center;
+    color: var(--accent);
+    margin: 10px 0 18px;
+}
+
+.ka-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    font-size: 1.1rem;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: var(--bg-soft);
+    color: var(--text-main);
+    margin-bottom: 12px;
+}
+
+.ka-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ka-role-btn {
+    padding: 20px 10px;
+    border-radius: 18px;
+    border: 2px solid var(--border);
+    background: var(--bg-soft);
+    color: var(--text-main);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+}
+.ka-role-btn .icon { display: block; font-size: 2rem; margin-bottom: 6px; }
+
+.ka-search-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.ka-search-row input { flex: 1; }
+
+.ka-track-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px; border-radius: 14px; background: var(--bg-soft);
+    margin-bottom: 8px; cursor: pointer;
+}
+.ka-track-item img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+.ka-track-item .meta { flex: 1; min-width: 0; }
+.ka-track-item .meta .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ka-track-item .meta .a { font-size: 0.85rem; color: var(--text-muted); }
+
+.ka-queue-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-radius: 14px; background: var(--bg-soft); margin-bottom: 8px;
+}
+.ka-queue-item.playing { border: 2px solid var(--accent); }
+
+/* ── Stage / TV view ─────────────────────────────────────────── */
+
+.ka-stage {
+    min-height: 100vh;
+    background: #05060a;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    box-sizing: border-box;
+}
+.ka-stage-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
+.ka-stage-code { font-size: 1.4rem; font-weight: 800; color: #d8b4fe; letter-spacing: 0.15em; }
+.ka-stage-now { text-align: center; margin-bottom: 18px; }
+.ka-stage-now .singer { font-size: 1.6rem; font-weight: 800; color: #f9a8d4; }
+.ka-stage-now .song { font-size: 2.4rem; font-weight: 900; }
+.ka-stage-now .artist { font-size: 1.2rem; color: #c4b5fd; }
+
+.ka-lyrics {
+    flex: 1;
+    overflow-y: auto;
+    text-align: center;
+    font-size: 2rem;
+    line-height: 2;
+    scroll-behavior: smooth;
+}
+.ka-lyrics .line { color: #6b7280; transition: color .2s, transform .2s; }
+.ka-lyrics .line.active { color: #fff; font-weight: 800; transform: scale(1.06); }
+
+.ka-stage-controls { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+.ka-stage-controls button {
+    padding: 14px 22px; border-radius: 16px; border: none; font-size: 1rem; font-weight: 700;
+    cursor: pointer; color: #fff; background: #374151;
+}
+.ka-stage-controls button.primary { background: linear-gradient(135deg, #f472b6, #a855f7); }
+.ka-stage-controls button.rec { background: #dc2626; }
+.ka-stage-controls button.rec.active { animation: ka-pulse 1.2s infinite; }
+@keyframes ka-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+.ka-poster { max-width: 260px; border-radius: 16px; margin: 0 auto 16px; display: block; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+
+.ka-tips { background: rgba(255,255,255,.06); border-radius: 16px; padding: 14px 18px; margin-top: 14px; font-size: 1rem; white-space: pre-wrap; }
+
+/* ── Percussion pad ───────────────────────────────────────────── */
+
+.ka-pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ka-pad {
+    aspect-ratio: 1;
+    border-radius: 24px;
+    border: none;
+    font-size: 3rem;
+    color: white;
+    cursor: pointer;
+    user-select: none;
+}
+.ka-pad:active { transform: scale(0.94); }
+.ka-pad.clap { background: linear-gradient(135deg,#fbbf24,#f59e0b); }
+.ka-pad.drum { background: linear-gradient(135deg,#f472b6,#ec4899); }
+.ka-pad.tom  { background: linear-gradient(135deg,#60a5fa,#3b82f6); }
+.ka-pad.shaker { background: linear-gradient(135deg,#34d399,#10b981); }

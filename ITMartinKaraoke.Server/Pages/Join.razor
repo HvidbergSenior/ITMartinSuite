@@ -1,0 +1,86 @@
+@page "/join"
+@inject NavigationManager Nav
+@inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
+@inject IJSRuntime JS
+@using Microsoft.EntityFrameworkCore
+
+<div class="ka-page">
+    <div class="ka-card">
+        <h1 class="ka-title">Deltag</h1>
+        <p class="ka-sub">Tast koden fra TV-skærmen ind</p>
+
+        <input class="ka-input" style="text-align:center;font-size:1.6rem;letter-spacing:0.2em;text-transform:uppercase"
+               placeholder="KODE" maxlength="5" @bind="_code" @bind:event="oninput" />
+        <input class="ka-input" placeholder="Dit navn" maxlength="24" @bind="_name" @bind:event="oninput" />
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <p style="color:#ef4444;text-align:center">@_error</p>
+        }
+
+        <div class="ka-role-grid">
+            <button class="ka-role-btn" @onclick='() => JoinAs("remote")'>
+                <span class="icon">🎵</span>Vælg sange
+            </button>
+            <button class="ka-role-btn" @onclick='() => JoinAs("follow")'>
+                <span class="icon">📱</span>Følg teksten
+            </button>
+            <button class="ka-role-btn" @onclick='() => JoinAs("record")'>
+                <span class="icon">🎙</span>Optag min stemme
+            </button>
+            <button class="ka-role-btn" @onclick='() => JoinAs("percussion")'>
+                <span class="icon">🥁</span>Tromme med
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _code = "";
+    private string _name = "";
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var q = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        _code = q["code"] ?? await JS.InvokeAsync<string>("localStorage.getItem", "karaoke_code") ?? "";
+        _name = await JS.InvokeAsync<string>("localStorage.getItem", "karaoke_name") ?? "";
+    }
+
+    private async Task JoinAs(string role)
+    {
+        _error = null;
+        var code = _code.Trim().ToUpperInvariant();
+        var name = _name.Trim();
+
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+        {
+            _error = "Udfyld både kode og navn.";
+            return;
+        }
+
+        // "percussion" doesn't need a real session (it's just a local tap-pad),
+        // everything else must join an actual, still-active session.
+        if (role != "percussion")
+        {
+            var exists = await Db.Sessions.AnyAsync(s => s.Code == code);
+            if (!exists)
+            {
+                _error = "Koden findes ikke - tjek at du har tastet den rigtigt.";
+                return;
+            }
+        }
+
+        await JS.InvokeVoidAsync("localStorage.setItem", "karaoke_code", code);
+        await JS.InvokeVoidAsync("localStorage.setItem", "karaoke_name", name);
+
+        Nav.NavigateTo(role switch
+        {
+            "remote" => $"/remote/{code}?name={Uri.EscapeDataString(name)}",
+            "follow" => $"/follow/{code}",
+            "record" => $"/record/{code}?name={Uri.EscapeDataString(name)}",
+            _ => "/percussion",
+        });
+    }
+}

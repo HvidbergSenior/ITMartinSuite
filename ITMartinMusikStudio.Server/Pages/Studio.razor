@@ -439,15 +439,6 @@ else if (_song is not null)
                     title="Skift mellem 1 og 2 kolonner">
                 @(_twoColLyrics ? "⊞" : "☰")
             </button>
-            @if (!string.IsNullOrEmpty(_song.SpotifyTrackId))
-            {
-                <button class="btn-ghost-sm @(_karaokeActive ? "active" : "")"
-                        style="padding:5px 10px;font-size:0.8rem"
-                        @onclick="ToggleKaraoke"
-                        title="Afspil på Spotify og følg teksten med">
-                    @(_karaokeActive ? "⏹ Stop" : "🎤 Karaoke")
-                </button>
-            }
         </div>
 
         @if (_recordings.Any())
@@ -1412,43 +1403,10 @@ else if (_song is not null)
         _spotifyPlaying = true;
     }
 
-    // Actually pauses the Spotify audio - not just the lyric-sync poll (see
-    // ToggleKaraoke below, which used to only stop highlighting while the
-    // track kept playing underneath).
     private async Task StopSpotifyTrack()
     {
         await JS.InvokeVoidAsync("spotifyPlayer.pause");
-        if (_karaokeActive)
-        {
-            await JS.InvokeVoidAsync("spotifyPlayer.stopLyricSync");
-            _karaokeActive = false;
-        }
         _spotifyPlaying = false;
-    }
-
-    private bool _karaokeActive;
-
-    // Plays the linked Spotify track and starts polling playback position to
-    // highlight the matching line in #lyric-sync-container (see spotify.js) -
-    // pure client-side after this call, not driven by further Blazor round-trips.
-    private async Task ToggleKaraoke()
-    {
-        if (_song?.SpotifyTrackId is null) return;
-
-        if (_karaokeActive)
-        {
-            await JS.InvokeVoidAsync("spotifyPlayer.stopLyricSync");
-            await JS.InvokeVoidAsync("spotifyPlayer.pause");
-            _karaokeActive = false;
-            _spotifyPlaying = false;
-            return;
-        }
-
-        await JS.InvokeVoidAsync("spotifyPlayer.playTrack", _song.SpotifyTrackId);
-        if (!string.IsNullOrWhiteSpace(_song.SyncedLyrics))
-            await JS.InvokeVoidAsync("spotifyPlayer.startLyricSync", "lyric-sync-container");
-        _karaokeActive = true;
-        _spotifyPlaying = true;
     }
 
     private void OnKeyChanged(ChangeEventArgs e)

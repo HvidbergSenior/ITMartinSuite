@@ -1,0 +1,258 @@
+@page "/stage/{Code}"
+@implements IAsyncDisposable
+@using Microsoft.EntityFrameworkCore
+@inject IJSRuntime JS
+@inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
+@inject KaraokeAiService Ai
+
+<div class="ka-stage">
+    <div class="ka-stage-header">
+        <span class="ka-stage-code">KODE: @Code</span>
+        <span>@_queue.Count(q => q.Status == "Queued") i kø</span>
+    </div>
+
+    @if (_current is null)
+    {
+        <div class="ka-stage-now">
+            <div class="song">🎤 Ingen synger endnu</div>
+            <p>Gå ind på /join på jeres telefoner og tilføj sange til køen.</p>
+        </div>
+    }
+    else
+    {
+        <div class="ka-stage-now">
+            <div class="singer">@_current.SingerName synger</div>
+            <div class="song">@_current.Title</div>
+            <div class="artist">@_current.Artist</div>
+        </div>
+
+        @if (_current.PosterUrl is not null)
+        {
+            <img class="ka-poster" src="@_current.PosterUrl" />
+        }
+
+        <div id="lyric-box" class="ka-lyrics">
+            @if (_lyricLines.Count > 0)
+            {
+                @foreach (var (seconds, text) in _lyricLines)
+                {
+                    <div class="line" data-time="@seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)">@text</div>
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(_current.PlainLyrics))
+            {
+                @foreach (var line in _current.PlainLyrics.Split('\n'))
+                {
+                    <div class="line">@line</div>
+                }
+            }
+            else
+            {
+                <div class="line">(ingen sangtekst fundet - syng udenad! 🎶)</div>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_tips))
+        {
+            <div class="ka-tips">@_tips</div>
+        }
+    }
+
+    <div class="ka-stage-controls">
+        @if (!_playing)
+        {
+            <button class="primary" @onclick="StartNext">▶ Start / Næste</button>
+        }
+        else
+        {
+            <button @onclick="StopPlayback">⏹ Stop</button>
+            <button @onclick="StartNext">⏭ Næste</button>
+        }
+        @if (_current is not null)
+        {
+            <button @onclick="ToggleTips" disabled="@_tipsLoading">🎤 Syngetips</button>
+            @if (!_recording)
+            {
+                <button class="rec" @onclick="StartRecordingClick">⏺ Optag</button>
+            }
+            else
+            {
+                <button class="rec active" @onclick="StopRecordingClick">⏹ Stop optagelse</button>
+            }
+        }
+    </div>
+
+    <video id="ka-rec-preview" style="display:none" muted playsinline></video>
+
+    @if (_queue.Any(q => q.Status == "Queued"))
+    {
+        <div style="margin-top:24px">
+            <h3>Op næste</h3>
+            @foreach (var q in _queue.Where(x => x.Status == "Queued"))
+            {
+                <div class="ka-queue-item"><span>@q.Title - @q.Artist</span><span style="color:var(--text-muted)">@q.SingerName</span></div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private int _sessionId;
+    private List<Data.Entities.QueueEntry> _queue = [];
+    private Data.Entities.QueueEntry? _current;
+    private List<(double, string)> _lyricLines = [];
+    private bool _playing;
+    private bool _recording;
+    private string? _tips;
+    private bool _tipsLoading;
+
+    private System.Threading.Timer? _queueTimer;
+    private System.Threading.Timer? _positionTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Code == Code.ToUpperInvariant());
+        _sessionId = session?.Id ?? 0;
+
+        await RefreshQueue();
+        var playingNow = _queue.FirstOrDefault(q => q.Status == "Playing");
+        if (playingNow is not null) LoadCurrent(playingNow);
+
+        _queueTimer = new System.Threading.Timer(async _ => await InvokeAsync(async () =>
+        {
+            await RefreshQueue();
+            StateHasChanged();
+        }), null, 4000, 4000);
+    }
+
+    private async Task RefreshQueue()
+    {
+        _queue = await Db.QueueEntries
+            .Where(q => q.SessionId == _sessionId && q.Status != "Done")
+            .OrderBy(q => q.CreatedAt)
+            .ToListAsync();
+    }
+
+    private void LoadCurrent(Data.Entities.QueueEntry entry)
+    {
+        _current = entry;
+        _tips = null;
+        _lyricLines = LyricsService.ParseLrc(entry.SyncedLyrics ?? "");
+    }
+
+    private async Task StartNext()
+    {
+        await StopPlaybackInternal();
+
+        var playing = await Db.QueueEntries.FirstOrDefaultAsync(q => q.SessionId == _sessionId && q.Status == "Playing");
+        if (playing is not null) playing.Status = "Done";
+
+        var next = await Db.QueueEntries
+            .Where(q => q.SessionId == _sessionId && q.Status == "Queued")
+            .OrderBy(q => q.CreatedAt)
+            .FirstOrDefaultAsync();
+        if (next is not null) next.Status = "Playing";
+        await Db.SaveChangesAsync();
+
+        await RefreshQueue();
+
+        if (next is null) { _current = null; return; }
+
+        LoadCurrent(next);
+        _playing = true;
+
+        if (next.SpotifyTrackId is not null)
+        {
+            await JS.InvokeVoidAsync("spotifyPlayer.playTrack", next.SpotifyTrackId);
+            if (_lyricLines.Count > 0) await JS.InvokeVoidAsync("spotifyPlayer.startLyricSync", "lyric-box");
+        }
+        else if (next.SourceFile is not null)
+        {
+            await JS.InvokeVoidAsync("karaoke.playLocal", $"/library-stream?path={Uri.EscapeDataString(next.SourceFile)}");
+            if (_lyricLines.Count > 0) await JS.InvokeVoidAsync("karaoke.startLyricSyncLocal", "lyric-box");
+        }
+
+        var entryId = next.Id;
+        var isSpotify = next.SpotifyTrackId is not null;
+        _positionTimer = new System.Threading.Timer(async _ => await BroadcastPosition(entryId, isSpotify), null, 1000, 1000);
+    }
+
+    private async Task BroadcastPosition(int entryId, bool isSpotify)
+    {
+        try
+        {
+            var state = isSpotify
+                ? await JS.InvokeAsync<PlaybackState?>("spotifyPlayer.getState")
+                : await JS.InvokeAsync<PlaybackState?>("karaoke.getLocalState");
+            if (state is null) return;
+
+            using var scope = ScopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<Data.KaraokeDbContext>();
+            var entry = await db.QueueEntries.FindAsync(entryId);
+            if (entry is null) return;
+            entry.PositionMs = (int)state.PositionMs;
+            entry.PositionUpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+        catch { }
+    }
+
+    [Inject] private IServiceScopeFactory ScopeFactory { get; set; } = null!;
+
+    private async Task StopPlayback() => await StopPlaybackInternal();
+
+    private async Task StopPlaybackInternal()
+    {
+        if (!_playing) return;
+        _positionTimer?.Dispose();
+        _positionTimer = null;
+
+        if (_current?.SpotifyTrackId is not null)
+        {
+            await JS.InvokeVoidAsync("spotifyPlayer.stopLyricSync");
+            await JS.InvokeVoidAsync("spotifyPlayer.pause");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("karaoke.stopLocal");
+        }
+        _playing = false;
+    }
+
+    private async Task ToggleTips()
+    {
+        if (_current is null) return;
+        if (_tips is not null) { _tips = null; return; }
+
+        _tipsLoading = true;
+        _tips = Ai.IsAvailable
+            ? await Ai.GetSingAlongTipsAsync(_current.Title, _current.Artist, _current.PlainLyrics ?? "")
+            : "";
+        if (string.IsNullOrWhiteSpace(_tips)) _tips = "Ingen tips lige nu.";
+        _tipsLoading = false;
+    }
+
+    private async Task StartRecordingClick()
+    {
+        await JS.InvokeVoidAsync("karaoke.startRecording", true, null);
+        _recording = true;
+    }
+
+    private async Task StopRecordingClick()
+    {
+        if (_current is null) return;
+        await JS.InvokeVoidAsync("karaoke.stopRecording", _current.Id, "stage");
+        _recording = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _queueTimer?.Dispose();
+        _positionTimer?.Dispose();
+        try { await StopPlaybackInternal(); } catch { }
+    }
+
+    private record PlaybackState(double PositionMs, double DurationMs, bool Paused);
+}

@@ -1,0 +1,104 @@
+@page "/record/{Code}"
+@implements IDisposable
+@using Microsoft.EntityFrameworkCore
+@inject IJSRuntime JS
+@inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
+
+<div class="ka-page">
+    <div class="ka-card">
+        <h1 class="ka-title">🎙 Optag din stemme</h1>
+        <p class="ka-sub">Hold telefonen tæt på dig selv - denne optagelse gemmes for sig, den blandes ikke automatisk med de andres.</p>
+
+        @if (_current is null)
+        {
+            <p class="ka-sub">Ingen synger endnu - vent til nogen starter en sang.</p>
+        }
+        else
+        {
+            <p style="text-align:center;font-weight:700">@_current.SingerName synger "@_current.Title"</p>
+
+            @if (_devices.Count > 1)
+            {
+                <select class="ka-input" @bind="_deviceId">
+                    @foreach (var d in _devices)
+                    {
+                        <option value="@d.DeviceId">@d.Label</option>
+                    }
+                </select>
+            }
+
+            @if (!_recording)
+            {
+                <button class="ka-btn-big" @onclick="Start">⏺ Start optagelse</button>
+            }
+            else
+            {
+                <button class="ka-btn-big" style="background:#dc2626" @onclick="Stop">⏹ Stop og gem</button>
+            }
+
+            @if (_saved)
+            {
+                <p class="ka-sub" style="color:#22c55e">Gemt! 🎉</p>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+    [SupplyParameterFromQuery] public string? Name { get; set; }
+
+    private int _sessionId;
+    private Data.Entities.QueueEntry? _current;
+    private bool _recording;
+    private bool _saved;
+    private List<AudioDevice> _devices = [];
+    private string? _deviceId;
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Code == Code.ToUpperInvariant());
+        _sessionId = session?.Id ?? 0;
+        await Poll();
+
+        _timer = new System.Threading.Timer(async _ => await InvokeAsync(async () =>
+        {
+            if (!_recording) { await Poll(); StateHasChanged(); }
+        }), null, 3000, 3000);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try { _devices = await JS.InvokeAsync<List<AudioDevice>>("karaoke.listAudioInputs"); StateHasChanged(); }
+            catch { }
+        }
+    }
+
+    private async Task Poll()
+    {
+        _current = await Db.QueueEntries.FirstOrDefaultAsync(q => q.SessionId == _sessionId && q.Status == "Playing");
+    }
+
+    private async Task Start()
+    {
+        _saved = false;
+        await JS.InvokeVoidAsync("karaoke.startRecording", false, _deviceId);
+        _recording = true;
+    }
+
+    private async Task Stop()
+    {
+        if (_current is null) return;
+        var label = string.IsNullOrWhiteSpace(Name) ? "gæst" : Name;
+        var ok = await JS.InvokeAsync<bool>("karaoke.stopRecording", _current.Id, label);
+        _recording = false;
+        _saved = ok;
+    }
+
+    public void Dispose() => _timer?.Dispose();
+
+    private record AudioDevice(string DeviceId, string Label);
+}

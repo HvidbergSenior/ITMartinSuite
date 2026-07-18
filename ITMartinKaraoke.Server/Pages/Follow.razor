@@ -1,0 +1,89 @@
+@page "/follow/{Code}"
+@implements IDisposable
+@using Microsoft.EntityFrameworkCore
+@inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
+
+<div class="ka-stage" style="padding:16px">
+    @if (_current is null)
+    {
+        <div class="ka-stage-now"><div class="song">🎤 Ingen synger endnu</div></div>
+    }
+    else
+    {
+        <div class="ka-stage-now" style="margin-bottom:10px">
+            <div class="singer">@_current.SingerName synger</div>
+            <div class="song" style="font-size:1.6rem">@_current.Title</div>
+        </div>
+
+        <div class="ka-lyrics" style="font-size:1.3rem">
+            @if (_lyricLines.Count > 0)
+            {
+                @for (var i = 0; i < _lyricLines.Count; i++)
+                {
+                    var active = i == _activeIndex;
+                    <div class="line @(active ? "active" : "")">@_lyricLines[i].Item2</div>
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(_current.PlainLyrics))
+            {
+                @foreach (var line in _current.PlainLyrics.Split('\n'))
+                {
+                    <div class="line">@line</div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private int _sessionId;
+    private Data.Entities.QueueEntry? _current;
+    private List<(double, string)> _lyricLines = [];
+    private int _activeIndex = -1;
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = await Db.Sessions.FirstOrDefaultAsync(s => s.Code == Code.ToUpperInvariant());
+        _sessionId = session?.Id ?? 0;
+        await Poll();
+
+        _timer = new System.Threading.Timer(async _ => await InvokeAsync(async () =>
+        {
+            await Poll();
+            StateHasChanged();
+        }), null, 1000, 1000);
+    }
+
+    private async Task Poll()
+    {
+        var playing = await Db.QueueEntries.FirstOrDefaultAsync(q => q.SessionId == _sessionId && q.Status == "Playing");
+
+        if (playing is null) { _current = null; _lyricLines = []; _activeIndex = -1; return; }
+
+        if (_current is null || _current.Id != playing.Id)
+        {
+            _current = playing;
+            _lyricLines = LyricsService.ParseLrc(playing.SyncedLyrics ?? "");
+        }
+        else
+        {
+            _current = playing;
+        }
+
+        if (_lyricLines.Count > 0 && playing.PositionMs is int posMs)
+        {
+            var posSec = posMs / 1000.0;
+            var idx = -1;
+            for (var i = 0; i < _lyricLines.Count; i++)
+            {
+                if (_lyricLines[i].Item1 <= posSec) idx = i; else break;
+            }
+            _activeIndex = idx;
+        }
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}
