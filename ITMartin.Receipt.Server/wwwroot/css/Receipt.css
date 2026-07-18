@@ -587,34 +587,6 @@ LIDL PLUS KUPON
 }
 
 /* =========================================
-STORE HINT (optional template picker)
-========================================= */
-
-.store-hint-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-}
-
-.store-hint-label {
-    font-size: 16px;
-    color: #94a3b8;
-}
-
-.store-hint-select {
-    flex: 1;
-    min-width: 200px;
-    padding: 12px 16px;
-    font-size: 17px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.15);
-    color: white;
-}
-
-/* =========================================
 LOYALTY ACCOUNT
 ========================================= */
 

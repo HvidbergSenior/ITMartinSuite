@@ -65,7 +65,7 @@
                             <div>
                                 <div class="receipt-history-merchant">
                                     @(string.IsNullOrWhiteSpace(tx.MerchantName) ? "Ukendt butik" : tx.MerchantName)
-                                    @if (tx.IsTemplate) { <span class="template-badge">Skabelon</span> }
+                                    @if (tx.IsTemplate) { <span class="template-badge" title="Denne kvittering bruges til at læse fremtidige kvitteringer fra samme butik bedre">Reference</span> }
                                 </div>
                                 <div class="text-muted" style="font-size:13px; margin-top:4px;">
                                     @tx.ScannedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
@@ -81,10 +81,6 @@
                                     <div class="receipt-history-total">@tx.Currency @tx.TotalAmount.Value.ToString("F2")</div>
                                 }
                                 <a class="btn btn-sm btn-outline-secondary" href="@($"/history/{tx.Id}")">Vis</a>
-                                <button class="btn btn-sm @(tx.IsTemplate ? "btn-warning" : "btn-outline-secondary")"
-                                        @onclick="() => ToggleTemplate(tx)">
-                                    @(tx.IsTemplate ? "Fjern skabelon" : "Sæt som skabelon")
-                                </button>
                                 @if (_deleteConfirmId == tx.Id)
                                 {
                                     <button class="btn btn-sm btn-danger"     @onclick="() => ConfirmDelete(tx.Id)">✓ Slet</button>
@@ -157,12 +153,6 @@
         _totalSpend = _transactions
             .Where(x => x.Currency == "DKK" && x.TotalAmount.HasValue)
             .Sum(x => x.TotalAmount!.Value);
-    }
-
-    private async Task ToggleTemplate(ReceiptTransaction tx)
-    {
-        tx.IsTemplate = !tx.IsTemplate;
-        await ReceiptRepository.SetTemplateAsync(tx.Id, tx.IsTemplate);
     }
 
     private void AskDelete(Guid id)   => _deleteConfirmId = id;

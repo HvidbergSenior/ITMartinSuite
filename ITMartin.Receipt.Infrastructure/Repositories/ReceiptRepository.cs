@@ -17,6 +17,19 @@ public sealed class ReceiptRepository : IReceiptRepository
         ReceiptTransaction transaction,
         CancellationToken cancellationToken = default)
     {
+        // Auto-learning: only one reference example is kept per merchant. When this
+        // scan is good enough to become the new one, retire whichever one held that
+        // role before it - no user action involved on either end.
+        if (transaction.IsTemplate && !string.IsNullOrWhiteSpace(transaction.MerchantName))
+        {
+            var previousReferences = await _db.Transactions
+                .Where(x => x.IsTemplate && x.MerchantName.ToLower() == transaction.MerchantName.ToLower())
+                .ToListAsync(cancellationToken);
+
+            foreach (var previous in previousReferences)
+                previous.IsTemplate = false;
+        }
+
         _db.Transactions.Add(transaction);
         await _db.SaveChangesAsync(cancellationToken);
     }
@@ -39,17 +52,6 @@ public sealed class ReceiptRepository : IReceiptRepository
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public async Task SetTemplateAsync(
-        Guid id,
-        bool isTemplate,
-        CancellationToken cancellationToken = default)
-    {
-        var tx = await _db.Transactions.FindAsync([id], cancellationToken);
-        if (tx is null) return;
-        tx.IsTemplate = isTemplate;
-        await _db.SaveChangesAsync(cancellationToken);
-    }
-
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var tx = await _db.Transactions
@@ -67,13 +69,12 @@ public sealed class ReceiptRepository : IReceiptRepository
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<List<ReceiptTransaction>> GetTemplatesAsync(
+    public async Task<ReceiptTransaction?> GetReferenceAsync(
+        string merchantName,
         CancellationToken cancellationToken = default)
     {
         return await _db.Transactions
             .Include(x => x.Items)
-            .Where(x => x.IsTemplate)
-            .OrderBy(x => x.MerchantName)
-            .ToListAsync(cancellationToken);
+            .FirstOrDefaultAsync(x => x.IsTemplate && x.MerchantName.ToLower() == merchantName.ToLower(), cancellationToken);
     }
 }

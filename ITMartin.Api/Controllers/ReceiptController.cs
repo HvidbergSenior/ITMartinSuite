@@ -38,7 +38,6 @@ public sealed class ReceiptController
         var result =
             await _orchestrator.ExecuteAsync(
                 path,
-                null,
                 cancellationToken);
 
         return Ok(result);

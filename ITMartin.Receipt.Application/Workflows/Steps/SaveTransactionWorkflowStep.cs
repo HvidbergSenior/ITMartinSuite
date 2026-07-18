@@ -51,6 +51,17 @@ public sealed class SaveTransactionWorkflowStep
         var purchaseDate = DateTime.TryParse(extraction.PurchaseDate, out var d) ? d : (DateTime?)null;
         var imageFileName = Path.GetFileName(context.State.ImagePath);
 
+        // Auto-learning: a scan with no suspicious items whose item total reconciles
+        // with the printed total is trustworthy enough to become this merchant's new
+        // reference example for future scans - no user action involved.
+        var itemsNet = appItems.Sum(x => (x.OriginalPrice ?? 0) + (x.DiscountAmount ?? 0));
+        var reconciles = extraction.TotalAmount is null || Math.Abs(itemsNet - extraction.TotalAmount.Value) <= 1.0m;
+        var isGoodReference =
+            appItems.Count > 0
+            && !appItems.Any(x => x.IsSuspicious)
+            && reconciles
+            && !string.IsNullOrWhiteSpace(extraction.MerchantName);
+
         context.State.Transaction =
             new ReceiptTransaction
             {
@@ -83,7 +94,8 @@ public sealed class SaveTransactionWorkflowStep
                         IsSuspicious   = x.IsSuspicious
                     })
                     .ToList(),
-                ImageFileName = imageFileName
+                ImageFileName = imageFileName,
+                IsTemplate = isGoodReference
             };
 
         await _repository.SaveAsync(domainTransaction, cancellationToken);

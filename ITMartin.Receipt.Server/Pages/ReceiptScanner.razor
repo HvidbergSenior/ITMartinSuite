@@ -7,30 +7,26 @@
 @using ITMartin.Receipt.Application.Workflows
 @using ITMartin.Receipt.Server.Components
 @using Microsoft.JSInterop
-@using DomainEntities = ITMartin.Receipt.Domain.Entities
 
 @inject IJSRuntime JS
 @inject IReceiptWorkflowOrchestrator ReceiptOrchestrator
-@inject IReceiptRepository ReceiptRepository
 @implements IAsyncDisposable
 
 <PageTitle>Kvitteringer</PageTitle>
 
 <div class="scanner-page">
 
-    @if (_templates.Count > 0)
+    <ProblemPurposeBanner
+        Problem="Det er svært at se på en kvittering, hvad du faktisk fik rabat på, og nemt at overse særlige medlemsfordele som LidlPlus konto eller Fordelskort."
+        Formaal="Tag et billede af kvitteringen og få med det samme et overblik: hvad der var rabat på, hvad der ikke var, og eventuelle medlemsfordele." />
+
+    <HowToUseBanner Steps='@(new[]
     {
-        <div class="store-hint-row">
-            <label for="storeHint" class="store-hint-label">Butik (valgfrit)</label>
-            <select id="storeHint" class="store-hint-select" @bind="_selectedTemplateIdRaw">
-                <option value="">Automatisk genkendelse</option>
-                @foreach (var t in _templates)
-                {
-                    <option value="@t.Id">@t.MerchantName</option>
-                }
-            </select>
-        </div>
-    }
+        "Tag et billede af kvitteringen mens du stadig står i butikken — eller lige når du kommer hjem.",
+        "Se med det samme, hvad du fik rabat på, og hvad du ikke gjorde.",
+        "Find en tidligere kvittering igen under Historik, også dage senere — sammenlign billedet med det, appen læste ud af det.",
+        "Appen husker selv, hvordan den skal læse en given butiks kvitteringer bedre og bedre — du skal ikke gøre noget for det."
+    })' />
 
     <div class="scanner-wrapper">
 
@@ -136,19 +132,17 @@
     private bool _disposed;
     private ReceiptContext? _context;
     private double _zoom = 1.0;
-    private List<DomainEntities.ReceiptTransaction> _templates = [];
-    private string? _selectedTemplateIdRaw;
 
     private void ZoomIn()  => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
     private void ZoomOut() => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
 
-    private readonly Channel<(string ImagePath, Guid? TemplateId)> _workChannel =
-        Channel.CreateBounded<(string, Guid?)>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
+    private readonly Channel<string> _workChannel =
+        Channel.CreateBounded<string>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
-        _templates = await ReceiptRepository.GetTemplatesAsync();
         _ = RunWorkerAsync();
+        return Task.CompletedTask;
     }
 
     public async ValueTask DisposeAsync()
@@ -160,12 +154,12 @@
 
     private async Task RunWorkerAsync()
     {
-        await foreach (var (imagePath, templateId) in _workChannel.Reader.ReadAllAsync())
+        await foreach (var imagePath in _workChannel.Reader.ReadAllAsync())
         {
             if (_disposed) break;
             try
             {
-                var result = await ReceiptOrchestrator.ExecuteAsync(imagePath, templateId, CancellationToken.None);
+                var result = await ReceiptOrchestrator.ExecuteAsync(imagePath, CancellationToken.None);
                 await InvokeAsync(() =>
                 {
                     _context = result;
@@ -227,8 +221,7 @@
 
             _capturedImage = $"data:image/jpeg;base64,{clean}";
             _statusText = "Analyserer kvittering...";
-            var templateId = Guid.TryParse(_selectedTemplateIdRaw, out var parsed) ? parsed : (Guid?)null;
-            _workChannel.Writer.TryWrite((imagePath, templateId));
+            _workChannel.Writer.TryWrite(imagePath);
             StateHasChanged();
         }
         catch (Exception ex)

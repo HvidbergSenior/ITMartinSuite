@@ -27,40 +27,34 @@ public sealed class AiReceiptExtractionWorkflowStep
         WorkflowExecutionContext<ReceiptContext> context,
         CancellationToken cancellationToken = default)
     {
-        var template = await ResolveTemplateAsync(context.State.SelectedTemplateId, cancellationToken);
+        var hasOcrText = !string.IsNullOrWhiteSpace(context.State.OcrText);
 
-        var result = !string.IsNullOrWhiteSpace(context.State.OcrText)
-            ? await _receiptExtractionService.ExtractAsync(
-                context.State.OcrText,
-                template,
-                cancellationToken)
-            : await _receiptExtractionService.ExtractFromImageAsync(
-                context.State.ImagePath,
-                template,
-                cancellationToken);
+        // First pass: identify the merchant, with no reference yet.
+        var initial = hasOcrText
+            ? await _receiptExtractionService.ExtractAsync(context.State.OcrText!, null, cancellationToken)
+            : await _receiptExtractionService.ExtractFromImageAsync(context.State.ImagePath, null, cancellationToken);
 
-        context.State.ExtractionResult = result;
-    }
+        var reference = !string.IsNullOrWhiteSpace(initial.MerchantName)
+            ? await _repository.GetReferenceAsync(initial.MerchantName, cancellationToken)
+            : null;
 
-    private async Task<ReceiptExtractionResult?> ResolveTemplateAsync(
-        Guid? selectedTemplateId,
-        CancellationToken cancellationToken)
-    {
-        if (selectedTemplateId is null)
-            return null;
-
-        var templateTx = await _repository.GetByIdAsync(selectedTemplateId.Value, cancellationToken);
-        if (templateTx is null)
-            return null;
-
-        return new ReceiptExtractionResult
+        if (reference is null)
         {
-            MerchantName = templateTx.MerchantName,
-            PurchaseDate = templateTx.PurchaseDate?.ToString("yyyy-MM-dd"),
-            TotalAmount = templateTx.TotalAmount,
-            VatAmount = templateTx.VatAmount,
-            Currency = templateTx.Currency,
-            Items = templateTx.Items
+            context.State.ExtractionResult = initial;
+            return;
+        }
+
+        // A learned reference exists for this merchant from a previous, internally-
+        // consistent scan - re-extract using it to calibrate this store's quirks
+        // (quantity layouts, discount wording, loyalty section, etc.) automatically.
+        var template = new ReceiptExtractionResult
+        {
+            MerchantName = reference.MerchantName,
+            PurchaseDate = reference.PurchaseDate?.ToString("yyyy-MM-dd"),
+            TotalAmount = reference.TotalAmount,
+            VatAmount = reference.VatAmount,
+            Currency = reference.Currency,
+            Items = reference.Items
                 .Select(i => new ReceiptLineItem
                 {
                     Description = i.Description,
@@ -70,5 +64,11 @@ public sealed class AiReceiptExtractionWorkflowStep
                 })
                 .ToList()
         };
+
+        var refined = hasOcrText
+            ? await _receiptExtractionService.ExtractAsync(context.State.OcrText!, template, cancellationToken)
+            : await _receiptExtractionService.ExtractFromImageAsync(context.State.ImagePath, template, cancellationToken);
+
+        context.State.ExtractionResult = refined;
     }
 }
