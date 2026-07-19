@@ -1,0 +1,147 @@
+@page "/"
+
+<div class="mc-page">
+    <div class="mc-card">
+        <div style="font-size:3rem;text-align:center">🎵</div>
+        <h1 class="mc-title">Musik-tjek</h1>
+        <p class="mc-sub">Er denne sang fri til at bruge?</p>
+
+        <ProblemPurposeBanner
+            Problem="Det er umuligt at vide, om en sang må bruges i en video eller deles - og der findes ingen liste, der siger 'ja' til almindelig kommerciel musik."
+            Formaal="Tjek en sang op mod kendte gratis-kataloger (Jamendo, ccMixter). Findes den der, får du licensen at se. Findes den ikke, må du gå ud fra at den IKKE må deles." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Skriv sangens titel (og evt. kunstner) og tryk 'Tjek'.",
+            "Hvis sangen findes i et af de gratis-kataloger, ser du licensen direkte - den må bruges efter de vilkår.",
+            "Hvis intet findes, betyder det IKKE at sangen er fri - det betyder bare at den ikke er fundet i et gratis-katalog. Gå ud fra at almindelig kommerciel musik (fra CD, Spotify, streaming) kræver en rigtig licens for at må deles."
+        })' />
+
+        <div class="mc-search-row">
+            <input id="mc-title" class="mc-input" placeholder="Sangtitel" />
+            <input id="mc-artist" class="mc-input" placeholder="Kunstner (valgfrit)" />
+        </div>
+        <button id="mc-btn" class="mc-btn-big">🔍 Tjek</button>
+
+        <div id="mc-result"></div>
+    </div>
+
+    <div class="mc-card">
+        <h2 style="margin-top:0">📷 Tag billede af CD'er</h2>
+        <p class="mc-sub" style="text-align:left">Ét eller flere billeder ad gangen - af forsiden, bagsiden med sportliste, eller en hel stak/hylde. AI genkender hver CD og tjekker automatisk alle numre.</p>
+
+        <input id="mc-cd-photos" type="file" accept="image/*" capture="environment" multiple class="mc-input" style="padding:10px" />
+        <button id="mc-scan-btn" class="mc-btn-big" style="margin-top:10px">📷 Scan</button>
+
+        <div id="mc-scan-result"></div>
+    </div>
+
+    <div class="mc-card" style="text-align:center">
+        <a href="/regler" style="color:var(--accent);font-weight:700;text-decoration:none">📖 Se de generelle regler for musik, film og CD'er →</a>
+    </div>
+</div>
+
+<script>
+(function () {
+    var btn = document.getElementById('mc-btn');
+    var result = document.getElementById('mc-result');
+
+    btn.addEventListener('click', function () {
+        var title = document.getElementById('mc-title').value.trim();
+        var artist = document.getElementById('mc-artist').value.trim();
+        if (!title) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Tjekker...';
+        result.innerHTML = '';
+
+        fetch('/api/check?title=' + encodeURIComponent(title) + '&artist=' + encodeURIComponent(artist))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.found) {
+                    result.innerHTML =
+                        '<div class="mc-notfound">' +
+                        '❌ Ikke fundet i kendte gratis-kataloger.<br>' +
+                        'Gå ud fra at denne sang <strong>ikke</strong> er fri til at dele - kun rigtig licens (eller royalty-fri erstatning) gør den det.' +
+                        '</div>';
+                    return;
+                }
+
+                var html = '<div class="mc-found">✅ Fundet ' + data.matches.length + ' sted(er) - tjek licensvilkårene:</div>';
+                data.matches.forEach(function (m) {
+                    html += '<div class="mc-match">' +
+                        '<div class="mc-match-title">' + escapeHtml(m.trackName) + ' - ' + escapeHtml(m.artistName) + '</div>' +
+                        '<div class="mc-match-source">Kilde: ' + escapeHtml(m.source) + ' · Licens: ' + escapeHtml(m.licenseName) + '</div>' +
+                        (m.licenseUrl ? '<a href="' + m.licenseUrl + '" target="_blank">Se licensvilkår</a>' : '') +
+                        (m.pageUrl ? ' · <a href="' + m.pageUrl + '" target="_blank">Se sang</a>' : '') +
+                        '</div>';
+                });
+                result.innerHTML = html;
+            })
+            .catch(function () {
+                result.innerHTML = '<div class="mc-notfound">Der skete en fejl - prøv igen.</div>';
+            })
+            .finally(function () {
+                btn.disabled = false;
+                btn.textContent = '🔍 Tjek';
+            });
+    });
+
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+    }
+
+    // ── CD photo scan ────────────────────────────────────────────────────
+    var scanBtn = document.getElementById('mc-scan-btn');
+    var scanInput = document.getElementById('mc-cd-photos');
+    var scanResult = document.getElementById('mc-scan-result');
+
+    scanBtn.addEventListener('click', function () {
+        if (!scanInput.files || scanInput.files.length === 0) return;
+
+        var formData = new FormData();
+        for (var i = 0; i < scanInput.files.length; i++) formData.append('files', scanInput.files[i]);
+
+        scanBtn.disabled = true;
+        scanBtn.textContent = 'Genkender og tjekker...';
+        scanResult.innerHTML = '';
+
+        fetch('/api/scan-cds', { method: 'POST', body: formData })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.cds || data.cds.length === 0) {
+                    scanResult.innerHTML = '<div class="mc-notfound">Ingen CD\'er genkendt i billedet/billederne.</div>';
+                    return;
+                }
+
+                var html = '';
+                data.cds.forEach(function (cd) {
+                    html += '<div class="mc-match" style="margin-top:14px">';
+                    html += '<div class="mc-match-title">' + escapeHtml(cd.album) + ' - ' + escapeHtml(cd.artist) + '</div>';
+
+                    if (!cd.tracks || cd.tracks.length === 0) {
+                        html += '<div class="mc-match-source">Ingen sportliste fundet på billedet.</div>';
+                    } else {
+                        cd.tracks.forEach(function (t) {
+                            var badge = t.found
+                                ? '<span style="color:#10b981">✅ fundet (' + t.matches[0].source + ')</span>'
+                                : '<span style="color:#ef4444">❌ ikke fundet - antag ikke cleared</span>';
+                            html += '<div style="padding:4px 0;font-size:0.9rem">' + escapeHtml(t.title) + ' - ' + badge + '</div>';
+                        });
+                    }
+                    html += '</div>';
+                });
+                scanResult.innerHTML = html;
+            })
+            .catch(function () {
+                scanResult.innerHTML = '<div class="mc-notfound">Der skete en fejl - prøv igen.</div>';
+            })
+            .finally(function () {
+                scanBtn.disabled = false;
+                scanBtn.textContent = '📷 Scan';
+            });
+    });
+})();
+</script>

@@ -28,6 +28,10 @@ public static class DependencyInjection
             ClaudeLibraryShelfRecognitionService>();
 
         services.AddSingleton<
+            ICdRecognitionService,
+            ClaudeCdRecognitionService>();
+
+        services.AddSingleton<
             IReceiptExtractionService,
             ClaudeReceiptExtractionService>();
 
