@@ -400,6 +400,28 @@ else if (_song is not null)
                 }
             </div>
 
+            <!-- AI chord-placement preview - "Sæt akkorder" no longer writes
+                 straight into the lyrics. Placement (which word a chord lands
+                 on) is a judgment call the model can get wrong even when the
+                 words themselves are preserved (PreservesWords only catches
+                 word changes, not bad positions) - a PDF-sourced chord chart
+                 in particular gave a real, confirmed-wrong placement here.
+                 Showing the candidate first turns that into something you
+                 catch before it's saved, not after. -->
+            @if (_annotateCandidate is not null)
+            {
+                <div class="studio-card" style="border:1px solid var(--accent,#7c5cff)">
+                    <div class="card-header">
+                        <div class="card-label">🤖 Forslag til akkord-placering - tjek før du bruger det</div>
+                    </div>
+                    <pre style="white-space:pre-wrap;font-family:inherit;max-height:320px;overflow:auto;font-size:0.85rem;margin:0">@_annotateCandidate</pre>
+                    <div style="display:flex;gap:8px;margin-top:10px">
+                        <button class="btn-primary" @onclick="AcceptAnnotateCandidate">✓ Brug denne</button>
+                        <button class="btn-ghost" @onclick="DiscardAnnotateCandidate">✕ Kassér</button>
+                    </div>
+                </div>
+            }
+
             <!-- Notes -->
             <div class="studio-card">
                 <div class="card-header">
@@ -2545,6 +2567,16 @@ else if (_song is not null)
     private void SyncChordsFromLyrics()
     {
         if (!HasInlineChords) return;
+        // Once Akkorder has ANY content - typed by hand, pasted, or
+        // auto-generated earlier - it's the user's field from then on. This
+        // used to regenerate unconditionally on every lyrics keystroke AND on
+        // every page load (see OnInitializedAsync), which silently reverted
+        // manual corrections back to the auto-derived chart - a real, reported
+        // bug: hand-fixing a bad PDF-sourced chord chart kept reappearing
+        // wrong. Only auto-fill while the field is still genuinely empty (a
+        // brand new song); clearing it out is the escape hatch to force a
+        // fresh regenerate.
+        if (!string.IsNullOrWhiteSpace(_chordEdit)) return;
         var rx = new System.Text.RegularExpressions.Regex(@"\[([A-G][^\]]*)\]");
         var lines = new List<string>();
         string? currentSection = null;
@@ -2579,10 +2611,13 @@ else if (_song is not null)
 
     // ── Chord annotation ──────────────────────────────────────────────────────
 
+    private string? _annotateCandidate;
+
     private async Task AiAnnotateChords()
     {
         if (_song is null || string.IsNullOrWhiteSpace(_lyricsEdit)) return;
         _annotatingChords = true;
+        _annotateCandidate = null;
         StateHasChanged();
         try
         {
@@ -2599,8 +2634,14 @@ else if (_song is not null)
             }
             else
             {
-                _lyricsEdit = result;
-                AutoSave();
+                // Word-fidelity passing only proves the AI kept the right
+                // words - it says nothing about whether it put the [Chord]
+                // markers on the right ONES. Placement is a judgment call the
+                // model can get wrong (confirmed: a PDF-sourced chord chart
+                // produced a bad placement that kept reappearing until this
+                // review step existed), so the candidate waits for an
+                // explicit accept instead of overwriting the lyrics directly.
+                _annotateCandidate = result;
             }
         }
         catch (Exception ex)
@@ -2612,6 +2653,16 @@ else if (_song is not null)
             _annotatingChords = false;
         }
     }
+
+    private void AcceptAnnotateCandidate()
+    {
+        if (_annotateCandidate is null) return;
+        _lyricsEdit = _annotateCandidate;
+        _annotateCandidate = null;
+        AutoSave();
+    }
+
+    private void DiscardAnnotateCandidate() => _annotateCandidate = null;
 
     // ── Simplify chords ───────────────────────────────────────────────────────
 
