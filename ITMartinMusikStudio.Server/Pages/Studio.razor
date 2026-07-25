@@ -1683,8 +1683,9 @@ else if (_song is not null)
         var semitones = RootIndex(newKey) - RootIndex(_song.MusicKey);
         if (semitones != 0)
         {
-            _lyricsEdit = TransposeChordsInText(_lyricsEdit, semitones);
-            _chordEdit  = TransposeChordChart(_chordEdit, semitones);
+            var useFlats = PrefersFlats(_lyricsEdit, _chordEdit);
+            _lyricsEdit = TransposeChordsInText(_lyricsEdit, semitones, useFlats);
+            _chordEdit  = TransposeChordChart(_chordEdit, semitones, useFlats);
         }
         _song.MusicKey = newKey;
         AutoSave();
@@ -1702,9 +1703,10 @@ else if (_song is not null)
     private void AdjustT(int d)
     {
         if (d == 0 || _song is null) return;
-        _lyricsEdit    = TransposeChordsInText(_lyricsEdit, d);
-        _chordEdit     = TransposeChordChart(_chordEdit, d);
-        _song.MusicKey = TransposeNote(_song.MusicKey, d);
+        var useFlats = PrefersFlats(_lyricsEdit, _chordEdit);
+        _lyricsEdit    = TransposeChordsInText(_lyricsEdit, d, useFlats);
+        _chordEdit     = TransposeChordChart(_chordEdit, d, useFlats);
+        _song.MusicKey = TransposeNote(_song.MusicKey, d, useFlats);
         AutoSave();
     }
 
@@ -1720,7 +1722,27 @@ else if (_song is not null)
         return idx >= 0 ? idx : Math.Max(0, Array.IndexOf(NotesFlat, root));
     }
 
-    private static string TransposeNote(string chord, int semitones)
+    // Which spelling to use for accidentals introduced by a transpose -
+    // decided ONCE per transpose call from the song's existing notation, not
+    // per chord. Per-chord inference (going by whether THIS chord's root was
+    // already flat-spelled) silently loses the preference the moment a
+    // chord passes through an unambiguous natural: "Bb" transposed up a
+    // half-step becomes "B" (no accidental, no flat/sharp memory left), and
+    // transposing back down from bare "B" has nothing left to tell it should
+    // land on "Bb" rather than "A#" - a reported regression from exactly
+    // that round-trip. Deciding it once at the operation level survives that.
+    private static readonly string[] FlatRoots = ["Db", "Eb", "Gb", "Ab", "Bb"];
+
+    private static bool PrefersFlats(string lyrics, string chordChart)
+    {
+        var lyricChords = System.Text.RegularExpressions.Regex
+            .Matches(lyrics ?? "", @"\[([A-G][^\]]*)\]")
+            .Select(m => m.Groups[1].Value);
+        var chartTokens = (chordChart ?? "").Split(['\n', ' ', ':', '/'], StringSplitOptions.RemoveEmptyEntries);
+        return lyricChords.Concat(chartTokens).Any(t => FlatRoots.Any(t.StartsWith));
+    }
+
+    private static string TransposeNote(string chord, int semitones, bool useFlats)
     {
         if (semitones == 0 || string.IsNullOrEmpty(chord)) return chord;
         int rootLen = chord.Length > 1 && chord[1] is '#' or 'b' ? 2 : 1;
@@ -1730,16 +1752,31 @@ else if (_song is not null)
         if (idx < 0) idx = Array.IndexOf(NotesFlat, root);
         if (idx < 0) return chord;
         var newIdx = ((idx + semitones) % 12 + 12) % 12;
-        return Notes[newIdx] + suffix;
+        return (useFlats ? NotesFlat : Notes)[newIdx] + suffix;
     }
 
-    private static string TransposeChordsInText(string text, int semitones)
+    // A whole line that's nothing but one bracket ("[Bro]", "[Vers 1]") is a
+    // structure tag, not an inline chord marker - even though a tag like
+    // "Bro"/"Bridge"/"Chorus" starting with a valid chord-root letter would
+    // otherwise match the same "\[([A-G]...)\]" shape as a real "[Dm]"
+    // marker. Shared by every place that needs to tell the two apart, so the
+    // distinction can't quietly drift out of sync between them again - it
+    // already had to be fixed twice separately (word-fidelity check, then
+    // the transpose buttons) before being pulled out here.
+    private static bool IsWholeLineBracketTag(string trimmedLine) =>
+        trimmedLine.StartsWith('[') && trimmedLine.EndsWith(']') && trimmedLine.IndexOf(']') == trimmedLine.Length - 1;
+
+    private static string TransposeChordsInText(string text, int semitones, bool useFlats)
     {
         if (string.IsNullOrEmpty(text) || semitones == 0) return text;
-        return System.Text.RegularExpressions.Regex.Replace(
-            text,
-            @"\[([A-G][^\]]*)\]",
-            m => "[" + TransposeNote(m.Groups[1].Value, semitones) + "]");
+        var rx = new System.Text.RegularExpressions.Regex(@"\[([A-G][^\]]*)\]");
+        var lines = text.Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (IsWholeLineBracketTag(lines[i].Trim())) continue;
+            lines[i] = rx.Replace(lines[i], m => "[" + TransposeNote(m.Groups[1].Value, semitones, useFlats) + "]");
+        }
+        return string.Join('\n', lines);
     }
 
     private static bool IsChord(string token)
@@ -1760,7 +1797,7 @@ else if (_song is not null)
     // inline-lyrics format, so TransposeChordsInText's regex never matches it.
     // Transpose each whitespace-separated token instead, leaving section
     // labels ("Verse:") alone and transposing both sides of a slash chord.
-    private static string TransposeChordChart(string chart, int semitones)
+    private static string TransposeChordChart(string chart, int semitones, bool useFlats)
     {
         if (string.IsNullOrEmpty(chart) || semitones == 0) return chart;
 
@@ -1773,8 +1810,8 @@ else if (_song is not null)
 
             var tokens = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Select(token => token.Contains('/')
-                    ? string.Join("/", token.Split('/').Select(p => IsChord(p) ? TransposeNote(p, semitones) : p))
-                    : IsChord(token) ? TransposeNote(token, semitones) : token);
+                    ? string.Join("/", token.Split('/').Select(p => IsChord(p) ? TransposeNote(p, semitones, useFlats) : p))
+                    : IsChord(token) ? TransposeNote(token, semitones, useFlats) : token);
 
             lines[i] = label + (label.Length > 0 ? " " : "") + string.Join(" ", tokens);
         }
@@ -1890,9 +1927,7 @@ else if (_song is not null)
         var lines = (text ?? "").Split('\n');
         for (var i = 0; i < lines.Length; i++)
         {
-            var trimmed = lines[i].Trim();
-            if (trimmed.StartsWith('[') && trimmed.EndsWith(']') && trimmed.IndexOf(']') == trimmed.Length - 1)
-                continue; // whole-line tag - structure, not a chord marker, keep as-is
+            if (IsWholeLineBracketTag(lines[i].Trim())) continue; // structure, not a chord marker - keep as-is
             lines[i] = System.Text.RegularExpressions.Regex.Replace(lines[i], @"\[[^\]]*\]", "");
         }
         return string.Join('\n', lines);
