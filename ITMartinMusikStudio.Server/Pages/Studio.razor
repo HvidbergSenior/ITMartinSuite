@@ -267,6 +267,13 @@ else if (_song is not null)
                             <button class="t-btn" @onclick="() => AdjustT(1)"  title="Transponer op">+</button>
                         </div>
                         <button class="btn-ghost-sm" @onclick="SimplifyChords" title="Fjern slash-akkorder">简</button>
+                        @if (ChordAi.IsAvailable && _chordChartIsNumbered)
+                        {
+                            <button class="btn-ai" @onclick="ConvertChordChartToSections" disabled="@_convertingChart"
+                                    title="Omdan til sektion-format (Verse: ...) - lettere og mere præcist for AI at bruge end tal-per-takt">
+                                @(_convertingChart ? "..." : "🔀 Til sektioner")
+                            </button>
+                        }
                         <button class="btn-ghost-sm" @onclick='() => _photoTarget = "chords"'>📷</button>
                     </div>
                 </div>
@@ -1828,9 +1835,25 @@ else if (_song is not null)
     // only the candidate were stripped, any structure tag already present in
     // the original would never match after stripping and every comparison
     // would fail regardless of whether the actual words changed.
-
-    private static string StripChordMarkers(string text) =>
-        System.Text.RegularExpressions.Regex.Replace(text ?? "", @"\[[^\]]*\]", "");
+    //
+    // A whole-line bracket ("[Bro]", "[Verse]") is left UNSTRIPPED, not
+    // blanked out like an inline [Chord] marker - it's structure the AI must
+    // reproduce character-for-character, so the comparison needs to actually
+    // see it. Stripping it on both sides made corruption invisible: a real
+    // bug turned "[Bro]" (Danish for Bridge) into "[C#ro]" and the check
+    // passed anyway, because both sides collapsed to nothing at that line.
+    private static string StripChordMarkers(string text)
+    {
+        var lines = (text ?? "").Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var trimmed = lines[i].Trim();
+            if (trimmed.StartsWith('[') && trimmed.EndsWith(']') && trimmed.IndexOf(']') == trimmed.Length - 1)
+                continue; // whole-line tag - structure, not a chord marker, keep as-is
+            lines[i] = System.Text.RegularExpressions.Regex.Replace(lines[i], @"\[[^\]]*\]", "");
+        }
+        return string.Join('\n', lines);
+    }
 
     private static string NormalizeForCompare(string text) =>
         System.Text.RegularExpressions.Regex.Replace((text ?? "").ToLowerInvariant(), @"\s+", " ").Trim();
@@ -2459,6 +2482,39 @@ else if (_song is not null)
         _aiHelperLoading = false;
     }
 
+    // True when the chord chart looks like a raw bar/line dump from photo
+    // extraction ("6: F#m") rather than a section chart ("Verse: Am G F") -
+    // that numbered shape is what ConvertChordChartToSections offers to clean up.
+    private bool _chordChartIsNumbered =>
+        System.Text.RegularExpressions.Regex.IsMatch(
+            (_chordEdit ?? "").TrimStart(), @"^\d+\s*:");
+
+    private bool _convertingChart;
+
+    private async Task ConvertChordChartToSections()
+    {
+        if (_song is null || string.IsNullOrWhiteSpace(_chordEdit) || _convertingChart) return;
+        _convertingChart = true;
+        StateHasChanged();
+        try
+        {
+            var result = await ChordAi.ConvertNumberedChartToSectionsAsync(_chordEdit, _lyricsEdit, _song.MusicKey);
+            if (!string.IsNullOrWhiteSpace(result))
+            {
+                _chordEdit = result;
+                AutoSave();
+            }
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = $"AI fejl: {ex.Message}";
+        }
+        finally
+        {
+            _convertingChart = false;
+        }
+    }
+
     private string ExtractChordsFromLyrics() =>
         string.Join(" ", System.Text.RegularExpressions.Regex
             .Matches(_lyricsEdit, @"\[([A-G][^\]]*)\]")
@@ -2612,13 +2668,29 @@ else if (_song is not null)
             .Distinct()
             .ToList();
 
+    // A bracketed single word ("[Bro]", "[Chorus]") is genuinely ambiguous
+    // with an inline chord marker ("[Am]") whenever its first letter happens
+    // to be a valid chord root - which "Bro" (Danish for Bridge), "Chorus"
+    // and "Bridge" itself all are. Resolve the ambiguity against the app's
+    // own documented section vocabulary before falling back to the
+    // first-letter guess, so a correctly-typed "[Bro]" isn't swallowed into
+    // the chord list as a fake chord named "Bro".
+    private static readonly HashSet<string> KnownSectionWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "verse", "vers", "chorus", "omkvæd", "refræn", "bridge", "bro",
+        "intro", "outro", "instrumental", "vocal", "hook", "headline", "comment"
+    };
+
     private static bool IsSectionLabel(string line)
     {
         var t = line.Trim();
         if (t.EndsWith(':') && !System.Text.RegularExpressions.Regex.IsMatch(t, @"\[[A-G]")) return true;
         if (!t.StartsWith('[')) return false;
         var inner = t.TrimStart('[').Split(']')[0];
-        return inner.Contains(' ') || inner.Length == 0 || inner[0] is < 'A' or > 'G';
+        if (inner.Contains(' ') || inner.Length == 0) return true;
+        var word = System.Text.RegularExpressions.Regex.Match(inner, @"^[A-Za-zÆØÅæøå-]+").Value;
+        if (KnownSectionWords.Contains(word)) return true;
+        return inner[0] is < 'A' or > 'G';
     }
 
     private IEnumerable<(string? Chord, string Text)> ParseLyricLine(string line)

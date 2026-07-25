@@ -678,6 +678,61 @@ public sealed class ChordAiService
         return "";
     }
 
+    // The numbered bar/line format ExtractChordsFromImageAsync produces (from
+    // a phone chord-detection app's screenshot) numbers musical bars, not
+    // lyric lines - a single lyric line often spans several bars, and
+    // instrumental/repeat sections have bars with no lyric line at all. The
+    // "🤖 Sæt akkorder" annotate step's numbered-chart rule assumes chart
+    // line K = lyric line K, which is fragile under that mismatch and can
+    // misplace chords. Converting to a section-based chart first (using the
+    // lyrics' own [Section] structure to group the numbered bars correctly)
+    // is the more reliable input for that step - same shape SuggestChordsAsync
+    // and AnnotateLyricsWithChordsAsync's "authoritative chart" rule already
+    // expect, so this just gets the photo-extracted data into that format.
+    public async Task<string> ConvertNumberedChartToSectionsAsync(string numberedChart, string lyrics, string musicKey)
+    {
+        if (_client is null) return "";
+
+        var lyricsHint = string.IsNullOrWhiteSpace(lyrics)
+            ? "No lyrics provided - group the numbered bars into sections as best you can from the chord pattern alone (e.g. a repeating 4-bar pattern is probably one section repeated)."
+            : $"Song lyrics (section tags like [Verse]/[Chorus]/[Omkvæd] mark where each section starts - use these to know which numbered bars belong to which section):\n{lyrics}";
+
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeSonnet4_6,
+            MaxTokens = 800,
+            System = """
+                You are a musician converting a bar-by-bar numbered chord chart (one entry per musical
+                bar/line, e.g. "6: F#m" / "7: D | F#m") into a clean section-based chord chart.
+
+                Use the song's lyrics to find where each section (Verse, Chorus, Bridge, etc.) starts and
+                ends, then map the numbered bars onto those sections in order. Within each section, list
+                its chords in first-appearance order with duplicates removed - a chord that repeats across
+                multiple bars of the same section should appear once, not once per bar. If a section
+                repeats later in the song (e.g. a second Chorus) with the SAME chords, don't repeat it as
+                its own output line - only add a new line if a repeated section's chords actually differ.
+
+                Output ONE line per section:
+                Verse: Am G F E
+                Chorus: C G Am F
+
+                Use only chord names, no bar numbers, no explanatory text, nothing else.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Key: {musicKey}\n\nNumbered chord chart:\n{numberedChart}\n\n{lyricsHint}"
+                }
+            ]
+        });
+
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) return tb.Text.Trim();
+        return "";
+    }
+
     // MusikStudio's photo-upload picker also accepts a combined chord-chart
     // PDF (e.g. produced by pdf-web from a set of scrolling screenshots) -
     // Claude reads PDFs natively as a document block, no need to rasterize
