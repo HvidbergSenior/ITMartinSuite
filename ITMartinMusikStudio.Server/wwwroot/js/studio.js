@@ -260,6 +260,70 @@ window.studio = (function() {
         });
     }
 
+    // ── Sketch capture (Skriv sang "hum an idea") ────────────────────────────
+    // Deliberately separate state from _mediaRecorder/_chunks above - a
+    // sketch is a short scratch clip for the from-scratch flow, not a take,
+    // and must never collide with the full take-recording flow's state.
+
+    var _sketchRecorder = null;
+    var _sketchChunks = [];
+    var _sketchStream = null;
+    var _sketchKey = null;
+
+    function startSketch(songKey) {
+        _sketchKey = songKey;
+        _sketchChunks = [];
+        return _getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+            .then(function(stream) {
+                _sketchStream = stream;
+                var mimeType = (window.MediaRecorder && MediaRecorder.isTypeSupported("audio/webm")) ? "audio/webm" : "";
+                _sketchRecorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
+                _sketchRecorder.ondataavailable = function(e) { if (e.data && e.data.size > 0) _sketchChunks.push(e.data); };
+                _sketchRecorder.start(500);
+            });
+    }
+
+    function stopSketch() {
+        return new Promise(function(resolve) {
+            if (!_sketchRecorder) { resolve(); return; }
+
+            var recorder = _sketchRecorder;
+            var capturedMime = recorder.mimeType || "audio/webm";
+            var capturedKey = _sketchKey;
+            _sketchRecorder = null;
+
+            recorder.onstop = function() {
+                var blob = new Blob(_sketchChunks, { type: capturedMime });
+                _sketchChunks = [];
+
+                if (_sketchStream) {
+                    _sketchStream.getTracks().forEach(function(t) { t.stop(); });
+                    _sketchStream = null;
+                }
+
+                if (!capturedKey || blob.size === 0) { resolve(); return; }
+
+                fetch("/api/sketch/" + encodeURIComponent(capturedKey), {
+                    method: "POST",
+                    headers: { "Content-Type": capturedMime },
+                    body: blob
+                })
+                .then(function(r) { return r.json(); })
+                .then(function() { resolve(); })
+                .catch(function(err) { console.error("Sketch upload failed", err); resolve(); });
+            };
+
+            recorder.stop();
+        });
+    }
+
+    // ── Misc ──────────────────────────────────────────────────────────────────
+
+    function scrollToId(id) {
+        var el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     function _getUserMedia(constraints) {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             return navigator.mediaDevices.getUserMedia(constraints);
@@ -283,7 +347,10 @@ window.studio = (function() {
         setMicGain: setMicGain,
         startCamera: startCamera,
         stopCamera: stopCamera,
-        capturePhoto: capturePhoto
+        capturePhoto: capturePhoto,
+        startSketch: startSketch,
+        stopSketch: stopSketch,
+        scrollToId: scrollToId
     };
 
 })();

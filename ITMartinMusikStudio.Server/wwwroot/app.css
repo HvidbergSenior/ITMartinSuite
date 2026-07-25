@@ -13,6 +13,17 @@
     --red: #f87171;
     --yellow: #fbbf24;
     --radius: 14px;
+
+    /* Chord diagram SVG colors - separate from --text/--muted since the
+       diagram is a small graphic, not body copy, and needs its own
+       light/dark contrast tuning against the diagram card's background. */
+    --chord-dot: #ffffff;
+    --chord-line: #555555;
+    --chord-fret: #444444;
+    --chord-nut: #cccccc;
+    --chord-muted: #666666;
+    --chord-open: #888888;
+    --chord-label: #aaaaaa;
 }
 
 /* Light theme - toggled via the button in App.razor, state kept in
@@ -26,12 +37,23 @@ html[data-theme="light"] {
     --border: #d7dbe4;
     --text: #14161f;
     --muted: #5b6172;
+
+    --chord-dot: #14161f;
+    --chord-line: #b8bec9;
+    --chord-fret: #d7dbe4;
+    --chord-nut: #14161f;
+    --chord-muted: #5b6172;
+    --chord-open: #5b6172;
+    --chord-label: #5b6172;
 }
 
 /* Structural chrome uses a hardcoded near-black rgba() rather than the
    variables above, so it needs its own explicit light override - otherwise
    it stays a black bar over an otherwise light page. */
 html[data-theme="light"] .studio-topbar {
+    background: rgba(255,255,255,.92);
+}
+html[data-theme="light"] .studio-tabs {
     background: rgba(255,255,255,.92);
 }
 html[data-theme="light"] .meta-select option {
@@ -163,6 +185,14 @@ html, body {
 }
 .topbar-back { color: var(--muted); text-decoration: none; font-size: 14px; white-space: nowrap; }
 .topbar-back:hover { color: var(--text); }
+.topbar-cover {
+    width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+}
+.topbar-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.topbar-cover-placeholder { font-size: 18px; opacity: .5; }
+.cover-preview { width: 100%; max-width: 240px; aspect-ratio: 1/1; object-fit: cover; border-radius: 10px; display: block; }
 .topbar-title { flex: 1; font-size: 17px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-meta { display: flex; gap: 8px; align-items: center; }
 .meta-select {
@@ -267,7 +297,7 @@ html, body {
 .notes-editor { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
 .chord-preview {
-    background: rgba(0,0,0,.3);
+    background: var(--surface);
     border-radius: 10px;
     padding: 12px;
     display: flex;
@@ -587,7 +617,7 @@ html, body {
 .ai-rim-input {
     width: 100%;
     padding: 8px 12px;
-    background: #0d1117;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     color: var(--text);
@@ -616,7 +646,7 @@ html, body {
 .ai-result {
     margin-top: 12px;
     position: relative;
-    background: #0d1117;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px 36px 12px 12px;
@@ -671,11 +701,24 @@ html, body {
     color: inherit;
 }
 .song-card:hover { border-color: rgba(255,255,255,.2); }
-.song-card--original { border-left: 3px solid var(--accent); }
+.song-card--ready { border-left: 3px solid var(--green); }
+.song-card--indoev { border-left: 3px solid var(--accent); }
+.song-card--writing { border-left: 3px solid var(--yellow); }
 .song-card-icon { font-size: 26px; flex-shrink: 0; }
+.song-card-cover { width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px; object-fit: cover; }
 .song-card-body { flex: 1; min-width: 0; }
 .song-card-title { font-size: 16px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .song-card-meta { font-size: 12px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.song-card-progress {
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: monospace;
+}
+.song-card-progress--full { background: rgba(74,222,128,.15); border: 1px solid rgba(74,222,128,.3); color: var(--green); }
+.song-card-progress--partial { background: rgba(251,191,36,.15); border: 1px solid rgba(251,191,36,.3); color: var(--yellow); }
+.song-card-progress--empty { background: rgba(100,116,139,.15); border: 1px solid rgba(100,116,139,.3); color: var(--muted); }
 .key-badge {
     background: rgba(59,130,246,.15);
     border: 1px solid rgba(59,130,246,.3);
@@ -771,7 +814,7 @@ html, body {
 /* ── Chord sheet (inline chord renderer) ── */
 .chord-sheet-header { margin-top: 8px; }
 .chord-sheet {
-    background: rgba(0,0,0,.25);
+    background: var(--surface);
     border-radius: 10px;
     padding: 14px 16px;
     display: flex;
@@ -840,6 +883,59 @@ html, body {
 .studio-tab:hover { color: var(--text); }
 .studio-tab--active { color: var(--text); border-bottom-color: var(--accent); }
 .studio-tab--rec { color: var(--red) !important; }
+.studio-tab--locked { opacity: .45; cursor: not-allowed; }
+.studio-tab--locked:hover { color: var(--muted); }
+
+/* ── Step checklist (Skriv sang / Indøv sang) ── */
+.step-checklist { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0; }
+.step-pill {
+    display: flex;
+    align-items: stretch;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+}
+.step-pill-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: none;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+}
+.step-pill-skip {
+    border: none;
+    background: var(--surface);
+    color: var(--muted);
+    opacity: .5;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-left: 1px solid var(--border);
+}
+.step-pill-skip:hover { opacity: 1; color: var(--red); }
+.step-pill--done .step-pill-main { color: var(--green); cursor: default; }
+.step-pill--notnecessary .step-pill-main { color: var(--muted); text-decoration: line-through; opacity: .7; }
+.step-pill--notstarted .step-pill-main { color: var(--text); border: 1px dashed var(--border); }
+.step-pill--notstarted .step-pill-main:hover { border-color: var(--accent); color: var(--accent); }
+.step-pill-icon { font-size: 12px; }
+
+.next-step-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(59,130,246,.1);
+    border: 1px solid rgba(59,130,246,.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+.next-step-banner--ready { background: rgba(74,222,128,.1); border-color: rgba(74,222,128,.35); color: var(--green); font-weight: 700; justify-content: center; }
 
 /* ── Find song ── */
 .find-song-buttons { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
@@ -861,6 +957,31 @@ html, body {
     margin-bottom: 14px;
     flex-wrap: wrap;
 }
+.perform-controls--essential {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+/* Focus mode ("🎯 Kun tekst"): everything except the essential strip and the
+   lyrics themselves is hidden - widen the reading column and bump the text
+   up so a normal-length song fits without scrolling on a PC screen. */
+.perform-page--focus {
+    max-width: 1400px;
+}
+.perform-page--focus .perform-plain-line,
+.perform-page--focus .perform-word {
+    font-size: 30px;
+}
+.perform-page--focus .perform-chord-inline {
+    font-size: 20px;
+}
+.perform-page--focus .perform-section-label {
+    font-size: 15px;
+}
 .perform-key-badge {
     background: rgba(59,130,246,.15);
     border: 1px solid rgba(59,130,246,.3);
@@ -876,7 +997,7 @@ html, body {
 
 /* Chord overview buttons at top of Spilleguide */
 .perform-chord-overview {
-    background: rgba(0,0,0,.2);
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 12px 16px;
@@ -911,7 +1032,7 @@ html, body {
 
 /* Chord detail panel — slides in below chord overview */
 .chord-detail-panel {
-    background: rgba(14,20,33,.98);
+    background: var(--surface);
     border: 1px solid rgba(59,130,246,.35);
     border-radius: 12px;
     padding: 14px 18px;
@@ -948,6 +1069,28 @@ html, body {
     justify-content: center;
 }
 .chord-detail-close:hover { color: var(--text); background: rgba(255,255,255,.18); }
+.chord-pattern-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.chord-pattern-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+}
+.chord-pattern-name {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--text);
+    margin-bottom: 4px;
+}
 .chord-detail-body { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
 .chord-detail-diagram { flex-shrink: 0; }
 .chord-detail-text {
@@ -963,7 +1106,7 @@ html, body {
 
 /* Pattern reference bar */
 .perform-pattern-bar {
-    background: rgba(0,0,0,.18);
+    background: var(--surface);
     border-radius: 8px;
     padding: 8px 14px;
     margin-bottom: 12px;
@@ -1322,16 +1465,16 @@ html, body {
     gap: 16px;
     align-items: flex-start;
     padding: 10px 14px;
-    background: #0f172a;
+    background: var(--surface);
     border-radius: 8px;
     margin-bottom: 12px;
-    border: 1px solid #1e293b;
+    border: 1px solid var(--border);
 }
 .perform-pattern-bar .pattern-label {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: .06em;
-    color: #6b7280;
+    color: var(--muted);
     display: block;
     margin-bottom: 3px;
 }

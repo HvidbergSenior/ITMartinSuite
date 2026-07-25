@@ -14,6 +14,7 @@ builder.Services.AddDbContext<StudioDbContext>(o =>
 
 builder.Services.AddHttpClient("fal");
 builder.Services.AddScoped<StudioLibraryService>();
+builder.Services.AddScoped<CoverArtService>();
 builder.Services.AddSingleton<ChordAiService>();
 builder.Services.AddSingleton<StemService>();
 builder.Services.AddSingleton<ChordDetectionService>();
@@ -34,6 +35,8 @@ using (var scope = app.Services.CreateScope())
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackId TEXT NULL"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackLabel TEXT NULL"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SyncedLyrics TEXT NULL"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SkippedSteps TEXT NOT NULL DEFAULT ''"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN CoverImagePath TEXT NOT NULL DEFAULT ''"); } catch { }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -64,6 +67,10 @@ app.MapGet("/stream", (string path, HttpContext ctx) =>
         ".mp4"  => "video/mp4",
         ".mov"  => "video/quicktime",
         ".webm" => isAudioOnlyTake ? "audio/webm" : "video/webm",
+        ".jpg"  => "image/jpeg",
+        ".jpeg" => "image/jpeg",
+        ".png"  => "image/png",
+        ".webp" => "image/webp",
         _       => "application/octet-stream"
     };
 
@@ -74,6 +81,13 @@ app.MapGet("/stream", (string path, HttpContext ctx) =>
 // Optionally promote to /musik/myversions/{songKey}.webm
 app.MapPost("/api/recording/{songKey}", async (string songKey, HttpRequest req, IConfiguration cfg) =>
 {
+    // Kestrel's default 30MB request body cap was silently truncating longer
+    // video takes mid-upload - the partial file still landed on disk and
+    // showed up in the takes list, but was corrupt and wouldn't play. Raise
+    // it well past what a single take can realistically reach.
+    var sizeFeature = req.HttpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+    if (sizeFeature is { IsReadOnly: false }) sizeFeature.MaxRequestBodySize = 500 * 1024 * 1024;
+
     var root = cfg["MusicSettings:Root"] ?? "/musik";
     var dir = Path.Combine(root, "recordings", songKey);
     Directory.CreateDirectory(dir);
@@ -82,8 +96,20 @@ app.MapPost("/api/recording/{songKey}", async (string songKey, HttpRequest req, 
     var prefix = req.ContentType?.Contains("video") == true ? "vtake" : "take";
     var dest = Path.Combine(dir, $"{prefix}-{timestamp}.webm");
 
-    await using var stream = File.Create(dest);
-    await req.Body.CopyToAsync(stream);
+    try
+    {
+        await using (var stream = File.Create(dest))
+        {
+            await req.Body.CopyToAsync(stream);
+        }
+    }
+    catch
+    {
+        // Don't leave a truncated, unplayable file behind that would still
+        // show up as a take in the list.
+        if (File.Exists(dest)) File.Delete(dest);
+        throw;
+    }
 
     var rel = Path.GetRelativePath(root, dest).Replace('\\', '/');
     return Results.Ok(new { path = rel, filename = Path.GetFileName(dest) });
@@ -113,6 +139,62 @@ app.MapDelete("/api/recording", (string path, IConfiguration cfg) =>
     if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return Results.BadRequest();
     if (File.Exists(full)) File.Delete(full);
     return Results.Ok();
+});
+
+// Save a short "hum an idea" sketch clip for the Skriv sang flow - parallel
+// to /api/recording but a distinct, much smaller-scoped concept: not a take,
+// never mixed into the take list, just a quick scratch clip meant to be
+// downloaded and handed to Suno externally. No 500MB body-size override like
+// /api/recording needs - sketches are seconds long.
+app.MapPost("/api/sketch/{songKey}", async (string songKey, HttpRequest req, IConfiguration cfg) =>
+{
+    var root = cfg["MusicSettings:Root"] ?? "/musik";
+    var dir = Path.Combine(root, "sketches", songKey);
+    Directory.CreateDirectory(dir);
+    var ext = req.ContentType?.Contains("webm") == true ? ".webm" : ".ogg";
+    var dest = Path.Combine(dir, $"sketch-{DateTime.UtcNow:yyyyMMdd-HHmmss}{ext}");
+    try
+    {
+        await using var stream = File.Create(dest);
+        await req.Body.CopyToAsync(stream);
+    }
+    catch
+    {
+        if (File.Exists(dest)) File.Delete(dest);
+        throw;
+    }
+    var rel = Path.GetRelativePath(root, dest).Replace('\\', '/');
+    return Results.Ok(new { path = rel });
+});
+
+// Delete a sketch - same path-under-root convention as /api/recording DELETE
+app.MapDelete("/api/sketch", (string path, IConfiguration cfg) =>
+{
+    var root = cfg["MusicSettings:Root"] ?? "/musik";
+    var full = Path.GetFullPath(Path.Combine(root, path));
+    if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return Results.BadRequest();
+    if (File.Exists(full)) File.Delete(full);
+    return Results.Ok();
+});
+
+// Forces a browser download instead of inline playback - /stream never sets
+// Content-Disposition: attachment, so there was previously no way to get a
+// file out of this app onto the user's own machine (needed to hand a sketch
+// clip to Suno).
+app.MapGet("/download", (string path, IConfiguration cfg) =>
+{
+    var root = cfg["MusicSettings:Root"] ?? "/musik";
+    var full = Path.GetFullPath(Path.Combine(root, path));
+    if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return Results.BadRequest();
+    if (!File.Exists(full)) return Results.NotFound();
+    var mime = Path.GetExtension(full).ToLowerInvariant() switch
+    {
+        ".webm" => "audio/webm",
+        ".ogg"  => "audio/ogg",
+        ".mp3"  => "audio/mpeg",
+        _       => "application/octet-stream"
+    };
+    return Results.File(full, mime, fileDownloadName: Path.GetFileName(full));
 });
 
 // ── Spotify ───────────────────────────────────────────────────────────────

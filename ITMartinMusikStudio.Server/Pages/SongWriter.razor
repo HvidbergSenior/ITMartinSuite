@@ -1,6 +1,8 @@
 @page "/songwriter"
 @rendermode InteractiveServer
+@implements IDisposable
 @inject StudioDbContext Db
+@inject StudioLibraryService Library
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using Microsoft.EntityFrameworkCore
@@ -12,123 +14,174 @@
     <div class="sw-header">
         <a href="/songs" class="topbar-back">← Sange</a>
         <h1 class="sw-title">🎸 Skriv en sang</h1>
-        <p class="sw-sub">Vælg udgangspunkt — du kan ændre alt bagefter</p>
+        <p class="sw-sub">Fra ingenting til en hjemmelavet sang, klar til at øve videre på</p>
     </div>
 
-    <!-- Step 1: Chord progression -->
+    <!-- Title first, low friction - creates the draft song as soon as it's
+         given, so the checklist/sketch-recorder/lyrics box below have a real
+         song to attach to instead of collecting local-only state until a
+         final "Create" click. Avoids ever renaming a Key after sketches or
+         skipped-steps are already recorded against it. -->
     <div class="sw-section">
-        <div class="sw-step-label">1. Akkordrækkefølge</div>
-        <div class="sw-cards">
-            @foreach (var p in _progressions)
-            {
-                var active = _chosenProg == p;
-                <button class="sw-card @(active ? "sw-card--active" : "")"
-                        @onclick="() => _chosenProg = p">
-                    <div class="sw-card-mood">@p.Mood</div>
-                    <div class="sw-card-chords">@string.Join(" – ", p.Chords)</div>
-                </button>
-            }
-        </div>
+        <div class="sw-step-label">Sangtitel</div>
+        <input class="sw-input" type="text" placeholder="Hvad skal sangen hedde?"
+               value="@_title" @onchange="OnTitleChanged" />
     </div>
 
-    <!-- Step 2: Picking pattern -->
-    @if (_chosenProg is not null)
+    @if (_song is not null)
     {
-        <div class="sw-section">
-            <div class="sw-step-label">2. Spillemønster</div>
+        @if (StepPlanner.NextStep(_steps) is { } next)
+        {
+            <div class="next-step-banner">
+                <span>👉 Næste: <strong>@next.Label</strong></span>
+                <button class="btn-primary" @onclick="() => NavigateToStep(next)">Gå dertil →</button>
+            </div>
+        }
+        else
+        {
+            <div class="next-step-banner next-step-banner--ready">
+                ✓ Klar — <a href="/studio/@Uri.EscapeDataString(_song.Key)">gå til sangen</a> for at øve videre
+            </div>
+        }
+        <StepChecklist Steps="_steps" OnToggle="ToggleStep" OnNavigate="NavigateToStep" />
+
+        <!-- Chord progression -->
+        <div class="sw-section" id="sw-progression">
+            <div class="sw-step-label">Akkordrækkefølge</div>
             <div class="sw-cards">
-                @foreach (var pat in _patterns)
+                @foreach (var p in _progressions)
                 {
-                    var active = _chosenPat == pat;
+                    var active = _chosenProg == p;
                     <button class="sw-card @(active ? "sw-card--active" : "")"
-                            @onclick="() => _chosenPat = pat">
-                        <div class="sw-card-mood">@pat.Name</div>
-                        <div class="sw-card-chords">@pat.Notation</div>
-                        <div class="sw-card-desc">@pat.Description</div>
-                    </button>
-                }
-            </div>
-        </div>
-    }
-
-    <!-- Step 3: Tempo -->
-    @if (_chosenPat is not null)
-    {
-        <div class="sw-section">
-            <div class="sw-step-label">3. Tempo</div>
-            <div class="sw-bpm-grid">
-                @foreach (var (label, bpm) in _tempos)
-                {
-                    var active = _chosenBpm == bpm;
-                    <button class="sw-bpm-chip @(active ? "sw-bpm-chip--active" : "")"
-                            @onclick="() => _chosenBpm = bpm">
-                        <div class="sw-bpm-num">@bpm</div>
-                        <div class="sw-bpm-label">@label</div>
-                    </button>
-                }
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-                <input class="sw-input" type="number" placeholder="Eget BPM..." min="40" max="240" style="max-width:160px"
-                       @onchange="e => { if (int.TryParse(e.Value?.ToString(), out var t)) _chosenBpm = t; }" />
-                @if (_chosenBpm.HasValue)
-                {
-                    <span style="font-size:13px;color:var(--muted)">@_chosenBpm BPM valgt</span>
-                }
-            </div>
-        </div>
-    }
-
-    <!-- Step 4: Melody ideas (optional - pick any you like, or skip) -->
-    @if (_chosenBpm.HasValue)
-    {
-        <div class="sw-section">
-            <div class="sw-step-label">4. Melodi-idéer (valgfrit)</div>
-            <div class="sw-cards">
-                @foreach (var idea in _melodyIdeas)
-                {
-                    var active = _chosenMelodyIdeas.Contains(idea);
-                    <button class="sw-card @(active ? "sw-card--active" : "")"
-                            @onclick="() => ToggleMelodyIdea(idea)">
-                        <div class="sw-card-mood">@idea.Title</div>
-                        <div class="sw-card-desc">@idea.Description</div>
+                            @onclick="() => ChooseProgression(p)">
+                        <div class="sw-card-mood">@p.Mood</div>
+                        <div class="sw-card-chords">@string.Join(" – ", p.Chords)</div>
                     </button>
                 }
             </div>
         </div>
 
-        <!-- Step 5: Song structure -->
-        <div class="sw-section">
-            <div class="sw-step-label">5. Sangstruktur</div>
-            <div class="sw-cards">
-                @foreach (var s in _structures)
+        <!-- Picking pattern -->
+        @if (_chosenProg is not null)
+        {
+            <div class="sw-section" id="sw-pattern">
+                <div class="sw-step-label">Spillemønster</div>
+                <div class="sw-cards">
+                    @foreach (var pat in _patterns)
+                    {
+                        var active = _chosenPat == pat;
+                        <button class="sw-card @(active ? "sw-card--active" : "")"
+                                @onclick="() => ChoosePattern(pat)">
+                            <div class="sw-card-mood">@pat.Name</div>
+                            <div class="sw-card-chords">@pat.Notation</div>
+                            <div class="sw-card-desc">@pat.Description</div>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Tempo -->
+        @if (_chosenPat is not null)
+        {
+            <div class="sw-section" id="sw-tempo">
+                <div class="sw-step-label">Tempo</div>
+                <div class="sw-bpm-grid">
+                    @foreach (var (label, bpm) in _tempos)
+                    {
+                        var active = _chosenBpm == bpm;
+                        <button class="sw-bpm-chip @(active ? "sw-bpm-chip--active" : "")"
+                                @onclick="() => ChooseTempo(bpm)">
+                            <div class="sw-bpm-num">@bpm</div>
+                            <div class="sw-bpm-label">@label</div>
+                        </button>
+                    }
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+                    <input class="sw-input" type="number" placeholder="Eget BPM..." min="40" max="240" style="max-width:160px"
+                           @onchange="e => { if (int.TryParse(e.Value?.ToString(), out var t)) ChooseTempo(t); }" />
+                    @if (_chosenBpm.HasValue)
+                    {
+                        <span style="font-size:13px;color:var(--muted)">@_chosenBpm BPM valgt</span>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Idea recording (optional) - hum a snippet, download it, take it to Suno -->
+        @if (_chosenBpm.HasValue)
+        {
+            <div class="sw-section" id="sw-sketch">
+                <div class="sw-step-label">🎤 Idé-optagelse (valgfrit)</div>
+                <p style="font-size:13px;color:var(--muted);margin:0">Nyn 4 linjer, spil sammen — download og læg ind i Suno for inspiration.</p>
+                @if (!_sketchRecording)
                 {
-                    var active = _chosenStructure == s;
-                    <button class="sw-card @(active ? "sw-card--active" : "")"
-                            @onclick="() => _chosenStructure = s">
-                        <div class="sw-card-mood">@s.Name</div>
-                        <div class="sw-card-chords">@string.Join(" – ", s.Sections)</div>
-                    </button>
+                    <button class="btn-primary" style="width:fit-content" @onclick="StartSketch">⏺ Optag idé</button>
+                }
+                else
+                {
+                    <button class="btn-primary" style="width:fit-content;background:var(--red)" @onclick="StopSketch">⏹ Stop (@FormatTime(_sketchTimer))</button>
+                }
+                @foreach (var sk in _sketches)
+                {
+                    <div class="rec-item">
+                        <div class="rec-item-info">
+                            <span class="rec-item-name">🎤 @sk.Name</span>
+                            <span class="rec-item-date">@sk.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                        </div>
+                        <audio controls src="/stream?path=@Uri.EscapeDataString(sk.RelativePath)" class="rec-player" />
+                        <div class="rec-item-actions">
+                            <a class="btn-ghost-sm" href="/download?path=@Uri.EscapeDataString(sk.RelativePath)">⬇ Download</a>
+                            <button class="btn-delete-sm" @onclick="() => DeleteSketch(sk)">🗑</button>
+                        </div>
+                    </div>
                 }
             </div>
-        </div>
-    }
+        }
 
-    <!-- Step 6: Song name + create -->
-    @if (_chosenStructure is not null)
-    {
-        <div class="sw-section">
-            <div class="sw-step-label">6. Hvad skal sangen hedde?</div>
-            <input class="sw-input" type="text" placeholder="Sangtitel..."
-                   @bind="_title" @bind:event="oninput"
-                   @onkeydown="OnKey" />
-            @if (!string.IsNullOrEmpty(_error))
-            {
-                <div style="color:var(--red);font-size:13px;margin-top:6px">@_error</div>
-            }
-            <button class="sw-create-btn" @onclick="CreateAsync"
-                    disabled="@(string.IsNullOrWhiteSpace(_title) || _creating)">
-                @(_creating ? "Opretter..." : "🎵 Start sangen →")
-            </button>
+        <!-- Melody ideas (optional) -->
+        @if (_chosenBpm.HasValue)
+        {
+            <div class="sw-section">
+                <div class="sw-step-label">Melodi-idéer (valgfrit)</div>
+                <div class="sw-cards">
+                    @foreach (var idea in _melodyIdeas)
+                    {
+                        var active = _chosenMelodyIdeas.Contains(idea);
+                        <button class="sw-card @(active ? "sw-card--active" : "")"
+                                @onclick="() => ToggleMelodyIdea(idea)">
+                            <div class="sw-card-mood">@idea.Title</div>
+                            <div class="sw-card-desc">@idea.Description</div>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Song structure -->
+            <div class="sw-section">
+                <div class="sw-step-label">Sangstruktur</div>
+                <div class="sw-cards">
+                    @foreach (var s in _structures)
+                    {
+                        var active = _chosenStructure == s;
+                        <button class="sw-card @(active ? "sw-card--active" : "")"
+                                @onclick="() => ChooseStructure(s)">
+                            <div class="sw-card-mood">@s.Name</div>
+                            <div class="sw-card-chords">@string.Join(" – ", s.Sections)</div>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Lyric draft (optional) - reuses StudioSong.Lyrics directly, no AI
+             extraction/annotation here (nothing to annotate against yet) -
+             once the song later gets a source file and graduates to Indøv
+             sang, this text is already sitting in Forbered's Tekst card. -->
+        <div class="sw-section" id="sw-lyrics">
+            <div class="sw-step-label">✍️ Tekstudkast (valgfrit)</div>
+            <textarea class="sw-input" style="min-height:140px" placeholder="Skriv løse linjer, et vers, hvad som helst..."
+                      value="@_lyricsDraft" @onchange="OnLyricsChanged"></textarea>
         </div>
     }
 
@@ -181,20 +234,6 @@
         outline: none;
     }
     .sw-input:focus { border-color: var(--accent); }
-    .sw-create-btn {
-        background: var(--accent);
-        color: #fff;
-        border: none;
-        border-radius: 12px;
-        padding: 15px;
-        font-size: 16px;
-        font-weight: 700;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 4px;
-    }
-    .sw-create-btn:disabled { opacity: .4; cursor: default; }
-    .sw-create-btn:hover:not(:disabled) { background: #2563eb; }
     .sw-bpm-grid { display: flex; gap: 10px; flex-wrap: wrap; }
     .sw-bpm-chip { background: var(--card); border: 2px solid var(--border); border-radius: 12px;
                    padding: 12px 18px; cursor: pointer; color: var(--text); display: flex;
@@ -235,16 +274,25 @@
         ("Hurtig",  140),
     ];
 
+    private StudioSong? _song;
+    private string _title = "";
+
     private Progression? _chosenProg;
     private PickStyle?   _chosenPat;
     private int?         _chosenBpm;
-    private string       _title   = "";
-    private string       _error   = "";
-    private bool         _creating;
+    private string       _lyricsDraft = "";
 
     private readonly HashSet<MelodyIdea> _chosenMelodyIdeas = [];
     private readonly List<SongStructure> _structures = SongStructures.GetStructures();
     private SongStructure? _chosenStructure;
+
+    private bool _sketchRecording;
+    private System.Timers.Timer? _sketchTimer_t;
+    private int _sketchTimer;
+    private List<SketchFile> _sketches = [];
+
+    private System.Timers.Timer? _saveTimer;
+    private bool _disposed;
 
     // Depends on the chosen chord progression, so computed rather than stored
     // - re-evaluates automatically if the user goes back and picks a
@@ -252,10 +300,8 @@
     private List<MelodyIdea> _melodyIdeas =>
         _chosenProg is null ? [] : ITMartinMusikStudio.Server.Services.MelodyIdeas.GetIdeas(_chosenProg.Chords);
 
-    private void ToggleMelodyIdea(MelodyIdea idea)
-    {
-        if (!_chosenMelodyIdeas.Remove(idea)) _chosenMelodyIdeas.Add(idea);
-    }
+    private List<SongStep> _steps =>
+        _song is null ? [] : StepPlanner.GetSteps(_song, _sketches.Count > 0);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -266,58 +312,174 @@
         if (ok != "1") { Nav.NavigateTo("/", forceLoad: true); }
     }
 
-    private async Task OnKey(KeyboardEventArgs e)
+    private async Task OnTitleChanged(ChangeEventArgs e)
     {
-        if (e.Key == "Enter") await CreateAsync();
+        _title = e.Value?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(_title)) return;
+
+        if (_song is null)
+        {
+            var baseKey = Library.SafeKey(_title);
+            var existingKeys = await Db.Songs.Select(s => s.Key).ToListAsync();
+            var key = existingKeys.Contains(baseKey) ? baseKey + "_" + Guid.NewGuid().ToString("N")[..4] : baseKey;
+            _song = new StudioSong { Key = key, Title = _title.Trim() };
+            Db.Songs.Add(_song);
+            await Db.SaveChangesAsync();
+            _sketches = Library.GetSketches(_song.Key);
+        }
+        else
+        {
+            _song.Title = _title.Trim();
+            AutoSave();
+        }
     }
 
-    private async Task CreateAsync()
+    private void ChooseProgression(Progression p) { _chosenProg = p; SyncChordAndNotes(); }
+    private void ChooseStructure(SongStructure s) { _chosenStructure = s; SyncChordAndNotes(); }
+
+    private void ChoosePattern(PickStyle p)
     {
-        var title = _title.Trim();
-        if (string.IsNullOrWhiteSpace(title) || _chosenProg is null || _chosenPat is null || _chosenStructure is null) return;
+        _chosenPat = p;
+        if (_song is null) return;
+        _song.FingerpickPattern = p.Notation;
+        AutoSave();
+    }
 
-        _creating = true;
-        _error    = "";
-        StateHasChanged();
+    private void ChooseTempo(int bpm)
+    {
+        _chosenBpm = bpm;
+        if (_song is null) return;
+        _song.Tempo = bpm;
+        AutoSave();
+    }
 
-        var baseKey = title.ToLower()
-            .Replace(" ", "_")
-            .Replace("-", "_");
+    private void ToggleMelodyIdea(MelodyIdea idea)
+    {
+        if (!_chosenMelodyIdeas.Remove(idea)) _chosenMelodyIdeas.Add(idea);
+        SyncChordAndNotes();
+    }
 
-        var existingKeys = await Db.Songs.Select(s => s.Key).ToListAsync();
-        var key = existingKeys.Contains(baseKey)
-            ? baseKey + "_" + Guid.NewGuid().ToString("N")[..4]
-            : baseKey;
+    // Chord chart starts as just the flat progression (e.g. "Em – C – G – D")
+    // as soon as a progression is chosen - enough for the checklist's
+    // Akkordrække step to go Done early - then gets replaced with the fuller
+    // per-section chart once a structure is also picked.
+    private void SyncChordAndNotes()
+    {
+        if (_song is null || _chosenProg is null) return;
 
-        // Per-section chord chart (e.g. "Intro: Em C G D" / "Omkvæd: F# D# A# F#"
-        // once the structure's own variation - lift/invert/drop-last - is
-        // applied) rather than just the flat progression, so the chart on the
-        // song page already reflects the chosen structure.
-        var steps = SongStructures.GeneratePracticeSteps(_chosenProg.Chords, _chosenStructure);
-        var chordChart = string.Join("\n", steps.Select(s => $"{s.Section}: {string.Join(" ", s.Chords)}"));
-
-        var notesLines = new List<string> { $"🎵 Sangstruktur: {_chosenStructure.Name}", "" };
-        notesLines.AddRange(steps.Where(s => s.Note is not null).Select(s => $"{s.Section}: {s.Note}"));
-        if (_chosenMelodyIdeas.Count > 0)
+        if (_chosenStructure is not null)
         {
-            notesLines.Add("");
-            notesLines.Add("💡 Melodi-idéer:");
-            notesLines.AddRange(_chosenMelodyIdeas.Select(i => $"- {i.Title}: {i.Description}"));
+            var steps = SongStructures.GeneratePracticeSteps(_chosenProg.Chords, _chosenStructure);
+            _song.ChordChart = string.Join("\n", steps.Select(s => $"{s.Section}: {string.Join(" ", s.Chords)}"));
+
+            var notesLines = new List<string> { $"🎵 Sangstruktur: {_chosenStructure.Name}", "" };
+            notesLines.AddRange(steps.Where(s => s.Note is not null).Select(s => $"{s.Section}: {s.Note}"));
+            if (_chosenMelodyIdeas.Count > 0)
+            {
+                notesLines.Add("");
+                notesLines.Add("💡 Melodi-idéer:");
+                notesLines.AddRange(_chosenMelodyIdeas.Select(i => $"- {i.Title}: {i.Description}"));
+            }
+            _song.Notes = string.Join("\n", notesLines);
         }
-
-        var song = new StudioSong
+        else
         {
-            Key               = key,
-            Title             = title,
-            ChordChart        = chordChart,
-            FingerpickPattern = _chosenPat.Notation,
-            Tempo             = _chosenBpm,
-            Notes             = string.Join("\n", notesLines),
+            _song.ChordChart = string.Join(" – ", _chosenProg.Chords);
+        }
+        AutoSave();
+    }
+
+    private void OnLyricsChanged(ChangeEventArgs e)
+    {
+        _lyricsDraft = e.Value?.ToString() ?? "";
+        if (_song is null) return;
+        _song.Lyrics = _lyricsDraft;
+        AutoSave();
+    }
+
+    private void ToggleStep(string key)
+    {
+        if (_song is null) return;
+        _song.SkippedSteps = StepPlanner.ToggleNotNecessary(_song, key);
+        AutoSave();
+    }
+
+    // Single-page wizard, so navigation is just a scroll - no tab concept
+    // like Studio.razor's version of this handler.
+    private async Task NavigateToStep(SongStep step)
+    {
+        if (step.TargetAnchor is null) return;
+        try { await JS.InvokeVoidAsync("studio.scrollToId", step.TargetAnchor); } catch { }
+    }
+
+    // ── Sketch recording ──────────────────────────────────────────────────────
+
+    private static string FormatTime(int seconds) => $"{seconds / 60}:{seconds % 60:D2}";
+
+    private async Task StartSketch()
+    {
+        if (_song is null) return;
+        _sketchRecording = true;
+        _sketchTimer = 0;
+        _sketchTimer_t = new System.Timers.Timer(1000) { AutoReset = true };
+        _sketchTimer_t.Elapsed += async (_, _) =>
+        {
+            if (_disposed) return;
+            _sketchTimer++;
+            await InvokeAsync(StateHasChanged);
         };
+        _sketchTimer_t.Start();
+        try { await JS.InvokeVoidAsync("studio.startSketch", _song.Key); }
+        catch
+        {
+            _sketchRecording = false;
+            _sketchTimer_t?.Stop();
+            _sketchTimer_t?.Dispose();
+            _sketchTimer_t = null;
+        }
+    }
 
-        Db.Songs.Add(song);
-        await Db.SaveChangesAsync();
+    private async Task StopSketch()
+    {
+        _sketchTimer_t?.Stop();
+        _sketchTimer_t?.Dispose();
+        _sketchTimer_t = null;
+        _sketchRecording = false;
+        await JS.InvokeVoidAsync("studio.stopSketch");
+        await Task.Delay(500);
+        if (_song is not null) _sketches = Library.GetSketches(_song.Key);
+    }
 
-        Nav.NavigateTo($"/studio/{Uri.EscapeDataString(key)}", forceLoad: true);
+    private void DeleteSketch(SketchFile sk)
+    {
+        if (!Library.DeleteRecording(sk.RelativePath) || _song is null) return;
+        _sketches = Library.GetSketches(_song.Key);
+    }
+
+    // ── Auto-save ──────────────────────────────────────────────────────────────
+    // Same debounced-timer pattern as Studio.razor's AutoSave.
+
+    private void AutoSave()
+    {
+        if (_song is null) return;
+
+        _saveTimer?.Dispose();
+        _saveTimer = new System.Timers.Timer(1200) { AutoReset = false };
+        _saveTimer.Elapsed += async (_, _) =>
+        {
+            if (_disposed) return;
+            _song.UpdatedAt = DateTime.UtcNow;
+            try { await Db.SaveChangesAsync(); } catch { return; }
+            if (_disposed) return;
+            await InvokeAsync(StateHasChanged);
+        };
+        _saveTimer.Start();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _saveTimer?.Stop(); _saveTimer?.Dispose();
+        _sketchTimer_t?.Stop(); _sketchTimer_t?.Dispose();
     }
 }

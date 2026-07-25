@@ -60,21 +60,57 @@ public sealed class ChordAiService
         return "";
     }
 
-    public async Task<string> ExtractTextFromImageAsync(string base64Image, string mediaType)
+    public async Task<string> ExtractTextFromImageAsync(string base64Image, string mediaType, bool lyricsOnly = false)
     {
         if (_client is null) return "";
+
+        // "notes" target stays permissive (freeform, anything written is
+        // useful there). "lyrics" target is stricter - a photo/PDF often
+        // also shows app chrome, a title/artist header, page numbers, or
+        // chord names mixed with the words, and dumping all of that into
+        // the lyrics box pollutes it for AiAnnotateChords/GetLyricsForSongAsync
+        // etc., which expect the box to hold only actual song lyrics.
+        var system = lyricsOnly
+            ? """
+                You are transcribing ONLY the song lyrics from a photo or PDF document - not
+                everything visible on the page. If it's a multi-page PDF, transcribe all pages in
+                order as one continuous text.
+
+                Include: the actual sung/spoken lyric lines. If section labels are visible (verse,
+                chorus, bridge, intro, outro, pre-chorus, hook, instrumental, vocal/2nd voice, etc.),
+                output them as their own line using a bracket tag: [Verse], [Verse 2], [Chorus],
+                [Bridge], [Intro], [Outro], [Pre-Chorus], [Hook], [Instrumental], [Vocal], [Vocal 2]
+                (second voice/harmony), [Vocal 3] - this app uses that exact bracket format
+                everywhere, so use it even if the source page writes it differently (e.g. "VERS 1" or
+                "Chorus:" or "2nd voice").
+                If a song title/artist header appears on the page, output it as its own line tagged
+                [Headline] (e.g. "[Headline] Hallelujah - Leonard Cohen") instead of dropping it or
+                mixing it into the lyric lines.
+                If the page notes some other non-lyric moment that doesn't fit those tags (a pause, a
+                specific instrument cue, a general note), output it as its own line tagged
+                [Comment: ...] (e.g. "[Comment: guitar solo, 8 bars]") instead of dropping it or
+                treating it as a lyric.
+                Exclude entirely: app/UI chrome (buttons, menus, toolbars), page numbers, watermarks,
+                chord names or chord diagrams, and any other non-lyric annotation.
+
+                Preserve line breaks and blank lines between sections exactly as they appear in
+                the lyrics themselves. Return only the lyrics text, nothing else - no explanation,
+                no "here are the lyrics", nothing extra.
+                """
+            : """
+                You are transcribing handwritten or printed text from a photo or PDF document.
+                Extract ALL visible text exactly as written, preserving line breaks. If it's a
+                multi-page PDF, transcribe all pages in order as one continuous text.
+                Include lyrics, notes, annotations, anything written on the page.
+                If you see chord names mixed into the text, include them.
+                Return only the transcribed text, nothing else.
+                """;
 
         var response = await _client.Messages.Create(new MessageCreateParams
         {
             Model = Model.ClaudeOpus4_8,
             MaxTokens = 1200,
-            System = """
-                You are transcribing handwritten or printed text from a photo.
-                Extract ALL visible text exactly as written, preserving line breaks.
-                Include lyrics, notes, annotations, anything written on the page.
-                If you see chord names mixed into the text, include them.
-                Return only the transcribed text, nothing else.
-                """,
+            System = system,
             Messages =
             [
                 new()
@@ -82,11 +118,13 @@ public sealed class ChordAiService
                     Role = Role.User,
                     Content = new List<ContentBlockParam>
                     {
-                        new TextBlockParam { Text = "Please transcribe all the text visible in this image." },
-                        new ImageBlockParam
+                        new TextBlockParam
                         {
-                            Source = new Base64ImageSource { Data = base64Image, MediaType = mediaType }
-                        }
+                            Text = lyricsOnly
+                                ? "Please transcribe only the song lyrics visible in this document."
+                                : "Please transcribe all the text visible in this document."
+                        },
+                        SourceBlock(base64Image, mediaType)
                     }
                 }
             ]
@@ -411,23 +449,50 @@ public sealed class ChordAiService
             System = """
                 You are a musician annotating lyrics with chord markers in UltimateGuitar format.
                 Insert [Chord] markers IMMEDIATELY before the syllable where the chord starts, with no space between the marker and the word.
-                Keep section labels (Verse:, Chorus:, Bridge: etc.) as plain text lines with no chord markers.
                 Empty lines between sections must remain as empty lines.
                 Return ONLY the annotated lyrics — no explanation, no intro text, nothing else.
 
+                STRUCTURE TAGS: a short line naming a song part - Verse, Verse 2, Chorus, Pre-Chorus,
+                Bridge, Intro, Outro, Hook, Instrumental, Vocal, Vocal 2 (second voice/harmony),
+                Vocal 3 (third voice), or a non-English equivalent (e.g. Danish Vers, Omkvæd, Bro) -
+                is a structural marker, not a lyric, WHETHER OR NOT it's wrapped in brackets
+                ("[Verse]" or plain "Verse" or "Vers 1" on its own line both count).
+
+                BRACKET-REQUIRED TAGS: "Headline" (a title/artist header) and "Comment: ..." (a
+                freeform note like "instrumental break" or "guitar solo, 8 bars") only count as
+                structure tags when bracketed - "[Headline]" / "[Comment: ...]". Both are genuinely
+                ambiguous with real lyric content when unbracketed (a plain "Comment: ..." line could
+                be an actual lyric), so treat an unbracketed one as a normal lyric line and give it
+                [Chord] markers like any other line.
+                Keep every structure-tag line EXACTLY as written in the input, character for character
+                - do NOT add brackets to a plain label, remove brackets from a bracketed one, translate
+                it, or reformat it in any way. No chord markers go on or inside a structure-tag line.
+                Only lines with actual sung/spoken words get [Chord] markers. Don't confuse a structure
+                tag ("Verse" or "[Verse]" alone on its own line) with a chord marker ("[Am]" directly
+                attached to the start of a word,
+                no space) - they look similar but are never the same line.
+
                 CRITICAL: if a chord chart is provided, it is the single source of truth for this song -
-                use ONLY the chords listed there, in the order given per section, cycling through them as
-                needed to cover the section's lines. Do NOT substitute, add, reorder, or "correct" chords
-                based on your own memory of the song, even if you believe you know a different progression -
-                the chart may reflect a specific recording/arrangement you don't know. Only fall back to your
-                own knowledge of the song when no chord chart is provided at all.
+                do NOT substitute, add, reorder, or "correct" chords based on your own memory of the song,
+                even if you believe you know a different progression - the chart may reflect a specific
+                recording/arrangement you don't know. Only fall back to your own knowledge of the song when
+                no chord chart is provided at all. The chart comes in one of two shapes:
+
+                1. Section-based, e.g. "Verse: Am G F E" / "Chorus: C G Am F" - cycle through that section's
+                   chords across the lyric lines belonging to that section.
+                2. Numbered-line-based, e.g. "1: Dm | C" / "2: C" / "3: Dm C" ... up to some N - line number K
+                   in the chart maps directly to the Kth actual lyric line (blank lines and structure-tag
+                   lines don't count as a lyric line). Place the chord(s) for line K onto line K, spreading
+                   multiple chords (separated by "|") evenly across that line's words in order. If the chart
+                   has more numbered lines than the lyrics have lines, ignore the extras; if it has fewer,
+                   leave the remaining lines unmarked rather than guessing.
 
                 Example output format:
-                Verse:
+                [Verse]
                 [Am]Yesterday, [G]all my [F]troubles seemed so [E]far away
                 [Am]Now it [G]looks as though they're [F]here to [E]stay
 
-                Chorus:
+                [Chorus]
                 [C]I be[G]lieve in [Am]yesterday
                 """,
             Messages =
@@ -514,14 +579,19 @@ public sealed class ChordAiService
                 Chorus: C G Am F
 
                 ===LYRICS===
-                Verse:
+                [Verse]
                 [Am]I was wrong to say I [F]loved her
                 [C]When I told her it was [G]over
 
                 Rules:
                 - CHORDS section: one section label per line, chords listed after the colon. Only unique progression per section, not every bar.
                 - LYRICS section: plain lyrics with [Chord] markers placed immediately before the syllable where the chord lands.
-                - Keep section labels (Verse, Chorus, Bridge, etc.) as plain text lines with no chord markers.
+                - Section labels in the LYRICS section use this app's bracket-tag format on their own
+                  line - [Verse], [Verse 2], [Chorus], [Pre-Chorus], [Bridge], [Intro], [Outro], [Hook],
+                  [Instrumental], [Vocal], [Vocal 2] (second voice/harmony), [Vocal 3] - never "Verse:"
+                  or plain "Verse" text, and never any chord markers on that line. If the tab notes
+                  some other non-lyric moment that doesn't fit those tags, use [Comment: ...] on its
+                  own line the same way.
                 - Empty lines between sections must remain as empty lines.
                 - Do NOT include tab notation, finger numbers, or any non-lyric content in the LYRICS section.
                 - If no lyrics are present, return empty LYRICS section.
@@ -568,7 +638,8 @@ public sealed class ChordAiService
             System = """
                 You are a musician extracting chord information from sheet music, lyric sheets, or a
                 chord-detection app's bar/line grid (a numbered list or grid where each row has a number
-                on the left and one or more chords in that row).
+                on the left and one or more chords in that row). The source may be a single image or a
+                multi-page PDF - if it's a PDF, look across all pages, they're one continuous document.
 
                 If the image shows numbered bars or lines (a number clearly associated with each row of
                 chords), output ONE line per number in this exact format, ascending by number:
@@ -592,11 +663,8 @@ public sealed class ChordAiService
                     Role = Role.User,
                     Content = new List<ContentBlockParam>
                     {
-                        new TextBlockParam { Text = "Extract any chord information visible in this image." },
-                        new ImageBlockParam
-                        {
-                            Source = new Base64ImageSource { Data = base64Image, MediaType = mediaType }
-                        }
+                        new TextBlockParam { Text = "Extract any chord information visible in this document." },
+                        SourceBlock(base64Image, mediaType)
                     }
                 }
             ]
@@ -609,4 +677,13 @@ public sealed class ChordAiService
         }
         return "";
     }
+
+    // MusikStudio's photo-upload picker also accepts a combined chord-chart
+    // PDF (e.g. produced by pdf-web from a set of scrolling screenshots) -
+    // Claude reads PDFs natively as a document block, no need to rasterize
+    // pages to images ourselves.
+    private static ContentBlockParam SourceBlock(string base64Data, string mediaType) =>
+        mediaType == "application/pdf"
+            ? new DocumentBlockParam { Source = new Base64PdfSource { Data = base64Data } }
+            : new ImageBlockParam { Source = new Base64ImageSource { Data = base64Data, MediaType = mediaType } };
 }

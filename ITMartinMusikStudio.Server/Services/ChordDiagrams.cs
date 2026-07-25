@@ -86,6 +86,28 @@ public static class ChordDiagrams
     {
         if (string.IsNullOrEmpty(chordName)) return [];
 
+        // Slash chord (e.g. "C/F") - there's no dedicated shape for the exact
+        // bass note, so rather than silently picking one interpretation (or
+        // dropping it), offer a real choice: the plain top chord's shapes,
+        // plus the bass note's shapes clearly labelled - the player decides
+        // which one matches how they want to voice it.
+        var slashIdx = chordName.IndexOf('/');
+        if (slashIdx > 0 && slashIdx < chordName.Length - 1)
+        {
+            var top = chordName[..slashIdx];
+            var bass = chordName[(slashIdx + 1)..];
+            var combined = new List<DiagramResult>();
+            combined.AddRange(GetAllSingle(top).Take(2));
+            combined.AddRange(GetAllSingle(bass).Take(2)
+                .Select(d => new DiagramResult(d.Svg, $"Bas {bass}: {d.ShapeLabel}")));
+            return combined;
+        }
+
+        return GetAllSingle(chordName);
+    }
+
+    private static List<DiagramResult> GetAllSingle(string chordName)
+    {
         var results = new List<DiagramResult>();
         if (ExactShapes.TryGetValue(chordName, out var exactFrets))
             results.Add(new DiagramResult(RenderSvg(exactFrets), "Åben form · nemmest"));
@@ -150,39 +172,47 @@ public static class ChordDiagrams
         var bottomY = nutY + numFrets * fretHeight;
 
         int minFret = frets.Where(f => f > 0).DefaultIfEmpty(0).Min();
-        int firstFret = minFret <= 4 ? 1 : minFret;
+        int maxFret = frets.Where(f => f > 0).DefaultIfEmpty(0).Max();
+        // Only start the window at fret 1 if the WHOLE shape fits in it - a shape
+        // whose lowest fret is small but that reaches higher (e.g. an A-form barre
+        // at fret 3 spanning up to fret 5) must shift the window up, or the higher
+        // frets fall outside the fixed 4-fret box and their dots silently vanish.
+        int firstFret = maxFret <= numFrets ? 1 : minFret;
         bool showFretLabel = firstFret > 1;
 
         var sb = new System.Text.StringBuilder();
         sb.Append($"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {w} {h}' width='{w}' height='{h}'>");
 
+        // Colors are CSS custom properties, not fixed hex, so the diagram
+        // flips with the light/dark theme instead of e.g. staying a
+        // hardcoded white dot that vanishes on a light card background.
         // String lines
         for (int i = 0; i < 6; i++)
-            sb.Append($"<line x1='{sx[i]}' y1='{nutY}' x2='{sx[i]}' y2='{bottomY}' stroke='#555' stroke-width='1.2'/>");
+            sb.Append($"<line x1='{sx[i]}' y1='{nutY}' x2='{sx[i]}' y2='{bottomY}' stroke='var(--chord-line)' stroke-width='1.2'/>");
 
         // Nut or thin top + fret label
         if (!showFretLabel)
-            sb.Append($"<line x1='{sx[0]}' y1='{nutY}' x2='{sx[5]}' y2='{nutY}' stroke='#ccc' stroke-width='3'/>");
+            sb.Append($"<line x1='{sx[0]}' y1='{nutY}' x2='{sx[5]}' y2='{nutY}' stroke='var(--chord-nut)' stroke-width='3'/>");
         else
         {
-            sb.Append($"<line x1='{sx[0]}' y1='{nutY}' x2='{sx[5]}' y2='{nutY}' stroke='#555' stroke-width='1'/>");
-            sb.Append($"<text x='{sx[5] + 6}' y='{nutY + 4}' fill='#aaa' font-size='8' font-family='sans-serif'>{firstFret}fr</text>");
+            sb.Append($"<line x1='{sx[0]}' y1='{nutY}' x2='{sx[5]}' y2='{nutY}' stroke='var(--chord-line)' stroke-width='1'/>");
+            sb.Append($"<text x='{sx[5] + 6}' y='{nutY + 4}' fill='var(--chord-label)' font-size='8' font-family='sans-serif'>{firstFret}fr</text>");
         }
 
         // Fret lines
         for (int f = 1; f <= numFrets; f++)
         {
             int fy = nutY + f * fretHeight;
-            sb.Append($"<line x1='{sx[0]}' y1='{fy}' x2='{sx[5]}' y2='{fy}' stroke='#444' stroke-width='1'/>");
+            sb.Append($"<line x1='{sx[0]}' y1='{fy}' x2='{sx[5]}' y2='{fy}' stroke='var(--chord-fret)' stroke-width='1'/>");
         }
 
         // Open (○) / muted (×) markers above nut
         for (int i = 0; i < 6; i++)
         {
             if (frets[i] == -1)
-                sb.Append($"<text x='{sx[i]}' y='18' text-anchor='middle' fill='#666' font-size='11' font-family='monospace'>×</text>");
+                sb.Append($"<text x='{sx[i]}' y='18' text-anchor='middle' fill='var(--chord-muted)' font-size='11' font-family='monospace'>×</text>");
             else if (frets[i] == 0)
-                sb.Append($"<circle cx='{sx[i]}' cy='16' r='4' fill='none' stroke='#888' stroke-width='1.5'/>");
+                sb.Append($"<circle cx='{sx[i]}' cy='16' r='4' fill='none' stroke='var(--chord-open)' stroke-width='1.5'/>");
         }
 
         // Barre detection: same fret on 4+ strings spanning 4+ string positions
@@ -206,7 +236,7 @@ public static class ChordDiagrams
         {
             int relFret = barreAtFret - firstFret + 1;
             int cy = nutY + (relFret - 1) * fretHeight + fretHeight / 2;
-            sb.Append($"<rect x='{sx[barreLeft] - dotR}' y='{cy - dotR}' width='{sx[barreRight] - sx[barreLeft] + 2 * dotR}' height='{2 * dotR}' rx='{dotR}' fill='white'/>");
+            sb.Append($"<rect x='{sx[barreLeft] - dotR}' y='{cy - dotR}' width='{sx[barreRight] - sx[barreLeft] + 2 * dotR}' height='{2 * dotR}' rx='{dotR}' fill='var(--chord-dot)'/>");
         }
 
         // Individual finger dots
@@ -218,7 +248,7 @@ public static class ChordDiagrams
             int relFret = f - firstFret + 1;
             if (relFret < 1 || relFret > numFrets) continue;
             int cy = nutY + (relFret - 1) * fretHeight + fretHeight / 2;
-            sb.Append($"<circle cx='{sx[i]}' cy='{cy}' r='{dotR}' fill='white'/>");
+            sb.Append($"<circle cx='{sx[i]}' cy='{cy}' r='{dotR}' fill='var(--chord-dot)'/>");
         }
 
         sb.Append("</svg>");

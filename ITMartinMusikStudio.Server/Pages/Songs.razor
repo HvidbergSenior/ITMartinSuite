@@ -25,37 +25,77 @@
     <input class="songs-search" type="search" placeholder="Søg sang eller artist..."
            value="@_query" @oninput="e => _query = e.Value?.ToString() ?? string.Empty" />
 
-    <!-- DB songs -->
-    @if (FilteredSongs.Any())
-    {
-        <div class="section-label">Mine studio-sange</div>
-        <div class="song-cards">
-            @foreach (var s in FilteredSongs)
+    @{
+        // Shared card template (Razor template syntax) so the three grouped
+        // sections below don't triple the same markup.
+        RenderFragment<(StudioSong Song, string BorderClass)> RenderSongCard = ctx =>
+        @<div class="song-card @ctx.BorderClass"
+              style="cursor:pointer;"
+              @onclick="() => Nav.NavigateTo(SongUrl(ctx.Song), forceLoad: true)">
+            @if (!string.IsNullOrWhiteSpace(ctx.Song.CoverImagePath) && Library.Exists(ctx.Song.CoverImagePath))
             {
-                var isOriginal = string.IsNullOrWhiteSpace(s.SourceFile);
-                var songUrl = "/studio/" + Uri.EscapeDataString(s.Key);
-                <div class="song-card @(isOriginal ? "song-card--original" : "")"
-                     style="cursor:pointer;"
-                     @onclick="() => Nav.NavigateTo(songUrl, forceLoad: true)">
-                    <div class="song-card-icon">@(isOriginal ? "✍️" : (Library.IsVideo(s.SourceFile) ? "🎬" : "🎵"))</div>
-                    <div class="song-card-body">
-                        <div class="song-card-title">@s.Title</div>
-                        <div class="song-card-meta">
-                            <span>@(string.IsNullOrWhiteSpace(s.Artist) ? "Eget" : s.Artist)</span>
-                            @if (!string.IsNullOrWhiteSpace(s.MusicKey))
-                            {
-                                <span class="key-badge">@s.MusicKey</span>
-                            }
-                            @if (s.Tempo.HasValue)
-                            {
-                                <span>@s.Tempo BPM</span>
-                            }
-                        </div>
-                    </div>
-                    <button @onclick:stopPropagation @onclick="() => DeleteSong(s)"
-                            style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px 8px;flex-shrink:0;"
-                            title="Slet sang">🗑</button>
+                <img class="song-card-cover" src="/stream?path=@Uri.EscapeDataString(ctx.Song.CoverImagePath)" alt="" />
+            }
+            else
+            {
+                <div class="song-card-icon">@SongIcon(ctx.Song)</div>
+            }
+            <div class="song-card-body">
+                <div class="song-card-title">@ctx.Song.Title</div>
+                <div class="song-card-meta">
+                    <span>@(string.IsNullOrWhiteSpace(ctx.Song.Artist) ? "Eget" : ctx.Song.Artist)</span>
+                    @if (!string.IsNullOrWhiteSpace(ctx.Song.MusicKey))
+                    {
+                        <span class="key-badge">@ctx.Song.MusicKey</span>
+                    }
+                    @if (ctx.Song.Tempo.HasValue)
+                    {
+                        <span>@ctx.Song.Tempo BPM</span>
+                    }
+                    @{ var (done, total) = StepProgress(ctx.Song); }
+                    <span class="song-card-progress @(done == total ? "song-card-progress--full" : done > 0 ? "song-card-progress--partial" : "song-card-progress--empty")">
+                        @done/@total
+                    </span>
                 </div>
+            </div>
+            <button @onclick:stopPropagation @onclick="() => DeleteSong(ctx.Song)"
+                    style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px 8px;flex-shrink:0;"
+                    title="Slet sang">🗑</button>
+        </div>;
+    }
+
+    <!-- DB songs, grouped by where each song is in its lifecycle - most
+         actionable first: fully ready to record, then the two in-progress
+         flows. -->
+    @if (ReadySongs.Any())
+    {
+        <div class="section-label">🔓 Klar til indspilning</div>
+        <div class="song-cards">
+            @foreach (var s in ReadySongs)
+            {
+                @RenderSongCard((s, "song-card--ready"))
+            }
+        </div>
+    }
+
+    @if (IndoevSongs.Any())
+    {
+        <div class="section-label" style="margin-top:20px">🎧 Indøv sang</div>
+        <div class="song-cards">
+            @foreach (var s in IndoevSongs)
+            {
+                @RenderSongCard((s, "song-card--indoev"))
+            }
+        </div>
+    }
+
+    @if (WritingSongs.Any())
+    {
+        <div class="section-label" style="margin-top:20px">✍️ Skriv sang</div>
+        <div class="song-cards">
+            @foreach (var s in WritingSongs)
+            {
+                @RenderSongCard((s, "song-card--writing"))
             }
         </div>
     }
@@ -137,6 +177,28 @@
             .Where(f => string.IsNullOrWhiteSpace(_query) ||
                         f.Title.Contains(_query, StringComparison.OrdinalIgnoreCase));
 
+    // Grouped by lifecycle stage, most-actionable first. ReadyToRecord takes
+    // priority over the flow grouping regardless of origin - a fully-stepped
+    // song is "done prepping" whether it started as Skriv sang or Indøv sang.
+    private bool ReadyToRecord(StudioSong s) => StepPlanner.IsReadyToRecord(s, Library.GetSketches(s.Key).Count > 0);
+
+    private IEnumerable<StudioSong> ReadySongs   => FilteredSongs.Where(ReadyToRecord);
+    private IEnumerable<StudioSong> IndoevSongs  => FilteredSongs.Where(s => !ReadyToRecord(s) && StepPlanner.GetFlow(s) == SongFlow.Recording);
+    private IEnumerable<StudioSong> WritingSongs => FilteredSongs.Where(s => !ReadyToRecord(s) && StepPlanner.GetFlow(s) == SongFlow.Writing);
+
+    private (int Done, int Total) StepProgress(StudioSong s)
+    {
+        var steps = StepPlanner.GetSteps(s, Library.GetSketches(s.Key).Count > 0, Library.HasPublishedVersion(s.Key))
+            .Where(x => x.Key != "version") // post-recording outcome, not prep progress
+            .ToList();
+        return (steps.Count(x => x.Status != StepStatus.NotStarted), steps.Count);
+    }
+
+    private static string SongUrl(StudioSong s) => "/studio/" + Uri.EscapeDataString(s.Key);
+
+    private string SongIcon(StudioSong s) =>
+        StepPlanner.GetFlow(s) == SongFlow.Writing ? "✍️" : Library.IsVideo(s.SourceFile) ? "🎬" : "🎵";
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -172,9 +234,7 @@
         var title = _newTitle.Trim();
         if (string.IsNullOrWhiteSpace(title)) return;
 
-        var baseKey = title.ToLower()
-            .Replace(" ", "_")
-            .Replace("-", "_");
+        var baseKey = Library.SafeKey(title);
         var key = baseKey;
         if (_songKeys.Contains(key))
             key = baseKey + "_" + Guid.NewGuid().ToString("N")[..4];

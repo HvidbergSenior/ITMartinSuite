@@ -28,4 +28,16 @@ public class StudioSong
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // CSV of step Keys (see StepPlanner) the user explicitly marked "not
+    // necessary" for this song. Everything else about step state (Done vs
+    // NotStarted) is inferred from the fields above - this is the only
+    // step-completion state that needs persisting.
+    public string SkippedSteps { get; set; } = "";
+
+    // Relative path (under StudioLibraryService.Root) to a generated cover
+    // image, empty if none. Deliberately NOT part of the step checklist -
+    // it's decoration, not something needed to actually record the song, so
+    // it doesn't gate Indspil the way chords/lyrics/pattern do.
+    public string CoverImagePath { get; set; } = "";
 }

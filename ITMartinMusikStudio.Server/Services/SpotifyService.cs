@@ -105,7 +105,14 @@ public sealed class SpotifyService
             req.Headers.Authorization = BasicAuthHeader();
 
             var resp = await http.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+            {
+                // Refresh token was rejected (revoked/expired) - delete the stale file so
+                // IsConnected reflects reality and the "Forbind til Spotify" button reappears
+                // instead of silently staying hidden forever.
+                try { File.Delete(_tokenFilePath); } catch { }
+                return null;
+            }
 
             var token = await resp.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken: ct);
             if (token is null) return null;

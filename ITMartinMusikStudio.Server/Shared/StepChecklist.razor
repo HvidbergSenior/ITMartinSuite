@@ -1,0 +1,39 @@
+@using ITMartinMusikStudio.Server.Services
+
+@* Always-visible progress tracker for a song's prep steps. Two separate
+   interactions per pill on purpose, not one overloaded click: a NotStarted
+   step's PRIMARY action is "take me to where I'd fill this in" (OnNavigate),
+   with a small secondary "✕" to actively mark it not necessary (OnToggle).
+   Done steps are non-interactive - there's no meaningful "undo" for a step
+   backed by real data short of clearing that data elsewhere. *@
+
+<div class="step-checklist">
+    @foreach (var step in Steps)
+    {
+        <div class="step-pill step-pill--@step.Status.ToString().ToLowerInvariant()">
+            @if (step.Status == StepStatus.NotStarted && (step.TargetTab is not null || step.TargetAnchor is not null))
+            {
+                <button class="step-pill-main" title="Gå til @step.Label" @onclick="() => OnNavigate.InvokeAsync(step)">
+                    <span class="step-pill-icon">○</span>
+                    <span class="step-pill-label">@step.Label</span>
+                </button>
+                <button class="step-pill-skip" title="Marker som ikke nødvendig" @onclick="() => OnToggle.InvokeAsync(step.Key)">✕</button>
+            }
+            else
+            {
+                <button class="step-pill-main" disabled="@(step.Status == StepStatus.Done)"
+                        title="@(step.Status == StepStatus.Done ? "Færdig" : step.Status == StepStatus.NotNecessary ? "Klik for at fortryde \"ikke nødvendig\"" : step.Label)"
+                        @onclick="() => OnToggle.InvokeAsync(step.Key)">
+                    <span class="step-pill-icon">@(step.Status == StepStatus.Done ? "✓" : step.Status == StepStatus.NotNecessary ? "–" : "○")</span>
+                    <span class="step-pill-label">@step.Label</span>
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<SongStep> Steps { get; set; } = [];
+    [Parameter] public EventCallback<string> OnToggle { get; set; }
+    [Parameter] public EventCallback<SongStep> OnNavigate { get; set; }
+}
