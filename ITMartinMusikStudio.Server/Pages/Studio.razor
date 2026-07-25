@@ -1649,10 +1649,22 @@ else if (_song is not null)
         _spotifyPlaying = false;
     }
 
+    // Picking a new key is a shortcut for "transpose to this key" - same
+    // chord-shifting AdjustT does, just computed as one jump (new root minus
+    // old root) instead of repeated half-tone clicks. Major/minor suffix
+    // ("Em" vs "E") doesn't affect the shift; RootIndex only looks at the
+    // root letter, matching TransposeNote's own root/suffix split.
     private void OnKeyChanged(ChangeEventArgs e)
     {
         if (_song is null) return;
-        _song.MusicKey = e.Value?.ToString() ?? _song.MusicKey;
+        var newKey = e.Value?.ToString() ?? _song.MusicKey;
+        var semitones = RootIndex(newKey) - RootIndex(_song.MusicKey);
+        if (semitones != 0)
+        {
+            _lyricsEdit = TransposeChordsInText(_lyricsEdit, semitones);
+            _chordEdit  = TransposeChordChart(_chordEdit, semitones);
+        }
+        _song.MusicKey = newKey;
         AutoSave();
     }
 
@@ -1676,6 +1688,15 @@ else if (_song is not null)
 
     private static readonly string[] Notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] NotesFlat = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+
+    private static int RootIndex(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return 0;
+        var rootLen = key.Length > 1 && key[1] is '#' or 'b' ? 2 : 1;
+        var root = key[..rootLen];
+        var idx = Array.IndexOf(Notes, root);
+        return idx >= 0 ? idx : Math.Max(0, Array.IndexOf(NotesFlat, root));
+    }
 
     private static string TransposeNote(string chord, int semitones)
     {
