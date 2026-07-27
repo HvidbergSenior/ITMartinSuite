@@ -24,20 +24,28 @@ $NasDataPath  = "/volume1/docker/martinsuite/musikstudio/data"
 $LocalMusic   = "C:\MartinMusikLocal"
 $LocalData    = "C:\MusikStudioLocalData"
 
+$NasStagingDir = "/volume1/docker/martinsuite/tmp-transfer"
+
 function Pull-FromNas($remotePath, $localPath, $label) {
     Write-Host "Pulling $label from NAS..." -ForegroundColor Cyan
 
     $tarName = "musikstudio-pull-$($label -replace '\s','').tar.gz"
-    $remoteTar = "/tmp/$tarName"
+    # /tmp on this NAS is a RAM-backed tmpfs capped at ~866M shared with the
+    # whole box's 1.7GB RAM - staging a music-library-sized archive there took
+    # the NAS down twice. Stage on /volume1 instead (8+TB free, real disk, no
+    # RAM pressure) - same tar+scp mechanics, just a different remote path.
+    $remoteTar = "$NasStagingDir/$tarName"
     $localTar  = "$env:TEMP\$tarName"
 
+    ssh $NasHost "mkdir -p $NasStagingDir && rm -f $remoteTar" | Out-Null
+
     ssh $NasHost "tar -czf $remoteTar -C $remotePath ."
-    if ($LASTEXITCODE -ne 0) { Write-Error "$label - remote tar failed."; exit 1 }
+    if ($LASTEXITCODE -ne 0) { Write-Error "$label - remote tar failed."; ssh $NasHost "rm -f $remoteTar" | Out-Null; exit 1 }
 
     scp -O "${NasHost}:${remoteTar}" $localTar
-    if ($LASTEXITCODE -ne 0) { Write-Error "$label - download failed."; exit 1 }
+    if ($LASTEXITCODE -ne 0) { Write-Error "$label - download failed."; ssh $NasHost "rm -f $remoteTar" | Out-Null; exit 1 }
 
-    ssh $NasHost "rm $remoteTar"
+    ssh $NasHost "rm -f $remoteTar"
 
     # Fresh extract every time - this local copy is a disposable working copy,
     # so clearing it first avoids stale files piling up from things deleted
@@ -45,7 +53,9 @@ function Pull-FromNas($remotePath, $localPath, $label) {
     if (Test-Path $localPath) { Remove-Item -Path $localPath -Recurse -Force }
     New-Item -ItemType Directory -Path $localPath -Force | Out-Null
 
-    tar --force-local -xzf $localTar -C $localPath
+    # See stop-musikstudio.ps1 for why --force-local was dropped - bsdtar
+    # (Windows' built-in tar.exe) doesn't support that GNU-tar-only flag.
+    tar -xzf $localTar -C $localPath
     if ($LASTEXITCODE -ne 0) { Write-Error "$label - local extract failed. $localPath may be empty - do not trust this pull, retry before starting the container."; exit 1 }
     Remove-Item $localTar -Force
 
@@ -56,7 +66,13 @@ Pull-FromNas $NasMusicPath $LocalMusic "music library"
 Pull-FromNas $NasDataPath  $LocalData  "studio data"
 
 Write-Host "Starting musik-studio-web..." -ForegroundColor Cyan
-docker compose up -d musik-studio-web
+Push-Location $PSScriptRoot
+try {
+    docker compose up -d musik-studio-web
+    if ($LASTEXITCODE -ne 0) { Write-Error "docker compose up failed - musik-studio-web is NOT running."; exit 1 }
+} finally {
+    Pop-Location
+}
 
 Write-Host ""
 Write-Host "Running at http://localhost:8105" -ForegroundColor Green
