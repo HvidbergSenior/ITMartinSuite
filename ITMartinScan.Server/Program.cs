@@ -1,3 +1,4 @@
+using ITMartin.Ai;
 using ITMartinScan.Server;
 using Microsoft.AspNetCore.DataProtection;
 
@@ -7,6 +8,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddHubOptions(o => o.MaximumReceiveMessageSize = 5 * 1024 * 1024);
+builder.Services.AddAi();
 
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");

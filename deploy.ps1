@@ -37,9 +37,6 @@ $ServiceMap = @{
     "filesorter-web"         = @{ Dockerfile = "ITMartinFileSorter.Server/Dockerfile";                Context = "." }
     "filesorter-worker"      = @{ Dockerfile = "ITMartinFileSorter.Worker/Dockerfile";                Context = "." }
     "gallery-web"            = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile";        Context = "." }
-    "gallery-mie"            = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile";        Context = "." }
-    "gallery-hvidbergfamily" = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile";        Context = "." }
-    "gallery-hvidberg"       = @{ Dockerfile = "ITMartinFileSorter.Gallery.Server/Dockerfile";        Context = "." }
     "budget-web"             = @{ Dockerfile = "ITMartinBudget.Server/Dockerfile";                    Context = "." }
     "r6assistant-web"        = @{ Dockerfile = "ITMartinR6Assistant.Server/Dockerfile";               Context = "." }
     "r6intel-web"            = @{ Dockerfile = "ITMartinR6Intel.Server/Dockerfile";                   Context = "." }
@@ -58,7 +55,6 @@ $ServiceMap = @{
     "magazine-web"           = @{ Dockerfile = "ITMartinMagazine.Server/Dockerfile";                  Context = "." }
     "magazine-search-web"    = @{ Dockerfile = "ITMartinMagazine.Search.Server/Dockerfile";           Context = "." }
     "musik-studio-web"       = @{ Dockerfile = "ITMartinMusikStudio.Server/Dockerfile";               Context = "." }
-    "image-processor"        = @{ Dockerfile = "ITMartinImageProcessor.Worker/Dockerfile";            Context = "ITMartinImageProcessor.Worker" }
     "scan-web"               = @{ Dockerfile = "ITMartinScan.Server/Dockerfile";                      Context = "." }
     "imagegen-web"           = @{ Dockerfile = "ITMartinImageGen.Server/Dockerfile";                  Context = "." }
     "dailybrief-web"         = @{ Dockerfile = "ITMartinDailyBrief.Server/Dockerfile";                Context = "." }

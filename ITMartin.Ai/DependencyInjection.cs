@@ -36,6 +36,10 @@ public static class DependencyInjection
             ClaudeReceiptExtractionService>();
 
         services.AddSingleton<
+            IShelfScanService,
+            ClaudeShelfScanService>();
+
+        services.AddSingleton<
             IElBillExtractionService,
             ClaudeElBillExtractionService>();
 

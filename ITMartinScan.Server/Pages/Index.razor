@@ -1,6 +1,8 @@
 @page "/"
+@using ITMartin.Ai.Interfaces
+@using ITMartin.Ai.Models
 @inject IJSRuntime JS
-@inject IConfiguration Config
+@inject IShelfScanService ShelfScan
 @implements IAsyncDisposable
 
 <PageTitle>Dagligvare Scanner</PageTitle>
@@ -61,15 +63,15 @@
         @foreach (var group in _filteredGroups)
         {
             <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-top:8px;margin-bottom:4px;">
-                @group.Kategori <span style="background:rgba(255,255,255,.08);border-radius:8px;padding:1px 6px;color:#94a3b8;">@group.Products.Count</span>
+                @group.Category <span style="background:rgba(255,255,255,.08);border-radius:8px;padding:1px 6px;color:#94a3b8;">@group.Products.Count</span>
             </div>
             @foreach (var p in group.Products)
             {
                 <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:10px 13px;margin-bottom:5px;">
-                    <div style="font-size:15px;font-weight:600;color:#f1f5f9;line-height:1.3;">@p.Navn</div>
-                    @if (!string.IsNullOrEmpty(p.Producent))
+                    <div style="font-size:15px;font-weight:600;color:#f1f5f9;line-height:1.3;">@p.Name</div>
+                    @if (!string.IsNullOrEmpty(p.Manufacturer))
                     {
-                        <div style="font-size:12px;color:#64748b;margin-top:2px;">@p.Producent</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:2px;">@p.Manufacturer</div>
                     }
                 </div>
             }
@@ -85,17 +87,19 @@
     private List<string> _pendingImages = [];
     private List<ProductGroup> _groups = [];
 
+    private record ProductGroup(string Category, List<ShelfScanProduct> Products);
+
     private IEnumerable<ProductGroup> _filteredGroups
     {
         get
         {
             if (string.IsNullOrWhiteSpace(_search)) return _groups;
             return _groups
-                .Select(g => new ProductGroup(g.Kategori, g.Products
+                .Select(g => new ProductGroup(g.Category, g.Products
                     .Where(p =>
-                        p.Navn.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-                        p.Producent.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-                        p.Kategori.Contains(_search, StringComparison.OrdinalIgnoreCase))
+                        p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                        (p.Manufacturer ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                        p.Category.Contains(_search, StringComparison.OrdinalIgnoreCase))
 
                     .ToList()))
                 .Where(g => g.Products.Count > 0);
@@ -130,7 +134,12 @@
         StateHasChanged();
         try
         {
-            _groups = await AnalyzeAsync([.._pendingImages]);
+            var result = await ShelfScan.AnalyzeAsync([.._pendingImages]);
+            _groups = result.Products
+                .GroupBy(p => p.Category)
+                .OrderBy(g => g.Key)
+                .Select(g => new ProductGroup(g.Key, g.OrderBy(p => p.Name).ToList()))
+                .ToList();
             _pendingImages.Clear();
         }
         catch (Exception ex) { _error = ex.Message; }
@@ -146,89 +155,8 @@
         StateHasChanged();
     }
 
-    private const string Prompt =
-        "Du er en indkøbsassistent. Analyser disse hyllebilleder og identificer ALLE synlige produkter.\n\n" +
-        "Billederne er taget på ~1-1,5 meters afstand – brug derfor:\n" +
-        "- Logo, flaskeform, emballagefarve og design til at genkende produkter, selv om tekst er uskarpt\n" +
-        "- Din viden om kendte mærker (Carlsberg, Tuborg, Heineken, Arla, Lurpak, Nescafé, Jacobs, Lay's osv.)\n" +
-        "- Giv dit bedste bud på navn – spring IKKE produkter over blot fordi teksten er svær at læse\n\n" +
-        "For hvert produkt, returner:\n" +
-        "- navn: fuldt produktnavn (eller mærkets kendte navn)\n" +
-        "- producent: mærke (tom streng hvis ukendt)\n" +
-        "- kategori: Rødvin, Hvidvin, Rosé, Øl, Spiritus, Kaffe, Te, Pasta, Ris, Konserves, Mejeri, Kød, Snacks, Rengøring, Hygiejne eller anden passende kategori\n\n" +
-        "Svar KUN med JSON uden forklaring:\n" +
-        "{\"varer\":[{\"navn\":\"\",\"producent\":\"\",\"kategori\":\"\"}]}";
-
-    private async Task<List<ProductGroup>> AnalyzeAsync(List<string> images)
-    {
-        var key = Config["Claude:ApiKey"] ?? "";
-        if (string.IsNullOrEmpty(key)) { _error = "Ingen API-nøgle konfigureret"; return []; }
-
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
-        http.DefaultRequestHeaders.Add("x-api-key", key);
-        http.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-
-        var content = new List<object>();
-        foreach (var img in images)
-            content.Add(new { type = "image", source = new { type = "base64", media_type = "image/jpeg", data = img } });
-        content.Add(new { type = "text", text = Prompt });
-
-        var body = new
-        {
-            model = "claude-haiku-4-5-20251001",
-            max_tokens = 4096,
-            messages = new[] { new { role = "user", content } }
-        };
-
-        var resp = await http.PostAsJsonAsync("https://api.anthropic.com/v1/messages", body);
-        var json = await resp.Content.ReadAsStringAsync();
-
-        if (!resp.IsSuccessStatusCode)
-        {
-            _error = $"API fejl {(int)resp.StatusCode}: {(json.Length > 120 ? json[..120] : json)}";
-            return [];
-        }
-
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
-        var text = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString() ?? "";
-
-        if (text.Contains("```"))
-            text = string.Join("\n", text.Split('\n').Skip(1).TakeWhile(l => !l.StartsWith("```")));
-
-        using var r = System.Text.Json.JsonDocument.Parse(text.Trim());
-        var products = new List<Product>();
-        foreach (var v in r.RootElement.GetProperty("varer").EnumerateArray())
-        {
-            var navn = TryStr(v, "navn");
-            if (string.IsNullOrWhiteSpace(navn)) continue;
-            products.Add(new Product(
-                navn,
-                TryStr(v, "producent") ?? "",
-                TryStr(v, "kategori") ?? "Andet"
-            ));
-        }
-
-        return products
-            .GroupBy(p => p.Kategori)
-            .OrderBy(g => g.Key)
-            .Select(g => new ProductGroup(
-                g.Key,
-                g.OrderBy(p => p.Navn).ToList()))
-            .ToList();
-    }
-
-    private static string? TryStr(System.Text.Json.JsonElement el, string key)
-    {
-        if (el.TryGetProperty(key, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String)
-        { var s = v.GetString(); return string.IsNullOrWhiteSpace(s) ? null : s; }
-        return null;
-    }
-
     public async ValueTask DisposeAsync()
     {
         try { await JS.InvokeVoidAsync("scan.stopCamera"); } catch { }
     }
-
-    private record Product(string Navn, string Producent, string Kategori);
-    private record ProductGroup(string Kategori, List<Product> Products);
 }
