@@ -1,20 +1,22 @@
 @page "/percussion"
-@inject IJSRuntime JS
+@rendermode InteractiveServer
+@inject NavigationManager Nav
 
 <div class="ka-page">
     <div class="ka-card">
+        <button class="ka-btn-ghost" style="width:auto;margin:0 0 10px" @onclick='() => Nav.NavigateTo("/join", forceLoad: true)'>← Tilbage</button>
         <h1 class="ka-title">🥁 Tromme med</h1>
         <p class="ka-sub">Tryk løs i takt med musikken - eller brug en spand, et bord, hvad der nu er ved hånden!</p>
 
         <div class="ka-pad-grid">
-            <button class="ka-pad clap" @onclick='() => Hit("clap")'>👏</button>
-            <button class="ka-pad drum" @onclick='() => Hit("drum")'>🥁</button>
-            <button class="ka-pad tom" @onclick='() => Hit("tom")'>🔔</button>
-            <button class="ka-pad shaker" @onclick='() => Hit("shaker")'>🪇</button>
+            <button class="ka-pad clap" onclick="karaoke.playPad('clap')">👏</button>
+            <button class="ka-pad drum" onclick="karaoke.playPad('drum')">🥁</button>
+            <button class="ka-pad tom" onclick="karaoke.playPad('tom')">🔔</button>
+            <button class="ka-pad shaker" onclick="karaoke.playPad('shaker')">🪇</button>
+            <button class="ka-pad kick" onclick="karaoke.playPad('kick')">💥</button>
+            <button class="ka-pad snare" onclick="karaoke.playPad('snare')">🎯</button>
+            <button class="ka-pad hihat" onclick="karaoke.playPad('hihat')">🎩</button>
+            <button class="ka-pad cowbell" onclick="karaoke.playPad('cowbell')">🐄</button>
         </div>
     </div>
 </div>
-
-@code {
-    private async Task Hit(string kind) => await JS.InvokeVoidAsync("karaoke.playPad", kind);
-}

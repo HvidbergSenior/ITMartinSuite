@@ -1,4 +1,5 @@
 @page "/join"
+@rendermode InteractiveServer
 @inject NavigationManager Nav
 @inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
 @inject IJSRuntime JS
@@ -40,12 +41,21 @@
     private string _name = "";
     private string? _error;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
         var q = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        _code = q["code"] ?? await JS.InvokeAsync<string>("localStorage.getItem", "karaoke_code") ?? "";
+        _code = q["code"] ?? "";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        if (string.IsNullOrWhiteSpace(_code))
+            _code = await JS.InvokeAsync<string>("localStorage.getItem", "karaoke_code") ?? "";
         _name = await JS.InvokeAsync<string>("localStorage.getItem", "karaoke_name") ?? "";
+        StateHasChanged();
     }
 
     private async Task JoinAs(string role)
@@ -81,6 +91,6 @@
             "follow" => $"/follow/{code}",
             "record" => $"/record/{code}?name={Uri.EscapeDataString(name)}",
             _ => "/percussion",
-        });
+        }, forceLoad: true);
     }
 }

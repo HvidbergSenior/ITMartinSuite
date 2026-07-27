@@ -1,11 +1,14 @@
 @page "/record/{Code}"
+@rendermode InteractiveServer
 @implements IDisposable
 @using Microsoft.EntityFrameworkCore
+@inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
 
 <div class="ka-page">
     <div class="ka-card">
+        <button class="ka-btn-ghost" style="width:auto;margin:0 0 10px" @onclick='() => Nav.NavigateTo("/join", forceLoad: true)'>← Tilbage</button>
         <h1 class="ka-title">🎙 Optag din stemme</h1>
         <p class="ka-sub">Hold telefonen tæt på dig selv - denne optagelse gemmes for sig, den blandes ikke automatisk med de andres.</p>
 
@@ -38,7 +41,12 @@
 
             @if (_saved)
             {
-                <p class="ka-sub" style="color:#22c55e">Gemt! 🎉</p>
+                <p class="ka-sub" style="color:#15803d;font-weight:600">Gemt! 🎉</p>
+            }
+
+            @if (_error is not null)
+            {
+                <p class="ka-sub" style="color:#ef4444">@_error</p>
             }
         }
     </div>
@@ -52,6 +60,7 @@
     private Data.Entities.QueueEntry? _current;
     private bool _recording;
     private bool _saved;
+    private string? _error;
     private List<AudioDevice> _devices = [];
     private string? _deviceId;
     private System.Threading.Timer? _timer;
@@ -85,8 +94,16 @@
     private async Task Start()
     {
         _saved = false;
-        await JS.InvokeVoidAsync("karaoke.startRecording", false, _deviceId);
-        _recording = true;
+        _error = null;
+        try
+        {
+            await JS.InvokeVoidAsync("karaoke.startRecording", false, _deviceId);
+            _recording = true;
+        }
+        catch (Exception)
+        {
+            _error = "Kunne ikke få adgang til mikrofonen. Optagelse kræver HTTPS eller at siden åbnes via localhost - virker ikke over almindelig WiFi-adresse på nogle telefoner.";
+        }
     }
 
     private async Task Stop()

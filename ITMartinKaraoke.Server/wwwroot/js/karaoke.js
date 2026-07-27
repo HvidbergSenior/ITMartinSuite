@@ -163,40 +163,79 @@ window.karaoke = (function () {
         return _padCtx;
     }
 
+    function noiseHit(ctx, now, filterType, filterFreq, peakGain, duration) {
+        var bufferSize = ctx.sampleRate * duration;
+        var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        var data = buffer.getChannelData(0);
+        for (var i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+        var noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        var filter = ctx.createBiquadFilter();
+        filter.type = filterType;
+        filter.frequency.value = filterFreq;
+        var gain = ctx.createGain();
+        gain.gain.setValueAtTime(peakGain, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        noise.connect(filter).connect(gain).connect(ctx.destination);
+        noise.start(now);
+    }
+
     function playPad(kind) {
         var ctx = padCtx();
         var now = ctx.currentTime;
 
         if (kind === "clap" || kind === "shaker") {
-            var bufferSize = ctx.sampleRate * (kind === "clap" ? 0.2 : 0.15);
-            var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-            var data = buffer.getChannelData(0);
-            for (var i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
-            var noise = ctx.createBufferSource();
-            noise.buffer = buffer;
-            var filter = ctx.createBiquadFilter();
-            filter.type = kind === "clap" ? "bandpass" : "highpass";
-            filter.frequency.value = kind === "clap" ? 1200 : 6000;
-            var gain = ctx.createGain();
-            gain.gain.setValueAtTime(kind === "clap" ? 0.9 : 0.5, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + (kind === "clap" ? 0.2 : 0.15));
-            noise.connect(filter).connect(gain).connect(ctx.destination);
-            noise.start(now);
+            noiseHit(ctx, now, kind === "clap" ? "bandpass" : "highpass", kind === "clap" ? 1200 : 6000,
+                kind === "clap" ? 0.9 : 0.5, kind === "clap" ? 0.2 : 0.15);
             return;
         }
 
-        // drum / tom: a simple pitched thump
+        if (kind === "hihat") {
+            noiseHit(ctx, now, "highpass", 9000, 0.4, 0.06);
+            return;
+        }
+
+        if (kind === "snare") {
+            noiseHit(ctx, now, "highpass", 2500, 0.6, 0.15);
+            var sOsc = ctx.createOscillator();
+            var sGain = ctx.createGain();
+            sOsc.type = "triangle";
+            sOsc.frequency.setValueAtTime(180, now);
+            sGain.gain.setValueAtTime(0.5, now);
+            sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            sOsc.connect(sGain).connect(ctx.destination);
+            sOsc.start(now);
+            sOsc.stop(now + 0.12);
+            return;
+        }
+
+        if (kind === "cowbell") {
+            [800, 540].forEach(function (freq) {
+                var cOsc = ctx.createOscillator();
+                var cGain = ctx.createGain();
+                cOsc.type = "square";
+                cOsc.frequency.setValueAtTime(freq, now);
+                cGain.gain.setValueAtTime(0.35, now);
+                cGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                cOsc.connect(cGain).connect(ctx.destination);
+                cOsc.start(now);
+                cOsc.stop(now + 0.3);
+            });
+            return;
+        }
+
+        // drum / tom / kick: a simple pitched thump
         var osc = ctx.createOscillator();
         var gain2 = ctx.createGain();
         osc.type = "sine";
-        var startFreq = kind === "drum" ? 150 : 300;
+        var startFreq = kind === "kick" ? 90 : kind === "drum" ? 150 : 300;
         osc.frequency.setValueAtTime(startFreq, now);
         osc.frequency.exponentialRampToValueAtTime(startFreq * 0.4, now + 0.25);
         gain2.gain.setValueAtTime(1, now);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + (kind === "kick" ? 0.45 : 0.35));
         osc.connect(gain2).connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.4);
+        osc.stop(now + (kind === "kick" ? 0.5 : 0.4));
     }
 
     return {

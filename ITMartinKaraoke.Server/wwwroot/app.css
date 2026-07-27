@@ -184,9 +184,14 @@ html, body {
     color: white;
     cursor: pointer;
     user-select: none;
+    touch-action: manipulation;
 }
 .ka-pad:active { transform: scale(0.94); }
 .ka-pad.clap { background: linear-gradient(135deg,#fbbf24,#f59e0b); }
 .ka-pad.drum { background: linear-gradient(135deg,#f472b6,#ec4899); }
 .ka-pad.tom  { background: linear-gradient(135deg,#60a5fa,#3b82f6); }
 .ka-pad.shaker { background: linear-gradient(135deg,#34d399,#10b981); }
+.ka-pad.kick { background: linear-gradient(135deg,#78716c,#44403c); }
+.ka-pad.snare { background: linear-gradient(135deg,#a78bfa,#7c3aed); }
+.ka-pad.hihat { background: linear-gradient(135deg,#fde047,#ca8a04); }
+.ka-pad.cowbell { background: linear-gradient(135deg,#fb923c,#c2410c); }

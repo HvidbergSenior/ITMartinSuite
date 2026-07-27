@@ -1,4 +1,5 @@
 @page "/"
+@rendermode InteractiveServer
 @inject NavigationManager Nav
 @inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
 
@@ -26,12 +27,12 @@
         @if (_code is not null)
         {
             <div class="ka-code">@_code</div>
-            <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo($"/stage/{_code}")'>📺 Åbn TV-visning</button>
-            <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo($"/join?code={_code}")'>📱 Deltag selv fra denne enhed</button>
+            <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo($"/stage/{_code}", forceLoad: true)'>📺 Åbn TV-visning</button>
+            <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo($"/join?code={_code}", forceLoad: true)'>📱 Deltag selv fra denne enhed</button>
             <p class="ka-sub" style="margin-top:10px">Del koden <strong>@_code</strong> - alle andre går ind på <code>/join</code> og taster den ind.</p>
         }
 
-        <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo("/recordings")'>🎧 Tidligere optagelser</button>
+        <button class="ka-btn-ghost" @onclick='() => Nav.NavigateTo("/recordings", forceLoad: true)'>🎧 Tidligere optagelser</button>
     </div>
 </div>
 

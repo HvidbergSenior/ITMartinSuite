@@ -1,6 +1,8 @@
 @page "/remote/{Code}"
+@rendermode InteractiveServer
 @implements IDisposable
 @using Microsoft.EntityFrameworkCore
+@inject NavigationManager Nav
 @inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
 @inject SpotifyService Spotify
 @inject LyricsService Lyrics
@@ -9,6 +11,7 @@
 
 <div class="ka-page">
     <div class="ka-card">
+        <button class="ka-btn-ghost" style="width:auto;margin:0 0 10px" @onclick='() => Nav.NavigateTo("/join", forceLoad: true)'>← Tilbage</button>
         <h1 class="ka-title">🎵 Vælg en sang</h1>
         <p class="ka-sub">Kode: <strong>@Code</strong> @(string.IsNullOrWhiteSpace(Name) ? "" : $"· {Name}")</p>
 
@@ -16,6 +19,11 @@
             <button class="ka-btn-ghost" style="margin:0" @onclick='() => _tab = "spotify"'>Spotify</button>
             <button class="ka-btn-ghost" style="margin:0" @onclick='() => _tab = "library"'>CD-ripninger</button>
         </div>
+
+        @if (_lastAdded is not null)
+        {
+            <p style="color:#15803d;font-weight:600;text-align:center">✅ "@_lastAdded" tilføjet til køen!</p>
+        }
 
         @if (_tab == "spotify")
         {
@@ -59,6 +67,10 @@
                     {
                         <button class="ka-btn-ghost" style="width:auto;margin:0;padding:8px 12px" @onclick="() => MakePoster(q.Id)" disabled="@_posterLoading">🎨</button>
                     }
+                    @if (q.Status != "Playing")
+                    {
+                        <button class="ka-btn-ghost" style="width:auto;margin:0;padding:8px 12px" @onclick="() => RemoveFromQueue(q.Id)">🗑</button>
+                    }
                 </div>
             }
         </div>
@@ -71,6 +83,7 @@
 
     private string _tab = "spotify";
     private string _query = "";
+    private string? _lastAdded;
     private List<SpotifyTrack> _spotifyResults = [];
     private List<LibraryTrack> _library = [];
     private List<Data.Entities.QueueEntry> _queue = [];
@@ -91,6 +104,7 @@
 
     private async Task OnSpotifyKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
     {
+        _lastAdded = null;
         if (string.IsNullOrWhiteSpace(_query)) { _spotifyResults = []; return; }
         _spotifyResults = await Spotify.SearchTracksAsync(_query);
     }
@@ -111,6 +125,7 @@
             Status = "Queued",
         });
         await Db.SaveChangesAsync();
+        _lastAdded = title;
         await RefreshQueue();
     }
 
@@ -120,6 +135,17 @@
             .Where(q => q.SessionId == _sessionId && q.Status != "Done")
             .OrderBy(q => q.CreatedAt)
             .ToListAsync();
+    }
+
+    private async Task RemoveFromQueue(int id)
+    {
+        var entry = await Db.QueueEntries.FindAsync(id);
+        if (entry is not null)
+        {
+            Db.QueueEntries.Remove(entry);
+            await Db.SaveChangesAsync();
+        }
+        await RefreshQueue();
     }
 
     private async Task MakePoster(int id)

@@ -1,4 +1,5 @@
 @page "/stage/{Code}"
+@rendermode InteractiveServer
 @implements IAsyncDisposable
 @using Microsoft.EntityFrameworkCore
 @inject IJSRuntime JS
@@ -82,6 +83,11 @@
         }
     </div>
 
+    @if (_recError is not null)
+    {
+        <p style="color:#ef4444;text-align:center">@_recError</p>
+    }
+
     <video id="ka-rec-preview" style="display:none" muted playsinline></video>
 
     @if (_queue.Any(q => q.Status == "Queued"))
@@ -105,6 +111,7 @@
     private List<(double, string)> _lyricLines = [];
     private bool _playing;
     private bool _recording;
+    private string? _recError;
     private string? _tips;
     private bool _tipsLoading;
 
@@ -236,8 +243,15 @@
 
     private async Task StartRecordingClick()
     {
-        await JS.InvokeVoidAsync("karaoke.startRecording", true, null);
-        _recording = true;
+        try
+        {
+            await JS.InvokeVoidAsync("karaoke.startRecording", true, null);
+            _recording = true;
+        }
+        catch (Exception)
+        {
+            _recError = "Kunne ikke få adgang til mikrofon/kamera på denne enhed.";
+        }
     }
 
     private async Task StopRecordingClick()

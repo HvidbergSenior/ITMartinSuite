@@ -1,9 +1,12 @@
 @page "/follow/{Code}"
+@rendermode InteractiveServer
 @implements IDisposable
 @using Microsoft.EntityFrameworkCore
+@inject NavigationManager Nav
 @inject ITMartinKaraoke.Server.Data.KaraokeDbContext Db
 
 <div class="ka-stage" style="padding:16px">
+    <button class="ka-btn-ghost" style="width:auto;margin:0 0 10px" @onclick='() => Nav.NavigateTo("/join", forceLoad: true)'>← Tilbage</button>
     @if (_current is null)
     {
         <div class="ka-stage-now"><div class="song">🎤 Ingen synger endnu</div></div>
