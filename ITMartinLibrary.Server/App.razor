@@ -30,6 +30,7 @@
     var vid = localStorage.getItem('_mid');
     if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); }
     function track(path, title, referrer) {
+        if (location.search.indexOf('claude_test=1') !== -1) return;
         fetch('https://stats.itmartin.dk/api/hit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
