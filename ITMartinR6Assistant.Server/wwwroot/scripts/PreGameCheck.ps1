@@ -69,12 +69,17 @@ $r6Path = Try-Get {
     )
     $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
-$r6LastModified = Try-Get {
+$r6ExeLastWrite = Try-Get {
     if ($r6Path) {
         $exe = Get-ChildItem -Path $r6Path -Filter "RainbowSix*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($exe) { $exe.LastWriteTime.ToString("yyyy-MM-dd") }
+        if ($exe) { $exe.LastWriteTime }
     }
 }
+$r6LastModified = if ($r6ExeLastWrite) { $r6ExeLastWrite.ToString("yyyy-MM-dd") } else { $null }
+# A long gap here is exactly the "haven't played in months" case - the AI
+# should flag it as the #1 priority, since the update itself can take a long
+# time and people need to start it well before the group is ready to play.
+$r6DageSidenOpdateret = if ($r6ExeLastWrite) { [math]::Round(((Get-Date) - $r6ExeLastWrite).TotalDays, 0) } else { $null }
 $ubisoftConnectRunning = Try-Get { $null -ne (Get-Process -Name "UbisoftConnect" -ErrorAction Stop) } -Default $false
 $battlEyeStatus = Try-Get { (Get-Service -Name "BEService" -ErrorAction Stop).Status.ToString() }
 
@@ -94,6 +99,13 @@ $powerPlan = Try-Get {
 
 $freeDiskGB = Try-Get {
     [math]::Round((Get-PSDrive -Name C).Free / 1GB, 1)
+}
+
+# A PC idle for months (or just never rebooted) can be sitting on stuck
+# updates or stale driver state - a fresh reboot before playing is a cheap,
+# classic fix that's especially worth flagging after a long pause.
+$dageSidenGenstart = Try-Get {
+    [math]::Round(((Get-Date) - (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime).TotalDays, 0)
 }
 
 $topProcesses = Try-Get {
@@ -116,6 +128,7 @@ $payload = [PSCustomObject]@{
     spil_launcher = [PSCustomObject]@{
         r6_fundet = $null -ne $r6Path
         r6_sidst_aendret = $r6LastModified
+        r6_dage_siden_opdateret = $r6DageSidenOpdateret
         ubisoft_connect_koerer = $ubisoftConnectRunning
         battleye_status = $battlEyeStatus
     }
@@ -123,6 +136,7 @@ $payload = [PSCustomObject]@{
         gpu_navn = $gpu.Name
         gpu_driver_dato = $gpu.DriverDate
         genstart_afventer = $pendingReboot
+        dage_siden_genstart = $dageSidenGenstart
         stroemplan = $powerPlan
         ledig_diskplads_gb = $freeDiskGB
         top_processer = $topProcesses

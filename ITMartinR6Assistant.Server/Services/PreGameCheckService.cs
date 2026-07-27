@@ -39,6 +39,11 @@ public sealed class PreGameCheckService
                 - Hver ⚠-linje skal have ét konkret, praktisk forslag til at rette det - ikke bare "tjek dette".
                 - Vær kortfattet - dette skal kunne læses på under et minut, ikke en rapport.
                 - Hvis noget mangler i data (fx en check der fejlede lokalt), spring det roligt over i stedet for at gætte.
+                - Hvis r6_dage_siden_opdateret er højt (fx over 14 dage), er det TOP PRIORITET: gør klart at der
+                  sandsynligvis venter en stor opdatering, og at Ubisoft Connect bør åbnes NU (ikke lige før kickoff)
+                  så downloadet er færdigt til tiden - store patches efter en lang pause kan tage lang tid.
+                - Hvis dage_siden_genstart er højt (fx over 14 dage), foreslå en genstart inden spillet - en hurtig,
+                  gratis fix for fastlåste opdateringer eller driver-tilstand efter lang tids inaktivitet.
                 - Svar KUN med tjeklisten, ingen indledning eller afsluttende kommentarer.
                 """,
             Messages =
