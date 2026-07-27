@@ -41,27 +41,66 @@
                 <label class="field-label">Indhold</label>
                 <textarea id="c-body" class="field-textarea" rows="10" placeholder="Brødtekst — brug en tom linje mellem afsnit"></textarea>
 
-                <button class="btn btn-primary" onclick="pdfApp.createPdf()">📄 Generér PDF</button>
+                <button class="btn btn-primary" onclick="pdfApp.createPdf()" id="c-create-btn">📄 Generér PDF</button>
             </div>
         </section>
 
         <!-- ═══ IMAGES -> PDF ═══ -->
         <section class="mode-panel" id="mode-images" style="display:none">
             <div class="panel-card">
-                <p class="panel-hint">Vælg et eller flere billeder — hvert billede bliver én side, i den rækkefølge du vælger dem.</p>
-                <label class="btn-file">
-                    📷 Vælg billeder
-                    <input type="file" id="img-files" accept="image/*" multiple style="display:none" onchange="pdfApp.onImagesSelected()" />
-                </label>
-                <div id="img-list" class="file-chip-list"></div>
-                <button class="btn btn-primary" onclick="pdfApp.imagesToPdf()" disabled id="img-run-btn">📄 Lav PDF af billeder</button>
+                <div class="sub-tabs" data-group="images">
+                    <button class="sub-tab active" data-sub="files" onclick="pdfApp.showSub('images', 'files')">Vælg billeder</button>
+                    <button class="sub-tab" data-sub="zip" onclick="pdfApp.showSub('images', 'zip')">Fra ZIP-fil</button>
+                </div>
+
+                <div class="sub-panel" id="images-files">
+                    <p class="panel-hint">Vælg et eller flere billeder — hvert billede bliver én side, i den rækkefølge du vælger dem.</p>
+                    <label class="btn-file">
+                        📷 Vælg billeder
+                        <input type="file" id="img-files" accept="image/*" multiple style="display:none" onchange="pdfApp.onImagesSelected()" />
+                    </label>
+                    <div id="img-list" class="file-chip-list"></div>
+                    <button class="btn btn-primary" onclick="pdfApp.imagesToPdf()" disabled id="img-run-btn">📄 Lav PDF af billeder</button>
+                </div>
+
+                <div class="sub-panel" id="images-zip" style="display:none">
+                    <p class="panel-hint">Vælg en ZIP-fil med billeder — de sorteres automatisk efter tallene i filnavnene (fx "1_forside.jpg", "2_side.jpg", ...).</p>
+                    <label class="btn-file">
+                        🗜️ Vælg ZIP-fil
+                        <input type="file" id="zip-file" accept=".zip,application/zip" style="display:none" onchange="pdfApp.onZipSelected()" />
+                    </label>
+                    <div id="zip-list" class="file-chip-list"></div>
+
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;cursor:pointer">
+                        <input type="checkbox" id="zip-overlapping" onchange="pdfApp.onOverlappingToggled()" />
+                        Sammenhængende skærmbilleder (fx en sang scrollet igennem)
+                    </label>
+                    <p class="panel-hint" style="margin-top:2px">Filnavne fortæller ikke rækkefølgen her - AI læser billedernes indhold for at finde den rigtige rækkefølge, og hvert billede (undtagen det første) beskæres i toppen for at fjerne det der overlapper med det forrige.</p>
+
+                    <div id="zip-crop-row" style="display:none;flex-direction:column;gap:8px;margin-top:8px">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+                            <input type="checkbox" id="zip-precise" onchange="pdfApp.onPreciseToggled()" />
+                            Præcis beskæring (AI vurderer hvert billede for sig)
+                        </label>
+                        <p class="panel-hint" style="margin:0">Overlappet varierer typisk fra billede til billede - AI ser hvert billedes indhold og beskærer nøjagtigt så intet gentages. Slå den til, hvis en fast procent efterlader dubletter enkelte steder. Skriv evt. i feltet nedenfor hvilket indhold der skal med (fx "kun linje 1-56, resten er støj").</p>
+                        <div id="zip-crop-percent-row" style="display:flex;align-items:center;gap:8px">
+                            <label class="field-label" style="margin:0">Skær top af hvert billede (%)</label>
+                            <input type="number" id="zip-crop-percent" class="field-input" style="width:80px" value="15" min="0" max="60" />
+                        </div>
+                    </div>
+
+                    <label class="field-label" style="margin-top:12px">Instruktion til rækkefølge / indhold (valgfrit)</label>
+                    <textarea id="zip-instructions" class="field-textarea" rows="2" placeholder="Lad stå tom for automatisk sortering efter tal i filnavnet - eller skriv fx 'sortér efter dato', eller ved præcis beskæring fx 'kun linje 1-56, resten er støj'."></textarea>
+
+                    <button class="btn btn-primary" onclick="pdfApp.zipToPdf()" disabled id="zip-run-btn">📄 Lav PDF af ZIP</button>
+                </div>
             </div>
         </section>
 
         <!-- ═══ ORGANIZE (merge/split/rotate) ═══ -->
         <section class="mode-panel" id="mode-organize" style="display:none">
             <div class="panel-card">
-                <div class="sub-tabs">
+                <div class="sub-tabs" data-group="organize">
                     <button class="sub-tab active" data-sub="merge" onclick="pdfApp.showSub('organize', 'merge')">Flet filer</button>
                     <button class="sub-tab" data-sub="split" onclick="pdfApp.showSub('organize', 'split')">Del fil</button>
                     <button class="sub-tab" data-sub="rotate" onclick="pdfApp.showSub('organize', 'rotate')">Rotér sider</button>

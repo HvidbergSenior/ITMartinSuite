@@ -43,6 +43,7 @@
                 return '<div class="result-row">' +
                     '<div class="result-info"><div class="result-time">' + time + '</div><div class="result-size">' + it.sizeKb + ' KB</div></div>' +
                     '<a class="btn btn-ghost" href="/api/pdf/download/' + it.id + '?clientId=' + encodeURIComponent(clientId) + '" target="_blank">⬇️ Download</a>' +
+                    '<button class="btn-icon" onclick="pdfApp.shareLink(\'' + it.id + '\')" title="Kopiér link (til at åbne på en anden enhed)">🔗</button>' +
                     '<button class="btn-icon" onclick="pdfApp.deleteResult(\'' + it.id + '\')" title="Slet">🗑️</button>' +
                     '</div>';
             }).join("");
@@ -52,6 +53,20 @@
     function afterRun(result) {
         loadResults();
         return result;
+    }
+
+    // Disables the triggering button and swaps its label to a busy state for
+    // the duration of the async operation - without this, a slow request
+    // (large images, a loaded NAS) looks exactly like "nothing happened",
+    // which invites a second click and doubles the load on an already-slow
+    // request instead of just waiting.
+    function withBusy(btnId, busyText, fn) {
+        var btn = document.getElementById(btnId);
+        var original = btn ? btn.innerHTML : null;
+        if (btn) { btn.disabled = true; btn.innerHTML = busyText; }
+        return fn().finally(function () {
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+        });
     }
 
     // ═══ Mode / sub-tab switching ═══════════════════════════════════════
@@ -64,10 +79,10 @@
     }
 
     function showSub(group, sub) {
-        document.querySelectorAll("#organize-merge, #organize-split, #organize-rotate").forEach(function (p) { p.style.display = "none"; });
-        document.querySelectorAll(".sub-tab").forEach(function (t) { t.classList.remove("active"); });
+        document.querySelectorAll('[id^="' + group + '-"]').forEach(function (p) { p.style.display = "none"; });
+        document.querySelectorAll('.sub-tabs[data-group="' + group + '"] .sub-tab').forEach(function (t) { t.classList.remove("active"); });
         document.getElementById(group + "-" + sub).style.display = "";
-        document.querySelector('.sub-tab[data-sub="' + sub + '"]').classList.add("active");
+        document.querySelector('.sub-tabs[data-group="' + group + '"] .sub-tab[data-sub="' + sub + '"]').classList.add("active");
     }
 
     // ═══ Create ══════════════════════════════════════════════════════
@@ -93,7 +108,9 @@
         var title = document.getElementById("c-title").value.trim() || "Dokument";
         var body = document.getElementById("c-body").value.trim();
         if (!body) { alert("Skriv noget indhold først"); return; }
-        apiPostJson("/api/pdf/create", { title: title, body: body }).then(afterRun).catch(function (err) {
+        withBusy("c-create-btn", "⏳ Genererer...", function () {
+            return apiPostJson("/api/pdf/create", { title: title, body: body }).then(afterRun);
+        }).catch(function (err) {
             alert("Kunne ikke generere PDF: " + err.message);
         });
     }
@@ -112,8 +129,53 @@
         if (imageFiles.length === 0) return;
         var fd = new FormData();
         imageFiles.forEach(function (f, i) { fd.append("order-" + String(i).padStart(3, "0"), f); });
-        apiPostForm("/api/pdf/images-to-pdf", fd).then(afterRun).catch(function (err) {
+        withBusy("img-run-btn", "⏳ Genererer PDF...", function () {
+            return apiPostForm("/api/pdf/images-to-pdf", fd).then(afterRun);
+        }).catch(function (err) {
             alert("Kunne ikke lave PDF: " + err.message);
+        });
+    }
+
+    // ═══ Images -> PDF, from a ZIP ═══════════════════════════════════
+
+    var zipFile = null;
+
+    function onZipSelected() {
+        var files = document.getElementById("zip-file").files;
+        zipFile = files.length > 0 ? files[0] : null;
+        renderChipList("zip-list", zipFile ? [zipFile.name] : []);
+        document.getElementById("zip-run-btn").disabled = !zipFile;
+    }
+
+    function onOverlappingToggled() {
+        var on = document.getElementById("zip-overlapping").checked;
+        document.getElementById("zip-crop-row").style.display = on ? "flex" : "none";
+    }
+
+    function onPreciseToggled() {
+        var precise = document.getElementById("zip-precise").checked;
+        // The flat percentage stays visible either way - it's used as the
+        // fallback if the precise AI crop call fails, and some overlaps
+        // really are uniform, so it's still useful on its own.
+        document.getElementById("zip-crop-percent-row").style.opacity = precise ? "0.6" : "1";
+    }
+
+    function zipToPdf() {
+        if (!zipFile) return;
+        var fd = new FormData();
+        fd.append("zipfile", zipFile);
+        var instructions = document.getElementById("zip-instructions").value.trim();
+        if (instructions) fd.append("instructions", instructions);
+        var overlapping = document.getElementById("zip-overlapping").checked;
+        if (overlapping) {
+            fd.append("overlapping", "true");
+            fd.append("cropPercent", document.getElementById("zip-crop-percent").value || "15");
+            if (document.getElementById("zip-precise").checked) fd.append("precise", "true");
+        }
+        withBusy("zip-run-btn", overlapping ? "⏳ Læser rækkefølge og bygger PDF..." : "⏳ Genererer PDF...", function () {
+            return apiPostForm("/api/pdf/zip-to-pdf", fd).then(afterRun);
+        }).catch(function (err) {
+            alert("Kunne ikke lave PDF af ZIP: " + err.message);
         });
     }
 
@@ -131,7 +193,9 @@
         if (mergeFiles.length < 2) return;
         var fd = new FormData();
         mergeFiles.forEach(function (f, i) { fd.append("order-" + String(i).padStart(3, "0"), f); });
-        apiPostForm("/api/pdf/merge", fd).then(afterRun).catch(function (err) {
+        withBusy("merge-run-btn", "⏳ Fletter...", function () {
+            return apiPostForm("/api/pdf/merge", fd).then(afterRun);
+        }).catch(function (err) {
             alert("Kunne ikke flette: " + err.message);
         });
     }
@@ -152,7 +216,9 @@
         fd.append("file", splitFile);
         fd.append("from", document.getElementById("split-from").value);
         fd.append("to", document.getElementById("split-to").value);
-        apiPostForm("/api/pdf/split", fd).then(afterRun).catch(function (err) {
+        withBusy("split-run-btn", "⏳ Deler...", function () {
+            return apiPostForm("/api/pdf/split", fd).then(afterRun);
+        }).catch(function (err) {
             alert("Kunne ikke dele filen: " + err.message);
         });
     }
@@ -173,7 +239,9 @@
         fd.append("file", rotateFile);
         fd.append("page", document.getElementById("rotate-page").value);
         fd.append("degrees", document.getElementById("rotate-degrees").value);
-        apiPostForm("/api/pdf/rotate", fd).then(afterRun).catch(function (err) {
+        withBusy("rotate-run-btn", "⏳ Roterer...", function () {
+            return apiPostForm("/api/pdf/rotate", fd).then(afterRun);
+        }).catch(function (err) {
             alert("Kunne ikke rotere: " + err.message);
         });
     }
@@ -349,7 +417,9 @@
         var fd = new FormData();
         fd.append("file", signState.file);
         fd.append("stamps", JSON.stringify(signState.stamps));
-        apiPostForm("/api/pdf/stamp", fd).then(afterRun).then(function () {
+        withBusy("sign-run-btn", "⏳ Gemmer...", function () {
+            return apiPostForm("/api/pdf/stamp", fd).then(afterRun);
+        }).then(function () {
             signState.stamps = [];
             renderPlacedList();
             renderSignPage();
@@ -397,7 +467,9 @@
         fd.append("file", formFile);
         fd.append("values", JSON.stringify(values));
         fd.append("flatten", document.getElementById("form-flatten").checked ? "true" : "false");
-        apiPostForm("/api/pdf/fill-form", fd).then(afterRun).catch(function (err) {
+        withBusy("form-run-btn", "⏳ Udfylder...", function () {
+            return apiPostForm("/api/pdf/fill-form", fd).then(afterRun);
+        }).catch(function (err) {
             alert("Kunne ikke udfylde: " + err.message);
         });
     }
@@ -419,11 +491,30 @@
         apiDelete("/api/pdf/outputs/" + id).then(loadResults);
     }
 
+    // The download link already embeds clientId in the URL itself, so it's
+    // not actually tied to this browser - copying the full link to another
+    // device (phone -> PC) and opening it there works fine. This just makes
+    // that path discoverable instead of requiring people to know that.
+    function shareLink(id) {
+        var url = window.location.origin + "/api/pdf/download/" + id + "?clientId=" + encodeURIComponent(clientId);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+                alert("Link kopieret! Send det til dig selv (fx SMS/mail) og åbn det på den anden enhed for at downloade.");
+            }).catch(function () { prompt("Kopiér dette link:", url); });
+        } else {
+            prompt("Kopiér dette link:", url);
+        }
+    }
+
     window.pdfApp = {
         showMode: showMode,
         showSub: showSub,
         draftWithAi: draftWithAi,
         createPdf: createPdf,
+        onZipSelected: onZipSelected,
+        onOverlappingToggled: onOverlappingToggled,
+        onPreciseToggled: onPreciseToggled,
+        zipToPdf: zipToPdf,
         onImagesSelected: onImagesSelected,
         imagesToPdf: imagesToPdf,
         onMergeFilesSelected: onMergeFilesSelected,
@@ -443,7 +534,8 @@
         saveSignedPdf: saveSignedPdf,
         onFormFileSelected: onFormFileSelected,
         fillForm: fillForm,
-        deleteResult: deleteResult
+        deleteResult: deleteResult,
+        shareLink: shareLink
     };
 
     document.addEventListener("DOMContentLoaded", function () {
