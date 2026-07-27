@@ -275,4 +275,172 @@ public class SaveTransactionWorkflowStepTests
             r => r.SaveAsync(It.IsAny<Domain.Entities.ReceiptTransaction>(), token),
             Times.Once);
     }
+
+    // =====================================
+    // Auto-learning (IsTemplate) - a scan with no suspicious items whose
+    // item total reconciles with the printed total becomes this merchant's
+    // new reference example, with no user action. Different receipt
+    // shapes exercising each condition of that eligibility rule -
+    // including the exact failure mode from the real JYSK bug (an
+    // extraction with zero items) to confirm it correctly never became a
+    // template on its own.
+    // =====================================
+
+    private async Task<Domain.Entities.ReceiptTransaction> RunAndCapture(ReceiptContext state)
+    {
+        Domain.Entities.ReceiptTransaction? captured = null;
+        _repository
+            .Setup(r => r.SaveAsync(It.IsAny<Domain.Entities.ReceiptTransaction>(), It.IsAny<CancellationToken>()))
+            .Callback<Domain.Entities.ReceiptTransaction, CancellationToken>((t, _) => captured = t);
+
+        await _step.ExecuteAsync(Context(state));
+
+        return captured!;
+    }
+
+    [Test]
+    public async Task Clean_reconciling_receipt_becomes_a_template()
+    {
+        var state = ContextWithExtraction(total: 50.40m, items:
+        [
+            new ReceiptLineItem { Description = "Mælk 1L", Amount = 12.95m },
+            new ReceiptLineItem { Description = "Rugbrød", Amount = 24.50m },
+            new ReceiptLineItem { Description = "Bananer 1 kg", Amount = 12.95m }
+        ]);
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Receipt_with_a_suspicious_item_never_becomes_a_template()
+    {
+        // Math checks out (100 = 100), but a flagged item should still
+        // block auto-learning - the whole point of "suspicious" is that a
+        // human should look at it before it's trusted as a reference.
+        var state = ContextWithExtraction(total: 100m, items:
+        [
+            new ReceiptLineItem { Description = "Bananer", Amount = 100m, Suspicious = true }
+        ]);
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Receipt_whose_item_total_does_not_reconcile_never_becomes_a_template()
+    {
+        var state = ContextWithExtraction(total: 999m, items:
+        [
+            new ReceiptLineItem { Description = "Mælk", Amount = 12.95m }
+        ]);
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Zero_items_never_becomes_a_template()
+    {
+        // The exact real-world failure mode this guards: the JYSK scan's
+        // header (merchant/date/total) extracted correctly but every line
+        // item was lost to a bad-OCR bug - this must never silently become
+        // the new "correct" reference for JYSK receipts going forward.
+        var state = ContextWithExtraction(total: 3359.20m, items: []);
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Blank_merchant_name_never_becomes_a_template()
+    {
+        var state = new ReceiptContext
+        {
+            ImagePath = "/tmp/receipt.jpg",
+            ExtractionResult = new ReceiptExtractionResult
+            {
+                MerchantName = "",
+                Currency = "DKK",
+                TotalAmount = 12.95m,
+                Items = [new ReceiptLineItem { Description = "Mælk", Amount = 12.95m }]
+            }
+        };
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Missing_total_reconciles_automatically_and_can_still_become_a_template()
+    {
+        // No printed total to check items against - the rule treats that
+        // as "nothing to contradict", not as a reason to distrust the scan.
+        var state = new ReceiptContext
+        {
+            ImagePath = "/tmp/receipt.jpg",
+            ExtractionResult = new ReceiptExtractionResult
+            {
+                MerchantName = "Netto",
+                Currency = "DKK",
+                TotalAmount = null,
+                Items = [new ReceiptLineItem { Description = "Mælk", Amount = 12.95m }]
+            }
+        };
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Reconciliation_includes_discounts_not_just_original_price()
+    {
+        // itemsNet = OriginalPrice + DiscountAmount (a negative number) -
+        // a discounted item must reconcile against the DISCOUNTED total,
+        // not the pre-discount price.
+        var state = ContextWithExtraction(total: 100m, items:
+        [
+            new ReceiptLineItem { Description = "Jakke", Amount = 150m, DiscountAmount = -50m }
+        ]);
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Reconciliation_within_one_krone_tolerance_still_becomes_a_template()
+    {
+        var state = ContextWithExtraction(total: 51.00m, items:
+        [
+            new ReceiptLineItem { Description = "Mælk", Amount = 12.95m },
+            new ReceiptLineItem { Description = "Rugbrød", Amount = 24.50m },
+            new ReceiptLineItem { Description = "Bananer", Amount = 12.95m }
+        ]); // items sum to 50.40 - exactly 0.60 off the printed 51.00
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Reconciliation_just_outside_tolerance_never_becomes_a_template()
+    {
+        var state = ContextWithExtraction(total: 52.41m, items:
+        [
+            new ReceiptLineItem { Description = "Mælk", Amount = 12.95m },
+            new ReceiptLineItem { Description = "Rugbrød", Amount = 24.50m },
+            new ReceiptLineItem { Description = "Bananer", Amount = 12.95m }
+        ]); // items sum to 50.40 - 2.01 off the printed 52.41, past the 1.0 tolerance
+
+        var captured = await RunAndCapture(state);
+
+        captured.IsTemplate.Should().BeFalse();
+    }
 }
