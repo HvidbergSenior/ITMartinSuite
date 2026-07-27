@@ -42,11 +42,42 @@ public sealed class ClubPushService
         var subs = await db.PushSubscriptions
             .Where(s => s.GroupId == groupId && (excludeMember == null || s.MemberName != excludeMember))
             .ToListAsync();
+        await SendCoreAsync(db, subs, title, body);
+    }
 
+    // Same as SendToGroupAsync but excludes several members at once - used for
+    // the recap-ready push so anyone who declined the ready-check ("NotNow")
+    // doesn't get pinged again for the rest of that session.
+    public async Task SendToGroupExceptAsync(ClubDbContext db, Guid groupId, IEnumerable<string> excludeMembers, string title, string body)
+    {
+        var exclude = excludeMembers.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var subs = await db.PushSubscriptions
+            .Where(s => s.GroupId == groupId)
+            .ToListAsync();
+        subs = subs.Where(s => !exclude.Contains(s.MemberName)).ToList();
+        await SendCoreAsync(db, subs, title, body);
+    }
+
+    // Allow-list send, the mirror image of SendToGroupAsync's exclude-list -
+    // used for live match highlights, which should only reach members who
+    // marked themselves as spectating ("Watching"), not the whole group.
+    public async Task SendToMembersAsync(ClubDbContext db, Guid groupId, IEnumerable<string> memberNames, string title, string body)
+    {
+        var include = memberNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (include.Count == 0) return;
+        var subs = await db.PushSubscriptions
+            .Where(s => s.GroupId == groupId)
+            .ToListAsync();
+        subs = subs.Where(s => include.Contains(s.MemberName)).ToList();
+        await SendCoreAsync(db, subs, title, body);
+    }
+
+    private async Task SendCoreAsync(ClubDbContext db, List<ClubPushSubscription> subs, string title, string body)
+    {
         if (subs.Count == 0) return;
 
         var (pub, prv) = Keys();
-        var vapid = new VapidDetails("https://lions-club.itmartin.dk", pub, prv);
+        var vapid = new VapidDetails("https://all-apps.itmartin.dk", pub, prv);
         var payload = JsonSerializer.Serialize(new { title, body });
         var client = new WebPushClient();
 

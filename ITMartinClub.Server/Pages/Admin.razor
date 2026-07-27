@@ -3,6 +3,7 @@
 @inject ClubDbContext Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ClubPushService PushService
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_group == null) { <div class="club-loading">Gruppen findes ikke.</div> }
@@ -21,12 +22,67 @@ else if (!_authed)
 else
 {
     <div class="club-page">
-        <div class="club-header">
-            <div><div class="club-name">@_group.Name — Admin</div></div>
-            <a class="admin-back" href="/g/@Slug">← Tilbage</a>
-        </div>
+        <ClubNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="Admin" Active="admin" />
 
         <div class="admin-body">
+
+            @if (_activeSession is not null)
+            {
+                <div class="admin-section">
+                    <div class="admin-section-title">🎮 Aktiv spilaften</div>
+                    <div class="club-empty">Der er allerede en aktiv spilaften (@_activeSession.Phase) - alle medlemmer kan starte/svare på invitationer fra deres egen side.</div>
+                </div>
+            }
+
+            <div class="admin-section">
+                <div class="admin-section-title-row">
+                    <div class="admin-section-title">📅 Opret begivenhed</div>
+                    <button class="admin-hint-toggle" @onclick="() => _showEventHint = !_showEventHint">@(_showEventHint ? "✕ Skjul regel" : "ℹ Vis regel")</button>
+                </div>
+                @if (_showEventHint)
+                {
+                    <p class="ready-hint">Til en fremtidig dag - vises i kalenderen, ingen invitation sendes med det samme.</p>
+                }
+                <div class="cal-field"><label>Titel</label><input @bind="_newEventTitle" class="cal-input" maxlength="120" /></div>
+                <div class="cal-row">
+                    <div class="cal-field"><label>Dato & tid</label><input @bind="_newEventDate" type="datetime-local" class="cal-input" /></div>
+                    <div class="cal-field"><label>Sted (valgfrit)</label><input @bind="_newEventLocation" class="cal-input" maxlength="100" /></div>
+                </div>
+                <div class="cal-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newEventDesc" rows="2" class="cal-input cal-textarea" /></div>
+                <div class="prep-form-actions">
+                    <button class="admin-btn" @onclick="SaveEventAsync" disabled="@string.IsNullOrWhiteSpace(_newEventTitle)">@(_editingEventId is null ? "Gem begivenhed" : "Opdater begivenhed")</button>
+                    @if (_editingEventId is not null)
+                    {
+                        <button class="cal-cancel-btn" @onclick="CancelEditEvent">Annuller redigering</button>
+                    }
+                </div>
+
+                @if (_upcomingEvents.Count > 0)
+                {
+                    <div class="admin-event-list">
+                        @foreach (var ev in _upcomingEvents)
+                        {
+                            var suggestion = _pendingSuggestions.GetValueOrDefault(ev.Id);
+                            <div class="admin-event-row">
+                                <div style="flex:1">
+                                    <div class="admin-event-title">@ev.Title</div>
+                                    <div class="admin-event-date">@ev.EventDate.ToLocalTime().ToString("d. MMM yyyy HH:mm")</div>
+                                </div>
+                                <button class="admin-reset-btn" @onclick="() => StartEditEvent(ev)">✏️ Rediger</button>
+                            </div>
+                            @if (suggestion is not null)
+                            {
+                                var sVotes = _votesBySuggestion.GetValueOrDefault(suggestion.Id, []);
+                                <div class="admin-suggestion-row">
+                                    <span>⏰ @suggestion.SuggestedByName foreslår @suggestion.SuggestedDate.ToLocalTime().ToString("d. MMM HH:mm") (✅@sVotes.Count(v => v.Status == "Yes") ❌@sVotes.Count(v => v.Status == "No"))</span>
+                                    <button class="admin-reset-btn" @onclick="() => ApplySuggestionAsync(ev.Id, suggestion)">✅ Brug</button>
+                                    <button class="admin-del-btn" @onclick="() => DismissSuggestionAsync(suggestion)">✕ Afvis</button>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
 
             <div class="admin-section">
                 <div class="admin-section-title">Gruppeinfo</div>
@@ -42,8 +98,13 @@ else
                     <div class="admin-member-row">
                         <span>@m.Name</span>
                         <span class="admin-member-date">Tilmeldt @m.JoinedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                        <button class="admin-reset-btn" @onclick="() => ResetPinAsync(m.Id)" title="Nulstil PIN, hvis medlemmet har glemt den">Nulstil PIN</button>
                         <button class="admin-del-btn" @onclick="() => RemoveMemberAsync(m.Id)">Fjern</button>
                     </div>
+                    @if (_pinResetName == m.Name)
+                    {
+                        <div class="admin-reset-confirm">✔ PIN nulstillet - @m.Name kan sætte en ny PIN ved næste login.</div>
+                    }
                 }
             </div>
 
@@ -58,35 +119,54 @@ else
 }
 
 <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
-    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
-    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
-    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
-    .club-name { font-size: 18px; font-weight: 900; }
-    .admin-back { font-size: 13px; color: #3b82f6; text-decoration: none; }
     .admin-lock { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .admin-lock-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; max-width: 360px; width: 100%; text-align: center; }
-    .admin-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; margin-bottom: 12px; }
-    .admin-input:focus { border-color: #3b82f6; }
-    .admin-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #2563eb; color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
-    .admin-error { color: #f87171; font-size: 13px; margin-bottom: 10px; }
+    .admin-lock-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; max-width: 360px; width: 100%; text-align: center; color: var(--text); }
+    .admin-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 15px; outline: none; margin-bottom: 12px; }
+    .admin-input:focus { border-color: var(--accent); }
+    .admin-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .admin-error { color: var(--red); font-size: 13px; margin-bottom: 10px; }
     .admin-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-    .admin-section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 16px; }
-    .admin-section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
-    .admin-info-row { display: flex; gap: 12px; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .admin-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .admin-section-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+    .admin-info-row { display: flex; gap: 12px; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px solid var(--border); color: var(--text); }
     .admin-info-row:last-child { border-bottom: none; }
-    .admin-info-row span:first-child { color: #64748b; min-width: 140px; }
-    .admin-info-row code { background: rgba(255,255,255,.08); border-radius: 6px; padding: 2px 8px; font-size: 13px; }
-    .admin-member-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 14px; }
+    .admin-info-row span:first-child { color: var(--muted); min-width: 140px; }
+    .admin-info-row code { background: var(--surface); border-radius: 6px; padding: 2px 8px; font-size: 13px; color: var(--text); }
+    .admin-member-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
     .admin-member-row:last-child { border-bottom: none; }
     .admin-member-row span:first-child { flex: 1; font-weight: 600; }
-    .admin-member-date { font-size: 12px; color: #64748b; }
-    .admin-del-btn { background: transparent; border: 1px solid rgba(248,113,113,.3); border-radius: 6px; color: #f87171; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+    .admin-member-date { font-size: 12px; color: var(--muted); }
+    .admin-del-btn { background: transparent; border: 1px solid rgba(248,113,113,.3); border-radius: 6px; color: var(--red); padding: 4px 10px; font-size: 12px; cursor: pointer; }
     .admin-del-btn:hover { background: rgba(248,113,113,.1); }
+    .admin-reset-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); padding: 4px 10px; font-size: 12px; cursor: pointer; }
+    .admin-reset-btn:hover { border-color: var(--accent); color: var(--text); }
+    .admin-reset-confirm { font-size: 12px; color: var(--green); padding: 2px 0 6px; }
     .admin-danger { border-color: rgba(248,113,113,.2); }
-    .admin-danger-btn { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; color: #f87171; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 10px; margin-top: 4px; }
+    .admin-danger-btn { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; color: var(--red); padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 10px; margin-top: 4px; }
     .admin-danger-btn:hover { background: rgba(248,113,113,.2); }
+
+    .club-empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
+    .ready-hint { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+    .ready-minutes-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); margin-bottom: 12px; }
+    .ready-minutes-row .stat-num { width: 56px; }
+    .ready-unit-select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px; color: var(--text); font-size: 13px; }
+    .stat-num { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 6px; color: var(--text); font-size: 13px; outline: none; text-align: center; }
+    .cal-field { margin-bottom: 12px; }
+    .cal-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .cal-row { display: flex; gap: 24px; }
+    .cal-row .cal-field { flex: 1; }
+    .cal-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; margin-bottom: 8px; }
+    .cal-input:focus { border-color: var(--accent); }
+    .cal-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .admin-section-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .admin-section-title-row .admin-section-title { margin-bottom: 0; }
+    .admin-hint-toggle { background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); padding: 3px 8px; font-size: 11px; cursor: pointer; }
+    .admin-hint-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .admin-event-list { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+    .admin-event-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .admin-event-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .admin-event-date { font-size: 12px; color: var(--muted); }
+    .admin-suggestion-row { display: flex; align-items: center; gap: 8px; padding: 6px 0 10px; font-size: 12px; color: #60a5fa; flex-wrap: wrap; }
 </style>
 
 @code {
@@ -95,6 +175,7 @@ else
     private bool _loaded, _authed, _pinError;
     private string _pinInput = "";
     private List<Member> _members = [];
+    private string? _pinResetName;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -106,7 +187,7 @@ else
 
     private void Unlock()
     {
-        if (_pinInput == _group!.AdminPin) { _authed = true; _ = LoadMembersAsync(); }
+        if (SecretHasher.Verify(_pinInput, _group!.AdminPin)) { _authed = true; _ = LoadMembersAsync(); _ = LoadSessionAsync(); _ = LoadEventsAsync(); }
         else _pinError = true;
     }
 
@@ -114,6 +195,123 @@ else
     {
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
         StateHasChanged();
+    }
+
+    // ── Planning: starting a session/invite and creating events ─────────────
+    // Moved here from the everyday pages - starting/scheduling is a deliberate
+    // admin action, not something that should clutter the common member view.
+
+    private PlaySession? _activeSession;
+    private bool _showEventHint;
+
+    private string _newEventTitle = "";
+    private DateTime _newEventDate = DateTime.Now.AddDays(7);
+    private string _newEventLocation = "";
+    private string _newEventDesc = "";
+    private Guid? _editingEventId;
+    private List<CalendarEvent> _upcomingEvents = [];
+    private Dictionary<Guid, EventTimeSuggestion> _pendingSuggestions = [];
+    private Dictionary<Guid, List<EventTimeVote>> _votesBySuggestion = [];
+
+    private async Task LoadSessionAsync()
+    {
+        _activeSession = await Db.PlaySessions
+            .Where(p => p.GroupId == _group!.Id && p.EndedAt == null)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadEventsAsync()
+    {
+        var now = DateTime.UtcNow;
+        _upcomingEvents = await Db.Events
+            .Where(e => e.GroupId == _group!.Id && e.EventDate >= now)
+            .OrderBy(e => e.EventDate)
+            .ToListAsync();
+
+        var eventIds = _upcomingEvents.Select(e => e.Id).ToList();
+        _pendingSuggestions = (await Db.EventTimeSuggestions
+                .Where(s => eventIds.Contains(s.EventId) && !s.Resolved && s.ExpiresAt > now)
+                .ToListAsync())
+            .GroupBy(s => s.EventId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First());
+
+        var suggestionIds = _pendingSuggestions.Values.Select(s => s.Id).ToList();
+        _votesBySuggestion = (await Db.EventTimeVotes.Where(v => suggestionIds.Contains(v.SuggestionId)).ToListAsync())
+            .GroupBy(v => v.SuggestionId).ToDictionary(g => g.Key, g => g.ToList());
+
+        StateHasChanged();
+    }
+
+    private void StartEditEvent(CalendarEvent ev)
+    {
+        _editingEventId = ev.Id;
+        _newEventTitle = ev.Title;
+        _newEventDate = ev.EventDate.ToLocalTime();
+        _newEventLocation = ev.Location ?? "";
+        _newEventDesc = ev.Description ?? "";
+    }
+
+    private void CancelEditEvent()
+    {
+        _editingEventId = null;
+        _newEventTitle = ""; _newEventLocation = ""; _newEventDesc = "";
+        _newEventDate = DateTime.Now.AddDays(7);
+    }
+
+    private async Task SaveEventAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newEventTitle)) return;
+        var title = _newEventTitle.Trim();
+        var dateStr = _newEventDate.ToString("d. MMM");
+
+        if (_editingEventId is { } id)
+        {
+            var ev = await Db.Events.FindAsync(id);
+            if (ev is null) return;
+            ev.Title = title;
+            ev.EventDate = _newEventDate.ToUniversalTime();
+            ev.Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim();
+            ev.Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim();
+            await Db.SaveChangesAsync();
+            _ = PushService.SendToGroupAsync(Db, _group!.Id, null, "📅 Begivenhed opdateret", $"{title} – {dateStr}");
+        }
+        else
+        {
+            Db.Events.Add(new CalendarEvent
+            {
+                GroupId = _group!.Id,
+                Title = title,
+                EventDate = _newEventDate.ToUniversalTime(),
+                Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim(),
+                Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim(),
+                CreatedByName = "Admin",
+            });
+            await Db.SaveChangesAsync();
+            _ = PushService.SendToGroupAsync(Db, _group.Id, null, "📅 Ny begivenhed", $"{title} – {dateStr}");
+        }
+
+        CancelEditEvent();
+        await LoadEventsAsync();
+    }
+
+    private async Task ApplySuggestionAsync(Guid eventId, EventTimeSuggestion suggestion)
+    {
+        var ev = await Db.Events.FindAsync(eventId);
+        if (ev is null) return;
+        ev.EventDate = suggestion.SuggestedDate;
+        suggestion.Resolved = true;
+        await Db.SaveChangesAsync();
+        await LoadEventsAsync();
+        _ = PushService.SendToGroupAsync(Db, _group!.Id, null, "📅 Tid ændret", $"{ev.Title} er flyttet til {suggestion.SuggestedDate.ToLocalTime():d. MMM HH:mm}");
+    }
+
+    private async Task DismissSuggestionAsync(EventTimeSuggestion suggestion)
+    {
+        suggestion.Resolved = true;
+        await Db.SaveChangesAsync();
+        await LoadEventsAsync();
     }
 
     private async Task RemoveMemberAsync(Guid memberId)
@@ -124,6 +322,16 @@ else
         Db.Members.Remove(member);
         await Db.SaveChangesAsync();
         await LoadMembersAsync();
+    }
+
+    private async Task ResetPinAsync(Guid memberId)
+    {
+        var member = await Db.Members.FindAsync(memberId);
+        if (member == null) return;
+        member.Pin = "";
+        await Db.SaveChangesAsync();
+        _pinResetName = member.Name;
+        StateHasChanged();
     }
 
     private async Task ClearPostsAsync()

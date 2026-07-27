@@ -1,0 +1,207 @@
+@page "/g/{slug}/opponents"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+@using Microsoft.EntityFrameworkCore
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="history" />
+
+        <div class="opp-body">
+            @if (_selected is null)
+            {
+                <h2 class="opp-title">🕵️ Modstandere</h2>
+                <p class="opp-hint">Gem noter om modstandere I møder igen - så kan I huske dem næste gang.</p>
+
+                <div class="opp-search-row">
+                    <input class="opp-search" placeholder="Søg eller tilføj navn..." value="@_query" @oninput="e => _query = e.Value?.ToString() ?? string.Empty" />
+                    @if (!string.IsNullOrWhiteSpace(_query) && !_opponents.Any(o => string.Equals(o.Name, _query.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    {
+                        <button class="opp-add-btn" @onclick="() => OpenAsync(_query.Trim())">+ Tilføj "@_query.Trim()"</button>
+                    }
+                </div>
+
+                @if (FilteredOpponents.Count == 0)
+                {
+                    <div class="opp-empty">Ingen modstandere gemt endnu.</div>
+                }
+                @foreach (var o in FilteredOpponents)
+                {
+                    var latest = o.Tags.OrderByDescending(t => t.AddedAt).FirstOrDefault();
+                    <div class="opp-row" @onclick="() => OpenAsync(o.Name)">
+                        <div class="opp-row-name">@o.Name</div>
+                        <div class="opp-row-meta">
+                            @if (latest is not null)
+                            {
+                                <span class="opp-row-tag">@PresetIcon(latest.Preset) @latest.Preset</span>
+                            }
+                            <span class="opp-row-count">@o.Tags.Count @(o.Tags.Count == 1 ? "tag" : "tags")</span>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <button class="opp-back" @onclick="() => _selected = null">← Alle modstandere</button>
+                <h2 class="opp-title">@_selected.Name</h2>
+
+                <div class="opp-preset-row">
+                    @foreach (var preset in Presets)
+                    {
+                        <button class="opp-preset-chip" @onclick="() => _newPreset = preset">
+                            @PresetIcon(preset) @preset
+                        </button>
+                    }
+                </div>
+                <div class="opp-tag-form">
+                    <input class="opp-note-input" placeholder="@(_newPreset is null ? "Vælg en tag ovenfor..." : $"Valgt: {_newPreset} - note (valgfrit)")"
+                           value="@_newNote" @oninput="e => _newNote = e.Value?.ToString() ?? string.Empty" disabled="@(_newPreset is null)" />
+                    <button class="opp-save-tag-btn" @onclick="AddTagAsync" disabled="@(_newPreset is null)">Gem</button>
+                </div>
+
+                <div class="opp-form-title">Historik</div>
+                @if (_selected.Tags.Count == 0)
+                {
+                    <div class="opp-empty">Ingen tags endnu.</div>
+                }
+                @foreach (var t in _selected.Tags.OrderByDescending(t => t.AddedAt))
+                {
+                    <div class="opp-tag-item">
+                        <span class="opp-tag-preset">@PresetIcon(t.Preset) @t.Preset</span>
+                        @if (!string.IsNullOrWhiteSpace(t.Note)) { <span class="opp-tag-note">@t.Note</span> }
+                        <span class="opp-tag-meta">@t.AddedByName · @t.AddedAt.ToLocalTime().ToString("d. MMM yyyy")</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .opp-body { padding: 16px; }
+    .opp-title { font-size: 18px; font-weight: 800; margin: 0 0 8px; color: var(--text); }
+    .opp-hint { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+    .opp-search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .opp-search { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .opp-search:focus { border-color: var(--accent); }
+    .opp-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 0 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .opp-empty { color: var(--muted); font-size: 14px; padding: 20px 0; text-align: center; }
+    .opp-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; cursor: pointer; background: var(--card); }
+    .opp-row:hover { border-color: var(--accent); }
+    .opp-row-name { font-weight: 600; color: var(--text); }
+    .opp-row-meta { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); }
+    .opp-back { background: transparent; border: none; color: var(--accent); font-size: 13px; cursor: pointer; padding: 0; margin-bottom: 10px; }
+    .opp-preset-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .opp-preset-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 7px 14px; font-size: 13px; color: var(--text); cursor: pointer; }
+    .opp-preset-chip:hover { border-color: var(--accent); }
+    .opp-tag-form { display: flex; gap: 8px; margin-bottom: 20px; }
+    .opp-note-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 13px; outline: none; }
+    .opp-note-input:disabled { opacity: .5; }
+    .opp-save-tag-btn { background: #16a34a; color: white; border: none; border-radius: 10px; padding: 0 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .opp-save-tag-btn:disabled { opacity: .4; cursor: default; }
+    .opp-form-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .opp-tag-item { padding: 10px 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); margin-bottom: 6px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .opp-tag-preset { font-weight: 700; color: var(--text); }
+    .opp-tag-note { color: var(--text); flex: 1; min-width: 100px; }
+    .opp-tag-meta { font-size: 11px; color: var(--muted); width: 100%; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [SupplyParameterFromQuery] public string? Name { get; set; }
+
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private string _query = "";
+    private List<Opponent> _opponents = [];
+    private Opponent? _selected;
+    private string? _newPreset;
+    private string _newNote = "";
+
+    private static readonly string[] Presets = ["Chill", "Skilled", "Sus", "Irriterende", "Toxic"];
+
+    private List<Opponent> FilteredOpponents =>
+        string.IsNullOrWhiteSpace(_query)
+            ? _opponents.OrderByDescending(o => o.Tags.Count > 0 ? o.Tags.Max(t => t.AddedAt) : o.CreatedAt).ToList()
+            : _opponents.Where(o => o.Name.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        await RefreshAsync();
+        _loaded = true;
+
+        if (!string.IsNullOrWhiteSpace(Name))
+            await OpenAsync(Name.Trim());
+
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _opponents = await Db.Opponents
+            .Include(o => o.Tags)
+            .Where(o => o.GroupId == _group!.Id)
+            .ToListAsync();
+    }
+
+    private async Task OpenAsync(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var existing = _opponents.FirstOrDefault(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            existing = new Opponent { GroupId = _group!.Id, Name = name };
+            Db.Opponents.Add(existing);
+            await Db.SaveChangesAsync();
+            await RefreshAsync();
+            existing = _opponents.First(o => o.Id == existing.Id);
+        }
+
+        _selected = existing;
+        _newPreset = null;
+        _newNote = "";
+        _query = "";
+        StateHasChanged();
+    }
+
+    private async Task AddTagAsync()
+    {
+        if (_selected is null || _newPreset is null) return;
+
+        Db.OpponentTags.Add(new OpponentTag
+        {
+            OpponentId = _selected.Id,
+            Preset = _newPreset,
+            Note = string.IsNullOrWhiteSpace(_newNote) ? null : _newNote.Trim(),
+            AddedByName = _member!.Name,
+        });
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        _selected = _opponents.First(o => o.Id == _selected.Id);
+        _newPreset = null;
+        _newNote = "";
+    }
+
+    private static string PresetIcon(string preset) => preset switch
+    {
+        "Chill" => "👍",
+        "Skilled" => "🎯",
+        "Toxic" => "😠",
+        "Sus" => "🤔",
+        "Irriterende" => "😑",
+        _ => "🏷️"
+    };
+}

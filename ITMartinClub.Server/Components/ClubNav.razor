@@ -1,0 +1,51 @@
+@inject ClubDbContext Db
+@inject ClubSessionStatusService SessionStatus
+
+<div class="club-header">
+    <div>
+        <div class="club-name">@GroupName</div>
+        <div class="club-member-name">@MemberLabel</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+        @if (_status is not null)
+        {
+            <a class="phase-badge @_status.CssClass" href="/g/@Slug/ready" title="Se spilaftenens status">@_status.Label</a>
+        }
+        @if (OnLogout.HasDelegate)
+        {
+            <button class="club-leave-btn" @onclick="OnLogout">Log ud</button>
+        }
+    </div>
+</div>
+
+<!-- No persistent tab bar - the everyday screen (Overblik) is the only
+     destination common members need. These are deliberate mode switches, not
+     a content tab list: Bruger = live/everyday, Historik = look back
+     (dokumenter/gameplans + modstander-tags), Admin = planning (PIN-gated). -->
+<div class="club-mode-row">
+    <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+    <a class="club-mode-item @(Active == "history" ? "active" : "")" href="/g/@Slug/docs">📜 Historik</a>
+    <a class="club-mode-item @(Active == "admin" ? "active" : "")" href="/g/@Slug/admin">⚙ Admin</a>
+</div>
+
+@if (Active != "chat")
+{
+    <ClubChatWidget Slug="@Slug" />
+}
+
+@code {
+    [Parameter, EditorRequired] public string Slug { get; set; } = "";
+    [Parameter, EditorRequired] public string GroupName { get; set; } = "";
+    [Parameter, EditorRequired] public string MemberLabel { get; set; } = "";
+    [Parameter, EditorRequired] public string Active { get; set; } = "";
+    [Parameter] public EventCallback OnLogout { get; set; }
+
+    private SessionStatus? _status;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (group is null) return;
+        _status = await SessionStatus.GetActiveSessionAsync(group.Id);
+    }
+}

@@ -33,6 +33,11 @@
                 <label>Invitationskode</label>
                 <input @bind="_code" placeholder="Skriv koden her" class="join-input" type="password" />
             </div>
+            <div class="join-field">
+                <label>Din PIN</label>
+                <input @bind="_pin" placeholder="min. 4 cifre" class="join-input" type="password" maxlength="20" @onkeydown="OnPinKey" />
+                <div class="join-hint">Første gang: vælg selv en PIN. Kendte navne: brug din tidligere PIN - det er hvad der forhindrer andre i at logge ind som dig.</div>
+            </div>
             <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
                 @(_joining ? "Tilmelder..." : "Tilmeld")
             </button>
@@ -41,30 +46,31 @@
 </div>
 
 <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
-    .join-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: #0f1117; }
-    .join-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px; text-align: center; }
+    .join-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .join-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px; text-align: center; color: var(--text); }
     .join-logo { font-size: 48px; margin-bottom: 12px; }
     .join-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; }
-    .join-sub { font-size: 14px; color: #64748b; margin: 0 0 28px; }
+    .join-sub { font-size: 14px; color: var(--muted); margin: 0 0 28px; }
     .join-field { text-align: left; margin-bottom: 16px; }
-    .join-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
-    .join-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; }
-    .join-input:focus { border-color: #3b82f6; }
-    .join-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .join-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    .join-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 15px; outline: none; }
+    .join-input:focus { border-color: var(--accent); }
+    .join-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
     .join-btn:hover:not(:disabled) { background: #1d4ed8; }
     .join-btn:disabled { opacity: .5; cursor: default; }
-    .join-error { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f87171; margin-bottom: 16px; }
-    .join-loading { color: #64748b; padding: 20px 0; }
+    .join-error { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; }
+    .join-loading { color: var(--muted); padding: 20px 0; }
+    .join-hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
 </style>
 
 @code {
     [Parameter] public string Slug { get; set; } = "";
+    [Inject] private ClubAuthService ClubAuth { get; set; } = null!;
 
     private Group? _group;
     private string _name = "";
     private string _code = "";
+    private string _pin = "";
     private string? _error;
     private bool _joining;
     private bool _loaded;
@@ -73,16 +79,10 @@
     {
         if (!firstRender) return;
 
-        var existingSession = await JS.InvokeAsync<string?>("clubJs.getSession");
-        if (!string.IsNullOrEmpty(existingSession) && Guid.TryParse(existingSession, out var sid))
+        if (await ClubAuth.ResolveSessionAsync(JS, Db, Slug) is not null)
         {
-            var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group)
-                .FirstOrDefaultAsync(s => s.Id == sid);
-            if (session?.Member.Group.Slug == Slug)
-            {
-                Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
-                return;
-            }
+            Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
+            return;
         }
 
         _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
@@ -90,10 +90,13 @@
         StateHasChanged();
     }
 
+    private async Task OnPinKey(KeyboardEventArgs e) { if (e.Key == "Enter") await JoinAsync(); }
+
     private async Task JoinAsync()
     {
         _error = null;
         if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv dit navn."; return; }
+        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din PIN."; return; }
         if (_group == null) return;
         if (_code.Trim() != _group.InviteCode) { _error = "Forkert invitationskode."; return; }
 
@@ -105,8 +108,28 @@
             var member = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == _group.Id && m.Name == _name.Trim());
             if (member == null)
             {
-                member = new Member { GroupId = _group.Id, Name = _name.Trim() };
+                // New name - this PIN becomes theirs going forward.
+                member = new Member { GroupId = _group.Id, Name = _name.Trim(), Pin = SecretHasher.Hash(_pin.Trim()) };
                 Db.Members.Add(member);
+            }
+            else if (string.IsNullOrEmpty(member.Pin))
+            {
+                // An admin reset this member's PIN (they forgot it) - claim a
+                // fresh one now, same as a brand new name.
+                member.Pin = SecretHasher.Hash(_pin.Trim());
+            }
+            else
+            {
+                // Existing name - the invite code alone isn't enough to prove it's
+                // really them, since everyone in the group knows the same invite
+                // code. The PIN is what stops someone else from just typing a
+                // teammate's name and getting a session as that person.
+                if (!SecretHasher.Verify(_pin.Trim(), member.Pin))
+                {
+                    _error = "Forkert PIN for dette navn. Bed en admin om at nulstille den, hvis du har glemt den.";
+                    _joining = false;
+                    return;
+                }
             }
 
             var session = new MemberSession { MemberId = member.Id };

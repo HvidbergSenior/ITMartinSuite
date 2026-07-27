@@ -1,0 +1,963 @@
+@page "/g/{slug}/ready"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IConfiguration Config
+@inject ClubPushService PushService
+@inject ClubAiService Ai
+@inject ClubAuthService ClubAuth
+@inject ClubSessionStatusService SessionStatus
+@inject MatchOcrService MatchOcr
+@inject ClubDiscordService Discord
+@implements IDisposable
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="ready" />
+
+        <div class="ready-body">
+            @if (_session is null)
+            {
+                <div class="session-start-box">
+                    <h2 class="ready-title">🎮 Start en spilaften</h2>
+                    <p class="ready-hint">Kun til i aften/lige om lidt - sender en invitation med det samme. Skal det være en anden dag, brug Kalenderen i stedet.</p>
+                    <div class="ready-minutes-row" style="justify-content:center">
+                        <span>Klar om</span>
+                        <input type="number" class="stat-num" min="1" max="99" @bind="_startAmount" />
+                        <select class="ready-unit-select" @bind="_startUnit">
+                            <option value="minutes">minutter</option>
+                            <option value="hours">timer</option>
+                        </select>
+                    </div>
+                    <button class="ready-start-btn" @onclick="StartSessionAsync" disabled="@_startingSession">
+                        🎮 @(_startingSession ? "Starter..." : "Send invitation")
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="phase-progress">
+                    <span class="phase-step @(_session.Phase == "Invitations" ? "current" : "done")">1. Invitationer</span>
+                    <span class="phase-step @(_session.Phase == "Playing" ? "current" : (_session.Phase == "Recap" ? "done" : ""))">2. Spiller</span>
+                    <span class="phase-step @(_session.Phase == "Recap" ? "current" : "")">3. Opsummering</span>
+                </div>
+
+                @if (_session.Phase == "Invitations")
+                {
+                    <h2 class="ready-title">🎮 Er der nogen klar?</h2>
+
+                    @if (_activeCheck is null)
+                    {
+                        <p class="ready-hint">Venter på invitation fra admin...</p>
+                    }
+                    else
+                    {
+                        <div class="ready-active-box">
+                            <div class="ready-active-header">@(_activeCheck.Phrase ?? $"{_activeCheck.CreatedByName} er klar om {FormatMinutes(_activeCheck.Minutes)} (spurgte for {MinutesAgo(_activeCheck.CreatedAt)} siden)")</div>
+                            <div class="ready-responses">
+                                @foreach (var r in _responses)
+                                {
+                                    <span class="ready-chip @(r.Status switch { "Ready" => "ready-yes", "Watching" => "ready-watch", _ => "ready-no" })">
+                                        @(r.Status switch { "Ready" => "✅", "Watching" => "👀", _ => "🚫" }) @r.MemberName
+                                    </span>
+                                }
+                                @if (_responses.Count == 0)
+                                {
+                                    <span class="ready-none">Ingen har svaret endnu...</span>
+                                }
+                            </div>
+                            <div class="ready-answer-row">
+                                <button class="ready-answer-btn yes @(_myResponse?.Status == "Ready" ? "selected" : "")" @onclick='() => RespondAsync("Ready")'>
+                                    @(_myResponse?.Status == "Ready" ? "✔ " : "")✅ Jeg er klar
+                                </button>
+                                <button class="ready-answer-btn no @(_myResponse?.Status == "NotNow" ? "selected" : "")" @onclick='() => RespondAsync("NotNow")'>
+                                    @(_myResponse?.Status == "NotNow" ? "✔ " : "")🚫 Ikke lige nu
+                                </button>
+                                <button class="ready-answer-btn watch @(_myResponse?.Status == "Watching" ? "selected" : "")" @onclick='() => RespondAsync("Watching")'>
+                                    @(_myResponse?.Status == "Watching" ? "✔ " : "")👀 Følger med
+                                </button>
+                            </div>
+                            @if (!_addedToCalendar)
+                            {
+                                <button class="ready-new-btn" @onclick="AddToCalendarAsync">📅 Tilføj til kalender</button>
+                            }
+                        </div>
+                    }
+
+                    <div class="phase-links">
+                        <a class="link-card" href="/g/@Slug/calendar">📅 Kalender - se begivenheder og forberedelse</a>
+                        <a class="link-card" href="/g/@Slug/docs">📄 Dokumenter - upload noget til forberedelse</a>
+                    </div>
+
+                    <div class="mood-box">
+                        <div class="stat-form-title">😄 Hvordan har I det?</div>
+                        <div class="mood-row">
+                            <input class="stat-name" style="flex:1" placeholder="Noget sjovt, et link, bare et 'hej'..." value="@_moodText" @oninput="e => _moodText = e.Value?.ToString() ?? string.Empty" />
+                            <button class="note-add-btn" @onclick="PostMoodCheckAsync" disabled="@string.IsNullOrWhiteSpace(_moodText)">Del</button>
+                        </div>
+                    </div>
+
+                    <button class="phase-advance-btn" @onclick="AdvanceToPlayingAsync">▶️ Vi er i gang - spil er startet</button>
+                }
+                else if (_session.Phase == "Playing")
+                {
+                    <h2 class="ready-title">📊 Kampstatistik</h2>
+
+                    <div class="live-update-box">
+                        <div class="stat-form-title">📢 Live opdatering (til dem der følger med)</div>
+                        <div class="live-update-row">
+                            <input type="number" class="stat-num" min="0" @bind="_liveUs" title="Vores score" />
+                            <span class="stat-sep">-</span>
+                            <input type="number" class="stat-num" min="0" @bind="_liveThem" title="Deres score" />
+                            <button class="stat-manual-btn" @onclick="PostScoreUpdateAsync">Del score</button>
+                        </div>
+                        <div class="live-update-row">
+                            <button type="button" class="stat-squad-toggle @(_liveSide == "Angreb" ? "own" : "")" @onclick='() => PostSideUpdateAsync("Angreb")'>Angreb</button>
+                            <button type="button" class="stat-squad-toggle @(_liveSide == "Forsvar" ? "own" : "")" @onclick='() => PostSideUpdateAsync("Forsvar")'>Forsvar</button>
+                        </div>
+                        <div class="live-update-row">
+                            <input class="stat-name" style="flex:1" maxlength="80" placeholder="Kommentar, fx 'Peter døde tidligt, vi presser'..." value="@_liveNoteText" @oninput="e => _liveNoteText = e.Value?.ToString() ?? string.Empty" />
+                        </div>
+                        <div class="live-update-row">
+                            <label class="stat-upload-btn" style="flex:1;text-align:center">
+                                📷🎥 @(_pendingMediaName ?? "Vedhæft billede/klip (valgfrit, fx et sjovt øjeblik mellem runder)")
+                                <InputFile OnChange="OnLiveMediaSelected" accept="image/*,video/*" style="display:none" />
+                            </label>
+                            @if (_pendingMediaName is not null)
+                            {
+                                <button type="button" class="stat-row-remove" @onclick="ClearLiveMedia">✕</button>
+                            }
+                            <button class="note-add-btn" @onclick="PostNoteUpdateAsync" disabled="@(string.IsNullOrWhiteSpace(_liveNoteText) && _pendingMediaBytes is null)">Del</button>
+                        </div>
+                        @if (_liveUpdates.Count > 0)
+                        {
+                            <div class="live-update-feed">
+                                @foreach (var u in _liveUpdates)
+                                {
+                                    <div class="live-update-item">
+                                        <div><strong>@u.CreatedByName:</strong> @u.Text <span class="live-update-time">@u.CreatedAt.ToLocalTime().ToString("HH:mm")</span></div>
+                                        @if (!string.IsNullOrEmpty(u.MediaFileName))
+                                        {
+                                            @if (IsVideoFile(u.MediaFileName))
+                                            {
+                                                <video class="live-update-media" controls src="/media/@u.MediaFileName"></video>
+                                            }
+                                            else
+                                            {
+                                                <img class="live-update-media" src="/media/@u.MediaFileName" loading="lazy" />
+                                            }
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (!_showMatchForm)
+                    {
+                        <div class="stat-actions">
+                            <label class="stat-upload-btn">
+                                📷 Upload screenshot af scoreboard
+                                <InputFile OnChange="OnScoreboardFileSelected" accept="image/*" style="display:none" />
+                            </label>
+                            <button class="stat-manual-btn" @onclick="StartManualEntry">+ Tilføj kamp manuelt</button>
+                        </div>
+                        @if (_scanningPhoto)
+                        {
+                            <div class="stat-scanning">⏳ Læser scoreboard...</div>
+                        }
+                        @if (!string.IsNullOrEmpty(_scanError))
+                        {
+                            <div class="stat-scan-error">@_scanError</div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="stat-form">
+                            @foreach (var row in _matchRows)
+                            {
+                                <div class="stat-row">
+                                    <input class="stat-name" @bind="row.Name" placeholder="Navn" />
+                                    <input type="number" class="stat-num" min="0" @bind="row.Kills" title="Kills" />
+                                    <span class="stat-sep">/</span>
+                                    <input type="number" class="stat-num" min="0" @bind="row.Deaths" title="Deaths" />
+                                    <button type="button" class="stat-squad-toggle @(row.IsOwnSquad ? "own" : "opp")"
+                                            @onclick="() => row.IsOwnSquad = !row.IsOwnSquad">
+                                        @(row.IsOwnSquad ? "Din enhed" : "Modstander")
+                                    </button>
+                                    @if (row.Kills >= 3)
+                                    {
+                                        <span class="stat-badge" title="3+ kills i denne kamp">🔥</span>
+                                    }
+                                    @if (row.IsOwnSquad)
+                                    {
+                                        <label class="stat-lonely" title="Lone survivor">
+                                            <input type="checkbox" @bind="row.LoneSurvivor" /> 🏆
+                                        </label>
+                                    }
+                                    <button type="button" class="stat-row-remove" @onclick="() => _matchRows.Remove(row)">✕</button>
+                                </div>
+                            }
+                            <button type="button" class="stat-add-row-btn" @onclick="AddBlankRow">+ Tilføj spiller</button>
+
+                            <div class="stat-form-title" style="margin-top:14px">Bombe</div>
+                            <div class="stat-bomb-row">
+                                <label>Forsøg <input type="number" class="stat-num" min="0" @bind="_matchBombAttempts" /></label>
+                                <label>Lykkedes <input type="number" class="stat-num" min="0" @bind="_matchBombSuccesses" /></label>
+                            </div>
+
+                            <div class="stat-form-actions">
+                                <button class="stat-save-btn" @onclick="SaveMatchAsync" disabled="@_savingMatch">@(_savingMatch ? "Gemmer..." : "Gem kamp")</button>
+                                <button class="stat-cancel-btn" @onclick="CancelMatchForm">Annuller</button>
+                            </div>
+                        </div>
+                    }
+
+                    @if (_justTaggableOpponents.Count > 0)
+                    {
+                        <div class="stat-tag-prompt">
+                            <div class="stat-form-title">Tag modstandere fra kampen?</div>
+                            <div class="stat-opponent-chips">
+                                @foreach (var name in _justTaggableOpponents)
+                                {
+                                    <button class="stat-opponent-chip" @onclick="() => TagOpponent(name)">🏷️ @name</button>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <a class="link-card" href="/g/@Slug/opponents">🕵️ Modstandere - se eller tag folk I har mødt</a>
+
+                    @if (_todaysMatches.Count > 0)
+                    {
+                        <div class="stat-summary-box">
+                            <div class="stat-summary-title">📊 Aftenens stats (@_todaysMatches.Count @(_todaysMatches.Count == 1 ? "kamp" : "kampe"))</div>
+                            @foreach (var row in Leaderboard())
+                            {
+                                <div class="stat-leader-row">
+                                    <span class="stat-leader-name">@row.Name</span>
+                                    <span class="stat-leader-kd">@row.Kills / @row.Deaths</span>
+                                    @if (row.LonelyCount > 0) { <span class="stat-leader-badge">🏆 x@row.LonelyCount</span> }
+                                </div>
+                            }
+                            @{ var bombAttempts = _todaysMatches.Sum(m => m.BombAttempts); var bombSuccesses = _todaysMatches.Sum(m => m.BombSuccesses); }
+                            @if (bombAttempts > 0)
+                            {
+                                <div class="stat-bomb-summary">💣 Bombe: @bombSuccesses / @bombAttempts lykkedes (@((int)(100.0 * bombSuccesses / bombAttempts))%)</div>
+                            }
+                            @if (Discord.IsAvailable)
+                            {
+                                <button class="stat-manual-btn" style="margin-top:10px" @onclick="ShareToDiscordAsync" disabled="@_sharingDiscord">
+                                    📤 @(_sharingDiscord ? "Deler..." : "Del stats på Discord")
+                                </button>
+                            }
+                        </div>
+                    }
+
+                    @if (_r6Links.Count > 0)
+                    {
+                        <div class="phase-links">
+                            <div class="stat-form-title">🔗 Andre værktøjer</div>
+                            @foreach (var (label, url) in _r6Links)
+                            {
+                                <a class="link-card" href="@url" target="_blank" rel="noopener">@label</a>
+                            }
+                        </div>
+                    }
+
+                    <button class="phase-advance-btn" @onclick="AdvanceToRecapAsync">🏁 Vi er færdige - opsummer aftenen</button>
+                }
+                else
+                {
+                    <h2 class="ready-title">📝 Aftenens noter</h2>
+                    <p class="ready-hint">Tilføj et par linjer om aftenen (1-10 linjer hver) - I behøver ikke være færdige samtidig.</p>
+
+                    <div class="note-compose">
+                        <textarea class="note-input" @bind="_newNote" @bind:event="oninput" placeholder="Fx 'Peter var on fire' eller 'Martin døde alt for meget men grinede'..." rows="2" maxlength="200"></textarea>
+                        <button class="note-add-btn" @onclick="AddNoteAsync" disabled="@string.IsNullOrWhiteSpace(_newNote)">+ Tilføj</button>
+                    </div>
+
+                    @if (_notes.Count > 0)
+                    {
+                        <div class="note-list">
+                            @foreach (var n in _notes)
+                            {
+                                <div class="note-item"><strong>@n.MemberName:</strong> @n.Text</div>
+                            }
+                        </div>
+
+                        @if (Ai.IsAvailable)
+                        {
+                            <div class="recap-btn-row">
+                                <button class="recap-btn" @onclick="GenerateRecapAsync" disabled="@_recapLoading">
+                                    🎬 @(_recapLoading ? "Skriver..." : "Sjovt resumé")
+                                </button>
+                                <button class="recap-btn practice" @onclick="GeneratePracticeRecapAsync" disabled="@_practiceRecapLoading">
+                                    🎯 @(_practiceRecapLoading ? "Skriver..." : "Hvad skal vi øve?")
+                                </button>
+                            </div>
+                        }
+                    }
+
+                    @if (_recaps.Count > 0)
+                    {
+                        <h2 class="ready-title" style="margin-top:24px">🎬 Aftenens resumé</h2>
+                        @foreach (var recap in _recaps)
+                        {
+                            <div class="recap-box @(recap.Kind == "Practice" ? "practice" : "")">
+                                <div class="recap-kind">@(recap.Kind == "Practice" ? "🎯 Til øvelse" : "🎬 Sjov version")</div>
+                                <div class="recap-text">@recap.Text</div>
+                                <div class="recap-meta">Lavet af @recap.GeneratedByName · @recap.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")</div>
+                            </div>
+                        }
+                    }
+
+                    <button class="phase-advance-btn close" @onclick="CloseSessionAsync">✅ Luk aftenen</button>
+                }
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .ready-body { padding: 16px; }
+    .ready-title { font-size: 18px; font-weight: 800; margin: 0 0 8px; color: var(--text); }
+    .ready-hint { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+    .session-start-box { text-align: center; padding: 20px 0; }
+
+    .phase-progress { display: flex; gap: 4px; margin-bottom: 20px; }
+    .phase-step { flex: 1; text-align: center; font-size: 11px; font-weight: 700; padding: 8px 4px; border-radius: 8px; background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .phase-step.current { background: var(--accent); color: white; border-color: var(--accent); }
+    .phase-step.done { background: rgba(34,197,94,.15); color: var(--green); border-color: var(--green); }
+    .phase-advance-btn { width: 100%; padding: 16px; border-radius: 14px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 24px; }
+    .phase-advance-btn.close { background: linear-gradient(135deg,#a855f7,#7c3aed); }
+    .phase-links { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .mood-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-top: 16px; }
+    .mood-row { display: flex; gap: 8px; margin-top: 8px; }
+
+    .ready-active-box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .ready-active-header { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    .ready-responses { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .ready-chip { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .ready-chip.ready-yes { background: rgba(34,197,94,.15); color: var(--green); }
+    .ready-chip.ready-no { background: rgba(148,163,184,.12); color: var(--muted); }
+    .ready-chip.ready-watch { background: rgba(96,165,250,.15); color: #60a5fa; }
+    .ready-none { font-size: 12px; color: var(--muted); }
+    .ready-answer-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .ready-answer-btn { flex: 1; padding: 12px 4px; border-radius: 10px; border: 2px solid var(--border); font-size: 13px; font-weight: 700; cursor: pointer; background: var(--surface); color: var(--muted); transition: transform .1s; }
+    .ready-answer-btn.selected { transform: scale(1.02); }
+    .ready-answer-btn.yes.selected { background: #16a34a; border-color: #16a34a; color: white; }
+    .ready-answer-btn.no.selected { background: rgba(248,113,113,.15); border-color: var(--red); color: var(--red); }
+    .ready-answer-btn.watch.selected { background: rgba(96,165,250,.2); border-color: #60a5fa; color: #60a5fa; }
+    .ready-new-btn { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+    .note-compose { display: flex; gap: 8px; margin-bottom: 14px; }
+    .note-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; font-family: inherit; resize: none; }
+    .note-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 0 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .note-add-btn:disabled { opacity: .4; cursor: default; }
+    .note-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .note-item { font-size: 13px; color: var(--text); background: var(--card); padding: 8px 12px; border-radius: 8px; }
+    .recap-btn-row { display: flex; gap: 8px; }
+    .recap-btn { flex: 1; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg,#a855f7,#7c3aed); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .recap-btn.practice { background: linear-gradient(135deg,#0ea5e9,#0284c7); }
+    .recap-btn:disabled { opacity: .5; }
+    .recap-box { background: rgba(168,85,247,.08); border: 1px solid rgba(168,85,247,.25); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+    .recap-box.practice { background: rgba(14,165,233,.08); border-color: rgba(14,165,233,.25); }
+    .recap-kind { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+    .recap-text { font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: var(--text); }
+    .recap-meta { font-size: 11px; color: var(--muted); margin-top: 10px; }
+
+    .live-update-box { background: rgba(96,165,250,.06); border: 1px solid rgba(96,165,250,.25); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+    .live-update-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .live-update-feed { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+    .live-update-item { font-size: 13px; color: var(--text); }
+    .live-update-time { font-size: 11px; color: var(--muted); margin-left: 6px; }
+    .live-update-media { max-width: 100%; border-radius: 8px; margin-top: 6px; display: block; }
+
+    .stat-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .stat-upload-btn, .stat-manual-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .stat-upload-btn:hover, .stat-manual-btn:hover { border-color: var(--accent); }
+    .stat-scanning { font-size: 13px; color: var(--muted); padding: 8px 0; }
+    .stat-scan-error { font-size: 13px; color: var(--red); background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; padding: 8px 12px; margin-top: 6px; }
+    .stat-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .stat-form-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+    .stat-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .stat-name { flex: 1; min-width: 100px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; color: var(--text); font-size: 13px; outline: none; }
+    .stat-num { width: 48px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 6px; color: var(--text); font-size: 13px; outline: none; text-align: center; }
+    .stat-sep { color: var(--muted); font-size: 13px; }
+    .stat-squad-toggle { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer; background: var(--surface); color: var(--muted); }
+    .stat-squad-toggle.own { background: rgba(34,197,94,.15); border-color: var(--green); color: var(--green); }
+    .stat-squad-toggle.opp { background: rgba(248,113,113,.1); border-color: var(--red); color: var(--red); }
+    .stat-badge { font-size: 13px; }
+    .stat-lonely { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); cursor: pointer; }
+    .stat-row-remove { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 4px; }
+    .stat-row-remove:hover { color: var(--red); }
+    .stat-add-row-btn { background: transparent; border: 1px dashed var(--border); color: var(--muted); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-bottom: 4px; }
+    .stat-bomb-row { display: flex; gap: 16px; }
+    .stat-bomb-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    .stat-form-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .stat-save-btn { flex: 1; padding: 10px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .stat-save-btn:disabled { opacity: .5; }
+    .stat-cancel-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+    .stat-tag-prompt { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+    .stat-opponent-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .stat-opponent-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--text); cursor: pointer; }
+    .stat-opponent-chip:hover { border-color: var(--accent); }
+    .stat-summary-box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .stat-summary-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+    .stat-leader-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; }
+    .stat-leader-name { flex: 1; font-weight: 600; color: var(--text); }
+    .stat-leader-kd { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .stat-leader-badge { font-size: 12px; }
+    .stat-bomb-summary { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private PlaySession? _session;
+
+    private ReadyCheck? _activeCheck;
+    private List<ReadyCheckResponse> _responses = [];
+    private ReadyCheckResponse? _myResponse;
+    private bool _addedToCalendar;
+    private string _newNote = "";
+    private List<SessionNote> _notes = [];
+    private List<SessionRecap> _recaps = [];
+    private bool _recapLoading;
+    private bool _practiceRecapLoading;
+    private System.Threading.Timer? _pollTimer;
+
+    private List<Member> _allMembers = [];
+    private bool _showMatchForm;
+    private bool _scanningPhoto;
+    private string? _scanError;
+    private List<MatchEntryRow> _matchRows = [];
+    private int _matchBombAttempts;
+    private int _matchBombSuccesses;
+    private bool _savingMatch;
+    private List<Match> _todaysMatches = [];
+    private List<string> _justTaggableOpponents = [];
+    private string _moodText = "";
+    private bool _sharingDiscord;
+    private List<(string Label, string Url)> _r6Links = [];
+
+    private static readonly string[] VideoExts = [".mp4", ".mov", ".webm", ".m4v"];
+
+    private int _liveUs;
+    private int _liveThem;
+    private string? _liveSide;
+    private string _liveNoteText = "";
+    private byte[]? _pendingMediaBytes;
+    private string? _pendingMediaName;
+    private string? _pendingMediaExt;
+    private List<LiveUpdate> _liveUpdates = [];
+
+    private sealed class MatchEntryRow
+    {
+        public string Name { get; set; } = "";
+        public int Kills { get; set; }
+        public int Deaths { get; set; }
+        public bool LoneSurvivor { get; set; }
+        public bool IsOwnSquad { get; set; } = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+
+        BuildR6Links();
+
+        await RefreshAsync();
+        _loaded = true;
+
+        StateHasChanged();
+
+        _pollTimer = new System.Threading.Timer(async _ => await InvokeAsync(async () =>
+        {
+            await RefreshAsync();
+            StateHasChanged();
+        }), null, 5000, 5000);
+    }
+
+    private void BuildR6Links()
+    {
+        void Add(string label, string? url)
+        {
+            if (!string.IsNullOrWhiteSpace(url)) _r6Links.Add((label, url));
+        }
+        Add("🗺️ R6Assistant - kort, bans, battle plan", Config["Apps:R6AssistantUrl"]);
+        Add("📡 R6Intel - live markører under runden", Config["Apps:R6IntelUrl"]);
+        Add("🎯 R6Strat - vælg operator/rolle", Config["Apps:R6StratUrl"]);
+    }
+
+    private async Task RefreshAsync()
+    {
+        _session = await Db.PlaySessions
+            .Where(p => p.GroupId == _group!.Id && p.EndedAt == null)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        _activeCheck = await Db.ReadyChecks
+            .Where(r => r.GroupId == _group!.Id && r.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (_activeCheck is not null)
+        {
+            _responses = await Db.ReadyCheckResponses.Where(r => r.ReadyCheckId == _activeCheck.Id).ToListAsync();
+            _myResponse = _responses.FirstOrDefault(r => r.MemberName == _member!.Name);
+            _addedToCalendar = await Db.Events.AnyAsync(e => e.GroupId == _group!.Id
+                && e.Title == $"🎮 Spilaften ({_activeCheck.CreatedByName})" && e.EventDate == _activeCheck.CreatedAt.AddMinutes(_activeCheck.Minutes));
+        }
+        else
+        {
+            _responses = [];
+            _myResponse = null;
+        }
+
+        _notes = await Db.SessionNotes
+            .Where(n => n.GroupId == _group!.Id && !n.UsedInRecap)
+            .OrderBy(n => n.CreatedAt)
+            .ToListAsync();
+
+        _recaps = await Db.SessionRecaps
+            .Where(r => r.GroupId == _group!.Id)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(5)
+            .ToListAsync();
+
+        _allMembers = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+
+        var todayUtc = DateTime.UtcNow.Date;
+        _todaysMatches = await Db.Matches
+            .Include(m => m.PlayerStats)
+            .Where(m => m.GroupId == _group!.Id && m.CreatedAt >= todayUtc)
+            .OrderBy(m => m.CreatedAt)
+            .ToListAsync();
+
+        _liveUpdates = _session is null ? [] : await Db.LiveUpdates
+            .Where(u => u.PlaySessionId == _session.Id)
+            .OrderByDescending(u => u.CreatedAt)
+            .Take(20)
+            .ToListAsync();
+    }
+
+    // ── Session phase control ───────────────────────────────────────────────
+    // Starting a session and sending the same-day invite is open to any
+    // member - only scheduling something for a different day (Kalender,
+    // via Admin) is the deliberate "planning" action reserved for admin.
+
+    private int _startAmount = 10;
+    private string _startUnit = "minutes";
+    private bool _startingSession;
+
+    private async Task StartSessionAsync()
+    {
+        _startingSession = true;
+        StateHasChanged();
+
+        // Someone forgetting to close the last session shouldn't block a new
+        // one from starting - auto-close whatever's still open.
+        var stale = await Db.PlaySessions.Where(p => p.GroupId == _group!.Id && p.EndedAt == null).ToListAsync();
+        foreach (var s in stale) s.EndedAt = DateTime.UtcNow;
+
+        Db.PlaySessions.Add(new PlaySession { GroupId = _group!.Id, CreatedByName = _member!.Name, Phase = "Invitations" });
+
+        var minutes = Math.Clamp(_startUnit == "hours" ? _startAmount * 60 : _startAmount, 1, 24 * 60);
+        var phrase = Ai.IsAvailable ? await Ai.GenerateReadyCheckPhraseAsync(_member.Name, minutes) : null;
+        Db.ReadyChecks.Add(new ReadyCheck { GroupId = _group.Id, CreatedByName = _member.Name, Minutes = minutes, Phrase = phrase });
+
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+
+        var pushBody = phrase ?? $"{_member.Name} er klar om {FormatMinutes(minutes)}. Er der nogen klar?";
+        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "🎮 Klar-check", pushBody);
+
+        _startingSession = false;
+        StateHasChanged();
+    }
+
+    private async Task AdvanceToPlayingAsync()
+    {
+        if (_session is null) return;
+        _session.Phase = "Playing";
+        _session.PlayingStartedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        StateHasChanged();
+    }
+
+    private async Task AdvanceToRecapAsync()
+    {
+        if (_session is null) return;
+        _session.Phase = "Recap";
+        _session.RecapStartedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        StateHasChanged();
+    }
+
+    private async Task CloseSessionAsync()
+    {
+        if (_session is null) return;
+        _session.EndedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        StateHasChanged();
+    }
+
+    // ── Invitations phase ───────────────────────────────────────────────────
+
+    private static string FormatMinutes(int minutes) =>
+        minutes % 60 == 0 && minutes >= 60 ? $"{minutes / 60} time{(minutes / 60 == 1 ? "" : "r")}" : $"{minutes} minutter";
+
+    private async Task RespondAsync(string status)
+    {
+        if (_activeCheck is null) return;
+
+        // Update in place if they're changing their mind, rather than adding a
+        // second row - buttons stay clickable after answering (see markup)
+        // instead of disappearing once you've picked one.
+        var existing = await Db.ReadyCheckResponses
+            .FirstOrDefaultAsync(r => r.ReadyCheckId == _activeCheck.Id && r.MemberName == _member!.Name);
+        if (existing is not null) existing.Status = status;
+        else Db.ReadyCheckResponses.Add(new ReadyCheckResponse { ReadyCheckId = _activeCheck.Id, MemberName = _member!.Name, Status = status });
+
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        StateHasChanged();
+    }
+
+    // Calendar entries are opt-in per person now, not created automatically
+    // for the whole group when the ready-check goes out.
+    private async Task AddToCalendarAsync()
+    {
+        if (_activeCheck is null || _group is null) return;
+        Db.Events.Add(new CalendarEvent
+        {
+            GroupId = _group.Id,
+            Title = $"🎮 Spilaften ({_activeCheck.CreatedByName})",
+            EventDate = _activeCheck.CreatedAt.AddMinutes(_activeCheck.Minutes),
+            CreatedByName = _member!.Name,
+        });
+        await Db.SaveChangesAsync();
+        _addedToCalendar = true;
+        StateHasChanged();
+    }
+
+    private async Task PostMoodCheckAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_moodText) || _group is null) return;
+        Db.Posts.Add(new BulletinPost
+        {
+            GroupId = _group.Id,
+            MemberId = _member!.Id,
+            Content = _moodText.Trim(),
+            Tag = "Personal",
+        });
+        await Db.SaveChangesAsync();
+        _moodText = "";
+        StateHasChanged();
+    }
+
+    // ── Playing phase: live highlights (for people watching, not playing) ───
+
+    private Task PostScoreUpdateAsync() => AddLiveUpdateAsync($"Kampen står {_liveUs}-{_liveThem}", null);
+
+    private Task PostSideUpdateAsync(string side)
+    {
+        _liveSide = side;
+        return AddLiveUpdateAsync($"Vi er på {side}", null);
+    }
+
+    private Task PostNoteUpdateAsync()
+    {
+        var text = _liveNoteText;
+        var media = _pendingMediaBytes is not null && _pendingMediaExt is not null
+            ? ((byte[] Bytes, string Ext)?)(_pendingMediaBytes, _pendingMediaExt)
+            : null;
+        _liveNoteText = "";
+        _pendingMediaBytes = null;
+        _pendingMediaName = null;
+        _pendingMediaExt = null;
+        return AddLiveUpdateAsync(text, media);
+    }
+
+    private async Task OnLiveMediaSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        const long maxBytes = 25 * 1024 * 1024;
+        if (file.Size > maxBytes) { await JS.InvokeVoidAsync("alert", "Filen er for stor (max 25 MB)."); return; }
+        using var stream = file.OpenReadStream(maxBytes);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _pendingMediaBytes = ms.ToArray();
+        _pendingMediaName = file.Name;
+        _pendingMediaExt = Path.GetExtension(file.Name) is { Length: > 0 } ext ? ext : ".jpg";
+        StateHasChanged();
+    }
+
+    private void ClearLiveMedia()
+    {
+        _pendingMediaBytes = null;
+        _pendingMediaName = null;
+        _pendingMediaExt = null;
+    }
+
+    private static bool IsVideoFile(string fileName) =>
+        VideoExts.Contains(Path.GetExtension(fileName), StringComparer.OrdinalIgnoreCase);
+
+    private async Task AddLiveUpdateAsync(string text, (byte[] Bytes, string Ext)? media)
+    {
+        if (_session is null) return;
+        var trimmed = text.Trim();
+        if (trimmed.Length == 0 && media is null) return;
+
+        string? mediaFileName = null;
+        if (media is not null)
+        {
+            mediaFileName = $"{Guid.NewGuid():N}{media.Value.Ext}";
+            var root = Config["ClubSettings:LiveMediaRoot"] ?? "/app/data/livemedia";
+            Directory.CreateDirectory(root);
+            await File.WriteAllBytesAsync(Path.Combine(root, mediaFileName), media.Value.Bytes);
+        }
+
+        Db.LiveUpdates.Add(new LiveUpdate { PlaySessionId = _session.Id, Text = trimmed, MediaFileName = mediaFileName, CreatedByName = _member!.Name });
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        StateHasChanged();
+
+        var watchers = (await SessionStatus.GetMembersWithStatusAsync(_group!.Id, _session, "Watching"))
+            .Where(n => n != _member.Name).ToList();
+        var pushBody = trimmed.Length > 0 ? trimmed : "Nyt billede/klip fra kampen";
+        if (watchers.Count > 0)
+            _ = PushService.SendToMembersAsync(Db, _group.Id, watchers, "📢 Live opdatering", pushBody);
+
+        if (Discord.IsAvailable)
+            _ = Discord.PostMessageAsync(mediaFileName is not null ? $"{pushBody} 📎" : pushBody);
+    }
+
+    // ── Recap phase ──────────────────────────────────────────────────────────
+
+    private async Task AddNoteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newNote)) return;
+        Db.SessionNotes.Add(new SessionNote { GroupId = _group!.Id, MemberName = _member.Name, Text = _newNote.Trim() });
+        await Db.SaveChangesAsync();
+        _newNote = "";
+        await RefreshAsync();
+    }
+
+    private async Task GenerateRecapAsync()
+    {
+        if (_notes.Count == 0 && _todaysMatches.Count == 0) return;
+        _recapLoading = true;
+        StateHasChanged();
+
+        var text = await Ai.GenerateRecapAsync(_notes.Select(n => (n.MemberName, n.Text)).ToList(), BuildStatsSummary());
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            Db.SessionRecaps.Add(new SessionRecap { GroupId = _group!.Id, Text = text, Kind = "Funny", GeneratedByName = _member!.Name });
+            foreach (var n in _notes) n.UsedInRecap = true;
+            await Db.SaveChangesAsync();
+
+            // Anyone who declined this session's ready-check ("NotNow") shouldn't
+            // get pinged again once it's over - only actual/potential attendees do.
+            var exclude = new List<string> { _member!.Name };
+            if (_session is not null)
+                exclude.AddRange(await SessionStatus.GetMembersWithStatusAsync(_group.Id, _session, "NotNow"));
+            _ = PushService.SendToGroupExceptAsync(Db, _group.Id, exclude, "🎬 Aftenens resumé er klar", "Se hvad Claude synes om aftenens spil!");
+        }
+
+        _recapLoading = false;
+        await RefreshAsync();
+    }
+
+    private async Task GeneratePracticeRecapAsync()
+    {
+        if (_notes.Count == 0 && _todaysMatches.Count == 0) return;
+        _practiceRecapLoading = true;
+        StateHasChanged();
+
+        var text = await Ai.GeneratePracticeRecapAsync(_notes.Select(n => (n.MemberName, n.Text)).ToList(), BuildStatsSummary());
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            Db.SessionRecaps.Add(new SessionRecap { GroupId = _group!.Id, Text = text, Kind = "Practice", GeneratedByName = _member!.Name });
+            foreach (var n in _notes) n.UsedInRecap = true;
+            await Db.SaveChangesAsync();
+        }
+
+        _practiceRecapLoading = false;
+        await RefreshAsync();
+    }
+
+    private string? BuildStatsSummary()
+    {
+        if (_todaysMatches.Count == 0) return null;
+
+        var lines = Leaderboard()
+            .Select(r => $"- {r.Name}: {r.Kills} kills / {r.Deaths} deaths" + (r.LonelyCount > 0 ? $", lone survivor x{r.LonelyCount}" : ""))
+            .ToList();
+
+        var attempts = _todaysMatches.Sum(m => m.BombAttempts);
+        var successes = _todaysMatches.Sum(m => m.BombSuccesses);
+        if (attempts > 0)
+            lines.Add($"- Bombe: {successes}/{attempts} plant-forsøg lykkedes");
+
+        return string.Join("\n", lines);
+    }
+
+    private List<(string Name, int Kills, int Deaths, int LonelyCount)> Leaderboard() =>
+        _todaysMatches
+            .SelectMany(m => m.PlayerStats)
+            .GroupBy(s => s.MemberName)
+            .Select(g => (g.Key, g.Sum(s => s.Kills), g.Sum(s => s.Deaths), g.Count(s => s.LoneSurvivor)))
+            .OrderByDescending(x => x.Item2)
+            .ToList();
+
+    private async Task ShareToDiscordAsync()
+    {
+        _sharingDiscord = true;
+        StateHasChanged();
+
+        var lines = new List<string> { $"**Aftenens stats ({_todaysMatches.Count} {(_todaysMatches.Count == 1 ? "kamp" : "kampe")})**" };
+        lines.AddRange(Leaderboard().Select(r => $"{r.Name}: {r.Kills}/{r.Deaths}" + (r.LonelyCount > 0 ? $" 🏆x{r.LonelyCount}" : "")));
+        var attempts = _todaysMatches.Sum(m => m.BombAttempts);
+        var successes = _todaysMatches.Sum(m => m.BombSuccesses);
+        if (attempts > 0) lines.Add($"💣 Bombe: {successes}/{attempts} lykkedes");
+
+        await Discord.PostMessageAsync(string.Join("\n", lines));
+        _sharingDiscord = false;
+        StateHasChanged();
+    }
+
+    // ── Playing phase: match stats ──────────────────────────────────────────
+
+    private void StartManualEntry()
+    {
+        _scanError = null;
+        _matchRows = _allMembers.Select(m => new MatchEntryRow { Name = m.Name, IsOwnSquad = true }).ToList();
+        _matchBombAttempts = 0;
+        _matchBombSuccesses = 0;
+        _showMatchForm = true;
+    }
+
+    private void AddBlankRow() => _matchRows.Add(new MatchEntryRow());
+
+    private void CancelMatchForm()
+    {
+        _showMatchForm = false;
+        _matchRows = [];
+    }
+
+    private async Task OnScoreboardFileSelected(InputFileChangeEventArgs e)
+    {
+        _scanError = null;
+        var file = e.File;
+        const long maxBytes = 8 * 1024 * 1024;
+        if (file.Size > maxBytes) { _scanError = "Billedet er for stort (max 8 MB)."; return; }
+        if (!MatchOcr.IsAvailable) { _scanError = "AI-scanning er ikke sat op - brug manuel indtastning i stedet."; return; }
+
+        _scanningPhoto = true;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var mime = file.ContentType is "image/png" or "image/jpeg" ? file.ContentType : "image/jpeg";
+
+            var rows = await MatchOcr.ReadScoreboardAsync(ms.ToArray(), mime);
+            if (rows.Count == 0)
+            {
+                _scanError = "Kunne ikke læse scoreboardet tydeligt - prøv et skarpere screenshot, eller indtast manuelt.";
+                return;
+            }
+
+            var knownNames = _allMembers.Select(m => m.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _matchRows = rows.Select(r => new MatchEntryRow
+            {
+                Name = r.Name,
+                Kills = r.Kills,
+                Deaths = r.Deaths,
+                IsOwnSquad = knownNames.Contains(r.Name)
+            }).ToList();
+            _matchBombAttempts = 0;
+            _matchBombSuccesses = 0;
+            _showMatchForm = true;
+        }
+        catch (Exception ex)
+        {
+            _scanError = $"Noget gik galt: {ex.Message}";
+        }
+        finally
+        {
+            _scanningPhoto = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveMatchAsync()
+    {
+        var ownRows = _matchRows.Where(r => r.IsOwnSquad && !string.IsNullOrWhiteSpace(r.Name)).ToList();
+        if (ownRows.Count == 0) return;
+
+        _savingMatch = true;
+        StateHasChanged();
+
+        var match = new Match
+        {
+            GroupId = _group!.Id,
+            BombAttempts = _matchBombAttempts,
+            BombSuccesses = _matchBombSuccesses,
+            CreatedByName = _member!.Name,
+        };
+        Db.Matches.Add(match);
+
+        foreach (var r in ownRows)
+        {
+            Db.MatchPlayerStats.Add(new MatchPlayerStat
+            {
+                MatchId = match.Id,
+                MemberName = r.Name.Trim(),
+                Kills = r.Kills,
+                Deaths = r.Deaths,
+                LoneSurvivor = r.LoneSurvivor,
+            });
+        }
+        await Db.SaveChangesAsync();
+
+        _justTaggableOpponents = _matchRows
+            .Where(r => !r.IsOwnSquad && !string.IsNullOrWhiteSpace(r.Name))
+            .Select(r => r.Name.Trim())
+            .Distinct()
+            .ToList();
+
+        _showMatchForm = false;
+        _matchRows = [];
+        _savingMatch = false;
+        await RefreshAsync();
+    }
+
+    private void TagOpponent(string name) =>
+        Nav.NavigateTo($"/g/{Slug}/opponents?name={Uri.EscapeDataString(name)}", forceLoad: true);
+
+    private static string MinutesAgo(DateTime utc)
+    {
+        var mins = (int)(DateTime.UtcNow - utc).TotalMinutes;
+        return mins <= 0 ? "under et minut" : $"{mins} min";
+    }
+
+    public void Dispose() => _pollTimer?.Dispose();
+}

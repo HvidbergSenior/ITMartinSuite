@@ -4,47 +4,31 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubPushService PushService
+@inject ClubAuthService ClubAuth
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
 else
 {
     <div class="club-page">
-        <div class="club-header">
-            <div><div class="club-name">@_group!.Name</div><div class="club-member-name">@_member.Name</div></div>
-        </div>
-        <div class="club-nav">
-            <a class="club-nav-item" href="/g/@Slug">🏠 Hjem</a>
-            <a class="club-nav-item" href="/g/@Slug/docs">📄 Dokumenter</a>
-            <a class="club-nav-item active" href="/g/@Slug/calendar">📅 Kalender</a>
-            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
-            <a class="club-nav-item" href="/g/@Slug/board">📌 Opslagstavle</a>
-            <a class="club-nav-item" href="/g/@Slug/chat">💬 Chat</a>
-        </div>
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="calendar" />
 
         <div class="cal-body">
             <div class="cal-toolbar">
                 <h2 class="cal-title">Kalender</h2>
-                <button class="cal-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Tilføj")</button>
             </div>
-
-            @if (_adding)
-            {
-                <div class="cal-form">
-                    <div class="cal-field"><label>Titel</label><input @bind="_newTitle" class="cal-input" maxlength="120" /></div>
-                    <div class="cal-row">
-                        <div class="cal-field"><label>Dato & tid</label><input @bind="_newDate" type="datetime-local" class="cal-input" /></div>
-                        <div class="cal-field"><label>Sted (valgfrit)</label><input @bind="_newLocation" class="cal-input" maxlength="100" /></div>
-                    </div>
-                    <div class="cal-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newDesc" rows="2" class="cal-input cal-textarea" /></div>
-                    <button class="cal-save-btn" @onclick="AddEventAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle))">Gem begivenhed</button>
-                </div>
-            }
+            <a class="link-card" href="/g/@Slug/admin" style="margin-bottom:16px">📅 Vil du oprette en begivenhed? Det gør en admin under ⚙ Admin</a>
 
             <div class="cal-section-label">Kommende</div>
             @if (!_upcoming.Any()) { <div class="cal-empty">Ingen kommende begivenheder.</div> }
             @foreach (var ev in _upcoming)
             {
+                var rsvps = _rsvpsByEvent.GetValueOrDefault(ev.Id, []);
+                var myRsvp = rsvps.FirstOrDefault(r => r.MemberName == _member.Name);
+                var yes = rsvps.Where(r => r.Status == "Yes").ToList();
+                var no = rsvps.Where(r => r.Status == "No").ToList();
+                var prep = _prepByEvent.GetValueOrDefault(ev.Id);
+
                 <div class="cal-event">
                     <div class="cal-event-header">
                         <div class="cal-event-date">@ev.EventDate.ToLocalTime().ToString("dddd d. MMMM yyyy, HH:mm", new System.Globalization.CultureInfo("da-DK"))</div>
@@ -54,6 +38,87 @@ else
                     @if (!string.IsNullOrEmpty(ev.Location)) { <div class="cal-event-loc">📍 @ev.Location</div> }
                     @if (!string.IsNullOrEmpty(ev.Description)) { <div class="cal-event-desc">@ev.Description</div> }
                     <div class="cal-event-by">Oprettet af @ev.CreatedByName</div>
+
+                    @if (prep is not null)
+                    {
+                        <div class="prep-box">
+                            <div class="prep-focus">🎯 Fokus: @prep.Focus</div>
+                            @if (!string.IsNullOrWhiteSpace(prep.Checklist))
+                            {
+                                <div class="prep-checklist-label">Inden vi starter:</div>
+                                <ul class="prep-checklist">
+                                    @foreach (var line in prep.Checklist.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        <li>@line.Trim()</li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    }
+                    else if (_prepEditingId == ev.Id)
+                    {
+                        <div class="prep-form">
+                            <input class="cal-input" placeholder="Fokus, fx 'Operator valg'" @bind="_prepFocus" maxlength="80" />
+                            <textarea class="cal-input cal-textarea" rows="3" placeholder="Inden vi starter (én ting pr. linje)..." @bind="_prepChecklist"></textarea>
+                            <div class="prep-form-actions">
+                                <button class="cal-save-btn" @onclick="() => SavePrepAsync(ev.Id)" disabled="@string.IsNullOrWhiteSpace(_prepFocus)">Gem forberedelse</button>
+                                <button class="cal-cancel-btn" @onclick="() => _prepEditingId = null">Annuller</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <button class="prep-add-btn" @onclick="() => StartPrepEdit(ev.Id)">📋 Tilføj forberedelse</button>
+                    }
+
+                    <div class="rsvp-row">
+                        <button class="rsvp-btn @(myRsvp?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => SetRsvpAsync(ev.Id, "Yes")'>✅ Ja</button>
+                        <button class="rsvp-btn @(myRsvp?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => SetRsvpAsync(ev.Id, "No")'>❌ Nej</button>
+                    </div>
+                    @if (yes.Count > 0 || no.Count > 0)
+                    {
+                        <div class="rsvp-reactions">
+                            @if (yes.Count > 0) { <div class="rsvp-reaction-line yes">✅ @string.Join(", ", yes.Select(r => r.MemberName))</div> }
+                            @if (no.Count > 0) { <div class="rsvp-reaction-line no">❌ @string.Join(", ", no.Select(r => r.MemberName))</div> }
+                        </div>
+                    }
+
+                    @{ var suggestion = _suggestionsByEvent.GetValueOrDefault(ev.Id); }
+                    @if (suggestion is not null)
+                    {
+                        var sVotes = _votesBySuggestion.GetValueOrDefault(suggestion.Id, []);
+                        var myVote = sVotes.FirstOrDefault(v => v.MemberName == _member.Name);
+                        var sYes = sVotes.Where(v => v.Status == "Yes").ToList();
+                        var sNo = sVotes.Where(v => v.Status == "No").ToList();
+                        <div class="suggestion-box">
+                            <div class="suggestion-text">⏰ @suggestion.SuggestedByName foreslår @suggestion.SuggestedDate.ToLocalTime().ToString("HH:mm 'i stedet - stem inden' d. MMM HH:mm", new System.Globalization.CultureInfo("da-DK"))</div>
+                            <div class="rsvp-row">
+                                <button class="rsvp-btn @(myVote?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => VoteTimeAsync(suggestion.Id, "Yes")'>✅ Ja</button>
+                                <button class="rsvp-btn @(myVote?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => VoteTimeAsync(suggestion.Id, "No")'>❌ Nej</button>
+                            </div>
+                            @if (sYes.Count > 0 || sNo.Count > 0)
+                            {
+                                <div class="rsvp-reactions">
+                                    @if (sYes.Count > 0) { <div class="rsvp-reaction-line yes">✅ @string.Join(", ", sYes.Select(v => v.MemberName))</div> }
+                                    @if (sNo.Count > 0) { <div class="rsvp-reaction-line no">❌ @string.Join(", ", sNo.Select(v => v.MemberName))</div> }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (_suggestingEventId == ev.Id)
+                    {
+                        <div class="suggestion-form">
+                            <input type="datetime-local" class="cal-input" @bind="_suggestedDate" />
+                            <div class="prep-form-actions">
+                                <button class="cal-save-btn" @onclick="() => SuggestTimeAsync(ev.Id)">Foreslå</button>
+                                <button class="cal-cancel-btn" @onclick="() => _suggestingEventId = null">Annuller</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <button class="prep-add-btn" @onclick="() => StartTimeSuggestion(ev)">⏰ Foreslå anden tid</button>
+                    }
                 </div>
             }
 
@@ -73,42 +138,55 @@ else
 }
 
 <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
-    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
-    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
-    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
-    .club-name { font-size: 20px; font-weight: 900; }
-    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
-    .club-nav { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
-    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
     .cal-body { padding: 16px; }
     .cal-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .cal-title { font-size: 18px; font-weight: 800; margin: 0; }
-    .cal-add-btn { background: #2563eb; color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .cal-form { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .cal-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .cal-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .cal-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
     .cal-field { margin-bottom: 12px; }
-    .cal-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .cal-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
     .cal-row { display: flex; gap: 12px; }
     .cal-row .cal-field { flex: 1; }
-    .cal-input { width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 14px; color: white; font-size: 14px; outline: none; }
-    .cal-input:focus { border-color: #3b82f6; }
+    .cal-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; margin-bottom: 8px; }
+    .cal-input:focus { border-color: var(--accent); }
     .cal-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
-    .cal-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .cal-save-btn { padding: 10px 16px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
     .cal-save-btn:disabled { opacity: .4; cursor: default; }
-    .cal-section-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
-    .cal-empty { color: #374151; font-size: 14px; padding: 12px 0; }
-    .cal-event { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .cal-cancel-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+    .cal-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .cal-empty { color: var(--muted); font-size: 14px; padding: 12px 0; }
+    .cal-event { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
     .cal-event-past { opacity: .5; }
     .cal-event-header { display: flex; justify-content: space-between; align-items: flex-start; }
-    .cal-event-date { font-size: 12px; color: #3b82f6; font-weight: 700; margin-bottom: 4px; }
-    .cal-event-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-    .cal-event-loc { font-size: 13px; color: #64748b; margin-bottom: 4px; }
-    .cal-event-desc { font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
-    .cal-event-by { font-size: 11px; color: #374151; }
-    .cal-del-btn { background: transparent; border: none; color: #374151; cursor: pointer; font-size: 14px; padding: 2px 6px; }
-    .cal-del-btn:hover { color: #f87171; }
+    .cal-event-date { font-size: 12px; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+    .cal-event-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+    .cal-event-loc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .cal-event-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .cal-event-by { font-size: 11px; color: var(--muted); }
+    .cal-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; }
+    .cal-del-btn:hover { color: var(--red); }
+
+    .prep-box { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); }
+    .prep-focus { font-size: 13px; font-weight: 700; color: var(--yellow); margin-bottom: 4px; }
+    .prep-checklist-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+    .prep-checklist { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: var(--text); }
+    .prep-checklist li { margin-bottom: 2px; }
+    .prep-add-btn { margin-top: 10px; background: transparent; border: 1px dashed var(--border); color: var(--muted); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+    .prep-form { margin-top: 10px; padding: 12px; background: var(--surface); border-radius: 10px; }
+    .prep-form-actions { display: flex; gap: 8px; }
+
+    .rsvp-row { display: flex; gap: 8px; margin-top: 12px; }
+    .rsvp-btn { flex: 1; padding: 10px 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+    .rsvp-btn.rsvp-active.going { background: rgba(34,197,94,.15); border-color: var(--green); color: var(--green); }
+    .rsvp-btn.rsvp-active.cant { background: rgba(248,113,113,.15); border-color: var(--red); color: var(--red); }
+    .rsvp-reactions { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+    .rsvp-reaction-line { font-size: 12px; color: var(--muted); }
+    .rsvp-reaction-line.yes { color: var(--green); }
+    .rsvp-reaction-line.no { color: var(--red); }
+
+    .suggestion-box { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(96,165,250,.08); border: 1px solid rgba(96,165,250,.25); }
+    .suggestion-text { font-size: 13px; font-weight: 600; color: #60a5fa; margin-bottom: 8px; }
+    .suggestion-form { margin-top: 10px; padding: 12px; background: var(--surface); border-radius: 10px; }
 </style>
 
 @code {
@@ -116,25 +194,29 @@ else
     private Member? _member;
     private Group? _group;
     private bool _loaded;
-    private bool _adding;
-    private string _newTitle = "";
-    private DateTime _newDate = DateTime.Now.AddDays(7);
-    private string _newLocation = "";
-    private string _newDesc = "";
     private List<CalendarEvent> _upcoming = [];
     private List<CalendarEvent> _past = [];
+    private Dictionary<Guid, List<EventRsvp>> _rsvpsByEvent = [];
+    private Dictionary<Guid, EventPrep> _prepByEvent = [];
+    private Guid? _prepEditingId;
+    private string _prepFocus = "";
+    private string _prepChecklist = "";
+
+    private Dictionary<Guid, EventTimeSuggestion> _suggestionsByEvent = [];
+    private Dictionary<Guid, List<EventTimeVote>> _votesBySuggestion = [];
+    private Guid? _suggestingEventId;
+    private DateTime _suggestedDate = DateTime.Now.AddDays(1);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
-        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
-        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group).FirstOrDefaultAsync(s => s.Id == sid);
-        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
         await RefreshAsync();
         _loaded = true;
+
         StateHasChanged();
     }
 
@@ -144,30 +226,98 @@ else
         var all = await Db.Events.Where(e => e.GroupId == _group!.Id).OrderBy(e => e.EventDate).ToListAsync();
         _upcoming = all.Where(e => e.EventDate >= now).ToList();
         _past = all.Where(e => e.EventDate < now).OrderByDescending(e => e.EventDate).Take(5).ToList();
+
+        var eventIds = _upcoming.Select(e => e.Id).ToList();
+        _rsvpsByEvent = (await Db.EventRsvps.Where(r => eventIds.Contains(r.EventId)).ToListAsync())
+            .GroupBy(r => r.EventId).ToDictionary(g => g.Key, g => g.ToList());
+        _prepByEvent = (await Db.EventPreps.Where(p => eventIds.Contains(p.EventId)).ToListAsync())
+            .ToDictionary(p => p.EventId);
+
+        _suggestionsByEvent = (await Db.EventTimeSuggestions
+                .Where(s => eventIds.Contains(s.EventId) && !s.Resolved && s.ExpiresAt > now)
+                .ToListAsync())
+            .GroupBy(s => s.EventId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First());
+
+        var suggestionIds = _suggestionsByEvent.Values.Select(s => s.Id).ToList();
+        _votesBySuggestion = (await Db.EventTimeVotes.Where(v => suggestionIds.Contains(v.SuggestionId)).ToListAsync())
+            .GroupBy(v => v.SuggestionId).ToDictionary(g => g.Key, g => g.ToList());
     }
 
-    private async Task AddEventAsync()
+    private void StartTimeSuggestion(CalendarEvent ev)
     {
-        var title = _newTitle.Trim();
-        var dateStr = _newDate.ToString("d. MMM");
-        Db.Events.Add(new CalendarEvent
+        _suggestingEventId = ev.Id;
+        _suggestedDate = ev.EventDate.ToLocalTime();
+    }
+
+    private async Task SuggestTimeAsync(Guid eventId)
+    {
+        Db.EventTimeSuggestions.Add(new EventTimeSuggestion
         {
-            GroupId = _group!.Id,
-            Title = title,
-            EventDate = _newDate.ToUniversalTime(),
-            Location = string.IsNullOrWhiteSpace(_newLocation) ? null : _newLocation.Trim(),
-            Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
-            CreatedByName = _member!.Name,
+            EventId = eventId,
+            SuggestedDate = _suggestedDate.ToUniversalTime(),
+            SuggestedByName = _member!.Name,
         });
         await Db.SaveChangesAsync();
-        _newTitle = ""; _newLocation = ""; _newDesc = ""; _adding = false;
+        _suggestingEventId = null;
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "📅 Ny begivenhed", $"{title} – {dateStr}");
+        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "⏰ Ny tid foreslået",
+            $"{_member.Name} foreslår en anden tid - stem inden 2 timer");
+    }
+
+    private async Task VoteTimeAsync(Guid suggestionId, string status)
+    {
+        var existing = await Db.EventTimeVotes.FirstOrDefaultAsync(v => v.SuggestionId == suggestionId && v.MemberName == _member!.Name);
+        if (existing is not null) existing.Status = status;
+        else Db.EventTimeVotes.Add(new EventTimeVote { SuggestionId = suggestionId, MemberName = _member!.Name, Status = status });
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
     }
 
     private async Task DeleteEventAsync(Guid id)
     {
         var ev = await Db.Events.FindAsync(id);
         if (ev != null) { Db.Events.Remove(ev); await Db.SaveChangesAsync(); await RefreshAsync(); }
+    }
+
+    private void StartPrepEdit(Guid eventId)
+    {
+        _prepEditingId = eventId;
+        _prepFocus = "";
+        _prepChecklist = "";
+    }
+
+    private async Task SavePrepAsync(Guid eventId)
+    {
+        if (string.IsNullOrWhiteSpace(_prepFocus)) return;
+        var ev = _upcoming.First(e => e.Id == eventId);
+        Db.EventPreps.Add(new EventPrep
+        {
+            EventId = eventId,
+            Focus = _prepFocus.Trim(),
+            Checklist = _prepChecklist.Trim(),
+            CreatedByName = _member!.Name,
+        });
+        await Db.SaveChangesAsync();
+        _prepEditingId = null;
+        await RefreshAsync();
+        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "📋 Forberedelse klar",
+            $"Til {ev.Title}: {_prepFocus.Trim()} – se hvad du skal gøre inden");
+    }
+
+    private async Task SetRsvpAsync(Guid eventId, string status)
+    {
+        var existing = await Db.EventRsvps.FirstOrDefaultAsync(r => r.EventId == eventId && r.MemberName == _member!.Name);
+        if (existing is not null)
+        {
+            existing.Status = status;
+            existing.RespondedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            Db.EventRsvps.Add(new EventRsvp { EventId = eventId, MemberName = _member!.Name, Status = status });
+        }
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
     }
 }

@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
+    <script>
+        // Applied before first paint to avoid a flash of the wrong theme -
+        // must run this early (top of <head>), not deferred like other scripts.
+        (function () {
+            var theme = localStorage.getItem('club_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -9,7 +17,8 @@
     <link rel="manifest" href="/manifest.json" />
     <title>Club</title>
     <base href="/" />
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="ITMartinClub.Server.styles.css?v=@CacheBuster" />
 </head>
 <body>
     <Routes />
@@ -24,7 +33,7 @@
             },
             setSession: function (v) {
                 localStorage.setItem('club_session', v);
-                document.cookie = 'club_session=' + v + ';path=/;max-age=31536000;samesite=lax';
+                document.cookie = 'club_session=' + v + ';path=/;max-age=2592000;samesite=lax';
             },
             clearSession: function () {
                 localStorage.removeItem('club_session');
@@ -73,6 +82,28 @@
         <span class="reconnect-msg">Forbinder igen...</span>
         <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
     </div>
+
+    <button id="themeToggleBtn" title="Skift lys/mørk visning"
+            style="position:fixed;bottom:20px;right:20px;z-index:9999;width:52px;height:52px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
+        🌓
+    </button>
+    <script>
+    (function () {
+        var btn = document.getElementById('themeToggleBtn');
+        function sync() {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            btn.textContent = current === 'light' ? '🌙' : '☀️';
+        }
+        btn.addEventListener('click', function () {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            var next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('club_theme', next);
+            sync();
+        });
+        sync();
+    })();
+    </script>
 <script>
 (function(){
     var vid = localStorage.getItem('_mid');
@@ -96,3 +127,11 @@
 </script>
 </body>
 </html>
+
+@code {
+    // Query-string cache-buster - Cloudflare Tunnel caches static assets like
+    // app.css separately from HTML, so a redeploy can keep serving the old
+    // CSS until either the cache is purged or the URL changes. Ticks change
+    // on every process start, which is enough to force a fresh fetch.
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

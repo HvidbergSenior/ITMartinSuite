@@ -5,6 +5,8 @@
 @inject IJSRuntime JS
 @inject ClubBroadcastService Broadcast
 @inject ClubPushService PushService
+@inject ClubAuthService ClubAuth
+@inject ClubSessionStatusService SessionStatus
 @implements IDisposable
 
 @if (!_loaded)
@@ -18,35 +20,74 @@ else if (_member == null)
 else
 {
     <div class="club-page">
-        <div class="club-header">
-            <div>
-                <div class="club-name">@_group!.Name</div>
-                <div class="club-member-name">Hej, @_member.Name 👋</div>
-            </div>
-            <button class="club-leave-btn" @onclick="LeaveAsync">Log ud</button>
-        </div>
-
-        <div class="club-nav">
-            <a class="club-nav-item active" href="/g/@Slug">🏠 Hjem</a>
-            <a class="club-nav-item" href="/g/@Slug/docs">
-                📄 Dokumenter
-                @if (_unreadCount > 0) { <span class="club-badge">@_unreadCount</span> }
-            </a>
-            <a class="club-nav-item" href="/g/@Slug/calendar">📅 Kalender</a>
-            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
-            <a class="club-nav-item" href="/g/@Slug/board">📌 Opslagstavle</a>
-            <a class="club-nav-item" href="/g/@Slug/chat">💬 Chat</a>
-        </div>
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@($"Hej, {_member.Name} 👋")"
+                 Active="home" OnLogout="LeaveAsync" />
 
         <div class="club-sections">
 
-            @if (_unreadCount > 0)
-            {
-                <div class="club-alert" @onclick='() => Nav.NavigateTo($"/g/{Slug}/docs")'>
-                    <span>📄</span>
-                    <span>@_unreadCount @(_unreadCount == 1 ? "nyt dokument" : "nye dokumenter") — tryk for at se</span>
-                </div>
-            }
+            <div class="club-section live-session-card">
+                <div class="club-section-title">Lige nu</div>
+                @if (_status is null)
+                {
+                    <div class="club-empty">Ingen spilaften planlagt lige nu.</div>
+                    <a class="club-see-all" href="/g/@Slug/ready">🎮 Start en spilaften →</a>
+                }
+                else if (_status.Session.Phase == "Invitations")
+                {
+                    @if (_activeCheck is null)
+                    {
+                        <div class="club-empty">Venter på invitation...</div>
+                    }
+                    else
+                    {
+                        <div class="ready-active-header">@(_activeCheck.Phrase ?? $"{_activeCheck.CreatedByName} er klar om {_activeCheck.Minutes} minutter. Er der nogen klar?")</div>
+                        <div class="ready-responses">
+                            @foreach (var r in _responses)
+                            {
+                                <span class="ready-chip @(r.Status switch { "Ready" => "ready-yes", "Watching" => "ready-watch", _ => "ready-no" })">
+                                    @(r.Status switch { "Ready" => "✅", "Watching" => "👀", _ => "🚫" }) @r.MemberName
+                                </span>
+                            }
+                            @if (_responses.Count == 0)
+                            {
+                                <span class="ready-none">Ingen har svaret endnu...</span>
+                            }
+                        </div>
+                        <div class="ready-answer-row">
+                            <button class="ready-answer-btn yes @(_myResponse?.Status == "Ready" ? "selected" : "")" @onclick='() => RespondAsync("Ready")'>✅ Klar</button>
+                            <button class="ready-answer-btn no @(_myResponse?.Status == "NotNow" ? "selected" : "")" @onclick='() => RespondAsync("NotNow")'>🚫 Ikke i aften</button>
+                            <button class="ready-answer-btn watch @(_myResponse?.Status == "Watching" ? "selected" : "")" @onclick='() => RespondAsync("Watching")'>👀 Følger med</button>
+                        </div>
+                        @if (!_addedToCalendar)
+                        {
+                            <button class="cal-add-inline-btn" @onclick="AddToCalendarAsync">📅 Tilføj til kalender</button>
+                        }
+                        else
+                        {
+                            <div class="club-empty">✔ Tilføjet til kalenderen</div>
+                        }
+                    }
+                    <a class="club-see-all" href="/g/@Slug/ready">Se mere →</a>
+                }
+                else if (_status.Session.Phase == "Playing")
+                {
+                    @if (_latestLiveUpdate is not null)
+                    {
+                        <div class="ready-active-header">🎮 @_latestLiveUpdate.Text <span style="color:var(--muted)">(@_latestLiveUpdate.CreatedAt.ToLocalTime().ToString("HH:mm"))</span></div>
+                        <div class="club-empty">Så du ved hvor langt de er, før du logger på.</div>
+                    }
+                    else
+                    {
+                        <div class="club-empty">🎮 I spiller nu - live highlights og kampstatistik.</div>
+                    }
+                    <a class="club-see-all" href="/g/@Slug/ready">Se live →</a>
+                }
+                else
+                {
+                    <div class="club-empty">🎬 Aftenen opsummeres.</div>
+                    <a class="club-see-all" href="/g/@Slug/ready">Se resumé →</a>
+                }
+            </div>
 
             <div class="club-section">
                 <div class="club-section-title">Kommende begivenheder</div>
@@ -56,18 +97,72 @@ else
                 }
                 @foreach (var ev in _upcomingEvents)
                 {
+                    var rsvps = _rsvpsByEvent.GetValueOrDefault(ev.Id, []);
+                    var myRsvp = rsvps.FirstOrDefault(r => r.MemberName == _member.Name);
+                    var yes = rsvps.Where(r => r.Status == "Yes").ToList();
+                    var no = rsvps.Where(r => r.Status == "No").ToList();
                     <div class="club-event-row">
-                        <div class="club-event-date">@ev.EventDate.ToString("dd MMM")</div>
-                        <div>
+                        <div class="club-event-date">@ev.EventDate.ToLocalTime().ToString("dd MMM")</div>
+                        <div style="flex:1">
                             <div class="club-event-title">@ev.Title</div>
                             @if (!string.IsNullOrEmpty(ev.Location))
                             {
                                 <div class="club-event-loc">📍 @ev.Location</div>
                             }
+                            <div class="rsvp-row" style="margin-top:8px">
+                                <button class="rsvp-btn @(myRsvp?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => SetRsvpAsync(ev.Id, "Yes")'>✅ Ja</button>
+                                <button class="rsvp-btn @(myRsvp?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => SetRsvpAsync(ev.Id, "No")'>❌ Nej</button>
+                            </div>
+                            @if (yes.Count > 0 || no.Count > 0)
+                            {
+                                <div class="rsvp-reactions">
+                                    @if (yes.Count > 0) { <div class="rsvp-reaction-line yes">✅ @string.Join(", ", yes.Select(r => r.MemberName))</div> }
+                                    @if (no.Count > 0) { <div class="rsvp-reaction-line no">❌ @string.Join(", ", no.Select(r => r.MemberName))</div> }
+                                </div>
+                            }
                         </div>
                     </div>
                 }
-                <a class="club-see-all" href="/g/@Slug/calendar">Se alle →</a>
+                <a class="club-see-all" href="/g/@Slug/calendar">Se kalender →</a>
+            </div>
+
+            <div class="club-section">
+                <div class="club-section-title">Opslagstavle</div>
+                @if (!_recentPosts.Any())
+                {
+                    <div class="club-empty">Ingen opslag endnu.</div>
+                }
+                @foreach (var p in _recentPosts)
+                {
+                    <div class="club-post-row">
+                        <div class="club-post-author">@p.Member.Name</div>
+                        <div class="club-post-content">@p.Content</div>
+                        @if (!string.IsNullOrWhiteSpace(p.ImageFileName))
+                        {
+                            <img class="club-post-thumb" src="/photo/@p.ImageFileName" loading="lazy" />
+                        }
+                        <div class="club-post-time">@p.PostedAt.ToLocalTime().ToString("dd MMM HH:mm")</div>
+                    </div>
+                }
+                <a class="club-see-all" href="/g/@Slug/board">📌 Del noget sjovt →</a>
+            </div>
+
+            <div class="club-section">
+                <div class="club-section-title">
+                    Dokumenter
+                    @if (_unreadCount > 0) { <span class="club-badge">@_unreadCount nyt</span> }
+                </div>
+                @if (!_recentDocs.Any())
+                {
+                    <div class="club-empty">Ingen dokumenter endnu.</div>
+                }
+                @foreach (var d in _recentDocs)
+                {
+                    <div class="club-task-row">
+                        <div class="club-task-title">@d.Title</div>
+                    </div>
+                }
+                <a class="club-see-all" href="/g/@Slug/docs">Se alle →</a>
             </div>
 
             <div class="club-section">
@@ -89,63 +184,56 @@ else
                 <a class="club-see-all" href="/g/@Slug/tasks">Se alle →</a>
             </div>
 
-            <div class="club-section">
-                <div class="club-section-title">Seneste opslag</div>
-                @if (!_recentPosts.Any())
-                {
-                    <div class="club-empty">Ingen opslag endnu.</div>
-                }
-                @foreach (var p in _recentPosts)
-                {
-                    <div class="club-post-row">
-                        <div class="club-post-author">@p.Member.Name</div>
-                        <div class="club-post-content">@p.Content</div>
-                        <div class="club-post-time">@p.PostedAt.ToLocalTime().ToString("dd MMM HH:mm")</div>
-                    </div>
-                }
-                <a class="club-see-all" href="/g/@Slug/board">Gå til opslagstavlen →</a>
-            </div>
-
         </div>
     </div>
 }
 
 <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
-    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; font-size: 16px; }
-    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
-    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
-    .club-name { font-size: 20px; font-weight: 900; }
-    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
-    .club-leave-btn { background: transparent; border: 1px solid rgba(255,255,255,.15); border-radius: 8px; color: #64748b; padding: 6px 12px; font-size: 12px; cursor: pointer; }
-    .club-leave-btn:hover { border-color: rgba(255,255,255,.3); color: #94a3b8; }
-    .club-nav { display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
-    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
-    .club-badge { background: #ef4444; color: white; border-radius: 999px; padding: 1px 6px; font-size: 11px; font-weight: 700; }
     .club-sections { padding: 16px; display: flex; flex-direction: column; gap: 20px; }
-    .club-alert { display: flex; align-items: center; gap: 10px; background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3); border-radius: 12px; padding: 14px 16px; cursor: pointer; font-size: 14px; font-weight: 600; color: #93c5fd; }
-    .club-alert:hover { background: rgba(59,130,246,.25); }
-    .club-section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 16px; }
-    .club-section-title { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
-    .club-empty { font-size: 13px; color: #374151; padding: 8px 0; }
-    .club-see-all { display: block; font-size: 12px; color: #3b82f6; text-decoration: none; margin-top: 12px; }
+    .club-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .club-section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+    .club-empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
+    .club-see-all { display: block; font-size: 12px; color: var(--accent); text-decoration: none; margin-top: 12px; }
     .club-see-all:hover { text-decoration: underline; }
-    .club-event-row { display: flex; gap: 14px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .club-event-row { display: flex; gap: 14px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); }
     .club-event-row:last-of-type { border-bottom: none; }
-    .club-event-date { font-size: 12px; font-weight: 700; color: #3b82f6; min-width: 44px; padding-top: 2px; }
-    .club-event-title { font-size: 14px; font-weight: 600; }
-    .club-event-loc { font-size: 12px; color: #64748b; margin-top: 2px; }
-    .club-task-row { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .club-event-date { font-size: 12px; font-weight: 700; color: var(--accent); min-width: 44px; padding-top: 2px; }
+    .club-event-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .club-event-loc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .club-task-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
     .club-task-row:last-of-type { border-bottom: none; }
-    .club-task-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-    .club-task-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; }
-    .club-post-row { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .club-task-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .club-task-meta { display: flex; gap: 12px; font-size: 12px; color: var(--muted); }
+    .club-post-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
     .club-post-row:last-of-type { border-bottom: none; }
     .club-post-author { font-size: 12px; font-weight: 700; color: #60a5fa; margin-bottom: 3px; }
-    .club-post-content { font-size: 14px; margin-bottom: 3px; }
-    .club-post-time { font-size: 11px; color: #374151; }
+    .club-post-content { font-size: 14px; margin-bottom: 3px; color: var(--text); }
+    .club-post-thumb { max-width: 100%; border-radius: 8px; margin: 4px 0; display: block; }
+    .club-post-time { font-size: 11px; color: var(--muted); }
+
+    .ready-active-header { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    .ready-responses { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .ready-chip { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .ready-chip.ready-yes { background: rgba(34,197,94,.15); color: var(--green); }
+    .ready-chip.ready-no { background: rgba(148,163,184,.12); color: var(--muted); }
+    .ready-chip.ready-watch { background: rgba(96,165,250,.15); color: #60a5fa; }
+    .ready-none { font-size: 12px; color: var(--muted); }
+    .ready-answer-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .ready-answer-btn { flex: 1; padding: 10px 4px; border-radius: 10px; border: 2px solid var(--border); font-size: 12px; font-weight: 700; cursor: pointer; background: var(--surface); color: var(--muted); }
+    .ready-answer-btn.selected { transform: scale(1.02); }
+    .ready-answer-btn.yes.selected { background: #16a34a; border-color: #16a34a; color: white; }
+    .ready-answer-btn.no.selected { background: rgba(248,113,113,.15); border-color: var(--red); color: var(--red); }
+    .ready-answer-btn.watch.selected { background: rgba(96,165,250,.2); border-color: #60a5fa; color: #60a5fa; }
+    .cal-add-inline-btn { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+
+    .rsvp-row { display: flex; gap: 6px; }
+    .rsvp-btn { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+    .rsvp-btn.rsvp-active.going { background: rgba(34,197,94,.15); border-color: var(--green); color: var(--green); }
+    .rsvp-btn.rsvp-active.cant { background: rgba(248,113,113,.15); border-color: var(--red); color: var(--red); }
+    .rsvp-reactions { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .rsvp-reaction-line { font-size: 11px; color: var(--muted); }
+    .rsvp-reaction-line.yes { color: var(--green); }
+    .rsvp-reaction-line.no { color: var(--red); }
 </style>
 
 @code {
@@ -155,9 +243,18 @@ else
     private Group? _group;
     private bool _loaded;
     private int _unreadCount;
+    private List<Document> _recentDocs = [];
     private List<CalendarEvent> _upcomingEvents = [];
     private List<Assignment> _openTasks = [];
     private List<BulletinPost> _recentPosts = [];
+    private Dictionary<Guid, List<EventRsvp>> _rsvpsByEvent = [];
+
+    private SessionStatus? _status;
+    private LiveUpdate? _latestLiveUpdate;
+    private ReadyCheck? _activeCheck;
+    private List<ReadyCheckResponse> _responses = [];
+    private ReadyCheckResponse? _myResponse;
+    private bool _addedToCalendar;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -167,17 +264,8 @@ else
 
     private async Task LoadAsync()
     {
-        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
-        if (!Guid.TryParse(sessionId, out var sid))
-        {
-            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
-            return;
-        }
-
-        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group)
-            .FirstOrDefaultAsync(s => s.Id == sid);
-
-        if (session == null || session.Member.Group.Slug != Slug)
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null)
         {
             Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
             return;
@@ -189,6 +277,7 @@ else
         await RefreshAsync();
         Broadcast.Subscribe(_group.Id, OnBroadcast);
         _loaded = true;
+
         StateHasChanged();
 
         try
@@ -207,11 +296,21 @@ else
             .Where(d => d.GroupId == _group!.Id && !d.Reads.Any(r => r.MemberId == _member!.Id))
             .CountAsync();
 
+        _recentDocs = await Db.Documents
+            .Where(d => d.GroupId == _group!.Id)
+            .OrderByDescending(d => d.UploadedAt)
+            .Take(3)
+            .ToListAsync();
+
         _upcomingEvents = await Db.Events
             .Where(e => e.GroupId == _group!.Id && e.EventDate >= now)
             .OrderBy(e => e.EventDate)
             .Take(3)
             .ToListAsync();
+
+        var eventIds = _upcomingEvents.Select(e => e.Id).ToList();
+        _rsvpsByEvent = (await Db.EventRsvps.Where(r => eventIds.Contains(r.EventId)).ToListAsync())
+            .GroupBy(r => r.EventId).ToDictionary(g => g.Key, g => g.ToList());
 
         _openTasks = await Db.Assignments
             .Where(a => a.GroupId == _group!.Id && !a.IsCompleted)
@@ -225,6 +324,90 @@ else
             .OrderByDescending(p => p.PostedAt)
             .Take(3)
             .ToListAsync();
+
+        _status = await SessionStatus.GetActiveSessionAsync(_group!.Id);
+
+        // Surfacing the latest score/side right on Overblik lets someone who
+        // isn't playing yet gauge "1-0, I'll wait a bit" vs "3-2, tell them
+        // to wait for me" without opening the full Ready page.
+        _latestLiveUpdate = _status is not null && _status.Session.Phase == "Playing"
+            ? await Db.LiveUpdates.Where(u => u.PlaySessionId == _status.Session.Id).OrderByDescending(u => u.CreatedAt).FirstOrDefaultAsync()
+            : null;
+
+        if (_status is not null && _status.Session.Phase == "Invitations")
+        {
+            _activeCheck = await Db.ReadyChecks
+                .Where(r => r.GroupId == _group.Id && r.ExpiresAt > now)
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (_activeCheck is not null)
+            {
+                _responses = await Db.ReadyCheckResponses.Where(r => r.ReadyCheckId == _activeCheck.Id).ToListAsync();
+                _myResponse = _responses.FirstOrDefault(r => r.MemberName == _member!.Name);
+                _addedToCalendar = await Db.Events.AnyAsync(e => e.GroupId == _group.Id
+                    && e.Title == $"🎮 Spilaften ({_activeCheck.CreatedByName})" && e.EventDate == _activeCheck.CreatedAt.AddMinutes(_activeCheck.Minutes));
+            }
+            else
+            {
+                _responses = [];
+                _myResponse = null;
+            }
+        }
+        else
+        {
+            _activeCheck = null;
+            _responses = [];
+            _myResponse = null;
+        }
+    }
+
+    private async Task RespondAsync(string status)
+    {
+        if (_activeCheck is null) return;
+
+        var existing = await Db.ReadyCheckResponses
+            .FirstOrDefaultAsync(r => r.ReadyCheckId == _activeCheck.Id && r.MemberName == _member!.Name);
+        if (existing is not null) existing.Status = status;
+        else Db.ReadyCheckResponses.Add(new ReadyCheckResponse { ReadyCheckId = _activeCheck.Id, MemberName = _member!.Name, Status = status });
+
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        StateHasChanged();
+    }
+
+    // Calendar entries are opt-in per person now, not created automatically
+    // for the whole group when the ready-check goes out.
+    private async Task AddToCalendarAsync()
+    {
+        if (_activeCheck is null || _group is null) return;
+        Db.Events.Add(new CalendarEvent
+        {
+            GroupId = _group.Id,
+            Title = $"🎮 Spilaften ({_activeCheck.CreatedByName})",
+            EventDate = _activeCheck.CreatedAt.AddMinutes(_activeCheck.Minutes),
+            CreatedByName = _member!.Name,
+        });
+        await Db.SaveChangesAsync();
+        _addedToCalendar = true;
+        StateHasChanged();
+    }
+
+    private async Task SetRsvpAsync(Guid eventId, string status)
+    {
+        var existing = await Db.EventRsvps.FirstOrDefaultAsync(r => r.EventId == eventId && r.MemberName == _member!.Name);
+        if (existing is not null)
+        {
+            existing.Status = status;
+            existing.RespondedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            Db.EventRsvps.Add(new EventRsvp { EventId = eventId, MemberName = _member!.Name, Status = status });
+        }
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+        StateHasChanged();
     }
 
     private void OnBroadcast() => InvokeAsync(async () =>

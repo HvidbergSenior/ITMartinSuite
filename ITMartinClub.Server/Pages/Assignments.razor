@@ -4,23 +4,14 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubPushService PushService
+@inject ClubAuthService ClubAuth
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
 else
 {
     <div class="club-page">
-        <div class="club-header">
-            <div><div class="club-name">@_group!.Name</div><div class="club-member-name">@_member.Name</div></div>
-        </div>
-        <div class="club-nav">
-            <a class="club-nav-item" href="/g/@Slug">🏠 Hjem</a>
-            <a class="club-nav-item" href="/g/@Slug/docs">📄 Dokumenter</a>
-            <a class="club-nav-item" href="/g/@Slug/calendar">📅 Kalender</a>
-            <a class="club-nav-item active" href="/g/@Slug/tasks">✅ Opgaver</a>
-            <a class="club-nav-item" href="/g/@Slug/board">📌 Opslagstavle</a>
-            <a class="club-nav-item" href="/g/@Slug/chat">💬 Chat</a>
-        </div>
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="tasks" />
 
         <div class="task-body">
             <div class="task-toolbar">
@@ -96,45 +87,35 @@ else
 }
 
 <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
-    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
-    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
-    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
-    .club-name { font-size: 20px; font-weight: 900; }
-    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
-    .club-nav { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
-    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
     .task-body { padding: 16px; }
     .task-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .task-title { font-size: 18px; font-weight: 800; margin: 0; }
-    .task-add-btn { background: #2563eb; color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .task-form { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .task-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
     .task-field { margin-bottom: 12px; }
-    .task-field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .task-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
     .task-row { display: flex; gap: 12px; }
     .task-row .task-field { flex: 1; }
-    .task-input { width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 10px 14px; color: white; font-size: 14px; outline: none; }
-    .task-input:focus { border-color: #3b82f6; }
-    .task-input option { background: #1e2530; }
+    .task-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .task-input:focus { border-color: var(--accent); }
+    .task-input option { background: var(--surface); color: var(--text); }
     .task-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
     .task-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
     .task-save-btn:disabled { opacity: .4; cursor: default; }
-    .task-section-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
-    .task-empty { color: #374151; font-size: 15px; padding: 24px 0; text-align: center; }
-    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.07); margin-bottom: 8px; background: rgba(255,255,255,.03); }
+    .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .task-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
+    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
     .task-done-row { opacity: .5; }
-    .task-check { background: transparent; border: 2px solid rgba(255,255,255,.2); border-radius: 50%; width: 28px; height: 28px; flex-shrink: 0; cursor: pointer; color: transparent; font-size: 14px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
-    .task-check:hover { border-color: #22c55e; color: #22c55e; }
-    .task-check-done { border-color: #22c55e; color: #22c55e; cursor: default; }
+    .task-check { background: transparent; border: 2px solid var(--border); border-radius: 50%; width: 28px; height: 28px; flex-shrink: 0; cursor: pointer; color: transparent; font-size: 14px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+    .task-check:hover { border-color: var(--green); color: var(--green); }
+    .task-check-done { border-color: var(--green); color: var(--green); cursor: default; }
     .task-info { flex: 1; }
-    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-    .task-item-desc { font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
-    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #64748b; }
-    .task-overdue { color: #f87171 !important; }
-    .task-del-btn { background: transparent; border: none; color: #374151; cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
-    .task-del-btn:hover { color: #f87171; }
+    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .task-overdue { color: var(--red) !important; }
+    .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
+    .task-del-btn:hover { color: var(--red); }
     .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
     .task-take-btn:hover { background: rgba(59,130,246,.1); }
 </style>
@@ -152,14 +133,13 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
-        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
-        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group).FirstOrDefaultAsync(s => s.Id == sid);
-        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
         await RefreshAsync();
         _loaded = true;
+
         StateHasChanged();
     }
 

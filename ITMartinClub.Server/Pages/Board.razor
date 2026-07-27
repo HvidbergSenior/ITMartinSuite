@@ -1,10 +1,13 @@
 @page "/g/{slug}/board"
 @rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Forms
 @inject ClubDbContext Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubBroadcastService Broadcast
 @inject ClubPushService PushService
+@inject ClubAuthService ClubAuth
+@inject IConfiguration Config
 @implements IDisposable
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
@@ -12,60 +15,73 @@ else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
 else
 {
     <div class="club-page">
-        <div class="club-header">
-            <div><div class="club-name">@_group!.Name</div><div class="club-member-name">@_member.Name</div></div>
-        </div>
-        <div class="club-nav">
-            <a class="club-nav-item" href="/g/@Slug">🏠 Hjem</a>
-            <a class="club-nav-item" href="/g/@Slug/docs">📄 Dokumenter</a>
-            <a class="club-nav-item" href="/g/@Slug/calendar">📅 Kalender</a>
-            <a class="club-nav-item" href="/g/@Slug/tasks">✅ Opgaver</a>
-            <a class="club-nav-item active" href="/g/@Slug/board">📌 Opslagstavle</a>
-            <a class="club-nav-item" href="/g/@Slug/chat">💬 Chat</a>
-        </div>
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="board" />
 
         <div class="board-body">
             <div class="board-header-row">
                 <h2 class="board-title">Opslagstavle</h2>
-                <div class="board-limit-info">Max @MaxPostsPerDay opslag pr. dag pr. person</div>
+            </div>
+
+            <div class="board-filter-row">
+                <button class="board-filter-btn @(_filterTag == null ? "active" : "")" @onclick='() => _filterTag = null'>Alle</button>
+                <button class="board-filter-btn @(_filterTag == "Game" ? "active" : "")" @onclick='() => _filterTag = "Game"'>🎮 Spil</button>
+                <button class="board-filter-btn @(_filterTag == "Personal" ? "active" : "")" @onclick='() => _filterTag = "Personal"'>💬 Privat</button>
             </div>
 
             <div class="board-compose">
                 <textarea @bind="_newContent" @bind:event="oninput" placeholder="Skriv et opslag..." class="board-textarea" maxlength="500" rows="3" />
+
+                <div class="board-tag-row">
+                    <button type="button" class="board-tag-pick @(_newTag == "General" ? "active" : "")" @onclick='() => _newTag = "General"'>Generelt</button>
+                    <button type="button" class="board-tag-pick @(_newTag == "Game" ? "active" : "")" @onclick='() => _newTag = "Game"'>🎮 Spil</button>
+                    <button type="button" class="board-tag-pick @(_newTag == "Personal" ? "active" : "")" @onclick='() => _newTag = "Personal"'>💬 Privat</button>
+                </div>
+
+                <div class="board-photo-row">
+                    <InputFile OnChange="OnImageSelected" accept="image/*" class="board-photo-input" />
+                    @if (_pendingImageName is not null)
+                    {
+                        <span class="board-photo-selected">📷 @_pendingImageName <button type="button" class="board-photo-clear" @onclick="ClearImage">✕</button></span>
+                    }
+                </div>
+
                 <div class="board-compose-footer">
                     <span class="board-char">@_newContent.Length/500</span>
-                    @if (_postsLeftToday < MaxPostsPerDay)
-                    {
-                        <span class="board-quota">@_postsLeftToday opslag tilbage i dag</span>
-                    }
-                    <button class="board-post-btn" @onclick="PostAsync"
-                            disabled="@(string.IsNullOrWhiteSpace(_newContent) || _postsLeftToday == 0)">
-                        Send
+                    <button class="board-post-btn" @onclick="PostAsync" disabled="@(_posting || (string.IsNullOrWhiteSpace(_newContent) && _pendingImageBytes is null))">
+                        @(_posting ? "Sender..." : "Send")
                     </button>
                 </div>
-                @if (_postsLeftToday == 0)
-                {
-                    <div class="board-limit-warn">Du har brugt dine @MaxPostsPerDay opslag for i dag.</div>
-                }
             </div>
 
             <div class="board-posts" id="board-posts">
-                @if (!_posts.Any())
+                @{ var visiblePosts = _filterTag == null ? _posts : _posts.Where(p => p.Tag == _filterTag).ToList(); }
+                @if (!visiblePosts.Any())
                 {
                     <div class="board-empty">Ingen opslag endnu — skriv det første!</div>
                 }
-                @foreach (var p in _posts)
+                @foreach (var p in visiblePosts)
                 {
                     <div class="board-post @(p.MemberId == _member.Id ? "board-post-mine" : "")">
                         <div class="board-post-header">
                             <span class="board-post-author">@p.Member.Name</span>
+                            @if (p.Tag != "General")
+                            {
+                                <span class="board-post-tag">@(p.Tag == "Game" ? "🎮" : "💬")</span>
+                            }
                             <span class="board-post-time">@p.PostedAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
                             @if (p.MemberId == _member.Id)
                             {
                                 <button class="board-del" @onclick="() => DeletePostAsync(p.Id)">✕</button>
                             }
                         </div>
-                        <div class="board-post-content">@p.Content</div>
+                        @if (!string.IsNullOrWhiteSpace(p.Content))
+                        {
+                            <div class="board-post-content">@p.Content</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(p.ImageFileName))
+                        {
+                            <img class="board-post-image" src="/photo/@p.ImageFileName" loading="lazy" />
+                        }
                     </div>
                 }
             </div>
@@ -74,64 +90,69 @@ else
 }
 
 <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #0f1117; color: #f0f0f0; font-family: -apple-system, sans-serif; }
-    .club-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #64748b; }
-    .club-page { max-width: 720px; margin: 0 auto; padding: 0 0 80px; }
-    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
-    .club-name { font-size: 20px; font-weight: 900; }
-    .club-member-name { font-size: 13px; color: #64748b; margin-top: 2px; }
-    .club-nav { display: flex; border-bottom: 1px solid rgba(255,255,255,.08); overflow-x: auto; padding: 0 8px; }
-    .club-nav-item { display: flex; align-items: center; gap: 4px; padding: 12px 10px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-    .club-nav-item:hover, .club-nav-item.active { color: #f0f0f0; border-bottom-color: #3b82f6; }
     .board-body { padding: 16px; }
-    .board-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .board-title { font-size: 18px; font-weight: 800; margin: 0; }
-    .board-limit-info { font-size: 12px; color: #374151; }
-    .board-compose { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 14px; margin-bottom: 20px; }
-    .board-textarea { width: 100%; background: transparent; border: none; color: white; font-size: 15px; outline: none; resize: none; font-family: inherit; }
+    .board-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .board-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .board-limit-info { font-size: 12px; color: var(--muted); }
+    .board-filter-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .board-filter-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+    .board-filter-btn.active { background: rgba(59,130,246,.15); border-color: var(--accent); color: #60a5fa; }
+    .board-compose { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 20px; }
+    .board-textarea { width: 100%; background: transparent; border: none; color: var(--text); font-size: 15px; outline: none; resize: none; font-family: inherit; }
+    .board-tag-row { display: flex; gap: 6px; margin: 8px 0; }
+    .board-tag-pick { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; cursor: pointer; }
+    .board-tag-pick.active { background: rgba(59,130,246,.15); border-color: var(--accent); color: #60a5fa; }
+    .board-photo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .board-photo-input { color: var(--muted); font-size: 12px; max-width: 100%; }
+    .board-photo-selected { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .board-photo-clear { background: transparent; border: none; color: var(--red); cursor: pointer; font-size: 12px; }
     .board-compose-footer { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-    .board-char { font-size: 12px; color: #374151; }
-    .board-quota { font-size: 12px; color: #f59e0b; flex: 1; }
-    .board-post-btn { background: #2563eb; color: white; border: none; border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
+    .board-char { font-size: 12px; color: var(--muted); }
+    .board-quota { font-size: 12px; color: var(--yellow); flex: 1; }
+    .board-post-btn { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 700; cursor: pointer; margin-left: auto; }
     .board-post-btn:disabled { opacity: .4; cursor: default; }
     .board-post-btn:hover:not(:disabled) { background: #1d4ed8; }
-    .board-limit-warn { font-size: 13px; color: #f87171; margin-top: 8px; }
+    .board-limit-warn { font-size: 13px; color: var(--red); margin-top: 8px; }
     .board-posts { display: flex; flex-direction: column; gap: 10px; }
-    .board-empty { text-align: center; color: #374151; padding: 40px 0; font-size: 15px; }
-    .board-post { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 12px 14px; }
+    .board-empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 15px; }
+    .board-post { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
     .board-post-mine { border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.06); }
     .board-post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
     .board-post-author { font-size: 13px; font-weight: 700; color: #60a5fa; }
-    .board-post-time { font-size: 12px; color: #374151; flex: 1; }
-    .board-post-content { font-size: 15px; white-space: pre-wrap; word-break: break-word; }
-    .board-del { background: transparent; border: none; color: #374151; cursor: pointer; font-size: 12px; padding: 2px 4px; }
-    .board-del:hover { color: #f87171; }
+    .board-post-tag { font-size: 13px; }
+    .board-post-time { font-size: 12px; color: var(--muted); flex: 1; }
+    .board-post-content { font-size: 15px; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+    .board-post-image { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
+    .board-del { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+    .board-del:hover { color: var(--red); }
 </style>
 
 @code {
     [Parameter] public string Slug { get; set; } = "";
-    private const int MaxPostsPerDay = 3;
+    private const long MaxImageBytes = 8 * 1024 * 1024;
 
     private Member? _member;
     private Group? _group;
     private bool _loaded;
+    private bool _posting;
     private string _newContent = "";
-    private int _postsLeftToday;
+    private string _newTag = "General";
+    private string? _filterTag;
     private List<BulletinPost> _posts = [];
+    private byte[]? _pendingImageBytes;
+    private string? _pendingImageName;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        var sessionId = await JS.InvokeAsync<string?>("clubJs.getSession");
-        if (!Guid.TryParse(sessionId, out var sid)) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
-        var session = await Db.Sessions.Include(s => s.Member).ThenInclude(m => m.Group).FirstOrDefaultAsync(s => s.Id == sid);
-        if (session == null || session.Member.Group.Slug != Slug) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
         _member = session.Member;
         _group = session.Member.Group;
         Broadcast.Subscribe(_group.Id, OnBroadcast);
         await RefreshAsync();
         _loaded = true;
+
         StateHasChanged();
     }
 
@@ -143,23 +164,59 @@ else
             .OrderByDescending(p => p.PostedAt)
             .Take(50)
             .ToListAsync();
+    }
 
-        var todayUtc = DateTime.UtcNow.Date;
-        var todayCount = await Db.Posts
-            .CountAsync(p => p.GroupId == _group!.Id && p.MemberId == _member!.Id && p.PostedAt >= todayUtc);
-        _postsLeftToday = Math.Max(0, MaxPostsPerDay - todayCount);
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > MaxImageBytes) { await JS.InvokeVoidAsync("alert", "Billedet er for stort (max 8 MB)."); return; }
+        using var stream = file.OpenReadStream(MaxImageBytes);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _pendingImageBytes = ms.ToArray();
+        _pendingImageName = file.Name;
+    }
+
+    private void ClearImage()
+    {
+        _pendingImageBytes = null;
+        _pendingImageName = null;
     }
 
     private async Task PostAsync()
     {
-        if (string.IsNullOrWhiteSpace(_newContent) || _postsLeftToday == 0) return;
+        if (string.IsNullOrWhiteSpace(_newContent) && _pendingImageBytes is null) return;
+        _posting = true;
+        StateHasChanged();
+
+        string? imageFileName = null;
+        if (_pendingImageBytes is not null)
+        {
+            imageFileName = $"{Guid.NewGuid():N}.jpg";
+            var root = Config["ClubSettings:PhotosRoot"] ?? "/app/data/photos";
+            Directory.CreateDirectory(root);
+            await File.WriteAllBytesAsync(Path.Combine(root, imageFileName), _pendingImageBytes);
+        }
+
         var content = _newContent.Trim();
-        Db.Posts.Add(new BulletinPost { GroupId = _group!.Id, MemberId = _member!.Id, Content = content });
+        Db.Posts.Add(new BulletinPost
+        {
+            GroupId = _group!.Id,
+            MemberId = _member!.Id,
+            Content = content,
+            Tag = _newTag,
+            ImageFileName = imageFileName,
+        });
         await Db.SaveChangesAsync();
         _newContent = "";
+        _newTag = "General";
+        _pendingImageBytes = null;
+        _pendingImageName = null;
+        _posting = false;
         await RefreshAsync();
         Broadcast.Broadcast(_group.Id);
-        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, $"📌 {_member.Name}", content);
+        var pushBody = string.IsNullOrWhiteSpace(content) ? "📷 delte et billede" : content;
+        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, $"📌 {_member.Name}", pushBody);
         StateHasChanged();
     }
 
