@@ -96,7 +96,15 @@ public sealed class ClaudeReceiptExtractionService
         var request = new MessageCreateParams
         {
             Model = Model.ClaudeHaiku4_5,
-            MaxTokens = 1024,
+            // Confirmed real bug: a JYSK receipt with 10 line items (several
+            // with a verbatim rawText requirement) hit this ceiling at 1024,
+            // truncating mid-response (StopReason "max_tokens") after the
+            // header fields but before any items were written - a silently
+            // "successful" call that just never got to the items array.
+            // Raising the ceiling costs nothing extra unless a receipt
+            // actually needs the tokens (max_tokens is a cap, not a
+            // pre-paid allocation).
+            MaxTokens = 8192,
             System = """
                 You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, Sport24, etc.).
                 Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
@@ -140,6 +148,11 @@ public sealed class ClaudeReceiptExtractionService
         };
 
         var response = await _client.Messages.Create(request, cancellationToken);
+
+        if (response.StopReason == "max_tokens")
+            _logger.LogWarning(
+                "Claude receipt extraction hit the MaxTokens ceiling ({MaxTokens}) - response was truncated, likely missing items.",
+                request.MaxTokens);
 
         ToolUseBlock? toolUse = null;
         foreach (var block in response.Content)
@@ -202,7 +215,15 @@ public sealed class ClaudeReceiptExtractionService
         var request = new MessageCreateParams
         {
             Model = Model.ClaudeHaiku4_5,
-            MaxTokens = 1024,
+            // Confirmed real bug: a JYSK receipt with 10 line items (several
+            // with a verbatim rawText requirement) hit this ceiling at 1024,
+            // truncating mid-response (StopReason "max_tokens") after the
+            // header fields but before any items were written - a silently
+            // "successful" call that just never got to the items array.
+            // Raising the ceiling costs nothing extra unless a receipt
+            // actually needs the tokens (max_tokens is a cap, not a
+            // pre-paid allocation).
+            MaxTokens = 8192,
             System = """
                 You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, Sport24, etc.).
                 Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
@@ -246,6 +267,11 @@ public sealed class ClaudeReceiptExtractionService
         };
 
         var response = await _client.Messages.Create(request, cancellationToken);
+
+        if (response.StopReason == "max_tokens")
+            _logger.LogWarning(
+                "Claude receipt image extraction hit the MaxTokens ceiling ({MaxTokens}) - response was truncated, likely missing items.",
+                request.MaxTokens);
 
         ToolUseBlock? toolUse = null;
         foreach (var block in response.Content)

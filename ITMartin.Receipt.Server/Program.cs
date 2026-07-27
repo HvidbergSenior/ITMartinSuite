@@ -4,9 +4,19 @@ using ITMartin.Receipt.Application;
 using ITMartin.Receipt.Infrastructure;
 using ITMartin.Receipt.Server;
 using ITMartin.Receipt.Server.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Without this, keys live in the container's own filesystem and get
+// regenerated on every redeploy - any browser tab still open from before
+// the redeploy then fails antiforgery validation (a harmless, self-healing
+// error in practice, but avoidable) since its cookie was encrypted with
+// keys that no longer exist. /app/data is the same volume the receipts DB
+// already persists to.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/app/data/keys"));
 
 builder.Services.AddReceiptApplication();
 builder.Services.AddReceiptInfrastructure(builder.Configuration);
