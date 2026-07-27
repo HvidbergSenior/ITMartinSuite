@@ -107,6 +107,7 @@ public sealed class ClaudeReceiptExtractionService
                 Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
                 If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
                 For every item, also copy its rawText verbatim from the receipt (including its quantity/unit-price notation and discount line) so the user can compare your reading against the original — do not paraphrase this field.
+                The description field is different from rawText: use your knowledge of real Danish grocery products to correct OCR noise into the actual product name (e.g. if the printed text reads "Hyitetost", the real product is almost certainly "Hytteost" — report description as the corrected name, while rawText stays the exact garbled text as printed). Never let this correction invent a completely different, unrelated product — if a blurry or damaged line could plausibly be several different real products and you cannot tell which, do not confidently pick one; report your best literal reading in description, but set suspicious=true so the user knows to double-check it themselves.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],
@@ -212,6 +213,7 @@ public sealed class ClaudeReceiptExtractionService
                 Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
                 If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
                 For every item, also copy its rawText verbatim from the receipt (including its quantity/unit-price notation and discount line) so the user can compare your reading against the original — do not paraphrase this field.
+                The description field is different from rawText: use your knowledge of real Danish grocery products to correct OCR noise into the actual product name (e.g. if the printed text reads "Hyitetost", the real product is almost certainly "Hytteost" — report description as the corrected name, while rawText stays the exact garbled text as printed). Never let this correction invent a completely different, unrelated product — if a blurry or damaged line could plausibly be several different real products and you cannot tell which, do not confidently pick one; report your best literal reading in description, but set suspicious=true so the user knows to double-check it themselves.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],

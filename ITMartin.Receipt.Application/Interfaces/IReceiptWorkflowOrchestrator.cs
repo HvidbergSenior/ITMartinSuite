@@ -6,5 +6,6 @@ public interface IReceiptWorkflowOrchestrator
 {
     Task<ReceiptContext> ExecuteAsync(
         string imagePath,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string? itemsPhotoPath = null);
 }

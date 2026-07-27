@@ -25,13 +25,13 @@
     @if (_showInfo)
     {
         <ProblemPurposeBanner
-            Problem="Kvitteringer er ikke ens og kan være uoverskuelige."
-            Formaal="Tag et billede af kvittering og få et overblik. Rabat, medlemsfordele mm." />
+            Problem="Kvitteringer ser forskellige ud fra butik til butik, og det kan være svært at overskue, hvad man egentlig har betalt for."
+            Formaal="Tag et billede af kvitteringen, og få med det samme et klart overblik over varer, rabatter og eventuelle medlemsfordele." />
 
         <HowToUseBanner Steps='@(new[]
         {
-            "Tag et billede af kvitteringen.",
-            "Se med det samme varerne du har købt, og hvad du fik rabat på."
+            "Tag et billede af kvitteringen, gerne i god belysning og så tydeligt som muligt.",
+            "Se med det samme varerne du har købt, samt hvilke rabatter og fordele du fik på dem."
         })' />
     }
 
@@ -72,7 +72,27 @@
 
     </div>
 
+    @if (_cameraStarted && !string.IsNullOrWhiteSpace(_itemsPhotoBase64))
+    {
+        <div class="items-photo-preview">
+            <img src="@_itemsPhotoBase64" style="max-width:160px; border-radius:10px; border:2px solid #444;" />
+            <div>
+                <div class="items-photo-label">📷 Billede af varer taget</div>
+                <button class="btn-clear-items-photo" @onclick="ClearItemsPhoto">✕ Fjern</button>
+            </div>
+        </div>
+    }
+
     <div class="scanner-buttons">
+
+        @if (_cameraStarted && string.IsNullOrWhiteSpace(_itemsPhotoBase64))
+        {
+            <button class="btn btn-outline-light btn-lg items-photo-button"
+                    @onclick="CaptureItemsPhoto"
+                    disabled="@_isProcessing">
+                📷 Tag billede af varer (valgfrit, til sammenligning)
+            </button>
+        }
 
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
@@ -119,12 +139,23 @@
         </div>
     }
 
-    @if (!string.IsNullOrWhiteSpace(_capturedImage))
+    @if (!string.IsNullOrWhiteSpace(_capturedImage) || !string.IsNullOrWhiteSpace(_itemsPhotoUsedBase64))
     {
-        <div class="mt-4">
-            <h5>Billede taget</h5>
-            <img src="@_capturedImage"
-                 style="max-width:400px; border-radius:12px; border:2px solid #444;" />
+        <div class="mt-4 compare-row">
+            @if (!string.IsNullOrWhiteSpace(_itemsPhotoUsedBase64))
+            {
+                <div>
+                    <h5>Varer (før)</h5>
+                    <img src="@_itemsPhotoUsedBase64" style="max-width:280px; border-radius:12px; border:2px solid #444;" />
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(_capturedImage))
+            {
+                <div>
+                    <h5>Kvittering</h5>
+                    <img src="@_capturedImage" style="max-width:280px; border-radius:12px; border:2px solid #444;" />
+                </div>
+            }
         </div>
     }
 
@@ -140,12 +171,15 @@
     private ReceiptContext? _context;
     private double _zoom = 1.0;
     private bool _showInfo = true;
+    private string? _itemsPhotoBase64;
+    private string? _itemsPhotoPath;
+    private string? _itemsPhotoUsedBase64;
 
     private void ZoomIn()  => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
     private void ZoomOut() => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
 
-    private readonly Channel<string> _workChannel =
-        Channel.CreateBounded<string>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
+    private readonly Channel<(string ImagePath, string? ItemsPhotoPath, string? ItemsPhotoBase64)> _workChannel =
+        Channel.CreateBounded<(string, string?, string?)>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
 
     protected override Task OnInitializedAsync()
     {
@@ -165,10 +199,14 @@
         }
     }
 
-    private async Task ToggleInfo()
+    private void ToggleInfo()
     {
+        // Fire-and-forget the localStorage write - awaiting it here made the
+        // toggle visibly lag behind the click, since Blazor doesn't re-render
+        // until the handler completes and this JS round-trip isn't needed
+        // before the UI can update.
         _showInfo = !_showInfo;
-        await JS.InvokeVoidAsync("localStorage.setItem", "receipt_show_info", _showInfo ? "shown" : "hidden");
+        _ = JS.InvokeVoidAsync("localStorage.setItem", "receipt_show_info", _showInfo ? "shown" : "hidden");
     }
 
     public async ValueTask DisposeAsync()
@@ -180,17 +218,18 @@
 
     private async Task RunWorkerAsync()
     {
-        await foreach (var imagePath in _workChannel.Reader.ReadAllAsync())
+        await foreach (var work in _workChannel.Reader.ReadAllAsync())
         {
             if (_disposed) break;
             try
             {
-                var result = await ReceiptOrchestrator.ExecuteAsync(imagePath, CancellationToken.None);
+                var result = await ReceiptOrchestrator.ExecuteAsync(work.ImagePath, CancellationToken.None, work.ItemsPhotoPath);
                 await InvokeAsync(() =>
                 {
                     _context = result;
                     _isProcessing = false;
                     _statusText = result.Failed ? result.FailureReason : "Scanning fuldført";
+                    _itemsPhotoUsedBase64 = work.ItemsPhotoBase64;
                     StateHasChanged();
                 });
             }
@@ -254,7 +293,12 @@
 
             _capturedImage = $"data:image/jpeg;base64,{clean}";
             _statusText = "Analyserer kvittering...";
-            _workChannel.Writer.TryWrite(imagePath);
+            _workChannel.Writer.TryWrite((imagePath, _itemsPhotoPath, _itemsPhotoBase64));
+
+            // Clear so the next scan starts fresh rather than accidentally
+            // reusing this items photo for an unrelated receipt.
+            _itemsPhotoBase64 = null;
+            _itemsPhotoPath = null;
             StateHasChanged();
         }
         catch (Exception ex)
@@ -263,6 +307,40 @@
             _statusText = ex.Message;
             StateHasChanged();
         }
+    }
+
+    private async Task CaptureItemsPhoto()
+    {
+        if (_isProcessing || _disposed || !_cameraStarted) return;
+
+        try
+        {
+            CameraCaptureResult capture;
+            try { capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture"); }
+            catch (TaskCanceledException) { return; }
+
+            var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
+            var bytes = Convert.FromBase64String(clean);
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "items-photos");
+            Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+            await File.WriteAllBytesAsync(path, bytes);
+
+            _itemsPhotoPath = path;
+            _itemsPhotoBase64 = $"data:image/jpeg;base64,{clean}";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _statusText = ex.Message;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearItemsPhoto()
+    {
+        _itemsPhotoPath = null;
+        _itemsPhotoBase64 = null;
     }
 
     private sealed class CameraCaptureResult { public string Image { get; set; } = ""; }

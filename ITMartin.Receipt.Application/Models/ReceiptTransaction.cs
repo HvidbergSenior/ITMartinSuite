@@ -17,4 +17,6 @@ public sealed class ReceiptTransaction
     public List<ReceiptTransactionItem> Items { get; set; } = [];
 
     public string? ImageFileName { get; set; }
+
+    public string? ItemsPhotoFileName { get; set; }
 }

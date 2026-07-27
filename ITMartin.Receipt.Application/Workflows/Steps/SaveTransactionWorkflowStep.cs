@@ -51,6 +51,7 @@ public sealed class SaveTransactionWorkflowStep
 
         var purchaseDate = DateTime.TryParse(extraction.PurchaseDate, out var d) ? d : (DateTime?)null;
         var imageFileName = Path.GetFileName(context.State.ImagePath);
+        var itemsPhotoFileName = context.State.ItemsPhotoPath is null ? null : Path.GetFileName(context.State.ItemsPhotoPath);
 
         // Auto-learning: a scan with no suspicious items whose item total reconciles
         // with the printed total is trustworthy enough to become this merchant's new
@@ -73,7 +74,8 @@ public sealed class SaveTransactionWorkflowStep
                 VatAmount = extraction.VatAmount,
                 Currency = extraction.Currency ?? "DKK",
                 Items = appItems,
-                ImageFileName = imageFileName
+                ImageFileName = imageFileName,
+                ItemsPhotoFileName = itemsPhotoFileName
             };
 
         var domainTransaction =
@@ -97,6 +99,7 @@ public sealed class SaveTransactionWorkflowStep
                     })
                     .ToList(),
                 ImageFileName = imageFileName,
+                ItemsPhotoFileName = itemsPhotoFileName,
                 IsTemplate = isGoodReference
             };
 

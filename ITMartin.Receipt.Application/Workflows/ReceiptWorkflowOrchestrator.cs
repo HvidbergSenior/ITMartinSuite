@@ -27,12 +27,14 @@ public sealed class ReceiptWorkflowOrchestrator : IReceiptWorkflowOrchestrator
 
     public async Task<ReceiptContext> ExecuteAsync(
         string imagePath,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? itemsPhotoPath = null)
     {
         var context =
             new ReceiptContext
             {
-                ImagePath = imagePath
+                ImagePath = imagePath,
+                ItemsPhotoPath = itemsPhotoPath
             };
 
         await _workflowExecutor.ExecuteAsync(

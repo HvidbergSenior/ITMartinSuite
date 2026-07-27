@@ -7,6 +7,8 @@ public sealed class ReceiptContext
 {
     public required string ImagePath { get; init; }
 
+    public string? ItemsPhotoPath { get; init; }
+
     public string? OcrText { get; set; }
 
     public ReceiptExtractionResult? ExtractionResult { get; set; }

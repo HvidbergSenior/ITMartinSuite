@@ -21,4 +21,10 @@ public sealed class ReceiptTransaction
     public bool IsTemplate { get; set; }
 
     public string? ImageFileName { get; set; }
+
+    // Optional photo of the physical items, taken before scanning the
+    // receipt, so the user can compare what they actually bought against
+    // what the OCR/AI extracted - a manual cross-check for blurry or
+    // hard-to-read receipts.
+    public string? ItemsPhotoFileName { get; set; }
 }
