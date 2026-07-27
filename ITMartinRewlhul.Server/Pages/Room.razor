@@ -1,0 +1,179 @@
+@page "/room/{Code}"
+@rendermode InteractiveServer
+@inject GameRoomService Rooms
+@inject RewlhulBroadcastService Broadcast
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IDisposable
+
+@if (!_loaded)
+{
+    <div class="rw-page"><div class="rw-hint">Indlæser...</div></div>
+}
+else if (_room is null)
+{
+    <div class="rw-page">
+        <div class="rw-title">🎹 Rewlhul</div>
+        <div class="rw-error">Rummet findes ikke længere.</div>
+        <button class="rw-btn" @onclick='() => Nav.NavigateTo("/", forceLoad: true)'>Til forsiden</button>
+    </div>
+}
+else
+{
+    <div class="rw-page">
+        <div class="rw-title">🎹 Rewlhul</div>
+
+        @if (_room.Phase == "Lobby")
+        {
+            <div class="rw-hint">Del koden med de andre spillere</div>
+            <div class="rw-code-display">@_room.Code</div>
+
+            <div class="rw-players">
+                @foreach (var p in _room.Players)
+                {
+                    <span class="rw-player-chip">@p.Name</span>
+                }
+            </div>
+
+            <button class="rw-btn" @onclick="StartAsync">🎮 Start (@_room.Players.Count spiller@(_room.Players.Count == 1 ? "" : "e"))</button>
+        }
+        else if (_room.Phase == "GameOver")
+        {
+            <div class="rw-result-box">
+                <div class="rw-hint">I nåede sammen til</div>
+                <div class="rw-result-level">Niveau @_room.Level</div>
+                <div class="rw-players">
+                    @foreach (var p in _room.Players)
+                    {
+                        <span class="rw-player-chip">@p.Name</span>
+                    }
+                </div>
+                <button class="rw-btn" style="margin-top:20px" @onclick="PlayAgainAsync">🔄 Spil igen</button>
+            </div>
+        }
+        else
+        {
+            <div class="rw-level">Niveau @_room.Level</div>
+            <div class="rw-phase-msg">
+                @(_room.Phase == "Reveal" ? "👀 Se og lyt..." : "🎯 Din tur - gentag rækken!")
+            </div>
+
+            <div class="rw-pad-grid">
+                @for (var i = 0; i < 4; i++)
+                {
+                    var idx = i;
+                    <button class="rw-pad rw-pad-@idx" data-pad="@idx"
+                            disabled="@(_room.Phase != "Attempt" || _myDone)"
+                            @onclick="() => TapAsync(idx)">@PadIcon(idx)</button>
+                }
+            </div>
+
+            <div class="rw-players" style="margin-top:20px">
+                @foreach (var p in _room.Players)
+                {
+                    <span class="rw-player-chip @(p.Progress >= _room.Sequence.Count ? "rw-done" : "")">
+                        @p.Name @(p.Progress >= _room.Sequence.Count ? "✔" : $"({p.Progress}/{_room.Sequence.Count})")
+                    </span>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+
+    private Data.GameRoom? _room;
+    private bool _loaded;
+    private string _myName = "";
+    private bool _myDone;
+    private int _lastPlayedLevel;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        string? name;
+        try { name = await JS.InvokeAsync<string?>("localStorage.getItem", "rewlhul_name"); }
+        catch { name = null; }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Nav.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        _myName = name;
+        Refresh();
+        Broadcast.Subscribe(Code.ToUpperInvariant(), OnBroadcast);
+        _loaded = true;
+        StateHasChanged();
+
+        // Arms a raw (non-Blazor) listener that unlocks the AudioContext on
+        // the very first tap anywhere on the page - must happen before any
+        // playTone/playSequence call, since those are all server-driven and
+        // never count as a direct user gesture on their own.
+        try { await JS.InvokeVoidAsync("rewlhul.initUnlock"); } catch { }
+
+        await MaybePlayRevealAsync();
+    }
+
+    private void Refresh()
+    {
+        _room = Rooms.TryGetRoom(Code);
+        var me = _room?.Players.FirstOrDefault(p => p.Name == _myName);
+        _myDone = me is not null && _room is not null && me.Progress >= _room.Sequence.Count;
+    }
+
+    private void OnBroadcast() => InvokeAsync(async () =>
+    {
+        Refresh();
+        StateHasChanged();
+        await MaybePlayRevealAsync();
+    });
+
+    // Every client independently plays the sequence once it sees a new
+    // Reveal phase for a level it hasn't played yet - same timing on every
+    // phone, so they sound roughly together in the same room.
+    private async Task MaybePlayRevealAsync()
+    {
+        if (_room is null || _room.Phase != "Reveal") return;
+        if (_lastPlayedLevel == _room.Level) return;
+        _lastPlayedLevel = _room.Level;
+
+        try { await JS.InvokeVoidAsync("rewlhul.playSequence", _room.Sequence, 700); }
+        catch { }
+    }
+
+    private Task StartAsync()
+    {
+        Rooms.StartGame(Code);
+        return Task.CompletedTask;
+    }
+
+    private async Task TapAsync(int pad)
+    {
+        try { await JS.InvokeVoidAsync("rewlhul.playTone", pad); } catch { }
+        Rooms.SubmitTap(Code, _myName, pad);
+    }
+
+    // Matches rewlhul.js's four drum voices (kick/snare/hi-hat/cowbell), so
+    // the icon on each pad hints at what it'll sound like.
+    private static string PadIcon(int idx) => idx switch
+    {
+        0 => "🥁", // kick
+        1 => "🪘", // snare
+        2 => "🎩", // hi-hat
+        3 => "🔔", // cowbell
+        _ => "●"
+    };
+
+    private Task PlayAgainAsync()
+    {
+        _lastPlayedLevel = 0;
+        Rooms.PlayAgain(Code);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose() => Broadcast.Unsubscribe(Code.ToUpperInvariant(), OnBroadcast);
+}

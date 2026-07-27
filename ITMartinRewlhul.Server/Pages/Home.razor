@@ -1,0 +1,70 @@
+@page "/"
+@rendermode InteractiveServer
+@inject GameRoomService Rooms
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="rw-page">
+    <div class="rw-title">🎹 Rewlhul</div>
+    <div class="rw-subtitle">Et lille lyd-party-spil til 1-6 personer</div>
+
+    <ProblemPurposeBanner
+        Problem="Klassiske hukommelsesspil ('Simon says') kræver ét fysisk apparat, som kun én kan røre ad gangen."
+        Formaal="Alle bruger deres egen telefon som en 'pad' - I hører hinandens toner i samme rum, og prøver sammen at komme så langt som muligt. Kan også spilles alene." />
+
+    <HowToUseBanner Steps='@(new[]
+    {
+        "Én person opretter et rum og får en kode.",
+        "De andre (op til 6 i alt) taster koden ind på deres egen telefon for at deltage - eller spil helt alene.",
+        "Når alle er med, trykker en af jer 'Start'. En voksende tonerække afspilles - I skal alle gentage den rigtigt på jeres egen telefon for at gå videre til næste niveau.",
+        "Én fejl, og forsøget slutter for hele gruppen - se hvor langt I nåede sammen, og prøv igen."
+    })' />
+
+    <div class="rw-card">
+        <div style="font-weight:800;margin-bottom:10px">Opret rum</div>
+        <input class="rw-input" placeholder="Dit navn" @bind="_createName" @bind:event="oninput" maxlength="20" />
+        @if (!string.IsNullOrEmpty(_createError))
+        {
+            <div class="rw-error">@_createError</div>
+        }
+        <button class="rw-btn" @onclick="CreateRoomAsync" disabled="@string.IsNullOrWhiteSpace(_createName)">Opret rum</button>
+    </div>
+
+    <div class="rw-card">
+        <div style="font-weight:800;margin-bottom:10px">Deltag i rum</div>
+        <input class="rw-input rw-code-input" placeholder="KODE" @bind="_joinCode" @bind:event="oninput" maxlength="4" />
+        <input class="rw-input" placeholder="Dit navn" @bind="_joinName" @bind:event="oninput" maxlength="20" />
+        @if (!string.IsNullOrEmpty(_joinError))
+        {
+            <div class="rw-error">@_joinError</div>
+        }
+        <button class="rw-btn rw-ghost" @onclick="JoinRoomAsync" disabled="@(string.IsNullOrWhiteSpace(_joinCode) || string.IsNullOrWhiteSpace(_joinName))">Deltag</button>
+    </div>
+</div>
+
+@code {
+    private string _createName = "";
+    private string _createError = "";
+    private string _joinCode = "";
+    private string _joinName = "";
+    private string _joinError = "";
+
+    private async Task CreateRoomAsync()
+    {
+        var name = _createName.Trim();
+        if (string.IsNullOrWhiteSpace(name)) { _createError = "Skriv et navn."; return; }
+
+        var room = Rooms.CreateRoom(name);
+        await JS.InvokeVoidAsync("localStorage.setItem", "rewlhul_name", name);
+        Nav.NavigateTo($"/room/{room.Code}", forceLoad: true);
+    }
+
+    private async Task JoinRoomAsync()
+    {
+        var error = Rooms.JoinRoom(_joinCode.Trim(), _joinName.Trim());
+        if (error is not null) { _joinError = error; return; }
+
+        await JS.InvokeVoidAsync("localStorage.setItem", "rewlhul_name", _joinName.Trim());
+        Nav.NavigateTo($"/room/{_joinCode.Trim().ToUpperInvariant()}", forceLoad: true);
+    }
+}
