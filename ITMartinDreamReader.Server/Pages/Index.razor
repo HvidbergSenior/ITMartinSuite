@@ -1,0 +1,232 @@
+@page "/"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager Nav
+@inject DreamDbContext Db
+@inject DreamAiService Ai
+@inject IJSRuntime JS
+
+<div class="dr-page">
+    <div class="dr-card">
+        <div style="font-size:3rem;text-align:center">🌙</div>
+        <h1 class="dr-title">Drømmelæser</h1>
+        <p class="dr-sub">Fang drømmen inden den forsvinder</p>
+
+        <ProblemPurposeBanner
+            Problem="Drømme forsvinder på få minutter efter man vågner - og det tager for lang tid at skrive dem ned, mens man stadig er halvvågen."
+            Formaal="Tryk hurtigt på de temaer der passede til drømmen, vurder den, og gem - på under 10 sekunder. Se mønstre over tid på grafen." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Lige når du vågner: tryk hvem, hvor, hvad der skete og hvordan det føltes (du kan vælge flere i hver).",
+            "Skriv evt. mere i det valgfrie felt, hvis du husker detaljer.",
+            "Vurder til sidst drømmen: dårlig, medium eller god - og tryk 'Gem drøm'."
+        })' />
+
+        <div class="dr-mode-toggle">
+            <button class="dr-mode-btn @(_mode == "light" ? "active" : "")" @onclick='() => SetMode("light")'>⚡ Light</button>
+            <button class="dr-mode-btn @(_mode == "premium" ? "active" : "")" @onclick='() => SetMode("premium")' disabled="@(!Ai.IsAvailable)">
+                ✨ Premium @(!Ai.IsAvailable ? "(ikke konfigureret)" : "")
+            </button>
+        </div>
+
+        @foreach (var layer in _layers)
+        {
+            <h2 class="dr-section-title">@LayerTitle(layer)</h2>
+            <div class="dr-cat-grid">
+                @foreach (var c in _categories.Where(c => c.Layer == layer))
+                {
+                    <button class="dr-cat-btn @(_selectedIds.Contains(c.Id) ? "selected" : "")" @onclick="() => ToggleCategory(c.Id)">
+                        <span class="emoji">@c.Emoji</span>
+                        <span class="label">@c.Name</span>
+                    </button>
+                }
+            </div>
+            <div class="dr-add-tag-row">
+                <input class="dr-input" style="margin:0" placeholder='@($"Tilføj selv - fx \"{AddTagExample(layer)}\"")'
+                       value="@GetNewTagText(layer)" @oninput='e => SetNewTagText(layer, e.Value?.ToString() ?? "")'
+                       @onkeyup="@(e => OnAddTagKeyUp(e, layer))" />
+                <button class="dr-btn-ghost" style="width:auto;margin:0" @onclick="() => AddCustomTag(layer)">+ Tilføj</button>
+            </div>
+        }
+
+        <div class="dr-note-box">
+            <p class="dr-note-label">💭 Valgfrit: skriv mere</p>
+            <p class="dr-note-hint">Ikke nødvendigt, men hvis du husker mere kan du skrive det her - fx navne, steder, ting der blev sagt, eller hvordan det føltes. Jo mere du skriver, jo bedre bliver AI-fortolkningen (Premium).</p>
+            <textarea class="dr-input" style="min-height:80px" placeholder="Fx: 'Jeg var tilbage i mit gamle hus, og min bror ledte efter noget han ikke kunne finde...'" @bind="_note" @bind:event="oninput"></textarea>
+        </div>
+
+        <h2 class="dr-section-title">Hvordan var den?</h2>
+        <div class="dr-rating-row">
+            <button class="dr-rating-btn @(_rating == "Bad" ? "selected" : "")" @onclick='() => _rating = "Bad"'>😞<br />Dårlig</button>
+            <button class="dr-rating-btn @(_rating == "Medium" ? "selected" : "")" @onclick='() => _rating = "Medium"'>😐<br />Medium</button>
+            <button class="dr-rating-btn @(_rating == "Nice" ? "selected" : "")" @onclick='() => _rating = "Nice"'>😊<br />God</button>
+        </div>
+
+        <button class="dr-btn-big" @onclick="SaveDream" disabled="@_saving">
+            @(_saving ? "Gemmer..." : "💤 Gem drøm")
+        </button>
+
+        @if (_justSaved)
+        {
+            <div class="dr-saved-box">
+                <p style="font-weight:700;margin:0 0 4px">✅ Gemt!</p>
+                @if (!string.IsNullOrWhiteSpace(_savedTitle))
+                {
+                    <p style="font-style:italic;margin:0 0 6px">"@_savedTitle"</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(_savedInterpretation))
+                {
+                    <p style="margin:0 0 8px">@_savedInterpretation</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(_savedFunny))
+                {
+                    <p style="margin:0;color:var(--text-muted)">😄 @_savedFunny</p>
+                }
+            </div>
+        }
+
+        <button class="dr-btn-ghost" @onclick='() => Nav.NavigateTo("/graf", forceLoad: true)'>📊 Se mønstre over tid</button>
+    </div>
+</div>
+
+@code {
+    private static readonly string[] _layers = ["Who", "Where", "Doing", "Feeling", "Reception"];
+
+    private static string LayerTitle(string layer) => layer switch
+    {
+        "Who" => "Hvem?",
+        "Where" => "Hvor?",
+        "Doing" => "Hvad sker der?",
+        "Feeling" => "Følelse?",
+        "Reception" => "Andres reaktion?",
+        _ => layer,
+    };
+
+    private static string AddTagExample(string layer) => layer switch
+    {
+        "Who" => "Olivia",
+        "Where" => "Sommerhuset",
+        "Doing" => "Synger",
+        "Feeling" => "Nostalgi",
+        "Reception" => "Han var jaloux",
+        _ => "",
+    };
+
+    private static string DefaultEmoji(string layer) => layer switch
+    {
+        "Who" => "👤",
+        "Where" => "📍",
+        "Doing" => "⚡",
+        "Feeling" => "💭",
+        "Reception" => "👁️",
+        _ => "🏷️",
+    };
+
+    private List<DreamCategory> _categories = [];
+    private HashSet<int> _selectedIds = [];
+    private Dictionary<string, string> _newTagText = [];
+    private string _rating = "Medium";
+    private string _note = "";
+    private bool _saving;
+    private bool _justSaved;
+    private string? _savedTitle;
+    private string? _savedInterpretation;
+    private string? _savedFunny;
+    private string _mode = "light";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await Db.Categories.OrderBy(c => c.Id).ToListAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "dream_mode");
+        if (stored == "premium" && Ai.IsAvailable) { _mode = "premium"; StateHasChanged(); }
+    }
+
+    private async Task SetMode(string mode)
+    {
+        _mode = mode;
+        await JS.InvokeVoidAsync("localStorage.setItem", "dream_mode", mode);
+    }
+
+    private void ToggleCategory(int id)
+    {
+        if (!_selectedIds.Add(id)) _selectedIds.Remove(id);
+    }
+
+    private string GetNewTagText(string layer) => _newTagText.GetValueOrDefault(layer, "");
+
+    private void SetNewTagText(string layer, string value) => _newTagText[layer] = value;
+
+    private async Task OnAddTagKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, string layer)
+    {
+        if (e.Key == "Enter") await AddCustomTag(layer);
+    }
+
+    private async Task AddCustomTag(string layer)
+    {
+        var name = GetNewTagText(layer).Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var existing = _categories.FirstOrDefault(c =>
+            c.Layer == layer && c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        if (existing is not null)
+        {
+            _selectedIds.Add(existing.Id);
+        }
+        else
+        {
+            var category = new DreamCategory { Name = name, Emoji = DefaultEmoji(layer), Layer = layer };
+            Db.Categories.Add(category);
+            await Db.SaveChangesAsync();
+            _categories.Add(category);
+            _selectedIds.Add(category.Id);
+        }
+
+        _newTagText[layer] = "";
+    }
+
+    private async Task SaveDream()
+    {
+        _saving = true;
+        _justSaved = false;
+        _savedTitle = null;
+        _savedInterpretation = null;
+        _savedFunny = null;
+
+        var selectedCategories = _categories.Where(c => _selectedIds.Contains(c.Id)).ToList();
+
+        var entry = new DreamEntry
+        {
+            Rating = _rating,
+            Note = string.IsNullOrWhiteSpace(_note) ? null : _note.Trim(),
+            Categories = selectedCategories,
+        };
+
+        if (_mode == "premium" && Ai.IsAvailable)
+        {
+            var (title, interpretation, funny) = await Ai.AnalyzeDreamAsync(
+                selectedCategories.Select(c => c.Name).ToList(), _rating, entry.Note);
+            entry.AiTitle = string.IsNullOrWhiteSpace(title) ? null : title;
+            entry.AiInterpretation = string.IsNullOrWhiteSpace(interpretation) ? null : interpretation;
+            entry.AiFunny = string.IsNullOrWhiteSpace(funny) ? null : funny;
+            _savedTitle = entry.AiTitle;
+            _savedInterpretation = entry.AiInterpretation;
+            _savedFunny = entry.AiFunny;
+        }
+
+        Db.Entries.Add(entry);
+        await Db.SaveChangesAsync();
+
+        _selectedIds.Clear();
+        _rating = "Medium";
+        _note = "";
+        _saving = false;
+        _justSaved = true;
+    }
+}

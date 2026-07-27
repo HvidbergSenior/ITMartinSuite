@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('dream_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0a0d14" />
+    <title>Drømmelæser</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="ITMartinDreamReader.Server.styles.css?v=@CacheBuster" />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+
+    <button id="themeToggleBtn" title="Skift lys/mørk visning"
+            style="position:fixed;bottom:20px;right:20px;z-index:9999;width:52px;height:52px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
+        🌓
+    </button>
+    <script>
+    (function () {
+        var btn = document.getElementById('themeToggleBtn');
+        function sync() {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            btn.textContent = current === 'light' ? '🌙' : '☀️';
+        }
+        btn.addEventListener('click', function () {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            var next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('dream_theme', next);
+            sync();
+        });
+        sync();
+    })();
+    </script>
+    <script>
+    (function(){
+        var vid = localStorage.getItem('_mid');
+        if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); }
+        function track(path, title, referrer) {
+            fetch('https://stats.itmartin.dk/api/hit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path, title: title, referrer: referrer, visitorId: vid, host: location.hostname }),
+                keepalive: true
+            }).catch(function(){});
+        }
+        track(location.pathname + location.search, document.title, document.referrer);
+        document.addEventListener('click', function(e) {
+            var a = e.target.closest('a');
+            if (!a || !a.href || a.href.startsWith('javascript')) return;
+            var href = a.getAttribute('href') || a.href;
+            track('click:' + href, a.textContent.trim().slice(0, 80), location.pathname);
+        }, true);
+    })();
+    </script>
+</body>
+</html>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

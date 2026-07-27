@@ -1,0 +1,157 @@
+@page "/graf"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager Nav
+@inject DreamDbContext Db
+@inject DreamAiService Ai
+
+<div class="dr-page">
+    <div class="dr-card">
+        <button class="dr-btn-ghost" style="width:auto;margin:0 0 10px" @onclick='() => Nav.NavigateTo("/", forceLoad: true)'>← Tilbage</button>
+        <h1 class="dr-title">📊 Mønstre over tid</h1>
+        <p class="dr-sub">@_entries.Count drøm@(_entries.Count == 1 ? "" : "me") registreret</p>
+
+        @if (_entries.Count == 0)
+        {
+            <p class="dr-sub">Ingen drømme gemt endnu - gå tilbage og gem din første!</p>
+        }
+        else
+        {
+            <h2 class="dr-section-title">Hyppigste temaer</h2>
+            <div class="dr-chart" role="img" aria-label="Søjlediagram over hvor ofte hvert drømmetema er valgt">
+                @foreach (var (name, emoji, count) in _categoryFrequency)
+                {
+                    var pct = _maxCount == 0 ? 0 : (double)count / _maxCount * 100;
+                    <div class="dr-bar-row">
+                        <div class="dr-bar-label">@emoji @name</div>
+                        <div class="dr-bar-track">
+                            <div class="dr-bar-fill" style="width:@(pct.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                        </div>
+                        <div class="dr-bar-value">@count</div>
+                    </div>
+                }
+            </div>
+
+            <h2 class="dr-section-title">Humør</h2>
+            <div class="dr-mood-row">
+                <div class="dr-mood-stat"><span class="dr-mood-emoji">😞</span><span>@_badCount</span></div>
+                <div class="dr-mood-stat"><span class="dr-mood-emoji">😐</span><span>@_mediumCount</span></div>
+                <div class="dr-mood-stat"><span class="dr-mood-emoji">😊</span><span>@_niceCount</span></div>
+            </div>
+
+            @if (Ai.IsAvailable)
+            {
+                <button class="dr-btn-ghost" @onclick="LoadInsight" disabled="@_insightLoading">
+                    🔮 @(_insightLoading ? "Analyserer..." : "Find mønster (AI)")
+                </button>
+                @if (_insight is not null)
+                {
+                    <div class="dr-saved-box">
+                        <p style="margin:0">@_insight</p>
+                    </div>
+                }
+            }
+
+            <h2 class="dr-section-title">Seneste drømme</h2>
+            @foreach (var e in _entries.Take(15))
+            {
+                <div class="dr-card" style="padding:14px;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline">
+                        <strong>@(string.IsNullOrWhiteSpace(e.AiTitle) ? e.CreatedAt.ToLocalTime().ToString("d. MMM") : e.AiTitle)</strong>
+                        <span style="font-size:0.85rem;color:var(--text-muted)">@e.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")</span>
+                    </div>
+                    <div style="margin-top:6px">
+                        @foreach (var c in e.Categories)
+                        {
+                            <span class="dr-tag">@c.Emoji @c.Name</span>
+                        }
+                        <span class="dr-tag mood">@(e.Rating == "Bad" ? "😞" : e.Rating == "Nice" ? "😊" : "😐")</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(e.AiInterpretation))
+                    {
+                        <p style="margin:8px 0 0;font-size:0.9rem;color:var(--text-muted)">@e.AiInterpretation</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(e.AiFunny))
+                    {
+                        <p style="margin:6px 0 0;font-size:0.9rem;color:var(--text-muted)">😄 @e.AiFunny</p>
+                    }
+
+                    @if (Ai.IsImageAvailable)
+                    {
+                        @if (!string.IsNullOrWhiteSpace(e.ImageFileName))
+                        {
+                            <div style="margin-top:10px">
+                                <img src="@($"/dream-image?file={e.ImageFileName}")" style="max-width:100%;border-radius:12px;display:block" />
+                                <a class="dr-btn-ghost" style="width:auto;display:inline-block;margin-top:6px" href="@($"/dream-image?file={e.ImageFileName}")" download>⬇ Download billede</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="dr-btn-ghost" style="width:auto;margin-top:8px" @onclick="() => GenerateImage(e.Id)" disabled="@(_imageLoadingId == e.Id)">
+                                🎨 @(_imageLoadingId == e.Id ? "Genererer billede..." : "Generér billede")
+                            </button>
+                        }
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<DreamEntry> _entries = [];
+    private List<(string Name, string Emoji, int Count)> _categoryFrequency = [];
+    private int _maxCount;
+    private int _badCount, _mediumCount, _niceCount;
+    private string? _insight;
+    private bool _insightLoading;
+    private int? _imageLoadingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _entries = await Db.Entries
+            .Include(e => e.Categories)
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync();
+
+        _categoryFrequency = _entries
+            .SelectMany(e => e.Categories)
+            .GroupBy(c => c.Id)
+            .Select(g => (g.First().Name, g.First().Emoji, Count: g.Count()))
+            .OrderByDescending(x => x.Count)
+            .ToList();
+        _maxCount = _categoryFrequency.Count > 0 ? _categoryFrequency.Max(x => x.Count) : 0;
+
+        _badCount = _entries.Count(e => e.Rating == "Bad");
+        _mediumCount = _entries.Count(e => e.Rating == "Medium");
+        _niceCount = _entries.Count(e => e.Rating == "Nice");
+    }
+
+    private async Task LoadInsight()
+    {
+        _insightLoading = true;
+        _insight = await Ai.GetPatternInsightAsync(_entries.Take(20).ToList());
+        if (string.IsNullOrWhiteSpace(_insight)) _insight = "Ikke nok data til at se et tydeligt mønster endnu.";
+        _insightLoading = false;
+    }
+
+    private async Task GenerateImage(int entryId)
+    {
+        _imageLoadingId = entryId;
+        var entry = _entries.First(e => e.Id == entryId);
+
+        var fileName = await Ai.GenerateDreamImageAsync(entryId, entry.Categories.Select(c => c.Name).ToList(), entry.Note);
+        if (fileName is not null)
+        {
+            var dbEntry = await Db.Entries.FindAsync(entryId);
+            if (dbEntry is not null)
+            {
+                dbEntry.ImageFileName = fileName;
+                await Db.SaveChangesAsync();
+            }
+            entry.ImageFileName = fileName;
+        }
+
+        _imageLoadingId = null;
+    }
+}
