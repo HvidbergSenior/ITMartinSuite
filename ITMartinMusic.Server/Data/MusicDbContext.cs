@@ -8,6 +8,8 @@ public sealed class MusicDbContext(DbContextOptions<MusicDbContext> options) : D
     public DbSet<Song>        Songs        => Set<Song>();
     public DbSet<PracticeEntry> PracticeEntries => Set<PracticeEntry>();
     public DbSet<SongComment> SongComments => Set<SongComment>();
+    public DbSet<ListenerSong> ListenerSongs => Set<ListenerSong>();
+    public DbSet<SongVersion> SongVersions => Set<SongVersion>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -26,6 +28,13 @@ public sealed class MusicDbContext(DbContextOptions<MusicDbContext> options) : D
         {
             e.HasKey(c => c.Id);
             e.HasIndex(c => c.SongKey);
+        });
+
+        model.Entity<ListenerSong>(e => e.HasKey(s => s.SongKey));
+        model.Entity<SongVersion>(e =>
+        {
+            e.HasKey(v => v.Id);
+            e.HasIndex(v => v.SongKey);
         });
     }
 }

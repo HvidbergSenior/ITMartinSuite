@@ -31,6 +31,26 @@ using (var scope = app.Services.CreateScope())
             Text      TEXT NOT NULL DEFAULT '',
             CreatedAt TEXT NOT NULL DEFAULT ''
         )");
+
+    var hasSongVersionIdColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('SongComments') WHERE name = 'SongVersionId'").AsEnumerable().First() > 0;
+    if (!hasSongVersionIdColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE SongComments ADD COLUMN SongVersionId TEXT NULL");
+
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ListenerSongs (
+            SongKey  TEXT PRIMARY KEY,
+            Category TEXT NULL
+        )");
+
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS SongVersions (
+            Id         TEXT PRIMARY KEY,
+            SongKey    TEXT NOT NULL DEFAULT '',
+            FileName   TEXT NOT NULL DEFAULT '',
+            UploadedAt TEXT NOT NULL DEFAULT '',
+            IsVisible  INTEGER NOT NULL DEFAULT 1
+        )");
 }
 
 if (!app.Environment.IsDevelopment())

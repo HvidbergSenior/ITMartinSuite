@@ -38,13 +38,11 @@ else
                 @if (_error)
                 {
                     <div style="color:#ef4444;font-size:13px;text-align:center">
-                        Forkert adgangskode
+                        @_errorText
                     </div>
                 }
 
-                <button style="@_btnStyle"
-                        @onclick="JoinAsync"
-                        disabled="@(string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_code))">
+                <button style="@_btnStyle" @onclick="JoinAsync">
                     Kom ind
                 </button>
 
@@ -58,6 +56,7 @@ else
     private string _name  = "";
     private string _code  = "";
     private bool   _error;
+    private string _errorText = "Forkert adgangskode";
 
     private const string _inputStyle =
         "background:#111827;border:1px solid #1f2937;color:#f0f0f0;" +
@@ -74,7 +73,10 @@ else
         var saved = await JS.InvokeAsync<string?>("localStorage.getItem", "musik_name");
         if (!string.IsNullOrWhiteSpace(saved))
         {
-            Nav.NavigateTo("/songs");
+            // Same soft-navigation race as JoinAsync/LeaveAsync - a third spot
+            // in this file hitting the same bug class, this time on the
+            // already-logged-in auto-redirect path.
+            Nav.NavigateTo("/songs", forceLoad: true);
             return;
         }
         _checked = true;
@@ -88,13 +90,30 @@ else
 
     private async Task JoinAsync()
     {
-        var expected = Config["MusicSettings:AccessCode"] ?? "";
-        if (!string.Equals(_code.Trim(), expected, StringComparison.OrdinalIgnoreCase))
+        // The button used to be disabled until _name/_code round-tripped back
+        // from a bind:event="oninput" - clicking right after typing (completely
+        // normal timing) could land while it was still disabled and do nothing,
+        // with no error shown. Validate here instead so every click reacts.
+        if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_code))
         {
+            _errorText = "Skriv navn og adgangskode";
             _error = true;
             return;
         }
+
+        var expected = Config["MusicSettings:AccessCode"] ?? "";
+        if (!string.Equals(_code.Trim(), expected, StringComparison.OrdinalIgnoreCase))
+        {
+            _errorText = "Forkert adgangskode";
+            _error = true;
+            return;
+        }
+
+        _error = false;
         await JS.InvokeVoidAsync("localStorage.setItem", "musik_name", _name.Trim());
-        Nav.NavigateTo("/songs");
+        // forceLoad: soft NavigateTo here left the login form stuck on screen
+        // with the URL already changed underneath it - same class of bug as
+        // the logout side (see Songs.razor LeaveAsync).
+        Nav.NavigateTo("/songs", forceLoad: true);
     }
 }

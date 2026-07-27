@@ -39,143 +39,165 @@ else
             {
                 <div style="text-align:center;padding:80px 0;color:#64748b">
                     <div style="font-size:40px;margin-bottom:12px">🎸</div>
-                    <div>Ingen sange fundet i originals/ mappen</div>
+                    <div>Ingen sange publiceret endnu</div>
                 </div>
             }
             else
             {
-                <div style="display:flex;flex-direction:column;gap:12px">
-                    @foreach (var song in _songs)
-                    {
-                        var isOpen    = _openSong == song.Key;
-                        var comments  = _comments.Where(c => c.SongKey == song.Key).OrderBy(c => c.CreatedAt).ToList();
-                        var border    = isOpen ? "#3b82f6" : "#1f2937";
-                        _drafts.TryGetValue(song.Key, out var draft);
+                @foreach (var group in Grouped)
+                {
+                    <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin:20px 0 10px">@group.Label</div>
 
-                        <div style="background:#111827;border:1px solid @border;border-radius:16px;overflow:hidden;transition:border-color .15s">
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        @foreach (var song in group.Songs)
+                        {
+                            var isOpen   = _openSong == song.Key;
+                            var general  = _comments.Where(c => c.SongKey == song.Key && c.SongVersionId is null).OrderBy(c => c.CreatedAt).ToList();
+                            var border   = isOpen ? "#3b82f6" : "#1f2937";
 
-                            <!-- Song header -->
-                            <div style="padding:18px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between"
-                                 @onclick="() => Toggle(song.Key)">
-                                <div>
-                                    <div style="font-size:17px;font-weight:800">@song.Title</div>
-                                    <div style="font-size:12px;color:#64748b;margin-top:3px">
-                                        @(song.HasOriginal ? "Original" : "")
-                                        @(song.HasOriginal && song.HasMyVersion ? " · " : "")
-                                        @(song.HasMyVersion ? "Martin's version" : "")
-                                        @if (song.HasLyrics)
-                                        {
-                                            <span> · 📄 Tekst</span>
-                                        }
-                                        @if (comments.Any())
-                                        {
-                                            <span> · 💬 @comments.Count</span>
-                                        }
-                                    </div>
-                                </div>
-                                <div style="color:#64748b;font-size:18px">@(isOpen ? "▲" : "▼")</div>
-                            </div>
+                            <div style="background:#111827;border:1px solid @border;border-radius:16px;overflow:hidden;transition:border-color .15s">
 
-                            @if (isOpen)
-                            {
-                                <div style="border-top:1px solid #1f2937;padding:20px">
-
-                                    <!-- Martin's version only -->
+                                <!-- Song header -->
+                                <div style="padding:18px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between"
+                                     @onclick="() => Toggle(song.Key)">
                                     <div>
-                                        @if (song.HasMyVersion)
-                                        {
-                                            <audio controls style="width:100%;accent-color:#a78bfa"
-                                                   src="/stream?path=@Uri.EscapeDataString("myversions/" + song.MyVersionFile)">
-                                            </audio>
-                                        }
-                                        else
-                                        {
-                                            <div style="font-size:13px;color:#475569;font-style:italic;padding:8px 0">
-                                                🎵 Kommer snart...
-                                            </div>
-                                        }
-                                    </div>
-
-                                    <!-- Lyrics photo -->
-                                    @if (song.HasLyrics)
-                                    {
-                                        <div style="margin-top:20px">
-                                            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
-                                                Tekst / noter
-                                            </div>
-                                            <img src="/stream?path=@Uri.EscapeDataString("lyrics/" + song.LyricsFile)"
-                                                 style="width:100%;border-radius:10px;border:1px solid #1f2937;cursor:pointer"
-                                                 @onclick="() => _lightbox = song.LyricsFile"
-                                                 alt="Tekst" />
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <!-- Upload lyrics -->
-                                        <div style="margin-top:16px">
-                                            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">
-                                                Tekst / noter
-                                            </div>
-                                            <label style="display:inline-block;background:#1f2937;border:1px dashed #374151;color:#64748b;border-radius:10px;padding:10px 18px;font-size:13px;cursor:pointer">
-                                                📷 Upload billede af tekst
-                                                <InputFile OnChange="e => UploadLyricsAsync(e, song.Key)" accept="image/*" style="display:none" />
-                                            </label>
-                                            @if (_uploading == song.Key)
+                                        <div style="font-size:17px;font-weight:800">@song.Title</div>
+                                        <div style="font-size:12px;color:#64748b;margin-top:3px">
+                                            @(song.Versions.Count) @(song.Versions.Count == 1 ? "version" : "versioner")
+                                            @if (song.HasLyrics)
                                             {
-                                                <span style="font-size:12px;color:#64748b;margin-left:10px">Uploader...</span>
+                                                <span> · 📄 Tekst</span>
                                             }
                                         </div>
-                                    }
+                                    </div>
+                                    <div style="color:#64748b;font-size:18px">@(isOpen ? "▲" : "▼")</div>
+                                </div>
 
-                                    <!-- Comments -->
-                                    <div style="margin-top:24px">
-                                        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">
-                                            Kommentarer
+                                @if (isOpen)
+                                {
+                                    <div style="border-top:1px solid #1f2937;padding:20px">
+
+                                        <!-- Category picker -->
+                                        <div style="display:flex;gap:8px;margin-bottom:20px">
+                                            <button style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid @(song.Category == "Own" ? "#3b82f6" : "#1f2937");background:@(song.Category == "Own" ? "rgba(59,130,246,.15)" : "transparent");color:@(song.Category == "Own" ? "#60a5fa" : "#64748b")"
+                                                    @onclick='() => SetCategoryAsync(song.Key, "Own")'>
+                                                🎤 Egen sang
+                                            </button>
+                                            <button style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid @(song.Category == "Known" ? "#3b82f6" : "#1f2937");background:@(song.Category == "Known" ? "rgba(59,130,246,.15)" : "transparent");color:@(song.Category == "Known" ? "#60a5fa" : "#64748b")"
+                                                    @onclick='() => SetCategoryAsync(song.Key, "Known")'>
+                                                🎵 Kendt sang
+                                            </button>
                                         </div>
 
-                                        @if (!comments.Any())
+                                        <!-- Versions, newest first -->
+                                        @foreach (var v in song.Versions)
                                         {
-                                            <div style="font-size:13px;color:#475569;margin-bottom:12px">
-                                                Vær den første til at kommentere
+                                            var vComments = _comments.Where(c => c.SongVersionId == v.Id).OrderBy(c => c.CreatedAt).ToList();
+                                            _drafts.TryGetValue(v.Id, out var vDraft);
+
+                                            <div style="background:#0a0d14;border-radius:12px;padding:14px;margin-bottom:12px">
+                                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                                                    <span style="font-size:12px;color:#64748b">@v.UploadedAt.ToLocalTime().ToString("d. MMM yyyy HH:mm")</span>
+                                                    <div style="display:flex;gap:6px">
+                                                        <button style="background:transparent;border:1px solid #1f2937;color:#64748b;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer"
+                                                                @onclick="() => HideVersionAsync(v)" title="Skjul for andre">🙈 Skjul</button>
+                                                        <button style="background:transparent;border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer"
+                                                                @onclick="() => DeleteVersionAsync(v)" title="Slet permanent">🗑 Slet</button>
+                                                    </div>
+                                                </div>
+
+                                                <audio controls style="width:100%;accent-color:#a78bfa"
+                                                       src="/stream?path=@Uri.EscapeDataString("myversions/" + v.FileName)">
+                                                </audio>
+
+                                                @if (vComments.Any())
+                                                {
+                                                    <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+                                                        @foreach (var c in vComments)
+                                                        {
+                                                            <div style="background:#111827;border-radius:8px;padding:8px 12px">
+                                                                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+                                                                    <span style="font-size:12px;font-weight:700;color:#93c5fd">@c.Name</span>
+                                                                    <span style="font-size:10px;color:#475569">@c.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                                                </div>
+                                                                <div style="font-size:13px;color:#e2e8f0;line-height:1.5">@c.Text</div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                <div style="display:flex;gap:6px;margin-top:10px">
+                                                    <input style="flex:1;background:#111827;border:1px solid #1f2937;color:#f0f0f0;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;min-width:0"
+                                                           placeholder="Kommentar til denne version..."
+                                                           value="@vDraft"
+                                                           @oninput="e => SetDraft(v.Id, e.Value?.ToString() ?? string.Empty)"
+                                                           @onkeydown="e => OnCommentKey(e, song.Key, v.Id)" />
+                                                    <button style="background:#3b82f6;color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;flex-shrink:0;opacity:@(string.IsNullOrWhiteSpace(vDraft) ? 0.4 : 1)"
+                                                            @onclick="() => PostCommentAsync(song.Key, v.Id)"
+                                                            disabled="@(string.IsNullOrWhiteSpace(vDraft))">
+                                                        Send
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        <!-- Lyrics photo -->
+                                        @if (song.HasLyrics)
+                                        {
+                                            <div style="margin-top:8px">
+                                                <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
+                                                    Tekst / noter
+                                                </div>
+                                                <img src="/stream?path=@Uri.EscapeDataString("lyrics/" + song.LyricsFile)"
+                                                     style="width:100%;border-radius:10px;border:1px solid #1f2937;cursor:pointer"
+                                                     @onclick="() => _lightbox = song.LyricsFile"
+                                                     alt="Tekst" />
                                             </div>
                                         }
                                         else
                                         {
-                                            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
-                                                @foreach (var c in comments)
+                                            <div style="margin-top:8px">
+                                                <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">
+                                                    Tekst / noter
+                                                </div>
+                                                <label style="display:inline-block;background:#1f2937;border:1px dashed #374151;color:#64748b;border-radius:10px;padding:10px 18px;font-size:13px;cursor:pointer">
+                                                    📷 Upload billede af tekst
+                                                    <InputFile OnChange="e => UploadLyricsAsync(e, song.Key)" accept="image/*" style="display:none" />
+                                                </label>
+                                                @if (_uploading == song.Key)
                                                 {
-                                                    <div style="background:#0a0d14;border-radius:10px;padding:10px 14px">
-                                                        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-                                                            <span style="font-size:13px;font-weight:700;color:#93c5fd">@c.Name</span>
-                                                            <span style="font-size:11px;color:#475569">@c.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
-                                                        </div>
-                                                        <div style="font-size:14px;color:#e2e8f0;line-height:1.5">@c.Text</div>
-                                                    </div>
+                                                    <span style="font-size:12px;color:#64748b;margin-left:10px">Uploader...</span>
                                                 }
                                             </div>
                                         }
 
-                                        <!-- Comment input -->
-                                        <div style="display:flex;gap:8px">
-                                            <input style="flex:1;background:#0a0d14;border:1px solid #1f2937;color:#f0f0f0;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;min-width:0"
-                                                   placeholder="Skriv en kommentar..."
-                                                   value="@draft"
-                                                   @oninput="e => SetDraft(song.Key, e.Value?.ToString() ?? string.Empty)"
-                                                   @onkeydown="e => OnCommentKey(e, song.Key)" />
-                                            <button style="background:#3b82f6;color:white;border:none;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:14px;flex-shrink:0;opacity:@(string.IsNullOrWhiteSpace(draft) ? 0.4 : 1)"
-                                                    @onclick="() => PostCommentAsync(song.Key)"
-                                                    disabled="@(string.IsNullOrWhiteSpace(draft))">
-                                                Send
-                                            </button>
-                                        </div>
-
+                                        @if (general.Any())
+                                        {
+                                            <div style="margin-top:20px">
+                                                <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
+                                                    Ældre kommentarer
+                                                </div>
+                                                <div style="display:flex;flex-direction:column;gap:8px">
+                                                    @foreach (var c in general)
+                                                    {
+                                                        <div style="background:#0a0d14;border-radius:10px;padding:10px 14px">
+                                                            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+                                                                <span style="font-size:13px;font-weight:700;color:#93c5fd">@c.Name</span>
+                                                                <span style="font-size:11px;color:#475569">@c.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                                            </div>
+                                                            <div style="font-size:14px;color:#e2e8f0;line-height:1.5">@c.Text</div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
                                     </div>
-                                </div>
-                            }
+                                }
 
-                        </div>
-                    }
-                </div>
+                            </div>
+                        }
+                    </div>
+                }
             }
         </div>
 
@@ -201,18 +223,25 @@ else
     private string?                 _uploading;
     private List<SongEntry>         _songs    = [];
     private List<SongComment>       _comments = [];
-    private Dictionary<string, string> _drafts = new();
+    private Dictionary<Guid, string> _drafts = new();
     private string                  _musikRoot = "";
+
+    private List<(string Label, List<SongEntry> Songs)> Grouped =>
+        new List<(string, List<SongEntry>)>
+        {
+            ("🎤 Egne sange", _songs.Where(s => s.Category == "Own").ToList()),
+            ("🎵 Kendte sange", _songs.Where(s => s.Category == "Known").ToList()),
+            ("❓ Ukategoriseret", _songs.Where(s => s.Category is null).ToList()),
+        }.Where(g => g.Item2.Count > 0).ToList();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
         var name = await JS.InvokeAsync<string?>("localStorage.getItem", "musik_name");
-        if (string.IsNullOrWhiteSpace(name)) { Nav.NavigateTo("/"); return; }
+        if (string.IsNullOrWhiteSpace(name)) { Nav.NavigateTo("/", forceLoad: true); return; }
         _myName    = name;
         _musikRoot = Config["MusicSettings:Root"] ?? "/musik";
-        _songs     = ScanSongs();
-        foreach (var s in _songs) _drafts[s.Key] = "";
+        await RefreshSongsAsync();
         await LoadCommentsAsync();
         Broadcast.Subscribe(OnBroadcast);
         _ready = true;
@@ -232,40 +261,99 @@ else
 
     // ── Song scanning ──────────────────────────────────────────────────────────
 
-    private List<SongEntry> ScanSongs()
+    private static readonly string[] AudioExt = [".mp3", ".m4a", ".wav", ".ogg", ".flac", ".aac", ".webm", ".mp4"];
+    private static readonly string[] ImageExt = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"];
+
+    private async Task RefreshSongsAsync()
     {
-        string[] audio = [".mp3", ".m4a", ".wav", ".ogg", ".flac", ".aac"];
-        string[] image = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"];
+        var origDir = Path.Combine(_musikRoot, "originals");
+        var mvDir   = Path.Combine(_musikRoot, "myversions");
+        var lyrDir  = Path.Combine(_musikRoot, "lyrics");
 
-        var origDir  = Path.Combine(_musikRoot, "originals");
-        var mvDir    = Path.Combine(_musikRoot, "myversions");
-        var lyrDir   = Path.Combine(_musikRoot, "lyrics");
+        var oFiles = Scan(origDir, AudioExt);
+        var lFiles = Scan(lyrDir, ImageExt);
 
-        var oFiles  = Scan(origDir,  audio);
-        var mvFiles = Scan(mvDir,    audio);
-        var lFiles  = Scan(lyrDir,   image);
+        await SyncMyVersionsAsync(mvDir);
 
-        return oFiles.Keys.Union(mvFiles.Keys)
+        var versions = await Db.SongVersions
+            .Where(v => v.IsVisible)
+            .OrderByDescending(v => v.UploadedAt)
+            .ToListAsync();
+
+        var listenerSongs = await Db.ListenerSongs.ToDictionaryAsync(s => s.SongKey);
+
+        // Only songs with at least one visible version show here - a raw file
+        // sitting in originals/ with no published take is not "his song" as
+        // far as this listener is concerned.
+        _songs = versions.Select(v => v.SongKey).Distinct()
             .OrderBy(k => k)
             .Select(key => new SongEntry
             {
-                Key           = key,
-                Title         = ToTitle(key),
-                OriginalFile  = oFiles.TryGetValue(key, out var of)  ? of  : null,
-                MyVersionFile = mvFiles.TryGetValue(key, out var mvf) ? mvf : null,
-                LyricsFile    = lFiles.TryGetValue(key, out var lf)  ? lf  : null,
+                Key = key,
+                Title = ToTitle(key),
+                LyricsFile = lFiles.TryGetValue(key, out var lf) ? lf : null,
+                Versions = versions.Where(v => v.SongKey == key).ToList(),
+                Category = listenerSongs.TryGetValue(key, out var ls) ? ls.Category : null,
             })
             .ToList();
     }
 
+    // Discovers files dropped into myversions/ (by MusikStudio's publish, or
+    // by hand) that don't have a SongVersion row yet and registers them -
+    // MusikStudio only writes files, it has no access to this app's DB, so
+    // this scan-and-sync is the only place these rows get created.
+    // Filename convention: "{songKey}__{timestamp}.ext" for new publishes;
+    // older files with no "__" are treated as a single legacy version.
+    private async Task SyncMyVersionsAsync(string dir)
+    {
+        if (!Directory.Exists(dir)) return;
+
+        var known = (await Db.SongVersions.Select(v => v.FileName).ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var added = false;
+        foreach (var f in Directory.GetFiles(dir).Where(f => AudioExt.Contains(Path.GetExtension(f).ToLowerInvariant())))
+        {
+            var fileName = Path.GetFileName(f);
+            if (known.Contains(fileName)) continue;
+
+            var nameNoExt = Path.GetFileNameWithoutExtension(f);
+            var sepIndex = nameNoExt.IndexOf("__", StringComparison.Ordinal);
+            var songKey = (sepIndex > 0 ? nameNoExt[..sepIndex] : nameNoExt).ToLowerInvariant();
+
+            Db.SongVersions.Add(new SongVersion
+            {
+                SongKey = songKey,
+                FileName = fileName,
+                UploadedAt = File.GetLastWriteTimeUtc(f),
+            });
+
+            if (!await Db.ListenerSongs.AnyAsync(s => s.SongKey == songKey))
+                Db.ListenerSongs.Add(new ListenerSong { SongKey = songKey });
+
+            added = true;
+        }
+
+        if (added) await Db.SaveChangesAsync();
+    }
+
+    // A song key can still have duplicate files on disk (e.g. an old file an
+    // admin manually dropped in) - keep the newest per key instead of
+    // crashing, same defensive reasoning as the myversions sync above.
     private static Dictionary<string, string> Scan(string dir, string[] exts)
     {
         if (!Directory.Exists(dir)) return new();
-        return Directory.GetFiles(dir)
-            .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
-            .ToDictionary(
-                f => Path.GetFileNameWithoutExtension(f).ToLower(),
-                f => Path.GetFileName(f));
+        var result = new Dictionary<string, string>();
+        foreach (var f in Directory.GetFiles(dir).Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant())))
+        {
+            var key = Path.GetFileNameWithoutExtension(f).ToLower();
+            if (!result.TryGetValue(key, out var existing) ||
+                File.GetLastWriteTimeUtc(f) > File.GetLastWriteTimeUtc(Path.Combine(dir, existing)))
+            {
+                result[key] = Path.GetFileName(f);
+            }
+        }
+        return result;
     }
 
     private static string ToTitle(string key) =>
@@ -278,29 +366,59 @@ else
 
     private void Toggle(string key) => _openSong = _openSong == key ? null : key;
 
-    private void SetDraft(string key, string value) => _drafts[key] = value;
+    private void SetDraft(Guid versionId, string value) => _drafts[versionId] = value;
 
-    private async Task OnCommentKey(KeyboardEventArgs e, string key)
+    private async Task OnCommentKey(KeyboardEventArgs e, string songKey, Guid versionId)
     {
-        if (e.Key == "Enter" && !e.ShiftKey) await PostCommentAsync(key);
+        if (e.Key == "Enter" && !e.ShiftKey) await PostCommentAsync(songKey, versionId);
     }
 
-    private async Task PostCommentAsync(string key)
+    private async Task PostCommentAsync(string songKey, Guid versionId)
     {
-        _drafts.TryGetValue(key, out var text);
+        _drafts.TryGetValue(versionId, out var text);
         if (string.IsNullOrWhiteSpace(text)) return;
 
         Db.SongComments.Add(new SongComment
         {
-            SongKey   = key,
-            Name      = _myName,
-            Text      = text.Trim(),
-            CreatedAt = DateTime.UtcNow,
+            SongKey       = songKey,
+            SongVersionId = versionId,
+            Name          = _myName,
+            Text          = text.Trim(),
+            CreatedAt     = DateTime.UtcNow,
         });
         await Db.SaveChangesAsync();
-        _drafts[key] = "";
+        _drafts[versionId] = "";
         await LoadCommentsAsync();
         await Broadcast.BroadcastAsync();
+    }
+
+    private async Task SetCategoryAsync(string songKey, string category)
+    {
+        var ls = await Db.ListenerSongs.FirstOrDefaultAsync(s => s.SongKey == songKey);
+        if (ls is null) { ls = new ListenerSong { SongKey = songKey }; Db.ListenerSongs.Add(ls); }
+        ls.Category = category;
+        await Db.SaveChangesAsync();
+        await RefreshSongsAsync();
+    }
+
+    private async Task HideVersionAsync(SongVersion v)
+    {
+        v.IsVisible = false;
+        await Db.SaveChangesAsync();
+        await RefreshSongsAsync();
+    }
+
+    private async Task DeleteVersionAsync(SongVersion v)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Slet denne version permanent? Kan ikke fortrydes.");
+        if (!confirmed) return;
+
+        var path = Path.Combine(_musikRoot, "myversions", v.FileName);
+        try { if (File.Exists(path)) File.Delete(path); } catch { }
+
+        Db.SongVersions.Remove(v);
+        await Db.SaveChangesAsync();
+        await RefreshSongsAsync();
     }
 
     private async Task UploadLyricsAsync(InputFileChangeEventArgs e, string key)
@@ -319,7 +437,7 @@ else
             await using var src    = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
             await src.CopyToAsync(stream);
 
-            _songs = ScanSongs();
+            await RefreshSongsAsync();
         }
         finally
         {
@@ -331,20 +449,21 @@ else
     private async Task LeaveAsync()
     {
         await JS.InvokeVoidAsync("localStorage.removeItem", "musik_name");
-        Nav.NavigateTo("/");
+        // forceLoad: soft NavigateTo races Index.razor's own localStorage
+        // check and can leave the songs list on screen with the URL changed
+        // underneath it - same class of bug as the login-side write earlier.
+        Nav.NavigateTo("/", forceLoad: true);
     }
 
     public void Dispose() => Broadcast.Unsubscribe(OnBroadcast);
 
     private sealed class SongEntry
     {
-        public string  Key           { get; init; } = "";
-        public string  Title         { get; init; } = "";
-        public string? OriginalFile  { get; init; }
-        public string? MyVersionFile { get; init; }
-        public string? LyricsFile    { get; init; }
-        public bool    HasOriginal   => OriginalFile  != null;
-        public bool    HasMyVersion  => MyVersionFile != null;
-        public bool    HasLyrics     => LyricsFile    != null;
+        public string  Key         { get; init; } = "";
+        public string  Title       { get; init; } = "";
+        public string? LyricsFile  { get; init; }
+        public List<SongVersion> Versions { get; init; } = [];
+        public string? Category    { get; init; }
+        public bool    HasLyrics   => LyricsFile != null;
     }
 }
