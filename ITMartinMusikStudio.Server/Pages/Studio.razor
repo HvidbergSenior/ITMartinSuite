@@ -1789,7 +1789,10 @@ else if (_song is not null)
         // showing up as a real, clickable chord.
         var slashIdx = token.IndexOf('/');
         var check = slashIdx > 0 ? token[..slashIdx] : token;
-        var root = check.TrimEnd('m', '7', '9', 'j', 'a', 's', 'u', '+', 'd', 'i', '2', '4', '5', '6');
+        // 'b' covers flat-extension chords (Dm7b5, G7b9) - without it a chord
+        // like "Dm7b5" trims down to "Dm7b", which matches neither Notes nor
+        // NotesFlat and was silently rejected as "not a chord" at all.
+        var root = check.TrimEnd('m', '7', '9', 'j', 'a', 's', 'u', '+', 'd', 'i', '2', '4', '5', '6', 'b');
         return Notes.Contains(root) || NotesFlat.Contains(root);
     }
 
@@ -2318,11 +2321,23 @@ else if (_song is not null)
             return string.IsNullOrWhiteSpace(existing) ? incoming : existing + "\n\n" + incoming;
 
         var merged = new SortedDictionary<int, string>();
+        var existingHasNumbered = false;
         foreach (var line in existing.Split('\n'))
         {
             var m = numberedLine.Match(line.Trim());
-            if (m.Success) merged[int.Parse(m.Groups[1].Value)] = m.Groups[2].Value;
+            if (m.Success) { merged[int.Parse(m.Groups[1].Value)] = m.Groups[2].Value; existingHasNumbered = true; }
         }
+
+        // Existing content isn't itself in numbered-bar format (empty, or a
+        // section-based chart like "Verse: Am G F C") - a bar-number merge
+        // only makes sense against other bar numbers. Without this check,
+        // photographing one more page of a numbered chart after the chart had
+        // already been cleaned up into sections would silently DISCARD the
+        // entire existing chart, keeping only the new photo's bars - a real,
+        // confirmed data-loss bug, not hypothetical.
+        if (!existingHasNumbered)
+            return string.IsNullOrWhiteSpace(existing) ? incoming : existing + "\n\n" + incoming;
+
         foreach (var (bar, chord) in incomingNumbered) merged[bar] = chord;
 
         return string.Join('\n', merged.Select(kv => $"{kv.Key}: {kv.Value}"));
@@ -2488,21 +2503,22 @@ else if (_song is not null)
                 // words, correct version) using the pasted tab only to learn
                 // chord positions - AI is genuinely useful for that alignment
                 // judgment (line breaks/phrasing won't match exactly, and not
-                // every word carries a chord). But it's verified, not trusted:
-                // if the output doesn't preserve the target words exactly, it's
-                // discarded and we fall back to merging straight from the
-                // pasted tab's own text instead, which can never alter wording
-                // since it's pure string insertion, not a model completion.
+                // every word carries a chord). But word-fidelity alone doesn't
+                // prove the POSITION is right (same gap AiAnnotateChords had -
+                // see its review-candidate flow), so a passing candidate goes
+                // through that same review step instead of committing directly.
+                // Only the purely mechanical fallback (no AI judgment call,
+                // can't misplace anything) applies immediately.
                 var target = StripChordMarkers(_lyricsEdit);
-                string? placed = null;
                 var aiSkipped = false;
+                string? candidate = null;
                 if (!string.IsNullOrWhiteSpace(target))
                 {
                     try
                     {
-                        var candidate = await ChordAi.PlaceChordsFromTabAsync(target, _ugPasteText);
-                        if (!string.IsNullOrWhiteSpace(candidate) && PreservesWords(target, candidate))
-                            placed = candidate;
+                        var raw = await ChordAi.PlaceChordsFromTabAsync(target, _ugPasteText);
+                        if (!string.IsNullOrWhiteSpace(raw) && PreservesWords(target, raw))
+                            candidate = raw;
                     }
                     catch (Exception)
                     {
@@ -2517,12 +2533,19 @@ else if (_song is not null)
                     }
                 }
 
-                _lyricsEdit = placed ?? MergeTabToInlineChords(_ugPasteText);
-                if (placed is null && !string.IsNullOrWhiteSpace(target))
+                if (candidate is not null)
                 {
-                    _saveStatus = aiSkipped
-                        ? "AI kunne ikke behandle teksten (sandsynligvis en kendt sang) - brugte akkorderne fra din indsatte tab i stedet."
-                        : "AI-placering afvist (ændrede ord) - brugte akkorderne fra din indsatte tab i stedet.";
+                    _annotateCandidate = candidate;
+                }
+                else
+                {
+                    _lyricsEdit = MergeTabToInlineChords(_ugPasteText);
+                    if (!string.IsNullOrWhiteSpace(target))
+                    {
+                        _saveStatus = aiSkipped
+                            ? "AI kunne ikke behandle teksten (sandsynligvis en kendt sang) - brugte akkorderne fra din indsatte tab i stedet."
+                            : "AI-placering afvist (ændrede ord) - brugte akkorderne fra din indsatte tab i stedet.";
+                    }
                 }
 
                 AutoSave();
@@ -2593,10 +2616,17 @@ else if (_song is not null)
         }
     }
 
+    // Same whole-line-bracket-tag gap as everywhere else that scans for
+    // [Chord] markers: without excluding structure lines, a bracketed tag
+    // starting with a chord-root letter ("[Bro]") gets pulled in as a fake
+    // "Bro" chord - visible here in the AI helper prompts and the
+    // UniqueChordsInOrder "book view" whenever Akkorder is still empty.
     private string ExtractChordsFromLyrics() =>
-        string.Join(" ", System.Text.RegularExpressions.Regex
-            .Matches(_lyricsEdit, @"\[([A-G][^\]]*)\]")
-            .Select(m => m.Groups[1].Value)
+        string.Join(" ", (_lyricsEdit ?? "").Split('\n')
+            .Where(line => !IsWholeLineBracketTag(line.Trim()))
+            .SelectMany(line => System.Text.RegularExpressions.Regex
+                .Matches(line, @"\[([A-G][^\]]*)\]")
+                .Select(m => m.Groups[1].Value))
             .Distinct());
 
     private void SyncChordsFromLyrics()
@@ -2712,10 +2742,19 @@ else if (_song is not null)
         // (plain "Am G F" vs inline "[Am]word") - the plain-text regex above
         // never matches inside [brackets], so slash chords in the lyrics view
         // were silently left untouched. Same fix shape as the transpose bug.
-        _lyricsEdit = System.Text.RegularExpressions.Regex.Replace(
-            _lyricsEdit,
-            @"\[([A-G][^\]]*)\]",
-            m => "[" + SlashChordRegex.Replace(m.Groups[1].Value, mm => mm.Groups[1].Value) + "]");
+        // Whole-line bracket tags ("[Bro]") are skipped, same as everywhere
+        // else that scans this pattern - harmless today since no section tag
+        // contains a literal "/", but skipping keeps that guaranteed rather
+        // than incidental.
+        var chordRx = new System.Text.RegularExpressions.Regex(@"\[([A-G][^\]]*)\]");
+        var lyricLines = _lyricsEdit.Split('\n');
+        for (var i = 0; i < lyricLines.Length; i++)
+        {
+            if (IsWholeLineBracketTag(lyricLines[i].Trim())) continue;
+            lyricLines[i] = chordRx.Replace(lyricLines[i],
+                m => "[" + SlashChordRegex.Replace(m.Groups[1].Value, mm => mm.Groups[1].Value) + "]");
+        }
+        _lyricsEdit = string.Join('\n', lyricLines);
 
         AutoSave();
         StateHasChanged();
