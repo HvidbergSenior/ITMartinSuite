@@ -6,7 +6,7 @@ namespace ITMartinLive.Server.Services;
 
 public class SummaryService(IHttpClientFactory http, IConfiguration config, ILogger<SummaryService> logger)
 {
-    private readonly string? _apiKey = config["CLAUDE__APIKEY"] ?? config["Claude:ApiKey"];
+    private readonly string? _apiKey = config["Claude:ApiKey"];
 
     public async Task<string?> GenerateAsync(LiveEvent ev)
     {

@@ -8,7 +8,7 @@ namespace ITMartinR6Strat.Server.Services;
 public sealed class StratAiService(IHttpClientFactory http, IConfiguration config)
 {
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
-    private readonly string? _apiKey = config["Claude:ApiKey"] ?? config["CLAUDE__APIKEY"];
+    private readonly string? _apiKey = config["Claude:ApiKey"];
 
     public async Task<GeneratedPlan> GeneratePlanAsync(string map, string side, string site, CancellationToken ct = default)
     {
