@@ -18,7 +18,7 @@ public class LiveService
     public LiveService(ILogger<LiveService> logger, IConfiguration config)
     {
         _logger  = logger;
-        AdminPin = config["Live__AdminPin"] ?? "live2025";
+        AdminPin = config["Live:AdminPin"] ?? "live2025";
         Load();
     }
 
