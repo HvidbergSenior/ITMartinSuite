@@ -33,6 +33,12 @@
             "Tag et billede af kvitteringen, gerne i god belysning og så tydeligt som muligt.",
             "Se med det samme varerne du har købt, samt hvilke rabatter og fordele du fik på dem."
         })' />
+
+        <details class="home-screen-hint">
+            <summary>📱 Tilføj til hjemmeskærm</summary>
+            <p><strong>iPhone:</strong> Tryk på Del-ikonet i Safari, og vælg "Tilføj til hjemmeskærm".</p>
+            <p><strong>Android:</strong> Tryk på menuen (⋮) i Chrome, og vælg "Tilføj til startskærm".</p>
+        </details>
     }
 
     <div class="scanner-wrapper">
@@ -83,6 +89,17 @@
         </div>
     }
 
+    @if (_pendingPages.Count > 0)
+    {
+        <div class="pending-pages-row">
+            @foreach (var pendingPage in _pendingPages)
+            {
+                <img src="@pendingPage.Base64" class="pending-page-thumb" />
+            }
+            <div class="pending-pages-label">@_pendingPages.Count side(r) klar — tag et billede mere, eller tryk "Scan" for at afslutte</div>
+        </div>
+    }
+
     <div class="scanner-buttons">
 
         @if (_cameraStarted && string.IsNullOrWhiteSpace(_itemsPhotoBase64))
@@ -94,12 +111,25 @@
             </button>
         }
 
+        @if (_cameraStarted)
+        {
+            <button class="btn btn-outline-light btn-lg more-pages-button"
+                    @onclick="AddPage"
+                    disabled="@_isProcessing">
+                📄 Kvitteringen fortsætter — tag et billede mere
+            </button>
+        }
+
         <button class="btn btn-success btn-lg scan-button"
                 @onclick="Capture"
                 disabled="@(_isProcessing || !_cameraStarted)">
             @if (_isProcessing)
             {
                 <span>Scanner...</span>
+            }
+            else if (_pendingPages.Count > 0)
+            {
+                <span>Scan @(_pendingPages.Count + 1) billeder</span>
             }
             else
             {
@@ -175,11 +205,16 @@
     private string? _itemsPhotoPath;
     private string? _itemsPhotoUsedBase64;
 
+    // Extra pages for a receipt too long for one shot - captured but not
+    // submitted until the main "Scan" button is pressed, which sends this
+    // photo plus the final one together as one multi-page scan.
+    private readonly List<(string Path, string Base64)> _pendingPages = [];
+
     private void ZoomIn()  => _zoom = Math.Min(2.0, Math.Round(_zoom + 0.2, 1));
     private void ZoomOut() => _zoom = Math.Max(0.8, Math.Round(_zoom - 0.2, 1));
 
-    private readonly Channel<(string ImagePath, string? ItemsPhotoPath, string? ItemsPhotoBase64)> _workChannel =
-        Channel.CreateBounded<(string, string?, string?)>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
+    private readonly Channel<(string ImagePath, string? ItemsPhotoPath, string? ItemsPhotoBase64, List<string> AdditionalImagePaths)> _workChannel =
+        Channel.CreateBounded<(string, string?, string?, List<string>)>(new BoundedChannelOptions(2) { FullMode = BoundedChannelFullMode.DropOldest });
 
     protected override Task OnInitializedAsync()
     {
@@ -223,7 +258,7 @@
             if (_disposed) break;
             try
             {
-                var result = await ReceiptOrchestrator.ExecuteAsync(work.ImagePath, CancellationToken.None, work.ItemsPhotoPath);
+                var result = await ReceiptOrchestrator.ExecuteAsync(work.ImagePath, CancellationToken.None, work.ItemsPhotoPath, work.AdditionalImagePaths);
                 await InvokeAsync(() =>
                 {
                     _context = result;
@@ -293,17 +328,48 @@
 
             _capturedImage = $"data:image/jpeg;base64,{clean}";
             _statusText = "Analyserer kvittering...";
-            _workChannel.Writer.TryWrite((imagePath, _itemsPhotoPath, _itemsPhotoBase64));
+            var additionalImagePaths = _pendingPages.Select(p => p.Path).ToList();
+            _workChannel.Writer.TryWrite((imagePath, _itemsPhotoPath, _itemsPhotoBase64, additionalImagePaths));
 
             // Clear so the next scan starts fresh rather than accidentally
-            // reusing this items photo for an unrelated receipt.
+            // reusing this items photo (or these pending pages) for an
+            // unrelated receipt.
             _itemsPhotoBase64 = null;
             _itemsPhotoPath = null;
+            _pendingPages.Clear();
             StateHasChanged();
         }
         catch (Exception ex)
         {
             _isProcessing = false;
+            _statusText = ex.Message;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddPage()
+    {
+        if (_isProcessing || _disposed || !_cameraStarted) return;
+
+        try
+        {
+            CameraCaptureResult capture;
+            try { capture = await JS.InvokeAsync<CameraCaptureResult>("webcam.capture"); }
+            catch (TaskCanceledException) { return; }
+
+            var clean = capture.Image.Replace("data:image/jpeg;base64,", "");
+            var bytes = Convert.FromBase64String(clean);
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "receipts");
+            Directory.CreateDirectory(folder);
+            var imagePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
+            await File.WriteAllBytesAsync(imagePath, bytes);
+
+            _pendingPages.Add((imagePath, $"data:image/jpeg;base64,{clean}"));
+            _statusText = $"{_pendingPages.Count} side(r) klar — tag et billede mere, eller tryk \"Scan\" for at afslutte.";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
             _statusText = ex.Message;
             StateHasChanged();
         }

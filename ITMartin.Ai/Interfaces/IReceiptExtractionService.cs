@@ -12,7 +12,7 @@ public interface IReceiptExtractionService
 
     Task<ReceiptExtractionResult>
         ExtractFromImageAsync(
-            string imagePath,
+            List<string> imagePaths,
             ReceiptExtractionResult? template = null,
             CancellationToken cancellationToken = default);
 }

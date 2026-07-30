@@ -171,4 +171,30 @@ public class ReceiptOcrWorkflowStepTests
 
         state.OcrText.Should().BeNull();
     }
+
+    // =====================================
+    // Multi-page receipts - local OCR is skipped entirely
+    // =====================================
+
+    [Test]
+    public async Task Multi_page_receipt_skips_OCR_even_with_plausible_text()
+    {
+        OcrReturns("""
+            NETTO
+            Mælk 1L                    12,95
+            Rugbrød                    24,50
+            Bananer 1 kg                12,95
+            TOTAL                       50,40
+            """);
+        var state = new ReceiptContext
+        {
+            ImagePath = "/tmp/receipt-page1.jpg",
+            AdditionalImagePaths = ["/tmp/receipt-page2.jpg"]
+        };
+
+        await _step.ExecuteAsync(Context(state));
+
+        state.OcrText.Should().BeNull();
+        _ocr.Verify(o => o.ExtractTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

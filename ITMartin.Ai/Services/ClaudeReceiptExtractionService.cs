@@ -106,8 +106,8 @@ public sealed class ClaudeReceiptExtractionService
             // pre-paid allocation).
             MaxTokens = 8192,
             System = """
-                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, Sport24, etc.).
-                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
+                You are a receipt extraction system for ANY Danish receipt, not just groceries — restaurants/cafes, clothing and electronics retail, pharmacies, petrol stations, hardware stores, hairdressers/services, online order confirmations, and any other store or provider.
+                Report one item per purchased product or service line. If a discount, coupon, or member price applies to a line (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that line via discountAmount/discountLabel instead of reporting it as a separate item.
                 A single product can have MORE THAN ONE discount line stacked on it (e.g. a percentage 'Rabat' AND a separate 'Lidl Plus-kupon' on the same product) — when that happens, sum every discount line for that product into one discountAmount and join their labels (e.g. 'Rabat + Lidl Plus-kupon'). Never drop a stacked discount just because there's already one on the item.
                 amount must always be the ORIGINAL pre-discount price for the item. If the receipt has a quantity/unit-price layout (e.g. 'Antal: 3 x 70'), the original amount is quantity times unit price (210 in that example) — use that, never a column that already has the discount subtracted out of it.
                 Some receipts print the item's final column as the amount already AFTER its own discount (i.e. the discount is already subtracted from the number in that column). If so, add the discount back on top of that printed number to get the original pre-discount amount — do not treat an already-discounted number as the original and then subtract the discount from it again.
@@ -115,7 +115,7 @@ public sealed class ClaudeReceiptExtractionService
                 Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
                 If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
                 For every item, also copy its rawText verbatim from the receipt (including its quantity/unit-price notation and discount line) so the user can compare your reading against the original — do not paraphrase this field.
-                The description field is different from rawText: use your knowledge of real Danish grocery products to correct OCR noise into the actual product name (e.g. if the printed text reads "Hyitetost", the real product is almost certainly "Hytteost" — report description as the corrected name, while rawText stays the exact garbled text as printed). Never let this correction invent a completely different, unrelated product — if a blurry or damaged line could plausibly be several different real products and you cannot tell which, do not confidently pick one; report your best literal reading in description, but set suspicious=true so the user knows to double-check it themselves.
+                The description field is different from rawText: use your knowledge of real Danish products and services (whatever kind of store or provider this receipt is from) to correct OCR noise into the actual name (e.g. if the printed text reads "Hyitetost" on a grocery receipt, the real product is almost certainly "Hytteost" — report description as the corrected name, while rawText stays the exact garbled text as printed). Never let this correction invent a completely different, unrelated item — if a blurry or damaged line could plausibly be several different real items and you cannot tell which, do not confidently pick one; report your best literal reading in description, but set suspicious=true so the user knows to double-check it themselves.
                 Omit fields you cannot determine — never guess.
                 """,
             Tools = [ReportReceiptTool],
@@ -176,9 +176,108 @@ public sealed class ClaudeReceiptExtractionService
     }
 
     public async Task<ReceiptExtractionResult> ExtractFromImageAsync(
-        string imagePath,
+        List<string> imagePaths,
         ReceiptExtractionResult? template = null,
         CancellationToken cancellationToken = default)
+    {
+        var images = new List<(string Base64, string Mime)>();
+        foreach (var imagePath in imagePaths)
+            images.Add(await LoadImageAsync(imagePath, cancellationToken));
+
+        // Multi-page receipts (a long receipt split across several photos) are
+        // sent as multiple image blocks in ONE message, same pattern as
+        // ClaudeShelfScanService - lets Claude reason across all pages together
+        // (e.g. an item split across the photo 1/photo 2 boundary) instead of
+        // merging separately-extracted per-photo results.
+        var multiPage = images.Count > 1;
+
+        var content = new List<ContentBlockParam>
+        {
+            new TextBlockParam
+            {
+                Text = template is null
+                    ? multiPage
+                        ? "These images are consecutive photos of ONE long receipt, in order. Extract the combined receipt data from all of them together and call the report_receipt tool once with every item across all photos."
+                        : "Extract the receipt data from this image and call the report_receipt tool."
+                    : multiPage
+                        ? $"""
+                           These images are consecutive photos of ONE long receipt, in order. Extract the combined receipt data from all of them together and call the report_receipt tool once with every item across all photos.
+
+                           Use this verified receipt as a structural reference — follow the same format for items, discounts, and grouping:
+                           {JsonSerializer.Serialize(template, JsonOptions)}
+                           """
+                        : $"""
+                           Extract the receipt data from this image and call the report_receipt tool.
+
+                           Use this verified receipt as a structural reference — follow the same format for items, discounts, and grouping:
+                           {JsonSerializer.Serialize(template, JsonOptions)}
+                           """
+            }
+        };
+        foreach (var (base64, mime) in images)
+            content.Add(new ImageBlockParam { Source = new Base64ImageSource { Data = base64, MediaType = mime } });
+
+        var request = new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            // Confirmed real bug: a JYSK receipt with 10 line items (several
+            // with a verbatim rawText requirement) hit this ceiling at 1024,
+            // truncating mid-response (StopReason "max_tokens") after the
+            // header fields but before any items were written - a silently
+            // "successful" call that just never got to the items array.
+            // Raising the ceiling costs nothing extra unless a receipt
+            // actually needs the tokens (max_tokens is a cap, not a
+            // pre-paid allocation).
+            MaxTokens = 8192,
+            System = """
+                You are a receipt extraction system for ANY Danish receipt, not just groceries — restaurants/cafes, clothing and electronics retail, pharmacies, petrol stations, hardware stores, hairdressers/services, online order confirmations, and any other store or provider.
+                Report one item per purchased product or service line. If a discount, coupon, or member price applies to a line (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that line via discountAmount/discountLabel instead of reporting it as a separate item.
+                A single product can have MORE THAN ONE discount line stacked on it (e.g. a percentage 'Rabat' AND a separate 'Lidl Plus-kupon' on the same product) — when that happens, sum every discount line for that product into one discountAmount and join their labels (e.g. 'Rabat + Lidl Plus-kupon'). Never drop a stacked discount just because there's already one on the item.
+                amount must always be the ORIGINAL pre-discount price for the item. If the receipt has a quantity/unit-price layout (e.g. 'Antal: 3 x 70'), the original amount is quantity times unit price (210 in that example) — use that, never a column that already has the discount subtracted out of it.
+                Some receipts print the item's final column as the amount already AFTER its own discount (i.e. the discount is already subtracted from the number in that column). If so, add the discount back on top of that printed number to get the original pre-discount amount — do not treat an already-discounted number as the original and then subtract the discount from it again.
+                Sanity check before reporting: amount + discountAmount must equal the actual final price paid for that line, and must never be negative. If your numbers would make it negative, you have the original/discount reversed — re-derive amount from quantity x unit price instead.
+                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
+                If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
+                For every item, also copy its rawText verbatim from the receipt (including its quantity/unit-price notation and discount line) so the user can compare your reading against the original — do not paraphrase this field.
+                The description field is different from rawText: use your knowledge of real Danish products and services (whatever kind of store or provider this receipt is from) to correct OCR noise into the actual name (e.g. if the printed text reads "Hyitetost" on a grocery receipt, the real product is almost certainly "Hytteost" — report description as the corrected name, while rawText stays the exact garbled text as printed). Never let this correction invent a completely different, unrelated item — if a blurry or damaged line could plausibly be several different real items and you cannot tell which, do not confidently pick one; report your best literal reading in description, but set suspicious=true so the user knows to double-check it themselves.
+                Omit fields you cannot determine — never guess.
+                """,
+            Tools = [ReportReceiptTool],
+            ToolChoice = new ToolChoiceTool { Name = "report_receipt" },
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = content
+                }
+            ]
+        };
+
+        var response = await _client.Messages.Create(request, cancellationToken);
+
+        if (response.StopReason == "max_tokens")
+            _logger.LogWarning(
+                "Claude receipt image extraction hit the MaxTokens ceiling ({MaxTokens}) - response was truncated, likely missing items.",
+                request.MaxTokens);
+
+        ToolUseBlock? toolUse = null;
+        foreach (var block in response.Content)
+        {
+            if (block.TryPickToolUse(out var tu)) { toolUse = tu; break; }
+        }
+
+        if (toolUse is null)
+            throw new InvalidOperationException("Claude did not call the report_receipt tool.");
+
+        var json = JsonSerializer.Serialize(toolUse.Input);
+        _logger.LogDebug("Claude receipt image response: {Json}", json);
+
+        var result = JsonSerializer.Deserialize<ReceiptExtractionResult>(json, JsonOptions);
+        return result ?? throw new InvalidOperationException("Failed to deserialize receipt result.");
+    }
+
+    private static async Task<(string Base64, string Mime)> LoadImageAsync(string imagePath, CancellationToken cancellationToken)
     {
         var bytes = await File.ReadAllBytesAsync(imagePath, cancellationToken);
 
@@ -211,82 +310,7 @@ public sealed class ClaudeReceiptExtractionService
         var base64 = Convert.ToBase64String(bytes);
         var ext = Path.GetExtension(imagePath).ToLowerInvariant();
         var mime = ext == ".png" ? "image/png" : "image/jpeg";
-
-        var request = new MessageCreateParams
-        {
-            Model = Model.ClaudeHaiku4_5,
-            // Confirmed real bug: a JYSK receipt with 10 line items (several
-            // with a verbatim rawText requirement) hit this ceiling at 1024,
-            // truncating mid-response (StopReason "max_tokens") after the
-            // header fields but before any items were written - a silently
-            // "successful" call that just never got to the items array.
-            // Raising the ceiling costs nothing extra unless a receipt
-            // actually needs the tokens (max_tokens is a cap, not a
-            // pre-paid allocation).
-            MaxTokens = 8192,
-            System = """
-                You are a receipt extraction system for Danish grocery receipts from any store (Føtex, Bilka, Netto, Lidl, Rema 1000, Coop, Sport24, etc.).
-                Report one item per purchased product. If a discount, coupon, or member price applies to a product (printed as e.g. 'Rabat', 'Tilbud', 'Fordelspris', 'Medlemsrabat', 'Lidl Plus-kupon', 'Linjerabat'), attach it to that product via discountAmount/discountLabel instead of reporting it as a separate item.
-                A single product can have MORE THAN ONE discount line stacked on it (e.g. a percentage 'Rabat' AND a separate 'Lidl Plus-kupon' on the same product) — when that happens, sum every discount line for that product into one discountAmount and join their labels (e.g. 'Rabat + Lidl Plus-kupon'). Never drop a stacked discount just because there's already one on the item.
-                amount must always be the ORIGINAL pre-discount price for the item. If the receipt has a quantity/unit-price layout (e.g. 'Antal: 3 x 70'), the original amount is quantity times unit price (210 in that example) — use that, never a column that already has the discount subtracted out of it.
-                Some receipts print the item's final column as the amount already AFTER its own discount (i.e. the discount is already subtracted from the number in that column). If so, add the discount back on top of that printed number to get the original pre-discount amount — do not treat an already-discounted number as the original and then subtract the discount from it again.
-                Sanity check before reporting: amount + discountAmount must equal the actual final price paid for that line, and must never be negative. If your numbers would make it negative, you have the original/discount reversed — re-derive amount from quantity x unit price instead.
-                Set suspicious=true if the price seems obviously wrong for the item (e.g. bananas at 150 DKK, bread at 500 DKK) or if you are unsure whether you resolved a printed-amount-vs-discount ambiguity correctly.
-                If the receipt separately shows a store loyalty/membership account section (e.g. 'LidlPlus konto', Fordelskort/Plus summary, Coop medlem, REMA 1000 Æ) distinct from the per-item discounts, report it via loyaltyAccount.
-                For every item, also copy its rawText verbatim from the receipt (including its quantity/unit-price notation and discount line) so the user can compare your reading against the original — do not paraphrase this field.
-                The description field is different from rawText: use your knowledge of real Danish grocery products to correct OCR noise into the actual product name (e.g. if the printed text reads "Hyitetost", the real product is almost certainly "Hytteost" — report description as the corrected name, while rawText stays the exact garbled text as printed). Never let this correction invent a completely different, unrelated product — if a blurry or damaged line could plausibly be several different real products and you cannot tell which, do not confidently pick one; report your best literal reading in description, but set suspicious=true so the user knows to double-check it themselves.
-                Omit fields you cannot determine — never guess.
-                """,
-            Tools = [ReportReceiptTool],
-            ToolChoice = new ToolChoiceTool { Name = "report_receipt" },
-            Messages =
-            [
-                new()
-                {
-                    Role = Role.User,
-                    Content = new List<ContentBlockParam>
-                    {
-                        new TextBlockParam
-                        {
-                            Text = template is null
-                                ? "Extract the receipt data from this image and call the report_receipt tool."
-                                : $"""
-                                   Extract the receipt data from this image and call the report_receipt tool.
-
-                                   Use this verified receipt as a structural reference — follow the same format for items, discounts, and grouping:
-                                   {JsonSerializer.Serialize(template, JsonOptions)}
-                                   """
-                        },
-                        new ImageBlockParam
-                        {
-                            Source = new Base64ImageSource { Data = base64, MediaType = mime }
-                        }
-                    }
-                }
-            ]
-        };
-
-        var response = await _client.Messages.Create(request, cancellationToken);
-
-        if (response.StopReason == "max_tokens")
-            _logger.LogWarning(
-                "Claude receipt image extraction hit the MaxTokens ceiling ({MaxTokens}) - response was truncated, likely missing items.",
-                request.MaxTokens);
-
-        ToolUseBlock? toolUse = null;
-        foreach (var block in response.Content)
-        {
-            if (block.TryPickToolUse(out var tu)) { toolUse = tu; break; }
-        }
-
-        if (toolUse is null)
-            throw new InvalidOperationException("Claude did not call the report_receipt tool.");
-
-        var json = JsonSerializer.Serialize(toolUse.Input);
-        _logger.LogDebug("Claude receipt image response: {Json}", json);
-
-        var result = JsonSerializer.Deserialize<ReceiptExtractionResult>(json, JsonOptions);
-        return result ?? throw new InvalidOperationException("Failed to deserialize receipt result.");
+        return (base64, mime);
     }
 }
 

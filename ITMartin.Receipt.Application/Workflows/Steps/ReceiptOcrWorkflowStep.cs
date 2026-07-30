@@ -25,6 +25,13 @@ public sealed class ReceiptOcrWorkflowStep
         WorkflowExecutionContext<ReceiptContext> context,
         CancellationToken cancellationToken = default)
     {
+        if (context.State.AdditionalImagePaths.Count > 0)
+            // Multi-page receipt - combining OCR text coherently across separate
+            // photos of a split receipt is unnecessary complexity when Claude can
+            // already reason across multiple images directly (e.g. an item split
+            // across the photo 1/photo 2 page break).
+            return;
+
         try
         {
             var text = await _ocrService

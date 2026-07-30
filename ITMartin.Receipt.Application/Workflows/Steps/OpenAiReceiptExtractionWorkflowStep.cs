@@ -28,11 +28,13 @@ public sealed class AiReceiptExtractionWorkflowStep
         CancellationToken cancellationToken = default)
     {
         var hasOcrText = !string.IsNullOrWhiteSpace(context.State.OcrText);
+        var imagePaths = new List<string> { context.State.ImagePath };
+        imagePaths.AddRange(context.State.AdditionalImagePaths);
 
         // First pass: identify the merchant, with no reference yet.
         var initial = hasOcrText
             ? await _receiptExtractionService.ExtractAsync(context.State.OcrText!, null, cancellationToken)
-            : await _receiptExtractionService.ExtractFromImageAsync(context.State.ImagePath, null, cancellationToken);
+            : await _receiptExtractionService.ExtractFromImageAsync(imagePaths, null, cancellationToken);
 
         var reference = !string.IsNullOrWhiteSpace(initial.MerchantName)
             ? await _repository.GetReferenceAsync(initial.MerchantName, cancellationToken)
@@ -67,7 +69,7 @@ public sealed class AiReceiptExtractionWorkflowStep
 
         var refined = hasOcrText
             ? await _receiptExtractionService.ExtractAsync(context.State.OcrText!, template, cancellationToken)
-            : await _receiptExtractionService.ExtractFromImageAsync(context.State.ImagePath, template, cancellationToken);
+            : await _receiptExtractionService.ExtractFromImageAsync(imagePaths, template, cancellationToken);
 
         context.State.ExtractionResult = refined;
     }

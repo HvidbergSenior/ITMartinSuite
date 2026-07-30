@@ -7,6 +7,12 @@ public sealed class ReceiptContext
 {
     public required string ImagePath { get; init; }
 
+    // Extra photos for a receipt too long to fit legibly in one shot (e.g.
+    // a long thermal receipt) - ImagePath stays the "cover" image used for
+    // ImageFileName/display, these are additional pages sent alongside it
+    // for extraction. Empty for the common single-photo case.
+    public List<string> AdditionalImagePaths { get; init; } = [];
+
     public string? ItemsPhotoPath { get; init; }
 
     public string? OcrText { get; set; }
