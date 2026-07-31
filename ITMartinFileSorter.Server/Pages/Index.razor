@@ -23,6 +23,7 @@
 @inject IStaticGalleryExportService GalleryExportService
 @inject IGalleryThumbnailService GalleryThumbnailService
 @inject ISmartFoldersService SmartFoldersService
+@inject IPackage3Service Package3Service
 
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
@@ -237,11 +238,37 @@
                             </button>
                         </span>
 
-                        <span class="text-muted" style="font-size:13px">
-                            Efter person kræver navn + referencefoto — ikke en ét-klik-knap endnu.
-                        </span>
+                        <button class="btn btn-outline-primary"
+                                disabled="@(_addonBusy is not null)"
+                                @onclick="RunFindPeopleAsync">
+                            @(_addonBusy == "Efter person" ? "⏳ Finder personer..." : "🔍 Find personer")
+                        </button>
 
                     </div>
+
+                    @if (_discoveredClusters is { Count: > 0 })
+                    {
+                        <div class="cluster-list" style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+                            @foreach (var cluster in _discoveredClusters)
+                            {
+                                <div style="display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:8px 12px">
+                                    <span>👤 @cluster.PhotoCount fotos — @System.IO.Path.GetFileName(cluster.SampleMediaFilePath)</span>
+                                    <input type="text" class="form-control" style="max-width:200px"
+                                           placeholder="Navn..."
+                                           @bind="_clusterNames[cluster]" @bind:event="oninput" />
+                                    <button class="btn btn-sm btn-primary"
+                                            disabled="@(string.IsNullOrWhiteSpace(GetClusterName(cluster)) || _addonBusy is not null)"
+                                            @onclick="() => NameClusterAsync(cluster)">
+                                        Navngiv
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (_discoveredClusters is not null)
+                    {
+                        <div class="text-muted mt-2">Ingen tydelige, ikke-navngivne personer fundet (mindst 3 fotos kræves pr. person).</div>
+                    }
                 </ContentCard>
             }
             else
@@ -522,6 +549,38 @@
 
     private Task RunAarbogAsync() =>
         RunAddonAsync("Årbog", () => SmartFoldersService.GenerateYearbookAsync(LibraryPath, _yearbookYear));
+
+    private List<UnnamedPersonCluster>? _discoveredClusters;
+
+    private readonly Dictionary<UnnamedPersonCluster, string> _clusterNames = new();
+
+    private string GetClusterName(UnnamedPersonCluster cluster) =>
+        _clusterNames.TryGetValue(cluster, out var name) ? name : "";
+
+    private Task RunFindPeopleAsync() =>
+        RunAddonAsync("Efter person", async () =>
+        {
+            // Face indexing is skip-if-already-done (see IPackage3Service docs),
+            // so re-running "Find personer" after new photos are added is safe
+            // and only processes what's new.
+            await Package3Service.IndexFacesAsync(LibraryPath);
+            _discoveredClusters = await Package3Service.DiscoverUnnamedPeopleAsync(LibraryPath);
+        });
+
+    private async Task NameClusterAsync(UnnamedPersonCluster cluster)
+    {
+        var name = GetClusterName(cluster);
+        if (string.IsNullOrWhiteSpace(name) || _addonBusy is not null) return;
+
+        await RunAddonAsync("Efter person", async () =>
+        {
+            var personId = await Package3Service.NamePersonFromClusterAsync(name, cluster.MediaFilePaths, LibraryPath);
+            await SmartFoldersService.GeneratePersonFolderAsync(LibraryPath, personId);
+
+            _discoveredClusters?.Remove(cluster);
+            _clusterNames.Remove(cluster);
+        });
+    }
 
     private static string FormatSize(
         long bytes)

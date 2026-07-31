@@ -439,6 +439,124 @@ public sealed class Package3Service : IPackage3Service
         await _collectionStore.SaveAsync(libraryPath, collections);
     }
 
+    public async Task<List<UnnamedPersonCluster>> DiscoverUnnamedPeopleAsync(string libraryPath, double threshold = 0.5)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        var unmatchedFaces = await db.MediaFaces
+            .Where(x => x.MatchedPersonId == null && x.EmbeddingJson != "[]")
+            .ToListAsync();
+
+        // One face per file (same reasoning as FindMatchesAsync) - files with
+        // several detected faces are rare, and this scopes discovery to one
+        // attempt per photo, not per individual face.
+        var perFile = new List<(string MediaFilePath, float[] Embedding)>();
+        foreach (var group in unmatchedFaces.GroupBy(x => NormalizeMediaFilePath(x.MediaFilePath)))
+        {
+            foreach (var face in group)
+            {
+                float[] vector;
+                try { vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? []; }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Skipping unparsable embedding for {MediaFilePath}", face.MediaFilePath);
+                    continue;
+                }
+                if (vector.Length == 0) continue;
+
+                perFile.Add((group.Key, vector));
+                break;
+            }
+        }
+
+        // Greedy clustering: compare each face to every existing cluster's running-
+        // average centroid, join the best match above threshold, else start a new
+        // cluster. Simple and fine at the file counts a single library has -
+        // not optimized for huge scale.
+        var clusters = new List<(List<float[]> Embeddings, List<string> Files)>();
+
+        foreach (var (path, embedding) in perFile)
+        {
+            (List<float[]> Embeddings, List<string> Files)? best = null;
+            var bestSim = 0.0;
+
+            foreach (var cluster in clusters)
+            {
+                var sim = CosineSimilarity(Average(cluster.Embeddings), embedding);
+                if (sim >= threshold && sim > bestSim)
+                {
+                    bestSim = sim;
+                    best = cluster;
+                }
+            }
+
+            if (best is { } match)
+            {
+                match.Embeddings.Add(embedding);
+                match.Files.Add(path);
+            }
+            else
+            {
+                clusters.Add(([embedding], [path]));
+            }
+        }
+
+        // Groups under 3 photos are dropped as likely noise (a single stray
+        // detection), same threshold Curator uses for burst-shot grouping.
+        return clusters
+            .Where(c => c.Files.Count >= 3)
+            .OrderByDescending(c => c.Files.Count)
+            .Select(c => new UnnamedPersonCluster
+            {
+                SampleMediaFilePath = c.Files[0],
+                MediaFilePaths = c.Files
+            })
+            .ToList();
+    }
+
+    public async Task<Guid> NamePersonFromClusterAsync(string name, IReadOnlyList<string> clusterMediaFilePaths, string libraryPath)
+    {
+        if (clusterMediaFilePaths.Count == 0)
+            throw new ArgumentException("Cluster has no photos", nameof(clusterMediaFilePaths));
+
+        var referencePath = clusterMediaFilePaths[0];
+        var bytes = await File.ReadAllBytesAsync(referencePath);
+        var personId = await AddPersonAsync(
+            name,
+            [new ReferencePhotoInput(Path.GetFileName(referencePath), bytes)],
+            libraryPath);
+
+        // The clustering already established these faces belong together - no
+        // need to re-run similarity comparison, just link them directly.
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        foreach (var path in clusterMediaFilePaths)
+        {
+            var faces = await db.MediaFaces
+                .Where(x => x.MatchedPersonId == null && x.MediaFilePath == path)
+                .ToListAsync();
+
+            foreach (var face in faces)
+            {
+                face.MatchedPersonId = personId;
+                face.Confidence = 1.0;
+                face.UserConfirmed = false;
+            }
+        }
+        await db.SaveChangesAsync();
+
+        return personId;
+    }
+
+    private static float[] Average(List<float[]> vectors)
+    {
+        var len = vectors[0].Length;
+        var avg = new float[len];
+        foreach (var v in vectors)
+            for (var i = 0; i < len; i++)
+                avg[i] += v[i] / vectors.Count;
+        return avg;
+    }
+
     private async Task SaveReferencePhotosAsync(
         MediaDbContext db,
         Guid personId,

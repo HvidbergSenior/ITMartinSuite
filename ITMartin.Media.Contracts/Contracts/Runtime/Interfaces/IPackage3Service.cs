@@ -33,4 +33,20 @@ public interface IPackage3Service
     /// read it directly for that specific gallery/library.
     /// </summary>
     Task ConfirmMatchesAsync(Guid personId, IReadOnlyList<string> confirmedFilePaths, string libraryPath);
+
+    /// <summary>
+    /// Clusters already-indexed faces with no registered person yet, by embedding
+    /// similarity, so unknown people can be discovered without already knowing a
+    /// name or having a reference photo. Groups smaller than 3 photos are dropped
+    /// as likely noise (a single stray detection, not a real recurring person).
+    /// </summary>
+    Task<List<UnnamedPersonCluster>> DiscoverUnnamedPeopleAsync(string libraryPath, double threshold = 0.5);
+
+    /// <summary>
+    /// Names a cluster found by DiscoverUnnamedPeopleAsync: registers a new person
+    /// using one of the cluster's own photos as the reference, then immediately
+    /// marks every face already in that cluster as matched - no re-comparison
+    /// needed, the clustering already established they belong together.
+    /// </summary>
+    Task<Guid> NamePersonFromClusterAsync(string name, IReadOnlyList<string> clusterMediaFilePaths, string libraryPath);
 }
