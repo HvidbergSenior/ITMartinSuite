@@ -267,6 +267,12 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
 
     var restFolders = Directory.EnumerateDirectories(current)
         .Where(d => !Path.GetFileName(d).StartsWith('.'))
+        // "thumbnails" is GalleryThumbnailService's own generated cache, sitting
+        // inside every content folder at every depth - the root-level hidden-
+        // folder check above only applies at atRoot, so without this a customer
+        // browsing into any year/month folder would see a spurious "thumbnails"
+        // folder and could click into it to see a grid of meaningless tiny crops.
+        .Where(d => !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase))
         .Where(d => !atRoot || (!hiddenFolders.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))))
         .OrderBy(Path.GetFileName)
         .Select(d => ToEntry(d))
