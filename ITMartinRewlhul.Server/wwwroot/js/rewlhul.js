@@ -62,6 +62,43 @@ window.rewlhul = (function () {
         osc.stop(now + duration + 0.02);
     }
 
+    // Low sawtooth with a wobbling pitch + irregular gain envelope, filtered
+    // to sound raspy rather than a clean tone - a comedic fart, not a musical
+    // note like the four drum pads.
+    function fart() {
+        var c = ctx();
+        var now = c.currentTime;
+        var duration = 0.7 + Math.random() * 0.3;
+
+        var osc = c.createOscillator();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + duration);
+
+        // Wobble the pitch a few times over the note for a "sputtering" feel.
+        var wobble = c.createOscillator();
+        wobble.type = "sine";
+        wobble.frequency.value = 18 + Math.random() * 6;
+        var wobbleGain = c.createGain();
+        wobbleGain.gain.value = 25;
+        wobble.connect(wobbleGain).connect(osc.frequency);
+        wobble.start(now);
+        wobble.stop(now + duration);
+
+        var filter = c.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 500;
+
+        var gain = c.createGain();
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.6, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(filter).connect(gain).connect(c.destination);
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+    }
+
     // One distinct drum voice per pad: kick, snare, hi-hat, cowbell.
     function playTone(index) {
         var c = ctx();
@@ -113,9 +150,30 @@ window.rewlhul = (function () {
         });
     }
 
+    // Blazor Server round-trips every click over SignalR before the C#
+    // handler can call back into JS - noticeable delay between the physical
+    // press and the sound. This listens on the pad grid directly (raw DOM
+    // event, no Blazor involved) so the sound fires the instant the button
+    // is pressed, in parallel with (not waiting for) the server round-trip
+    // that still submits the tap for game-state/multiplayer scoring.
+    // Delegated on the grid container, not the buttons themselves, so it
+    // survives Blazor re-rendering/patching the individual pad elements.
+    var _tapSoundsBound = false;
+    function initTapSounds() {
+        if (_tapSoundsBound) return;
+        _tapSoundsBound = true;
+        document.addEventListener("pointerdown", function (e) {
+            var pad = e.target.closest("[data-pad]");
+            if (!pad || pad.disabled) return;
+            playTone(parseInt(pad.getAttribute("data-pad"), 10));
+        }, true);
+    }
+
     return {
         initUnlock: initUnlock,
+        initTapSounds: initTapSounds,
         playTone: playTone,
-        playSequence: playSequence
+        playSequence: playSequence,
+        fart: fart
     };
 })();

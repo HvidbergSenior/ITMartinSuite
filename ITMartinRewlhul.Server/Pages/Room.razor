@@ -23,6 +23,11 @@ else
     <div class="rw-page">
         <div class="rw-title">🎹 Rewlhul</div>
 
+        <!-- Plain HTML onclick, not Blazor's @onclick - pure fun, no game
+             state involved, so there's no reason to pay the SignalR
+             round-trip just to play a sound. -->
+        <button class="rw-btn rw-fart-btn" onclick="rewlhul.fart()">💨 Fjert</button>
+
         @if (_room.Phase == "Lobby")
         {
             <div class="rw-hint">Del koden med de andre spillere</div>
@@ -115,6 +120,12 @@ else
         // never count as a direct user gesture on their own.
         try { await JS.InvokeVoidAsync("rewlhul.initUnlock"); } catch { }
 
+        // Plays the tap sound instantly on physical press via a raw DOM
+        // listener, in parallel with (not blocked by) the SignalR round-trip
+        // TapAsync still does for actual game-state submission - see
+        // rewlhul.js's initTapSounds for why.
+        try { await JS.InvokeVoidAsync("rewlhul.initTapSounds"); } catch { }
+
         await MaybePlayRevealAsync();
     }
 
@@ -151,10 +162,13 @@ else
         return Task.CompletedTask;
     }
 
-    private async Task TapAsync(int pad)
+    private Task TapAsync(int pad)
     {
-        try { await JS.InvokeVoidAsync("rewlhul.playTone", pad); } catch { }
+        // Sound already played instantly client-side (see initTapSounds) -
+        // calling playTone again here would double it up once this
+        // round-trip completes.
         Rooms.SubmitTap(Code, _myName, pad);
+        return Task.CompletedTask;
     }
 
     // Matches rewlhul.js's four drum voices (kick/snare/hi-hat/cowbell), so
