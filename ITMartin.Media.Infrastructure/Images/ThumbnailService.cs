@@ -101,7 +101,16 @@ public sealed class ThumbnailService
                 inputPath,
                 cancellationToken);
 
+        // ImageSharp does not auto-apply a JPEG's EXIF Orientation tag on
+        // load - without this, a photo taken with the phone held sideways
+        // generates a thumbnail from the raw, unrotated pixel grid, sideways
+        // or upside-down, even though the full-size original displays
+        // correctly (browsers do respect EXIF orientation for a plain <img>
+        // pointed at the original file).
         image.Mutate(x =>
+        {
+            x.AutoOrient();
+
             x.Resize(
                 new ResizeOptions
                 {
@@ -110,7 +119,8 @@ public sealed class ThumbnailService
 
                     Mode =
                         ResizeMode.Max
-                }));
+                });
+        });
 
         await image.SaveAsJpegAsync(
             outputPath,
