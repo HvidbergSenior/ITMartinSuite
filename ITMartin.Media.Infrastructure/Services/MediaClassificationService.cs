@@ -151,7 +151,12 @@ public class MediaClassificationService : IMediaClassificationService
 
         file.Source = DetectSource(file);
 
-        if (name.Contains("screenrecord"))
+        // "screenrecord" alone misses iOS's real native filename (RPReplay_Final...)
+        // and "Screen Recording ..." (with a space) - both real, common naming
+        // conventions this was previously silently missing.
+        if (name.Contains("screenrecord") ||
+            name.Contains("screen record") ||
+            name.StartsWith("rpreplay"))
         {
             file.SubCategory = MediaSubCategory.ScreenRecording;
             return;
