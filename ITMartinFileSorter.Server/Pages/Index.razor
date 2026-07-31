@@ -19,6 +19,10 @@
 @inject IPackage1Client Package1Client
 @inject IPackage2Client Package2Client
 @inject Package1ManifestSummaryService ManifestSummaryService
+@inject ILibraryPolishService LibraryPolishService
+@inject IStaticGalleryExportService GalleryExportService
+@inject IGalleryThumbnailService GalleryThumbnailService
+@inject ISmartFoldersService SmartFoldersService
 
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
@@ -179,29 +183,78 @@
 
             </ContentCard>
 
-            <ActionButtonBar CssClass="bottom export-bar">
+            @if (_finishingStage is not null)
+            {
+                <ActionButtonBar CssClass="bottom export-bar">
+                    <div class="export-status">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                        <span>@_finishingStage</span>
+                    </div>
+                </ActionButtonBar>
+            }
+            else if (_pipelineComplete)
+            {
+                <ActionButtonBar CssClass="bottom export-bar">
 
-                <div class="export-status">
+                    <div class="export-status">
+                        <span class="text-success">
+                            ✔ Klar — biblioteket er organiseret og galleriet er bygget
+                        </span>
+                    </div>
 
-                    <span class="text-success">
-                        ✔ Cleanup completed — ready to export
-                    </span>
+                    <span class="spacer"></span>
 
-                </div>
+                    <button class="btn btn-primary btn-lg"
+                            @onclick="ContinueToEnhancement">
+                        ✨ Continue To Enhancement
+                    </button>
 
-                <span class="spacer"></span>
+                </ActionButtonBar>
 
-                <button class="btn btn-success btn-lg"
-                        @onclick="GoToExport">
-                    📦 Export Files
-                </button>
+                <ContentCard CssClass="mt-3">
+                    <SectionTitle Title="Temamapper (valgfrit)" />
+                    <div class="addon-row" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px">
 
-                <button class="btn btn-primary btn-lg"
-                        @onclick="ContinueToEnhancement">
-                    ✨ Continue To Enhancement
-                </button>
+                        <button class="btn btn-outline-primary"
+                                disabled="@(_addonBusy is not null)"
+                                @onclick="RunRejserAsync">
+                            @(_addonBusy == "Rejser" ? "⏳ Rejser..." : "🧳 Rejser")
+                        </button>
 
-            </ActionButtonBar>
+                        <button class="btn btn-outline-primary"
+                                disabled="@(_addonBusy is not null)"
+                                @onclick="RunHjemmeRejserAsync">
+                            @(_addonBusy == "Hjemme & rejser" ? "⏳ Hjemme & rejser..." : "🏠 Hjemme & rejser")
+                        </button>
+
+                        <span style="display:flex;gap:6px;align-items:center">
+                            <input type="number" class="form-control" style="width:90px"
+                                   @bind="_yearbookYear" disabled="@(_addonBusy is not null)" />
+                            <button class="btn btn-outline-primary"
+                                    disabled="@(_addonBusy is not null)"
+                                    @onclick="RunAarbogAsync">
+                                @(_addonBusy == "Årbog" ? "⏳ Årbog..." : "📖 Årbog")
+                            </button>
+                        </span>
+
+                        <span class="text-muted" style="font-size:13px">
+                            Efter person kræver navn + referencefoto — ikke en ét-klik-knap endnu.
+                        </span>
+
+                    </div>
+                </ContentCard>
+            }
+            else
+            {
+                <ActionButtonBar CssClass="bottom export-bar">
+                    <div class="export-status">
+                        <span class="text-success">
+                            ✔ Cleanup completed
+                        </span>
+                    </div>
+                </ActionButtonBar>
+            }
+
         }
 
     </div>
@@ -369,6 +422,8 @@
                     await InvokeAsync(
                         StateHasChanged);
 
+                    await RunDefaultPipelineAsync(exportRoot!);
+
                     break;
                 }
 
@@ -391,11 +446,82 @@
         }
     }
 
-    private void GoToExport()
+    private string? _finishingStage;
+
+    private bool _pipelineComplete;
+
+    private string? _addonBusy;
+
+    private int _yearbookYear = DateTime.UtcNow.Year;
+
+    // Default one-click pipeline - Package1 already scans+dedupes+classifies+
+    // exports in one workflow (see Package1WorkflowDefinition), so everything
+    // here runs automatically once that's done. Package2 (AI enhancement) and
+    // every Temamapper add-on (Rejser/Årbog/Efter person/Hjemme & rejser) stay
+    // explicitly opt-in, not part of the default run.
+    private async Task RunDefaultPipelineAsync(string libraryPath)
     {
-        Navigation.NavigateTo(
-            "/export");
+        try
+        {
+            _finishingStage = "Rydder op i biblioteket...";
+            await InvokeAsync(StateHasChanged);
+            await LibraryPolishService.PolishAsync(libraryPath);
+
+            _finishingStage = "Bygger offline-galleri...";
+            await InvokeAsync(StateHasChanged);
+            await GalleryExportService.ExportAsync(libraryPath);
+
+            _finishingStage = "Genererer miniaturer...";
+            await InvokeAsync(StateHasChanged);
+            await GalleryThumbnailService.GenerateAsync(libraryPath);
+
+            _pipelineComplete = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Default pipeline failed");
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            _finishingStage = null;
+            await InvokeAsync(StateHasChanged);
+        }
     }
+
+    private string LibraryPath =>
+        Configuration["MediaSettings:LibraryRoot"] ?? "";
+
+    private async Task RunAddonAsync(string label, Func<Task> action)
+    {
+        if (_addonBusy is not null) return;
+
+        try
+        {
+            _addonBusy = label;
+            await InvokeAsync(StateHasChanged);
+            await action();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Add-on {Label} failed", label);
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            _addonBusy = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task RunRejserAsync() =>
+        RunAddonAsync("Rejser", () => SmartFoldersService.GenerateTripFoldersAsync(LibraryPath));
+
+    private Task RunHjemmeRejserAsync() =>
+        RunAddonAsync("Hjemme & rejser", () => SmartFoldersService.GenerateHomeAwayFoldersAsync(LibraryPath));
+
+    private Task RunAarbogAsync() =>
+        RunAddonAsync("Årbog", () => SmartFoldersService.GenerateYearbookAsync(LibraryPath, _yearbookYear));
 
     private static string FormatSize(
         long bytes)
