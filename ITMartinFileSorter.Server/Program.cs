@@ -11,6 +11,23 @@ using Microsoft.Extensions.FileProviders;
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================
+// GENERIC PER-CLIENT PATHS
+// =========================
+
+// One env var (MediaSettings__ClientSlug) instead of hand-editing three
+// separate paths per client - switching clients is now just changing this
+// one value + restarting the container, no volume-path editing needed as
+// long as C:/FileSorterJobs/incoming/{slug} and .../library/{slug} exist
+// under the generic /jobs and /library mounts in docker-compose.yaml.
+var clientSlug = builder.Configuration["MediaSettings:ClientSlug"];
+if (!string.IsNullOrWhiteSpace(clientSlug))
+{
+    builder.Configuration["MediaSettings:SourceRoot"] = $"/jobs/{clientSlug}";
+    builder.Configuration["MediaSettings:LibraryRoot"] = $"/library/{clientSlug}";
+    builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source=/library/{clientSlug}/.media.db";
+}
+
+// =========================
 // BLAZOR
 // =========================
 

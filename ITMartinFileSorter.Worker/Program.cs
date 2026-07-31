@@ -6,6 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
     var builder = Host.CreateApplicationBuilder(args);
 
+    // Same generic per-client derivation as ITMartinFileSorter.Server/Program.cs -
+    // MediaSettings__ClientSlug is the only thing that changes between clients.
+    var clientSlug = builder.Configuration["MediaSettings:ClientSlug"];
+    if (!string.IsNullOrWhiteSpace(clientSlug))
+    {
+        builder.Configuration["MediaSettings:SourceRoot"] = $"/jobs/{clientSlug}";
+        builder.Configuration["MediaSettings:LibraryRoot"] = $"/library/{clientSlug}";
+        builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source=/library/{clientSlug}/.media.db";
+    }
+
     builder.Services.AddMediaPlatform(
         builder.Configuration);
     builder.Services.AddFileSorterCore();
