@@ -455,6 +455,7 @@ function renderFileGrid(files) {
     fg2.innerHTML = files.map((f, i) => {
       if (f.isVideo) return `
         <div class="file-card" onclick="openViewer(${i})">
+          ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" alt="">` : ''}
           <div class="file-overlay vid-overlay">▶</div>
           <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
         </div>`;

@@ -68,11 +68,16 @@ public sealed class GalleryThumbnailService : IGalleryThumbnailService
         return generated;
     }
 
+    // Previously images only - videos never got a thumbnails/ entry at all,
+    // so gallery-web's video cards (and any folder cover that happened to
+    // land on a video-only folder) always fell back to a generic play-icon
+    // placeholder instead of a real frame. ThumbnailService.GenerateAsync
+    // already supports video (ffmpeg frame grab) - just wasn't being asked to.
     private static IEnumerable<string> EnumerateImages(string directory)
     {
         foreach (var file in Directory.EnumerateFiles(directory))
         {
-            if (MediaTypeHelper.IsImage(file))
+            if (MediaTypeHelper.IsImage(file) || MediaTypeHelper.IsVideo(file))
                 yield return file;
         }
 

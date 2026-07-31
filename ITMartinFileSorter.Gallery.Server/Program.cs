@@ -319,7 +319,10 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
                 name      = Path.GetFileName(f),
                 relPath   = Rel(f, r),
                 webPath   = wp,
-                thumb     = IsImg(ext) ? (Thumb(f, r, g.Slug) ?? wp) : (string?)null,
+                // Videos: real thumbnail if it exists yet, otherwise null (not
+                // the raw video URL - a browser can't render an mp4 as an
+                // <img>, that would just show a broken image icon).
+                thumb     = IsImg(ext) ? (Thumb(f, r, g.Slug) ?? wp) : (IsVid(ext) ? Thumb(f, r, g.Slug) : null),
                 isVideo   = IsVid(ext),
                 isAudio   = IsAud(ext),
                 liveVideo = FindLivePhotoVideo(f, r, g.Slug),
@@ -470,7 +473,7 @@ app.MapGet("/api/collections/files", (string gallery, string name, HttpContext c
                 name      = Path.GetFileName(f),
                 relPath   = Rel(f, g.Path),
                 webPath   = wp,
-                thumb     = IsImg(ext) ? (Thumb(f, g.Path, g.Slug) ?? wp) : (string?)null,
+                thumb     = IsImg(ext) ? (Thumb(f, g.Path, g.Slug) ?? wp) : (IsVid(ext) ? Thumb(f, g.Path, g.Slug) : null),
                 isVideo   = IsVid(ext),
                 isAudio   = IsAud(ext),
                 liveVideo = FindLivePhotoVideo(f, g.Path, g.Slug),
@@ -546,7 +549,13 @@ static string? FindLivePhotoVideo(string imagePath, string r, string slug)
     return null;
 }
 
-static string? FolderCover(string dir, string r, string slug)
+// Year-level folders (e.g. "Images/2025") never have any files directly
+// inside them - the actual photos/thumbnails live one level deeper, under
+// each month subfolder. Only checking the immediate folder meant every
+// year/top-level card showed a generic placeholder instead of a real cover -
+// searches down a few levels (month folders, not the whole library) for the
+// first usable cover instead of just the immediate directory.
+static string? FolderCover(string dir, string r, string slug, int depth = 3)
 {
     var td = Path.Combine(dir, "thumbnails");
     if (Directory.Exists(td))
@@ -554,8 +563,25 @@ static string? FolderCover(string dir, string r, string slug)
         var t = Directory.EnumerateFiles(td, "*.jpg").FirstOrDefault();
         if (t is not null) return Web(t, r, slug);
     }
-    var img = Directory.EnumerateFiles(dir).FirstOrDefault(f => IsImg(Ext(f)));
-    return img is not null ? Web(img, r, slug) : null;
+
+    // Images render fine as a raw <img src> fallback with no thumbnail yet;
+    // a video file wouldn't (browsers can't show an mp4 as an image) - videos
+    // only ever get a cover via their thumbnails/ entry, checked above.
+    var direct = Directory.EnumerateFiles(dir).FirstOrDefault(f => IsImg(Ext(f)));
+    if (direct is not null) return Web(direct, r, slug);
+
+    if (depth <= 0) return null;
+
+    foreach (var subDir in Directory.EnumerateDirectories(dir).OrderBy(Path.GetFileName))
+    {
+        var name = Path.GetFileName(subDir);
+        if (name.StartsWith('.') || name.Equals("thumbnails", StringComparison.OrdinalIgnoreCase)) continue;
+
+        var cover = FolderCover(subDir, r, slug, depth - 1);
+        if (cover is not null) return cover;
+    }
+
+    return null;
 }
 
 static List<MediaCollection> LoadCollections(string libraryPath)
