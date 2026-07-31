@@ -49,4 +49,18 @@ public interface IPackage3Service
     /// needed, the clustering already established they belong together.
     /// </summary>
     Task<Guid> NamePersonFromClusterAsync(string name, IReadOnlyList<string> clusterMediaFilePaths, string libraryPath);
+
+    /// <summary>
+    /// For files sitting in Undated (no reliable date could be determined),
+    /// tries to place them by matching against already-dated content
+    /// elsewhere in the library: first by face (same person appears in dated
+    /// photos), then by GPS proximity (same place as dated photos/videos) for
+    /// anything not matched by face. Confident matches get moved into the
+    /// matched file's Year/Month folder; everything else stays in Undated.
+    /// </summary>
+    Task<UndatedEstimationResult> EstimateUndatedDatesAsync(
+        string libraryPath,
+        double faceThreshold = 0.5,
+        double gpsToleranceMeters = 500,
+        CancellationToken cancellationToken = default);
 }

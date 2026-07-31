@@ -293,6 +293,9 @@ app.MapPost("/api/debug/sf-sync-collections", async (string path, ITMartin.Media
     return Results.Ok("synced");
 });
 
+app.MapPost("/api/debug/p3-estimate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+    Results.Ok(await service.EstimateUndatedDatesAsync(path)));
+
 app.MapGet("/api/debug/mediafaces-paths", async (string like, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
 {
     await using var db = await dbFactory.CreateDbContextAsync();

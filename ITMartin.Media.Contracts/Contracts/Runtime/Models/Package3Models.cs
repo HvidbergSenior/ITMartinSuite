@@ -41,3 +41,14 @@ public sealed class UnnamedPersonCluster
     public required IReadOnlyList<string> MediaFilePaths { get; init; }
     public int PhotoCount => MediaFilePaths.Count;
 }
+
+/// <summary>
+/// Result of trying to date Undated files by matching them (via face or GPS
+/// proximity) against already-dated content elsewhere in the library.
+/// </summary>
+public sealed class UndatedEstimationResult
+{
+    public int MovedByFaceMatch { get; init; }
+    public int MovedByGpsMatch { get; init; }
+    public int StillUndated { get; init; }
+}

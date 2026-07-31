@@ -32,6 +32,7 @@ public sealed class Package3Service : IPackage3Service
     private readonly Func<IFaceRecognitionService> _faceRecognitionFactory;
     private readonly IThumbnailService _thumbnailService;
     private readonly ICollectionStore _collectionStore;
+    private readonly IGpsService _gpsService;
     private readonly ILogger<Package3Service> _logger;
 
     public Package3Service(
@@ -39,12 +40,14 @@ public sealed class Package3Service : IPackage3Service
         Func<IFaceRecognitionService> faceRecognitionFactory,
         IThumbnailService thumbnailService,
         ICollectionStore collectionStore,
+        IGpsService gpsService,
         ILogger<Package3Service> logger)
     {
         _dbFactory = dbFactory;
         _faceRecognitionFactory = faceRecognitionFactory;
         _thumbnailService = thumbnailService;
         _collectionStore = collectionStore;
+        _gpsService = gpsService;
         _logger = logger;
     }
 
@@ -545,6 +548,190 @@ public sealed class Package3Service : IPackage3Service
         await db.SaveChangesAsync();
 
         return personId;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex YearMonthFolderPattern =
+        new(@"[\\/](\d{4})[\\/](\d{2}-[A-Za-z]+)[\\/]", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Pulls the exact "{year}/{month-folder}" segment straight from an
+    // already-dated file's own path (e.g. ".../Images/2025/02-February/x.jpg")
+    // rather than reconstructing the month name - avoids any risk of the
+    // reconstructed name not matching the culture/format the rest of the
+    // pipeline already used for that folder.
+    private static string? ExtractYearMonthFolder(string path)
+    {
+        var match = YearMonthFolderPattern.Match(path);
+        return match.Success ? $"{match.Groups[1].Value}/{match.Groups[2].Value}" : null;
+    }
+
+    private static double HaversineMeters(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double earthRadiusM = 6371000;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        return earthRadiusM * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
+    public async Task<UndatedEstimationResult> EstimateUndatedDatesAsync(
+        string libraryPath,
+        double faceThreshold = 0.5,
+        double gpsToleranceMeters = 500,
+        CancellationToken cancellationToken = default)
+    {
+        // Populate/refresh MediaFaces for the whole library (skip-if-already-
+        // indexed, free/local) so both the dated reference set and the
+        // Undated candidates have embeddings to compare.
+        await IndexFacesAsync(libraryPath, cancellationToken);
+
+        var movedByFace = 0;
+        var movedByGps = 0;
+        var stillUndated = new List<string>();
+
+        var handled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // ===== Pass 1: face match =====
+        await using (var db = await _dbFactory.CreateDbContextAsync(cancellationToken))
+        {
+            var allFaces = await db.MediaFaces
+                .Where(x => x.EmbeddingJson != "[]")
+                .ToListAsync(cancellationToken);
+
+            var dated = new List<(float[] Embedding, string YearMonth)>();
+            var undated = new List<(string Path, float[] Embedding)>();
+
+            foreach (var face in allFaces)
+            {
+                float[] vector;
+                try { vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? []; }
+                catch (JsonException) { continue; }
+                if (vector.Length == 0) continue;
+
+                var isUndated = face.MediaFilePath.Contains($"{Path.DirectorySeparatorChar}Undated{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+                    || face.MediaFilePath.Contains("/Undated/", StringComparison.OrdinalIgnoreCase);
+
+                if (isUndated)
+                {
+                    undated.Add((face.MediaFilePath, vector));
+                }
+                else
+                {
+                    var ym = ExtractYearMonthFolder(face.MediaFilePath);
+                    if (ym is not null) dated.Add((vector, ym));
+                }
+            }
+
+            foreach (var (path, embedding) in undated)
+            {
+                if (!File.Exists(path)) continue;
+
+                var best = 0.0;
+                string? bestYearMonth = null;
+                foreach (var (refEmbedding, ym) in dated)
+                {
+                    var sim = CosineSimilarity(embedding, refEmbedding);
+                    if (sim > best) { best = sim; bestYearMonth = ym; }
+                }
+
+                if (best >= faceThreshold && bestYearMonth is not null && MoveIntoDatedFolder(path, bestYearMonth))
+                {
+                    handled.Add(path);
+                    movedByFace++;
+                }
+            }
+        }
+
+        // ===== Pass 2: GPS proximity, for anything not already matched =====
+        var undatedFiles = Directory.Exists(Path.Combine(libraryPath, "Undated"))
+            ? Directory.EnumerateFiles(Path.Combine(libraryPath, "Undated"), "*", SearchOption.AllDirectories)
+                .Where(f => !handled.Contains(f))
+                .ToList()
+            : [];
+
+        if (undatedFiles.Count > 0)
+        {
+            var gpsService = _gpsService;
+            var datedGps = new List<(double Lat, double Lng, string YearMonth)>();
+
+            foreach (var file in EnumerateLibraryImages(libraryPath))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (file.Contains($"{Path.DirectorySeparatorChar}Undated{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var coords = gpsService.GetCoordinates(file);
+                if (coords is null) continue;
+
+                var ym = ExtractYearMonthFolder(file);
+                if (ym is not null) datedGps.Add((coords.Value.lat, coords.Value.lng, ym));
+            }
+
+            foreach (var file in undatedFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var coords = gpsService.GetCoordinates(file);
+                if (coords is null) { stillUndated.Add(file); continue; }
+
+                var bestDistance = double.MaxValue;
+                string? bestYearMonth = null;
+                foreach (var (lat, lng, ym) in datedGps)
+                {
+                    var d = HaversineMeters(coords.Value.lat, coords.Value.lng, lat, lng);
+                    if (d < bestDistance) { bestDistance = d; bestYearMonth = ym; }
+                }
+
+                if (bestDistance <= gpsToleranceMeters && bestYearMonth is not null && MoveIntoDatedFolder(file, bestYearMonth))
+                {
+                    movedByGps++;
+                }
+                else
+                {
+                    stillUndated.Add(file);
+                }
+            }
+        }
+
+        return new UndatedEstimationResult
+        {
+            MovedByFaceMatch = movedByFace,
+            MovedByGpsMatch = movedByGps,
+            StillUndated = stillUndated.Count,
+        };
+    }
+
+    // Undated files sit flat at Undated/{category}/{filename} (no year/month
+    // subfolder - there was never a date to organize by). Moves into the
+    // matched date's {category}/{year}/{month} folder, disambiguating on a
+    // filename collision rather than silently overwriting.
+    private static bool MoveIntoDatedFolder(string undatedPath, string yearMonth)
+    {
+        try
+        {
+            var category = Path.GetFileName(Path.GetDirectoryName(undatedPath)!); // Undated/{category}/file -> category
+            var undatedRoot = Path.GetDirectoryName(Path.GetDirectoryName(undatedPath)!)!; // .../Undated
+            var libraryRoot = Path.GetDirectoryName(undatedRoot)!;
+
+            var destDir = Path.Combine(libraryRoot, category, yearMonth.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(destDir);
+
+            var destPath = Path.Combine(destDir, Path.GetFileName(undatedPath));
+            var attempt = 1;
+            while (File.Exists(destPath))
+            {
+                destPath = Path.Combine(destDir,
+                    $"{Path.GetFileNameWithoutExtension(undatedPath)}_{attempt}{Path.GetExtension(undatedPath)}");
+                attempt++;
+            }
+
+            File.Move(undatedPath, destPath);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
     }
 
     private static float[] Average(List<float[]> vectors)
