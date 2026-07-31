@@ -181,7 +181,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
     // Real screenshot tools save lossless PNG; a JPG sitting in a "Screenshots"
     // folder is almost always a real photo that coincidentally matched a phone
-    // screen resolution (see MediaClassificationService). Moves it to the
+    // screen resolution. Moves it to the
     // parallel "Images" path (same Year/Month structure) and repoints any
     // MediaFaces rows so face-matching keeps working after the move.
     private async Task<int> FixMisclassifiedScreenshotsAsync(string libraryPath, CancellationToken cancellationToken)

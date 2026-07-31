@@ -65,8 +65,13 @@ public sealed class MediaRulesWorkflowStep
     private static readonly string[] ScreenshotKeywords =
         ["screenshot", "screen shot", "screen_shot", "skærmbillede", "bildschirmfoto", "capture_", "captura"];
 
-    private static readonly string[] MemeKeywords =
-        ["fb_img_", "received_", "tumblr_", "meme", "funny_", "ifunny"];
+    // No dedicated Meme category - filename-only heuristics can't reliably tell a
+    // meme from a personal photo shared the same way (both come through as
+    // received_/fb_img_-style names from messaging apps). Unclassified images
+    // fall through to OtherImage -> the regular Images category instead.
+
+    private static readonly string[] ScreenRecordingKeywords =
+        ["screenrecord", "screen record", "skærmoptagelse"];
 
     // iPhone/iPad/Android screenshots are named IMG_XXXX with no keyword, so they can only be
     // caught by exact device resolution. This runs later, from MetadataWorkflowStep, once
@@ -104,13 +109,36 @@ public sealed class MediaRulesWorkflowStep
             return;
         }
 
-        if (MemeKeywords.Any(k => nameLower.Contains(k)))
+        mediaFile.SubCategory = MediaSubCategory.OtherImage;
+    }
+
+    // Nothing previously set video SubCategory at all in the live pipeline -
+    // every video silently stayed UnknownVideo (its constructor default)
+    // regardless of whether it was a real screen recording or a phone video.
+    private static void ClassifyVideoSubCategory(MediaFile mediaFile)
+    {
+        if (mediaFile.Type != MediaType.Video) return;
+
+        var nameLower = Path.GetFileNameWithoutExtension(mediaFile.FileName).ToLowerInvariant();
+
+        // iOS's real native screen-recording filename is "RPReplay_Final...",
+        // not "screenrecord" - a filename-substring check for just
+        // "screenrecord" misses it and misses "Screen Recording ..." (with a
+        // space) too, since neither contains "screenrecord" as one word.
+        if (ScreenRecordingKeywords.Any(k => nameLower.Contains(k)) ||
+            nameLower.StartsWith("rpreplay"))
         {
-            mediaFile.SubCategory = MediaSubCategory.Meme;
+            mediaFile.SubCategory = MediaSubCategory.ScreenRecording;
             return;
         }
 
-        mediaFile.SubCategory = MediaSubCategory.OtherImage;
+        if (nameLower.StartsWith("vid_") || nameLower.StartsWith("mov_"))
+        {
+            mediaFile.SubCategory = MediaSubCategory.PhoneVideo;
+            return;
+        }
+
+        mediaFile.SubCategory = MediaSubCategory.OtherVideo;
     }
 
     private void ApplyRules(
@@ -121,6 +149,7 @@ public sealed class MediaRulesWorkflowStep
             .ToLowerInvariant();
 
     ClassifyImageSubCategory(mediaFile);
+    ClassifyVideoSubCategory(mediaFile);
 
     switch (extension)
     {

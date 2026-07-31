@@ -74,10 +74,6 @@ public sealed class AiClassificationWorkflowStep : Package1WorkflowStepBase
                             file.ExportSubFolder = "DeleteCandidates";
                             file.AiSubCategory = result.IsBlurry ? "Blurry" : "SolidColor";
                         }
-                        else if (result.IsMeme && file.SubCategory != MediaSubCategory.Meme)
-                        {
-                            file.SubCategory = MediaSubCategory.Meme;
-                        }
                         else if (result.IsScreenshot && file.SubCategory != MediaSubCategory.Screenshot)
                         {
                             file.SubCategory = MediaSubCategory.Screenshot;
