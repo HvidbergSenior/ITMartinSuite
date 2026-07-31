@@ -37,7 +37,9 @@ mime.Mappings[".wav"]  = "audio/wav";
 // own photos is never affected). SmartFolders' content (Home/Outside/People/
 // Yearbook) is synced into collections.json instead, so it shows as grouped
 // cards up top rather than requiring a click into a raw folder.
-var RootFoldersHiddenFromBrowsing = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+// Always hidden, for every tenant - internal/generated or needs a human, not
+// something any customer should browse directly.
+var RootFoldersAlwaysHidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "_Galleri", "DeleteCandidates", "LivePhotos", "SmartFolders",
     // Videos LibraryPolishService couldn't confirm are playable (see
@@ -47,9 +49,18 @@ var RootFoldersHiddenFromBrowsing = new HashSet<string>(StringComparer.OrdinalIg
     // Real content, but a raw "here are your undated files"/"here are your
     // duplicates" folder reads as clutter/confusing rather than something
     // worth showing - not something a non-technical viewer needs to browse
-    // directly. Musik/Screenshots: explicitly requested hidden for Mie.
-    "Undated", "Duplicates", "Musik", "Screenshots",
+    // directly.
+    "Undated", "Duplicates", "Musik",
 };
+
+// Screenshots was previously hidden globally for every tenant based on one
+// customer's (Mie's) explicit request - that preference shouldn't silently
+// apply to everyone else. Per-tenant now (Galleries__N__HideScreenshots),
+// visible by default; only Mie opts out.
+HashSet<string> HiddenFoldersFor(GalleryDef gallery) =>
+    gallery.HideScreenshots
+        ? new HashSet<string>(RootFoldersAlwaysHidden, StringComparer.OrdinalIgnoreCase) { "Screenshots" }
+        : RootFoldersAlwaysHidden;
 
 // Friendly Danish labels for the root-level folders that do stay visible -
 // the folder name on disk never changes (other pipeline code depends on the
@@ -101,7 +112,8 @@ var galleries = app.Configuration
         Name:        s["Name"]     ?? "",
         Path:        s["Path"]     ?? "",
         Password:    s["Password"],
-        ShowSummary: s.GetValue<bool>("ShowSummary")))
+        ShowSummary: s.GetValue<bool>("ShowSummary"),
+        HideScreenshots: s.GetValue<bool>("HideScreenshots")))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -239,6 +251,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     if (!IsSafe(current, r))        return Results.BadRequest("path outside library");
 
     var atRoot = IsSameDir(current, r);
+    var hiddenFolders = HiddenFoldersFor(g);
 
     FolderEntry ToEntry(string d, string? nameOverride = null) => new(
         nameOverride ?? (atRoot && RootFolderDisplayNames.TryGetValue(Path.GetFileName(d), out var friendly) ? friendly : DanishFolderName(Path.GetFileName(d))),
@@ -254,7 +267,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
 
     var restFolders = Directory.EnumerateDirectories(current)
         .Where(d => !Path.GetFileName(d).StartsWith('.'))
-        .Where(d => !atRoot || (!RootFoldersHiddenFromBrowsing.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))))
+        .Where(d => !atRoot || (!hiddenFolders.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))))
         .OrderBy(Path.GetFileName)
         .Select(d => ToEntry(d))
         .ToList();
@@ -305,7 +318,9 @@ app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
 
     if (!Directory.Exists(g.Path)) return Results.NotFound();
 
-    // Same root-level exclusions as folderCount below (RootFoldersHiddenFromBrowsing)
+    var hiddenFolders = HiddenFoldersFor(g);
+
+    // Same root-level exclusions as folderCount below (hiddenFolders)
     // plus "thumbnails" wherever it appears - _Galleri/SmartFolders hold generated
     // thumbnails or symlinks back to files already counted, LivePhotos holds the
     // motion-clip companion to a still already counted in Images, and
@@ -313,7 +328,7 @@ app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
     // collection. Leaving any of these in inflates the "Din samling er klar" stats.
     var mediaFiles = Directory.EnumerateFiles(g.Path, "*.*", SearchOption.AllDirectories)
         .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}thumbnails{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
-        .Where(f => RootFoldersHiddenFromBrowsing.All(hidden =>
+        .Where(f => hiddenFolders.All(hidden =>
             !f.Contains($"{Path.DirectorySeparatorChar}{hidden}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)))
         .Where(IsMedia);
 
@@ -334,7 +349,7 @@ app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
     var folderCount = Directory.EnumerateDirectories(g.Path)
         .Count(d => !Path.GetFileName(d).StartsWith('.') &&
                     !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase) &&
-                    !RootFoldersHiddenFromBrowsing.Contains(Path.GetFileName(d)));
+                    !hiddenFolders.Contains(Path.GetFileName(d)));
 
     return Results.Ok(new
     {
@@ -538,6 +553,6 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // range, folder/photo counts) is a one-time customer-handoff moment, not
 // something a family member visiting a shared link should see - opt-in per
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary);
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots);
 record LoginRequest(string Gallery, string Password);
 record FolderEntry(string name, string relPath, string? cover);
