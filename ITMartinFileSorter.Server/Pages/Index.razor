@@ -207,12 +207,33 @@
                     </div>
 
                     <span class="spacer"></span>
+                </ActionButtonBar>
 
+                @if (_livePhotoStats is { Count: > 0 } stats)
+                {
+                    <ContentCard CssClass="mt-3">
+                        <SectionTitle Title="🎬 Live Photos — videoklip" />
+                        <p class="mt-2">
+                            <strong>@stats.Count</strong> Live Photo-videoklip fundet, i alt <strong>@FormatSize(stats.TotalBytes)</strong>.
+                            Selve billederne ligger allerede i de almindelige mapper uanset hvad du vælger her —
+                            dette handler kun om de ekstra bevægelsesklip de fleste ikke ved de har.
+                        </p>
+                        <div style="display:flex;gap:10px">
+                            <button class="btn btn-outline-secondary" disabled="@(_addonBusy is not null)" @onclick="KeepLivePhotoVideosAsync">
+                                Behold videoklip
+                            </button>
+                            <button class="btn btn-outline-danger" disabled="@(_addonBusy is not null)" @onclick="DeleteLivePhotoVideosAsync">
+                                @(_addonBusy == "LivePhotos" ? "⏳ Sletter..." : $"🗑 Slet videoklip (frigør {FormatSize(stats.TotalBytes)})")
+                            </button>
+                        </div>
+                    </ContentCard>
+                }
+
+                <ActionButtonBar CssClass="bottom export-bar">
                     <button class="btn btn-primary btn-lg"
                             @onclick="ContinueToEnhancement">
                         ✨ Continue To Enhancement
                     </button>
-
                 </ActionButtonBar>
 
                 <ContentCard CssClass="mt-3">
@@ -505,6 +526,8 @@
             await InvokeAsync(StateHasChanged);
             await GalleryThumbnailService.GenerateAsync(libraryPath);
 
+            _livePhotoStats = ComputeLivePhotoStats(libraryPath);
+
             _pipelineComplete = true;
         }
         catch (Exception ex)
@@ -521,6 +544,41 @@
 
     private string LibraryPath =>
         Configuration["MediaSettings:LibraryRoot"] ?? "";
+
+    private sealed record LivePhotoStats(int Count, long TotalBytes);
+
+    private LivePhotoStats? _livePhotoStats;
+
+    // The still image half of a Live Photo stays in its normal category/date
+    // folder - only the video-motion half gets segregated into LivePhotos/
+    // (see LivePhotoDetectionWorkflowStep), so scanning just this one folder
+    // is enough to size up "the part most people don't know they have."
+    private static LivePhotoStats ComputeLivePhotoStats(string libraryPath)
+    {
+        var dir = Path.Combine(libraryPath, "LivePhotos");
+        if (!Directory.Exists(dir)) return new LivePhotoStats(0, 0);
+
+        var files = Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories).ToList();
+        var totalBytes = files.Sum(f => new FileInfo(f).Length);
+        return new LivePhotoStats(files.Count, totalBytes);
+    }
+
+    private Task KeepLivePhotoVideosAsync()
+    {
+        _livePhotoStats = null;
+        return Task.CompletedTask;
+    }
+
+    private Task DeleteLivePhotoVideosAsync() =>
+        RunAddonAsync("LivePhotos", () =>
+        {
+            var dir = Path.Combine(LibraryPath, "LivePhotos");
+            if (Directory.Exists(dir))
+                Directory.Delete(dir, recursive: true);
+
+            _livePhotoStats = null;
+            return Task.CompletedTask;
+        });
 
     private async Task RunAddonAsync(string label, Func<Task> action)
     {
