@@ -240,16 +240,47 @@ let viewingCollection  = null;
 let galleryDisplayName = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-loadGalleries();
+startUp();
 
-// ── Gallery picker ────────────────────────────────────────────────────────────
-async function loadGalleries() {
+// Customers reach their own gallery only via a direct link (?g=slug) - never
+// a list of every other customer. The full picker below is Martin's own
+// admin view, reached only with the right PIN, never shown by default.
+async function startUp() {
+  const params = new URLSearchParams(location.search);
+  const slug = params.get('g');
+  const adminPin = params.get('admin');
+
+  if (slug) {
+    const infoRes = await fetch(`/api/gallery-info?gallery=${encodeURIComponent(slug)}`);
+    const name = infoRes.ok ? (await infoRes.json()).name : slug;
+    selectGallery(slug, name);
+    return;
+  }
+
+  if (adminPin) {
+    loadGalleries(adminPin);
+    return;
+  }
+
+  showNoGalleryState();
+}
+
+function showNoGalleryState() {
+  document.getElementById('galleryPicker').style.display = '';
+  document.getElementById('fileBrowser').style.display   = 'none';
+  document.getElementById('hdrTitle').textContent        = '🖼️ Galleri';
+  document.getElementById('galleryGrid').innerHTML =
+    `<div class="empty">Brug det galleri-link, du har fået tilsendt.</div>`;
+}
+
+// ── Gallery picker (Martin's own admin view only, requires ?admin=PIN) ────────
+async function loadGalleries(adminPin) {
   currentGallery = null;
   summaryData    = null;
   collectionsData    = null;
   viewingCollection  = null;
-  const res = await fetch('/api/galleries');
-  if (!res.ok) return;
+  const res = await fetch(`/api/galleries?adminPin=${encodeURIComponent(adminPin || '')}`);
+  if (!res.ok) { showNoGalleryState(); return; }
   const list = await res.json();
 
   document.getElementById('galleryPicker').style.display = '';
@@ -342,10 +373,13 @@ async function doLogin() {
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 document.getElementById('btnLogout').addEventListener('click', async () => {
-  if (currentGallery) {
-    await fetch(`/api/logout?gallery=${encodeURIComponent(currentGallery)}`, { method: 'POST' });
+  const slug = currentGallery, name = galleryDisplayName;
+  if (slug) {
+    await fetch(`/api/logout?gallery=${encodeURIComponent(slug)}`, { method: 'POST' });
   }
-  loadGalleries();
+  // Back to this same gallery's login, not the admin picker of every
+  // customer - logging out shouldn't dead-end into someone else's territory.
+  if (slug) showLogin(slug, name); else startUp();
 });
 
 // ── Browse ────────────────────────────────────────────────────────────────────
@@ -361,7 +395,7 @@ async function loadBrowse(relPath, titleOverride) {
   const url = `/api/browse?gallery=${encodeURIComponent(currentGallery)}` +
               (relPath ? `&path=${encodeURIComponent(relPath)}` : '');
   const res = await fetch(url);
-  if (res.status === 401) { loadGalleries(); return; }
+  if (res.status === 401) { showLogin(currentGallery, galleryDisplayName); return; }
   if (!res.ok) return;
   const data = await res.json();
   parentRelPath = data.parentRelPath;
@@ -560,7 +594,19 @@ function closeViewer() {
   if (media) { media.pause(); media.src = ''; }
 }
 
-function goHome() { closeViewer(); loadGalleries(); }
+// "Home" while inside a gallery means back to THAT gallery's own root, not
+// the admin picker of every customer - a real customer only ever has the one.
+function goHome() { closeViewer(); goToGalleryRoot(); }
+
+async function goToGalleryRoot() {
+  if (!currentGallery) { startUp(); return; }
+  const res = await fetch(`/api/browse?gallery=${encodeURIComponent(currentGallery)}`);
+  if (res.status === 401) { showLogin(currentGallery, galleryDisplayName); return; }
+  if (!res.ok) return;
+  const data = await res.json();
+  parentRelPath = data.parentRelPath;
+  renderBrowse(data, galleryDisplayName);
+}
 
 function renderViewer() {
   if (!playlist.length) return;
@@ -689,7 +735,7 @@ document.getElementById('btnBack').addEventListener('click', () => {
   }
   loadBrowse(parentRelPath ?? '');
 });
-document.getElementById('btnGalleries').addEventListener('click', () => loadGalleries());
+document.getElementById('btnGalleries').addEventListener('click', () => goToGalleryRoot());
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function esc(s) {

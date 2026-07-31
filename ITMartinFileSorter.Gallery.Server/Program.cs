@@ -206,8 +206,29 @@ foreach (var g in galleries)
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
-app.MapGet("/api/galleries", () =>
-    galleries.Select(g => new { g.Slug, g.Name }));
+// SECURITY FIX (2026-08-01): this previously returned every tenant's name and
+// slug with no authentication at all - any visitor to the bare root URL saw
+// the full customer list before even logging in. Customers should only ever
+// see their own gallery, reached via a direct link (?g=slug), never a picker
+// of everyone. Kept for Martin's own admin convenience only, now gated behind
+// GalleryAdmin:Pin.
+app.MapGet("/api/galleries", (string? adminPin, IConfiguration config) =>
+{
+    var configuredPin = config["GalleryAdmin:Pin"];
+    if (string.IsNullOrEmpty(configuredPin) || adminPin != configuredPin)
+        return Results.Unauthorized();
+
+    return Results.Ok(galleries.Select(g => new { g.Slug, g.Name }));
+});
+
+// Safe to leave unauthenticated - the caller already has to know the exact
+// slug (from their own direct link), so this can't be used to enumerate
+// other customers the way the full list above could.
+app.MapGet("/api/gallery-info", (string gallery) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    return g is null ? Results.NotFound() : Results.Ok(new { g.Name });
+});
 
 app.MapPost("/api/login", (LoginRequest req, HttpContext ctx) =>
 {
