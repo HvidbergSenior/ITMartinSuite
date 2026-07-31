@@ -73,30 +73,15 @@ public sealed class MediaRulesWorkflowStep
     private static readonly string[] ScreenRecordingKeywords =
         ["screenrecord", "screen record", "skærmoptagelse"];
 
-    // iPhone/iPad/Android screenshots are named IMG_XXXX with no keyword, so they can only be
-    // caught by exact device resolution. This runs later, from MetadataWorkflowStep, once
-    // Width/Height are known — ClassifyImageSubCategory below only has the filename to go on.
-    private static readonly (int W, int H)[] ScreenshotResolutions =
-    [
-        (1920, 1080), (1080, 1920),
-        (2560, 1440), (1440, 2560),
-        (2560, 1600), (1600, 2560),
-        (3840, 2160), (2160, 3840),
-        (1280, 800),  (800, 1280),
-        (1366, 768),  (768, 1366),
-        (2732, 2048), (2048, 2732), // iPad
-        (1170, 2532), (2532, 1170), // iPhone 12/13
-        (1284, 2778), (2778, 1284), // iPhone Pro Max
-        (1080, 2340), (2340, 1080), // Android common
-        (1080, 2400), (2400, 1080),
-    ];
-
-    public static bool IsScreenshotResolution(int? width, int? height)
-    {
-        if (width is null || height is null) return false;
-        return ScreenshotResolutions.Contains((width.Value, height.Value));
-    }
-
+    // Exact-resolution matching was tried and confirmed broken on real data
+    // (2026-07-31, Malene's library): a genuine screenshot exported at
+    // 960x2079 matched no hardcoded device resolution, because any resize,
+    // forward, or re-export through a messaging app changes the pixel
+    // dimensions away from the device's native size - a losing game to chase
+    // with more hardcoded resolutions. A phone's camera never outputs PNG;
+    // real photos are JPG/HEIC, and PNG is screenshots/saved images/shared
+    // graphics almost exclusively - format is the reliable signal here, not
+    // exact pixel dimensions.
     private static void ClassifyImageSubCategory(MediaFile mediaFile)
     {
         if (mediaFile.Type != MediaType.Image) return;
@@ -104,6 +89,12 @@ public sealed class MediaRulesWorkflowStep
         var nameLower = Path.GetFileNameWithoutExtension(mediaFile.FileName).ToLowerInvariant();
 
         if (ScreenshotKeywords.Any(k => nameLower.Contains(k)))
+        {
+            mediaFile.SubCategory = MediaSubCategory.Screenshot;
+            return;
+        }
+
+        if (Path.GetExtension(mediaFile.FileName).Equals(".png", StringComparison.OrdinalIgnoreCase))
         {
             mediaFile.SubCategory = MediaSubCategory.Screenshot;
             return;

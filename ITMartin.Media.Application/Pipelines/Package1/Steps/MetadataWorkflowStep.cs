@@ -155,12 +155,6 @@ public sealed class MetadataWorkflowStep
                             file.Height =
                                 dimensions.Value.Height;
                         }
-
-                        if (file.SubCategory == MediaSubCategory.OtherImage &&
-                            MediaRulesWorkflowStep.IsScreenshotResolution(file.Width, file.Height))
-                        {
-                            file.SubCategory = MediaSubCategory.Screenshot;
-                        }
                     }
 
                     await Task.CompletedTask;
