@@ -12,8 +12,10 @@
         <div class="home-section">
             <label class="home-label">Dit navn</label>
             <input id="n-name" class="home-input" placeholder="Martin" maxlength="20" oninput="onJoinNameInput()" />
-            <label class="home-label mt-2">Dit avatar</label>
-            <div id="n-avatar-grid" class="avatar-grid"></div>
+            <div class="avatar-preview-row">
+                <div class="avatar-preview" id="n-avatar-preview">?</div>
+                <span class="avatar-preview-label">Dit ikon (dine initialer)</span>
+            </div>
             <label class="home-label mt-2">Din farve</label>
             <div id="n-color-grid" class="color-grid"></div>
             <button class="btn-primary mt-2" id="n-btn-join" onclick="joinAsPlayer()" disabled>Deltag i spillet</button>
@@ -32,70 +34,39 @@
 
         <div id="i-players-list" class="invite-players-list mt-3"></div>
 
-        <button class="btn-primary mt-3" onclick="hideInvite()">▶️ Start spillet</button>
+        <button class="btn-primary mt-3" id="g-invite-start-btn" onclick="hideInvite()">▶️ Start spillet</button>
     </div>
 </div>
+
+<div id="g-turn-toast" class="turn-toast"></div>
 
 <div id="g-main" class="game-page" style="display:none">
     <div class="game-header">
         <span class="code-badge">@Code</span>
-        <div class="tab-row">
-            <button class="tab-btn" id="tab-btn-score" onclick="showTab('score')">🎯 Score</button>
-            <button class="tab-btn" id="tab-btn-log" onclick="showTab('log')">📜 Log</button>
-            <button class="tab-btn" id="tab-btn-ai" onclick="showTab('ai')">🤖 AI</button>
-        </div>
         <button class="btn-reset" onclick="resetGame()" title="Nulstil spil">🔄</button>
     </div>
 
-    <div id="tab-score">
-        <div id="g-turn-banner" class="turn-banner"></div>
-        <div id="g-hero-card"></div>
+    <div id="g-hero-card"></div>
 
-        <div class="rules-toggle-row">
-            <button class="btn-link" id="g-rules-toggle" onclick="toggleRules()">📜 Se regler for dette spil</button>
-        </div>
-        <div id="g-rules-panel" class="rules-panel" style="display:none">
-            <div class="rules-title" id="g-rules-title"></div>
-            <div class="rules-desc" id="g-rules-desc"></div>
-        </div>
-
-        <div class="opp-label">Modstandere</div>
-        <div id="g-opp-grid" class="opp-grid"></div>
+    <div class="rules-toggle-row">
+        <button class="btn-link" id="g-rules-toggle" onclick="toggleRules()">📜 Se regler for dette spil</button>
+    </div>
+    <div id="g-rules-panel" class="rules-panel" style="display:none">
+        <div class="rules-title" id="g-rules-title"></div>
+        <div class="rules-desc" id="g-rules-desc"></div>
     </div>
 
-    <div id="tab-log" style="display:none">
-        <div id="g-log-panel" class="log-panel"></div>
-    </div>
-
-    <div id="tab-ai" style="display:none">
-        <div class="ai-panel">
-            <div class="ai-section">
-                <div class="card-label">🛰️ Skibs-tips</div>
-                <input id="ai-ship-search" class="home-input" placeholder="Søg skib…" oninput="filterShips()" />
-                <select id="ai-ship-select" class="home-input"></select>
-                <button class="btn-primary" id="ai-hint-btn" onclick="getShipHint()">💡 Få combo-tip</button>
-                <div id="ai-hint-result" class="ai-result" style="display:none"></div>
-            </div>
-
-            <div class="ai-section">
-                <div class="card-label">📷 Scan trade row</div>
-                <label class="btn-ghost-file">
-                    🖼 Vælg billede af trade row
-                    <input type="file" id="ai-traderow-file" accept="image/*" style="display:none" onchange="onTradeRowSelected()" />
-                </label>
-                <div id="ai-traderow-loading" class="photo-analyzing" style="display:none">
-                    <div class="spinner"></div><span>Claude analyserer trade row...</span>
-                </div>
-                <div id="ai-traderow-result" class="ai-result" style="display:none"></div>
-            </div>
-        </div>
-    </div>
+    <div class="opp-label">Modstandere</div>
+    <div id="g-opp-grid" class="opp-grid"></div>
 </div>
 
 <div id="g-winner" class="winner-overlay" style="display:none" onclick="hideWinner()">
-    <div class="winner-card" id="g-winner-card">
+    <div class="winner-card" id="g-winner-card" onclick="event.stopPropagation()">
         <div class="winner-trophy">🏆</div>
         <div class="winner-name" id="g-winner-name"></div>
+        <img id="g-winner-preview" class="winner-preview" style="display:none" alt="Resultat" />
+        <a id="g-winner-download" class="btn-primary mt-2" download="star-realms-resultat.png">⬇ Download billede</a>
+        <button class="btn-ghost mt-2" onclick="hideWinner()">Luk</button>
     </div>
 </div>
 

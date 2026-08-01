@@ -59,15 +59,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .gallery-card-info{padding:10px 12px}
 .gallery-card-name{font-size:15px;font-weight:700}
 
-/* Welcome summary */
-.summary-card{background:linear-gradient(135deg,var(--summary-grad-1),var(--summary-grad-2));border:1px solid var(--summary-border);border-radius:16px;padding:24px 20px;margin-bottom:18px;text-align:center}
-.summary-icon{font-size:40px;margin-bottom:8px}
-.summary-title{font-size:19px;font-weight:800;margin-bottom:4px}
-.summary-sub{font-size:13px;color:var(--summary-sub);margin-bottom:16px}
-.summary-stats{display:flex;flex-wrap:wrap;justify-content:center;gap:20px 28px}
-.summary-stat{display:flex;flex-direction:column;gap:2px}
-.summary-stat-num{font-size:24px;font-weight:900;color:var(--summary-num)}
-.summary-stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+/* Welcome summary - a slim status strip, not a hero: the folders below it are
+   the actual product and should dominate the page, not this stat banner. */
+.summary-card{background:linear-gradient(135deg,var(--summary-grad-1),var(--summary-grad-2));border:1px solid var(--summary-border);border-radius:12px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.summary-title{font-size:13px;font-weight:700;color:var(--summary-sub);white-space:nowrap}
+.summary-stats{display:flex;flex-wrap:wrap;gap:4px 20px;flex:1}
+.summary-stat{display:flex;align-items:baseline;gap:5px}
+.summary-stat-num{font-size:15px;font-weight:800;color:var(--summary-num)}
+.summary-stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em}
+
+/* Quick jump (home -> exact year/month in one flow, no extra folder clicks) */
+.jump-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.jump-chip{background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;border-radius:999px;padding:7px 14px;cursor:pointer}
+.jump-chip:active{border-color:#3b82f6}
+.jump-chip.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
 
 /* Folder grid */
 .folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:6px}
@@ -93,6 +98,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .addon-cover{background:linear-gradient(135deg,#2e1f5e,#1f2a44)}
 .addon-desc{font-size:10.5px;color:var(--text-dim);line-height:1.3;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .addon-price{display:inline-block;font-size:11px;font-weight:800;color:#c4b5fd;background:#2e1f5e;padding:2px 8px;border-radius:999px;margin-top:5px}
+
+/* Add-ons are secondary to the actual photos/videos - smaller cards, quieter
+   label, pushed to the bottom of the page rather than competing with Mapper. */
+.addons-secondary{margin-top:28px;padding-top:16px;border-top:1px solid var(--border)}
+.addons-secondary .section-label{color:var(--text-dim)}
+.addons-secondary .collection-card{flex:0 0 96px}
+.addons-secondary .collection-cover{width:96px;height:96px;font-size:24px}
+.addons-secondary .collection-name{font-size:11px}
 .info-note{position:relative;font-size:12px;color:var(--text-dim);line-height:1.5;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 34px 10px 12px;margin-bottom:16px}
 .info-note b{color:var(--text-main)}
 .info-note-close{position:absolute;top:6px;right:8px;background:none;border:none;color:var(--text-dim);font-size:16px;line-height:1;cursor:pointer;padding:4px}
@@ -165,23 +178,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div id="fileBrowser" style="display:none">
       <div class="summary-card" id="summaryCard" style="display:none">
-        <div class="summary-icon">🎉</div>
-        <div class="summary-title">Din samling er klar!</div>
+        <div class="summary-title">Din samling er klar! 🎉</div>
         <div class="summary-stats" id="summaryStats"></div>
       </div>
-      <div id="collectionsSection" style="display:none">
-        <div class="section-label">Samlinger<span class="collection-badge">Eksempel</span></div>
-        <div class="collection-sub">Fundet automatisk (ansigter, sted &amp; år) — smagsprøve på, hvad der kan bygges videre til hele biblioteket.</div>
-        <div class="collection-row" id="collectionRow"></div>
-      </div>
-      <div class="info-note" id="livePhotoNote" style="display:none">
-        <button class="info-note-close" id="livePhotoNoteClose" title="Skjul">×</button>
-        📱 <b>Om "Live"-billeder:</b> Hvis "Live" er slået til på din iPhone, gemmes der automatisk et kort videoklip sammen med billedet. Selve billedet ligger allerede i dine mapper her — men <b>det er værd at kigge på videoklippene</b> også. De er ikke inkluderet endnu, men kan tilføjes gratis, hvis du vil have dem — bare giv mig besked.
-      </div>
-      <div id="addonsSection" style="display:none">
-        <div class="section-label">Tilkøb<span class="collection-badge">Eksempel</span></div>
-        <div class="collection-sub">Ekstra måder at organisere jeres billeder og videoer på — kontakt mig, hvis I vil have en af dem.</div>
-        <div class="collection-row" id="addonsRow"></div>
+      <div id="quickJump" style="display:none">
+        <div class="section-label">Gå direkte til</div>
+        <div class="jump-row" id="jumpYearRow"></div>
+        <div class="jump-row" id="jumpMonthRow" style="display:none"></div>
       </div>
       <div id="folderSection">
         <div class="section-label">Mapper</div>
@@ -192,6 +195,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="file-grid" id="fileGrid"></div>
       </div>
       <div class="empty" id="emptyState" style="display:none">Ingen mediefiler her</div>
+      <div id="collectionsSection" style="display:none">
+        <div class="section-label">Samlinger<span class="collection-badge">Eksempel</span></div>
+        <div class="collection-sub">Fundet automatisk (ansigter, sted &amp; år) — smagsprøve på, hvad der kan bygges videre til hele biblioteket.</div>
+        <div class="collection-row" id="collectionRow"></div>
+      </div>
+      <div class="info-note" id="livePhotoNote" style="display:none">
+        <button class="info-note-close" id="livePhotoNoteClose" title="Skjul">×</button>
+        📱 <b>Om "Live"-billeder:</b> Hvis "Live" er slået til på din iPhone, gemmes der automatisk et kort videoklip sammen med billedet. Selve billedet ligger allerede i dine mapper her — men <b>det er værd at kigge på videoklippene</b> også. De er ikke inkluderet endnu, men kan tilføjes gratis, hvis du vil have dem — bare giv mig besked.
+      </div>
+      <div id="addonsSection" class="addons-secondary" style="display:none">
+        <div class="section-label">Tilkøb<span class="collection-badge">Eksempel</span></div>
+        <div class="collection-sub">Ekstra måder at organisere jeres billeder og videoer på — kontakt mig, hvis I vil have en af dem.</div>
+        <div class="collection-row" id="addonsRow"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -279,6 +296,7 @@ async function loadGalleries(adminPin) {
   summaryData    = null;
   collectionsData    = null;
   viewingCollection  = null;
+  quickJumpYears = null;
   const res = await fetch(`/api/galleries?adminPin=${encodeURIComponent(adminPin || '')}`);
   if (!res.ok) { showNoGalleryState(); return; }
   const list = await res.json();
@@ -413,6 +431,8 @@ function renderBrowse(data, titleOverride) {
   document.getElementById('btnBack').style.display      = atRoot ? 'none' : '';
   document.getElementById('summaryCard').style.display  = (atRoot && summaryData) ? '' : 'none';
 
+  if (atRoot && !viewingCollection) { loadQuickJumpYears(); } else { document.getElementById('quickJump').style.display = 'none'; }
+
   const fg = document.getElementById('folderGrid');
   const fs = document.getElementById('folderSection');
   if (folders.length) {
@@ -477,6 +497,48 @@ function renderFileGrid(files) {
   }
 }
 
+// ── Quick jump: home -> exact year -> exact month, without drilling through
+// the Billeder folder card first. Years are fetched once per gallery visit
+// and cached; picking a year fetches its months inline (no page navigation)
+// so the whole thing feels like one continuous action from the home screen.
+let quickJumpYears = null;
+
+async function loadQuickJumpYears() {
+  const qj = document.getElementById('quickJump');
+  if (quickJumpYears === null) {
+    try {
+      const res = await fetch(`/api/browse?gallery=${encodeURIComponent(currentGallery)}&path=${encodeURIComponent('Images')}`);
+      quickJumpYears = res.ok ? (await res.json()).folders : [];
+    } catch {
+      quickJumpYears = [];
+    }
+  }
+  if (!quickJumpYears.length) { qj.style.display = 'none'; return; }
+
+  qj.style.display = '';
+  document.getElementById('jumpMonthRow').style.display = 'none';
+  document.getElementById('jumpMonthRow').innerHTML = '';
+  document.getElementById('jumpYearRow').innerHTML = quickJumpYears.map(y => `
+    <div class="jump-chip" data-year="${esc(y.relPath)}" onclick="selectJumpYear('${esc(y.relPath)}', this)">${esc(y.name)}</div>`).join('');
+}
+
+async function selectJumpYear(relPath, chipEl) {
+  document.querySelectorAll('#jumpYearRow .jump-chip').forEach(c => c.classList.remove('active'));
+  chipEl.classList.add('active');
+
+  const monthRow = document.getElementById('jumpMonthRow');
+  monthRow.style.display = '';
+  monthRow.innerHTML = '<div class="jump-chip" style="opacity:.5">…</div>';
+
+  const res = await fetch(`/api/browse?gallery=${encodeURIComponent(currentGallery)}&path=${encodeURIComponent(relPath)}`);
+  if (!res.ok) { monthRow.innerHTML = ''; return; }
+  const data = await res.json();
+  if (!data.folders.length) { monthRow.innerHTML = ''; return; }
+
+  monthRow.innerHTML = data.folders.map(m => `
+    <div class="jump-chip" onclick="loadBrowse('${esc(m.relPath)}','${esc(m.name)}')">${esc(m.name)}</div>`).join('');
+}
+
 // ── Add-on teaser (static - these are real, built features, just not run for
 // every gallery by default; shown here as an example + price, not live data) ──
 const ADDONS_TEASER = [
@@ -539,6 +601,7 @@ async function openCollection(name) {
   document.getElementById('summaryCard').style.display  = 'none';
   document.getElementById('collectionsSection').style.display = 'none';
   document.getElementById('folderSection').style.display = 'none';
+  document.getElementById('quickJump').style.display = 'none';
 
   renderFileGrid(data.files);
   document.getElementById('emptyState').style.display = data.files.length ? 'none' : '';

@@ -13,7 +13,6 @@ public sealed class StarRealmsDbContext : DbContext
     public DbSet<PlayerProfile> Profiles => Set<PlayerProfile>();
     public DbSet<GameResult> Results => Set<GameResult>();
     public DbSet<GameResultPlayer> ResultPlayers => Set<GameResultPlayer>();
-    public DbSet<GameEvent> Events => Set<GameEvent>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {

@@ -1,5 +1,10 @@
 ﻿using System.Diagnostics;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Metadata.Profiles.Exif;
+using SixLabors.ImageSharp.Processing;
 
 namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
@@ -110,7 +115,7 @@ public class ImageConverterService : IImageConverterService
                 "ITMartinFileSorter",
                 "images");
 
-        Directory.CreateDirectory(
+        System.IO.Directory.CreateDirectory(
             tempRoot);
 
         // =========================
@@ -167,6 +172,14 @@ public class ImageConverterService : IImageConverterService
                 throw new Exception(
                     "JPG not created");
             }
+
+            // heif-convert/ffmpeg decode the raw pixel grid but neither one
+            // carries over the original's EXIF Orientation tag, so an iPhone
+            // photo taken sideways/upside-down comes out sideways/upside-down
+            // with nothing left to correct it downstream (thumbnails included).
+            ApplyOriginalOrientation(
+                inputPath,
+                outputPath);
 
             CopyDates(
                 inputPath,
@@ -303,6 +316,49 @@ public class ImageConverterService : IImageConverterService
         {
             throw new Exception(
                 $"FFmpeg failed: {exitCode}");
+        }
+    }
+
+    private static void ApplyOriginalOrientation(
+        string originalPath,
+        string outputJpgPath)
+    {
+        try
+        {
+            var exif = ImageMetadataReader.ReadMetadata(originalPath)
+                .OfType<ExifIfd0Directory>()
+                .FirstOrDefault();
+
+            if (exif == null ||
+                !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
+            {
+                return;
+            }
+
+            var orientation = (ushort)exif.GetInt32(
+                ExifDirectoryBase.TagOrientation);
+
+            if (orientation <= 1)
+            {
+                return;
+            }
+
+            using var image = Image.Load(outputJpgPath);
+
+            image.Metadata.ExifProfile ??= new ExifProfile();
+            image.Metadata.ExifProfile.SetValue(
+                ExifTag.Orientation,
+                orientation);
+
+            image.Mutate(x => x.AutoOrient());
+            image.Metadata.ExifProfile = null;
+
+            image.SaveAsJpeg(outputJpgPath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"[ORIENTATION FIX ERROR] {ex.Message}");
         }
     }
 

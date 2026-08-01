@@ -33,8 +33,41 @@ window.starrealms = (function() {
         } catch (e) { /* audio not available */ }
     }
 
-    function playHit() { tone(700, 120, 0.18, "sawtooth", 0.12); }
-    function playHeal() { tone(400, 900, 0.22, "triangle", 0.12); }
+    // Sound + vibration scale with the SIZE of a point change, not just its
+    // direction - a 1-point nudge is a joke, a 50-point swing is an event.
+    // Loss (positive=false) uses a falling sawtooth "hit"; gain uses a
+    // rising triangle "heal" - both share the same magnitude tiers so a
+    // -20 and a +20 feel equally significant, just tonally opposite.
+    function playImpact(amount, positive) {
+        var a = Math.max(1, Math.round(Math.abs(amount)));
+
+        if (a === 1) {
+            // A single point deserves a joke, not a hit - a little mouse squeak.
+            tone(2000, 2700, 0.08, "sine", 0.09);
+            setTimeout(function() { tone(2500, 1700, 0.06, "sine", 0.07); }, 55);
+            return;
+        }
+
+        var tier =
+            a <= 3  ? { dur: 0.16, gain: 0.10, layers: 1 } :  // small
+            a <= 7  ? { dur: 0.22, gain: 0.14, layers: 1 } :  // average
+            a <= 14 ? { dur: 0.30, gain: 0.19, layers: 2 } :
+            a <= 19 ? { dur: 0.38, gain: 0.23, layers: 2 } :  // above average
+            a <= 24 ? { dur: 0.44, gain: 0.26, layers: 3 } :  // a little above average
+            a <= 34 ? { dur: 0.52, gain: 0.30, layers: 3 } :  // much
+                      { dur: 0.75, gain: 0.40, layers: 4 };   // LOUD (50+)
+
+        for (var i = 0; i < tier.layers; i++) {
+            (function(i) {
+                setTimeout(function() {
+                    if (positive) tone(380 + i * 60, 950 + i * 120, tier.dur, "triangle", tier.gain);
+                    else tone(720 - i * 50, 90 - i * 8, tier.dur, "sawtooth", tier.gain);
+                }, i * 30);
+            })(i);
+        }
+    }
+
+    function playClick() { tone(900, 1200, 0.045, "square", 0.05); }
     function playEliminate() { tone(300, 60, 0.6, "sawtooth", 0.18); }
     function playWinner() {
         [523, 659, 784, 1047].forEach(function(f, i) {
@@ -44,6 +77,98 @@ window.starrealms = (function() {
 
     function vibrate(ms) {
         if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} }
+    }
+
+    function vibrateForAmount(amount) {
+        vibrate(Math.min(300, 10 + Math.max(1, Math.abs(amount)) * 5));
+    }
+
+    // ── Screen wake lock (keep the display on during an active game) ────────
+    var wakeLock = null;
+    var wakeLockWanted = false;
+
+    function requestWakeLock() {
+        wakeLockWanted = true;
+        if (!("wakeLock" in navigator)) return;
+        navigator.wakeLock.request("screen").then(function(lock) {
+            wakeLock = lock;
+            lock.addEventListener("release", function() { wakeLock = null; });
+        }).catch(function() { /* not available / permission denied - fail silently */ });
+    }
+
+    document.addEventListener("visibilitychange", function() {
+        // The OS releases the lock whenever the tab is hidden (app switch,
+        // screen off) - re-acquire it once the player comes back so it
+        // doesn't just stop working after the first backgrounding.
+        if (document.visibilityState === "visible" && wakeLockWanted && wakeLock === null) {
+            requestWakeLock();
+        }
+    });
+
+    // ── Point-change burst (small localized particle pop, not full-screen) ──
+    function burst(x, y, color, count) {
+        var canvas = document.createElement("canvas");
+        canvas.style.position = "fixed";
+        canvas.style.top = "0";
+        canvas.style.left = "0";
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        canvas.style.pointerEvents = "none";
+        canvas.style.zIndex = "9998";
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        document.body.appendChild(canvas);
+        var ctx2d = canvas.getContext("2d");
+
+        var n = count || 20;
+        var particles = [];
+        for (var i = 0; i < n; i++) {
+            var angle = (Math.PI * 2 * i) / n + Math.random() * 0.3;
+            var speed = 3 + Math.random() * 5;
+            particles.push({
+                x: x, y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                r: 3 + Math.random() * 4,
+                life: 1
+            });
+        }
+
+        var start = Date.now();
+        function frame() {
+            var elapsed = Date.now() - start;
+            ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(function(p) {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life -= 0.03;
+                ctx2d.globalAlpha = Math.max(p.life, 0);
+                ctx2d.fillStyle = color;
+                ctx2d.beginPath();
+                ctx2d.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx2d.fill();
+            });
+            ctx2d.globalAlpha = 1;
+            if (elapsed < 650) {
+                requestAnimationFrame(frame);
+            } else {
+                document.body.removeChild(canvas);
+            }
+        }
+        requestAnimationFrame(frame);
+    }
+
+    // positive=true -> green sparkle burst (gain); false -> red/orange
+    // "explosion" burst (loss), centered on the given element. amount scales
+    // the burst size the same way playImpact scales the sound - a 1-point
+    // change gets a token pop, a 50-point shot gets a real explosion.
+    function explodeAt(el, positive, amount) {
+        if (!el) return;
+        var rect = el.getBoundingClientRect();
+        var x = rect.left + rect.width / 2;
+        var y = rect.top + rect.height / 2;
+        var a = Math.max(1, Math.abs(amount || 1));
+        var scale = Math.min(3, 0.5 + a / 15);
+        if (positive) burst(x, y, "#2ecc71", Math.round(16 * scale));
+        else { burst(x, y, "#e74c3c", Math.round(26 * scale)); burst(x, y, "#f1c40f", Math.round(10 * scale)); }
     }
 
     // ── Confetti (lightweight canvas, no deps) ──────────────────────────────
@@ -103,12 +228,15 @@ window.starrealms = (function() {
         getItem: getItem,
         setItem: setItem,
         removeItem: removeItem,
-        playHit: playHit,
-        playHeal: playHeal,
+        playImpact: playImpact,
+        playClick: playClick,
         playEliminate: playEliminate,
         playWinner: playWinner,
         vibrate: vibrate,
-        confetti: confetti
+        vibrateForAmount: vibrateForAmount,
+        confetti: confetti,
+        requestWakeLock: requestWakeLock,
+        explodeAt: explodeAt
     };
 })();
 
@@ -119,12 +247,20 @@ window.starrealms = (function() {
 // ─────────────────────────────────────────────────────────────────────────
 
 (function() {
-    var AVATARS = ["🚀", "👽", "🛸", "⭐", "🔥", "💀", "👑", "🐉", "🦾", "🎯", "🛡️", "⚔️"];
-
     function esc(s) {
         var d = document.createElement("div");
         d.textContent = s == null ? "" : String(s);
         return d.innerHTML;
+    }
+
+    // A short, personal tag derived from the player's own name (initials),
+    // shown in their chosen color - replaces picking from a fixed list of
+    // generic space-themed emoji, so everyone's badge is actually theirs.
+    function initialsFromName(name) {
+        var parts = (name || "").trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return "?";
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
     }
 
     // Some endpoints return 200 with an empty body (Results.Ok() with no payload) rather
@@ -158,16 +294,13 @@ window.starrealms = (function() {
         return v;
     }
 
-    function renderAvatarGrid(containerId, selected, onSelect) {
-        var el = document.getElementById(containerId);
-        if (!el) return;
-        el.innerHTML = AVATARS.map(function(a) {
-            var active = a === selected ? " avatar-btn--active" : "";
-            return '<button class="avatar-btn' + active + '" data-avatar="' + esc(a) + '">' + a + '</button>';
-        }).join("");
-        el.querySelectorAll(".avatar-btn").forEach(function(btn) {
-            btn.onclick = function() { onSelect(btn.getAttribute("data-avatar")); };
-        });
+    function paintAvatarPreview(previewId, name, color) {
+        var el = document.getElementById(previewId);
+        if (!el) return "?";
+        var initials = initialsFromName(name);
+        el.textContent = initials;
+        el.style.background = color;
+        return initials;
     }
 
     function renderColorGrid(containerId, colors, selected, taken, onSelect) {
@@ -191,8 +324,20 @@ window.starrealms = (function() {
     // ═══════════════════════════════════════════════════════════════════
 
     function initHome() {
+        var infoHidden = localStorage.getItem("sr_info_hidden") === "1";
+        if (infoHidden) {
+            document.getElementById("h-info-panel").style.display = "none";
+            document.getElementById("h-info-toggle").textContent = "ℹ️ Vis info";
+        }
+        window.toggleInfo = function() {
+            infoHidden = !infoHidden;
+            document.getElementById("h-info-panel").style.display = infoHidden ? "none" : "";
+            document.getElementById("h-info-toggle").textContent = infoHidden ? "ℹ️ Vis info" : "🙈 Skjul info";
+            localStorage.setItem("sr_info_hidden", infoHidden ? "1" : "0");
+        };
+
         var state = {
-            avatar: localStorage.getItem("profile_avatar") || AVATARS[0],
+            avatar: "?",
             color: localStorage.getItem("profile_color") || COLORS[0],
             rulesets: [],
             selectedRulesetId: null,
@@ -202,13 +347,14 @@ window.starrealms = (function() {
 
         document.getElementById("h-name").value = localStorage.getItem("profile_name") || "";
 
-        function paintAvatars() { renderAvatarGrid("h-avatar-grid", state.avatar, function(a) { state.avatar = a; paintAvatars(); }); }
-        function paintColors() { renderColorGrid("h-color-grid", COLORS, state.color, [], function(c) { state.color = c; paintColors(); }); }
-        paintAvatars();
+        function paintAvatar() { state.avatar = paintAvatarPreview("h-avatar-preview", document.getElementById("h-name").value, state.color); }
+        function paintColors() { renderColorGrid("h-color-grid", COLORS, state.color, [], function(c) { state.color = c; paintColors(); paintAvatar(); }); }
+        paintAvatar();
         paintColors();
 
         window.onNameInput = function() {
             document.getElementById("h-btn-ruleset").disabled = !document.getElementById("h-name").value.trim();
+            paintAvatar();
         };
         window.onNameInput();
 
@@ -295,19 +441,15 @@ window.starrealms = (function() {
 
         window.goToPoints = function() {
             if (!state.selectedRuleset) return;
-            var el = document.getElementById("h-points-row");
-            var options = [50, 55, 60, 65, 70, 75];
-            function paint() {
-                el.innerHTML = options.map(function(p) {
-                    var active = p === state.startingPoints ? " points-btn--active" : "";
-                    return '<button class="points-btn' + active + '" data-pts="' + p + '">' + p + '</button>';
-                }).join("");
-                el.querySelectorAll(".points-btn").forEach(function(btn) {
-                    btn.onclick = function() { state.startingPoints = parseInt(btn.getAttribute("data-pts"), 10); paint(); };
-                });
-            }
-            paint();
+            state.startingPoints = Math.min(100, Math.max(50, state.startingPoints || 50));
+            document.getElementById("h-points-slider").value = state.startingPoints;
+            document.getElementById("h-points-value").textContent = state.startingPoints;
             window.showStep(2);
+        };
+
+        window.onPointsSliderInput = function() {
+            state.startingPoints = parseInt(document.getElementById("h-points-slider").value, 10);
+            document.getElementById("h-points-value").textContent = state.startingPoints;
         };
 
         window.createSession = function() {
@@ -353,21 +495,22 @@ window.starrealms = (function() {
         var deviceToken = ensureLocalId("device_id");
         var pulseTimers = {};
 
+        var profileName = localStorage.getItem("profile_name") || "";
+
         var state = {
             session: null,
             me: null,
             profileId: null,
-            joinAvatar: localStorage.getItem("profile_avatar") || AVATARS[0],
+            joinAvatar: initialsFromName(profileName),
             joinColor: localStorage.getItem("profile_color") || COLORS[0],
-            tab: "score",
             pollTimer: null,
             winnerShown: false,
-            ships: null,
-            selectedShipFaction: ""
+            shotCombo: [],
+            shootTargetId: null,
+            shotSign: -1  // -1 = damage an opponent (default), +1 = heal/gain for myself
         };
 
-        var profileName = localStorage.getItem("profile_name") || "";
-        var profileAvatar = localStorage.getItem("profile_avatar") || "";
+        var profileAvatar = state.joinAvatar;
 
         apiPost("/api/profile", { deviceToken: deviceToken, name: profileName, avatar: profileAvatar })
             .then(function(profile) { state.profileId = profile.id; })
@@ -391,7 +534,15 @@ window.starrealms = (function() {
                     return;
                 }
 
-                showMainGame();
+                // A session that hasn't been explicitly started yet always shows
+                // the invite/waiting screen, even on reload - otherwise a host
+                // who refreshes mid-setup lands straight on live score buttons
+                // before anyone actually pressed "Start spillet".
+                if (!session.hasStarted) {
+                    showInviteThenGame();
+                } else {
+                    showMainGame();
+                }
             }).catch(function(err) {
                 document.getElementById("g-loading").textContent = "Spil ikke fundet.";
             });
@@ -399,19 +550,20 @@ window.starrealms = (function() {
 
         function showNeedsName(session) {
             document.getElementById("n-ruleset-name").textContent = session.rulesetName;
-            function paintAvatars() {
-                renderAvatarGrid("n-avatar-grid", state.joinAvatar, function(a) { state.joinAvatar = a; paintAvatars(); });
+            function paintAvatar() {
+                state.joinAvatar = paintAvatarPreview("n-avatar-preview", document.getElementById("n-name").value, state.joinColor);
             }
-            paintAvatars();
             var takenColors = session.players.map(function(p) { return p.color; });
             function paintColors() {
-                renderColorGrid("n-color-grid", COLORS, state.joinColor, takenColors, function(c) { state.joinColor = c; paintColors(); });
+                renderColorGrid("n-color-grid", COLORS, state.joinColor, takenColors, function(c) { state.joinColor = c; paintColors(); paintAvatar(); });
             }
+            paintAvatar();
             paintColors();
 
             document.getElementById("g-needs-name").style.display = "";
             window.onJoinNameInput = function() {
                 document.getElementById("n-btn-join").disabled = !document.getElementById("n-name").value.trim();
+                paintAvatar();
             };
             window.joinAsPlayer = function() {
                 var name = document.getElementById("n-name").value.trim();
@@ -451,22 +603,27 @@ window.starrealms = (function() {
                 navigator.clipboard && navigator.clipboard.writeText(location.href).catch(function() {});
             };
             window.hideInvite = function() {
-                document.getElementById("g-invite").style.display = "none";
-                showMainGame();
+                var btn = document.getElementById("g-invite-start-btn");
+                if (btn) { btn.disabled = true; btn.textContent = "Starter…"; }
+                apiPost("/api/sessions/" + encodeURIComponent(code) + "/start").then(function() {
+                    document.getElementById("g-invite").style.display = "none";
+                    showMainGame();
+                }).catch(function(err) {
+                    if (btn) { btn.disabled = false; btn.textContent = "▶️ Start spillet"; }
+                    alert(err.message || "Kunne ikke starte spillet");
+                });
             };
+        }
+
+        function otherPlayers() {
+            return state.session.players
+                .filter(function(p) { return !state.me || p.id !== state.me.id; })
+                .sort(function(a, b) { return a.sortOrder - b.sortOrder; });
         }
 
         function showMainGame() {
             document.getElementById("g-main").style.display = "";
-            window.showTab = function(name) {
-                state.tab = name;
-                ["score", "log", "ai"].forEach(function(t) {
-                    document.getElementById("tab-" + t).style.display = t === name ? "" : "none";
-                    document.getElementById("tab-btn-" + t).classList.toggle("tab-btn--active", t === name);
-                });
-                if (name === "ai" && !state.ships) loadShips();
-            };
-            window.showTab("score");
+            starrealms.requestWakeLock();
 
             window.toggleRules = function() {
                 var panel = document.getElementById("g-rules-panel");
@@ -475,17 +632,92 @@ window.starrealms = (function() {
                 document.getElementById("g-rules-toggle").textContent = (show ? "📜 Skjul regler" : "📜 Se regler for dette spil");
             };
 
-            window.adjustPoints = function(delta) {
-                if (!state.me) return;
-                apiPost("/api/sessions/" + encodeURIComponent(code) + "/adjust", { playerId: state.me.id, delta: delta })
-                    .then(refreshState).catch(function(err) { alert(err.message || "Kunne ikke opdatere"); });
+            window.addToCombo = function(n) {
+                state.shotCombo.push(n);
+                starrealms.playClick();
+                starrealms.vibrate(8);
+                renderHero();
             };
 
-            window.endTurn = function() {
-                if (!state.me) return;
-                apiPost("/api/sessions/" + encodeURIComponent(code) + "/turn", { playerId: state.me.id })
-                    .then(refreshState).catch(function(err) { alert(err.message || "Det er ikke din tur"); });
+            window.clearCombo = function() {
+                if (state.shotCombo.length === 0) return;
+                state.shotCombo = [];
+                renderHero();
             };
+
+            window.selectShootTarget = function(id) {
+                state.shootTargetId = id;
+                renderHero();
+            };
+
+            window.setShootMode = function(sign) {
+                state.shotSign = sign;
+                renderHero();
+            };
+
+            function applyShot(player, delta) {
+                var before = player.points;
+                player.points = Math.max(state.session.minPoints, Math.min(state.session.maxPoints, player.points + delta));
+                var actualDelta = player.points - before;
+                renderHero();
+                renderOpponents({});
+                if (actualDelta !== 0) {
+                    var up = actualDelta > 0;
+                    starrealms.vibrateForAmount(actualDelta);
+                    starrealms.playImpact(actualDelta, up);
+                    if (player.points <= state.session.minPoints) starrealms.playEliminate();
+                    var isMe = state.me && player.id === state.me.id;
+                    var targetEl = isMe
+                        ? document.getElementById("g-hero-points")
+                        : document.querySelector('.opp-card[data-opp-id="' + player.id + '"] .opp-points');
+                    starrealms.explodeAt(targetEl, up, actualDelta);
+                }
+                apiPost("/api/sessions/" + encodeURIComponent(code) + "/adjust", { playerId: player.id, delta: delta })
+                    .then(refreshState).catch(function(err) { alert(err.message || "Kunne ikke opdatere"); refreshState(); });
+            }
+
+            window.fireShoot = function() {
+                var magnitude = state.shotCombo.reduce(function(a, b) { return a + b; }, 0);
+                if (magnitude <= 0) return;
+                var total = magnitude * state.shotSign;
+
+                if (state.shotSign < 0) {
+                    // Damage - always hits a chosen opponent, never the shooter.
+                    var others = otherPlayers();
+                    var targetId = others.length === 1 ? others[0].id : state.shootTargetId;
+                    var target = others.find(function(p) { return p.id === targetId; });
+                    if (!target) return; // 2+ opponents and none picked yet - button stays disabled for this case
+                    state.shotCombo = [];
+                    state.shootTargetId = null;
+                    applyShot(target, total);
+                } else {
+                    // Heal/gain - applies to the shooter's own points.
+                    if (!state.me) return;
+                    var me = state.session.players.find(function(p) { return p.id === state.me.id; });
+                    if (!me) return;
+                    state.shotCombo = [];
+                    applyShot(me, total);
+                }
+
+                showTurnEndedToast();
+            };
+
+            var turnToastTimer = null;
+            function showTurnEndedToast() {
+                // Firing a shot is the natural end of a turn - there's no
+                // app-enforced turn order (that was deliberately removed, players
+                // manage that themselves), but this gives visible confirmation
+                // "that's your shot recorded, your turn's done" without gating
+                // anything for other players.
+                var el = document.getElementById("g-turn-toast");
+                if (!el) return;
+                el.textContent = "✅ Tur afsluttet";
+                el.classList.add("turn-toast--show");
+                clearTimeout(turnToastTimer);
+                turnToastTimer = setTimeout(function() {
+                    el.classList.remove("turn-toast--show");
+                }, 1800);
+            }
 
             window.resetGame = function() {
                 if (!confirm("Nulstil spillet for alle spillere?")) return;
@@ -512,29 +744,14 @@ window.starrealms = (function() {
                 state.session = session;
                 state.me = session.players.find(function(p) { return p.token === token; }) || state.me;
 
-                renderTurnBanner();
-                renderHero();
+                renderHero(prevPoints);
                 renderOpponents(prevPoints);
                 renderRules();
-                renderLog();
                 checkWinner();
             }).catch(function() { /* transient network hiccup - next poll will retry */ });
         }
 
-        function renderTurnBanner() {
-            var s = state.session;
-            var banner = document.getElementById("g-turn-banner");
-            var mine = state.me && s.currentTurnPlayerId === state.me.id;
-            banner.className = "turn-banner" + (mine ? " turn-banner--mine" : "");
-            if (mine) {
-                banner.innerHTML = "<span>🎯 Det er din tur!</span>";
-            } else {
-                var tp = s.players.find(function(p) { return p.id === s.currentTurnPlayerId; });
-                banner.innerHTML = "<span>⏳ " + (tp ? esc(tp.avatar) + " " + esc(tp.name) + "'s tur" : "Venter…") + "</span>";
-            }
-        }
-
-        function renderHero() {
+        function renderHero(prevPoints) {
             if (!state.me) return;
             var s = state.session;
             var me = s.players.find(function(p) { return p.id === state.me.id; });
@@ -543,19 +760,72 @@ window.starrealms = (function() {
             var el = document.getElementById("g-hero-card");
             el.className = "hero-card";
             el.style.borderColor = me.color;
+            var others = otherPlayers();
+            var isDamage = state.shotSign < 0;
+            var comboTotal = state.shotCombo.reduce(function(a, b) { return a + b; }, 0);
+            var comboText = state.shotCombo.length
+                ? state.shotCombo.join(" + ") + " = " + (isDamage ? "−" : "+") + comboTotal
+                : "Byg dit " + (isDamage ? "skud" : "helbred") + "…";
+            var comboEmpty = state.shotCombo.length === 0;
+
+            var needsTargetPick = isDamage && others.length > 1;
+            var resolvedTargetId = !isDamage ? null : (others.length === 1 ? others[0].id : state.shootTargetId);
+            var resolvedTarget = others.find(function(p) { return p.id === resolvedTargetId; });
+            var canFire = !comboEmpty && (!isDamage || !!resolvedTarget);
+
+            var shootLabel = isDamage
+                ? "🔫 SKYD" + (resolvedTarget ? " " + esc(resolvedTarget.name) : "") + (comboEmpty ? "" : " −" + comboTotal)
+                : "💚 HELBRED" + (comboEmpty ? "" : " +" + comboTotal);
+
             el.innerHTML =
                 '<div class="hero-top">' +
                     '<div class="hero-avatar" style="background:' + me.color + '">' + (eliminated ? "💀" : esc(me.avatar)) + '</div>' +
                     '<div class="hero-name">' + esc(me.name) + ' <span class="hero-you">(dig)</span></div>' +
                 '</div>' +
-                '<div class="hero-points" style="color:' + me.color + '">' + me.points + '</div>' +
-                '<div class="hero-buttons">' +
-                    '<button class="pt-btn pt-btn--down pt-btn--lg" onclick="adjustPoints(-5)">-5</button>' +
-                    '<button class="pt-btn pt-btn--down pt-btn--lg" onclick="adjustPoints(-1)">-1</button>' +
-                    '<button class="pt-btn pt-btn--up pt-btn--lg" onclick="adjustPoints(1)">+1</button>' +
-                    '<button class="pt-btn pt-btn--up pt-btn--lg" onclick="adjustPoints(5)">+5</button>' +
-                '</div>' +
-                (s.currentTurnPlayerId === me.id ? '<button class="btn-secondary mt-2" onclick="endTurn()">✅ Afslut min tur →</button>' : '');
+                '<div class="hero-points" id="g-hero-points" style="color:' + me.color + '">' + me.points + '</div>' +
+                '<div class="shoot-combo">' +
+                    '<div class="shoot-mode-row">' +
+                        '<button class="mode-btn mode-btn--dmg' + (isDamage ? " mode-btn--active" : "") + '" onclick="setShootMode(-1)">⚔️ Skade</button>' +
+                        '<button class="mode-btn mode-btn--heal' + (!isDamage ? " mode-btn--active" : "") + '" onclick="setShootMode(1)">💚 Helbred</button>' +
+                    '</div>' +
+                    '<div class="shoot-combo-display">' + esc(comboText) + '</div>' +
+                    '<div class="shoot-chip-row">' +
+                        [1, 2, 3, 4, 5, 10, 15, 20, 25, 50].map(function(n) {
+                            return '<button class="chip-btn" onclick="addToCombo(' + n + ')">' + n + '</button>';
+                        }).join("") +
+                    '</div>' +
+                    (needsTargetPick ?
+                        '<div class="shoot-target-row">' +
+                            '<div class="shoot-target-label">Skyd på:</div>' +
+                            '<div class="shoot-target-chips">' +
+                                others.map(function(p) {
+                                    var active = p.id === resolvedTargetId ? " target-chip--active" : "";
+                                    return '<button class="target-chip' + active + '" style="border-color:' + p.color + '" onclick="selectShootTarget(\'' + p.id + '\')">' +
+                                        '<span class="target-chip-avatar" style="background:' + p.color + '">' + esc(p.avatar) + '</span>' + esc(p.name) +
+                                        '</button>';
+                                }).join("") +
+                            '</div>' +
+                        '</div>'
+                        : "") +
+                    '<div class="shoot-actions">' +
+                        '<button class="btn-ghost btn-combo-clear" onclick="clearCombo()"' + (comboEmpty ? " disabled" : "") + '>↺ Ryd</button>' +
+                        '<button class="btn-shoot' + (isDamage ? "" : " btn-shoot--heal") + '" onclick="fireShoot()"' + (canFire ? "" : " disabled") + '>' + shootLabel + '</button>' +
+                    '</div>' +
+                '</div>';
+
+            // Catches point changes NOT caused by my own tap (e.g. a teammate
+            // moving a shared team pool) - my own taps already animate
+            // instantly and optimistically in applyShot() above, and by the
+            // time this runs that local mutation makes prevPoints === me.points
+            // already, so this never double-fires for the common case.
+            if (prevPoints && prevPoints[me.id] !== undefined && prevPoints[me.id] !== me.points) {
+                var up = me.points > prevPoints[me.id];
+                var delta = me.points - prevPoints[me.id];
+                starrealms.vibrateForAmount(delta);
+                starrealms.playImpact(delta, up);
+                if (eliminated) starrealms.playEliminate();
+                starrealms.explodeAt(document.getElementById("g-hero-points"), up, delta);
+            }
         }
 
         function renderOpponents(prevPoints) {
@@ -574,19 +844,19 @@ window.starrealms = (function() {
                     var mine = state.me && s.players.find(function(x) { return x.id === state.me.id; });
                     teamLabel = '<span class="opp-team">Hold ' + (p.team + 1) + (mine && mine.team === p.team ? " (dit)" : "") + '</span>';
                 }
-                return '<div class="opp-card' + pulseCls + (p.id === s.currentTurnPlayerId ? " opp-card--turn" : "") + (dead ? " opp-card--dead" : "") + '" style="border-color:' + p.color + '">' +
+                return '<div class="opp-card' + pulseCls + (dead ? " opp-card--dead" : "") + '" data-opp-id="' + p.id + '" style="border-color:' + p.color + '">' +
                     '<div class="opp-avatar" style="background:' + p.color + '">' + (dead ? "💀" : esc(p.avatar)) + '</div>' +
                     '<div class="opp-info"><div class="opp-name">' + esc(p.name) + teamLabel + '</div>' +
                     '<div class="opp-color-label"><span class="color-dot" style="background:' + p.color + '"></span>farve</div></div>' +
                     '<div class="opp-points" style="color:' + p.color + '">' + p.points + '</div>' +
-                    (p.id === s.currentTurnPlayerId ? '<div class="opp-turn-badge">🎯</div>' : '') +
                     '</div>';
             }).join("");
 
             others.forEach(function(p) {
                 if (prevPoints[p.id] !== undefined && prevPoints[p.id] !== p.points) {
-                    starrealms.vibrate(20);
-                    if (p.points > prevPoints[p.id]) starrealms.playHeal(); else starrealms.playHit();
+                    var delta = p.points - prevPoints[p.id];
+                    starrealms.vibrateForAmount(delta);
+                    starrealms.playImpact(delta, delta > 0);
                     if (p.points <= state.session.minPoints) starrealms.playEliminate();
                 }
             });
@@ -597,30 +867,12 @@ window.starrealms = (function() {
             document.getElementById("g-rules-desc").textContent = state.session.rulesetDescription;
         }
 
-        function renderLog() {
-            var el = document.getElementById("g-log-panel");
-            var events = state.session.events || [];
-            if (events.length === 0) {
-                el.innerHTML = '<p class="log-empty">Ingen hændelser endnu — pointændringer vises her, så alle kan se hvad der skete.</p>';
-                return;
-            }
-            el.innerHTML = events.map(function(e) {
-                var t = new Date(e.createdAt);
-                var time = t.toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" });
-                return '<div class="log-row">' +
-                    '<span class="log-avatar">' + esc(e.playerAvatar) + '</span>' +
-                    '<span class="log-text"><strong>' + esc(e.playerName) + '</strong> ' + (e.delta >= 0 ? "fik" : "mistede") + ' ' + Math.abs(e.delta) + ' point <span class="log-muted">(nu ' + e.resultingPoints + ')</span></span>' +
-                    '<span class="log-time">' + time + '</span>' +
-                    '</div>';
-            }).join("");
-        }
-
         function checkWinner() {
             var s = state.session;
             if (!s.isCompleted) { state.winnerShown = false; return; }
             if (state.winnerShown) return;
 
-            var winnerName, winnerColor;
+            var winnerName, winnerColor, winnerIds;
             if (s.isTeamMode) {
                 var aliveTeams = {};
                 s.players.forEach(function(p) { if (p.points > s.minPoints) aliveTeams[p.team] = true; });
@@ -630,11 +882,13 @@ window.starrealms = (function() {
                 var teammate = s.players.find(function(p) { return p.team === teamNum; });
                 winnerName = "Hold " + (teamNum + 1);
                 winnerColor = teammate ? teammate.color : "#fff";
+                winnerIds = s.players.filter(function(p) { return p.team === teamNum; }).map(function(p) { return p.id; });
             } else {
                 var alive = s.players.filter(function(p) { return p.points > s.minPoints; });
                 if (alive.length !== 1) return;
                 winnerName = alive[0].name;
                 winnerColor = alive[0].color;
+                winnerIds = [alive[0].id];
             }
 
             state.winnerShown = true;
@@ -645,79 +899,92 @@ window.starrealms = (function() {
             document.getElementById("g-winner").style.display = "";
             starrealms.playWinner();
             starrealms.confetti();
+            renderResultImage(s, winnerIds);
         }
 
-        // ── AI tab ──────────────────────────────────────────────────────
-
-        function loadShips() {
-            apiGet("/api/ships").then(function(data) {
-                state.ships = data;
-                var select = document.getElementById("ai-ship-select");
-                select.innerHTML = data.factions.map(function(fac) {
-                    var opts = data.ships.filter(function(s) { return s.faction === fac.name; })
-                        .map(function(s) { return '<option value="' + esc(s.name) + '" data-faction="' + esc(fac.name) + '">' + esc(s.name) + '</option>'; })
-                        .join("");
-                    return '<optgroup label="' + esc(fac.icon + " " + fac.name) + '">' + opts + '</optgroup>';
-                }).join("");
-            }).catch(function() {});
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
         }
 
-        window.filterShips = function() {
-            if (!state.ships) return;
-            var q = document.getElementById("ai-ship-search").value.toLowerCase();
-            var select = document.getElementById("ai-ship-select");
-            select.innerHTML = state.ships.factions.map(function(fac) {
-                var opts = state.ships.ships.filter(function(s) {
-                    return s.faction === fac.name && (!q || s.name.toLowerCase().indexOf(q) !== -1);
-                }).map(function(s) { return '<option value="' + esc(s.name) + '" data-faction="' + esc(fac.name) + '">' + esc(s.name) + '</option>'; }).join("");
-                return opts ? '<optgroup label="' + esc(fac.icon + " " + fac.name) + '">' + opts + '</optgroup>' : "";
-            }).join("");
-        };
+        // Renders a shareable "results card" - final standings, winner
+        // highlighted - and drops it into the winner overlay as both a
+        // preview and a downloadable PNG.
+        function renderResultImage(s, winnerIds) {
+            var winnerSet = {};
+            winnerIds.forEach(function(id) { winnerSet[id] = true; });
 
-        window.getShipHint = function() {
-            var select = document.getElementById("ai-ship-select");
-            var name = select.value;
-            if (!name) return;
-            var faction = select.selectedOptions[0] ? select.selectedOptions[0].getAttribute("data-faction") : "";
-            var btn = document.getElementById("ai-hint-btn");
-            btn.disabled = true;
-            btn.textContent = "Tænker…";
-            var resultEl = document.getElementById("ai-hint-result");
-            resultEl.style.display = "none";
-            apiPost("/api/ai/hint", { shipName: name, faction: faction }).then(function(r) {
-                resultEl.textContent = r.text || "Intet svar";
-                resultEl.style.display = "";
-            }).catch(function(err) {
-                resultEl.textContent = "Fejl: " + err.message;
-                resultEl.style.display = "";
-            }).finally(function() {
-                btn.disabled = false;
-                btn.textContent = "💡 Få combo-tip";
+            var w = 720, h = 200 + s.players.length * 130 + 80;
+            var canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            var ctx = canvas.getContext("2d");
+
+            var grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, "#1a1d27");
+            grad.addColorStop(1, "#0f1117");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#6366f1";
+            ctx.font = "800 34px -apple-system, Segoe UI, sans-serif";
+            ctx.fillText("🚀 Star Realms Score", w / 2, 70);
+            ctx.fillStyle = "#8890a6";
+            ctx.font = "16px -apple-system, Segoe UI, sans-serif";
+            ctx.fillText(s.rulesetName + " · " + new Date().toLocaleDateString("da-DK"), w / 2, 98);
+
+            var players = s.players.slice().sort(function(a, b) { return b.points - a.points; });
+            var y = 140;
+            players.forEach(function(p) {
+                var isWinner = !!winnerSet[p.id];
+
+                ctx.fillStyle = isWinner ? "rgba(241,196,15,0.14)" : "rgba(255,255,255,0.04)";
+                roundRect(ctx, 40, y, w - 80, 108, 16);
+                ctx.fill();
+                if (isWinner) {
+                    ctx.strokeStyle = "#f1c40f";
+                    ctx.lineWidth = 3;
+                    roundRect(ctx, 41.5, y + 1.5, w - 83, 105, 15);
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.arc(96, y + 54, 32, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.fillStyle = "#fff";
+                ctx.font = "700 22px -apple-system, Segoe UI, sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(p.avatar || "?", 96, y + 62);
+
+                ctx.textAlign = "left";
+                ctx.fillStyle = "#f0f0f0";
+                ctx.font = "700 25px -apple-system, Segoe UI, sans-serif";
+                ctx.fillText(p.name + (isWinner ? " 🏆" : ""), 148, y + 62);
+
+                ctx.textAlign = "right";
+                ctx.fillStyle = p.color;
+                ctx.font = "800 32px -apple-system, Segoe UI, sans-serif";
+                ctx.fillText(String(p.points), w - 64, y + 68);
+
+                y += 128;
             });
-        };
 
-        window.onTradeRowSelected = function() {
-            var input = document.getElementById("ai-traderow-file");
-            var file = input.files && input.files[0];
-            if (!file) return;
-            document.getElementById("ai-traderow-loading").style.display = "";
-            var resultEl = document.getElementById("ai-traderow-result");
-            resultEl.style.display = "none";
-
-            var fd = new FormData();
-            fd.append("file", file);
-            fetch("/api/ai/traderow", { method: "POST", body: fd })
-                .then(function(r) { return r.json(); })
-                .then(function(r) {
-                    resultEl.textContent = r.text || "Intet svar";
-                    resultEl.style.display = "";
-                }).catch(function(err) {
-                    resultEl.textContent = "Fejl: " + err.message;
-                    resultEl.style.display = "";
-                }).finally(function() {
-                    document.getElementById("ai-traderow-loading").style.display = "none";
-                });
-        };
+            var dataUrl = canvas.toDataURL("image/png");
+            var img = document.getElementById("g-winner-preview");
+            if (img) { img.src = dataUrl; img.style.display = ""; }
+            var link = document.getElementById("g-winner-download");
+            if (link) {
+                link.href = dataUrl;
+                link.download = "star-realms-" + s.code.toLowerCase() + ".png";
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════

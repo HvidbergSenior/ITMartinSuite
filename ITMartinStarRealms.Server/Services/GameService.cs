@@ -11,6 +11,16 @@ public sealed class GameService(StarRealmsDbContext db)
 {
     public const int MaxPlayers = 6;
 
+    // Serializes point adjustments per session so two rapid taps (e.g. a
+    // double-tap on +1) can't race: each request loads the player row, adds
+    // its delta, and saves in three separate steps, so without this lock two
+    // overlapping requests can both read the same "before" value and one
+    // update gets silently lost.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> SessionLocks = new();
+
+    private static SemaphoreSlim GetSessionLock(string code) =>
+        SessionLocks.GetOrAdd(code.ToUpper(), _ => new SemaphoreSlim(1, 1));
+
     private static readonly string[] Colors =
     [
         "#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22"
@@ -34,7 +44,7 @@ public sealed class GameService(StarRealmsDbContext db)
             IsTeamMode = isTeamMode,
             PlayersPerTeam = isTeamMode ? Math.Max(1, playersPerTeam) : 0,
             SharedTeamPool = isTeamMode && sharedTeamPool,
-            DefaultStartingPoints = startingPoints > 0 ? startingPoints : 50,
+            DefaultStartingPoints = startingPoints > 0 ? Math.Clamp(startingPoints, 50, 100) : 50,
             IsBuiltIn = false,
             CreatedByProfileName = createdByName
         };
@@ -76,7 +86,7 @@ public sealed class GameService(StarRealmsDbContext db)
         var session = new GameSession
         {
             Code = GenerateCode(),
-            StartingPoints = startingPoints > 0 ? startingPoints : ruleset.DefaultStartingPoints,
+            StartingPoints = startingPoints > 0 ? Math.Clamp(startingPoints, 50, 100) : ruleset.DefaultStartingPoints,
             RulesetId = ruleset.Id,
             RulesetName = ruleset.Name,
             IsTeamMode = ruleset.IsTeamMode,
@@ -129,81 +139,54 @@ public sealed class GameService(StarRealmsDbContext db)
         };
         db.Players.Add(player);
 
-        // First player to join a fresh session opens the game and goes first.
-        if (session.Players.Count == 0)
-            session.CurrentTurnPlayerId = player.Id;
-
         await db.SaveChangesAsync();
         return player;
     }
 
-    public async Task AdjustPointsAsync(string code, Guid playerId, int delta)
+    public async Task StartAsync(string code)
     {
         var session = await db.Sessions
-            .Include(s => s.Players)
             .FirstOrDefaultAsync(s => s.Code == code.ToUpper())
             ?? throw new InvalidOperationException("Spil ikke fundet");
 
-        var player = session.Players.FirstOrDefault(p => p.Id == playerId)
-            ?? throw new InvalidOperationException("Spiller ikke fundet");
-
-        // Shared-pool team mode (Hydra): the whole team moves together as one number.
-        var affected = session.IsTeamMode && session.SharedTeamPool && player.Team is not null
-            ? session.Players.Where(p => p.Team == player.Team).ToList()
-            : [player];
-
-        var before = player.Points;
-        var newValue = Math.Clamp(player.Points + delta, session.MinPoints, session.MaxPoints);
-        var actualDelta = newValue - before;
-        foreach (var p in affected) p.Points = Math.Clamp(p.Points + actualDelta, session.MinPoints, session.MaxPoints);
-
-        db.Events.Add(new GameEvent
-        {
-            SessionId = session.Id,
-            PlayerId = player.Id,
-            PlayerName = player.Name,
-            PlayerAvatar = player.Avatar,
-            Delta = actualDelta,
-            ResultingPoints = player.Points
-        });
-
+        session.HasStarted = true;
         await db.SaveChangesAsync();
-        await CheckForWinnerAsync(session);
     }
 
-    public Task<List<GameEvent>> GetRecentEventsAsync(Guid sessionId, int take = 25) =>
-        db.Events.Where(e => e.SessionId == sessionId)
-            .OrderByDescending(e => e.CreatedAt)
-            .Take(take)
-            .ToListAsync();
-
-    public async Task NextTurnAsync(string code, Guid requestingPlayerId)
+    public async Task AdjustPointsAsync(string code, Guid playerId, int delta)
     {
-        var session = await db.Sessions
-            .Include(s => s.Players)
-            .FirstOrDefaultAsync(s => s.Code == code.ToUpper())
-            ?? throw new InvalidOperationException("Spil ikke fundet");
-
-        // Only the player whose turn it currently is may pass it on (or anyone, the
-        // very first time, if turn tracking hasn't started yet on an old session).
-        if (session.CurrentTurnPlayerId is not null && session.CurrentTurnPlayerId != requestingPlayerId)
-            throw new InvalidOperationException("Det er ikke din tur");
-
-        var ordered = session.Players.OrderBy(p => p.SortOrder).ToList();
-        if (ordered.Count == 0) return;
-
-        var currentIndex = ordered.FindIndex(p => p.Id == requestingPlayerId);
-        if (currentIndex < 0) currentIndex = 0;
-
-        GamePlayer next = ordered[(currentIndex + 1) % ordered.Count];
-        for (var i = 1; i <= ordered.Count; i++)
+        var sessionLock = GetSessionLock(code);
+        await sessionLock.WaitAsync();
+        try
         {
-            var candidate = ordered[(currentIndex + i) % ordered.Count];
-            if (candidate.Points > session.MinPoints) { next = candidate; break; }
-        }
+            var session = await db.Sessions
+                .Include(s => s.Players)
+                .FirstOrDefaultAsync(s => s.Code == code.ToUpper())
+                ?? throw new InvalidOperationException("Spil ikke fundet");
 
-        session.CurrentTurnPlayerId = next.Id;
-        await db.SaveChangesAsync();
+            if (!session.HasStarted)
+                throw new InvalidOperationException("Spillet er ikke startet endnu");
+
+            var player = session.Players.FirstOrDefault(p => p.Id == playerId)
+                ?? throw new InvalidOperationException("Spiller ikke fundet");
+
+            // Shared-pool team mode (Hydra): the whole team moves together as one number.
+            var affected = session.IsTeamMode && session.SharedTeamPool && player.Team is not null
+                ? session.Players.Where(p => p.Team == player.Team).ToList()
+                : [player];
+
+            var before = player.Points;
+            var newValue = Math.Clamp(player.Points + delta, session.MinPoints, session.MaxPoints);
+            var actualDelta = newValue - before;
+            foreach (var p in affected) p.Points = Math.Clamp(p.Points + actualDelta, session.MinPoints, session.MaxPoints);
+
+            await db.SaveChangesAsync();
+            await CheckForWinnerAsync(session);
+        }
+        finally
+        {
+            sessionLock.Release();
+        }
     }
 
     private async Task CheckForWinnerAsync(GameSession session)
@@ -263,10 +246,6 @@ public sealed class GameService(StarRealmsDbContext db)
         foreach (var p in session.Players)
             p.Points = session.StartingPoints;
         session.IsCompleted = false;
-        session.CurrentTurnPlayerId = session.Players.OrderBy(p => p.SortOrder).FirstOrDefault()?.Id;
-
-        var oldEvents = db.Events.Where(e => e.SessionId == session.Id);
-        db.Events.RemoveRange(oldEvents);
 
         await db.SaveChangesAsync();
     }

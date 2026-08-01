@@ -12,7 +12,6 @@ var dbPath = builder.Configuration.GetConnectionString("StarRealmsDb")
 builder.Services.AddDbContext<StarRealmsDbContext>(o => o.UseSqlite(dbPath));
 
 builder.Services.AddScoped<GameService>();
-builder.Services.AddSingleton<StarRealmsAiService>();
 builder.Services.AddHostedService<CleanupService>();
 
 var app = builder.Build();
@@ -21,6 +20,16 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<StarRealmsDbContext>();
     db.Database.EnsureCreated();
+    try
+    {
+        db.Database.ExecuteSqlRaw("ALTER TABLE Sessions ADD COLUMN HasStarted INTEGER NOT NULL DEFAULT 0");
+        // Column didn't exist before this migration - every session already in the
+        // database predates the "explicit start" gate and was already being played,
+        // so treat them as already started rather than retroactively locking real
+        // in-progress games behind a start screen nobody will click.
+        db.Database.ExecuteSqlRaw("UPDATE Sessions SET HasStarted = 1");
+    }
+    catch { }
     await RulesetSeeder.SeedAsync(db);
 }
 
@@ -65,7 +74,6 @@ app.MapGet("/api/sessions/{code}", async (string code, GameService svc) =>
     if (session is null) return Results.NotFound();
 
     var ruleset = (await svc.GetRulesetsAsync()).FirstOrDefault(r => r.Id == session.RulesetId);
-    var events = await svc.GetRecentEventsAsync(session.Id);
 
     return Results.Ok(new
     {
@@ -77,13 +85,12 @@ app.MapGet("/api/sessions/{code}", async (string code, GameService svc) =>
         session.MinPoints,
         session.MaxPoints,
         session.StartingPoints,
-        session.CurrentTurnPlayerId,
         session.IsCompleted,
+        session.HasStarted,
         Players = session.Players.OrderBy(p => p.SortOrder).Select(p => new
         {
             p.Id, p.Name, p.Avatar, p.Color, p.Points, p.Team, p.SortOrder, p.Token
-        }),
-        Events = events.Select(e => new { e.PlayerId, e.PlayerName, e.PlayerAvatar, e.Delta, e.ResultingPoints, e.CreatedAt })
+        })
     });
 });
 
@@ -111,13 +118,11 @@ app.MapPost("/api/sessions/{code}/adjust", async (string code, GameService svc, 
     catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
 });
 
-app.MapPost("/api/sessions/{code}/turn", async (string code, GameService svc, HttpContext ctx) =>
+app.MapPost("/api/sessions/{code}/start", async (string code, GameService svc) =>
 {
-    var body = await ctx.Request.ReadFromJsonAsync<TurnBody>();
-    if (body is null) return Results.BadRequest();
     try
     {
-        await svc.NextTurnAsync(code, body.PlayerId);
+        await svc.StartAsync(code);
         return Results.Ok();
     }
     catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
@@ -155,32 +160,6 @@ app.MapGet("/api/stats", async (Guid profileId, int? sinceMonths, GameService sv
     return Results.Ok(await svc.GetStatsAsync(profileId, since));
 });
 
-// ── AI helpers ────────────────────────────────────────────────────────────────
-
-app.MapGet("/api/ships", () => Results.Ok(new { ShipCatalog.Factions, ShipCatalog.Ships }));
-
-app.MapPost("/api/ai/hint", async (StarRealmsAiService ai, HttpContext ctx) =>
-{
-    var body = await ctx.Request.ReadFromJsonAsync<HintBody>();
-    if (body is null || string.IsNullOrWhiteSpace(body.ShipName)) return Results.BadRequest();
-    var text = await ai.GetShipHintAsync(body.ShipName, body.Faction ?? "");
-    return Results.Ok(new { text });
-});
-
-app.MapPost("/api/ai/traderow", async (HttpContext ctx, StarRealmsAiService ai) =>
-{
-    var form = await ctx.Request.ReadFormAsync();
-    var file = form.Files.GetFile("file");
-    if (file is null) return Results.BadRequest("No file");
-
-    using var ms = new MemoryStream();
-    await file.CopyToAsync(ms);
-    var base64 = Convert.ToBase64String(ms.ToArray());
-    var mime = file.ContentType.StartsWith("image/") ? file.ContentType : "image/jpeg";
-    var text = await ai.AnalyzeTradeRowAsync(base64, mime);
-    return Results.Ok(new { text });
-});
-
 // ── Blazor (static SSR only - no interactive render mode anywhere) ──────────
 
 app.MapRazorComponents<ITMartinStarRealms.Server.App>();
@@ -191,6 +170,4 @@ record CustomRulesetBody(string Name, string? Description, int MinPlayers, int M
 record CreateSessionBody(Guid RulesetId, int StartingPoints);
 record JoinBody(string Token, string? Name, string? Avatar, string? Color, Guid? ProfileId);
 record AdjustBody(Guid PlayerId, int Delta);
-record TurnBody(Guid PlayerId);
 record ProfileBody(string DeviceToken, string? Name, string? Avatar);
-record HintBody(string ShipName, string? Faction);

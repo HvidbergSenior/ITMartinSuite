@@ -15,7 +15,12 @@ public sealed class GameSession
     public bool IsTeamMode { get; set; }
     public bool SharedTeamPool { get; set; }
     public bool IsCompleted { get; set; }
-    public Guid? CurrentTurnPlayerId { get; set; }
+
+    // Setup (invite screen, picking names/avatars/colors) is separate from real
+    // play - point adjustments before this flips true don't count as game
+    // events, so accidental taps while showing people around don't pollute
+    // the log or a player's real point total.
+    public bool HasStarted { get; set; }
 
     public List<GamePlayer> Players { get; set; } = [];
 }
