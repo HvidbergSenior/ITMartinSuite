@@ -24,6 +24,7 @@
 @inject IGalleryThumbnailService GalleryThumbnailService
 @inject ISmartFoldersService SmartFoldersService
 @inject IPackage3Service Package3Service
+@inject IImageTaggingService ImageTaggingService
 
 <PageLayout Title="📦 Package 1 — Cleanup & Structure">
 
@@ -202,7 +203,9 @@
                             ✔ Klar — biblioteket er organiseret og galleriet er bygget
                         </span>
                         <div class="text-muted" style="font-size:13px;margin-top:4px">
-                            📁 Lokalt kun indtil videre — for at se det på gallery.itmartin.dk skal biblioteket synces til NAS'en (samme tar+scp-mønster som Mie/Vibeke/Jørgen), og gallery-web skal genudrulles med denne klients Galleries-indgang (allerede tilføjet i docker-compose.yaml, sæt en rigtig adgangskode først).
+                            📁 Lokalt kun indtil videre — kør de Temamapper-tilkøb nedenfor du vil have <strong>først</strong>
+                            (de kører kun lokalt; at tilføje dem senere kræver at hente biblioteket ned fra NAS'en igen).
+                            Synk derefter til NAS'en for at se det på gallery.itmartin.dk (se sync-note nederst).
                         </div>
                     </div>
 
@@ -229,15 +232,8 @@
                     </ContentCard>
                 }
 
-                <ActionButtonBar CssClass="bottom export-bar">
-                    <button class="btn btn-primary btn-lg"
-                            @onclick="ContinueToEnhancement">
-                        ✨ Continue To Enhancement
-                    </button>
-                </ActionButtonBar>
-
                 <ContentCard CssClass="mt-3">
-                    <SectionTitle Title="Temamapper (valgfrit)" />
+                    <SectionTitle Title="Temamapper (valgfrit) — kør disse før du synker til NAS" />
                     <div class="addon-row" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px">
 
                         <button class="btn btn-outline-primary"
@@ -260,6 +256,11 @@
                                     @onclick="RunAarbogAsync">
                                 @(_addonBusy == "Årbog" ? "⏳ Årbog..." : "📖 Årbog")
                             </button>
+                            <button class="btn btn-outline-primary"
+                                    disabled="@(_addonBusy is not null)"
+                                    @onclick="RunAarbogTekstAsync">
+                                @(_addonBusy == "AI-billedtekster" ? "⏳ Skriver tekster..." : "✍️ AI-billedtekster")
+                            </button>
                         </span>
 
                         <button class="btn btn-outline-primary"
@@ -268,7 +269,54 @@
                             @(_addonBusy == "Efter person" ? "⏳ Finder personer..." : "🔍 Find personer")
                         </button>
 
+                        <button class="btn btn-outline-primary"
+                                disabled="@(_addonBusy is not null)"
+                                @onclick="RunTagImagesAsync">
+                            @(_addonBusy == "Søgning & mærker" ? "⏳ Mærker billeder..." : "🔍🏷️ Søgning & mærker")
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                disabled="@(_addonBusy is not null)"
+                                @onclick="RunBestOfBurstAsync">
+                            @(_addonBusy == "Bedste billede" ? "⏳ Finder bedste billeder..." : "⭐ Bedste billede")
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                disabled="@(_addonBusy is not null)"
+                                @onclick="RunTraditionsAsync">
+                            @(_addonBusy == "Traditioner" ? "⏳ Finder traditioner..." : "🎄 Traditioner")
+                        </button>
+
                     </div>
+
+                    @if (_bestShotResult is { } bestShot)
+                    {
+                        <div class="text-muted mt-2">
+                            ⭐ @bestShot.BurstsFound serier fundet, @bestShot.PhotosPicked billeder valgt som de bedste.
+                        </div>
+                    }
+
+                    @if (_traditionResults is { Count: > 0 } traditions)
+                    {
+                        <div class="text-muted mt-2">
+                            🎄 @foreach (var t in traditions)
+                            {
+                                <span>@t.Name (@t.YearsFound år, @t.PhotoCount billeder)@(t == traditions[^1] ? "" : ", ")</span>
+                            }
+                        </div>
+                    }
+                    else if (_traditionResults is not null)
+                    {
+                        <div class="text-muted mt-2">Ingen tradition fundet med billeder fra mindst 2 forskellige år.</div>
+                    }
+
+                    @if (_taggingResult is { } tagging)
+                    {
+                        <div class="text-muted mt-2">
+                            🏷️ @tagging.TaggedCount nye billeder mærket, @tagging.AlreadyTaggedCount var allerede mærket, @tagging.TotalImages billeder i alt.
+                            Tryk igen for kun at mærke nye billeder (skifter ikke de allerede mærkede).
+                        </div>
+                    }
 
                     @if (_discoveredClusters is { Count: > 0 })
                     {
@@ -294,6 +342,18 @@
                         <div class="text-muted mt-2">Ingen tydelige, ikke-navngivne personer fundet (mindst 3 fotos kræves pr. person).</div>
                     }
                 </ContentCard>
+
+                <ActionButtonBar CssClass="bottom export-bar">
+                    <button class="btn btn-primary btn-lg"
+                            @onclick="ContinueToEnhancement">
+                        ✨ Continue To Enhancement
+                    </button>
+                    <span class="spacer"></span>
+                    <div class="text-muted" style="font-size:13px;max-width:420px">
+                        📤 Sidste trin: synk til NAS'en (samme tar+scp-mønster som Mie/Vibeke/Jørgen), og genudrul gallery-web
+                        med denne klients Galleries-indgang (allerede tilføjet i docker-compose.yaml, sæt en rigtig adgangskode først).
+                    </div>
+                </ActionButtonBar>
             }
             else
             {
@@ -610,6 +670,33 @@
 
     private Task RunAarbogAsync() =>
         RunAddonAsync("Årbog", () => SmartFoldersService.GenerateYearbookAsync(LibraryPath, _yearbookYear));
+
+    private Task RunAarbogTekstAsync() =>
+        RunAddonAsync("AI-billedtekster", () => SmartFoldersService.AddYearbookCaptionsAsync(LibraryPath, _yearbookYear));
+
+    private ImageTaggingResult? _taggingResult;
+
+    private Task RunTagImagesAsync() =>
+        RunAddonAsync("Søgning & mærker", async () =>
+        {
+            _taggingResult = await ImageTaggingService.TagLibraryAsync(LibraryPath);
+        });
+
+    private BestShotResult? _bestShotResult;
+
+    private Task RunBestOfBurstAsync() =>
+        RunAddonAsync("Bedste billede", async () =>
+        {
+            _bestShotResult = await SmartFoldersService.PickBestShotsAsync(LibraryPath);
+        });
+
+    private List<TraditionResult>? _traditionResults;
+
+    private Task RunTraditionsAsync() =>
+        RunAddonAsync("Traditioner", async () =>
+        {
+            _traditionResults = await SmartFoldersService.GenerateTraditionsAsync(LibraryPath);
+        });
 
     private List<UnnamedPersonCluster>? _discoveredClusters;
 

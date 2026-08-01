@@ -1,11 +1,16 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using Anthropic;
+using Anthropic.Models.Messages;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
 using ITMartin.Media.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Infrastructure.Pipelines.Package3;
@@ -56,11 +61,24 @@ public sealed class SmartFoldersService : ISmartFoldersService
         ("USA", 24.4, 49.4, -125.0, -66.9),
     ];
 
+    // How close together (in time, same folder) consecutive shots need to be
+    // to count as one burst - phones firing rapid/burst mode land well under this.
+    private const double BurstGapSeconds = 3;
+    private const int MaxBurstSize = 6; // cap per-burst AI comparison cost/tokens
+
+    // Hard ceiling on real API calls per invocation across the AI-driven
+    // add-ons in this file (best-of-burst comparisons, yearbook captions) -
+    // see CLAUDE.md "AI/Claude API cost discipline". A library with more
+    // work than this needs multiple clicks, on purpose - that's the point.
+    private const int MaxCallsPerRun = 500;
+
     private readonly IDbContextFactory<MediaDbContext> _dbFactory;
     private readonly IPackage3Service _package3;
     private readonly IGpsService _gps;
     private readonly IMediaDateService _dateService;
     private readonly ICollectionStore _collectionStore;
+    private readonly IImageAnalysisService _imageAnalysis;
+    private readonly AnthropicClient? _anthropicClient;
     private readonly ILogger<SmartFoldersService> _logger;
 
     public SmartFoldersService(
@@ -69,6 +87,8 @@ public sealed class SmartFoldersService : ISmartFoldersService
         IGpsService gps,
         IMediaDateService dateService,
         ICollectionStore collectionStore,
+        IImageAnalysisService imageAnalysis,
+        IConfiguration configuration,
         ILogger<SmartFoldersService> logger)
     {
         _dbFactory = dbFactory;
@@ -76,7 +96,12 @@ public sealed class SmartFoldersService : ISmartFoldersService
         _gps = gps;
         _dateService = dateService;
         _collectionStore = collectionStore;
+        _imageAnalysis = imageAnalysis;
         _logger = logger;
+
+        var apiKey = configuration["Claude:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(apiKey))
+            _anthropicClient = new AnthropicClient { ApiKey = apiKey };
     }
 
     public async Task<PersonFolderResult?> GeneratePersonFolderAsync(string libraryPath, Guid personId, CancellationToken cancellationToken = default)
@@ -90,7 +115,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
         if (filePaths.Count == 0) return null;
 
         var folderPath = Path.Combine(libraryPath, RootFolderName, "People", SanitizeName(person.Name));
-        var linked = LinkFiles(filePaths, folderPath);
+        var linked = CopyFiles(filePaths, folderPath);
 
         _logger.LogInformation("Generated person folder for {Name}: {Linked}/{Matched} files linked at {Path}", person.Name, linked.Count, filePaths.Count, folderPath);
 
@@ -133,8 +158,8 @@ public sealed class SmartFoldersService : ISmartFoldersService
 
         if (home is null)
         {
-            LinkFiles([], homeFolderPath);
-            LinkFiles([], awayFolderPath);
+            CopyFiles([], homeFolderPath);
+            CopyFiles([], awayFolderPath);
             return Task.FromResult(new HomeAwayResult
             {
                 HomeCount = 0,
@@ -154,8 +179,8 @@ public sealed class SmartFoldersService : ISmartFoldersService
             (distanceKm > AwayFromHomeKm ? awayFiles : homeFiles).Add(p.Path);
         }
 
-        var homeLinked = LinkFiles(homeFiles, homeFolderPath);
-        var awayLinked = LinkFiles(awayFiles, awayFolderPath);
+        var homeLinked = CopyFiles(homeFiles, homeFolderPath);
+        var awayLinked = CopyFiles(awayFiles, awayFolderPath);
 
         _logger.LogInformation(
             "Home/Away split for {LibraryPath}: {Home} home, {Away} away, {Ungeo} without GPS",
@@ -213,7 +238,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
         var results = new List<TripFolderResult>();
 
         // Two separate trips can easily share the same "Country Year" name
-        // (e.g. two different Denmark trips in 2013) - LinkFiles clears its
+        // (e.g. two different Denmark trips in 2013) - CopyFiles clears its
         // target folder on every call, so without disambiguating, the second
         // trip sharing a name would silently wipe out the first one's folder.
         var usedTripNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -249,7 +274,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
             }
 
             var folderPath = Path.Combine(libraryPath, RootFolderName, "Trips", SanitizeName(name));
-            LinkFiles(fullCluster.Select(c => c.Path), folderPath);
+            CopyFiles(fullCluster.Select(c => c.Path), folderPath);
 
             results.Add(new TripFolderResult
             {
@@ -319,10 +344,10 @@ public sealed class SmartFoldersService : ISmartFoldersService
             .ToList();
 
         var folderPath = Path.Combine(libraryPath, RootFolderName, "Yearbook", year.ToString());
-        var mapping = LinkFiles(selected.Select(x => x.Path), folderPath);
+        var mapping = CopyFiles(selected.Select(x => x.Path), folderPath);
 
         var htmlPath = Path.Combine(folderPath, "index.html");
-        File.WriteAllText(htmlPath, BuildYearbookHtml(year, selected, mapping));
+        File.WriteAllText(htmlPath, BuildYearbookHtml(year, selected, mapping, captions: null));
 
         _logger.LogInformation("Generated yearbook for {Year}: {Count} photos at {Path}", year, selected.Count, folderPath);
 
@@ -335,15 +360,395 @@ public sealed class SmartFoldersService : ISmartFoldersService
         });
     }
 
+    // "AI-billedtekster" - a separate, paid step from the free Årbog itself.
+    // Rebuilds (Path, Date) from whatever's actually sitting in the yearbook
+    // folder rather than reusing GenerateYearbookAsync's in-memory selection,
+    // since that's long gone by the time this runs as its own admin action.
+    public async Task<YearbookResult?> AddYearbookCaptionsAsync(string libraryPath, int year, CancellationToken cancellationToken = default)
+    {
+        var folderPath = Path.Combine(libraryPath, RootFolderName, "Yearbook", year.ToString());
+        if (!Directory.Exists(folderPath)) return null;
+
+        var files = Directory.EnumerateFiles(folderPath)
+            .Where(f => MediaTypeHelper.IsImage(f) || MediaTypeHelper.IsVideo(f))
+            .ToList();
+        if (files.Count == 0) return null;
+
+        var captionsPath = Path.Combine(folderPath, "captions.json");
+        var captions = LoadCaptions(captionsPath);
+
+        // Videos can't be sent to image analysis - captioned files only ever
+        // cover the photos in the yearbook, videos just keep showing their date.
+        // Yearbook sampling already keeps this small (<=8/month = <=96/year),
+        // but the explicit cap + incremental save are kept anyway per CLAUDE.md
+        // AI cost discipline, in case the sampling size ever changes.
+        var allUncaptioned = files
+            .Where(f => MediaTypeHelper.IsImage(f) && !captions.ContainsKey(Path.GetFileName(f)))
+            .ToList();
+        var uncaptioned = allUncaptioned.Take(MaxCallsPerRun).ToList();
+
+        var sinceSave = 0;
+        foreach (var file in uncaptioned)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var result = await _imageAnalysis.AnalyzeImageAsync(file);
+                if (!string.IsNullOrWhiteSpace(result.Description))
+                {
+                    captions[Path.GetFileName(file)] = result.Description;
+                    sinceSave++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Caption generation failed for {Path}", file);
+            }
+
+            // Same reasoning as ImageTaggingService: don't only save at the
+            // very end, or a crash partway through loses everything already paid for.
+            if (sinceSave >= 20)
+            {
+                SaveCaptions(captionsPath, captions);
+                sinceSave = 0;
+            }
+        }
+
+        SaveCaptions(captionsPath, captions);
+
+        var dated = new List<(string Path, DateTime Date)>();
+        var mapping = new Dictionary<string, string>();
+        foreach (var file in files)
+        {
+            var d = _dateService.GetBestDate(new MediaDateRequest(file));
+            dated.Add((file, d.Date ?? File.GetLastWriteTime(file)));
+            mapping[file] = Path.GetFileName(file);
+        }
+        dated = dated.OrderBy(x => x.Date).ToList();
+
+        var htmlPath = Path.Combine(folderPath, "index.html");
+        File.WriteAllText(htmlPath, BuildYearbookHtml(year, dated, mapping, captions));
+
+        _logger.LogInformation(
+            "Captioned yearbook for {Year}: {New} newly captioned, {Remaining} remaining (capped at {Cap}/run), {Total} photos total at {Path}",
+            year, uncaptioned.Count, allUncaptioned.Count - uncaptioned.Count, MaxCallsPerRun, files.Count, folderPath);
+
+        return new YearbookResult
+        {
+            Year = year,
+            PhotoCount = files.Count,
+            FolderPath = folderPath,
+            HtmlPath = htmlPath,
+        };
+    }
+
+    private static Dictionary<string, string> LoadCaptions(string path)
+    {
+        if (!File.Exists(path)) return new Dictionary<string, string>();
+        try
+        {
+            var json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>();
+        }
+    }
+
+    private static void SaveCaptions(string path, Dictionary<string, string> captions) =>
+        File.WriteAllText(path, JsonSerializer.Serialize(captions, new JsonSerializerOptions { WriteIndented = true }));
+
+    // Stable identity for a burst across runs, despite bursts never being
+    // stored anywhere themselves - two runs that detect the same set of files
+    // grouped together produce the same signature regardless of iteration order.
+    private static string BurstSignature(List<string> burst)
+    {
+        var joined = string.Join('|', burst.OrderBy(p => p, StringComparer.OrdinalIgnoreCase));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(joined)));
+    }
+
+    private static Dictionary<string, string> LoadDecidedBursts(string path)
+    {
+        if (!File.Exists(path)) return new Dictionary<string, string>();
+        try
+        {
+            var json = File.ReadAllText(path);
+            var loaded = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
+            // A winner from a prior run may have since been moved/deleted -
+            // don't carry forward a reference to a file that no longer exists.
+            return loaded.Where(kv => File.Exists(kv.Value)).ToDictionary(kv => kv.Key, kv => kv.Value);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>();
+        }
+    }
+
+    private static void SaveDecidedBursts(string path, Dictionary<string, string> decided)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(decided, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    public async Task<BestShotResult> PickBestShotsAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var files = EnumerateLibraryImages(libraryPath).Where(MediaTypeHelper.IsImage).ToList();
+        var dated = new List<(string Path, DateTime Date)>();
+
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var d = _dateService.GetBestDate(new MediaDateRequest(file));
+            if (d.Date is not null) dated.Add((file, d.Date.Value));
+        }
+
+        // Bursts only ever chain within the same folder - shots seconds apart
+        // in different folders are a coincidence, not a rapid-fire series.
+        var bursts = new List<List<string>>();
+        foreach (var group in dated.GroupBy(x => Path.GetDirectoryName(x.Path)))
+        {
+            var ordered = group.OrderBy(x => x.Date).ToList();
+            List<(string Path, DateTime Date)> current = [];
+
+            foreach (var item in ordered)
+            {
+                if (current.Count > 0 && (item.Date - current[^1].Date).TotalSeconds <= BurstGapSeconds)
+                {
+                    current.Add(item);
+                }
+                else
+                {
+                    if (current.Count >= 2) bursts.Add(current.Select(x => x.Path).ToList());
+                    current = [item];
+                }
+            }
+            if (current.Count >= 2) bursts.Add(current.Select(x => x.Path).ToList());
+        }
+
+        var folderPath = Path.Combine(libraryPath, RootFolderName, "BedsteBillede");
+
+        // Bursts are re-detected fresh every run (nothing about them is stored
+        // on the MediaFile itself), so "already decided" is tracked by a
+        // content signature (hash of the burst's sorted file paths) in a
+        // sidecar - same idea as captions.json. Re-running only spends new
+        // API calls on bursts that weren't already decided, and the winners
+        // already on file are carried forward instead of being lost when
+        // CopyFiles rebuilds the destination folder.
+        var decidedPath = Path.Combine(folderPath, "decided.json");
+        var decided = LoadDecidedBursts(decidedPath);
+
+        var undecided = bursts.Where(b => !decided.ContainsKey(BurstSignature(b))).ToList();
+        var toProcess = undecided.Take(MaxCallsPerRun).ToList();
+        var skippedBursts = undecided.Count - toProcess.Count;
+
+        foreach (var burst in toProcess)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var candidates = burst.Take(MaxBurstSize).ToList();
+            int? bestIndex;
+            try
+            {
+                bestIndex = await PickBestOfBurstAsync(candidates, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Best-shot comparison failed for a burst of {Count} at {Path}", candidates.Count, candidates[0]);
+                bestIndex = null;
+            }
+
+            // Falls back to the first shot rather than dropping the burst
+            // entirely - still a real reduction (N photos -> 1) even without
+            // an AI opinion, and keeps every burst represented in the folder.
+            decided[BurstSignature(burst)] = candidates[bestIndex ?? 0];
+        }
+
+        SaveDecidedBursts(decidedPath, decided);
+
+        // Cumulative across every run, not just this one - a fresh detection
+        // pass can occasionally miss a burst from a prior run (e.g. new
+        // photos shifted a grouping boundary); decided.json is the source of
+        // truth for what's actually in the output folder, not this run's
+        // freshly-detected burst list.
+        var mapping = CopyFiles(decided.Values, folderPath);
+
+        _logger.LogInformation(
+            "Best-of-burst complete for {LibraryPath}: {Bursts} bursts found, {Processed} newly processed, {Skipped} left for a follow-up run (capped at {Cap}/run), {Picked} photos picked total at {Path}",
+            libraryPath, bursts.Count, toProcess.Count, skippedBursts, MaxCallsPerRun, mapping.Count, folderPath);
+
+        return new BestShotResult
+        {
+            BurstsFound  = bursts.Count,
+            PhotosPicked = mapping.Count,
+            FolderPath   = folderPath,
+        };
+    }
+
+    private static readonly Tool PickBestShotTool = new()
+    {
+        Name = "pick_best",
+        Description = "Report which photo in the burst is the best one",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["index"] = JsonSerializer.SerializeToElement(
+                    new { type = "integer", description = "0-based index of the sharpest/best-framed photo, with eyes open if there are people" }),
+            },
+            Required = ["index"],
+        },
+    };
+
+    private async Task<int?> PickBestOfBurstAsync(List<string> paths, CancellationToken cancellationToken)
+    {
+        if (_anthropicClient is null || paths.Count < 2) return null;
+
+        var content = new List<ContentBlockParam>
+        {
+            new TextBlockParam
+            {
+                Text = "These are near-duplicate photos from the same burst/rapid series, in order. " +
+                       "Pick the single best one - sharpest focus, best framing, eyes open if there are people. Call pick_best.",
+            },
+        };
+
+        foreach (var path in paths)
+        {
+            var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
+            content.Add(new ImageBlockParam
+            {
+                Source = new Base64ImageSource { Data = Convert.ToBase64String(bytes), MediaType = GetMimeType(path) },
+            });
+        }
+
+        var request = new MessageCreateParams
+        {
+            // Haiku, not Opus - see feedback_ai_cost_ceiling: this is bounded by
+            // how many real bursts exist in the library, not the whole library,
+            // but still should never be an expensive-per-call model.
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 128,
+            System = "You compare near-duplicate burst photos and pick the single best one. Always call pick_best.",
+            Tools = [PickBestShotTool],
+            ToolChoice = new ToolChoiceTool { Name = "pick_best" },
+            Messages = [new() { Role = Role.User, Content = content }],
+        };
+
+        var response = await _anthropicClient.Messages.Create(request);
+
+        foreach (var block in response.Content)
+        {
+            if (!block.TryPickToolUse(out var toolUse)) continue;
+
+            var json = JsonSerializer.Serialize(toolUse.Input);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("index", out var idxEl) && idxEl.TryGetInt32(out var idx) &&
+                idx >= 0 && idx < paths.Count)
+                return idx;
+        }
+
+        return null;
+    }
+
+    // Fixed calendar dates only - Fastelavn/Easter move year to year and would
+    // need real holiday-date logic, not a simple month/day match, so they're
+    // left out rather than guessed at.
+    private static readonly (string Name, int Month, int DayFrom, int DayTo)[] Traditions =
+    [
+        ("Jul", 12, 24, 26),
+        ("Nytår", 12, 31, 31), // Jan 1 handled separately below - month wraps
+    ];
+
+    public Task<List<TraditionResult>> GenerateTraditionsAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var files = EnumerateLibraryImages(libraryPath).Where(MediaTypeHelper.IsImage).ToList();
+        var dated = new List<(string Path, DateTime Date)>();
+
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var d = _dateService.GetBestDate(new MediaDateRequest(file));
+            if (d.Date is not null) dated.Add((file, d.Date.Value));
+        }
+
+        var results = new List<TraditionResult>();
+
+        foreach (var tradition in Traditions)
+        {
+            // Nytår spans New Year's Eve into New Year's Day - Jan 1st belongs
+            // to the turn-of-year moment that started on Dec 31st, not treated
+            // as its own separate tradition year.
+            var matches = tradition.Name == "Nytår"
+                ? dated.Where(x => (x.Date.Month == 12 && x.Date.Day == 31) || (x.Date.Month == 1 && x.Date.Day == 1)).ToList()
+                : dated.Where(x => x.Date.Month == tradition.Month && x.Date.Day >= tradition.DayFrom && x.Date.Day <= tradition.DayTo).ToList();
+
+            // Dec 31st/Jan 1st belong to the same turn-of-year - group by the
+            // year the celebration started in (Dec 31 stays as-is, Jan 1 counts
+            // as the previous year's Nytår).
+            var byYear = matches
+                .GroupBy(x => tradition.Name == "Nytår" && x.Date.Month == 1 ? x.Date.Year - 1 : x.Date.Year)
+                .Where(g => g.Any())
+                .ToList();
+
+            // Nothing to compare year-over-year with only a single year of
+            // photos for this tradition - skip entirely rather than generate
+            // a lone, incomparable folder.
+            if (byYear.Count < 2) continue;
+
+            foreach (var yearGroup in byYear)
+            {
+                var folderPath = Path.Combine(libraryPath, RootFolderName, "Traditioner", tradition.Name, yearGroup.Key.ToString());
+                var mapping = CopyFiles(yearGroup.Select(x => x.Path), folderPath);
+                if (mapping.Count == 0) continue;
+
+                results.Add(new TraditionResult
+                {
+                    Name       = tradition.Name,
+                    YearsFound = byYear.Count,
+                    PhotoCount = mapping.Count,
+                    FolderPath = folderPath,
+                });
+            }
+        }
+
+        _logger.LogInformation(
+            "Traditions complete for {LibraryPath}: {Count} tradition-years generated",
+            libraryPath, results.Count);
+
+        return Task.FromResult(results);
+    }
+
+    private static string GetMimeType(string filePath) =>
+        Path.GetExtension(filePath).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            _ => "image/jpeg",
+        };
+
     public async Task SyncGalleryCollectionsAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
         var smartFoldersRoot = Path.Combine(libraryPath, RootFolderName);
         var collections = new List<MediaCollection>();
 
+        // FilePaths are stored relative to libraryPath, not absolute - an
+        // absolute path baked in here only ever resolves on whichever machine
+        // ran this sync. This add-on is typically run locally, then the
+        // library gets synced to wherever it's actually served (the NAS) -
+        // an absolute local path silently breaks every file lookup once that
+        // happens. Gallery.Server resolves these relative to its own root.
         void AddCollection(string name, string folder)
         {
             if (!Directory.Exists(folder)) return;
-            var files = Directory.EnumerateFiles(folder).ToList();
+            // index.html/captions.json/decided.json are this folder's own
+            // generated sidecars, never real content to show as a "photo".
+            var files = Directory.EnumerateFiles(folder)
+                .Where(f => MediaTypeHelper.IsImage(f) || MediaTypeHelper.IsVideo(f))
+                .Select(f => Path.GetRelativePath(libraryPath, f))
+                .ToList();
             if (files.Count == 0) return;
             collections.Add(new MediaCollection { Name = name, FilePaths = files });
         }
@@ -399,9 +804,27 @@ public sealed class SmartFoldersService : ISmartFoldersService
                 var year = Path.GetFileName(yearDir);
                 var yearFiles = Directory.EnumerateFiles(yearDir)
                     .Where(f => !Path.GetFileName(f).Equals("index.html", StringComparison.OrdinalIgnoreCase))
+                    .Where(f => !Path.GetFileName(f).Equals("captions.json", StringComparison.OrdinalIgnoreCase))
+                    .Select(f => Path.GetRelativePath(libraryPath, f))
                     .ToList();
                 if (yearFiles.Count > 0)
                     collections.Add(new MediaCollection { Name = $"Årbog {year}", FilePaths = yearFiles });
+            }
+        }
+
+        AddCollection("Bedste billede", Path.Combine(smartFoldersRoot, "BedsteBillede"));
+
+        // One collection per tradition per year (e.g. "Jul 2023", "Jul 2024")
+        // so they sit side by side for an easy year-over-year comparison, same
+        // idea as the per-year Årbog cards above.
+        var traditionsRoot = Path.Combine(smartFoldersRoot, "Traditioner");
+        if (Directory.Exists(traditionsRoot))
+        {
+            foreach (var traditionDir in Directory.EnumerateDirectories(traditionsRoot).OrderBy(Path.GetFileName))
+            {
+                var name = Path.GetFileName(traditionDir);
+                foreach (var yearDir in Directory.EnumerateDirectories(traditionDir).OrderBy(Path.GetFileName))
+                    AddCollection($"{name} {Path.GetFileName(yearDir)}", yearDir);
             }
         }
 
@@ -412,7 +835,11 @@ public sealed class SmartFoldersService : ISmartFoldersService
             collections.Count, libraryPath, string.Join(", ", collections.Select(c => c.Name)));
     }
 
-    private static string BuildYearbookHtml(int year, List<(string Path, DateTime Date)> selected, Dictionary<string, string> mapping)
+    private static string BuildYearbookHtml(
+        int year,
+        List<(string Path, DateTime Date)> selected,
+        Dictionary<string, string> mapping,
+        Dictionary<string, string>? captions)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!doctype html><html lang=\"da\"><head><meta charset=\"utf-8\">");
@@ -426,6 +853,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
               .grid figure{margin:0;background:#111a2e;border:1px solid #223154;border-radius:12px;overflow:hidden}
               .grid img, .grid video{width:100%;display:block;aspect-ratio:1;object-fit:cover}
               .grid figcaption{font-size:.72rem;color:#7b8aad;text-align:center;padding:.4rem}
+              .grid figcaption .caption{display:block;color:#c7d2fe;font-size:.78rem;margin-bottom:.15rem}
             </style>
             """);
         sb.AppendLine("</head><body>");
@@ -444,7 +872,11 @@ public sealed class SmartFoldersService : ISmartFoldersService
                 ? $"<video src=\"{encodedName}\" muted preload=\"metadata\" controls></video>"
                 : $"<img src=\"{encodedName}\" loading=\"lazy\">";
 
-            sb.AppendLine($"<figure>{media}<figcaption>{item.Date:d. MMMM}</figcaption></figure>");
+            var captionHtml = captions is not null && captions.TryGetValue(fileName, out var caption) && !string.IsNullOrWhiteSpace(caption)
+                ? $"<span class=\"caption\">{WebUtility.HtmlEncode(caption)}</span>"
+                : "";
+
+            sb.AppendLine($"<figure>{media}<figcaption>{captionHtml}{item.Date:d. MMMM}</figcaption></figure>");
         }
 
         sb.AppendLine("</div></body></html>");
@@ -480,11 +912,13 @@ public sealed class SmartFoldersService : ISmartFoldersService
         return earthRadiusKm * c;
     }
 
-    // Every destination file is a symlink back to the original - falls back to a
-    // real copy only if symlink creation isn't permitted (e.g. running directly on
-    // Windows outside a container, without Developer Mode). Clears any previous
-    // run's output first so a regenerate reflects the current match set exactly.
-    private static Dictionary<string, string> LinkFiles(IEnumerable<string> sourcePaths, string destFolder)
+    // Every destination file is a real copy, not a symlink - the delivered library
+    // ends up on a USB/harddisk handed to the customer, where a symlink's target
+    // path no longer exists (or points at the wrong machine entirely), so a linked
+    // add-on folder would just be empty/broken once it's off the NAS. Clears any
+    // previous run's output first so a regenerate reflects the current match set
+    // exactly.
+    private static Dictionary<string, string> CopyFiles(IEnumerable<string> sourcePaths, string destFolder)
     {
         Directory.CreateDirectory(destFolder);
 
@@ -510,17 +944,10 @@ public sealed class SmartFoldersService : ISmartFoldersService
                 i++;
             }
 
-            var linkPath = Path.Combine(destFolder, finalName);
+            var destPath = Path.Combine(destFolder, finalName);
 
-            try
-            {
-                File.CreateSymbolicLink(linkPath, source);
-            }
-            catch
-            {
-                try { File.Copy(source, linkPath, overwrite: true); }
-                catch { continue; }
-            }
+            try { File.Copy(source, destPath, overwrite: true); }
+            catch { continue; }
 
             mapping[source] = finalName;
         }

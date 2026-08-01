@@ -69,7 +69,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .summary-stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em}
 
 /* Quick jump (home -> exact year/month in one flow, no extra folder clicks) */
-.jump-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .jump-chip{background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;border-radius:999px;padding:7px 14px;cursor:pointer}
 .jump-chip:active{border-color:#3b82f6}
 .jump-chip.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
@@ -82,6 +81,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .folder-cover img{width:100%;height:100%;object-fit:cover}
 .folder-info{padding:8px 10px}
 .folder-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Add-on placeholders sit right in the normal folder grid, alongside real
+   Billeder/Videoer folders - locked until picked in Tilkøb below, so the
+   customer sees exactly where the add-on will show up once it's live.
+   Locked state shows a plain lock, not the illustration - the illustrations
+   have wildly different base colors/coverage, so a grayscale+opacity filter
+   made some look noticeably less "locked" than others; a flat neutral cover
+   is uniform regardless of which add-on it is. */
+.addon-placeholder .folder-cover{position:relative;background:var(--bg);font-size:22px;color:var(--icon-placeholder)}
+.addon-placeholder.enabled .folder-cover{background:transparent}
+.addon-placeholder-badge{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:999px;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:11px}
+.addon-placeholder.enabled .addon-placeholder-badge{background:#22c55e}
 
 /* Collections row */
 .collection-sub{font-size:12px;color:var(--text-dim);margin:-6px 0 10px;line-height:1.4}
@@ -96,20 +107,43 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .collection-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .collection-count{font-size:11px;color:var(--text-dim);margin-top:1px}
 .addon-cover{background:linear-gradient(135deg,#2e1f5e,#1f2a44)}
-.addon-desc{font-size:10.5px;color:var(--text-dim);line-height:1.3;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.addon-price{display:inline-block;font-size:11px;font-weight:800;color:#c4b5fd;background:#2e1f5e;padding:2px 8px;border-radius:999px;margin-top:5px}
+.addon-cover svg{width:72%;height:72%}
+.addon-desc{display:none;font-size:11px;color:var(--text-dim);line-height:1.35;margin-top:3px}
+.addon-card.selected .addon-desc,.addon-card.bundled .addon-desc{display:block}
+.addon-name-input{display:none;width:100%;box-sizing:border-box;margin-top:5px;padding:5px 8px;font-size:12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text-main)}
+.addon-card.selected .addon-name-input{display:block}
+.addon-price{display:none;font-size:11px;font-weight:800;color:#c4b5fd;background:#2e1f5e;padding:2px 8px;border-radius:999px;margin-top:5px}
+.addon-card.selected .addon-price,.addon-card.bundled .addon-price{display:inline-block}
 
 /* Add-ons are secondary to the actual photos/videos - smaller cards, quieter
    label, pushed to the bottom of the page rather than competing with Mapper. */
 .addons-secondary{margin-top:28px;padding-top:16px;border-top:1px solid var(--border)}
 .addons-secondary .section-label{color:var(--text-dim)}
-.addons-secondary .collection-card{flex:0 0 96px}
-.addons-secondary .collection-cover{width:96px;height:96px;font-size:24px}
+.addons-secondary .collection-card{flex:0 0 96px;transition:flex-basis .15s}
+.addons-secondary .collection-card.selected,.addons-secondary .collection-card.bundled{flex-basis:160px}
+.addons-secondary .collection-cover{width:96px;height:48px;font-size:20px}
 .addons-secondary .collection-name{font-size:11px}
-.info-note{position:relative;font-size:12px;color:var(--text-dim);line-height:1.5;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 34px 10px 12px;margin-bottom:16px}
-.info-note b{color:var(--text-main)}
-.info-note-close{position:absolute;top:6px;right:8px;background:none;border:none;color:var(--text-dim);font-size:16px;line-height:1;cursor:pointer;padding:4px}
-.info-note-close:hover{color:var(--text-main)}
+.addons-secondary .addon-check{width:13px;height:13px;font-size:8px;top:3px;right:3px}
+
+/* Add-on cards double as a picker: tap to select, checkmark confirms it,
+   "bundled" ones (free-with-another-addon) aren't independently clickable. */
+.addon-card{position:relative;cursor:pointer}
+.addon-card.selected{border-color:#22c55e}
+.addon-card.bundled{cursor:default;opacity:.65}
+.addon-check{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:999px;background:rgba(0,0,0,.35);border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent}
+.addon-card.selected .addon-check{background:#22c55e;border-color:#22c55e;color:#fff}
+.addons-sendbar{display:none;margin-top:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.addons-sendbar.show{display:flex}
+.addons-sendbar.sent{border-color:#22c55e}
+.addons-sendbar-label{font-size:12.5px;color:var(--text-dim);flex:1;min-width:140px}
+.addons-sendbar.sent .addons-sendbar-label{color:#4ade80;font-weight:700}
+.addons-sendbar button{background:#3b82f6;color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+
+/* Search view - only ever shown after the customer taps into the (unlocked)
+   Søgning placeholder, never on the home page itself. */
+#specialSearchBar{display:flex;gap:8px;margin-bottom:14px}
+#specialSearchBar input{flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-main);font-size:14px}
+#specialSearchBar button{background:#3b82f6;color:#fff;border:none;border-radius:10px;padding:0 18px;font-size:14px;font-weight:700;cursor:pointer}
 
 /* File grid */
 .file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
@@ -169,7 +203,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="hdr-btn" id="btnGalleries" style="display:none">🏠 Gallerier</button>
     <button class="hdr-btn" id="btnBack" style="display:none">← Tilbage</button>
     <div class="hdr-title" id="hdrTitle">🖼️ Gallerier</div>
-    <button class="hdr-btn" id="btnLogout" style="display:none">Log ud</button>
     <button class="hdr-btn" id="btnTheme" title="Skift lys/mørk visning">🌓</button>
   </div>
   <div class="content">
@@ -181,14 +214,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="summary-title">Din samling er klar! 🎉</div>
         <div class="summary-stats" id="summaryStats"></div>
       </div>
-      <div id="quickJump" style="display:none">
-        <div class="section-label">Gå direkte til</div>
-        <div class="jump-row" id="jumpYearRow"></div>
-        <div class="jump-row" id="jumpMonthRow" style="display:none"></div>
-      </div>
       <div id="folderSection">
         <div class="section-label">Mapper</div>
         <div class="folder-grid" id="folderGrid"></div>
+      </div>
+      <div id="specialSearchBar" style="display:none">
+        <input type="text" id="specialSearchInput" class="form-control" placeholder="Søg (fødselsdag, strand, jul...)">
+        <button id="specialSearchBtn" onclick="runSpecialSearch()">Søg</button>
       </div>
       <div id="fileSection">
         <div class="section-label">Billeder &amp; videoer</div>
@@ -200,14 +232,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="collection-sub">Fundet automatisk (ansigter, sted &amp; år) — smagsprøve på, hvad der kan bygges videre til hele biblioteket.</div>
         <div class="collection-row" id="collectionRow"></div>
       </div>
-      <div class="info-note" id="livePhotoNote" style="display:none">
-        <button class="info-note-close" id="livePhotoNoteClose" title="Skjul">×</button>
-        📱 <b>Om "Live"-billeder:</b> Hvis "Live" er slået til på din iPhone, gemmes der automatisk et kort videoklip sammen med billedet. Selve billedet ligger allerede i dine mapper her — men <b>det er værd at kigge på videoklippene</b> også. De er ikke inkluderet endnu, men kan tilføjes gratis, hvis du vil have dem — bare giv mig besked.
-      </div>
       <div id="addonsSection" class="addons-secondary" style="display:none">
-        <div class="section-label">Tilkøb<span class="collection-badge">Eksempel</span></div>
-        <div class="collection-sub">Ekstra måder at organisere jeres billeder og videoer på — kontakt mig, hvis I vil have en af dem.</div>
+        <div class="section-label">Tilkøb</div>
+        <div class="collection-sub">Tryk på et tilkøb for at se mere og vælge det. Sidste chance inden I får det hele med på USB/harddisk.</div>
         <div class="collection-row" id="addonsRow"></div>
+        <div class="addons-sendbar" id="addonsSendBar">
+          <div class="addons-sendbar-label" id="addonsSendLabel"></div>
+          <button id="addonsSendBtn" onclick="sendAddonRequest()">Send anmodning</button>
+        </div>
       </div>
     </div>
   </div>
@@ -246,6 +278,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentGallery = null;
 let currentRelPath = '';
+// Real folder cards (Billeder/Videoer/etc.), cached so toggling an add-on can
+// rebuild the grid with the new enabled/locked split without a fresh /api/browse.
+let currentFolderCardsHtml = '';
 let parentRelPath  = null;
 let playlist       = [];
 let playIdx        = 0;
@@ -296,7 +331,6 @@ async function loadGalleries(adminPin) {
   summaryData    = null;
   collectionsData    = null;
   viewingCollection  = null;
-  quickJumpYears = null;
   const res = await fetch(`/api/galleries?adminPin=${encodeURIComponent(adminPin || '')}`);
   if (!res.ok) { showNoGalleryState(); return; }
   const list = await res.json();
@@ -305,7 +339,6 @@ async function loadGalleries(adminPin) {
   document.getElementById('fileBrowser').style.display   = 'none';
   document.getElementById('btnGalleries').style.display  = 'none';
   document.getElementById('btnBack').style.display       = 'none';
-  document.getElementById('btnLogout').style.display     = 'none';
   document.getElementById('hdrTitle').textContent        = '🖼️ Gallerier';
 
   const grid = document.getElementById('galleryGrid');
@@ -330,7 +363,6 @@ async function selectGallery(slug, name) {
   galleryDisplayName = name;
   document.getElementById('galleryPicker').style.display = 'none';
   document.getElementById('fileBrowser').style.display   = '';
-  document.getElementById('btnLogout').style.display     = '';
   const data = await res.json();
   parentRelPath = data.parentRelPath;
   renderBrowse(data, name);
@@ -358,10 +390,6 @@ function hideLogin() {
 document.getElementById('loginBtn').addEventListener('click', doLogin);
 document.getElementById('loginInput').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('loginCancel').addEventListener('click', hideLogin);
-document.getElementById('livePhotoNoteClose').addEventListener('click', () => {
-  localStorage.setItem(`livePhotoNoteDismissed_${currentGallery}`, '1');
-  document.getElementById('livePhotoNote').style.display = 'none';
-});
 
 async function doLogin() {
   const pw  = document.getElementById('loginInput').value;
@@ -379,7 +407,6 @@ async function doLogin() {
     galleryDisplayName = name;
     document.getElementById('galleryPicker').style.display = 'none';
     document.getElementById('fileBrowser').style.display   = '';
-    document.getElementById('btnLogout').style.display     = '';
     await loadBrowse('', name);
     loadSummary(slug);
     loadCollections(slug);
@@ -389,17 +416,6 @@ async function doLogin() {
   }
 }
 
-// ── Logout ────────────────────────────────────────────────────────────────────
-document.getElementById('btnLogout').addEventListener('click', async () => {
-  const slug = currentGallery, name = galleryDisplayName;
-  if (slug) {
-    await fetch(`/api/logout?gallery=${encodeURIComponent(slug)}`, { method: 'POST' });
-  }
-  // Back to this same gallery's login, not the admin picker of every
-  // customer - logging out shouldn't dead-end into someone else's territory.
-  if (slug) showLogin(slug, name); else startUp();
-});
-
 // ── Browse ────────────────────────────────────────────────────────────────────
 // titleOverride: the friendly name shown on the folder card that was clicked
 // (e.g. "Billeder") - used verbatim as the header once inside that folder,
@@ -408,6 +424,8 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
 async function loadBrowse(relPath, titleOverride) {
   if (!currentGallery) return;
   viewingCollection = null;
+  viewingSpecialAddon = null;
+  document.getElementById('specialSearchBar').style.display = 'none';
   document.getElementById('folderSection').style.display = '';
   currentRelPath = relPath ?? '';
   const url = `/api/browse?gallery=${encodeURIComponent(currentGallery)}` +
@@ -431,37 +449,32 @@ function renderBrowse(data, titleOverride) {
   document.getElementById('btnBack').style.display      = atRoot ? 'none' : '';
   document.getElementById('summaryCard').style.display  = (atRoot && summaryData) ? '' : 'none';
 
-  if (atRoot && !viewingCollection) { loadQuickJumpYears(); } else { document.getElementById('quickJump').style.display = 'none'; }
-
   const fg = document.getElementById('folderGrid');
   const fs = document.getElementById('folderSection');
-  if (folders.length) {
-    fs.style.display = '';
-    fg.innerHTML = folders.map(f => `
-      <div class="folder-card" onclick="loadBrowse('${esc(f.relPath)}','${esc(f.name)}')">
-        <div class="folder-cover">
-          ${f.cover ? `<img src="${esc(f.cover)}" loading="lazy" onerror="this.parentElement.innerHTML='📁'" alt="">` : '📁'}
-        </div>
-        <div class="folder-info">
-          <div class="folder-name">${esc(f.name)}</div>
-        </div>
-      </div>`).join('');
-  } else {
-    fs.style.display = 'none';
-  }
+  const folderCards = folders.map(f => `
+    <div class="folder-card" onclick="loadBrowse('${esc(f.relPath)}','${esc(f.name)}')">
+      <div class="folder-cover">
+        ${f.cover ? `<img src="${esc(f.cover)}" loading="lazy" onerror="this.parentElement.innerHTML='📁'" alt="">` : '📁'}
+      </div>
+      <div class="folder-info">
+        <div class="folder-name">${esc(f.name)}</div>
+      </div>
+    </div>`).join('');
+  currentFolderCardsHtml = folderCards;
+  // Selected add-ons jump to the very front as an immediate reward/preview;
+  // locked ones stay after the real content, quiet and low-priority.
+  const placeholders    = (atRoot && !viewingCollection) ? renderAddonPlaceholderCards() : { enabled: '', locked: '' };
+  fg.innerHTML = placeholders.enabled + folderCards + placeholders.locked;
+  fs.style.display = (folders.length || placeholders.enabled || placeholders.locked) ? '' : 'none';
 
   renderFileGrid(files);
 
   document.getElementById('collectionsSection').style.display =
     (atRoot && !viewingCollection && collectionsData && collectionsData.length) ? '' : 'none';
 
-  document.getElementById('addonsSection').style.display =
-    (atRoot && !viewingCollection) ? '' : 'none';
-  if (atRoot && !viewingCollection) renderAddonsTeaser();
-
-  const livePhotoDismissed = localStorage.getItem(`livePhotoNoteDismissed_${currentGallery}`) === '1';
-  document.getElementById('livePhotoNote').style.display =
-    (atRoot && !viewingCollection && !livePhotoDismissed) ? '' : 'none';
+  const addonsVisible = atRoot && !viewingCollection;
+  document.getElementById('addonsSection').style.display = addonsVisible ? '' : 'none';
+  if (addonsVisible) renderAddonsTeaser();
 
   document.getElementById('emptyState').style.display =
     (!folders.length && !files.length) ? '' : 'none';
@@ -497,67 +510,247 @@ function renderFileGrid(files) {
   }
 }
 
-// ── Quick jump: home -> exact year -> exact month, without drilling through
-// the Billeder folder card first. Years are fetched once per gallery visit
-// and cached; picking a year fetches its months inline (no page navigation)
-// so the whole thing feels like one continuous action from the home screen.
-let quickJumpYears = null;
-
-async function loadQuickJumpYears() {
-  const qj = document.getElementById('quickJump');
-  if (quickJumpYears === null) {
-    try {
-      const res = await fetch(`/api/browse?gallery=${encodeURIComponent(currentGallery)}&path=${encodeURIComponent('Images')}`);
-      quickJumpYears = res.ok ? (await res.json()).folders : [];
-    } catch {
-      quickJumpYears = [];
-    }
-  }
-  if (!quickJumpYears.length) { qj.style.display = 'none'; return; }
-
-  qj.style.display = '';
-  document.getElementById('jumpMonthRow').style.display = 'none';
-  document.getElementById('jumpMonthRow').innerHTML = '';
-  document.getElementById('jumpYearRow').innerHTML = quickJumpYears.map(y => `
-    <div class="jump-chip" data-year="${esc(y.relPath)}" onclick="selectJumpYear('${esc(y.relPath)}', this)">${esc(y.name)}</div>`).join('');
-}
-
-async function selectJumpYear(relPath, chipEl) {
-  document.querySelectorAll('#jumpYearRow .jump-chip').forEach(c => c.classList.remove('active'));
-  chipEl.classList.add('active');
-
-  const monthRow = document.getElementById('jumpMonthRow');
-  monthRow.style.display = '';
-  monthRow.innerHTML = '<div class="jump-chip" style="opacity:.5">…</div>';
-
-  const res = await fetch(`/api/browse?gallery=${encodeURIComponent(currentGallery)}&path=${encodeURIComponent(relPath)}`);
-  if (!res.ok) { monthRow.innerHTML = ''; return; }
-  const data = await res.json();
-  if (!data.folders.length) { monthRow.innerHTML = ''; return; }
-
-  monthRow.innerHTML = data.folders.map(m => `
-    <div class="jump-chip" onclick="loadBrowse('${esc(m.relPath)}','${esc(m.name)}')">${esc(m.name)}</div>`).join('');
-}
-
 // ── Add-on teaser (static - these are real, built features, just not run for
 // every gallery by default; shown here as an example + price, not live data) ──
 const ADDONS_TEASER = [
-  { icon: '🧳', name: 'Rejser', desc: 'Automatisk opdelt i ferier og rejser ud fra sted og dato', price: '10 kr / rejse' },
-  { icon: '🏠', name: 'Hjemme &amp; rejser', desc: 'Adskiller de daglige billeder hjemmefra fra jeres rejser', price: 'Gratis med Rejser' },
-  { icon: '📖', name: 'Årbog', desc: 'Et udvalg af årets bedste billeder, samlet i én mappe', price: '15 kr / år' },
-  { icon: '👤', name: 'Efter person', desc: 'Find automatisk alle billeder af en bestemt person', price: '20 kr / person' },
+  { id: 'rejser', icon: '🧳', name: 'Rejser', desc: 'Kunne du tænke dig jeres rejser samlet automatisk ud fra sted og dato? Så tryk her.', price: '10 kr / rejse' },
+  { id: 'hjemmerejser', icon: '🏠', name: 'Hjemme & rejser', desc: 'Adskiller de daglige billeder hjemmefra fra jeres rejser.', price: 'Gratis med Rejser', bundled: true },
+  { id: 'aarbog', icon: '📖', name: 'Årbog', desc: 'Kunne du tænke dig en årbog med årets bedste billeder samlet i én mappe? Så tryk her.', price: '15 kr / år' },
+  { id: 'aarbogtekst', icon: '✍️', name: 'AI-billedtekster', desc: 'Kunne du tænke dig at AI skriver en kort billedtekst til hvert billede i Årbogen? Så tryk her.', price: '20 kr / år' },
+  { id: 'person', icon: '👤', name: 'Efter person', desc: 'Kunne du tænke dig automatisk at finde alle billeder af en bestemt person? Så tryk her.', price: '20 kr / person' },
+  { id: 'onthisday', icon: '📅', name: 'På denne dag', desc: 'Kunne du tænke dig at se billeder fra denne dag, år for år? Så tryk her.', price: '25 kr' },
+  { id: 'search', icon: '🔍', name: 'Søgning & mærker', desc: 'Kunne du tænke dig at kunne søge i jeres billeder (fødselsdag, strand, jul, kæledyr...)? Så tryk her.', price: '50 kr' },
+  { id: 'bestofburst', icon: '⭐', name: 'Bedste billede', desc: 'Kunne du tænke dig at AI vælger det bedste billede fra hver serie af ens billeder? Så tryk her.', price: '30 kr' },
+  { id: 'traditions', icon: '🎄', name: 'Traditioner', desc: 'Kunne du tænke dig at sammenligne faste begivenheder år for år (jul, fødselsdage, skolestart)? Så tryk her.', price: '25 kr' },
+  { id: 'livephotos', icon: '📱', name: 'Live-videoklip', desc: 'Kunne du tænke dig videoklippene der automatisk følger med jeres "Live"-billeder fra iPhone? Så tryk her.', price: '15 kr' },
 ];
 
+// Tiny inline illustrations so each add-on shows what it actually produces,
+// not just an icon+text - a non-technical customer can see the shape of the
+// output (a route of photos, a highlighted face, a calendar date) at a glance.
+const ADDON_ILLUSTRATIONS = {
+  rejser: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <path d="M22 26 L46 46 L70 62" stroke="#c4b5fd" stroke-width="2" stroke-dasharray="3 4" fill="none"/>
+    <rect x="10" y="14" width="24" height="24" rx="4" fill="#6d28d9"/>
+    <rect x="34" y="34" width="24" height="24" rx="4" fill="#8b5cf6"/>
+    <rect x="58" y="50" width="24" height="24" rx="4" fill="#a78bfa"/>
+  </svg>`,
+  hjemmerejser: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="8" y="24" width="36" height="36" rx="5" fill="#1f2a44"/>
+    <path d="M13 40 L26 29 L39 40 V54 H13 Z" fill="#93c5fd"/>
+    <rect x="52" y="24" width="36" height="36" rx="5" fill="#2e1f5e"/>
+    <rect x="61" y="36" width="18" height="14" rx="2" fill="#c4b5fd"/>
+    <rect x="67" y="31" width="6" height="6" fill="#c4b5fd"/>
+  </svg>`,
+  aarbog: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <path d="M8 22 Q28 14 48 22 V74 Q28 66 8 74 Z" fill="#3730a3"/>
+    <path d="M88 22 Q68 14 48 22 V74 Q68 66 88 74 Z" fill="#4338ca"/>
+    <rect x="15" y="32" width="14" height="14" rx="2" fill="#c7d2fe"/>
+    <rect x="57" y="32" width="14" height="14" rx="2" fill="#c7d2fe"/>
+    <rect x="15" y="52" width="14" height="14" rx="2" fill="#a5b4fc"/>
+    <rect x="57" y="52" width="14" height="14" rx="2" fill="#a5b4fc"/>
+  </svg>`,
+  aarbogtekst: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="14" y="14" width="40" height="40" rx="4" fill="#374151"/>
+    <path d="M62 30 h20 M62 42 h20 M62 54 h14" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round"/>
+    <path d="M20 62 h34 M20 72 h24" stroke="#4b5563" stroke-width="3" stroke-linecap="round"/>
+  </svg>`,
+  person: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="8" y="8" width="24" height="24" rx="3" fill="#374151"/>
+    <rect x="36" y="8" width="24" height="24" rx="3" fill="#374151"/>
+    <rect x="64" y="8" width="24" height="24" rx="3" fill="#374151"/>
+    <rect x="8" y="36" width="24" height="24" rx="3" fill="#374151"/>
+    <rect x="36" y="36" width="24" height="24" rx="3" fill="#374151"/>
+    <rect x="64" y="36" width="24" height="24" rx="3" fill="#374151"/>
+    <circle cx="48" cy="20" r="18" fill="none" stroke="#22c55e" stroke-width="3"/>
+  </svg>`,
+  onthisday: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="10" y="16" width="76" height="66" rx="6" fill="#1e3a5f"/>
+    <rect x="10" y="16" width="76" height="18" rx="6" fill="#2563eb"/>
+    <rect x="20" y="46" width="14" height="14" rx="2" fill="#3b82f6" opacity=".5"/>
+    <rect x="41" y="46" width="14" height="14" rx="2" fill="#fbbf24"/>
+    <rect x="62" y="46" width="14" height="14" rx="2" fill="#3b82f6" opacity=".5"/>
+  </svg>`,
+  search: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="10" y="10" width="20" height="20" rx="3" fill="#374151"/>
+    <rect x="34" y="10" width="20" height="20" rx="3" fill="#374151"/>
+    <rect x="10" y="34" width="20" height="20" rx="3" fill="#374151"/>
+    <rect x="34" y="34" width="20" height="20" rx="3" fill="#374151"/>
+    <circle cx="66" cy="60" r="16" fill="none" stroke="#f9fafb" stroke-width="4"/>
+    <path d="M77 71 L88 82" stroke="#f9fafb" stroke-width="5" stroke-linecap="round"/>
+  </svg>`,
+  bestofburst: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="10" y="16" width="22" height="22" rx="3" fill="#374151" opacity=".55"/>
+    <rect x="37" y="16" width="22" height="22" rx="3" fill="#374151" opacity=".55"/>
+    <rect x="64" y="16" width="22" height="22" rx="3" fill="#f59e0b"/>
+    <path d="M75 21 l2.2 4.5 5 .7 -3.6 3.5 .9 5 -4.5 -2.4 -4.5 2.4 .9 -5 -3.6 -3.5 5 -.7 Z" fill="#fff"/>
+    <path d="M10 52 h76" stroke="#374151" stroke-width="2" stroke-dasharray="3 4"/>
+  </svg>`,
+  traditions: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="8" y="14" width="24" height="30" rx="3" fill="#065f46"/>
+    <rect x="36" y="14" width="24" height="30" rx="3" fill="#047857"/>
+    <rect x="64" y="14" width="24" height="30" rx="3" fill="#059669"/>
+    <path d="M8 54 h80" stroke="#c4b5fd" stroke-width="2" stroke-dasharray="2 5"/>
+    <circle cx="20" cy="66" r="6" fill="#fbbf24"/>
+    <circle cx="48" cy="66" r="6" fill="#fbbf24"/>
+    <circle cx="76" cy="66" r="6" fill="#fbbf24"/>
+  </svg>`,
+  livephotos: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
+    <rect x="14" y="14" width="68" height="68" rx="8" fill="#374151"/>
+    <circle cx="48" cy="48" r="20" fill="rgba(255,255,255,.15)"/>
+    <path d="M41 36 L64 48 L41 60 Z" fill="#fff"/>
+  </svg>`,
+};
+
+// Selection lives in localStorage per gallery so it survives a reload/revisit
+// on the same device - there's no account/login beyond the gallery password,
+// so this is the only place "what did they pick" persists between visits.
+let selectedAddons = new Set();
+
+function loadAddonSelection() {
+  try {
+    const raw = localStorage.getItem(`addonSelection_${currentGallery}`);
+    selectedAddons = new Set(raw ? JSON.parse(raw) : []);
+  } catch { selectedAddons = new Set(); }
+}
+
+function toggleAddon(id) {
+  if (selectedAddons.has(id)) selectedAddons.delete(id); else selectedAddons.add(id);
+  localStorage.setItem(`addonSelection_${currentGallery}`, JSON.stringify([...selectedAddons]));
+  // A new pick after a request was already sent means there's something new
+  // to tell Martin about - clear the "sent" state so the bar prompts again.
+  localStorage.removeItem(`addonRequestSent_${currentGallery}`);
+  renderAddonsTeaser();
+  updateAddonPlaceholderStates();
+}
+
+// "Hjemme & rejser" isn't independently selectable (it's a freebie bundled
+// with Rejser) so its own placeholder box lights up whenever Rejser is picked,
+// not from a selection of its own id.
+function isAddonEnabled(a) {
+  return selectedAddons.has(a.id) || (a.bundled && selectedAddons.has('rejser'));
+}
+
+// These placeholder boxes live in the SAME grid as the real Billeder/Videoer
+// folders (not a separate section) so the customer sees exactly where each
+// add-on will show up once it's live - greyed out/locked until picked below
+// in Tilkøb, then lit up immediately for a preview of the end result.
+// Rejser/Hjemme&rejser/Årbog/Efter person/Live-videoklip already surface their
+// own results through the normal Mapper/Samlinger flow once Martin runs them -
+// nothing new to build there. On This Day and Søgning have no folder of their
+// own (they're computed live), so tapping their unlocked placeholder is the
+// only way to reach them - opens a focused view, same idea as opening a
+// Samling, never anything added to the home page itself.
+const SPECIAL_ADDON_VIEWS = new Set(['onthisday', 'search']);
+
+function addonPlaceholderCard(a) {
+  const enabled = isAddonEnabled(a);
+  const clickable = enabled && SPECIAL_ADDON_VIEWS.has(a.id);
+  return `
+    <div class="folder-card addon-placeholder${enabled ? ' enabled' : ''}" data-addon-id="${a.id}" title="${esc(a.name)}"
+         ${clickable ? `onclick="openAddonPlaceholder('${a.id}')" style="cursor:pointer"` : ''}>
+      <div class="folder-cover${enabled ? ' addon-cover' : ''}">${enabled ? (ADDON_ILLUSTRATIONS[a.id] || a.icon) : '🔒'}
+        ${enabled ? '<div class="addon-placeholder-badge">✓</div>' : ''}
+      </div>
+      <div class="folder-info">
+        <div class="folder-name">${esc(a.name)}</div>
+      </div>
+    </div>`;
+}
+
+function renderAddonPlaceholderCards() {
+  loadAddonSelection();
+  const enabled = ADDONS_TEASER.filter(a => isAddonEnabled(a)).map(addonPlaceholderCard).join('');
+  const locked  = ADDONS_TEASER.filter(a => !isAddonEnabled(a)).map(addonPlaceholderCard).join('');
+  return { enabled, locked };
+}
+
+// Moving a card between the enabled/locked groups needs real reordering, not
+// just a class flip - rebuilds the whole grid from the cached real-folder
+// cards + a fresh enabled/locked split rather than patching elements in place.
+function updateAddonPlaceholderStates() {
+  if (!document.getElementById('folderGrid').querySelector('.addon-placeholder')) return;
+  const placeholders = renderAddonPlaceholderCards();
+  const fg = document.getElementById('folderGrid');
+  fg.innerHTML = placeholders.enabled + currentFolderCardsHtml + placeholders.locked;
+}
+
+// "Efter person" can't show existing named people to pick from (naming lives
+// in FileSorter, behind the read-only NAS mount) - instead just ask who they
+// mean as free text, included verbatim in the request Martin gets.
+let addonPersonName = '';
+
+function loadAddonPersonName() {
+  addonPersonName = localStorage.getItem(`addonPersonName_${currentGallery}`) || '';
+}
+
+function setAddonPersonName(value) {
+  addonPersonName = value;
+  localStorage.setItem(`addonPersonName_${currentGallery}`, value);
+  localStorage.removeItem(`addonRequestSent_${currentGallery}`);
+  updateAddonsSendBar();
+}
+
 function renderAddonsTeaser() {
+  loadAddonSelection();
+  loadAddonPersonName();
   document.getElementById('addonsRow').innerHTML = ADDONS_TEASER.map(a => `
-    <div class="collection-card" style="cursor:default">
-      <div class="collection-cover addon-cover">${a.icon}</div>
+    <div class="collection-card addon-card${a.bundled ? ' bundled' : ''}${selectedAddons.has(a.id) ? ' selected' : ''}"
+         ${a.bundled ? '' : `onclick="toggleAddon('${a.id}')"`}>
+      <div class="collection-cover addon-cover">${ADDON_ILLUSTRATIONS[a.id] || a.icon}<div class="addon-check">✓</div></div>
       <div class="collection-info">
-        <div class="collection-name">${a.name}</div>
-        <div class="addon-desc">${a.desc}</div>
-        <div class="addon-price">${a.price}</div>
+        <div class="collection-name">${esc(a.name)}</div>
+        <div class="addon-desc">${esc(a.desc)}</div>
+        ${a.id === 'person' ? `<input type="text" class="addon-name-input" placeholder="Hvem?" value="${esc(addonPersonName)}"
+             onclick="event.stopPropagation()" oninput="setAddonPersonName(this.value)">` : ''}
+        <div class="addon-price">${esc(a.price)}</div>
       </div>
     </div>`).join('');
+  updateAddonsSendBar();
+}
+
+// No prices are exact totals up front (Rejser/Efter person are billed per
+// result, and we don't know the count until the add-on has actually run) -
+// this is a request to get a real quote and have it turned on, not a
+// checkout. Martin enables the picked add-ons by hand from FileSorter.
+function updateAddonsSendBar() {
+  const bar   = document.getElementById('addonsSendBar');
+  const label = document.getElementById('addonsSendLabel');
+  const btn   = document.getElementById('addonsSendBtn');
+
+  if (!selectedAddons.size) { bar.classList.remove('show', 'sent'); return; }
+
+  bar.classList.add('show');
+  const chosen = ADDONS_TEASER.filter(a => selectedAddons.has(a.id));
+  const names  = chosen.map(a => a.name).join(', ');
+  const sentAt = localStorage.getItem(`addonRequestSent_${currentGallery}`);
+
+  if (sentAt) {
+    bar.classList.add('sent');
+    label.textContent = `✓ Anmodning sendt: ${names}`;
+    btn.textContent    = 'Send igen';
+  } else {
+    bar.classList.remove('sent');
+    label.textContent = `${chosen.length} tilkøb valgt: ${names}`;
+    btn.textContent    = 'Send anmodning';
+  }
+}
+
+function sendAddonRequest() {
+  const chosen = ADDONS_TEASER.filter(a => selectedAddons.has(a.id));
+  if (!chosen.length) return;
+
+  const gallery = galleryDisplayName || currentGallery;
+  const lines   = chosen.map(a => {
+    const who = a.id === 'person' && addonPersonName.trim() ? ` — ${addonPersonName.trim()}` : '';
+    return `- ${a.name}${who} (${a.price})`;
+  }).join('\n');
+  const subject = `Tilkøb til galleri: ${gallery}`;
+  const body    = `Hej Martin,\n\nJeg vil gerne have følgende tilkøb til vores galleri (${gallery}):\n\n${lines}\n\nMvh`;
+
+  localStorage.setItem(`addonRequestSent_${currentGallery}`, new Date().toISOString());
+  window.location.href = `mailto:hvidbergsenior@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  updateAddonsSendBar();
 }
 
 // ── Collections (Package3: person/trip albums) ───────────────────────────────
@@ -601,10 +794,61 @@ async function openCollection(name) {
   document.getElementById('summaryCard').style.display  = 'none';
   document.getElementById('collectionsSection').style.display = 'none';
   document.getElementById('folderSection').style.display = 'none';
-  document.getElementById('quickJump').style.display = 'none';
+  document.getElementById('addonsSection').style.display = 'none';
 
   renderFileGrid(data.files);
   document.getElementById('emptyState').style.display = data.files.length ? 'none' : '';
+}
+
+// ── Special add-on views (On This Day / Søgning) - focused sub-views reached
+// only by tapping an unlocked placeholder, same navigation shape as opening a
+// Samling. Never anything shown on the home page itself. ──────────────────────
+let viewingSpecialAddon = null;
+
+function openAddonPlaceholder(id) {
+  if (id === 'onthisday') openOnThisDayView();
+  else if (id === 'search') openSearchView();
+}
+
+function enterSpecialView(id, title) {
+  viewingSpecialAddon = id;
+  document.getElementById('hdrTitle').textContent       = title;
+  document.getElementById('btnGalleries').style.display = '';
+  document.getElementById('btnBack').style.display      = '';
+  document.getElementById('summaryCard').style.display  = 'none';
+  document.getElementById('collectionsSection').style.display = 'none';
+  document.getElementById('folderSection').style.display = 'none';
+  document.getElementById('addonsSection').style.display = 'none';
+}
+
+async function openOnThisDayView() {
+  enterSpecialView('onthisday', 'På denne dag');
+
+  const res = await fetch(`/api/on-this-day?gallery=${encodeURIComponent(currentGallery)}`);
+  const years = res.ok ? (await res.json()).years : [];
+  const files = years.flatMap(y => y.files);
+
+  renderFileGrid(files);
+  document.getElementById('emptyState').style.display = files.length ? 'none' : '';
+}
+
+function openSearchView() {
+  enterSpecialView('search', 'Søgning & mærker');
+  document.getElementById('specialSearchBar').style.display = '';
+  renderFileGrid([]);
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('specialSearchInput').focus();
+}
+
+async function runSpecialSearch() {
+  const q = document.getElementById('specialSearchInput').value.trim();
+  if (!q) return;
+
+  const res = await fetch(`/api/search?gallery=${encodeURIComponent(currentGallery)}&q=${encodeURIComponent(q)}`);
+  const files = res.ok ? (await res.json()).files : [];
+
+  renderFileGrid(files);
+  document.getElementById('emptyState').style.display = files.length ? 'none' : '';
 }
 
 // ── Welcome summary ───────────────────────────────────────────────────────────
@@ -669,6 +913,10 @@ async function goToGalleryRoot() {
   if (!res.ok) return;
   const data = await res.json();
   parentRelPath = data.parentRelPath;
+  viewingCollection = null;
+  viewingSpecialAddon = null;
+  document.getElementById('specialSearchBar').style.display = 'none';
+  document.getElementById('folderSection').style.display = '';
   renderBrowse(data, galleryDisplayName);
 }
 
@@ -676,7 +924,7 @@ function renderViewer() {
   if (!playlist.length) return;
   const f = playlist[playIdx];
 
-  document.getElementById('vTitle').textContent   = f.name.replace(/\.[^.]+$/, '');
+  document.getElementById('vTitle').textContent   = f.caption || f.name.replace(/\.[^.]+$/, '');
   document.getElementById('vCounter').textContent = `${playIdx + 1} / ${playlist.length}`;
 
   const tvBtn = document.getElementById('vTvBtn');
@@ -791,6 +1039,13 @@ function onKey(e) {
 
 // ── Navigation buttons ────────────────────────────────────────────────────────
 document.getElementById('btnBack').addEventListener('click', () => {
+  if (viewingSpecialAddon) {
+    viewingSpecialAddon = null;
+    document.getElementById('specialSearchBar').style.display = 'none';
+    document.getElementById('folderSection').style.display = '';
+    loadBrowse('', galleryDisplayName);
+    return;
+  }
   if (viewingCollection) {
     viewingCollection = null;
     document.getElementById('folderSection').style.display = '';
@@ -798,6 +1053,10 @@ document.getElementById('btnBack').addEventListener('click', () => {
     return;
   }
   loadBrowse(parentRelPath ?? '');
+});
+
+document.getElementById('specialSearchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runSpecialSearch();
 });
 document.getElementById('btnGalleries').addEventListener('click', () => goToGalleryRoot());
 

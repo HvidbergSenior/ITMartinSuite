@@ -293,6 +293,18 @@ app.MapPost("/api/debug/sf-sync-collections", async (string path, ITMartin.Media
     return Results.Ok("synced");
 });
 
+app.MapPost("/api/debug/sf-traditions", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.GenerateTraditionsAsync(path)));
+
+app.MapPost("/api/debug/sf-bestshot", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.PickBestShotsAsync(path)));
+
+app.MapPost("/api/debug/sf-yearbook-captions", async (string path, int year, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.AddYearbookCaptionsAsync(path, year)));
+
+app.MapPost("/api/debug/tag-images", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IImageTaggingService service) =>
+    Results.Ok(await service.TagLibraryAsync(path)));
+
 app.MapPost("/api/debug/p3-estimate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
     Results.Ok(await service.EstimateUndatedDatesAsync(path)));
 

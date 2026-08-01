@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
+    <ProjectReference Include="..\ITMartin.Media.Application\ITMartin.Media.Application.csproj" />
     <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
     <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
     <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />

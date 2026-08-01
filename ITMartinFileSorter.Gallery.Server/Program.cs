@@ -1,4 +1,6 @@
 using System.Text.Json;
+using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
@@ -113,7 +115,9 @@ var galleries = app.Configuration
         Path:        s["Path"]     ?? "",
         Password:    s["Password"],
         ShowSummary: s.GetValue<bool>("ShowSummary"),
-        HideScreenshots: s.GetValue<bool>("HideScreenshots")))
+        HideScreenshots: s.GetValue<bool>("HideScreenshots"),
+        OnThisDayEnabled: s.GetValue<bool>("OnThisDayEnabled"),
+        SearchEnabled: s.GetValue<bool>("SearchEnabled")))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -124,6 +128,13 @@ var galleries = app.Configuration
 // re-walking the filesystem every time. Short TTL rather than no expiry so a
 // freshly-delivered library still shows up without a container restart.
 var browseCache = new System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Expires, object Payload)>();
+
+// manifest.json is Package1's full per-file record (~tens of thousands of
+// entries for a real library) - too big to re-parse on every "På denne dag"
+// homepage load. Long TTL because it only changes when Martin re-runs the
+// pipeline for that customer, which doesn't happen mid-session.
+var manifestCache = new System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Expires, Package1Manifest? Manifest)>();
+var manifestLoader = new Package1ManifestLoader();
 
 // Guard static library files with cookie auth
 app.Use(async (ctx, next) =>
@@ -462,12 +473,24 @@ app.MapGet("/api/collections/files", (string gallery, string name, HttpContext c
     var col = list.FirstOrDefault(c => c.Name == name);
     if (col is null) return Results.NotFound();
 
+    // captions.json (written by the AI-billedtekster add-on) sits next to the
+    // files themselves - one dictionary lookup per unique folder, not per file.
+    var captionsByDir = new Dictionary<string, Dictionary<string, string>>();
+
     var files = col.FilePaths
         .Where(f => File.Exists(f) && IsSafe(f, g.Path))
         .Select(f =>
         {
             var ext = Ext(f);
             var wp  = Web(f, g.Path, g.Slug);
+            var dir = Path.GetDirectoryName(f)!;
+            if (!captionsByDir.TryGetValue(dir, out var captions))
+            {
+                captions = LoadCaptions(Path.Combine(dir, "captions.json"));
+                captionsByDir[dir] = captions;
+            }
+            captions.TryGetValue(Path.GetFileName(f), out var caption);
+
             return new
             {
                 name      = Path.GetFileName(f),
@@ -477,6 +500,109 @@ app.MapGet("/api/collections/files", (string gallery, string name, HttpContext c
                 isVideo   = IsVid(ext),
                 isAudio   = IsAud(ext),
                 liveVideo = FindLivePhotoVideo(f, g.Path, g.Slug),
+                caption   = caption,
+            };
+        })
+        .ToList();
+
+    return Results.Ok(new { files });
+});
+
+// "På denne dag" is inherently a moving target (today's date changes daily)
+// so unlike the other Temamapper add-ons it's never copied into its own
+// SmartFolders subfolder - it's a live read over manifest.json's per-file
+// capture dates, same idea as /api/collections reading collections.json,
+// just computed on the fly instead of pre-generated.
+app.MapGet("/api/on-this-day", async (string gallery, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    if (g is null || !g.OnThisDayEnabled) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
+    if (!manifestCache.TryGetValue(g.Slug, out var cached) || cached.Expires <= DateTime.UtcNow)
+    {
+        Package1Manifest? manifest = null;
+        try { manifest = await manifestLoader.LoadAsync(g.Path, ctx.RequestAborted); }
+        catch { /* no manifest yet for this gallery - treat as empty */ }
+        cached = (DateTime.UtcNow.AddHours(6), manifest);
+        manifestCache[g.Slug] = cached;
+    }
+
+    if (cached.Manifest is null) return Results.Ok(new { years = Array.Empty<object>() });
+
+    var today = DateTime.Today;
+    var years = cached.Manifest.MediaFiles
+        .Where(f => f.CreatedAt is { } d && d.Month == today.Month && d.Day == today.Day && d.Year < today.Year)
+        .Where(f => f.ExportedPath is not null && File.Exists(f.ExportedPath) && IsSafe(f.ExportedPath, g.Path))
+        .Where(f => IsImg(Ext(f.ExportedPath!)) || IsVid(Ext(f.ExportedPath!)))
+        .GroupBy(f => f.CreatedAt!.Value.Year)
+        .OrderByDescending(gr => gr.Key)
+        .Select(gr => new
+        {
+            year  = gr.Key,
+            files = gr.Select(f =>
+            {
+                var ext = Ext(f.ExportedPath!);
+                var wp  = Web(f.ExportedPath!, g.Path, g.Slug);
+                return new
+                {
+                    name    = Path.GetFileName(f.ExportedPath!),
+                    relPath = Rel(f.ExportedPath!, g.Path),
+                    webPath = wp,
+                    thumb   = IsImg(ext) ? (Thumb(f.ExportedPath!, g.Path, g.Slug) ?? wp) : Thumb(f.ExportedPath!, g.Path, g.Slug),
+                    isVideo = IsVid(ext),
+                };
+            })
+            .ToList(),
+        })
+        .Where(y => y.files.Count > 0)
+        .ToList();
+
+    return Results.Ok(new { years });
+});
+
+// Search over AI tags written by ImageTaggingService (Søgning & mærker add-on).
+// Same live-read-over-manifest.json approach as On This Day - tags live on
+// MediaFile.AiTags, nothing new to store or keep in sync on the Gallery side.
+app.MapGet("/api/search", async (string gallery, string q, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    if (g is null || !g.SearchEnabled) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
+    if (string.IsNullOrWhiteSpace(q)) return Results.Ok(new { files = Array.Empty<object>() });
+
+    if (!manifestCache.TryGetValue(g.Slug, out var cached) || cached.Expires <= DateTime.UtcNow)
+    {
+        Package1Manifest? manifest = null;
+        try { manifest = await manifestLoader.LoadAsync(g.Path, ctx.RequestAborted); }
+        catch { /* no manifest yet for this gallery - treat as empty */ }
+        cached = (DateTime.UtcNow.AddHours(6), manifest);
+        manifestCache[g.Slug] = cached;
+    }
+
+    if (cached.Manifest is null) return Results.Ok(new { files = Array.Empty<object>() });
+
+    var files = cached.Manifest.MediaFiles
+        .Where(f => f.AiTags.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase)))
+        .Where(f => f.ExportedPath is not null && File.Exists(f.ExportedPath) && IsSafe(f.ExportedPath, g.Path))
+        .Where(f => IsImg(Ext(f.ExportedPath!)) || IsVid(Ext(f.ExportedPath!)))
+        .OrderByDescending(f => f.CreatedAt)
+        .Select(f =>
+        {
+            var ext = Ext(f.ExportedPath!);
+            var wp  = Web(f.ExportedPath!, g.Path, g.Slug);
+            return new
+            {
+                name    = Path.GetFileName(f.ExportedPath!),
+                relPath = Rel(f.ExportedPath!, g.Path),
+                webPath = wp,
+                thumb   = IsImg(ext) ? (Thumb(f.ExportedPath!, g.Path, g.Slug) ?? wp) : Thumb(f.ExportedPath!, g.Path, g.Slug),
+                isVideo = IsVid(ext),
             };
         })
         .ToList();
@@ -591,11 +717,42 @@ static List<MediaCollection> LoadCollections(string libraryPath)
     try
     {
         var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<List<MediaCollection>>(json) ?? [];
+        var collections = JsonSerializer.Deserialize<List<MediaCollection>>(json) ?? [];
+
+        // FilePaths are stored relative to the library root (portable across
+        // whichever machine actually serves the library) - resolve to
+        // absolute here, once, so every caller just gets a usable path.
+        // Path.IsPathRooted also stays true for pre-existing absolute-style
+        // entries (older collections.json files written before this fix, or
+        // manually rebased ones) - those pass through unchanged.
+        foreach (var c in collections)
+        {
+            c.FilePaths = c.FilePaths
+                .Select(f => Path.IsPathRooted(f) ? f : Path.GetFullPath(Path.Combine(libraryPath, f)))
+                .ToList();
+        }
+
+        return collections;
     }
     catch (JsonException)
     {
         return [];
+    }
+}
+
+// AI-billedtekster writes this sidecar next to a generated Yearbook folder's
+// files - fileName -> caption. Missing/malformed just means no captions yet.
+static Dictionary<string, string> LoadCaptions(string path)
+{
+    if (!File.Exists(path)) return new Dictionary<string, string>();
+    try
+    {
+        var json = File.ReadAllText(path);
+        return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
+    }
+    catch (JsonException)
+    {
+        return new Dictionary<string, string>();
     }
 }
 
@@ -606,6 +763,6 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // range, folder/photo counts) is a one-time customer-handoff moment, not
 // something a family member visiting a shared link should see - opt-in per
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots);
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled);
 record LoginRequest(string Gallery, string Password);
 record FolderEntry(string name, string relPath, string? cover);
