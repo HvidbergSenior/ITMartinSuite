@@ -287,6 +287,12 @@
                             @(_addonBusy == "Traditioner" ? "⏳ Finder traditioner..." : "🎄 Traditioner")
                         </button>
 
+                        <button class="btn btn-outline-primary"
+                                disabled="@(_addonBusy is not null)"
+                                @onclick="RunFixOrientationAsync">
+                            @(_addonBusy == "Ret rotation" ? "⏳ Retter rotation..." : "🔄 Ret rotation")
+                        </button>
+
                     </div>
 
                     @if (_bestShotResult is { } bestShot)
@@ -315,6 +321,17 @@
                         <div class="text-muted mt-2">
                             🏷️ @tagging.TaggedCount nye billeder mærket, @tagging.AlreadyTaggedCount var allerede mærket, @tagging.TotalImages billeder i alt.
                             Tryk igen for kun at mærke nye billeder (skifter ikke de allerede mærkede).
+                        </div>
+                    }
+
+                    @if (_orientationResult is { } orientation)
+                    {
+                        <div class="text-muted mt-2">
+                            🔄 @orientation.PhotosChecked billeder tjekket, @orientation.PhotosRotated rettet.
+                            @if (orientation.RemainingCount > 0)
+                            {
+                                <text>@orientation.RemainingCount mangler stadig - tryk igen for at fortsætte.</text>
+                            }
                         </div>
                     }
 
@@ -696,6 +713,14 @@
         RunAddonAsync("Traditioner", async () =>
         {
             _traditionResults = await SmartFoldersService.GenerateTraditionsAsync(LibraryPath);
+        });
+
+    private OrientationFixResult? _orientationResult;
+
+    private Task RunFixOrientationAsync() =>
+        RunAddonAsync("Ret rotation", async () =>
+        {
+            _orientationResult = await LibraryPolishService.FixOrientationAsync(LibraryPath);
         });
 
     private List<UnnamedPersonCluster>? _discoveredClusters;

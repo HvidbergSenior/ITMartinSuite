@@ -322,6 +322,9 @@ app.MapGet("/api/debug/mediafaces-paths", async (string like, Microsoft.EntityFr
 app.MapPost("/api/debug/library-polish", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.PolishAsync(path)));
 
+app.MapPost("/api/debug/fix-orientation", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.FixOrientationAsync(path)));
+
 // TEMP DEBUG - static offline gallery export (thumbnails + HTML pages), removed after
 app.MapPost("/api/debug/gallery-export", (string path, IServiceScopeFactory scopeFactory) =>
 {

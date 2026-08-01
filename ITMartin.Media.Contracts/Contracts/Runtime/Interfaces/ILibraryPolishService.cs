@@ -9,4 +9,12 @@ namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 public interface ILibraryPolishService
 {
     Task<LibraryPolishResult> PolishAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Content-based rotation fix, separate from the free PolishAsync pass since
+    // it makes real Claude API calls - opt-in only, never run automatically.
+    // Needed because some already-delivered libraries have photos baked in
+    // sideways/upside-down with no original source file left to re-read a
+    // correct EXIF Orientation tag from (see ImageConverterService's
+    // ApplyOriginalOrientation, which only helps on *future* conversions).
+    Task<OrientationFixResult> FixOrientationAsync(string libraryPath, CancellationToken cancellationToken = default);
 }
