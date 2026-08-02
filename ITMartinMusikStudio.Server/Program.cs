@@ -18,6 +18,7 @@ builder.Services.AddScoped<CoverArtService>();
 builder.Services.AddSingleton<ChordAiService>();
 builder.Services.AddSingleton<StemService>();
 builder.Services.AddSingleton<ChordDetectionService>();
+builder.Services.AddSingleton<PianoTranscriptionService>();
 builder.Services.AddSingleton<VocalGuideService>();
 builder.Services.AddSingleton<SpotifyService>();
 builder.Services.AddSingleton<LyricsService>();
@@ -94,7 +95,17 @@ app.MapPost("/api/recording/{songKey}", async (string songKey, HttpRequest req, 
 
     var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
     var prefix = req.ContentType?.Contains("video") == true ? "vtake" : "take";
-    var dest = Path.Combine(dir, $"{prefix}-{timestamp}.webm");
+
+    // Optional "record one section at a time" tag (see the Optag tab's
+    // section picker) - embedded straight into the filename rather than a
+    // side-table, same idiom as the take-/vtake-/aitake-/mixtake- prefixes
+    // GetRecordings() already parses back out.
+    var section = req.Query["section"].ToString();
+    var sectionTag = string.IsNullOrWhiteSpace(section)
+        ? ""
+        : "-" + new string(section.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+
+    var dest = Path.Combine(dir, $"{prefix}{sectionTag}-{timestamp}.webm");
 
     try
     {

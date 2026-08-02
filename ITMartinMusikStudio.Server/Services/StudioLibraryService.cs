@@ -8,6 +8,7 @@ public sealed class StudioLibraryService
     public string Root { get; }
     public string RecordingsDir => Path.Combine(Root, "recordings");
     public string MyVersionsDir => Path.Combine(Root, "myversions");
+    public string StemsDir => Path.Combine(Root, "stems");
 
     public StudioLibraryService(IConfiguration config)
     {
@@ -134,6 +135,80 @@ public sealed class StudioLibraryService
         return true;
     }
 
+    // Reads back whatever StemService.SeparateAsync already wrote to disk for
+    // this song, if any - ExtractStems()'s _stems field is otherwise pure
+    // in-memory Blazor circuit state, forgotten on every page reload even
+    // though the actual WAV files are sitting right there. Null (not an
+    // empty StemResult) when nothing's been extracted yet, so callers can
+    // tell "never run" apart from "ran, found nothing".
+    public StemResult? GetExistingStems(string songKey)
+    {
+        var dir = Path.Combine(StemsDir, songKey);
+        if (!Directory.Exists(dir)) return null;
+
+        var result = new StemResult(
+            ExistsOrNull(dir, "vocals.wav"),
+            ExistsOrNull(dir, "drums.wav"),
+            ExistsOrNull(dir, "bass.wav"),
+            ExistsOrNull(dir, "other.wav"));
+
+        return result is { Vocals: null, Drums: null, Bass: null, Other: null } ? null : result;
+    }
+
+    private static string? ExistsOrNull(string dir, string file)
+    {
+        var path = Path.Combine(dir, file);
+        return File.Exists(path) ? path : null;
+    }
+
+    // Combines a mic-only take with a backing track (typically the "other"
+    // demucs stem, i.e. the instrumental) into one mixed-down file - overdub
+    // recording only ever captures the mic (see studio.js's startOverdub:
+    // the backing track plays via a plain Audio() element, never mixed into
+    // the MediaRecorder stream), so without this there's no way to get a
+    // single file with both. "mixtake-" follows the same take-/vtake-/aitake-
+    // filename-prefix convention GetRecordings() already parses.
+    public async Task<bool> MixdownAsync(string songKey, string vocalRelativePath, string instrumentalFullPath)
+    {
+        var vocalSrc = Path.GetFullPath(Path.Combine(Root, vocalRelativePath));
+        if (!File.Exists(vocalSrc) || !File.Exists(instrumentalFullPath)) return false;
+
+        var dir = Path.Combine(RecordingsDir, songKey);
+        Directory.CreateDirectory(dir);
+        var dest = Path.Combine(dir, $"mixtake-{DateTime.UtcNow:yyyyMMdd-HHmmss}.mp3");
+
+        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        psi.ArgumentList.Add("-y");
+        psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(vocalSrc);
+        psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(instrumentalFullPath);
+        // duration=longest (not "shortest"/default): a short take shouldn't
+        // truncate the backing track, and vice versa - whichever is longer
+        // just plays out with the other silent for the remainder.
+        psi.ArgumentList.Add("-filter_complex");
+        psi.ArgumentList.Add("[0:a][1:a]amix=inputs=2:duration=longest:dropout_transition=0[a]");
+        psi.ArgumentList.Add("-map"); psi.ArgumentList.Add("[a]");
+        psi.ArgumentList.Add("-c:a"); psi.ArgumentList.Add("libmp3lame");
+        psi.ArgumentList.Add("-q:a"); psi.ArgumentList.Add("2");
+        psi.ArgumentList.Add(dest);
+
+        try
+        {
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc is null) return false;
+            await proc.WaitForExitAsync();
+            return proc.ExitCode == 0 && File.Exists(dest);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     // Deletes a recording file directly rather than the caller making a
     // loopback HTTP call to this same app's own external URL for it - that
     // self-call broke when accessed through a reverse proxy (e.g. Tailscale
@@ -160,6 +235,14 @@ public sealed class StudioLibraryService
         }
     }
 
+    // Matches take-{section?}-{timestamp} filenames - the optional section
+    // slug (letters/digits only, see the "record one verse at a time"
+    // section picker) sits between the take-type prefix and the fixed
+    // yyyyMMdd-HHmmss timestamp.
+    private static readonly System.Text.RegularExpressions.Regex TakeFilenamePattern = new(
+        @"^(?:take|vtake|aitake|mixtake)(?:-(?<section>[a-z0-9]+))?-\d{8}-\d{6}$",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public List<RecordingFile> GetRecordings(string songKey)
     {
         var dir = Path.Combine(RecordingsDir, songKey);
@@ -168,12 +251,19 @@ public sealed class StudioLibraryService
         return Directory.GetFiles(dir)
             .Where(f => AudioExt.Concat(new[] { ".webm", ".ogg" })
                                 .Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
-            .Select(f => new RecordingFile(
-                Path.GetRelativePath(Root, f).Replace('\\', '/'),
-                Path.GetFileNameWithoutExtension(f),
-                new FileInfo(f).CreationTimeUtc,
-                Path.GetFileNameWithoutExtension(f).StartsWith("vtake"),
-                Path.GetFileNameWithoutExtension(f).StartsWith("aitake")))
+            .Select(f =>
+            {
+                var name = Path.GetFileNameWithoutExtension(f);
+                var m = TakeFilenamePattern.Match(name);
+                var section = m.Success && m.Groups["section"].Success ? m.Groups["section"].Value : null;
+                return new RecordingFile(
+                    Path.GetRelativePath(Root, f).Replace('\\', '/'),
+                    name,
+                    new FileInfo(f).CreationTimeUtc,
+                    name.StartsWith("vtake"),
+                    name.StartsWith("aitake"),
+                    section);
+            })
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
     }
@@ -257,5 +347,5 @@ public sealed class StudioLibraryService
 }
 
 public record SourceFile(string RelativePath, string Title);
-public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo, bool IsAi = false);
+public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo, bool IsAi = false, string? Section = null);
 public record SketchFile(string RelativePath, string Name, DateTime CreatedAt);

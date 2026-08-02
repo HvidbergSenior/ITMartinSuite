@@ -6,6 +6,7 @@
 @inject CoverArtService CoverArt
 @inject ChordAiService ChordAi
 @inject StemService StemSvc
+@inject PianoTranscriptionService PianoTranscribe
 @inject VocalGuideService VocalGuide
 @inject SpotifyService Spotify
 @inject LyricsService Lyrics
@@ -934,9 +935,26 @@ else if (_song is not null)
                             🎧 Optag med Spotify-sangen i baggrunden
                         </button>
                     }
+                    @if (LyricSectionNames.Count > 0)
+                    {
+                        <div style="margin-bottom:10px">
+                            <p style="font-size:0.75rem;color:#6b7280;margin-bottom:4px">
+                                Optag hele sangen, eller øv dig på ét afsnit ad gangen:
+                            </p>
+                            <div class="rec-mode-toggle" style="flex-wrap:wrap">
+                                <button class="rec-mode-btn @(_selectedSection is null ? "rec-mode-btn--active" : "")"
+                                        @onclick='() => _selectedSection = null'>Hele sangen</button>
+                                @foreach (var sectionName in LyricSectionNames)
+                                {
+                                    <button class="rec-mode-btn @(_selectedSection == sectionName ? "rec-mode-btn--active" : "")"
+                                            @onclick="() => _selectedSection = sectionName">@sectionName</button>
+                                }
+                            </div>
+                        </div>
+                    }
                     <div class="optag-main-buttons">
                         <button class="btn-record" style="width:100%;padding:10px" @onclick="StartRecording">
-                            ⏺ Optag
+                            ⏺ Optag@(_selectedSection is null ? "" : $" — {_selectedSection}")
                         </button>
                         @if (_recordings.Any())
                         {
@@ -1059,6 +1077,61 @@ else if (_song is not null)
         </div>
         }
 
+        <!-- Node-transskription -->
+        @if (PianoTranscribe.IsAvailable)
+        {
+        <div class="studio-card">
+            <div class="card-header">
+                <div class="card-label">🎼 Node-transskription</div>
+                @if (_noteMidPath is not null && !_noteRunning)
+                {
+                    <button class="btn-ghost-sm" @onclick="TranscribeNotes" title="Transskribér igen">↺</button>
+                }
+            </div>
+
+            @if (string.IsNullOrEmpty(_song!.SourceFile))
+            {
+                <p style="font-size:0.85rem;color:#555">
+                    Vedhæft en kildefil under 🔍 Forbered for at få de enkelte toner (ikke bare akkorder) som en MIDI-fil.
+                </p>
+            }
+            else if (_noteRunning)
+            {
+                <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+                    <div class="spinner"></div>
+                    <div>
+                        <div style="font-size:0.85rem;color:#ccc">Transskriberer… (@_noteElapsed s)</div>
+                        <div style="font-size:0.75rem;color:#444;margin-top:2px">Kan tage et par minutter</div>
+                    </div>
+                </div>
+            }
+            else if (_noteMidPath is null)
+            {
+                <p style="font-size:0.85rem;color:#666;margin-bottom:10px">
+                    Hør en akkord er ikke nok? Få hver enkelt tone som en MIDI-fil — åbn i MuseScore for nodebillede,
+                    eller i et DAW-piano-roll for at loope og øve linje for linje.
+                </p>
+                <button class="btn-record" style="width:100%;background:#1d4ed8;border-color:#1d4ed8;padding:12px"
+                        @onclick="TranscribeNotes">
+                    🎼 Transskribér noder
+                </button>
+            }
+            else
+            {
+                var relMid = Path.GetRelativePath(Library.Root, _noteMidPath).Replace('\\', '/');
+                <p style="font-size:0.85rem;color:#8f8">✓ @_noteCount toner fundet</p>
+                <a class="btn-ghost" style="width:100%;text-align:center;display:block"
+                   href="/stream?path=@Uri.EscapeDataString(relMid)" download>
+                    ⬇ Download MIDI-fil
+                </a>
+                <p style="font-size:0.75rem;color:#555;margin-top:6px">
+                    Bemærk: transskriptionen hører alt tonehøjde-indhold i optagelsen (ikke kun isoleret klaver) —
+                    brug den som et godt udgangspunkt, stol på øret hvor de er uenige.
+                </p>
+            }
+        </div>
+        }
+
 
         <!-- Recordings list -->
         @if (_recordings.Any())
@@ -1070,9 +1143,17 @@ else if (_song is not null)
                 @foreach (var r in _recordings.OrderBy(x => x.CreatedAt))
                 {
                     _takeNumber++;
+                    var isMix = r.Name.StartsWith("mixtake");
                     <div class="rec-item">
                         <div class="rec-item-info">
-                            <span class="rec-item-name">@(r.IsAi ? "🤖" : r.IsVideo ? "📹" : "🎙") @(r.IsAi ? "AI-version" : $"Take {_takeNumber}") — @r.Name</span>
+                            <span class="rec-item-name">
+                                @(isMix ? "🎚" : r.IsAi ? "🤖" : r.IsVideo ? "📹" : "🎙") @(isMix ? "Mix" : r.IsAi ? "AI-version" : $"Take {_takeNumber}")
+                                @if (r.Section is not null)
+                                {
+                                    <text> (@(char.ToUpper(r.Section[0]) + r.Section[1..])) </text>
+                                }
+                                — @r.Name
+                            </span>
                             <span class="rec-item-date">@r.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
                         </div>
                         @if (r.IsVideo)
@@ -1085,6 +1166,13 @@ else if (_song is not null)
                             <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" class="rec-player" />
                         }
                         <div class="rec-item-actions">
+                            @if (!isMix && !r.IsVideo && !r.IsAi && _stems?.Other is not null)
+                            {
+                                <button class="btn-ghost-sm" disabled="@_mixdownRunning" @onclick="() => MixdownTake(r)"
+                                        title="Bland denne optagelse sammen med instrumental-sporet fra Udtræk spor">
+                                    🎚 Mix med instrumental
+                                </button>
+                            }
                             <button class="btn-publish" @onclick="() => Publish(r)">🚀 Publicér</button>
                             <button class="btn-delete-sm" @onclick="() => DeleteRecording(r)">🗑</button>
                         </div>
@@ -1389,10 +1477,34 @@ else if (_song is not null)
     private System.Timers.Timer? _recTimer_t;
     private int _recTimer;
 
-    private const int MaxTakes = 5;
+    private const int MaxTakes = 10;
     private bool _recording;
     private bool _videoMode;
+    private string? _selectedSection; // null = whole song; set from LyricSectionNames for "record one verse at a time"
+
+    // Section labels found in the lyrics ("[Vers 1]", "[Omkvæd]", ...), in
+    // first-appearance order, deduplicated - reuses IsSectionLabel so this
+    // stays consistent with how the same lines are already recognized
+    // elsewhere (chord-chart conversion, lyric parsing).
+    private List<string> LyricSectionNames
+    {
+        get
+        {
+            if (_song is null) return [];
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var result = new List<string>();
+            foreach (var raw in _song.Lyrics.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (!IsSectionLabel(line)) continue;
+                var label = line.Trim('[', ']', ':').Trim();
+                if (label.Length > 0 && seen.Add(label)) result.Add(label);
+            }
+            return result;
+        }
+    }
     private List<RecordingFile> _recordings = [];
+    private bool _mixdownRunning;
     private bool _uploadingSource;
     private bool _coverGenerating;
     private string? _coverError;
@@ -1421,6 +1533,12 @@ else if (_song is not null)
     private bool _stemRunning;
     private string? _stemProgress;
     private StemResult? _stems;
+
+    private bool _noteRunning;
+    private int _noteElapsed;
+    private System.Timers.Timer? _noteTimer_t;
+    private string? _noteMidPath;
+    private int _noteCount;
     private int _stemElapsed;
     private System.Timers.Timer? _stemTimer_t;
 
@@ -1542,6 +1660,7 @@ else if (_song is not null)
             AutoSave();
 
         _recordings = Library.GetRecordings(SongKey);
+        _stems = Library.GetExistingStems(SongKey);
     }
 
     private static string FormatRecTime(int seconds) =>
@@ -2000,7 +2119,7 @@ else if (_song is not null)
         StartBeatTimer();
         try
         {
-            await JS.InvokeVoidAsync("studio.startRecording", SongKey, _videoMode);
+            await JS.InvokeVoidAsync("studio.startRecording", SongKey, _videoMode, _selectedSection);
         }
         catch (JSException ex)
         {
@@ -2142,8 +2261,33 @@ else if (_song is not null)
         _saveStatus = null;
     }
 
-    private Task DeleteRecording(RecordingFile r)
+    private async Task MixdownTake(RecordingFile r)
     {
+        if (_stems?.Other is null) return;
+        _mixdownRunning = true;
+        _saveStatus = "🎚 Blander optagelse med instrumental...";
+        StateHasChanged();
+        try
+        {
+            var ok = await Library.MixdownAsync(SongKey, r.RelativePath, _stems.Other);
+            _saveStatus = ok ? "🎚 Mix klar!" : "Mix fejlede - se container-log.";
+            if (ok) _recordings = Library.GetRecordings(SongKey);
+        }
+        finally
+        {
+            _mixdownRunning = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteRecording(RecordingFile r)
+    {
+        // Permanent - DeleteRecording does a plain File.Delete with no
+        // recycle-bin safety net, so a real confirm here matters (see
+        // DeleteSong in Songs.razor for the same pattern).
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Slet '{r.Name}'? Dette kan ikke fortrydes.");
+        if (!confirmed) return;
+
         if (Library.DeleteRecording(r.RelativePath))
         {
             _recordings = Library.GetRecordings(SongKey);
@@ -2153,7 +2297,6 @@ else if (_song is not null)
         {
             _saveStatus = "Kunne ikke slette - filen er sandsynligvis i brug. Stop evt. afspilning af den og prøv igen.";
         }
-        return Task.CompletedTask;
     }
 
     // Attaches/replaces the song's source/reference track (e.g. a track
@@ -2473,6 +2616,42 @@ else if (_song is not null)
             _stemTimer_t?.Stop();
             _stemTimer_t?.Dispose();
             _stemRunning = false;
+            StateHasChanged();
+        }
+    }
+
+    // ── Note-transskription ──────────────────────────────────────────────────
+
+    private async Task TranscribeNotes()
+    {
+        if (_song is null || string.IsNullOrEmpty(_song.SourceFile)) return;
+        _noteRunning = true;
+        _noteElapsed = 0;
+        _noteMidPath = null;
+
+        _noteTimer_t?.Dispose();
+        _noteTimer_t = new System.Timers.Timer(1000) { AutoReset = true };
+        _noteTimer_t.Elapsed += async (_, _) => { _noteElapsed++; await InvokeAsync(StateHasChanged); };
+        _noteTimer_t.Start();
+        StateHasChanged();
+
+        try
+        {
+            var inputPath = Path.GetFullPath(Path.Combine(Library.Root, _song.SourceFile));
+            var outputPath = Path.Combine(Library.Root, "transcriptions", $"{SongKey}.mid");
+            var countStr = await PianoTranscribe.TranscribeAsync(inputPath, outputPath);
+            _noteCount = int.TryParse(countStr, out var n) ? n : 0;
+            _noteMidPath = outputPath;
+        }
+        catch (Exception ex)
+        {
+            _saveStatus = $"Node-transskription fejl: {ex.Message}";
+        }
+        finally
+        {
+            _noteTimer_t?.Stop();
+            _noteTimer_t?.Dispose();
+            _noteRunning = false;
             StateHasChanged();
         }
     }

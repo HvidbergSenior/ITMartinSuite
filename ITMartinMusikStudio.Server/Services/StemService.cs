@@ -105,7 +105,10 @@ public sealed class StemService
                     RedirectStandardError  = true,
                     UseShellExecute        = false,
                 });
-                p?.WaitForExit(10_000);
+                // 45s not 10s: demucs pulls in numba/llvmlite, whose JIT
+                // warmup on a cold import (first use in a fresh container)
+                // can genuinely take longer than a typical "is this here" check.
+                p?.WaitForExit(45_000);
                 if (p?.ExitCode == 0) return candidate;
             }
             catch { }

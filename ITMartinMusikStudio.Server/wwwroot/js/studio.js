@@ -6,6 +6,7 @@ window.studio = (function() {
     var _camStream = null;
     var _songKey = null;
     var _videoMode = false;
+    var _section = null; // optional lyric-section label for "record one verse at a time"
     var _mixAudios = [];
     var _mixVolume = 0.5; // default lower than full - reduces speaker bleed into the mic when no headphones are used
     var _audioCtx = null;
@@ -14,9 +15,10 @@ window.studio = (function() {
 
     // ── Recording ──────────────────────────────────────────────────────────────
 
-    function startRecording(songKey, videoMode) {
+    function startRecording(songKey, videoMode, section) {
         _songKey = songKey;
         _videoMode = !!videoMode;
+        _section = section || null;
         _chunks = [];
 
         // Explicitly OFF: these are WebRTC voice-call constraints (tuned for
@@ -150,7 +152,9 @@ window.studio = (function() {
             var recorder = _mediaRecorder;
             var capturedMime = recorder.mimeType || (_videoMode ? "video/webm" : "audio/webm");
             var capturedKey = _songKey;
+            var capturedSection = _section;
             _mediaRecorder = null;
+            _section = null;
 
             // Stop video preview
             var preview = document.getElementById("rec-preview");
@@ -167,7 +171,10 @@ window.studio = (function() {
 
                 if (!capturedKey || blob.size === 0) { resolve(); return; }
 
-                fetch("/api/recording/" + encodeURIComponent(capturedKey), {
+                var url = "/api/recording/" + encodeURIComponent(capturedKey);
+                if (capturedSection) url += "?section=" + encodeURIComponent(capturedSection);
+
+                fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": capturedMime },
                     body: blob
