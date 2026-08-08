@@ -190,6 +190,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinKaraoke.Server", "I
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinMusicCheck.Server", "ITMartinMusicCheck.Server\ITMartinMusicCheck.Server.csproj", "{7DB78C0C-5CFA-46AE-B78A-1A2F96928BA7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ITMartinLiveGallery.Server", "ITMartinLiveGallery.Server\ITMartinLiveGallery.Server.csproj", "{73B89082-B3F9-43BF-AA82-E94AF5FF7D5C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -555,5 +557,9 @@ Global
 		{7DB78C0C-5CFA-46AE-B78A-1A2F96928BA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7DB78C0C-5CFA-46AE-B78A-1A2F96928BA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7DB78C0C-5CFA-46AE-B78A-1A2F96928BA7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73B89082-B3F9-43BF-AA82-E94AF5FF7D5C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73B89082-B3F9-43BF-AA82-E94AF5FF7D5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73B89082-B3F9-43BF-AA82-E94AF5FF7D5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73B89082-B3F9-43BF-AA82-E94AF5FF7D5C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
