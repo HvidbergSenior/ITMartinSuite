@@ -363,6 +363,14 @@ html, body {
     background: #ef4444; border-color: #ef4444; color: #fff;
     box-shadow: 0 0 12px rgba(239,68,68,.7);
 }
+.beat-total {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 800;
+    font-family: monospace;
+    color: #ef4444;
+}
 
 .rec-count { font-size: 11px; color: var(--muted); }
 .rec-list { display: flex; flex-direction: column; gap: 10px; }
@@ -1144,6 +1152,27 @@ html, body {
     min-height: 58px;
     margin-bottom: 2px;
 }
+.beat-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 22px;
+    padding: 0 6px;
+    margin-right: 8px;
+    border-radius: 6px;
+    border: 1px solid #60a5fa;
+    background: rgba(96,165,250,.15);
+    color: #60a5fa;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: monospace;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: center;
+}
+.beat-badge:hover { background: rgba(96,165,250,.3); }
+.beat-badge--unset { border-color: #4b5563; background: transparent; color: #6b7280; }
 .perform-seg {
     display: inline-flex;
     flex-direction: column;

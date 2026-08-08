@@ -209,6 +209,56 @@ public sealed class StudioLibraryService
         }
     }
 
+    // Concatenates one chosen take per song section (already in song order)
+    // into a single final take - the "record a section at a time, then comp
+    // together the best takes" workflow. Uses ffmpeg's concat *filter* (not
+    // the concat demuxer) since it decodes each input first, so it doesn't
+    // care that the takes may have slightly different codecs/sample rates
+    // (they're all browser MediaRecorder webm, but from different recording
+    // sessions) - same "filter_complex, not stream copy" approach MixdownAsync
+    // already uses above.
+    public async Task<bool> MergeSectionTakesAsync(string songKey, List<string> orderedRelativePaths)
+    {
+        if (orderedRelativePaths.Count == 0) return false;
+        var fullPaths = orderedRelativePaths
+            .Select(p => Path.GetFullPath(Path.Combine(Root, p)))
+            .ToList();
+        if (fullPaths.Any(p => !File.Exists(p))) return false;
+
+        var dir = Path.Combine(RecordingsDir, songKey);
+        Directory.CreateDirectory(dir);
+        var dest = Path.Combine(dir, $"mergetake-{DateTime.UtcNow:yyyyMMdd-HHmmss}.mp3");
+
+        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        psi.ArgumentList.Add("-y");
+        foreach (var p in fullPaths) { psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(p); }
+
+        var inputTags = string.Concat(Enumerable.Range(0, fullPaths.Count).Select(i => $"[{i}:a]"));
+        psi.ArgumentList.Add("-filter_complex");
+        psi.ArgumentList.Add($"{inputTags}concat=n={fullPaths.Count}:v=0:a=1[a]");
+        psi.ArgumentList.Add("-map"); psi.ArgumentList.Add("[a]");
+        psi.ArgumentList.Add("-c:a"); psi.ArgumentList.Add("libmp3lame");
+        psi.ArgumentList.Add("-q:a"); psi.ArgumentList.Add("2");
+        psi.ArgumentList.Add(dest);
+
+        try
+        {
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc is null) return false;
+            await proc.WaitForExitAsync();
+            return proc.ExitCode == 0 && File.Exists(dest);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     // Deletes a recording file directly rather than the caller making a
     // loopback HTTP call to this same app's own external URL for it - that
     // self-call broke when accessed through a reverse proxy (e.g. Tailscale
@@ -240,7 +290,7 @@ public sealed class StudioLibraryService
     // section picker) sits between the take-type prefix and the fixed
     // yyyyMMdd-HHmmss timestamp.
     private static readonly System.Text.RegularExpressions.Regex TakeFilenamePattern = new(
-        @"^(?:take|vtake|aitake|mixtake)(?:-(?<section>[a-z0-9]+))?-\d{8}-\d{6}$",
+        @"^(?:take|vtake|aitake|mixtake|mergetake)(?:-(?<section>[a-z0-9]+))?-\d{8}-\d{6}$",
         System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public List<RecordingFile> GetRecordings(string songKey)

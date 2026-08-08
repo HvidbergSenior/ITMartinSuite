@@ -533,6 +533,7 @@ else if (_song is not null)
                         <div class="beat-dot @(_beat == b ? "beat-dot--on" : "")">@(b + 1)</div>
                     }
                 </div>
+                <span class="beat-total" title="Løbende beat-tal siden takten startede - det tal du markerer linjer med">Beat @_totalBeats</span>
             }
             @if (!_recording)
             {
@@ -917,24 +918,6 @@ else if (_song is not null)
                                @oninput='e => JS.InvokeVoidAsync("studio.setMicGain", (double.TryParse(e.Value?.ToString(), out var g) ? g : 150) / 100.0)' />
                     </div>
 
-                    @if (!string.IsNullOrEmpty(_song!.SourceFile) && Library.Exists(_song.SourceFile))
-                    {
-                        <button class="btn-record btn-record--big"
-                                style="width:100%;padding:10px;margin-bottom:8px;background:#1d4ed8;border-color:#1d4ed8"
-                                @onclick='() => StartOverdubFromUrl($"/stream?path={Uri.EscapeDataString(_song.SourceFile)}")'
-                                title="Afspiller sangen mens du synger - optagelsen fanger kun din mikrofon, ikke sangen selv">
-                            🎧 Optag med sangen i baggrunden
-                        </button>
-                    }
-                    else if (!string.IsNullOrEmpty(_song!.SpotifyTrackId) && Spotify.IsConnected)
-                    {
-                        <button class="btn-record btn-record--big"
-                                style="width:100%;padding:10px;margin-bottom:8px;background:#1d4ed8;border-color:#1d4ed8"
-                                @onclick="StartRecordingWithSpotify"
-                                title="Afspiller sangen via Spotify mens du synger - optagelsen fanger kun din mikrofon, ikke sangen selv">
-                            🎧 Optag med Spotify-sangen i baggrunden
-                        </button>
-                    }
                     @if (LyricSectionNames.Count > 0)
                     {
                         <div style="margin-bottom:10px">
@@ -951,6 +934,46 @@ else if (_song is not null)
                                 }
                             </div>
                         </div>
+                        @if (_selectedSection is not null && !string.IsNullOrEmpty(_song!.SourceFile) && Library.Exists(_song.SourceFile))
+                        {
+                            var slug = SlugSection(_selectedSection);
+                            var start = GetSectionStart(slug);
+                            <div style="margin-bottom:10px;padding:8px;border:1px solid #2a2a2a;border-radius:6px">
+                                <p style="font-size:0.75rem;color:#6b7280;margin-bottom:6px">
+                                    Find stedet i sangen hvor "@_selectedSection" starter, og sæt det som starttid - så springer "🎧 Optag med sangen i baggrunden" direkte derhen i stedet for at starte forfra.
+                                </p>
+                                <audio id="section-preview-audio" src="/stream?path=@Uri.EscapeDataString(_song.SourceFile)"
+                                       controls style="width:100%;margin-bottom:6px" />
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <button class="btn-ghost-sm" @onclick="() => SetSectionStartFromPlayer(slug)">🎯 Sæt starttid til nu</button>
+                                    <span style="font-size:0.75rem;color:#6b7280">
+                                        @(start is null ? "Ingen starttid sat endnu (starter fra 0:00)" : $"Starter ved {FormatRecTime((int)start.Value)}")
+                                    </span>
+                                    @if (start is not null)
+                                    {
+                                        <button class="btn-ghost-sm" @onclick="() => ClearSectionStart(slug)">↺ Nulstil</button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    @if (!string.IsNullOrEmpty(_song!.SourceFile) && Library.Exists(_song.SourceFile))
+                    {
+                        <button class="btn-record btn-record--big"
+                                style="width:100%;padding:10px;margin-bottom:8px;background:#1d4ed8;border-color:#1d4ed8"
+                                @onclick='() => StartOverdubFromUrl($"/stream?path={Uri.EscapeDataString(_song.SourceFile)}", _selectedSection is null ? 0 : (GetSectionStart(SlugSection(_selectedSection)) ?? 0))'
+                                title="Afspiller sangen mens du synger - optagelsen fanger kun din mikrofon, ikke sangen selv">
+                            🎧 Optag med sangen i baggrunden
+                        </button>
+                    }
+                    else if (!string.IsNullOrEmpty(_song!.SpotifyTrackId) && Spotify.IsConnected)
+                    {
+                        <button class="btn-record btn-record--big"
+                                style="width:100%;padding:10px;margin-bottom:8px;background:#1d4ed8;border-color:#1d4ed8"
+                                @onclick="StartRecordingWithSpotify"
+                                title="Afspiller sangen via Spotify mens du synger - optagelsen fanger kun din mikrofon, ikke sangen selv">
+                            🎧 Optag med Spotify-sangen i baggrunden
+                        </button>
                     }
                     <div class="optag-main-buttons">
                         <button class="btn-record" style="width:100%;padding:10px" @onclick="StartRecording">
@@ -1000,6 +1023,9 @@ else if (_song is not null)
                         {
                             <div class="beat-dot @(_beat == b ? "beat-dot--on" : "")">@(b + 1)</div>
                         }
+                    </div>
+                    <div style="text-align:center">
+                        <span class="beat-total" title="Løbende beat-tal siden takten startede - det tal du markerer linjer med">Beat @_totalBeats</span>
                     </div>
                 }
             }
@@ -1132,6 +1158,53 @@ else if (_song is not null)
         </div>
         }
 
+        <!-- Sammensæt bedste afsnit: record several attempts per section
+             (via the section picker above), then comp them into one final
+             take - pick which attempt "wins" per section and merge in order. -->
+        @if (LyricSectionNames.Count > 1 && _recordings.Any(r => r.Section is not null))
+        {
+        <div class="studio-card">
+            <div class="card-label" style="margin-bottom:10px">🧩 Sammensæt bedste afsnit</div>
+            <p style="font-size:0.75rem;color:#6b7280;margin-bottom:10px">
+                Vælg den bedste optagelse for hvert afsnit, og flet dem sammen til én samlet optagelse i sangens rækkefølge.
+            </p>
+            @{ var _allSectionsHaveTakes = true; }
+            @foreach (var sectionName in LyricSectionNames)
+            {
+                var slug = SlugSection(sectionName);
+                var takes = TakesForSection(slug);
+                @if (takes.Count == 0) { _allSectionsHaveTakes = false; }
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                    <span style="font-size:0.8rem;min-width:80px">@sectionName</span>
+                    @if (takes.Count == 0)
+                    {
+                        <span style="font-size:0.75rem;color:#6b7280">Ingen optagelse endnu</span>
+                    }
+                    else
+                    {
+                        <select class="input" style="flex:1"
+                                value="@(_chosenSectionTake.GetValueOrDefault(slug) ?? takes[^1].RelativePath)"
+                                @onchange="e => _chosenSectionTake[slug] = e.Value?.ToString() ?? takes[^1].RelativePath">
+                            @for (var i = 0; i < takes.Count; i++)
+                            {
+                                var t = takes[i];
+                                <option value="@t.RelativePath">Optagelse @(i + 1) — @t.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</option>
+                            }
+                        </select>
+                    }
+                </div>
+            }
+            <button class="btn-record" style="width:100%;padding:10px;margin-top:6px"
+                    disabled="@(!_allSectionsHaveTakes || _mergingRunning)"
+                    @onclick="MergeSections">
+                🧩 Flet sammen
+            </button>
+            @if (!_allSectionsHaveTakes)
+            {
+                <p style="font-size:0.75rem;color:#6b7280;margin-top:4px">Optag mindst ét take for hvert afsnit ovenfor, før du kan flette.</p>
+            }
+        </div>
+        }
 
         <!-- Recordings list -->
         @if (_recordings.Any())
@@ -1144,10 +1217,11 @@ else if (_song is not null)
                 {
                     _takeNumber++;
                     var isMix = r.Name.StartsWith("mixtake");
+                    var isMerge = r.Name.StartsWith("mergetake");
                     <div class="rec-item">
                         <div class="rec-item-info">
                             <span class="rec-item-name">
-                                @(isMix ? "🎚" : r.IsAi ? "🤖" : r.IsVideo ? "📹" : "🎙") @(isMix ? "Mix" : r.IsAi ? "AI-version" : $"Take {_takeNumber}")
+                                @(isMix ? "🎚" : isMerge ? "🧩" : r.IsAi ? "🤖" : r.IsVideo ? "📹" : "🎙") @(isMix ? "Mix" : isMerge ? "Flettet take" : r.IsAi ? "AI-version" : $"Take {_takeNumber}")
                                 @if (r.Section is not null)
                                 {
                                     <text> (@(char.ToUpper(r.Section[0]) + r.Section[1..])) </text>
@@ -1281,9 +1355,12 @@ else if (_song is not null)
         <!-- Lyrics -->
         @if (HasInlineChords)
         {
+            var lines = _lyricsEdit.Split('\n');
             <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
-                @foreach (var line in _lyricsEdit.Split('\n'))
+                @for (var __i = 0; __i < lines.Length; __i++)
                 {
+                    var line = lines[__i];
+                    var lineIndex = __i;
                     @if (string.IsNullOrWhiteSpace(line))
                     {
                         <div class="perform-spacer"></div>
@@ -1295,6 +1372,7 @@ else if (_song is not null)
                     else
                     {
                         <div class="perform-lyric-line">
+                            @RenderBeatBadge(lineIndex)
                             @foreach (var seg in ParseLyricLine(line))
                             {
                                 var segChord = seg.Chord;
@@ -1318,9 +1396,12 @@ else if (_song is not null)
         }
         else if (!string.IsNullOrWhiteSpace(_lyricsEdit))
         {
+            var lines = _lyricsEdit.Split('\n');
             <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
-                @foreach (var line in _lyricsEdit.Split('\n'))
+                @for (var __i = 0; __i < lines.Length; __i++)
                 {
+                    var line = lines[__i];
+                    var lineIndex = __i;
                     @if (string.IsNullOrWhiteSpace(line))
                     {
                         <div class="perform-spacer"></div>
@@ -1331,7 +1412,7 @@ else if (_song is not null)
                     }
                     else
                     {
-                        <div class="perform-plain-line">@line</div>
+                        <div class="perform-plain-line">@RenderBeatBadge(lineIndex) @line</div>
                     }
                 }
             </div>
@@ -1505,10 +1586,116 @@ else if (_song is not null)
     }
     private List<RecordingFile> _recordings = [];
     private bool _mixdownRunning;
+    private Dictionary<string, string> _chosenSectionTake = [];
+    private bool _mergingRunning;
+
+    // Same slugging rule the upload endpoint applies before it's embedded in
+    // a take's filename (Program.cs's "/upload-take" handler) - letters/
+    // digits only, lowercased - so a lyric section name like "Vers 1" matches
+    // the "vers1" tag actually sitting on RecordingFile.Section.
+    private static string SlugSection(string name) =>
+        new string(name.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+
+    private List<RecordingFile> TakesForSection(string slug) =>
+        _recordings.Where(r => r.Section == slug).OrderBy(r => r.CreatedAt).ToList();
+
+    // Plain "slug=seconds;slug=seconds" pairs on _song.SectionTimings - see
+    // the field's own doc comment for why this isn't JSON.
+    private Dictionary<string, double> ParseSectionTimings()
+    {
+        var result = new Dictionary<string, double>();
+        if (string.IsNullOrWhiteSpace(_song?.SectionTimings)) return result;
+        foreach (var pair in _song.SectionTimings.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length == 2 && double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+                result[parts[0]] = seconds;
+        }
+        return result;
+    }
+
+    private double? GetSectionStart(string slug) =>
+        ParseSectionTimings().TryGetValue(slug, out var seconds) ? seconds : null;
+
+    private void SetSectionStart(string slug, double seconds)
+    {
+        var timings = ParseSectionTimings();
+        timings[slug] = seconds;
+        _song!.SectionTimings = string.Join(';', timings.Select(kv => $"{kv.Key}={kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"));
+        AutoSave();
+    }
+
+    private void ClearSectionStart(string slug)
+    {
+        var timings = ParseSectionTimings();
+        timings.Remove(slug);
+        _song!.SectionTimings = string.Join(';', timings.Select(kv => $"{kv.Key}={kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"));
+        AutoSave();
+    }
+
+    private async Task SetSectionStartFromPlayer(string slug)
+    {
+        try
+        {
+            var seconds = await JS.InvokeAsync<double>("studio.getAudioCurrentTime", "section-preview-audio");
+            SetSectionStart(slug, seconds);
+        }
+        catch { }
+    }
+
+    // ── Line beats: "which beat does this line start on" ────────────────────
+    // Same delimited-string convention as SectionTimings, keyed by the
+    // line's raw index in Lyrics.Split('\n') rather than its text (this song
+    // repeats short lines like "Jeg kigger på stjerner." within one section).
+    private Dictionary<int, int> ParseLineBeats()
+    {
+        var result = new Dictionary<int, int>();
+        if (string.IsNullOrWhiteSpace(_song?.LineBeats)) return result;
+        foreach (var pair in _song.LineBeats.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length == 2 && int.TryParse(parts[0], out var idx) && int.TryParse(parts[1], out var beat))
+                result[idx] = beat;
+        }
+        return result;
+    }
+
+    private int? GetLineBeat(int lineIndex) =>
+        ParseLineBeats().TryGetValue(lineIndex, out var beat) ? beat : null;
+
+    private void SetLineBeat(int lineIndex, int beat)
+    {
+        var beats = ParseLineBeats();
+        beats[lineIndex] = beat;
+        _song!.LineBeats = string.Join(';', beats.Select(kv => $"{kv.Key}={kv.Value}"));
+        AutoSave();
+    }
+
+    // Tap-to-mark: while the beat timer is running, clicking a line captures
+    // wherever the beat count currently is. Works whether armed via the
+    // manual toggle or automatically (recording/overdub starts one).
+    private void MarkLineBeatNow(int lineIndex)
+    {
+        if (_beat < 0) return; // no beat running - nothing to capture
+        SetLineBeat(lineIndex, _totalBeats);
+    }
+
+    // Small "which beat does this line start on" tag shown next to each
+    // lyric line in Spilleguide - click to (re)capture wherever the beat
+    // counter currently is, no-ops if the beat isn't running.
+    private RenderFragment RenderBeatBadge(int lineIndex) => __builder =>
+    {
+        var beat = GetLineBeat(lineIndex);
+        <button class="beat-badge @(beat is null ? "beat-badge--unset" : "")" title="@(_beat < 0 ? "Slå beat til for at kunne markere" : "Klik for at markere denne linjes beat nu")"
+                @onclick="() => MarkLineBeatNow(lineIndex)">
+            ♩@(beat?.ToString() ?? "·")
+        </button>
+    };
     private bool _uploadingSource;
     private bool _coverGenerating;
     private string? _coverError;
     private int _beat = -1;
+    private int _totalBeats;
     private System.Timers.Timer? _beatTimer;
     private bool _beatManual;
     private bool _focusMode;
@@ -2068,12 +2255,14 @@ else if (_song is not null)
         _beatTimer?.Stop(); _beatTimer?.Dispose();
         if (_song?.Tempo is not > 0) return;
         _beat = 0;
+        _totalBeats = 1; // dot 1 is already "on" the instant the beat starts, before any tick
         var ms = (int)(60000.0 / _song.Tempo.Value);
         _beatTimer = new System.Timers.Timer(ms) { AutoReset = true };
         _beatTimer.Elapsed += async (_, _) =>
         {
             if (_disposed) return;
             _beat = (_beat + 1) % 4;
+            _totalBeats++;
             await InvokeAsync(StateHasChanged);
         };
         _beatTimer.Start();
@@ -2155,7 +2344,7 @@ else if (_song is not null)
         await StartOverdubFromUrl($"/stream?path={Uri.EscapeDataString(latest.RelativePath)}");
     }
 
-    private async Task StartOverdubFromUrl(string playUrl)
+    private async Task StartOverdubFromUrl(string playUrl, double startSeconds = 0)
     {
         if (_recordings.Count >= MaxTakes)
         {
@@ -2168,7 +2357,7 @@ else if (_song is not null)
         StartBeatTimer();
         try
         {
-            await JS.InvokeVoidAsync("studio.startOverdub", SongKey, playUrl, _videoMode);
+            await JS.InvokeVoidAsync("studio.startOverdub", SongKey, playUrl, _videoMode, startSeconds);
         }
         catch (JSException ex)
         {
@@ -2276,6 +2465,34 @@ else if (_song is not null)
         finally
         {
             _mixdownRunning = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MergeSections()
+    {
+        var ordered = new List<string>();
+        foreach (var sectionName in LyricSectionNames)
+        {
+            var slug = SlugSection(sectionName);
+            var takes = TakesForSection(slug);
+            if (takes.Count == 0) return;
+            var chosen = _chosenSectionTake.GetValueOrDefault(slug) ?? takes[^1].RelativePath;
+            ordered.Add(chosen);
+        }
+
+        _mergingRunning = true;
+        _saveStatus = "🧩 Fletter afsnit sammen...";
+        StateHasChanged();
+        try
+        {
+            var ok = await Library.MergeSectionTakesAsync(SongKey, ordered);
+            _saveStatus = ok ? "🧩 Flettet take klar!" : "Kunne ikke flette - se container-log.";
+            if (ok) _recordings = Library.GetRecordings(SongKey);
+        }
+        finally
+        {
+            _mergingRunning = false;
             StateHasChanged();
         }
     }

@@ -40,4 +40,21 @@ public class StudioSong
     // it's decoration, not something needed to actually record the song, so
     // it doesn't gate Indspil the way chords/lyrics/pattern do.
     public string CoverImagePath { get; set; } = "";
+
+    // Where each lyric section starts in SourceFile, in seconds - lets
+    // "record with the song in the background" seek straight to a section's
+    // own spot instead of always starting from 0:00. Plain "slug=seconds;..."
+    // pairs (slug = same letters/digits-only key used in take filenames,
+    // e.g. "chorus"), not JSON - consistent with this entity's other
+    // lightweight delimited-string fields (SkippedSteps). Null/empty means
+    // no timings set yet for any section.
+    public string? SectionTimings { get; set; }
+
+    // Which beat (absolute count from song start, 1-based bar-of-4 counting
+    // continues across bars) each lyric line starts on - "so I know when to
+    // come in". Keyed by the line's plain 0-based index in Lyrics.Split('\n')
+    // (not by line text, since this song repeats short lines like "Jeg
+    // kigger på stjerner." within the same section). Same "slug=seconds"-
+    // style delimited string as SectionTimings, not JSON.
+    public string? LineBeats { get; set; }
 }
