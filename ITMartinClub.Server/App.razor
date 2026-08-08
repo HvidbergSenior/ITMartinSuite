@@ -41,6 +41,12 @@
             },
             scrollToBottom: (id) => { var el = document.getElementById(id); if (el) el.scrollTop = el.scrollHeight; },
 
+            // Whether we've already shown the "want notifications?" banner for
+            // this group/member - keeps it a one-time explicit choice instead
+            // of nagging on every visit.
+            hasAskedPush: function (groupId) { return localStorage.getItem('push_asked_' + groupId) === '1'; },
+            setAskedPush: function (groupId) { localStorage.setItem('push_asked_' + groupId, '1'); },
+
             registerSW: async function () {
                 if (!('serviceWorker' in navigator)) return;
                 try { await navigator.serviceWorker.register('/sw.js'); } catch (e) {}

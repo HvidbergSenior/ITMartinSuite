@@ -1,0 +1,118 @@
+@page "/g/{slug}/contacts"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="contacts" />
+
+        <div class="contacts-body">
+            <h2 class="contacts-title">Kontakter</h2>
+
+            @foreach (var m in _members)
+            {
+                <div class="contact-row">
+                    <div class="contact-info">
+                        <div class="contact-name">@m.Name</div>
+                        @if (_editingId != m.Id)
+                        {
+                            @if (!string.IsNullOrWhiteSpace(m.Phone)) { <div class="contact-detail">📞 @m.Phone</div> }
+                            @if (!string.IsNullOrWhiteSpace(m.Email)) { <div class="contact-detail">✉ @m.Email</div> }
+                            @if (!string.IsNullOrWhiteSpace(m.Availability)) { <div class="contact-detail">🕐 @m.Availability</div> }
+                            @if (!string.IsNullOrWhiteSpace(m.HelpWith)) { <div class="contact-detail">🙋 @m.HelpWith</div> }
+                            @if (string.IsNullOrWhiteSpace(m.Phone) && string.IsNullOrWhiteSpace(m.Email) && string.IsNullOrWhiteSpace(m.Availability) && string.IsNullOrWhiteSpace(m.HelpWith)) { <div class="contact-detail contact-empty">Ingen oplysninger endnu</div> }
+                        }
+                    </div>
+                    @if (m.Id == _member.Id)
+                    {
+                        @if (_editingId == m.Id)
+                        {
+                            <div class="contact-edit">
+                                <input class="contact-input" @bind="_editPhone" placeholder="Telefon" maxlength="30" />
+                                <input class="contact-input" @bind="_editEmail" placeholder="Email" maxlength="120" />
+                                <input class="contact-input" @bind="_editAvailability" placeholder="Hvornår kan du hjælpe?" maxlength="120" />
+                                <input class="contact-input" @bind="_editHelpWith" placeholder="Hvad kan du hjælpe med?" maxlength="120" />
+                                <button class="contact-save-btn" @onclick="SaveAsync">Gem</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="contact-edit-btn" @onclick="() => StartEdit(m)">✏️ Rediger</button>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .contacts-body { padding: 16px; }
+    .contacts-title { font-size: 18px; font-weight: 800; margin: 0 0 16px; color: var(--text); }
+    .contact-row { display: flex; align-items: center; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
+    .contact-info { flex: 1; }
+    .contact-name { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .contact-detail { font-size: 13px; color: var(--muted); }
+    .contact-empty { font-style: italic; }
+    .contact-edit-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); padding: 5px 10px; font-size: 12px; cursor: pointer; }
+    .contact-edit-btn:hover { border-color: var(--accent); color: var(--text); }
+    .contact-edit { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
+    .contact-input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; color: var(--text); font-size: 13px; outline: none; }
+    .contact-input:focus { border-color: var(--accent); }
+    .contact-save-btn { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 7px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private List<Member> _members = [];
+    private Guid? _editingId;
+    private string _editPhone = "", _editEmail = "", _editAvailability = "", _editHelpWith = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        await RefreshAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+    }
+
+    private void StartEdit(Member m)
+    {
+        _editingId = m.Id;
+        _editPhone = m.Phone ?? "";
+        _editEmail = m.Email ?? "";
+        _editAvailability = m.Availability ?? "";
+        _editHelpWith = m.HelpWith ?? "";
+    }
+
+    private async Task SaveAsync()
+    {
+        var m = await Db.Members.FindAsync(_editingId);
+        if (m == null) return;
+        m.Phone = string.IsNullOrWhiteSpace(_editPhone) ? null : _editPhone.Trim();
+        m.Email = string.IsNullOrWhiteSpace(_editEmail) ? null : _editEmail.Trim();
+        m.Availability = string.IsNullOrWhiteSpace(_editAvailability) ? null : _editAvailability.Trim();
+        m.HelpWith = string.IsNullOrWhiteSpace(_editHelpWith) ? null : _editHelpWith.Trim();
+        await Db.SaveChangesAsync();
+        _editingId = null;
+        await RefreshAsync();
+    }
+}

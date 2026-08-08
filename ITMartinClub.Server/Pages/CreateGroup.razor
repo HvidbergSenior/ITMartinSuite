@@ -15,6 +15,13 @@
         <div class="create-field"><label>Gruppenavn</label><input @bind="_name" placeholder="fx Fredagsklubben" class="create-input" maxlength="100" /></div>
         <div class="create-field"><label>Beskrivelse (valgfrit)</label><input @bind="_desc" class="create-input" maxlength="200" /></div>
         <div class="create-field">
+            <label>Type gruppe</label>
+            <select @bind="_kind" class="create-input">
+                <option value="Gaming">Hobby-/spilklub (alle funktioner)</option>
+                <option value="Practical">Praktisk projekt (opgaver, kalender, kontakter - ingen spilfunktioner)</option>
+            </select>
+        </div>
+        <div class="create-field">
             <label>Adgangskode til gruppen</label>
             <input @bind="_invite" placeholder="f.eks. sommer2026" class="create-input" maxlength="40" />
             <div class="create-hint-text">Den kode som nye medlemmer skal bruge for at tilmelde sig gruppen.</div>
@@ -45,7 +52,7 @@
 </style>
 
 @code {
-    private string _name = "", _desc = "", _invite = "", _pin = "";
+    private string _name = "", _desc = "", _invite = "", _pin = "", _kind = "Gaming";
     private string? _error;
     private bool _creating;
     private string _slug = "";
@@ -76,6 +83,7 @@
                 Slug = _slug,
                 Name = _name.Trim(),
                 Description = _desc.Trim(),
+                Kind = _kind,
                 // InviteCode stays in plaintext - by design it's meant to be shown to
                 // the admin and shared with people who should join (a room code, not
                 // a password); rate-limiting join attempts is the right defense for

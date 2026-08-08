@@ -247,6 +247,44 @@ using (var scope = app.Services.CreateScope())
             "Status"        TEXT NOT NULL DEFAULT 'Yes'
         )
         """);
+
+    var hasGroupKindColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Groups') WHERE name = 'Kind'").AsEnumerable().First() > 0;
+    if (!hasGroupKindColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Groups ADD COLUMN Kind TEXT NOT NULL DEFAULT 'Gaming'");
+
+    var hasTargetDateColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Groups') WHERE name = 'TargetDate'").AsEnumerable().First() > 0;
+    if (!hasTargetDateColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Groups ADD COLUMN TargetDate TEXT NULL");
+
+    var hasMemberPhoneColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Phone'").AsEnumerable().First() > 0;
+    if (!hasMemberPhoneColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Phone TEXT NULL");
+
+    var hasMemberEmailColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Email'").AsEnumerable().First() > 0;
+    if (!hasMemberEmailColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Email TEXT NULL");
+
+    var hasMemberAvailabilityColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Availability'").AsEnumerable().First() > 0;
+    if (!hasMemberAvailabilityColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Availability TEXT NULL");
+
+    var hasMemberHelpWithColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'HelpWith'").AsEnumerable().First() > 0;
+    if (!hasMemberHelpWithColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN HelpWith TEXT NULL");
+
+    var hasAssignmentStatusColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Assignments') WHERE name = 'Status'").AsEnumerable().First() > 0;
+    if (!hasAssignmentStatusColumn)
+    {
+        db.Database.ExecuteSqlRaw("ALTER TABLE Assignments ADD COLUMN Status TEXT NOT NULL DEFAULT 'NotStarted'");
+        db.Database.ExecuteSqlRaw("UPDATE Assignments SET Status = 'Done' WHERE IsCompleted = 1");
+    }
 }
 
 if (!app.Environment.IsDevelopment())

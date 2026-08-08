@@ -22,6 +22,8 @@ else
         <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="history" />
 
         <div class="doc-body">
+            @if (_group.Kind != "Practical")
+            {
             <a class="link-card" href="/g/@Slug/opponents" style="margin-bottom:14px">🕵️ Modstandere - se eller tag folk I har mødt</a>
 
             @if (_recentRecaps.Count > 0)
@@ -35,6 +37,7 @@ else
                         <div class="recap-meta">@recap.CreatedAt.ToLocalTime().ToString("d. MMM HH:mm")</div>
                     </div>
                 }
+            }
             }
 
             <div class="doc-toolbar">

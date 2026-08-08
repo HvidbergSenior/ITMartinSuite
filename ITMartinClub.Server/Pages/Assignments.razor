@@ -16,8 +16,16 @@ else
         <div class="task-body">
             <div class="task-toolbar">
                 <h2 class="task-title">Opgaver</h2>
-                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
+                @if (_group!.Kind != "Practical")
+                {
+                    <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
+                }
             </div>
+
+            @if (_group!.Kind == "Practical")
+            {
+                <a class="link-card" href="/g/@Slug/admin" style="margin-bottom:16px">📋 Nye opgaver oprettes og tildeles under ⚙ Admin</a>
+            }
 
             @if (_adding)
             {
@@ -38,50 +46,9 @@ else
                 </div>
             }
 
-            @if (_open.Any())
-            {
-                <div class="task-section-label">Åbne opgaver</div>
-                @foreach (var t in _open)
-                {
-                    <div class="task-row-item">
-                        <button class="task-check" @onclick="() => CompleteAsync(t.Id)" title="Markér som udført">○</button>
-                        <div class="task-info">
-                            <div class="task-item-title">@t.Title</div>
-                            @if (!string.IsNullOrEmpty(t.Description)) { <div class="task-item-desc">@t.Description</div> }
-                            <div class="task-meta">
-                                @if (!string.IsNullOrEmpty(t.AssignedToName)) { <span>👤 @t.AssignedToName</span> }
-                                @if (t.DueDate.HasValue) { <span class="@(t.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @t.DueDate.Value.ToString("dd MMM yyyy")</span> }
-                                <span>Oprettet af @t.CreatedByName</span>
-                            </div>
-                            @if (string.IsNullOrEmpty(t.AssignedToName) || t.AssignedToName != _member!.Name)
-                            {
-                                <button class="task-take-btn" @onclick="() => TakeAsync(t.Id)">Jeg tager den 👋</button>
-                            }
-                        </div>
-                        <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
-                    </div>
-                }
-            }
-            else
-            {
-                <div class="task-empty">Ingen åbne opgaver 🎉</div>
-            }
-
-            @if (_done.Any())
-            {
-                <div class="task-section-label" style="margin-top:24px">Udførte opgaver</div>
-                @foreach (var t in _done)
-                {
-                    <div class="task-row-item task-done-row">
-                        <div class="task-check task-check-done">✓</div>
-                        <div class="task-info">
-                            <div class="task-item-title">@t.Title</div>
-                            <div class="task-meta"><span>Udført af @t.CompletedByName · @t.CompletedAt?.ToString("dd MMM yyyy")</span></div>
-                        </div>
-                        <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
-                    </div>
-                }
-            }
+            @RenderSection("Ikke startet", _notStarted, "Ingen opgaver ikke-startet 🎉")
+            @RenderSection("I gang", _inProgress, null)
+            @RenderSection("Færdig", _done, null)
         </div>
     </div>
 }
@@ -118,6 +85,11 @@ else
     .task-del-btn:hover { color: var(--red); }
     .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
     .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-status-row { display: flex; gap: 6px; margin-top: 8px; }
+    .task-status-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+    .task-status-btn:hover { border-color: var(--accent); color: var(--text); }
+    .task-status-btn.active { background: rgba(59,130,246,.15); border-color: #60a5fa; color: #60a5fa; font-weight: 700; }
+    .task-status-btn.done.active { background: rgba(34,197,94,.15); border-color: var(--green); color: var(--green); }
 </style>
 
 @code {
@@ -127,7 +99,7 @@ else
     private bool _loaded, _adding;
     private string _newTitle = "", _newAssignedTo = "", _newDesc = "";
     private DateTime? _newDue;
-    private List<Assignment> _open = [], _done = [];
+    private List<Assignment> _notStarted = [], _inProgress = [], _done = [];
     private List<Member> _members = [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -146,8 +118,9 @@ else
     private async Task RefreshAsync()
     {
         var all = await Db.Assignments.Where(a => a.GroupId == _group!.Id).OrderBy(a => a.CreatedAt).ToListAsync();
-        _open = all.Where(a => !a.IsCompleted).OrderBy(a => a.DueDate).ToList();
-        _done = all.Where(a => a.IsCompleted).OrderByDescending(a => a.CompletedAt).Take(10).ToList();
+        _notStarted = all.Where(a => a.Status == "NotStarted").OrderBy(a => a.DueDate).ToList();
+        _inProgress = all.Where(a => a.Status == "InProgress").OrderBy(a => a.DueDate).ToList();
+        _done = all.Where(a => a.Status == "Done").OrderByDescending(a => a.CompletedAt).Take(10).ToList();
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
     }
 
@@ -169,24 +142,38 @@ else
         _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "✅ Ny opgave", $"{_member.Name}: {title}");
     }
 
-    private async Task TakeAsync(Guid id)
+    // Moving a task to "I gang" also claims it if nobody has it yet - one tap
+    // instead of a separate "Jeg tager den" step, same as picking up a card on
+    // a kanban board. IsCompleted/CompletedAt/CompletedByName stay in sync so
+    // other pages reading them (GroupHome's open-task count, Admin's "ryd
+    // udførte opgaver") keep working unchanged.
+    private async Task SetStatusAsync(Guid id, string status)
     {
         var t = await Db.Assignments.FindAsync(id);
         if (t == null) return;
-        t.AssignedToName = _member!.Name;
-        await Db.SaveChangesAsync();
-        await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "👋 Opgave taget", $"{_member.Name} tager: {t.Title}");
-    }
 
-    private async Task CompleteAsync(Guid id)
-    {
-        var t = await Db.Assignments.FindAsync(id);
-        if (t == null) return;
-        t.IsCompleted = true; t.CompletedAt = DateTime.UtcNow; t.CompletedByName = _member!.Name;
+        t.Status = status;
+        t.IsCompleted = status == "Done";
+
+        if (status == "InProgress" && string.IsNullOrEmpty(t.AssignedToName))
+            t.AssignedToName = _member!.Name;
+
+        if (status == "Done")
+        {
+            t.CompletedAt = DateTime.UtcNow;
+            t.CompletedByName = _member!.Name;
+        }
+
         await Db.SaveChangesAsync();
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "✅ Opgave færdig", $"{_member.Name}: {t.Title}");
+
+        var (label, emoji) = status switch
+        {
+            "InProgress" => ("i gang", "👋"),
+            "Done" => ("færdig", "✅"),
+            _ => ("ikke startet", "↩"),
+        };
+        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, $"{emoji} Opgave {label}", $"{_member.Name}: {t.Title}");
     }
 
     private async Task DeleteAsync(Guid id)
@@ -194,4 +181,34 @@ else
         var t = await Db.Assignments.FindAsync(id);
         if (t != null) { Db.Assignments.Remove(t); await Db.SaveChangesAsync(); await RefreshAsync(); }
     }
+
+    private RenderFragment RenderSection(string label, List<Assignment> tasks, string? emptyText) => __builder =>
+    {
+        <div class="task-section-label" style="margin-top:16px">@label (@tasks.Count)</div>
+        if (tasks.Count == 0 && emptyText is not null)
+        {
+            <div class="task-empty">@emptyText</div>
+        }
+        foreach (var t in tasks)
+        {
+            <div class="task-row-item @(t.Status == "Done" ? "task-done-row" : "")">
+                <div class="task-info">
+                    <div class="task-item-title">@t.Title</div>
+                    @if (!string.IsNullOrEmpty(t.Description)) { <div class="task-item-desc">@t.Description</div> }
+                    <div class="task-meta">
+                        @if (!string.IsNullOrEmpty(t.AssignedToName)) { <span>👤 @t.AssignedToName</span> }
+                        @if (t.DueDate.HasValue) { <span class="@(t.DueDate.Value < DateTime.UtcNow && t.Status != "Done" ? "task-overdue" : "")">📅 @t.DueDate.Value.ToString("dd MMM yyyy")</span> }
+                        @if (t.Status == "Done") { <span>Udført af @t.CompletedByName · @t.CompletedAt?.ToString("dd MMM yyyy")</span> }
+                        else { <span>Oprettet af @t.CreatedByName</span> }
+                    </div>
+                    <div class="task-status-row">
+                        <button class="task-status-btn @(t.Status == "NotStarted" ? "active" : "")" @onclick='() => SetStatusAsync(t.Id, "NotStarted")'>Ikke startet</button>
+                        <button class="task-status-btn @(t.Status == "InProgress" ? "active" : "")" @onclick='() => SetStatusAsync(t.Id, "InProgress")'>I gang</button>
+                        <button class="task-status-btn done @(t.Status == "Done" ? "active" : "")" @onclick='() => SetStatusAsync(t.Id, "Done")'>Færdig</button>
+                    </div>
+                </div>
+                <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
+            </div>
+        }
+    };
 }

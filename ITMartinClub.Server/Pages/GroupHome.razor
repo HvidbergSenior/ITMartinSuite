@@ -25,6 +25,26 @@ else
 
         <div class="club-sections">
 
+            @if (_showPushBanner)
+            {
+                <div class="club-section push-banner">
+                    <div style="flex:1">🔔 Få besked ved nye opgaver og beskeder?</div>
+                    <button class="push-btn push-btn-yes" @onclick="AcceptPushAsync">Ja tak</button>
+                    <button class="push-btn push-btn-no" @onclick="DeclinePushAsync">Nej tak</button>
+                </div>
+            }
+
+            @if (_group!.Kind == "Practical")
+            {
+                <div class="club-section">
+                    <div class="club-section-title">Kontakter</div>
+                    <div class="club-empty">Se telefon og email på alle i gruppen.</div>
+                    <a class="club-see-all" href="/g/@Slug/contacts">Se kontakter →</a>
+                </div>
+            }
+
+            @if (_group!.Kind != "Practical")
+            {
             <div class="club-section live-session-card">
                 <div class="club-section-title">Lige nu</div>
                 @if (_status is null)
@@ -88,6 +108,7 @@ else
                     <a class="club-see-all" href="/g/@Slug/ready">Se resumé →</a>
                 }
             </div>
+            }
 
             <div class="club-section">
                 <div class="club-section-title">Kommende begivenheder</div>
@@ -101,6 +122,7 @@ else
                     var myRsvp = rsvps.FirstOrDefault(r => r.MemberName == _member.Name);
                     var yes = rsvps.Where(r => r.Status == "Yes").ToList();
                     var no = rsvps.Where(r => r.Status == "No").ToList();
+                    var maybe = rsvps.Where(r => r.Status == "Maybe").ToList();
                     <div class="club-event-row">
                         <div class="club-event-date">@ev.EventDate.ToLocalTime().ToString("dd MMM")</div>
                         <div style="flex:1">
@@ -111,12 +133,14 @@ else
                             }
                             <div class="rsvp-row" style="margin-top:8px">
                                 <button class="rsvp-btn @(myRsvp?.Status == "Yes" ? "rsvp-active going" : "")" @onclick='() => SetRsvpAsync(ev.Id, "Yes")'>✅ Ja</button>
+                                <button class="rsvp-btn @(myRsvp?.Status == "Maybe" ? "rsvp-active maybe" : "")" @onclick='() => SetRsvpAsync(ev.Id, "Maybe")'>🤔 Måske</button>
                                 <button class="rsvp-btn @(myRsvp?.Status == "No" ? "rsvp-active cant" : "")" @onclick='() => SetRsvpAsync(ev.Id, "No")'>❌ Nej</button>
                             </div>
-                            @if (yes.Count > 0 || no.Count > 0)
+                            @if (yes.Count > 0 || no.Count > 0 || maybe.Count > 0)
                             {
                                 <div class="rsvp-reactions">
                                     @if (yes.Count > 0) { <div class="rsvp-reaction-line yes">✅ @string.Join(", ", yes.Select(r => r.MemberName))</div> }
+                                    @if (maybe.Count > 0) { <div class="rsvp-reaction-line maybe">🤔 @string.Join(", ", maybe.Select(r => r.MemberName))</div> }
                                     @if (no.Count > 0) { <div class="rsvp-reaction-line no">❌ @string.Join(", ", no.Select(r => r.MemberName))</div> }
                                 </div>
                             }
@@ -126,6 +150,8 @@ else
                 <a class="club-see-all" href="/g/@Slug/calendar">Se kalender →</a>
             </div>
 
+            @if (_group.Kind != "Practical")
+            {
             <div class="club-section">
                 <div class="club-section-title">Opslagstavle</div>
                 @if (!_recentPosts.Any())
@@ -146,6 +172,7 @@ else
                 }
                 <a class="club-see-all" href="/g/@Slug/board">📌 Del noget sjovt →</a>
             </div>
+            }
 
             <div class="club-section">
                 <div class="club-section-title">
@@ -191,6 +218,10 @@ else
 <style>
     .club-sections { padding: 16px; display: flex; flex-direction: column; gap: 20px; }
     .club-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .push-banner { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); }
+    .push-btn { border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); }
+    .push-btn-yes { background: var(--accent); color: white; border-color: var(--accent); }
+    .push-btn-no:hover { border-color: var(--red); color: var(--red); }
     .club-section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
     .club-empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
     .club-see-all { display: block; font-size: 12px; color: var(--accent); text-decoration: none; margin-top: 12px; }
@@ -230,10 +261,12 @@ else
     .rsvp-btn { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
     .rsvp-btn.rsvp-active.going { background: rgba(34,197,94,.15); border-color: var(--green); color: var(--green); }
     .rsvp-btn.rsvp-active.cant { background: rgba(248,113,113,.15); border-color: var(--red); color: var(--red); }
+    .rsvp-btn.rsvp-active.maybe { background: rgba(245,158,11,.15); border-color: var(--yellow); color: var(--yellow); }
     .rsvp-reactions { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
     .rsvp-reaction-line { font-size: 11px; color: var(--muted); }
     .rsvp-reaction-line.yes { color: var(--green); }
     .rsvp-reaction-line.no { color: var(--red); }
+    .rsvp-reaction-line.maybe { color: var(--yellow); }
 </style>
 
 @code {
@@ -255,6 +288,7 @@ else
     private List<ReadyCheckResponse> _responses = [];
     private ReadyCheckResponse? _myResponse;
     private bool _addedToCalendar;
+    private bool _showPushBanner;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -282,10 +316,28 @@ else
 
         try
         {
-            var publicKey = PushService.GetPublicKey();
-            await JS.InvokeVoidAsync("clubJs.subscribePush", publicKey, _group.Id, _member.Name);
+            _showPushBanner = !await JS.InvokeAsync<bool>("clubJs.hasAskedPush", _group.Id);
         }
         catch { }
+        StateHasChanged();
+    }
+
+    private async Task AcceptPushAsync()
+    {
+        try
+        {
+            var publicKey = PushService.GetPublicKey();
+            await JS.InvokeVoidAsync("clubJs.subscribePush", publicKey, _group!.Id, _member!.Name);
+            await JS.InvokeVoidAsync("clubJs.setAskedPush", _group.Id);
+        }
+        catch { }
+        _showPushBanner = false;
+    }
+
+    private async Task DeclinePushAsync()
+    {
+        try { await JS.InvokeVoidAsync("clubJs.setAskedPush", _group!.Id); } catch { }
+        _showPushBanner = false;
     }
 
     private async Task RefreshAsync()

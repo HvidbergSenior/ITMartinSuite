@@ -8,6 +8,10 @@ public sealed class Assignment
     public string? Description { get; set; }
     public string? AssignedToName { get; set; }
     public DateTime? DueDate { get; set; }
+
+    // NotStarted / InProgress / Done. IsCompleted below is kept in sync
+    // (Status == "Done") so existing reads elsewhere don't need to change.
+    public string Status { get; set; } = "NotStarted";
     public bool IsCompleted { get; set; }
     public DateTime? CompletedAt { get; set; }
     public string CompletedByName { get; set; } = string.Empty;

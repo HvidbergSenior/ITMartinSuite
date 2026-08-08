@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubPushService PushService
+@inject IConfiguration Config
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_group == null) { <div class="club-loading">Gruppen findes ikke.</div> }
@@ -85,11 +86,120 @@ else
             </div>
 
             <div class="admin-section">
+                <div class="admin-section-title">📋 Opret opgave</div>
+                <div class="cal-field"><label>Opgave</label><input @bind="_newTaskTitle" class="cal-input" maxlength="200" placeholder="Hvad skal gøres?" /></div>
+                <div class="cal-row">
+                    <div class="cal-field">
+                        <label>Tildelt til</label>
+                        <select @bind="_newTaskAssignedTo" class="cal-input">
+                            <option value="">— ingen tildeling —</option>
+                            @foreach (var m in _members) { <option value="@m.Name">@m.Name</option> }
+                        </select>
+                    </div>
+                    <div class="cal-field"><label>Deadline (valgfrit)</label><input @bind="_newTaskDue" type="date" class="cal-input" /></div>
+                </div>
+                <div class="cal-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newTaskDesc" rows="2" class="cal-input cal-textarea" /></div>
+                <button class="admin-btn" @onclick="SaveTaskAsync" disabled="@string.IsNullOrWhiteSpace(_newTaskTitle)">Gem opgave</button>
+
+                @if (_openTasks.Count > 0)
+                {
+                    <div class="admin-event-list">
+                        @foreach (var t in _openTasks)
+                        {
+                            <div class="admin-event-row">
+                                <div style="flex:1">
+                                    <div class="admin-event-title">@t.Title</div>
+                                    <div class="admin-event-date">
+                                        @(string.IsNullOrEmpty(t.AssignedToName) ? "Ingen tildeling" : t.AssignedToName)
+                                        @if (t.DueDate.HasValue) { <text> · @t.DueDate.Value.ToString("d. MMM yyyy")</text> }
+                                    </div>
+                                </div>
+                                <button class="admin-del-btn" @onclick="() => DeleteTaskAsync(t.Id)">✕</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="admin-section">
                 <div class="admin-section-title">Gruppeinfo</div>
                 <div class="admin-info-row"><span>Slug:</span><code>/g/@_group.Slug</code></div>
                 <div class="admin-info-row"><span>Invitationskode:</span><code>@_group.InviteCode</code></div>
                 <div class="admin-info-row"><span>Oprettet:</span><span>@_group.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span></div>
+                <div class="admin-info-row">
+                    <span>Deadline:</span>
+                    <input type="date" class="stat-num" style="width:auto" @bind="_targetDateInput" @bind:format="yyyy-MM-dd" />
+                    <button class="admin-reset-btn" @onclick="SaveTargetDateAsync">Gem deadline</button>
+                </div>
             </div>
+
+            <div class="admin-section">
+                <div class="admin-section-title">📊 Fremdrift</div>
+                @{ var pct = _taskTotal == 0 ? 0 : (int)Math.Round(100.0 * _taskDone / _taskTotal); }
+                <div class="progress-stat-row">
+                    <div class="progress-stat"><div class="progress-stat-num">@_taskNotStarted</div><div class="progress-stat-label">Ikke startet</div></div>
+                    <div class="progress-stat"><div class="progress-stat-num">@_taskInProgress</div><div class="progress-stat-label">I gang</div></div>
+                    <div class="progress-stat"><div class="progress-stat-num">@_taskDone</div><div class="progress-stat-label">Færdig</div></div>
+                </div>
+                <div class="progress-bar-track"><div class="progress-bar-fill" style="width:@(pct)%"></div></div>
+                <div class="admin-info-row" style="border-bottom:none">@_taskDone af @_taskTotal opgaver færdig (@(pct)%)</div>
+                @if (_group.TargetDate.HasValue)
+                {
+                    var days = (_group.TargetDate.Value.Date - DateTime.Today).Days;
+                    <div class="admin-info-row" style="border-bottom:none;@(days < 14 ? "color:var(--red)" : "")">
+                        @(days >= 0 ? $"{days} dage tilbage" : $"{-days} dage over deadline") (@_group.TargetDate.Value.ToString("dd MMM yyyy"))
+                    </div>
+                }
+
+                @if (_memberProgress.Count > 0)
+                {
+                    <div class="admin-event-list">
+                        <div class="admin-section-title" style="margin-top:0">Pr. medlem</div>
+                        @foreach (var mp in _memberProgress)
+                        {
+                            <div class="admin-event-row">
+                                <div style="flex:1">@mp.Name</div>
+                                <div class="admin-event-date">Ikke startet @mp.NotStarted · I gang @mp.InProgress · Færdig @mp.Done</div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="admin-section">
+                <div class="admin-section-title">📄 Dokumenter (@_documents.Count)</div>
+                <div class="club-empty" style="padding:0 0 12px">Kvitteringer, fakturaer og andre filer - medlemmer uploader dem på "Historik", her har du overblikket og kan slette.</div>
+                @if (_documents.Count == 0)
+                {
+                    <div class="club-empty">Ingen dokumenter uploadet endnu.</div>
+                }
+                @foreach (var d in _documents)
+                {
+                    <div class="admin-member-row">
+                        <a href="/download/@d.Id" target="_blank" style="flex:1;color:var(--text);text-decoration:none">@d.Title</a>
+                        <span class="admin-member-date">@d.OriginalFileName · @d.UploadedByName · @d.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                        <button class="admin-del-btn" @onclick="() => DeleteDocumentAsync(d.Id)">Slet</button>
+                    </div>
+                }
+            </div>
+
+            @if (_group.Kind == "Practical")
+            {
+                <div class="admin-section">
+                    <div class="admin-section-title">🙋 Hjælperes tilgængelighed</div>
+                    <div class="club-empty" style="padding:0 0 12px">Til brug når du opretter og tildeler opgaver ovenfor.</div>
+                    @foreach (var m in _members)
+                    {
+                        <div class="admin-member-row">
+                            <span>@m.Name</span>
+                            <span class="admin-member-date">
+                                @(string.IsNullOrWhiteSpace(m.Availability) ? "Tid ukendt" : $"🕐 {m.Availability}")
+                                @(string.IsNullOrWhiteSpace(m.HelpWith) ? "" : $" · 🙋 {m.HelpWith}")
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
 
             <div class="admin-section">
                 <div class="admin-section-title">Medlemmer (@_members.Count)</div>
@@ -167,6 +277,12 @@ else
     .admin-event-title { font-size: 13px; font-weight: 600; color: var(--text); }
     .admin-event-date { font-size: 12px; color: var(--muted); }
     .admin-suggestion-row { display: flex; align-items: center; gap: 8px; padding: 6px 0 10px; font-size: 12px; color: #60a5fa; flex-wrap: wrap; }
+    .progress-stat-row { display: flex; gap: 12px; margin-bottom: 12px; }
+    .progress-stat { flex: 1; text-align: center; background: var(--surface); border-radius: 10px; padding: 10px; }
+    .progress-stat-num { font-size: 20px; font-weight: 800; color: var(--text); }
+    .progress-stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .progress-bar-track { height: 10px; border-radius: 6px; background: var(--surface); overflow: hidden; margin-bottom: 8px; }
+    .progress-bar-fill { height: 100%; background: var(--green); border-radius: 6px; }
 </style>
 
 @code {
@@ -187,7 +303,17 @@ else
 
     private void Unlock()
     {
-        if (SecretHasher.Verify(_pinInput, _group!.AdminPin)) { _authed = true; _ = LoadMembersAsync(); _ = LoadSessionAsync(); _ = LoadEventsAsync(); }
+        if (SecretHasher.Verify(_pinInput, _group!.AdminPin))
+        {
+            _authed = true;
+            _targetDateInput = _group.TargetDate;
+            _ = LoadMembersAsync();
+            _ = LoadSessionAsync();
+            _ = LoadEventsAsync();
+            _ = LoadProgressAsync();
+            _ = LoadDocumentsAsync();
+            _ = LoadTasksAsync();
+        }
         else _pinError = true;
     }
 
@@ -195,6 +321,125 @@ else
     {
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
         StateHasChanged();
+    }
+
+    // ── Fremdrift: the "controller" view - overall + per-member task progress,
+    // and a countdown against the group's optional deadline. Admin-only, since
+    // Martin wants to see the rollup rather than work through tasks himself.
+
+    private sealed record MemberProgress(string Name, int NotStarted, int InProgress, int Done);
+    private int _taskTotal, _taskNotStarted, _taskInProgress, _taskDone;
+    private List<MemberProgress> _memberProgress = [];
+    private DateTime? _targetDateInput;
+
+    private async Task LoadProgressAsync()
+    {
+        var tasks = await Db.Assignments.Where(a => a.GroupId == _group!.Id).ToListAsync();
+        _taskTotal = tasks.Count;
+        _taskNotStarted = tasks.Count(t => t.Status == "NotStarted");
+        _taskInProgress = tasks.Count(t => t.Status == "InProgress");
+        _taskDone = tasks.Count(t => t.Status == "Done");
+
+        _memberProgress = tasks
+            .Where(t => !string.IsNullOrEmpty(t.AssignedToName))
+            .GroupBy(t => t.AssignedToName!)
+            .Select(g => new MemberProgress(
+                g.Key,
+                g.Count(t => t.Status == "NotStarted"),
+                g.Count(t => t.Status == "InProgress"),
+                g.Count(t => t.Status == "Done")))
+            .OrderBy(m => m.Name)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    // TargetDate is a plain calendar date (no time-of-day meaning), so it's
+    // stored and displayed as-is - no UTC/local conversion, which would shift
+    // it a day depending on the server's time zone.
+    private async Task SaveTargetDateAsync()
+    {
+        _group!.TargetDate = _targetDateInput;
+        await Db.SaveChangesAsync();
+        StateHasChanged();
+    }
+
+    // ── Dokumenter: any member can upload from /docs (receipts, invoices,
+    // contracts...), but only the admin can delete - keeps the everyday
+    // upload flow open while giving the "controller" one place to manage
+    // everything that's been shared.
+    private List<Document> _documents = [];
+
+    private async Task LoadDocumentsAsync()
+    {
+        _documents = await Db.Documents
+            .Where(d => d.GroupId == _group!.Id)
+            .OrderByDescending(d => d.UploadedAt)
+            .ToListAsync();
+        StateHasChanged();
+    }
+
+    // ── Opret opgave: coach/worker model - the admin creates and assigns
+    // tasks (same pattern as event creation above); members only update
+    // status on their own assigned tasks from /tasks.
+    private string _newTaskTitle = "", _newTaskAssignedTo = "", _newTaskDesc = "";
+    private DateTime? _newTaskDue;
+    private List<Assignment> _openTasks = [];
+
+    private async Task LoadTasksAsync()
+    {
+        _openTasks = await Db.Assignments
+            .Where(a => a.GroupId == _group!.Id && a.Status != "Done")
+            .OrderBy(a => a.DueDate)
+            .ToListAsync();
+        StateHasChanged();
+    }
+
+    private async Task SaveTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newTaskTitle)) return;
+        Db.Assignments.Add(new Assignment
+        {
+            GroupId = _group!.Id,
+            Title = _newTaskTitle.Trim(),
+            Description = string.IsNullOrWhiteSpace(_newTaskDesc) ? null : _newTaskDesc.Trim(),
+            AssignedToName = string.IsNullOrWhiteSpace(_newTaskAssignedTo) ? null : _newTaskAssignedTo,
+            DueDate = _newTaskDue?.ToUniversalTime(),
+            CreatedByName = "Admin",
+        });
+        await Db.SaveChangesAsync();
+
+        var title = _newTaskTitle.Trim();
+        var assignedTo = _newTaskAssignedTo;
+        _newTaskTitle = ""; _newTaskAssignedTo = ""; _newTaskDesc = ""; _newTaskDue = null;
+        await LoadTasksAsync();
+
+        _ = PushService.SendToGroupAsync(Db, _group.Id, null, "✅ Ny opgave",
+            string.IsNullOrEmpty(assignedTo) ? title : $"{title} (tildelt {assignedTo})");
+    }
+
+    private async Task DeleteTaskAsync(Guid id)
+    {
+        var t = await Db.Assignments.FindAsync(id);
+        if (t != null) { Db.Assignments.Remove(t); await Db.SaveChangesAsync(); await LoadTasksAsync(); }
+    }
+
+    private async Task DeleteDocumentAsync(Guid id)
+    {
+        var doc = await Db.Documents.FindAsync(id);
+        if (doc == null) return;
+
+        try
+        {
+            var docsRoot = Config["ClubSettings:DocsRoot"] ?? "/app/data/documents";
+            var path = Path.Combine(docsRoot, doc.GroupId.ToString(), doc.StoredFileName);
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch { }
+
+        Db.Documents.Remove(doc);
+        await Db.SaveChangesAsync();
+        await LoadDocumentsAsync();
     }
 
     // ── Planning: starting a session/invite and creating events ─────────────

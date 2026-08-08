@@ -29,6 +29,25 @@
                 <label>Dit navn</label>
                 <input @bind="_name" placeholder="Fornavn Efternavn" class="join-input" maxlength="60" />
             </div>
+            @if (_group.Kind == "Practical")
+            {
+                <div class="join-field">
+                    <label>Telefon (valgfrit)</label>
+                    <input @bind="_phone" placeholder="fx 12345678" class="join-input" maxlength="30" />
+                </div>
+                <div class="join-field">
+                    <label>Email (valgfrit)</label>
+                    <input @bind="_email" placeholder="fx navn@email.dk" class="join-input" maxlength="120" />
+                </div>
+                <div class="join-field">
+                    <label>Hvornår kan du hjælpe? (valgfrit)</label>
+                    <input @bind="_availability" placeholder="fx Aftener og weekender" class="join-input" maxlength="120" />
+                </div>
+                <div class="join-field">
+                    <label>Hvad kan du hjælpe med? (valgfrit)</label>
+                    <input @bind="_helpWith" placeholder="fx Bære tunge ting, køre bil" class="join-input" maxlength="120" />
+                </div>
+            }
             <div class="join-field">
                 <label>Invitationskode</label>
                 <input @bind="_code" placeholder="Skriv koden her" class="join-input" type="password" />
@@ -69,6 +88,10 @@
 
     private Group? _group;
     private string _name = "";
+    private string _phone = "";
+    private string _email = "";
+    private string _availability = "";
+    private string _helpWith = "";
     private string _code = "";
     private string _pin = "";
     private string? _error;
@@ -109,7 +132,16 @@
             if (member == null)
             {
                 // New name - this PIN becomes theirs going forward.
-                member = new Member { GroupId = _group.Id, Name = _name.Trim(), Pin = SecretHasher.Hash(_pin.Trim()) };
+                member = new Member
+                {
+                    GroupId = _group.Id,
+                    Name = _name.Trim(),
+                    Pin = SecretHasher.Hash(_pin.Trim()),
+                    Phone = string.IsNullOrWhiteSpace(_phone) ? null : _phone.Trim(),
+                    Email = string.IsNullOrWhiteSpace(_email) ? null : _email.Trim(),
+                    Availability = string.IsNullOrWhiteSpace(_availability) ? null : _availability.Trim(),
+                    HelpWith = string.IsNullOrWhiteSpace(_helpWith) ? null : _helpWith.Trim(),
+                };
                 Db.Members.Add(member);
             }
             else if (string.IsNullOrEmpty(member.Pin))
