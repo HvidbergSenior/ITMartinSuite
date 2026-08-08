@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Del dine billeder</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="head">
+      <h1 id="eventTitle">Del dine billeder</h1>
+      <p class="sub">Læg billeder og film op, mens festen står på — alle kan følge med herunder.</p>
+    </header>
+
+    <form id="uploadForm" class="upload-card">
+      <input type="text" id="nameInput" placeholder="Dit navn (valgfrit)" autocomplete="name" />
+      <label class="filepick">
+        <input type="file" id="fileInput" accept="image/*,video/*" multiple capture="environment" />
+        <span id="filepickLabel">📷 Vælg eller tag billeder/film</span>
+      </label>
+      <button type="submit" id="uploadBtn" class="btn-primary">Del</button>
+      <div id="uploadStatus" class="status"></div>
+    </form>
+
+    <div id="grid" class="grid"></div>
+    <p id="empty" class="empty">Ingen billeder endnu — vær den første!</p>
+  </div>
+
+  <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+    <img id="lightboxImg" src="" alt="" />
+    <video id="lightboxVideo" controls></video>
+  </div>
+
+  <script src="/gallery.js"></script>
+</body>
+</html>
