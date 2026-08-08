@@ -61,6 +61,7 @@ $ServiceMap = @{
     "poll-web"               = @{ Dockerfile = "ITMartinPoll.Server/Dockerfile";                       Context = "." }
     "r6strat-web"            = @{ Dockerfile = "ITMartinR6Strat.Server/Dockerfile";                    Context = "."; Profile = "manual" }
     "live-web"               = @{ Dockerfile = "ITMartinLive.Server/Dockerfile";                       Context = "."; Profile = "manual" }
+    "live-gallery-web"       = @{ Dockerfile = "ITMartinLiveGallery.Server/Dockerfile";                Context = "."; Profile = "manual" }
     "upload-web"             = @{ Dockerfile = "ITMartinUpload.Server/Dockerfile";                     Context = "."; Profile = "manual" }
     "cloudoverblik-web"      = @{ Dockerfile = "ITMartinCloudOverblik.Server/Dockerfile";              Context = "." }
     "stats-web"              = @{ Dockerfile = "ITMartinStats.Server/Dockerfile";                      Context = "." }
@@ -135,10 +136,22 @@ if (-not $Force) {
 $composeFile = Join-Path $PSScriptRoot "docker-compose.yaml"
 scp -O $composeFile "${NasHost}:${NasPath}/docker-compose.yaml" | Out-Null
 
-$profileFlag = if ($entry.Profile) { "--profile $($entry.Profile) " } else { "" }
-$sshCmd = "docker --context default load -i " + $nasFile + " && rm " + $nasFile + " && cd " + $NasPath + " && docker --context default compose " + $profileFlag + "up -d --force-recreate --timeout 10 " + $Service
-ssh $NasHost "$sshCmd"
-if ($LASTEXITCODE -ne 0) { exit 1 }
+# manual-profile services (musik-studio-web, filesorter-*, live-web,
+# live-gallery-web, ...) never get auto-started here - loading a fresh image
+# is a deploy concern, but actually turning the container on is a separate,
+# deliberate decision the user makes afterward. Only non-manual services
+# (the ones already meant to run continuously) get recreated automatically,
+# matching their own restart:unless-stopped policy.
+if ($entry.Profile -eq "manual") {
+    $sshCmd = "docker --context default load -i " + $nasFile + " && rm " + $nasFile
+    ssh $NasHost "$sshCmd"
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+    Write-Host "    Image loaded on NAS - NOT started (manual profile). Start it yourself when ready: docker compose up -d $Service" -ForegroundColor Yellow
+} else {
+    $sshCmd = "docker --context default load -i " + $nasFile + " && rm " + $nasFile + " && cd " + $NasPath + " && docker --context default compose up -d --force-recreate --timeout 10 " + $Service
+    ssh $NasHost "$sshCmd"
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+}
 
 Write-Host "[Cleanup] Removing local image and pruning Docker..." -ForegroundColor DarkGray
 docker rmi $imageName 2>$null | Out-Null
