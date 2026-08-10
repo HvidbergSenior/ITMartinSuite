@@ -33,7 +33,7 @@ public sealed class TaskReminderService(IServiceScopeFactory scopeFactory, ILogg
         }
     }
 
-    // 22:00 — remind each member who has uncompleted tasks they claimed today
+    // 22:00 — remind each member who has open tasks assigned to them
     private async Task MaybeSendEveningReminder(DateTime now, CancellationToken ct)
     {
         if (now.Hour != 22 || _lastEveningReminderDay == now.DayOfYear) return;
@@ -43,28 +43,26 @@ public sealed class TaskReminderService(IServiceScopeFactory scopeFactory, ILogg
         var db   = scope.ServiceProvider.GetRequiredService<FamilyDbContext>();
         var push = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
 
-        var today = DateOnly.FromDateTime(now);
-
-        // Group uncompleted claimed tasks by (familyId, memberName)
+        // Group open assigned tasks by (familyId, assignedTo)
         var groups = await db.Set<ITMartinFamily.Domain.Entities.DailyTask>()
-            .Where(t => t.Date == today && !t.CompletedAt.HasValue && t.ClaimedBy != null && t.ClaimedBy != "")
-            .GroupBy(t => new { t.FamilyId, t.ClaimedBy })
-            .Select(g => new { g.Key.FamilyId, Member = g.Key.ClaimedBy!, Count = g.Count() })
+            .Where(t => !t.CompletedAt.HasValue && t.AssignedTo != null && t.AssignedTo != "")
+            .GroupBy(t => new { t.FamilyId, t.AssignedTo })
+            .Select(g => new { g.Key.FamilyId, Member = g.Key.AssignedTo!, Count = g.Count() })
             .ToListAsync(ct);
 
         foreach (var g in groups)
         {
             var count = g.Count;
             var body  = count == 1
-                ? "Du har stadig 1 opgave du ikke har klaret i dag."
-                : $"Du har stadig {count} opgaver du ikke har klaret i dag.";
+                ? "Du har stadig 1 opgave du ikke har klaret."
+                : $"Du har stadig {count} opgaver du ikke har klaret.";
 
             await push.SendToMemberAsync(g.FamilyId, g.Member, "📋 Uafsluttede opgaver", body);
             logger.LogInformation("Evening reminder sent to {Member} ({Count} tasks)", g.Member, count);
         }
     }
 
-    // 08:00 — remind the whole group about tasks from yesterday that were never claimed
+    // 08:00 — remind the whole group about open tasks nobody has taken
     private async Task MaybeSendMorningReminder(DateTime now, CancellationToken ct)
     {
         if (now.Hour != 8 || _lastMorningReminderDay == now.DayOfYear) return;
@@ -74,11 +72,9 @@ public sealed class TaskReminderService(IServiceScopeFactory scopeFactory, ILogg
         var db   = scope.ServiceProvider.GetRequiredService<FamilyDbContext>();
         var push = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
 
-        var yesterday = DateOnly.FromDateTime(now.AddDays(-1));
-
-        // Find families with unclaimed tasks from yesterday
+        // Find families with open tasks nobody has claimed
         var groups = await db.Set<ITMartinFamily.Domain.Entities.DailyTask>()
-            .Where(t => t.Date == yesterday && !t.CompletedAt.HasValue && (t.ClaimedBy == null || t.ClaimedBy == ""))
+            .Where(t => !t.CompletedAt.HasValue && (t.AssignedTo == null || t.AssignedTo == ""))
             .GroupBy(t => t.FamilyId)
             .Select(g => new { FamilyId = g.Key, Count = g.Count() })
             .ToListAsync(ct);
@@ -87,10 +83,10 @@ public sealed class TaskReminderService(IServiceScopeFactory scopeFactory, ILogg
         {
             var count = g.Count;
             var body  = count == 1
-                ? "Der er 1 opgave fra i går som ingen tog."
-                : $"Der er {count} opgaver fra i går som ingen tog.";
+                ? "Der er 1 opgave som ingen har taget."
+                : $"Der er {count} opgaver som ingen har taget.";
 
-            await push.SendToFamilyAsync(g.FamilyId, "", "📋 Opgaver fra i går", body);
+            await push.SendToFamilyAsync(g.FamilyId, "", "📋 Ingen har taget den", body);
             logger.LogInformation("Morning reminder sent to family {FamilyId} ({Count} unclaimed)", g.FamilyId, count);
         }
     }
@@ -126,27 +122,12 @@ public sealed class TaskReminderService(IServiceScopeFactory scopeFactory, ILogg
                     DeleteFile(file);
         }
 
-        // Tasks older than 30 days
-        var cutoffTask = DateOnly.FromDateTime(now.AddDays(-30));
+        // Completed tasks older than 30 days (open tasks never expire on their own)
+        var cutoffTask = utcNow.AddDays(-30);
         var oldTasks = await db.Set<DailyTask>()
-            .Where(t => t.Date < cutoffTask)
+            .Where(t => t.CompletedAt != null && t.CompletedAt < cutoffTask)
             .ToListAsync(ct);
-        foreach (var t in oldTasks)
-            DeleteFile(t.ImagePath);
         db.Set<DailyTask>().RemoveRange(oldTasks);
-
-        // Orphaned task photo files
-        var taskDir = Path.Combine(Directory.GetCurrentDirectory(), "data", "tasks");
-        if (Directory.Exists(taskDir))
-        {
-            var knownTaskPaths = await db.Set<DailyTask>()
-                .Where(t => t.ImagePath != null)
-                .Select(t => t.ImagePath!)
-                .ToListAsync(ct);
-            foreach (var file in Directory.GetFiles(taskDir))
-                if (!knownTaskPaths.Contains(file))
-                    DeleteFile(file);
-        }
 
         // Done personal reminders older than 7 days
         var cutoffReminder = DateOnly.FromDateTime(now.AddDays(-7));

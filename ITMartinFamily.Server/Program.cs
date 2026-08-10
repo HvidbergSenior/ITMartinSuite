@@ -33,6 +33,18 @@ using (var scope = app.Services.CreateScope())
 
     // Add columns / tables introduced after initial schema (safe to re-run)
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Tasks ADD COLUMN FamilyId TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'"); } catch { }
+    // Existing tasks predate the backlog feature - they were already "today"
+    // tasks under the old behavior, so default them to not-backlog (0).
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Tasks ADD COLUMN IsBacklog INTEGER NOT NULL DEFAULT 0"); } catch { }
+    // Flat tasks-overview model: a task is either unassigned, assigned to
+    // someone (from creation or via claim), or completed - no more daily
+    // backlog/rotation. Old IsBacklog/Date/ClaimedAt/ImagePath columns are
+    // left in place unused rather than migrated.
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Tasks ADD COLUMN AssignedTo TEXT"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Tasks ADD COLUMN CompletedBy TEXT"); } catch { }
+    // Existing rows used ClaimedBy for the same purpose - carry it forward.
+    try { db.Database.ExecuteSqlRaw("UPDATE Tasks SET AssignedTo = ClaimedBy WHERE AssignedTo IS NULL AND ClaimedBy IS NOT NULL"); } catch { }
+    try { db.Database.ExecuteSqlRaw("UPDATE Tasks SET CompletedBy = ClaimedBy WHERE CompletedBy IS NULL AND CompletedAt IS NOT NULL"); } catch { }
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS Families (
@@ -139,13 +151,6 @@ app.MapPost("/api/push/subscribe", async (PushSubscribeRequest req, ITMartinFami
         Auth       = req.Auth
     });
     return Results.Ok();
-});
-
-app.MapGet("/task-image/{id:guid}", async (Guid id, ITMartinFamily.Application.Interfaces.IDailyTaskRepository repo) =>
-{
-    var task = await repo.GetByIdAsync(id);
-    if (task?.ImagePath is null || !File.Exists(task.ImagePath)) return Results.NotFound();
-    return Results.File(await File.ReadAllBytesAsync(task.ImagePath), "image/jpeg");
 });
 
 app.MapGet("/findit-photo/{id:guid}", async (Guid id, ITMartinFamily.Application.Interfaces.IFamilyStoredItemRepository repo) =>

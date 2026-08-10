@@ -61,7 +61,7 @@ body {
 .family-page {
     max-width: 600px;
     margin: 0 auto;
-    padding: 24px 16px 32px;
+    padding: 24px 16px 96px;
 }
 
 /* ── Tab bar ────────────────────────────────────── */
@@ -157,6 +157,8 @@ body {
     width: 100%;
     box-sizing: border-box;
 }
+
+.task-input option { background: #1e293b; color: white; }
 
 .cam-btn {
     background: rgba(255,255,255,.1);
@@ -401,14 +403,18 @@ body {
 .chat-send:disabled { opacity: .4; cursor: default; }
 
 /* ── Bottom nav ─────────────────────────────────── */
-.bottom-nav {
+.bottom-nav-outer {
     position: fixed;
     bottom: 0; left: 0; right: 0;
     background: #1e293b;
     border-top: 1px solid rgba(255,255,255,.1);
-    display: flex;
     z-index: 100;
     padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
 }
 .bottom-nav-item {
     flex: 1;
@@ -482,6 +488,12 @@ body {
     color: #64748b;
     font-size: 14px;
     padding: 8px 0;
+}
+.backlog-counter {
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 4px 0 12px;
 }
 
 /* Reminders */

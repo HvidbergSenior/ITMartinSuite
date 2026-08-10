@@ -1,12 +1,16 @@
 @using Microsoft.AspNetCore.Components.Routing
 
-<nav class="bottom-nav">
-    <a href="/@Slug" class="bottom-nav-item @(Active == "today" ? "active" : "")">
-        <span class="bottom-nav-icon">🏠</span>
-    </a>
-    <a href="/@Slug/opgaver" class="bottom-nav-item @(Active == "opgaver" ? "active" : "")">
-        <span class="bottom-nav-icon">📋</span>
-    </a>
+<nav class="bottom-nav-outer">
+    <div class="bottom-nav">
+        <a href="/@Slug" class="bottom-nav-item @(Active == "today" ? "active" : "")">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">I dag</span>
+        </a>
+        <a href="/@Slug/opgaver" class="bottom-nav-item @(Active == "opgaver" ? "active" : "")">
+            <span class="bottom-nav-icon">📋</span>
+            <span class="bottom-nav-label">Opgaver</span>
+        </a>
+    </div>
 </nav>
 
 @code {

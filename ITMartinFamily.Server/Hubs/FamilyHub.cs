@@ -10,11 +10,11 @@ public sealed class FamilyHub : Hub
     public async Task TaskAdded(string slug, object task)
         => await Clients.OthersInGroup($"f-{slug}").SendAsync("TaskAdded", task);
 
-    public async Task TaskClaimed(string slug, Guid taskId, string claimedBy)
-        => await Clients.OthersInGroup($"f-{slug}").SendAsync("TaskClaimed", taskId, claimedBy);
+    public async Task TaskAssigned(string slug, Guid taskId, string assignedTo)
+        => await Clients.OthersInGroup($"f-{slug}").SendAsync("TaskAssigned", taskId, assignedTo);
 
-    public async Task TaskCompleted(string slug, Guid taskId)
-        => await Clients.OthersInGroup($"f-{slug}").SendAsync("TaskCompleted", taskId);
+    public async Task TaskCompleted(string slug, Guid taskId, string completedBy)
+        => await Clients.OthersInGroup($"f-{slug}").SendAsync("TaskCompleted", taskId, completedBy);
 
     public async Task TaskDeleted(string slug, Guid taskId)
         => await Clients.OthersInGroup($"f-{slug}").SendAsync("TaskDeleted", taskId);

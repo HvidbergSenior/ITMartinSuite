@@ -4,7 +4,7 @@
 @using ITMartinFamily.Application.Interfaces
 @using ITMartinFamily.Domain.Entities
 @using ITMartinFamily.Infrastructure
-@using ITMartinFamily.Server.Services
+@using ITMartinFamily.Server.Components
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
@@ -14,13 +14,12 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ITMartinFamily.Application.Interfaces.IPushNotificationService PushService
-@inject ToastService Toast
 
 @implements IAsyncDisposable
 
-<PageTitle>@(_family?.Name ?? "Gruppen")</PageTitle>
+<PageTitle>@(_family?.Name ?? "Gruppen") · Opgaver</PageTitle>
 
-<link rel="stylesheet" href="css/family.css?v=6" />
+<link rel="stylesheet" href="css/family.css?v=12" />
 
 @if (!_ready)
 {
@@ -32,11 +31,11 @@ else
 
         <div class="family-header">
             <div>
-                <h1 class="family-title">@(_family?.Name ?? "Gruppen")</h1>
-                <div class="family-subtitle">@DateTime.Today.ToString("dddd d. MMMM") · Hej @_myName</div>
+                <h1 class="family-title">Opgaver</h1>
+                <div class="family-subtitle">@(_family?.Name) · Hej @_myName</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
-                <button class="add-btn" @onclick="ToggleAdd">@(_showAdd ? "✕ Annuller" : "+ Tilføj opgave")</button>
+                <button class="add-btn" @onclick="ToggleAdd">@(_showAdd ? "✕ Annuller" : "+ Ny opgave")</button>
                 <button class="logout-btn" @onclick="Logout">Log ud</button>
             </div>
         </div>
@@ -45,85 +44,84 @@ else
         {
             <div class="add-panel">
                 <input class="task-input" @bind="_newNote" placeholder="Hvad skal gøres?" />
-
-                @if (!_cameraOpen)
-                {
-                    <button class="cam-btn" @onclick="OpenCamera">📷 Tag foto</button>
-                }
-                else
-                {
-                    <div style="position:relative;">
-                        <video id="task-video" autoplay muted playsinline webkit-playsinline
-                               style="width:100%;border-radius:12px;"></video>
-                        <button class="capture-btn" @onclick="CapturePhoto">Tag billede</button>
-                    </div>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(_previewImage))
-                {
-                    <img src="data:image/jpeg;base64,@_previewImage" class="preview-img" />
-                }
-
-                <button class="submit-btn" @onclick="AddTask" disabled="@_adding">
+                <select class="task-input" @bind="_newAssignedTo">
+                    <option value="">— ingen tildeling —</option>
+                    @foreach (var m in _members)
+                    {
+                        <option value="@m.Name">@m.Name</option>
+                    }
+                </select>
+                <button class="submit-btn" @onclick="AddTask" disabled="@(string.IsNullOrWhiteSpace(_newNote) || _adding)">
                     @(_adding ? "Tilføjer..." : "Tilføj opgave")
                 </button>
             </div>
         }
 
-        @if (!_tasks.Any())
+        <div class="today-tasks-header">
+            <div class="today-tasks-title">Åbne opgaver</div>
+        </div>
+
+        @if (_open.Count == 0)
         {
             <div class="empty-state">
                 <div style="font-size:56px;">✅</div>
-                <div>Ingen opgaver i dag!</div>
+                <div>Ingen åbne opgaver!</div>
             </div>
         }
         else
         {
-            <div class="task-grid">
-                @foreach (var task in _tasks.OrderBy(t => t.CompletedAt.HasValue).ThenBy(t => t.CreatedAt))
+            <div class="item-list">
+                @foreach (var task in _open)
                 {
-                    <div class="task-card @(task.CompletedAt.HasValue ? "task-done" : "") @(task.ClaimedBy == _myName && task.CompletedAt is null ? "task-mine" : "")">
-
-                        @if (!string.IsNullOrWhiteSpace(task.ImagePath) && File.Exists(task.ImagePath))
-                        {
-                            <img src="/task-image/@task.Id" class="task-img" />
-                        }
-
-                        <div class="task-body">
-                            @if (!string.IsNullOrWhiteSpace(task.Note))
+                    <div class="today-task-card @(task.AssignedTo == _myName ? "today-task-mine" : "")" @key="task.Id">
+                        <div class="today-task-body">
+                            <div class="today-task-note">@task.Note</div>
+                            @if (string.IsNullOrWhiteSpace(task.AssignedTo))
                             {
-                                <div class="task-note">@task.Note</div>
-                            }
-                            <div class="task-meta">Tilføjet af @task.CreatedBy</div>
-
-                            @if (task.CompletedAt.HasValue)
-                            {
-                                <div class="task-status done">✅ Færdig af @task.ClaimedBy</div>
-                            }
-                            else if (!string.IsNullOrWhiteSpace(task.ClaimedBy))
-                            {
-                                <div class="task-status claimed">@task.ClaimedBy klarer det</div>
-                                @if (task.ClaimedBy == _myName)
-                                {
-                                    <button class="action-btn done-btn" @onclick="() => MarkDone(task)">Markér færdig ✓</button>
-                                    <button class="action-btn postpone-btn" @onclick="() => TryPostpone(task)">↷ Gør det i morgen</button>
-                                }
+                                <div class="today-task-badge open-badge">⚡ Ingen har taget den</div>
                             }
                             else
                             {
-                                <button class="action-btn claim-btn" @onclick="() => ClaimTask(task)">Jeg tager den</button>
+                                <div class="today-task-badge claimed-badge">✋ @task.AssignedTo klarer det</div>
                             }
+                            <div class="task-meta">Tilføjet af @task.CreatedBy</div>
+                            <div style="display:flex;gap:8px">
+                                @if (task.AssignedTo == _myName)
+                                {
+                                    <button class="today-action-btn done-btn" @onclick="() => MarkDone(task)">Markér færdig ✓</button>
+                                }
+                                else
+                                {
+                                    <button class="today-action-btn claim-btn" @onclick="() => ClaimTask(task)">Jeg tager den</button>
+                                }
+                                <button class="delete-btn" @onclick="() => DeleteTask(task)">✕</button>
+                            </div>
                         </div>
-
-                        @if (task.CreatedBy == _myName && task.CompletedAt is null)
-                        {
-                            <button class="delete-btn" @onclick="() => DeleteTask(task)">✕</button>
-                        }
-
                     </div>
                 }
             </div>
         }
+
+        @if (_done.Count > 0)
+        {
+            <div class="today-tasks-header" style="margin-top:24px">
+                <div class="today-tasks-title">Udførte opgaver</div>
+            </div>
+            <div class="item-list">
+                @foreach (var task in _done)
+                {
+                    <div class="today-task-card today-task-done" @key="task.Id">
+                        <div class="today-task-body">
+                            <div class="today-task-note">@task.Note</div>
+                            <div class="today-task-badge done-badge">✅ Færdig af @task.CompletedBy</div>
+                            <button class="delete-btn" @onclick="() => DeleteTask(task)">✕</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <BottomNav Slug="@Slug" Active="opgaver" />
 
     </div>
 }
@@ -135,12 +133,20 @@ else
     private FamilyMember? _member;
     private string _myName = "";
     private List<DailyTask> _tasks = [];
+    private List<DailyTask> _open => _tasks.Where(t => !t.CompletedAt.HasValue)
+        .OrderBy(t => string.IsNullOrEmpty(t.AssignedTo) ? 0 : 1)
+        .ThenBy(t => t.CreatedAt)
+        .ToList();
+    private List<DailyTask> _done => _tasks.Where(t => t.CompletedAt.HasValue)
+        .OrderByDescending(t => t.CompletedAt)
+        .Take(20)
+        .ToList();
+    private List<FamilyMember> _members = [];
     private bool _ready;
     private bool _showAdd;
-    private bool _cameraOpen;
     private bool _adding;
     private string _newNote = "";
-    private string? _previewImage;
+    private string _newAssignedTo = "";
     private HubConnection? _hub;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -160,9 +166,10 @@ else
         _family = await Db.Families.FindAsync(_member.FamilyId);
         if (_family?.Slug != Slug) { Navigation.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
 
-        _myName = _member.Name;
-        _tasks  = await TaskRepo.GetTodayAsync(_family.Id);
-        _ready  = true;
+        _myName  = _member.Name;
+        _tasks   = await TaskRepo.GetAllAsync(_family.Id);
+        _members = await Db.Members.Where(m => m.FamilyId == _family.Id).OrderBy(m => m.Name).ToListAsync();
+        _ready   = true;
 
         var hubUrl = Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
             ?.Split(';').FirstOrDefault()
@@ -176,16 +183,16 @@ else
             .Build();
 
         _hub.On<DailyTask>("TaskAdded", task => { _tasks.Add(task); InvokeAsync(StateHasChanged); });
-        _hub.On<Guid, string>("TaskClaimed", (id, by) =>
+        _hub.On<Guid, string>("TaskAssigned", (id, by) =>
         {
             var t = _tasks.FirstOrDefault(x => x.Id == id);
-            if (t is not null) { t.ClaimedBy = by; t.ClaimedAt = DateTime.UtcNow; }
+            if (t is not null) t.AssignedTo = by;
             InvokeAsync(StateHasChanged);
         });
-        _hub.On<Guid>("TaskCompleted", id =>
+        _hub.On<Guid, string>("TaskCompleted", (id, by) =>
         {
             var t = _tasks.FirstOrDefault(x => x.Id == id);
-            if (t is not null) t.CompletedAt = DateTime.UtcNow;
+            if (t is not null) { t.CompletedAt = DateTime.UtcNow; t.CompletedBy = by; }
             InvokeAsync(StateHasChanged);
         });
         _hub.On<Guid>("TaskDeleted", id =>
@@ -220,56 +227,22 @@ else
     private void ToggleAdd()
     {
         _showAdd = !_showAdd;
-        if (!_showAdd) { _cameraOpen = false; _previewImage = null; _newNote = ""; }
-    }
-
-    private async Task OpenCamera()
-    {
-        _cameraOpen = true;
-        StateHasChanged();
-        await JS.InvokeVoidAsync("familyApp.startCamera", "task-video");
-    }
-
-    private async Task CapturePhoto()
-    {
-        try
-        {
-            _previewImage = await JS.InvokeAsync<string>("familyApp.capturePhoto");
-            await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
-            _cameraOpen = false;
-        }
-        catch
-        {
-            _previewImage = null;
-            _cameraOpen = false;
-        }
-        StateHasChanged();
+        if (!_showAdd) { _newNote = ""; _newAssignedTo = ""; }
     }
 
     private async Task AddTask()
     {
-        if (string.IsNullOrWhiteSpace(_newNote) && _previewImage is null) return;
-        if (_family is null) return;
+        if (string.IsNullOrWhiteSpace(_newNote) || _family is null) return;
 
         _adding = true;
         StateHasChanged();
 
-        string? imagePath = null;
-        if (_previewImage is not null)
-        {
-            var folder = Path.Combine(Directory.GetCurrentDirectory(), "data", "tasks");
-            Directory.CreateDirectory(folder);
-            imagePath = Path.Combine(folder, $"{Guid.NewGuid()}.jpg");
-            await File.WriteAllBytesAsync(imagePath, Convert.FromBase64String(_previewImage));
-        }
-
         var task = new DailyTask
         {
-            FamilyId  = _family.Id,
-            Note      = _newNote.Trim(),
-            ImagePath = imagePath,
-            CreatedBy = _myName,
-            Date      = DateOnly.FromDateTime(DateTime.Today)
+            FamilyId   = _family.Id,
+            Note       = _newNote.Trim(),
+            CreatedBy  = _myName,
+            AssignedTo = string.IsNullOrWhiteSpace(_newAssignedTo) ? null : _newAssignedTo
         };
 
         await TaskRepo.AddAsync(task);
@@ -281,7 +254,7 @@ else
         _ = PushService.SendToFamilyAsync(_family!.Id, _myName, "📋 Ny opgave", $"{_myName}: {task.Note}");
 
         _newNote = "";
-        _previewImage = null;
+        _newAssignedTo = "";
         _showAdd = false;
         _adding = false;
         StateHasChanged();
@@ -289,11 +262,10 @@ else
 
     private async Task ClaimTask(DailyTask task)
     {
-        task.ClaimedBy = _myName;
-        task.ClaimedAt = DateTime.UtcNow;
+        task.AssignedTo = _myName;
         await TaskRepo.UpdateAsync(task);
         if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskClaimed", Slug, task.Id, _myName);
+            await _hub.SendAsync("TaskAssigned", Slug, task.Id, _myName);
         if (task.CreatedBy != _myName)
             _ = PushService.SendToMemberAsync(_family!.Id, task.CreatedBy, "✋ Opgave taget", $"{_myName} klarer: {task.Note}");
         StateHasChanged();
@@ -302,24 +274,13 @@ else
     private async Task MarkDone(DailyTask task)
     {
         task.CompletedAt = DateTime.UtcNow;
+        task.CompletedBy = _myName;
         await TaskRepo.UpdateAsync(task);
         if (_hub?.State == HubConnectionState.Connected)
-            await _hub.SendAsync("TaskCompleted", Slug, task.Id);
+            await _hub.SendAsync("TaskCompleted", Slug, task.Id, _myName);
         if (task.CreatedBy != _myName)
             _ = PushService.SendToMemberAsync(_family!.Id, task.CreatedBy, "✅ Opgave færdig", $"{_myName} er færdig: {task.Note}");
         StateHasChanged();
-    }
-
-    private void TryPostpone(DailyTask task)
-    {
-        var messages = new[]
-        {
-            $"🙅 Nej, {_myName}! Opgaverne er til I DAG. Klar det nu – eller giv det videre til en anden.",
-            $"⚠️ 'I morgen' er ikke en mulighed! Du tog ansvaret – følg det.",
-            $"🚫 Ingen udsættelse! Enten gør {_myName} det nu, eller giver det til en anden.",
-            $"😤 Du satte dit navn på det! Klar det – eller giv det til nogen der KAN."
-        };
-        Toast.Show(messages[Math.Abs(task.Id.GetHashCode()) % messages.Length], "warn", 5000);
     }
 
     private async Task DeleteTask(DailyTask task)

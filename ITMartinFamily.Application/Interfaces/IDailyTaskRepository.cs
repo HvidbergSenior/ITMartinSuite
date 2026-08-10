@@ -4,7 +4,7 @@ namespace ITMartinFamily.Application.Interfaces;
 
 public interface IDailyTaskRepository
 {
-    Task<List<DailyTask>> GetTodayAsync(Guid familyId, CancellationToken ct = default);
+    Task<List<DailyTask>> GetAllAsync(Guid familyId, CancellationToken ct = default);
     Task<DailyTask?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task AddAsync(DailyTask task, CancellationToken ct = default);
     Task UpdateAsync(DailyTask task, CancellationToken ct = default);

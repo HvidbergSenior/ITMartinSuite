@@ -13,7 +13,6 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using System.Globalization
 
-@inject IDailyTaskRepository          TaskRepo
 @inject IPersonalReminderRepository   ReminderRepo
 @inject IFamilyStoredItemRepository   StoredItemRepo
 @inject IPushNotificationService      PushService
@@ -25,7 +24,7 @@
 
 <PageTitle>I dag</PageTitle>
 
-<link rel="stylesheet" href="css/family.css?v=10" />
+<link rel="stylesheet" href="css/family.css?v=12" />
 
 @if (!_ready)
 {
@@ -45,92 +44,11 @@ else
         </div>
 
         <div class="tab-bar">
-            <button class="tab-btn @(_tab == "opgaver" ? "active" : "")" @onclick='() => SetTab("opgaver")'>📋 Opgaver</button>
             <button class="tab-btn @(_tab == "husk"    ? "active" : "")" @onclick='() => SetTab("husk")'>⏰ Påminder</button>
             <button class="tab-btn @(_tab == "findit"  ? "active" : "")" @onclick='() => SetTab("findit")'>📍 FindIt</button>
         </div>
 
-        @if (_tab == "opgaver")
-        {
-            <!-- ── Opgaver ──────────────────────────────── -->
-            @if (_taskCamera)
-            {
-                <div class="camera-wrap">
-                    <video id="task-video" autoplay muted playsinline class="camera-video"></video>
-                    <div class="camera-actions">
-                        <button class="btn-capture" @onclick="CaptureTaskPhotoAsync">📸 Tag billede</button>
-                        <button class="btn-cancel"  @onclick="CloseTaskCameraAsync">Annuller</button>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <InputFile id="pick-task" style="display:none" accept="image/*"
-                           OnChange='e => OnFileSelected(e, "task")' />
-                <div class="add-row">
-                    <button class="btn-camera" @onclick="OpenTaskCameraAsync" title="Tag billede">📷</button>
-                    <label for="pick-task" class="btn-camera" title="Vælg fra galleri">🖼️</label>
-                    <input class="add-input" @bind="_taskText" @bind:event="oninput"
-                           placeholder="Hvad skal gøres?" @onkeydown="OnTaskKey" />
-                    <button class="btn-primary-sm" @onclick="AddTaskAsync"
-                            disabled="@(string.IsNullOrWhiteSpace(_taskText) && string.IsNullOrEmpty(_taskPreview))">
-                        Tilføj
-                    </button>
-                </div>
-
-                @if (!string.IsNullOrEmpty(_taskPreview))
-                {
-                    <div class="photo-preview-row">
-                        <img src="data:image/jpeg;base64,@_taskPreview" class="preview-thumb" />
-                        <span class="preview-label">Billede tilføjes</span>
-                        <button class="btn-remove-photo" @onclick="() => _taskPreview = string.Empty">Fjern</button>
-                    </div>
-                }
-            }
-
-            <div class="item-list">
-            @if (_tasks.Count == 0)
-            {
-                <div class="section-empty">Ingen opgaver i dag ✓</div>
-            }
-            else
-            {
-                @foreach (var task in _tasks.ToList()
-                    .OrderBy(t => t.CompletedAt.HasValue)
-                    .ThenBy(t => t.ClaimedBy is null ? 0 : 1)
-                    .ThenBy(t => t.CreatedAt))
-                {
-                    <div class="today-task-card @(task.CompletedAt.HasValue ? "today-task-done" : "") @(task.ClaimedBy == _myName && !task.CompletedAt.HasValue ? "today-task-mine" : "")">
-                        @if (!string.IsNullOrWhiteSpace(task.ImagePath) && File.Exists(task.ImagePath))
-                        {
-                            <img src="/task-image/@task.Id" class="today-task-img" />
-                        }
-                        <div class="today-task-body">
-                            <div class="today-task-note">@task.Note</div>
-                            @if (task.CompletedAt.HasValue)
-                            {
-                                <div class="today-task-badge done-badge">✅ Færdig af @task.ClaimedBy</div>
-                            }
-                            else if (!string.IsNullOrWhiteSpace(task.ClaimedBy))
-                            {
-                                <div class="today-task-badge claimed-badge">✋ @task.ClaimedBy klarer det</div>
-                                @if (task.ClaimedBy == _myName)
-                                {
-                                    <button class="today-action-btn done-btn" @onclick="() => MarkDoneAsync(task)">Markér færdig</button>
-                                }
-                            }
-                            else
-                            {
-                                <div class="today-task-badge open-badge">⚡ Ingen har taget den</div>
-                                <button class="today-action-btn claim-btn" @onclick="() => ClaimAsync(task)">Jeg tager den</button>
-                            }
-                        </div>
-                    </div>
-                }
-            }
-            </div>
-        }
-        else if (_tab == "husk")
+        @if (_tab == "husk")
         {
             <!-- ── Husk i dag ───────────────────────────── -->
             @if (_urgentCamera)
@@ -274,6 +192,8 @@ else
             }
         }
 
+        <BottomNav Slug="@Slug" Active="today" />
+
     </div>
 }
 
@@ -284,16 +204,10 @@ else
     private Guid     _familyId;
     private string   _myName = "";
     private bool     _ready;
-    private string   _tab = "opgaver";
+    private string   _tab = "husk";
 
-    private List<DailyTask>        _tasks       = [];
     private List<PersonalReminder> _reminders   = [];
     private List<FamilyStoredItem> _storedItems = [];
-
-    // Task add
-    private string _taskText    = "";
-    private bool   _taskCamera  = false;
-    private string _taskPreview = "";
 
     // Urgent
     private string _urgentText    = "";
@@ -318,7 +232,6 @@ else
     private async Task SetTab(string tab)
     {
         // Stop any active camera before leaving the tab
-        if (_taskCamera)   { await CloseTaskCameraAsync();   }
         if (_urgentCamera) { await CloseUrgentCameraAsync(); }
         if (_findItCamera) { await CloseFindItCameraAsync(); }
         _tab = tab;
@@ -349,7 +262,6 @@ else
         }
         catch { Nav.NavigateTo($"/{Slug}/join", forceLoad: true); return; }
 
-        try { _tasks       = await TaskRepo.GetTodayAsync(_familyId); } catch { _tasks = []; }
         try { _reminders   = await ReminderRepo.GetTodayAsync(_familyId, _myName); } catch { _reminders = []; }
         try { _storedItems = await StoredItemRepo.GetRecentAsync(_familyId, 20); } catch { _storedItems = []; }
 
@@ -368,25 +280,6 @@ else
                 .WithAutomaticReconnect()
                 .Build();
 
-            _hub.On<DailyTask>("TaskAdded", t => { _tasks.Add(t); InvokeAsync(StateHasChanged); });
-            _hub.On<Guid, string>("TaskClaimed", (id, by) =>
-            {
-                var t = _tasks.FirstOrDefault(x => x.Id == id);
-                if (t is not null) { t.ClaimedBy = by; t.ClaimedAt = DateTime.UtcNow; }
-                InvokeAsync(StateHasChanged);
-            });
-            _hub.On<Guid>("TaskCompleted", id =>
-            {
-                var t = _tasks.FirstOrDefault(x => x.Id == id);
-                if (t is not null) t.CompletedAt = DateTime.UtcNow;
-                InvokeAsync(StateHasChanged);
-            });
-            _hub.On<Guid>("TaskDeleted", id =>
-            {
-                _tasks.RemoveAll(x => x.Id == id);
-                InvokeAsync(StateHasChanged);
-            });
-
             await _hub.StartAsync();
             await _hub.SendAsync("JoinFamily", Slug);
         }
@@ -395,23 +288,6 @@ else
         StateHasChanged();
     }
 
-    // ── Task camera ───────────────────────────────────────
-    private async Task OpenTaskCameraAsync()
-    {
-        _taskCamera = true; StateHasChanged();
-        await JS.InvokeVoidAsync("familyApp.startCamera", "task-video");
-    }
-    private async Task CaptureTaskPhotoAsync()
-    {
-        try { _taskPreview = await JS.InvokeAsync<string>("familyApp.capturePhoto", "task-video"); } catch { }
-        await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
-        _taskCamera = false; StateHasChanged();
-    }
-    private async Task CloseTaskCameraAsync()
-    {
-        await JS.InvokeVoidAsync("familyApp.stopCamera", "task-video");
-        _taskCamera = false; StateHasChanged();
-    }
     private async Task OnFileSelected(InputFileChangeEventArgs e, string section)
     {
         try
@@ -420,65 +296,8 @@ else
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             var b64 = Convert.ToBase64String(ms.ToArray());
-            if (section == "task")   _taskPreview   = b64;
             if (section == "urgent") _urgentPreview = b64;
             if (section == "findit") _findItPreview = b64;
-            StateHasChanged();
-        }
-        catch { }
-    }
-
-    // ── Task add ──────────────────────────────────────────
-    private async Task OnTaskKey(KeyboardEventArgs e) { if (e.Key == "Enter") await AddTaskAsync(); }
-    private async Task AddTaskAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_taskText) && string.IsNullOrEmpty(_taskPreview)) return;
-        try
-        {
-            string? imagePath = null;
-            if (!string.IsNullOrEmpty(_taskPreview))
-                imagePath = await SavePhotoAsync(_taskPreview, "tasks");
-
-            var task = new DailyTask
-            {
-                FamilyId  = _familyId,
-                Note      = _taskText.Trim(),
-                ImagePath = imagePath,
-                CreatedBy = _myName,
-                Date      = DateOnly.FromDateTime(DateTime.Today)
-            };
-            await TaskRepo.AddAsync(task);
-            _tasks.Add(task);
-            if (_hub?.State == HubConnectionState.Connected)
-                await _hub.SendAsync("TaskAdded", Slug, task);
-            _ = PushService.SendToFamilyAsync(_familyId, _myName, "📋 Ny opgave", $"{_myName}: {task.Note}");
-            _taskText = ""; _taskPreview = "";
-            StateHasChanged();
-        }
-        catch { }
-    }
-
-    // ── Task actions ──────────────────────────────────────
-    private async Task ClaimAsync(DailyTask task)
-    {
-        try
-        {
-            task.ClaimedBy = _myName; task.ClaimedAt = DateTime.UtcNow;
-            await TaskRepo.UpdateAsync(task);
-            if (_hub?.State == HubConnectionState.Connected)
-                await _hub.SendAsync("TaskClaimed", Slug, task.Id, _myName);
-            StateHasChanged();
-        }
-        catch { }
-    }
-    private async Task MarkDoneAsync(DailyTask task)
-    {
-        try
-        {
-            task.CompletedAt = DateTime.UtcNow;
-            await TaskRepo.UpdateAsync(task);
-            if (_hub?.State == HubConnectionState.Connected)
-                await _hub.SendAsync("TaskCompleted", Slug, task.Id);
             StateHasChanged();
         }
         catch { }
