@@ -1,10 +1,30 @@
+using ITMartin.IndexServer.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient("internal", c => c.Timeout = TimeSpan.FromSeconds(6));
+
+if (builder.Environment.IsDevelopment())
+    builder.Services.AddSingleton<LocalLauncherService>();
 
 var app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+// Dev-only local app launcher - never registered when this container runs on
+// the NAS (IsDevelopment() is false there), so there's no process-spawning
+// endpoint exposed on the public portal. See LocalLauncherService for why.
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/api/launcher/apps", (LocalLauncherService launcher) =>
+        Results.Ok(launcher.GetStatuses()));
+
+    app.MapPost("/api/launcher/start/{name}", (string name, LocalLauncherService launcher) =>
+        launcher.Start(name) ? Results.Ok() : Results.BadRequest("No local launch profile for this app."));
+
+    app.MapPost("/api/launcher/stop/{name}", (string name, LocalLauncherService launcher) =>
+        launcher.Stop(name) ? Results.Ok() : Results.NotFound());
+}
 
 // Checked over the internal martinnet Docker network (container:8080), not the
 // public domain - avoids a Cloudflare round-trip and tells us the real state

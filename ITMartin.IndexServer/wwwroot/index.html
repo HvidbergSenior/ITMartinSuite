@@ -42,6 +42,7 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
       <h1 class="idx-title">ITMartin Suite</h1>
       <p class="idx-sub">Alle dine apps samlet ét sted — byg til dig og dem du kender</p>
       <a href="/showcase.html" style="display:inline-block;margin-top:16px;font-size:13px;color:#60a5fa;text-decoration:none">📺 Se hvordan appsene virker, med eksempler →</a>
+      <a href="/launcher.html" id="launcher-link" style="display:none;margin-top:8px;font-size:13px;color:#60a5fa;text-decoration:none">⚙️ Local Launcher — start/stop apps på denne maskine →</a>
     </div>
   </div>
 
@@ -282,6 +283,15 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
    'dailyBrief','live','uret',
    'testHub'].forEach(set);
   } catch (_) { /* links stay as # if fetch fails */ }
+
+  // Local Launcher only exists when this portal itself is running locally
+  // (dotnet run, Development) - the endpoint isn't even registered on the
+  // NAS-deployed instance, so a failed fetch here just means "not local",
+  // not an error.
+  try {
+    var lr = await fetch('/api/launcher/apps');
+    if (lr.ok) document.getElementById('launcher-link').style.display = 'inline-block';
+  } catch (_) { /* not running locally */ }
 })();
 </script>
 <script>

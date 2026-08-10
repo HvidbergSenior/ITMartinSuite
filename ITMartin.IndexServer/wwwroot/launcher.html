@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0d14">
+<title>Local Launcher — ITMartin Suite</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.lp-page{max-width:900px;margin:0 auto;padding:40px 16px 60px}
+.lp-hero{margin-bottom:8px}
+.lp-title{font-size:28px;font-weight:900;letter-spacing:-.02em}
+.lp-sub{font-size:14px;color:#64748b;margin-top:6px}
+.lp-root{font-family:monospace;font-size:12px;color:#475569;margin-top:10px;word-break:break-all}
+.lp-search{width:100%;margin:24px 0 18px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#f0f0f0;font-size:14px}
+.lp-search:focus{outline:none;border-color:#60a5fa}
+.lp-list{display:flex;flex-direction:column;gap:8px}
+.lp-row{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px 16px}
+.lp-dot{width:9px;height:9px;border-radius:50%;background:#334155;flex:none}
+.lp-dot.on{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.6)}
+.lp-name{font-weight:700;font-size:14px;flex:1;min-width:0}
+.lp-noprofile{font-size:11px;color:#475569;font-style:italic}
+.lp-url{font-family:monospace;font-size:12px;color:#64b5f6;text-decoration:none}
+.lp-url:hover{text-decoration:underline}
+.lp-btn{border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;flex:none}
+.lp-btn.start{background:#16532e;color:#4ade80}
+.lp-btn.start:hover{background:#1a6636}
+.lp-btn.stop{background:#5a1a1a;color:#f87171}
+.lp-btn.stop:hover{background:#6e2020}
+.lp-btn:disabled{opacity:.4;cursor:not-allowed}
+.lp-empty{color:#475569;font-size:13px;text-align:center;padding:40px 0}
+.lp-back{display:inline-block;margin-top:24px;font-size:13px;color:#60a5fa;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="lp-page">
+  <div class="lp-hero">
+    <div class="lp-title">⚙️ Local Launcher</div>
+    <div class="lp-sub">Start og stop apps direkte på denne maskine — kun tilgængelig når portalen selv kører lokalt.</div>
+    <div class="lp-root" id="root"></div>
+  </div>
+
+  <input class="lp-search" id="search" placeholder="Filtrér på navn...">
+  <div class="lp-list" id="list"><div class="lp-empty">Indlæser...</div></div>
+
+  <a class="lp-back" href="/">← Tilbage til oversigten</a>
+</div>
+
+<script>
+let allApps = [];
+
+async function refresh() {
+  try {
+    const res = await fetch('/api/launcher/apps');
+    if (!res.ok) throw new Error();
+    allApps = await res.json();
+    render();
+  } catch {
+    document.getElementById('list').innerHTML = '<div class="lp-empty">Kunne ikke hente app-listen. Kører portalen lokalt (dotnet run)?</div>';
+  }
+}
+
+function render() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const filtered = allApps.filter(a => a.name.toLowerCase().includes(q));
+  const list = document.getElementById('list');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="lp-empty">Ingen apps matcher.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(a => `
+    <div class="lp-row">
+      <div class="lp-dot ${a.running ? 'on' : ''}"></div>
+      <div class="lp-name">${escapeHtml(a.name)}${a.hasLaunchProfile ? '' : '<div class="lp-noprofile">ingen lokal launch-profil fundet</div>'}</div>
+      ${a.running && a.url ? `<a class="lp-url" href="${a.url}" target="_blank">${a.url}</a>` : ''}
+      ${a.hasLaunchProfile
+        ? (a.running
+            ? `<button class="lp-btn stop" onclick="stopApp('${escapeJs(a.name)}')">Stop</button>`
+            : `<button class="lp-btn start" onclick="startApp('${escapeJs(a.name)}')">Start</button>`)
+        : `<button class="lp-btn start" disabled>Start</button>`}
+    </div>
+  `).join('');
+}
+
+async function startApp(name) {
+  await fetch(`/api/launcher/start/${encodeURIComponent(name)}`, { method: 'POST' });
+  setTimeout(refresh, 800);
+}
+
+async function stopApp(name) {
+  await fetch(`/api/launcher/stop/${encodeURIComponent(name)}`, { method: 'POST' });
+  setTimeout(refresh, 500);
+}
+
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeJs(s) { return s.replace(/'/g, "\\'"); }
+
+document.getElementById('search').addEventListener('input', render);
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>
