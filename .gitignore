@@ -88,3 +88,6 @@ ITMartinLibrary.Server/data/shelves/
 magic.env
 cloudflare.env
 docker-compose.yaml
+
+# Claude Code local settings + nested agent worktrees - never commit
+.claude/
