@@ -186,6 +186,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .v-live-hint.playing{opacity:0}
 .v-audio-bg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#9ca3af}
 .v-audio-icon{font-size:64px}
+.v-audio-cover{width:220px;height:220px;object-fit:cover;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .v-zone{position:absolute;top:0;bottom:0;width:40%;cursor:pointer}
 .v-zone.left{left:0}
 .v-zone.right{right:0}
@@ -216,21 +217,26 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       </div>
       <div id="folderSection">
         <div class="section-label">Mapper</div>
-        <div class="folder-grid" id="folderGrid"></div>
+        <div id="folderGrid"></div>
       </div>
       <div id="specialSearchBar" style="display:none">
         <input type="text" id="specialSearchInput" class="form-control" placeholder="Søg (fødselsdag, strand, jul...)">
         <button id="specialSearchBtn" onclick="runSpecialSearch()">Søg</button>
       </div>
       <div id="fileSection">
-        <div class="section-label">Billeder &amp; videoer</div>
+        <div class="section-label" id="fileSectionLabel">Billeder &amp; videoer</div>
         <div class="file-grid" id="fileGrid"></div>
       </div>
       <div class="empty" id="emptyState" style="display:none">Ingen mediefiler her</div>
       <div id="collectionsSection" style="display:none">
-        <div class="section-label">Samlinger<span class="collection-badge">Eksempel</span></div>
-        <div class="collection-sub">Fundet automatisk (ansigter, sted &amp; år) — smagsprøve på, hvad der kan bygges videre til hele biblioteket.</div>
+        <div class="section-label">Samlinger</div>
+        <div class="collection-sub">Fundet automatisk ud fra sted &amp; år.</div>
         <div class="collection-row" id="collectionRow"></div>
+      </div>
+      <div id="examplesSection" style="display:none">
+        <div class="section-label">Eksempel:</div>
+        <div class="collection-sub">Fundet automatisk (ansigter og årstal).</div>
+        <div class="collection-row" id="examplesRow"></div>
       </div>
       <div id="addonsSection" class="addons-secondary" style="display:none">
         <div class="section-label">Tilkøb</div>
@@ -260,7 +266,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <!-- Viewer -->
 <div id="viewer">
   <div class="v-hdr">
-    <button class="v-btn" onclick="closeViewer()">📁 Mappe</button>
+    <button class="v-btn" onclick="closeViewer()">← Tilbage</button>
     <button class="v-btn" onclick="goHome()">🏠</button>
     <div class="v-title" id="vTitle"></div>
     <a class="v-btn" id="vTvBtn" style="display:none;text-decoration:none" target="_blank" title="Åbn i native afspiller (AirPlay)">📺</a>
@@ -278,9 +284,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentGallery = null;
 let currentRelPath = '';
-// Real folder cards (Billeder/Videoer/etc.), cached so toggling an add-on can
+// Real folders (Billeder/Videoer/etc.), cached so toggling an add-on can
 // rebuild the grid with the new enabled/locked split without a fresh /api/browse.
-let currentFolderCardsHtml = '';
+let currentFolders = [];
 let parentRelPath  = null;
 let playlist       = [];
 let playIdx        = 0;
@@ -290,6 +296,8 @@ let summaryData    = null;
 let collectionsData    = null;
 let viewingCollection  = null;
 let galleryDisplayName = null;
+let currentHideAddons  = false;
+let currentAtRoot      = false;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 startUp();
@@ -438,8 +446,53 @@ async function loadBrowse(relPath, titleOverride) {
   renderBrowse(data, titleOverride);
 }
 
+function folderCardHtml(f) {
+  // Root category folders (Videoer/Dokumenter/Musik) carry their own themed
+  // icon from the server as a fallback - more meaningful than the generic
+  // folder glyph, and also what an image falls back to on load failure
+  // (e.g. a cover file that's missing or corrupt).
+  const fallback = f.icon || '📁';
+  return `
+    <div class="folder-card" onclick="loadBrowse('${esc(f.relPath)}','${esc(f.name)}')">
+      <div class="folder-cover">
+        ${f.cover ? `<img src="${esc(f.cover)}" loading="lazy" onerror="this.parentElement.innerHTML='${fallback}'" alt="">` : fallback}
+      </div>
+      <div class="folder-info">
+        <div class="folder-name">${esc(f.name)}</div>
+      </div>
+    </div>`;
+}
+
+// Root folders render as separate rows (Billeder & Videoer / Dokumenter /
+// Musik / ...) by the server-assigned "row" number, instead of one
+// undifferentiated grid - a folder's category should read at a glance.
+// Add-on placeholders (when not hidden for this tenant) join the first/last
+// row exactly as they did in the old single-grid layout.
+function renderFolderRows(folders, placeholders) {
+  const rowGroups = new Map();
+  for (const f of folders) {
+    const key = f.row ?? 99;
+    if (!rowGroups.has(key)) rowGroups.set(key, []);
+    rowGroups.get(key).push(f);
+  }
+  const rowKeys = [...rowGroups.keys()].sort((a, b) => a - b);
+  if (rowKeys.length === 0) {
+    return (placeholders.enabled || placeholders.locked)
+      ? `<div class="folder-grid">${placeholders.enabled}${placeholders.locked}</div>`
+      : '';
+  }
+  return rowKeys.map((key, idx) => {
+    let cardsHtml = rowGroups.get(key).map(folderCardHtml).join('');
+    if (idx === 0) cardsHtml = placeholders.enabled + cardsHtml;
+    if (idx === rowKeys.length - 1) cardsHtml += placeholders.locked;
+    return `<div class="folder-grid">${cardsHtml}</div>`;
+  }).join('');
+}
+
 function renderBrowse(data, titleOverride) {
-  const { atRoot, folders, files } = data;
+  const { atRoot, folders, files, hideAddons } = data;
+  currentHideAddons = !!hideAddons;
+  currentAtRoot = atRoot;
 
   const title = atRoot
     ? (galleryDisplayName || currentGallery)
@@ -451,28 +504,18 @@ function renderBrowse(data, titleOverride) {
 
   const fg = document.getElementById('folderGrid');
   const fs = document.getElementById('folderSection');
-  const folderCards = folders.map(f => `
-    <div class="folder-card" onclick="loadBrowse('${esc(f.relPath)}','${esc(f.name)}')">
-      <div class="folder-cover">
-        ${f.cover ? `<img src="${esc(f.cover)}" loading="lazy" onerror="this.parentElement.innerHTML='📁'" alt="">` : '📁'}
-      </div>
-      <div class="folder-info">
-        <div class="folder-name">${esc(f.name)}</div>
-      </div>
-    </div>`).join('');
-  currentFolderCardsHtml = folderCards;
+  currentFolders = folders;
   // Selected add-ons jump to the very front as an immediate reward/preview;
   // locked ones stay after the real content, quiet and low-priority.
-  const placeholders    = (atRoot && !viewingCollection) ? renderAddonPlaceholderCards() : { enabled: '', locked: '' };
-  fg.innerHTML = placeholders.enabled + folderCards + placeholders.locked;
+  const placeholders = (atRoot && !viewingCollection && !currentHideAddons) ? renderAddonPlaceholderCards() : { enabled: '', locked: '' };
+  fg.innerHTML = renderFolderRows(folders, placeholders);
   fs.style.display = (folders.length || placeholders.enabled || placeholders.locked) ? '' : 'none';
 
   renderFileGrid(files);
 
-  document.getElementById('collectionsSection').style.display =
-    (atRoot && !viewingCollection && collectionsData && collectionsData.length) ? '' : 'none';
+  renderCollections();
 
-  const addonsVisible = atRoot && !viewingCollection;
+  const addonsVisible = atRoot && !viewingCollection && !currentHideAddons;
   document.getElementById('addonsSection').style.display = addonsVisible ? '' : 'none';
   if (addonsVisible) renderAddonsTeaser();
 
@@ -480,11 +523,33 @@ function renderBrowse(data, titleOverride) {
     (!folders.length && !files.length) ? '' : 'none';
 }
 
+// The section header must match what's actually in the grid - a folder can
+// hold pure audio (Musik), pure video, scanned docs, or the usual photo/video
+// mix, and a hardcoded "Billeder & videoer" was misleading for the others.
+function fileSectionLabel(files) {
+  const audio = files.filter(f => f.isAudio).length;
+  const video = files.filter(f => f.isVideo).length;
+  const doc   = files.filter(f => f.isDoc).length;
+  if (audio === files.length) return 'Lydfiler';
+  if (doc === files.length) return 'Dokumenter';
+  if (video === files.length) return 'Videoer';
+  if (audio === 0 && doc === 0) return 'Billeder & videoer';
+  return 'Filer';
+}
+
 function renderFileGrid(files) {
   const fg2 = document.getElementById('fileGrid');
   const fs2 = document.getElementById('fileSection');
   if (files.length) {
     fs2.style.display = '';
+    const label = fileSectionLabel(files);
+    const labelEl = document.getElementById('fileSectionLabel');
+    // Skip the label entirely when it would just repeat the folder we're
+    // already inside (e.g. browsing straight into "Dokumenter" and seeing
+    // a "Dokumenter" heading again) - only show it when it adds information.
+    const title = document.getElementById('hdrTitle').textContent.trim();
+    labelEl.style.display = label.toLowerCase() === title.toLowerCase() ? 'none' : '';
+    labelEl.textContent = label;
     fg2.innerHTML = files.map((f, i) => {
       if (f.isVideo) return `
         <div class="file-card" onclick="openViewer(${i})">
@@ -494,8 +559,13 @@ function renderFileGrid(files) {
         </div>`;
       if (f.isAudio) return `
         <div class="file-card" onclick="openViewer(${i})">
+          ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" onerror="this.remove()" alt="">` : ''}
           <div class="file-overlay">🎵</div>
           <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
+        </div>`;
+      if (f.isDoc) return `
+        <div class="file-card" onclick="openViewer(${i})">
+          <div class="file-overlay">📄</div>
         </div>`;
       return `
         <div class="file-card" onclick="openViewer(${i})">
@@ -672,7 +742,7 @@ function updateAddonPlaceholderStates() {
   if (!document.getElementById('folderGrid').querySelector('.addon-placeholder')) return;
   const placeholders = renderAddonPlaceholderCards();
   const fg = document.getElementById('folderGrid');
-  fg.innerHTML = placeholders.enabled + currentFolderCardsHtml + placeholders.locked;
+  fg.innerHTML = renderFolderRows(currentFolders, placeholders);
 }
 
 // "Efter person" can't show existing named people to pick from (naming lives
@@ -754,6 +824,10 @@ function sendAddonRequest() {
 }
 
 // ── Collections (Package3: person/trip albums) ───────────────────────────────
+// Yearbook and Person are shown separately from Trips/Traditions/Best-shot, as
+// the "Eksempel:" row - the rest keep the plain "Samlinger" row.
+const EXAMPLE_COLLECTION_TYPES = new Set(['Person', 'Yearbook']);
+
 async function loadCollections(slug) {
   collectionsData = null;
   const res = await fetch(`/api/collections?gallery=${encodeURIComponent(slug)}`);
@@ -761,15 +835,10 @@ async function loadCollections(slug) {
   const data = await res.json();
   collectionsData = data.collections || [];
   renderCollections();
-  if (currentRelPath === '' && !viewingCollection) {
-    document.getElementById('collectionsSection').style.display = collectionsData.length ? '' : 'none';
-  }
 }
 
-function renderCollections() {
-  if (!collectionsData) return;
-  const row = document.getElementById('collectionRow');
-  row.innerHTML = collectionsData.map(c => `
+function collectionCardHtml(c) {
+  return `
     <div class="collection-card" onclick="openCollection('${esc(c.name)}')">
       <div class="collection-cover">
         ${c.cover ? `<img src="${esc(c.cover)}" loading="lazy" onerror="this.parentElement.innerHTML='🗂️'" alt="">` : '🗂️'}
@@ -778,7 +847,21 @@ function renderCollections() {
         <div class="collection-name">${esc(c.name)}</div>
         <div class="collection-count">${c.fileCount} filer</div>
       </div>
-    </div>`).join('');
+    </div>`;
+}
+
+function renderCollections() {
+  if (!collectionsData) return;
+
+  const examples = collectionsData.filter(c => EXAMPLE_COLLECTION_TYPES.has(c.type));
+  const rest     = collectionsData.filter(c => !EXAMPLE_COLLECTION_TYPES.has(c.type));
+
+  document.getElementById('collectionRow').innerHTML = rest.map(collectionCardHtml).join('');
+  document.getElementById('examplesRow').innerHTML   = examples.map(collectionCardHtml).join('');
+
+  const showSections = currentAtRoot && !viewingCollection;
+  document.getElementById('collectionsSection').style.display = (showSections && rest.length)     ? '' : 'none';
+  document.getElementById('examplesSection').style.display    = (showSections && examples.length) ? '' : 'none';
 }
 
 async function openCollection(name) {
@@ -793,6 +876,7 @@ async function openCollection(name) {
   document.getElementById('btnBack').style.display      = '';
   document.getElementById('summaryCard').style.display  = 'none';
   document.getElementById('collectionsSection').style.display = 'none';
+  document.getElementById('examplesSection').style.display = 'none';
   document.getElementById('folderSection').style.display = 'none';
   document.getElementById('addonsSection').style.display = 'none';
 
@@ -817,6 +901,7 @@ function enterSpecialView(id, title) {
   document.getElementById('btnBack').style.display      = '';
   document.getElementById('summaryCard').style.display  = 'none';
   document.getElementById('collectionsSection').style.display = 'none';
+  document.getElementById('examplesSection').style.display = 'none';
   document.getElementById('folderSection').style.display = 'none';
   document.getElementById('addonsSection').style.display = 'none';
 }
@@ -888,6 +973,11 @@ function renderSummary() {
 // stays '' while viewingCollection is set), so next/prev inside a collection
 // would jump to unrelated root-level photos instead of staying within it.
 function openViewer(idx) {
+  const f = playlist[idx];
+  // PDFs/Office files/etc. can't render in the image lightbox - let the
+  // browser handle them natively (PDF preview, or download/open with the
+  // OS's associated app) instead of showing a broken image icon.
+  if (f && f.isDoc) { window.open(f.webPath, '_blank'); return; }
   playIdx = idx;
   document.getElementById('viewer').classList.add('active');
   renderViewer();
@@ -954,7 +1044,10 @@ function renderViewer() {
     el = document.createElement('div');
     el.className = 'v-audio-bg';
     const shortName = f.name.replace(/\.[^.]+$/, '');
-    el.innerHTML = `<div class="v-audio-icon">🎵</div><div style="font-size:14px;color:#9ca3af;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">${esc(shortName)}</div><audio controls autoplay x-webkit-airplay="allow" style="margin-top:8px;width:260px" src="${esc(f.webPath)}"></audio>`;
+    const artHtml = f.thumb
+      ? `<img class="v-audio-cover" src="${esc(f.thumb)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'v-audio-icon',textContent:'🎵'}))" alt="">`
+      : `<div class="v-audio-icon">🎵</div>`;
+    el.innerHTML = `${artHtml}<div style="font-size:14px;color:#9ca3af;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">${esc(shortName)}</div><audio controls autoplay x-webkit-airplay="allow" style="margin-top:8px;width:260px" src="${esc(f.webPath)}"></audio>`;
   } else {
     el = document.createElement('img');
     el.className = 'v-media';

@@ -51,8 +51,9 @@ var RootFoldersAlwaysHidden = new HashSet<string>(StringComparer.OrdinalIgnoreCa
     // Real content, but a raw "here are your undated files"/"here are your
     // duplicates" folder reads as clutter/confusing rather than something
     // worth showing - not something a non-technical viewer needs to browse
-    // directly.
-    "Undated", "Duplicates", "Musik",
+    // directly. Musik (Audio) is real, wanted content though - shown as its
+    // own category, just secondary to Billeder/Videoer.
+    "Undated", "Duplicates",
 };
 
 // Screenshots was previously hidden globally for every tenant based on one
@@ -81,6 +82,33 @@ var RootFolderSortPriority = new Dictionary<string, int>(StringComparer.OrdinalI
 {
     ["Images"] = 0,
     ["Videos"] = 1,
+};
+
+// Root folders render as separate visual rows, not one flowing grid - all
+// four primary categories share the top row now (Billeder, Videoer,
+// Dokumenter, Musik). Anything unrecognized falls into its own trailing row
+// rather than being silently absorbed into one of these.
+var RootFolderRow = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+{
+    ["Images"] = 0,
+    ["Videos"] = 0,
+    ["Documents"] = 0,
+    ["Musik"] = 0,
+};
+
+// Fallback icon shown when a root category card has no meaningful
+// content-based cover - either because none exists yet (Videos before any
+// thumbnail is generated) or because a real cover would never be
+// meaningful (Documents has no photo-like preview; Musik's own folder is
+// full of Windows Media Player's cached album art for whichever track
+// happens to be enumerated first, not a representative "cover" - see
+// FolderCover's Musik/Documents skip below). Images isn't listed - it
+// always has real photo covers, a generic icon would be a downgrade.
+var RootFolderIcon = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    ["Videos"] = "🎬",
+    ["Documents"] = "📄",
+    ["Musik"] = "🎵",
 };
 
 // Package1 names month folders "NN-EnglishMonth" (e.g. "05-May") regardless of
@@ -117,7 +145,8 @@ var galleries = app.Configuration
         ShowSummary: s.GetValue<bool>("ShowSummary"),
         HideScreenshots: s.GetValue<bool>("HideScreenshots"),
         OnThisDayEnabled: s.GetValue<bool>("OnThisDayEnabled"),
-        SearchEnabled: s.GetValue<bool>("SearchEnabled")))
+        SearchEnabled: s.GetValue<bool>("SearchEnabled"),
+        HideAddons: s.GetValue<bool>("HideAddons")))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -285,20 +314,43 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     var atRoot = IsSameDir(current, r);
     var hiddenFolders = HiddenFoldersFor(g);
 
-    FolderEntry ToEntry(string d, string? nameOverride = null) => new(
-        nameOverride ?? (atRoot && RootFolderDisplayNames.TryGetValue(Path.GetFileName(d), out var friendly) ? friendly : DanishFolderName(Path.GetFileName(d))),
-        Rel(d, r),
-        FolderCover(d, r, g.Slug));
+    // Documents/Musik never get a content-based cover, even at the root: a
+    // document has no photo-like preview, and Musik's own folder is full of
+    // Windows Media Player's cached album art for whichever track happens to
+    // enumerate first - not a meaningful "cover" of the customer's own
+    // content. Both always fall back to their RootFolderIcon instead.
+    FolderEntry ToEntry(string d, string? nameOverride = null)
+    {
+        var rawName = Path.GetFileName(d);
+        var noCoverCategory = atRoot && (rawName.Equals("Documents", StringComparison.OrdinalIgnoreCase) ||
+                                          rawName.Equals("Musik", StringComparison.OrdinalIgnoreCase));
+        return new(
+            nameOverride ?? (atRoot && RootFolderDisplayNames.TryGetValue(rawName, out var friendly) ? friendly : DanishFolderName(rawName)),
+            Rel(d, r),
+            noCoverCategory ? null : FolderCover(d, r, g.Slug),
+            atRoot && RootFolderRow.TryGetValue(rawName, out var row) ? row : 99,
+            atRoot && RootFolderIcon.TryGetValue(rawName, out var icon) ? icon : null);
+    }
+
+    // @eaDir/#recycle/#snapshot are Synology-generated system folders that can
+    // appear at any depth (@eaDir in particular gets created wherever File
+    // Station has ever touched a folder) - not something a customer should
+    // ever see as a browsable folder.
+    static bool IsSystemFolder(string d)
+    {
+        var name = Path.GetFileName(d);
+        return name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#');
+    }
 
     var priorityFolders = Directory.EnumerateDirectories(current)
-        .Where(d => !Path.GetFileName(d).StartsWith('.'))
+        .Where(d => !IsSystemFolder(d))
         .Where(d => atRoot && RootFolderSortPriority.ContainsKey(Path.GetFileName(d)))
         .OrderBy(d => RootFolderSortPriority[Path.GetFileName(d)])
         .Select(d => ToEntry(d))
         .ToList();
 
     var restFolders = Directory.EnumerateDirectories(current)
-        .Where(d => !Path.GetFileName(d).StartsWith('.'))
+        .Where(d => !IsSystemFolder(d))
         // "thumbnails" is GalleryThumbnailService's own generated cache, sitting
         // inside every content folder at every depth - the root-level hidden-
         // folder check above only applies at atRoot, so without this a customer
@@ -318,8 +370,15 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     // non-technical viewer - keep exactly one place it appears.
     var folders = priorityFolders.Concat(restFolders).ToList();
 
+    // Musik folders are full of Windows Media Player's cached album art
+    // (AlbumArt_{GUID}_Large.jpg, Folder.jpg) sitting next to the actual
+    // tracks - browsing in there should show the music, not a wall of cover
+    // art thumbnails that aren't even a real photo of anything.
+    var inMusikFolder = Rel(current, r).Split('/')[0].Equals("Musik", StringComparison.OrdinalIgnoreCase);
+
     var files = Directory.EnumerateFiles(current)
         .Where(IsMedia)
+        .Where(f => !inMusikFolder || IsAud(Ext(f)))
         .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
         .Select(f =>
         {
@@ -333,9 +392,10 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
                 // Videos: real thumbnail if it exists yet, otherwise null (not
                 // the raw video URL - a browser can't render an mp4 as an
                 // <img>, that would just show a broken image icon).
-                thumb     = IsImg(ext) ? (Thumb(f, r, g.Slug) ?? wp) : (IsVid(ext) ? Thumb(f, r, g.Slug) : null),
+                thumb     = IsImg(ext) ? (Thumb(f, r, g.Slug) ?? wp) : (IsVid(ext) ? Thumb(f, r, g.Slug) : (IsAud(ext) ? AudioCover(f, r, g.Slug) : null)),
                 isVideo   = IsVid(ext),
                 isAudio   = IsAud(ext),
+                isDoc     = IsDoc(ext),
                 liveVideo = FindLivePhotoVideo(f, r, g.Slug),
             };
         })
@@ -344,7 +404,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     var parentFull = atRoot ? null : Directory.GetParent(current)?.FullName;
     var parentRel  = parentFull is null ? null : NormalizeRel(Rel(parentFull, r));
 
-    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files };
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons };
     browseCache[cacheKey] = (DateTime.UtcNow.AddMinutes(10), browsePayload);
     return Results.Ok(browsePayload);
 });
@@ -369,9 +429,14 @@ app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
     // collection. Leaving any of these in inflates the "Din samling er klar" stats.
     var mediaFiles = Directory.EnumerateFiles(g.Path, "*.*", SearchOption.AllDirectories)
         .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}thumbnails{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+        .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}@eaDir{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
         .Where(f => hiddenFolders.All(hidden =>
             !f.Contains($"{Path.DirectorySeparatorChar}{hidden}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)))
-        .Where(IsMedia);
+        .Where(IsMedia)
+        // Same reasoning as the folder browse view above: a Musik folder's
+        // cached album art and official music-video clips aren't real family
+        // photos/videos and shouldn't inflate those counts.
+        .Where(f => !Rel(f, g.Path).Split('/')[0].Equals("Musik", StringComparison.OrdinalIgnoreCase) || IsAud(Ext(f)));
 
     int photoCount = 0, videoCount = 0, audioCount = 0, totalCount = 0;
     long totalBytes = 0;
@@ -397,6 +462,35 @@ app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
         totalCount, photoCount, videoCount, audioCount, folderCount,
         totalGb = Math.Round(totalBytes / 1024.0 / 1024.0 / 1024.0, 1),
     });
+});
+
+// Music tracks (Musik folders, mostly old MP3-rip collections) rarely have a
+// folder.jpg sitting next to them the way photo albums do - the actual cover
+// art is usually only embedded in the file's own ID3/MP4 tag, so this reads
+// it out the same way ITMartinPlayer does.
+app.MapGet("/api/embedded-cover", (string gallery, string path, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    if (g is null) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+
+    var full = Path.GetFullPath(Path.Combine(g.Path, path));
+    if (!IsSafe(full, g.Path)) return Results.BadRequest("path outside library");
+    if (!File.Exists(full))    return Results.NotFound();
+
+    try
+    {
+        using var tagFile = TagLib.File.Create(full);
+        var picture = tagFile.Tag?.Pictures?.FirstOrDefault();
+        if (picture is null) return Results.NotFound();
+        return Results.Bytes(picture.Data.Data, picture.MimeType ?? "image/jpeg");
+    }
+    catch
+    {
+        return Results.NotFound();
+    }
 });
 
 app.MapGet("/api/playlist", (string gallery, string folder, HttpContext ctx) =>
@@ -426,6 +520,7 @@ app.MapGet("/api/playlist", (string gallery, string folder, HttpContext ctx) =>
                 webPath   = Web(f, r, g.Slug),
                 isVideo   = IsVid(ext),
                 isAudio   = IsAud(ext),
+                isDoc     = IsDoc(ext),
                 liveVideo = FindLivePhotoVideo(f, r, g.Slug),
             };
         })
@@ -453,6 +548,7 @@ app.MapGet("/api/collections", (string gallery, HttpContext ctx) =>
         .Select(c => new
         {
             name      = c.Name,
+            type      = c.Type,
             fileCount = c.FilePaths.Count,
             cover     = c.FilePaths.Select(f => TryThumbOrWeb(f, g.Path, g.Slug)).FirstOrDefault(w => w is not null),
         })
@@ -496,9 +592,10 @@ app.MapGet("/api/collections/files", (string gallery, string name, HttpContext c
                 name      = Path.GetFileName(f),
                 relPath   = Rel(f, g.Path),
                 webPath   = wp,
-                thumb     = IsImg(ext) ? (Thumb(f, g.Path, g.Slug) ?? wp) : (IsVid(ext) ? Thumb(f, g.Path, g.Slug) : null),
+                thumb     = IsImg(ext) ? (Thumb(f, g.Path, g.Slug) ?? wp) : (IsVid(ext) ? Thumb(f, g.Path, g.Slug) : (IsAud(ext) ? AudioCover(f, g.Path, g.Slug) : null)),
                 isVideo   = IsVid(ext),
                 isAudio   = IsAud(ext),
+                isDoc     = IsDoc(ext),
                 liveVideo = FindLivePhotoVideo(f, g.Path, g.Slug),
                 caption   = caption,
             };
@@ -618,36 +715,22 @@ static string  Ext(string f)           => Path.GetExtension(f).ToLowerInvariant(
 static bool    IsImg(string ext)       => ext is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" or ".heic" or ".avif";
 static bool    IsVid(string ext)       => ext is ".mp4" or ".mov" or ".mkv" or ".avi" or ".m4v" or ".webm" or ".wmv";
 static bool    IsAud(string ext)       => ext is ".mp3" or ".m4a" or ".aac" or ".wav" or ".flac" or ".ogg";
-static bool    IsMedia(string f)       { var e = Ext(f); return IsImg(e) || IsVid(e) || IsAud(e); }
+static bool    IsDoc(string ext)       => ext is ".pdf" or ".doc" or ".docx" or ".xls" or ".xlsx" or ".ppt" or ".pptx";
+static bool    IsMedia(string f)       { var e = Ext(f); return IsImg(e) || IsVid(e) || IsAud(e) || IsDoc(e); }
 static bool    IsSafe(string p, string r)    => Path.GetFullPath(p).StartsWith(Path.GetFullPath(r), StringComparison.OrdinalIgnoreCase);
 static bool    IsSameDir(string a, string b) => string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 static string  Rel(string abs, string r)     => Path.GetRelativePath(r, abs).Replace("\\", "/");
 static string  NormalizeRel(string rel)      => rel == "." ? "" : rel;
 static string  Web(string abs, string r, string slug) => $"/libraryfiles/{slug}/" + Rel(abs, r);
+static string  AudioCover(string f, string r, string slug) => $"/api/embedded-cover?gallery={slug}&path={Uri.EscapeDataString(Rel(f, r))}";
 
-// Samlinger entries (Person/Trip/Yearbook) are SmartFolders symlinks pointing
-// back to the real file elsewhere in the library - the generated thumbnails
-// live next to the real file's own folder, not next to the symlink, so this
-// has to resolve first or every collection view silently falls back to
-// full-resolution originals despite thumbnails existing.
+// Samlinger entries (Person/Trip/Yearbook) are SmartFolders' own real copies
+// (never symlinks - see ISmartFoldersService docs), so their thumbnails live
+// in a "thumbnails" folder right next to them, same as everywhere else.
 static string? Thumb(string f, string r, string slug)
 {
-    var real = ResolveIfSymlink(f);
-    var t = Path.Combine(Path.GetDirectoryName(real)!, "thumbnails", Path.GetFileNameWithoutExtension(real) + ".jpg");
+    var t = Path.Combine(Path.GetDirectoryName(f)!, "thumbnails", Path.GetFileNameWithoutExtension(f) + ".jpg");
     return File.Exists(t) ? Web(t, r, slug) : null;
-}
-
-static string ResolveIfSymlink(string path)
-{
-    try
-    {
-        var target = File.ResolveLinkTarget(path, returnFinalTarget: true);
-        return target?.FullName ?? path;
-    }
-    catch
-    {
-        return path;
-    }
 }
 
 // The still and its Live Photo motion clip are exported into separate
@@ -686,7 +769,15 @@ static string? FolderCover(string dir, string r, string slug, int depth = 3)
     var td = Path.Combine(dir, "thumbnails");
     if (Directory.Exists(td))
     {
-        var t = Directory.EnumerateFiles(td, "*.jpg").FirstOrDefault();
+        // Directory.EnumerateFiles has no guaranteed order, and a stray
+        // zero-byte file (e.g. a leftover/failed thumbnail generation) sitting
+        // in this folder could win the pick by pure filesystem-enumeration
+        // luck, rendering as a broken image client-side. Sort for determinism
+        // and skip anything that isn't a real file.
+        var t = Directory.EnumerateFiles(td, "*.jpg")
+            .Where(f => new FileInfo(f).Length > 0)
+            .OrderBy(Path.GetFileName)
+            .FirstOrDefault();
         if (t is not null) return Web(t, r, slug);
     }
 
@@ -763,6 +854,6 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // range, folder/photo counts) is a one-time customer-handoff moment, not
 // something a family member visiting a shared link should see - opt-in per
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled);
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons);
 record LoginRequest(string Gallery, string Password);
-record FolderEntry(string name, string relPath, string? cover);
+record FolderEntry(string name, string relPath, string? cover, int row = 99, string? icon = null);
