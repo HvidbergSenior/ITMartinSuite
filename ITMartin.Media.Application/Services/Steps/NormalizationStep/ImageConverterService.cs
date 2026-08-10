@@ -94,7 +94,7 @@ public class ImageConverterService : IImageConverterService
             Console.WriteLine(
                 "Keeping original");
 
-            return inputPath;
+            return BakeInOwnOrientationIfNeeded(inputPath) ?? inputPath;
         }
 
         if (!NeedsConversion(inputPath))
@@ -102,7 +102,7 @@ public class ImageConverterService : IImageConverterService
             Console.WriteLine(
                 "No conversion needed");
 
-            return inputPath;
+            return BakeInOwnOrientationIfNeeded(inputPath) ?? inputPath;
         }
 
         // =========================
@@ -316,6 +316,49 @@ public class ImageConverterService : IImageConverterService
         {
             throw new Exception(
                 $"FFmpeg failed: {exitCode}");
+        }
+    }
+
+    // Ordinary JPEGs/PNGs pass through untouched today - they keep whatever
+    // EXIF Orientation tag the camera/phone wrote, and nothing downstream
+    // (thumbnails, the gallery viewer) rotates based on it. Bake it into the
+    // pixels here, once, at import time, so every consumer just sees an
+    // upright image. Cheap tag-only read first so the common case (already
+    // orientation 1, i.e. no camera metadata or already upright) costs
+    // nothing - only orientations 2-8 pay for a decode+re-encode.
+    private static string? BakeInOwnOrientationIfNeeded(string inputPath)
+    {
+        try
+        {
+            var exif = ImageMetadataReader.ReadMetadata(inputPath)
+                .OfType<ExifIfd0Directory>()
+                .FirstOrDefault();
+
+            if (exif == null || !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
+                return null;
+
+            var orientation = (ushort)exif.GetInt32(ExifDirectoryBase.TagOrientation);
+            if (orientation <= 1)
+                return null;
+
+            var tempRoot = Path.Combine(Path.GetTempPath(), "ITMartinFileSorter", "images");
+            System.IO.Directory.CreateDirectory(tempRoot);
+
+            var outputPath = Path.Combine(tempRoot, Path.GetFileNameWithoutExtension(inputPath) + Path.GetExtension(inputPath));
+            if (File.Exists(outputPath))
+                return outputPath;
+
+            using var image = Image.Load(inputPath);
+            image.Mutate(x => x.AutoOrient());
+            image.Metadata.ExifProfile?.RemoveValue(ExifTag.Orientation);
+            image.Save(outputPath);
+
+            return outputPath;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AUTO-ROTATE ERROR] {inputPath}: {ex.Message}");
+            return null;
         }
     }
 

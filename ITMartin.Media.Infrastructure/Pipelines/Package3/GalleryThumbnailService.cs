@@ -6,13 +6,19 @@ namespace ITMartin.Media.Infrastructure.Pipelines.Package3;
 
 public sealed class GalleryThumbnailService : IGalleryThumbnailService
 {
+    // SmartFolders content used to be skipped on the assumption its entries
+    // were symlinks back to an already-thumbnailed original - now that
+    // SmartFoldersService always writes real copies (see ISmartFoldersService
+    // docs), that assumption no longer holds, so those files need their own
+    // thumbnails generated too or a video inside a Person/Trip folder never
+    // gets one at all.
     private static readonly HashSet<string> SkippedFolders =
         new(StringComparer.OrdinalIgnoreCase)
         {
             "@eadir", "#recycle", "#snapshot", ".@__thumb",
             "@recently-snapshot", ".synophoto", ".package1", ".package2", ".package3",
             "thumbnails", "working", "enhanced", "manifests", "temp",
-            "SmartFolders", "_Galleri", LibraryPolishService.UnplayableFolderName,
+            "_Galleri", LibraryPolishService.UnplayableFolderName,
         };
 
     private readonly IThumbnailService _thumbnailService;

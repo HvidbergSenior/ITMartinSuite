@@ -1,3 +1,4 @@
+using ITMartin.Ai;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.Media.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 
     builder.Services.AddMediaPlatform(
         builder.Configuration);
+    builder.Services.AddAi();
     builder.Services.AddFileSorterCore();
     builder.Services.AddFileSorterWorker();
   

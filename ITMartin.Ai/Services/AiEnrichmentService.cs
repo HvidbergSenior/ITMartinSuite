@@ -167,6 +167,128 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         return null;
     }
 
+    public async Task<List<UnhandledClassificationItem>> ClassifyUnhandledBatchAsync(
+        List<(Guid Id, string RelativePath)> items,
+        CancellationToken cancellationToken = default)
+    {
+        if (items.Count == 0)
+            return [];
+
+        var prompt = BuildUnhandledPrompt(items);
+
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            try
+            {
+                var request = new MessageCreateParams
+                {
+                    Model = Model.ClaudeHaiku4_5,
+                    MaxTokens = 8192,
+                    System = """
+                        You are a file classification AI.
+                        Return ONLY valid JSON.
+                        Return ONLY a JSON array.
+                        Never skip files.
+                        Never return markdown.
+                        Never explain anything.
+                        """,
+                    Messages =
+                    [
+                        new() { Role = Role.User, Content = prompt }
+                    ]
+                };
+
+                var response = await _client.Messages.Create(request);
+
+                string? text = null;
+                foreach (var block in response.Content)
+                {
+                    if (block.TryPickText(out var tb))
+                    {
+                        text = tb.Text;
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(text))
+                    return [];
+
+                return JsonSerializer.Deserialize<List<UnhandledClassificationItem>>(
+                    StripCodeFence(text),
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "JSON parse error classifying Unhandled batch (attempt {Attempt})", attempt);
+
+                if (attempt == 2)
+                    return [];
+
+                await Task.Delay(2000, cancellationToken);
+            }
+        }
+
+        return [];
+    }
+
+    // Haiku's system prompt says "never return markdown", but it doesn't
+    // always listen - a leading/trailing ```json fence is common enough
+    // that every JSON-response caller here should tolerate it rather than
+    // hard-fail the whole batch on a JsonException.
+    private static string StripCodeFence(string text)
+    {
+        var trimmed = text.Trim();
+
+        if (!trimmed.StartsWith("```"))
+            return trimmed;
+
+        var firstNewline = trimmed.IndexOf('\n');
+        if (firstNewline < 0)
+            return trimmed;
+
+        var withoutOpenFence = trimmed[(firstNewline + 1)..];
+
+        var closingFenceIndex = withoutOpenFence.LastIndexOf("```", StringComparison.Ordinal);
+        return closingFenceIndex >= 0
+            ? withoutOpenFence[..closingFenceIndex].Trim()
+            : withoutOpenFence.Trim();
+    }
+
+    private static string BuildUnhandledPrompt(List<(Guid Id, string RelativePath)> items)
+    {
+        var json = JsonSerializer.Serialize(
+            items.Select(x => new { x.Id, x.RelativePath }),
+            new JsonSerializerOptions { WriteIndented = true });
+
+        return $$"""
+You are classifying files that FileSorter could not recognize by extension -
+these came from a raw folder/backup dump (app caches, browser favorites,
+random system files, but occasionally a real photo/document with a wrong
+or missing extension).
+
+Judge ONLY from the filename and path - no file content is provided.
+
+For each file, return a verdict:
+- "Images" / "Videos" / "Documents" / "Audio" - ONLY if the filename or path
+  strongly implies real personal content of that type (e.g. a path containing
+  "\Documents\..." with a document-like name, or a filename that's clearly a
+  photo despite an odd extension).
+- "DeleteCandidate" - the path/filename clearly indicates application cache,
+  browser data, OS/system files, installers, or other non-personal junk
+  (e.g. AppData, Spotify cache, Favorites, .exe, .dll, .ini, Thumbs.db).
+- "KeepUnhandled" - genuinely unclear, could be personal content worth a
+  human's eyes - when in doubt, use this, not DeleteCandidate.
+
+Return format example:
+[
+  {"id": "00000000-0000-0000-0000-000000000000", "verdict": "DeleteCandidate", "confidence": 0.9}
+]
+
+Files:
+{{json}}
+""";
+    }
+
     public async Task<string> TestAsync()
     {
         var request = new MessageCreateParams

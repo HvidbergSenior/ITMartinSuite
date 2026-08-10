@@ -1,6 +1,7 @@
 using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Pipelines.Package1.Models;
 using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
@@ -92,6 +93,14 @@ public sealed class FileDiscoveryWorkflowStep
                     try
                     {
                         var mediaType = _mediaTypeResolver.Resolve(path);
+
+                        // Not a recognized media/document type (DB table files,
+                        // app config/cache junk swept in from a raw source
+                        // folder, etc.) - still gets carried through to export
+                        // as "Unhandled" (MediaMainCategory.Other) rather than
+                        // silently dropped, so nothing from the source tree
+                        // goes unaccounted for and Package3 has a real place
+                        // to review/reclassify these later.
                         var typeName = mediaType.ToString();
                         categoryCounts[typeName] =
                             categoryCounts.GetValueOrDefault(typeName) + 1;

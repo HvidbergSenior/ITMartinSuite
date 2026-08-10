@@ -28,6 +28,9 @@ public sealed class MetadataWorkflowStep
     private readonly IDocumentMetadataService
         _documentMetadataService;
 
+    private readonly IAudioMetadataService
+        _audioMetadataService;
+
     private readonly IGpsService
         _gpsService;
 
@@ -40,6 +43,7 @@ public sealed class MetadataWorkflowStep
         IImageMetadataService imageMetadataService,
         IVideoMetadataService videoMetadataService,
         IDocumentMetadataService documentMetadataService,
+        IAudioMetadataService audioMetadataService,
         IGpsService gpsService,
         IWorkflowInstanceStore workflowInstanceStore)
     {
@@ -57,6 +61,9 @@ public sealed class MetadataWorkflowStep
 
         _documentMetadataService =
             documentMetadataService;
+
+        _audioMetadataService =
+            audioMetadataService;
 
         _gpsService =
             gpsService;
@@ -155,6 +162,34 @@ public sealed class MetadataWorkflowStep
                             file.Height =
                                 dimensions.Value.Height;
                         }
+                    }
+
+                    if (MediaTypeHelper.IsAudio(file.FullPath))
+                    {
+                        file.Artist =
+                            _audioMetadataService.GetArtist(file.FullPath);
+
+                        file.Title =
+                            _audioMetadataService.GetTitle(file.FullPath);
+
+                        file.TrackNumber =
+                            _audioMetadataService.GetTrackNumber(file.FullPath);
+
+                        file.Duration =
+                            _audioMetadataService.GetDuration(file.FullPath);
+
+                        // A ripped CD's tracks are usually already sitting in a
+                        // folder named after the album even when the ID3 Album
+                        // tag itself is blank - falling back to that keeps the
+                        // Musik/{Artist}/{Album} export from scattering an
+                        // otherwise-related set of tracks into "Ukendt album".
+                        var album =
+                            _audioMetadataService.GetAlbum(file.FullPath);
+
+                        file.Album =
+                            string.IsNullOrWhiteSpace(album)
+                                ? Path.GetFileName(Path.GetDirectoryName(file.FullPath))
+                                : album;
                     }
 
                     await Task.CompletedTask;

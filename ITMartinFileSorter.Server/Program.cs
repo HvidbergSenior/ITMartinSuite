@@ -245,6 +245,44 @@ app.MapGet("/api/debug/p3-status", async (string path, ITMartin.Media.Contracts.
     return Results.Ok(status);
 });
 
+// TEMP DEBUG - onboarding a new tenant's unnamed people, removed after
+app.MapGet("/api/debug/p3-discover-clusters", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    var clusters = await service.DiscoverUnnamedPeopleAsync(path);
+
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var singleFaceFiles = (await db.MediaFaces
+            .GroupBy(f => f.MediaFilePath)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .Where(g => g.Count == 1)
+            .Select(g => g.Key)
+            .ToListAsync())
+        .ToHashSet();
+
+    var result = clusters.Select((c, i) => new
+    {
+        clusterIndex = i,
+        fileCount = c.MediaFilePaths.Count,
+        singleFaceSamples = c.MediaFilePaths.Where(singleFaceFiles.Contains).Take(5).ToList(),
+        fallbackSample = c.SampleMediaFilePath,
+        allFiles = c.MediaFilePaths
+    });
+
+    return Results.Ok(result);
+});
+
+app.MapPost("/api/debug/p3-name-cluster", async (string path, string name, List<string> clusterMediaFilePaths, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+{
+    var personId = await service.NamePersonFromClusterAsync(name, clusterMediaFilePaths, path);
+    return Results.Ok(new { personId });
+});
+
+app.MapPost("/api/debug/test-auto-rotate", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Workflows.IImageConverterService service) =>
+{
+    var result = await service.ConvertToJpgAsync(path);
+    return Results.Ok(new { outputPath = result });
+});
+
 // TEMP DEBUG - SmartFolders (trip/location + person + yearbook), removed after
 app.MapPost("/api/debug/sf-trips", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.GenerateTripFoldersAsync(path)));
@@ -278,8 +316,23 @@ app.MapPost("/api/debug/sf-add-person", async (string path, string name, string 
     return Results.Ok(new { personId });
 });
 
-app.MapPost("/api/debug/sf-person", async (string path, Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
-    Results.Ok(await service.GeneratePersonFolderAsync(path, personId)));
+app.MapPost("/api/debug/sf-person", async (string path, Guid personId, double? threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.GeneratePersonFolderAsync(path, personId, threshold ?? 0.45)));
+
+app.MapGet("/api/debug/p3-find-matches-count", async (Guid personId, double threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+{
+    var matches = await service.FindMatchesAsync(personId, threshold);
+    return Results.Ok(new { count = matches.Count });
+});
+
+app.MapPost("/api/debug/p3-classify-unhandled", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+    Results.Ok(await service.ClassifyUnhandledFilesAsync(path, maxFiles ?? 5000)));
+
+app.MapPost("/api/debug/sf-delete-person", async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+{
+    await service.DeletePersonAsync(personId);
+    return Results.Ok("deleted");
+});
 
 app.MapPost("/api/debug/sf-yearbook", async (string path, int year, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.GenerateYearbookAsync(path, year)));
@@ -314,6 +367,16 @@ app.MapGet("/api/debug/mediafaces-paths", async (string like, Microsoft.EntityFr
     var rows = await db.MediaFaces
         .Where(x => x.MediaFilePath.Contains(like))
         .Select(x => x.MediaFilePath)
+        .ToListAsync();
+    return Results.Ok(rows);
+});
+
+app.MapGet("/api/debug/mediafaces-detail", async (string like, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var rows = await db.MediaFaces
+        .Where(x => x.MediaFilePath.Contains(like))
+        .Select(x => new { x.MediaFilePath, EmbeddingLength = x.EmbeddingJson.Length, x.MatchedPersonId, x.Confidence })
         .ToListAsync();
     return Results.Ok(rows);
 });

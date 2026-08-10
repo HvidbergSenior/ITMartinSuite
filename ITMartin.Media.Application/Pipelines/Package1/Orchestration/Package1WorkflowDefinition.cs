@@ -21,6 +21,7 @@ public sealed class Package1WorkflowDefinition
         HashWorkflowStep hashWorkflowStep,
         MetadataWorkflowStep metadataWorkflowStep,
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
+        AudioDuplicateDetectionWorkflowStep audioDuplicateDetectionWorkflowStep,
         ImageNormalizationWorkflowStep imageNormalizationWorkflowStep,
         VideoNormalizationWorkflowStep videoNormalizationWorkflowStep,
         VideoSegmentationWorkflowStep videoSegmentationWorkflowStep,
@@ -29,7 +30,8 @@ public sealed class Package1WorkflowDefinition
         AiClassificationWorkflowStep aiClassificationWorkflowStep,
         Manifest1BuildWorkflowStep manifest1BuildWorkflowStep,
         ExportWorkflowExecutionStep exportWorkflowExecutionStep,
-        ThumbnailWorkflowStep thumbnailWorkflowStep)
+        ThumbnailWorkflowStep thumbnailWorkflowStep,
+        GalleryThumbnailWorkflowStep galleryThumbnailWorkflowStep)
     {
         Steps =
         [
@@ -47,6 +49,8 @@ public sealed class Package1WorkflowDefinition
 
             duplicateDetectionWorkflowStep,
 
+            audioDuplicateDetectionWorkflowStep,
+
             imageNormalizationWorkflowStep,
 
             videoNormalizationWorkflowStep,
@@ -61,7 +65,12 @@ public sealed class Package1WorkflowDefinition
 
             manifest1BuildWorkflowStep,
 
-            exportWorkflowExecutionStep
+            exportWorkflowExecutionStep,
+
+            // Runs against the final exported library, unlike the unused
+            // thumbnailWorkflowStep above (which operates on source paths,
+            // before export - the wrong stage, hence never enabled).
+            galleryThumbnailWorkflowStep
 
             //thumbnailWorkflowStep
         ];

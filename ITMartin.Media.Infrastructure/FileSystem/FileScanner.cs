@@ -1,4 +1,5 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+﻿using System.IO.Compression;
+using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Infrastructure.Media;
@@ -39,6 +40,17 @@ public sealed class FileScanner : IFileScanner
     {
         foreach (var file in Directory.EnumerateFiles(directory))
         {
+            // Raw source folders sometimes contain photo/document exports as
+            // zips (iCloud exports, phone backups, etc.). Extract in place so
+            // the contents flow through normal discovery/classification; the
+            // extracted sibling folder is picked up by the directory walk
+            // below. On extraction failure, fall through and yield the zip
+            // itself so it still lands in Unhandled rather than disappearing.
+            if (IsZipArchive(file) && TryEnsureZipExtracted(file, out _))
+            {
+                continue;
+            }
+
             yield return file;
         }
 
@@ -57,6 +69,36 @@ public sealed class FileScanner : IFileScanner
             {
                 yield return file;
             }
+        }
+    }
+
+    private static bool IsZipArchive(string path) =>
+        string.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryEnsureZipExtracted(string zipPath, out string extractedDir)
+    {
+        extractedDir = Path.Combine(
+            Path.GetDirectoryName(zipPath) ?? string.Empty,
+            Path.GetFileNameWithoutExtension(zipPath) + "_extracted");
+
+        if (Directory.Exists(extractedDir))
+        {
+            return true;
+        }
+
+        try
+        {
+            ZipFile.ExtractToDirectory(zipPath, extractedDir);
+            return true;
+        }
+        catch
+        {
+            if (Directory.Exists(extractedDir))
+            {
+                Directory.Delete(extractedDir, recursive: true);
+            }
+
+            return false;
         }
     }
     public MediaFile? ProcessFile(

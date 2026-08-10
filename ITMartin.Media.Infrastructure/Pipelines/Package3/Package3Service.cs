@@ -33,6 +33,7 @@ public sealed class Package3Service : IPackage3Service
     private readonly IThumbnailService _thumbnailService;
     private readonly ICollectionStore _collectionStore;
     private readonly IGpsService _gpsService;
+    private readonly IAiEnrichmentService _aiEnrichmentService;
     private readonly ILogger<Package3Service> _logger;
 
     public Package3Service(
@@ -41,6 +42,7 @@ public sealed class Package3Service : IPackage3Service
         IThumbnailService thumbnailService,
         ICollectionStore collectionStore,
         IGpsService gpsService,
+        IAiEnrichmentService aiEnrichmentService,
         ILogger<Package3Service> logger)
     {
         _dbFactory = dbFactory;
@@ -48,6 +50,7 @@ public sealed class Package3Service : IPackage3Service
         _thumbnailService = thumbnailService;
         _collectionStore = collectionStore;
         _gpsService = gpsService;
+        _aiEnrichmentService = aiEnrichmentService;
         _logger = logger;
     }
 
@@ -699,6 +702,118 @@ public sealed class Package3Service : IPackage3Service
             MovedByGpsMatch = movedByGps,
             StillUndated = stillUndated.Count,
         };
+    }
+
+    // Text-only (filename/path) - no image bytes sent - so a large batch size
+    // here is still cheap. MaxFiles is a hard ceiling per run (CLAUDE.md AI
+    // cost discipline): an unexpectedly huge Unhandled folder gets truncated
+    // rather than burning an unbounded number of API calls; already-processed
+    // files (moved out of Unhandled) are naturally skipped on the next run.
+    public async Task<UnhandledClassificationResult> ClassifyUnhandledFilesAsync(
+        string libraryPath,
+        int maxFiles = 5000,
+        CancellationToken cancellationToken = default)
+    {
+        const int batchSize = 100;
+
+        var unhandledRoot = Path.Combine(libraryPath, "Unhandled");
+        if (!Directory.Exists(unhandledRoot))
+            return new UnhandledClassificationResult();
+
+        var allFiles = Directory.EnumerateFiles(unhandledRoot, "*", SearchOption.AllDirectories).ToList();
+        var skippedOverCap = Math.Max(0, allFiles.Count - maxFiles);
+        var files = allFiles.Take(maxFiles).ToList();
+
+        var reclassified = 0;
+        var deleted = 0;
+        var stillUnhandled = 0;
+
+        foreach (var chunk in files.Chunk(batchSize))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var idToPath = chunk.ToDictionary(_ => Guid.NewGuid(), p => p);
+            var items = idToPath.Select(kv => (kv.Key, Path.GetRelativePath(unhandledRoot, kv.Value))).ToList();
+
+            List<UnhandledClassificationItem> results;
+            try
+            {
+                results = await _aiEnrichmentService.ClassifyUnhandledBatchAsync(items, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Unhandled classification batch failed - leaving these files in place");
+                stillUnhandled += chunk.Length;
+                continue;
+            }
+
+            var resultById = results.ToDictionary(r => r.Id);
+
+            foreach (var (id, path) in idToPath)
+            {
+                if (!resultById.TryGetValue(id, out var verdict) || verdict.Confidence < 0.6)
+                {
+                    stillUnhandled++;
+                    continue;
+                }
+
+                var destRoot = verdict.Verdict switch
+                {
+                    "Images" or "Videos" or "Documents" or "Audio" =>
+                        Path.Combine(libraryPath, verdict.Verdict, "FromUnhandled"),
+                    "DeleteCandidate" =>
+                        Path.Combine(libraryPath, "DeleteCandidates"),
+                    _ => null
+                };
+
+                if (destRoot is null)
+                {
+                    stillUnhandled++;
+                    continue;
+                }
+
+                if (TryMoveFile(path, destRoot))
+                {
+                    if (verdict.Verdict == "DeleteCandidate") deleted++;
+                    else reclassified++;
+                }
+                else
+                {
+                    stillUnhandled++;
+                }
+            }
+
+            await Task.Delay(1000, cancellationToken);
+        }
+
+        return new UnhandledClassificationResult
+        {
+            Reclassified = reclassified,
+            MarkedForDeletion = deleted,
+            StillUnhandled = stillUnhandled,
+            SkippedOverCap = skippedOverCap
+        };
+    }
+
+    private static bool TryMoveFile(string sourcePath, string destDir)
+    {
+        try
+        {
+            Directory.CreateDirectory(destDir);
+            var dest = Path.Combine(destDir, Path.GetFileName(sourcePath));
+            var i = 1;
+            while (File.Exists(dest))
+            {
+                dest = Path.Combine(destDir, $"{Path.GetFileNameWithoutExtension(sourcePath)}_{i}{Path.GetExtension(sourcePath)}");
+                i++;
+            }
+            File.Move(sourcePath, dest);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // Undated files sit flat at Undated/{category}/{filename} (no year/month

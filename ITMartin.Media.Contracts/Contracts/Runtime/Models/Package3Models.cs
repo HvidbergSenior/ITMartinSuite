@@ -52,3 +52,26 @@ public sealed class UndatedEstimationResult
     public int MovedByGpsMatch { get; init; }
     public int StillUndated { get; init; }
 }
+
+/// <summary>One AI-classified verdict for a single Unhandled file.</summary>
+public sealed class UnhandledClassificationItem
+{
+    public Guid Id { get; init; }
+
+    /// <summary>"Images" | "Videos" | "Documents" | "Audio" | "DeleteCandidate" | "KeepUnhandled".</summary>
+    public required string Verdict { get; init; }
+
+    public double Confidence { get; init; }
+}
+
+/// <summary>
+/// Result of running AI classification over the Unhandled folder - text-only
+/// (filenames/paths), no image bytes, so this is cheap even at scale.
+/// </summary>
+public sealed class UnhandledClassificationResult
+{
+    public int Reclassified { get; init; }
+    public int MarkedForDeletion { get; init; }
+    public int StillUnhandled { get; init; }
+    public int SkippedOverCap { get; init; }
+}

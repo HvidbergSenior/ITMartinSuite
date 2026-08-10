@@ -97,6 +97,10 @@ public static class InfrastructureDependencyInjection
             DocumentMetadataService>();
 
         services.AddScoped<
+            IAudioMetadataService,
+            AudioMetadataService>();
+
+        services.AddScoped<
             IAiEnrichmentService,
             AiEnrichmentService>();
 

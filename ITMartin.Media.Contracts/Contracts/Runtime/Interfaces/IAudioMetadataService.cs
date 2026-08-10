@@ -16,4 +16,11 @@ public interface IAudioMetadataService
 
     int? GetYear(
         string path);
+
+    int? GetTrackNumber(
+        string path);
+
+    // Embedded album art (ID3 APIC frame / MP4 covr atom), if present.
+    byte[]? GetCoverArt(
+        string path);
 }

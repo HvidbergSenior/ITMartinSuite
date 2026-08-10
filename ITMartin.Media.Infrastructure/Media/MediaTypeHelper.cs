@@ -51,6 +51,13 @@ public static class MediaTypeHelper
             ".pdf",
             ".doc",
             ".docx",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx",
+            ".odt",
+            ".rtf",
+            ".oxps",
             ".txt",
             ".ifo",
             ".bup"
@@ -119,7 +126,10 @@ public static class MediaTypeHelper
             return MediaType.Document;
         }
 
-        return MediaType.Image;
+        // Genuinely unrecognized (DB table files, app config/cache junk, etc.)
+        // - must NOT silently fall back to Image, or technical clutter from a
+        // raw source folder ends up masquerading as photos in the export.
+        return MediaType.Unknown;
     }
 
     private static string GetExtension(

@@ -64,7 +64,7 @@
                     MediaMainCategory.Image,
 
                 _ =>
-                    MediaMainCategory.Image
+                    MediaMainCategory.Other
             };
 
         public MediaSubCategory
@@ -183,7 +183,7 @@
                     MediaSubCategory.UnknownImage,
 
                 _ =>
-                    MediaSubCategory.UnknownImage
+                    MediaSubCategory.UnknownOther
             };
 
             if (createdAt != null)

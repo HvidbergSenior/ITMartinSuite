@@ -104,13 +104,13 @@ public sealed class SmartFoldersService : ISmartFoldersService
             _anthropicClient = new AnthropicClient { ApiKey = apiKey };
     }
 
-    public async Task<PersonFolderResult?> GeneratePersonFolderAsync(string libraryPath, Guid personId, CancellationToken cancellationToken = default)
+    public async Task<PersonFolderResult?> GeneratePersonFolderAsync(string libraryPath, Guid personId, double threshold = 0.45, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var person = await db.People.FindAsync([personId], cancellationToken);
         if (person is null) return null;
 
-        var matches = await _package3.FindMatchesAsync(personId);
+        var matches = await _package3.FindMatchesAsync(personId, threshold);
         var filePaths = matches.Select(m => m.MediaFilePath).ToList();
         if (filePaths.Count == 0) return null;
 
@@ -740,7 +740,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
         // library gets synced to wherever it's actually served (the NAS) -
         // an absolute local path silently breaks every file lookup once that
         // happens. Gallery.Server resolves these relative to its own root.
-        void AddCollection(string name, string folder)
+        void AddCollection(string name, string folder, string type)
         {
             if (!Directory.Exists(folder)) return;
             // index.html/captions.json/decided.json are this folder's own
@@ -750,47 +750,54 @@ public sealed class SmartFoldersService : ISmartFoldersService
                 .Select(f => Path.GetRelativePath(libraryPath, f))
                 .ToList();
             if (files.Count == 0) return;
-            collections.Add(new MediaCollection { Name = name, FilePaths = files });
+            collections.Add(new MediaCollection { Name = name, Type = type, FilePaths = files });
         }
 
         // Home/Away is a coarse yes/no split, not something worth a customer's
         // attention as a "look what we found" example - a couple of real Trips
         // (each a specific place + date range) demonstrate the same underlying
-        // detection in a way that's actually interesting to browse. Capped so a
-        // library with dozens of detected trips doesn't turn "an example" into
-        // a wall of cards.
+        // detection in a way that's actually interesting to browse.
         //
         // Away-from-home clustering fires on every gap, not just real vacations -
         // a library can end up with a couple of real trips abroad alongside dozens
-        // of near-noise "Danmark ..." weekend clusters. Prefer trips whose name
-        // isn't a bare "Danmark ..."/"Rejse ..." fallback (i.e. a named country
-        // GuessCountry actually resolved), then the largest of those, so the
-        // example is an actual vacation rather than an arbitrary weekend.
-        const int maxTripCollections = 5;
+        // of near-noise "Danmark ..." weekend clusters (IsNamedTrip filters those
+        // out) - and the same country can be visited across several different
+        // years, each becoming its own dated cluster. Only the single best trip
+        // per country is shown, named "{Land} {År}" - one country revisited three
+        // times shouldn't turn "an example" into three near-identical cards.
         var tripsRoot = Path.Combine(smartFoldersRoot, "Trips");
         if (Directory.Exists(tripsRoot))
         {
-            // Select the biggest/most-real vacations (so the example is an
-            // actual trip, not an arbitrary weekend), but then display them
-            // smallest-first - a quick "oh, a weekend away" before the bigger
-            // "USA 2015" reveal reads better than leading with the biggest.
-            var chosenTrips = Directory.EnumerateDirectories(tripsRoot)
-                .Select(d => (Dir: d, Name: Path.GetFileName(d), FileCount: Directory.EnumerateFiles(d).Count()))
-                .Where(t => t.FileCount > 0)
-                .OrderByDescending(t => IsNamedTrip(t.Name))
-                .ThenByDescending(t => t.FileCount)
-                .Take(maxTripCollections)
-                .OrderBy(t => t.FileCount);
+            var tripYearPattern = new System.Text.RegularExpressions.Regex(@"^(.+?)\s+(\d{4})");
 
-            foreach (var trip in chosenTrips)
-                AddCollection(trip.Name, trip.Dir);
+            // Display smallest-first - a quick "oh, a weekend away" before the
+            // bigger "USA 2015" reveal reads better than leading with the biggest.
+            var bestPerCountry = Directory.EnumerateDirectories(tripsRoot)
+                .Select(d => (Dir: d, Name: Path.GetFileName(d), FileCount: Directory.EnumerateFiles(d).Count()))
+                .Where(t => t.FileCount > 0 && IsNamedTrip(t.Name))
+                .Select(t =>
+                {
+                    var m = tripYearPattern.Match(t.Name);
+                    // Drop any "(1. October)" date-suffix - the collection is
+                    // named for the country + year only, not the specific cluster.
+                    var country = m.Success ? m.Groups[1].Value : t.Name;
+                    var canonicalName = m.Success ? $"{m.Groups[1].Value} {m.Groups[2].Value}" : t.Name;
+                    return (t.Dir, t.FileCount, Country: country, CanonicalName: canonicalName);
+                })
+                .GroupBy(t => t.Country, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.OrderByDescending(t => t.FileCount).First())
+                .OrderBy(t => t.FileCount)
+                .ToList();
+
+            foreach (var trip in bestPerCountry)
+                AddCollection(trip.CanonicalName, trip.Dir, "Trip");
         }
 
         var peopleRoot = Path.Combine(smartFoldersRoot, "People");
         if (Directory.Exists(peopleRoot))
         {
             foreach (var personDir in Directory.EnumerateDirectories(peopleRoot))
-                AddCollection(Path.GetFileName(personDir), personDir);
+                AddCollection(Path.GetFileName(personDir), personDir, "Person");
         }
 
         // One collection per year, not one giant merged "Årbøger" bucket -
@@ -808,11 +815,11 @@ public sealed class SmartFoldersService : ISmartFoldersService
                     .Select(f => Path.GetRelativePath(libraryPath, f))
                     .ToList();
                 if (yearFiles.Count > 0)
-                    collections.Add(new MediaCollection { Name = $"Årbog {year}", FilePaths = yearFiles });
+                    collections.Add(new MediaCollection { Name = $"Årbog {year}", Type = "Yearbook", FilePaths = yearFiles });
             }
         }
 
-        AddCollection("Bedste billede", Path.Combine(smartFoldersRoot, "BedsteBillede"));
+        AddCollection("Bedste billede", Path.Combine(smartFoldersRoot, "BedsteBillede"), "BestShot");
 
         // One collection per tradition per year (e.g. "Jul 2023", "Jul 2024")
         // so they sit side by side for an easy year-over-year comparison, same
@@ -824,7 +831,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
             {
                 var name = Path.GetFileName(traditionDir);
                 foreach (var yearDir in Directory.EnumerateDirectories(traditionDir).OrderBy(Path.GetFileName))
-                    AddCollection($"{name} {Path.GetFileName(yearDir)}", yearDir);
+                    AddCollection($"{name} {Path.GetFileName(yearDir)}", yearDir, "Tradition");
             }
         }
 

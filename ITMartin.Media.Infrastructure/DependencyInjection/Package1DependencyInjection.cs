@@ -78,6 +78,9 @@ public static class Package1DependencyInjection
             DuplicateDetectionWorkflowStep>();
 
         services.AddScoped<
+            AudioDuplicateDetectionWorkflowStep>();
+
+        services.AddScoped<
             CleanupEvaluationWorkflowStep>();
 
         services.AddScoped<
@@ -88,6 +91,9 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             ExportWorkflowExecutionStep>();
+
+        services.AddScoped<
+            GalleryThumbnailWorkflowStep>();
         services.AddScoped<
             IBackgroundJobHandler,
             StartPackage1Handler>();

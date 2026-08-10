@@ -35,7 +35,10 @@
         Social,
         Meme,
         OtherImage,
-        UnknownImage
+        UnknownImage,
+
+        // ---------- UNHANDLED (unrecognized file type) ----------
+        UnknownOther
     }
 
 }

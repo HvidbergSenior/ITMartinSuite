@@ -21,7 +21,7 @@ public interface ISmartFoldersService
     /// IPackage3Service's face matching). Returns null if the person has no
     /// reference photos or no matches were found.
     /// </summary>
-    Task<PersonFolderResult?> GeneratePersonFolderAsync(string libraryPath, Guid personId, CancellationToken cancellationToken = default);
+    Task<PersonFolderResult?> GeneratePersonFolderAsync(string libraryPath, Guid personId, double threshold = 0.45, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Builds a lightweight "year in review" - a folder with a representative

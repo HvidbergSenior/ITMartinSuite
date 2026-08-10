@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.Processing;
 
@@ -340,10 +341,10 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
         foreach (var path in paths)
         {
-            var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
+            var resized = await ResizeForRotationCheckAsync(path, cancellationToken);
             content.Add(new ImageBlockParam
             {
-                Source = new Base64ImageSource { Data = Convert.ToBase64String(bytes), MediaType = GetMimeType(path) },
+                Source = new Base64ImageSource { Data = Convert.ToBase64String(resized), MediaType = "image/jpeg" },
             });
         }
 
@@ -384,6 +385,31 @@ public sealed class LibraryPolishService : ILibraryPolishService
         return result;
     }
 
+    // Claude vision doesn't need full resolution to judge sideways/upside-down
+    // - camera originals here run 2-3MB+ each, and 8 of them in one batch (see
+    // RotationBatchSize) was hitting Anthropic's request-size limit outright
+    // (RequestEntityTooLarge), silently leaving every affected batch
+    // unresolved forever (retried every run, never succeeding). Downscaling
+    // well under Anthropic's own resize threshold fixes that and cuts image
+    // tokens - cost, not just reliability - with no loss of judgment accuracy
+    // for a task this coarse (0/90/180/270).
+    private static async Task<byte[]> ResizeForRotationCheckAsync(string path, CancellationToken cancellationToken)
+    {
+        const int MaxDimension = 768;
+        using var image = await Image.LoadAsync(path, cancellationToken);
+        if (image.Width > MaxDimension || image.Height > MaxDimension)
+        {
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(MaxDimension, MaxDimension),
+            }));
+        }
+        using var ms = new MemoryStream();
+        await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 80 }, cancellationToken);
+        return ms.ToArray();
+    }
+
     private IEnumerable<string> EnumerateImagesForRotationCheck(string directory, CancellationToken cancellationToken)
     {
         foreach (var file in Directory.EnumerateFiles(directory))
@@ -408,14 +434,6 @@ public sealed class LibraryPolishService : ILibraryPolishService
         return Convert.ToHexString(SHA256.HashData(stream));
     }
 
-    private static string GetMimeType(string filePath) =>
-        Path.GetExtension(filePath).ToLowerInvariant() switch
-        {
-            ".png" => "image/png",
-            ".webp" => "image/webp",
-            ".gif" => "image/gif",
-            _ => "image/jpeg"
-        };
 
     private static HashSet<string> LoadStringSet(string path)
     {

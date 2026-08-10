@@ -13,7 +13,8 @@ public static class CategoryHelper
             MediaMainCategory.Image => "Images",
             MediaMainCategory.Video => "Videos",
             MediaMainCategory.Document => "Documents",
-            MediaMainCategory.Audio => "Audio",
-            _ => "Other"
+            MediaMainCategory.Audio => "Musik",
+            MediaMainCategory.Other => "Unhandled",
+            _ => "Unhandled"
         };
 }

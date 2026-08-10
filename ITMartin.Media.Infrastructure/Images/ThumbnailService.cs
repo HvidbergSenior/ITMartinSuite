@@ -133,6 +133,27 @@ public sealed class ThumbnailService
             string outputPath,
             CancellationToken cancellationToken)
     {
+        // Seeking 5s in fails outright on clips shorter than that (common for
+        // older phones/cameras with brief clips) - ffmpeg finds no packets
+        // past end-of-stream and writes nothing. Retry at the very first
+        // frame, which exists for any video with at least one frame.
+        try
+        {
+            await RunFfmpegThumbnailAsync(inputPath, outputPath, "00:00:05", cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            await RunFfmpegThumbnailAsync(inputPath, outputPath, "00:00:00", cancellationToken);
+        }
+    }
+
+    private async Task
+        RunFfmpegThumbnailAsync(
+            string inputPath,
+            string outputPath,
+            string seekTo,
+            CancellationToken cancellationToken)
+    {
         var bundledPath =
             Path.Combine(
                 AppContext.BaseDirectory,
@@ -159,7 +180,7 @@ public sealed class ThumbnailService
             ffmpegPath;
 
         process.StartInfo.Arguments =
-            $"-y -ss 00:00:05 -i \"{inputPath}\" -vframes 1 -vf scale=320:-1 \"{outputPath}\"";
+            $"-y -ss {seekTo} -i \"{inputPath}\" -vframes 1 -vf scale=320:-1 \"{outputPath}\"";
 
         process.StartInfo.CreateNoWindow =
             true;
@@ -174,8 +195,8 @@ public sealed class ThumbnailService
             true;
 
         _logger.LogInformation(
-            "Starting ffmpeg thumbnail generation for {File}",
-            inputPath);
+            "Starting ffmpeg thumbnail generation for {File} (seek {SeekTo})",
+            inputPath, seekTo);
 
         process.Start();
 
@@ -200,7 +221,7 @@ public sealed class ThumbnailService
             "Completed ffmpeg thumbnail generation for {File}",
             inputPath);
 
-        if (process.ExitCode != 0)
+        if (process.ExitCode != 0 || !File.Exists(outputPath))
         {
             throw new InvalidOperationException(
                 $"ffmpeg thumbnail generation failed.\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}");

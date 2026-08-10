@@ -1,5 +1,6 @@
 ﻿using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
+using System.Linq;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using Microsoft.Extensions.Logging;
@@ -11,13 +12,17 @@ public class LibraryExportService
 {
     private readonly IMediaNamingService
         _mediaNamingService;
+    private readonly IAudioMetadataService
+        _audioMetadataService;
     private readonly ILogger<LibraryExportService>
         _logger;
     public LibraryExportService(
-        IMediaNamingService mediaNamingService, ILogger<LibraryExportService> logger)
+        IMediaNamingService mediaNamingService, IAudioMetadataService audioMetadataService, ILogger<LibraryExportService> logger)
     {
         _mediaNamingService =
             mediaNamingService;
+        _audioMetadataService =
+            audioMetadataService;
         _logger = logger;
     }
 
@@ -55,6 +60,22 @@ public class LibraryExportService
                     CategoryHelper
                         .GetCategory(file);
 
+                // Music has no meaningful "date taken" the way photos do (ID3
+                // Year is release year, not acquisition date), so it always
+                // gets an Artist/Album folder instead of being routed through
+                // the year/month or Undated logic below.
+                var isMusic =
+                    category == "Musik";
+
+                var musicSubPath =
+                    isMusic
+                        ? Path.Combine(
+                            SanitizeFolderName(
+                                string.IsNullOrWhiteSpace(file.Artist) ? "Ukendt kunstner" : file.Artist),
+                            SanitizeFolderName(
+                                string.IsNullOrWhiteSpace(file.Album) ? "Ukendt album" : file.Album))
+                        : null;
+
                 // SAFER DATE HANDLING
 
                 var safeMonth =
@@ -76,27 +97,31 @@ public class LibraryExportService
 
                 var targetDir =
                     file.ExportSubFolder == "Duplicates"
-                        ? Path.Combine(
-                            root,
-                            "Duplicates",
-                            category,
-                            safeYear.ToString(),
-                            monthFolder)
+                        ? musicSubPath is not null
+                            ? Path.Combine(root, "Duplicates", category, musicSubPath)
+                            : Path.Combine(
+                                root,
+                                "Duplicates",
+                                category,
+                                safeYear.ToString(),
+                                monthFolder)
                         : file.ExportSubFolder == "DeleteCandidates"
                             ? Path.Combine(
                                 root,
                                 "DeleteCandidates",
                                 category)
-                            : !file.IsDateReliable
-                                ? Path.Combine(
-                                    root,
-                                    "Undated",
-                                    category)
-                                : Path.Combine(
-                                    root,
-                                    category,
-                                    safeYear.ToString(),
-                                    monthFolder);
+                            : musicSubPath is not null
+                                ? Path.Combine(root, category, musicSubPath)
+                                : !file.IsDateReliable
+                                    ? Path.Combine(
+                                        root,
+                                        "Undated",
+                                        category)
+                                    : Path.Combine(
+                                        root,
+                                        category,
+                                        safeYear.ToString(),
+                                        monthFolder);
 
                 Directory.CreateDirectory(
                     targetDir);
@@ -123,8 +148,10 @@ public class LibraryExportService
                 // =========================
 
                 var safeFileName =
-                    _mediaNamingService
-                        .BuildFileName(file);
+                    isMusic && file.TrackNumber is > 0 && !string.IsNullOrWhiteSpace(file.Title)
+                        ? $"{file.TrackNumber:00} - {SanitizeFolderName(file.Title!)}{Path.GetExtension(file.FullPath).ToLowerInvariant()}"
+                        : _mediaNamingService
+                            .BuildFileName(file);
 
                 var targetPath =
                     Path.Combine(
@@ -146,6 +173,28 @@ public class LibraryExportService
                     await CopyFileAsync(
                         sourcePath,
                         targetPath);
+                }
+
+                // One cover.jpg per album folder, pulled from whichever track
+                // happens to carry embedded artwork - not every track in an
+                // album has it, so this isn't limited to the first file copied.
+                if (isMusic && file.ExportSubFolder is not ("Duplicates" or "DeleteCandidates"))
+                {
+                    var coverPath =
+                        Path.Combine(targetDir, "cover.jpg");
+
+                    if (!File.Exists(coverPath))
+                    {
+                        var coverBytes =
+                            _audioMetadataService.GetCoverArt(sourcePath);
+
+                        if (coverBytes is { Length: > 0 })
+                        {
+                            await File.WriteAllBytesAsync(
+                                coverPath,
+                                coverBytes);
+                        }
+                    }
                 }
 
                 // =========================
@@ -189,6 +238,20 @@ public class LibraryExportService
         }
     }
 
+    private static string SanitizeFolderName(
+        string name)
+    {
+        var invalid =
+            Path.GetInvalidFileNameChars();
+
+        var cleaned =
+            new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray())
+                .Trim()
+                .TrimEnd('.');
+
+        return string.IsNullOrWhiteSpace(cleaned) ? "Ukendt" : cleaned;
+    }
+
     private static void EnsureBaseFolders(
         string exportRoot)
     {
@@ -198,13 +261,14 @@ public class LibraryExportService
                 "Images",
                 "Videos",
                 "Documents",
-                "Audio",
+                "Musik",
                 "Memes",
                 "Screenshots",
                 "LivePhotos",
                 "DeleteCandidates",
                 "Duplicates",
-                "Undated"
+                "Undated",
+                "Unhandled"
             };
 
         foreach (var folder in baseFolders)

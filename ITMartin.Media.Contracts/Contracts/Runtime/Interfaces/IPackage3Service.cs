@@ -63,4 +63,17 @@ public interface IPackage3Service
         double faceThreshold = 0.5,
         double gpsToleranceMeters = 500,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Text-only (filename/path, no image bytes) AI pass over the Unhandled
+    /// folder - files FileSorter couldn't recognize by extension. Moves
+    /// confident real-content matches into their real category, obvious junk
+    /// into DeleteCandidates, and leaves genuinely unclear files in place.
+    /// maxFiles is a hard per-run cap (cost discipline) - already-moved files
+    /// are naturally skipped on a re-run.
+    /// </summary>
+    Task<UnhandledClassificationResult> ClassifyUnhandledFilesAsync(
+        string libraryPath,
+        int maxFiles = 5000,
+        CancellationToken cancellationToken = default);
 }
