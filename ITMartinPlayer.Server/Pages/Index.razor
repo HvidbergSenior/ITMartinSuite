@@ -1,0 +1,76 @@
+@page "/"
+@rendermode InteractiveServer
+@using ITMartinPlayer.Server.Services
+@inject MusicLibraryService Library
+
+<h1 style="margin-top:.2rem">Bibliotek</h1>
+
+<div style="display:flex;gap:.5rem;margin-bottom:.8rem">
+    <button class="ka-btn-ghost" style="width:auto;margin:0;padding:.4rem 1rem;@(_view == "albums" ? $"border-color:var(--accent);color:var(--accent)" : "")" @onclick='() => _view = "albums"'>Album</button>
+    <button class="ka-btn-ghost" style="width:auto;margin:0;padding:.4rem 1rem;@(_view == "artists" ? $"border-color:var(--accent);color:var(--accent)" : "")" @onclick='() => _view = "artists"'>Kunstner</button>
+</div>
+
+<input class="search-box" placeholder="Søg efter kunstner eller album..." @bind="_query" @bind:event="oninput" />
+
+@if (_albums.Count == 0)
+{
+    <p style="color:var(--text-muted)">Ingen musik fundet i @Library.Root endnu.</p>
+}
+else if (_view == "albums")
+{
+    <div class="album-grid">
+        @foreach (var album in FilteredAlbums)
+        {
+            <a class="album-card" href="@($"/album/{Uri.EscapeDataString(album.FolderRelativePath)}")">
+                <div class="album-card-cover">
+                    <img src="@CoverUrl(album)" loading="lazy" alt=""
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+                    <div class="album-card-cover-fallback">🎵</div>
+                </div>
+                <div class="album-card-name">@(string.IsNullOrWhiteSpace(album.Name) ? album.Artist : album.Name)</div>
+                <div class="album-card-artist">@album.Artist · @album.Tracks.Count sange</div>
+            </a>
+        }
+    </div>
+}
+else
+{
+    <div class="artist-list">
+        @foreach (var (artist, albums) in FilteredArtists)
+        {
+            <a class="artist-row" href="@($"/artist/{Uri.EscapeDataString(artist)}")">
+                <span class="artist-row-name">@artist</span>
+                <span class="artist-row-count">@albums.Count album@(albums.Count == 1 ? "" : "s")</span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private List<Album> _albums = [];
+    private List<(string Artist, List<Album> Albums)> _artists = [];
+    private string _query = "";
+    private string _view = "albums";
+
+    private IEnumerable<Album> FilteredAlbums => string.IsNullOrWhiteSpace(_query)
+        ? _albums
+        : _albums.Where(a =>
+            a.Artist.Contains(_query, StringComparison.OrdinalIgnoreCase) ||
+            a.Name.Contains(_query, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<(string Artist, List<Album> Albums)> FilteredArtists => string.IsNullOrWhiteSpace(_query)
+        ? _artists
+        : _artists
+            .Select(g => (Artist: g.Artist, Albums: g.Albums.Where(a => a.Artist.Contains(_query, StringComparison.OrdinalIgnoreCase) || a.Name.Contains(_query, StringComparison.OrdinalIgnoreCase)).ToList()))
+            .Where(g => g.Albums.Count > 0 || g.Artist.Contains(_query, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized()
+    {
+        _albums = Library.GetAlbums();
+        _artists = Library.GetArtists();
+    }
+
+    private static string CoverUrl(Album a) => a.CoverRelativePath is not null
+        ? $"/library-stream?path={Uri.EscapeDataString(a.CoverRelativePath)}"
+        : $"/api/embedded-cover?path={Uri.EscapeDataString(a.Tracks[0].RelativePath)}";
+}

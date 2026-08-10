@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "ITMartinPlayer": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "applicationUrl": "http://0.0.0.0:5222",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "PlayerSettings__LibraryRoot": "M:\\CD-Rips",
+        "ConnectionStrings__PlayerDb": "Data Source=C:\\MusicPlayerLocalData\\player.db"
+      }
+    }
+  }
+}

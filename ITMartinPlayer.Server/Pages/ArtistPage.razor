@@ -1,0 +1,49 @@
+@page "/artist/{ArtistName}"
+@using ITMartinPlayer.Server.Services
+@inject MusicLibraryService Library
+
+<a href="/" style="color:var(--text-muted);text-decoration:none;font-size:.85rem">← Bibliotek</a>
+
+@if (_albums.Count == 0)
+{
+    <p>Kunstner ikke fundet.</p>
+}
+else
+{
+    <h1 style="margin:.6rem 0 1rem">@_name</h1>
+
+    <div class="album-grid">
+        @foreach (var album in _albums)
+        {
+            <a class="album-card" href="@($"/album/{Uri.EscapeDataString(album.FolderRelativePath)}")">
+                <div class="album-card-cover">
+                    <img src="@CoverUrl(album)" loading="lazy" alt=""
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+                    <div class="album-card-cover-fallback">🎵</div>
+                </div>
+                <div class="album-card-name">@(string.IsNullOrWhiteSpace(album.Name) ? album.Artist : album.Name)</div>
+                <div class="album-card-artist">@album.Tracks.Count sange</div>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string ArtistName { get; set; } = "";
+
+    private string _name = "";
+    private List<Album> _albums = [];
+
+    protected override void OnParametersSet()
+    {
+        _name = Uri.UnescapeDataString(ArtistName);
+        _albums = Library.GetAlbums()
+            .Where(a => string.Equals(a.Artist, _name, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string CoverUrl(Album a) => a.CoverRelativePath is not null
+        ? $"/library-stream?path={Uri.EscapeDataString(a.CoverRelativePath)}"
+        : $"/api/embedded-cover?path={Uri.EscapeDataString(a.Tracks[0].RelativePath)}";
+}

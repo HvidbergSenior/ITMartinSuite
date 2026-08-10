@@ -1,0 +1,52 @@
+@page "/guest"
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="ka-page">
+    <div class="ka-card">
+        <h1 class="ka-title">Musik</h1>
+        <p class="ka-sub">Hvad hedder du?</p>
+
+        <input class="ka-input" placeholder="Dit navn" maxlength="24" @bind="_name" @bind:event="oninput"
+               @onkeydown="OnKeyDown" />
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <p style="color:#ef4444;text-align:center">@_error</p>
+        }
+
+        <button class="ka-role-btn" style="margin-top:.8rem" @onclick="Continue">Fortsæt</button>
+    </div>
+</div>
+
+@code {
+    private string _name = "";
+    private string? _error;
+    private string _returnTo = "/";
+
+    protected override void OnInitialized()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var q = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        _returnTo = string.IsNullOrWhiteSpace(q["return"]) ? "/" : q["return"]!;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Continue();
+    }
+
+    private async Task Continue()
+    {
+        var name = _name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            _error = "Skriv dit navn for at fortsætte.";
+            return;
+        }
+
+        await JS.InvokeVoidAsync("localStorage.setItem", "player_guest_name", name);
+        Nav.NavigateTo(_returnTo, forceLoad: true);
+    }
+}

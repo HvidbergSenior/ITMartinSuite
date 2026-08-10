@@ -1,0 +1,73 @@
+@page "/album/{FolderRelativePath}"
+@using ITMartinPlayer.Server.Services
+@using System.Text.Json
+@inject MusicLibraryService Library
+
+<a href="/" style="color:var(--text-muted);text-decoration:none;font-size:.85rem">← Bibliotek</a>
+
+@if (_album is null)
+{
+    <p>Album ikke fundet.</p>
+}
+else
+{
+    <div style="display:flex;gap:1rem;align-items:flex-end;margin-top:.6rem;flex-wrap:wrap">
+        <div class="album-card-cover" style="width:140px;flex-shrink:0">
+            <img src="@CoverUrl(_album)" loading="lazy" alt=""
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <div class="album-card-cover-fallback">🎵</div>
+        </div>
+        <div>
+            <h1 style="margin:0">@(string.IsNullOrWhiteSpace(_album.Name) ? _album.Artist : _album.Name)</h1>
+            <p style="color:var(--text-muted);margin:.2rem 0 0">@_album.Artist · @_album.Tracks.Count sange · @FormatTotal(_album.Tracks)</p>
+        </div>
+    </div>
+
+    <button class="ka-btn-big" style="max-width:220px;margin-top:1rem" data-queue="@QueueJson" data-index="0">▶ Afspil album</button>
+
+    <div style="margin-top:1rem">
+        @foreach (var (track, index) in _album.Tracks.Select((t, i) => (t, i)))
+        {
+            <div class="track-row" data-track-url="@StreamUrl(track)" data-queue="@QueueJson" data-index="@index">
+                <span class="track-num">@(track.TrackNumber?.ToString() ?? "")</span>
+                <span class="track-title">@track.Title</span>
+                <span class="track-duration">@FormatDuration(track.Duration)</span>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string FolderRelativePath { get; set; } = "";
+
+    private Album? _album;
+    private string QueueJson = "[]";
+
+    protected override void OnParametersSet()
+    {
+        var path = Uri.UnescapeDataString(FolderRelativePath);
+        _album = Library.GetAlbums().FirstOrDefault(a => a.FolderRelativePath == path);
+
+        QueueJson = _album is null ? "[]" : JsonSerializer.Serialize(_album.Tracks.Select(t => new
+        {
+            url = StreamUrl(t),
+            title = t.Title,
+            artist = t.Artist,
+            album = t.Album,
+        }));
+    }
+
+    private static string StreamUrl(Track t) => $"/library-stream?path={Uri.EscapeDataString(t.RelativePath)}";
+
+    private static string CoverUrl(Album a) => a.CoverRelativePath is not null
+        ? $"/library-stream?path={Uri.EscapeDataString(a.CoverRelativePath)}"
+        : $"/api/embedded-cover?path={Uri.EscapeDataString(a.Tracks[0].RelativePath)}";
+
+    private static string FormatDuration(TimeSpan d) => d == TimeSpan.Zero ? "" : $"{(int)d.TotalMinutes}:{d.Seconds:00}";
+
+    private static string FormatTotal(List<Track> tracks)
+    {
+        var total = TimeSpan.FromSeconds(tracks.Sum(t => t.Duration.TotalSeconds));
+        return total.TotalHours >= 1 ? $"{(int)total.TotalHours} t {total.Minutes} min" : $"{total.Minutes} min";
+    }
+}

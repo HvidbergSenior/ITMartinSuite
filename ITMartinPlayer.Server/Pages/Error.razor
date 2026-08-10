@@ -1,0 +1,11 @@
+@page "/Error"
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+
+<div class="ka-page">
+    <div class="ka-card">
+        <h1 class="ka-title">😵 Ups, noget gik galt</h1>
+        <p class="ka-sub">Prøv at gå tilbage og prøve igen.</p>
+        <button class="ka-btn-big" @onclick='() => Nav.NavigateTo("/join", forceLoad: true)'>← Tilbage til Deltag</button>
+    </div>
+</div>

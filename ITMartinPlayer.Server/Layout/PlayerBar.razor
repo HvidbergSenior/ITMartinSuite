@@ -1,0 +1,26 @@
+@* Static shell only - player.js owns all of this (text, button states,
+   progress, visibility). See player.js for why: the Blazor Server circuit
+   in this environment isn't reliable enough for anything actually driving
+   playback to depend on it. *@
+
+<audio id="mainAudio" style="display:none"></audio>
+
+<div class="lyrics-panel" id="lyricsPanel" style="display:none"></div>
+
+<div class="player-bar" id="playerBar" style="display:none">
+    <div class="player-bar-info">
+        <div class="player-bar-title" id="barTitle"></div>
+        <div class="player-bar-artist" id="barArtist"></div>
+    </div>
+    <div class="player-bar-controls">
+        <button class="player-btn" id="barPrev" title="Forrige">⏮</button>
+        <button class="player-btn player-btn-play" id="barPlayPause" title="Afspil/pause">▶</button>
+        <button class="player-btn" id="barNext" title="Næste">⏭</button>
+        <button class="player-btn" id="barLyrics" title="Sangtekst">📜</button>
+    </div>
+    <div class="player-bar-progress">
+        <span class="player-time" id="barCurrentTime">0:00</span>
+        <input type="range" min="0" max="1" value="0" id="barSeek" class="player-seek" />
+        <span class="player-time" id="barDuration">0:00</span>
+    </div>
+</div>

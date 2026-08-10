@@ -1,0 +1,73 @@
+@page "/recordings"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager Nav
+@inject ITMartinPlayer.Server.Data.PlayerDbContext Db
+@inject IConfiguration Config
+
+<div class="ka-page">
+    <div class="ka-card">
+        <button class="ka-btn-ghost" style="width:auto;margin:0 0 10px" @onclick='() => Nav.NavigateTo("/", forceLoad: true)'>← Tilbage</button>
+        <h1 class="ka-title">🎧 Tidligere optagelser</h1>
+        <p class="ka-sub">Lyt tilbage - og bliv bedre til næste karaoke-aften!</p>
+
+        @if (_entries.Count == 0)
+        {
+            <p class="ka-sub">Ingen optagelser endnu.</p>
+        }
+        @foreach (var e in _entries)
+        {
+            <div class="ka-card" style="padding:16px">
+                <strong>@e.Title</strong> - @e.Artist
+                <div style="color:var(--text-muted);font-size:0.85rem">@e.SingerName · @e.CreatedAt.ToLocalTime().ToString("d. MMM yyyy HH:mm")</div>
+                @if (e.PosterUrl is not null)
+                {
+                    <img src="@e.PosterUrl" style="max-width:160px;border-radius:12px;margin:8px 0;display:block" />
+                }
+                @foreach (var file in e.Files)
+                {
+                    var isVideo = System.IO.Path.GetFileNameWithoutExtension(file).StartsWith("vtake", StringComparison.OrdinalIgnoreCase);
+                    <div style="margin-top:8px">
+                        <div style="font-size:0.8rem;color:var(--text-muted)">@System.IO.Path.GetFileName(file)</div>
+                        @if (isVideo)
+                        {
+                            <video controls style="width:100%;border-radius:10px" src="@($"/recording-stream?path={Uri.EscapeDataString(file)}")"></video>
+                        }
+                        else
+                        {
+                            <audio controls style="width:100%" src="@($"/recording-stream?path={Uri.EscapeDataString(file)}")"></audio>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<RecordingEntry> _entries = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var withRecordings = await Db.QueueEntries
+            .Where(q => q.RecordingFile != null)
+            .OrderByDescending(q => q.CreatedAt)
+            .ToListAsync();
+
+        var dataRoot = Path.GetDirectoryName(
+            (Config.GetConnectionString("KaraokeDb") ?? "Data Source=/app/data/karaoke.db")
+                .Replace("Data Source=", "")) ?? "/app/data";
+        var recordingsRoot = Path.Combine(dataRoot, "recordings");
+
+        _entries = withRecordings.Select(e =>
+        {
+            var dir = Path.Combine(recordingsRoot, e.Id.ToString());
+            var files = Directory.Exists(dir)
+                ? Directory.EnumerateFiles(dir).Select(f => Path.GetRelativePath(dataRoot, f).Replace('\\', '/')).OrderBy(f => f).ToList()
+                : new List<string>();
+            return new RecordingEntry(e.Title, e.Artist, e.SingerName, e.CreatedAt, e.PosterUrl, files);
+        }).ToList();
+    }
+
+    private record RecordingEntry(string Title, string Artist, string SingerName, DateTime CreatedAt, string? PosterUrl, List<string> Files);
+}
