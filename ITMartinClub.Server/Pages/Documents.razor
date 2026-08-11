@@ -22,7 +22,10 @@ else
         <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="history" />
 
         <div class="doc-body">
-            <a class="link-card" href="/g/@Slug/opponents" style="margin-bottom:14px">🕵️ Modstandere - se eller tag folk I har mødt</a>
+            @if (!_hasMainTasks)
+            {
+                <a class="link-card" href="/g/@Slug/opponents" style="margin-bottom:14px">🕵️ Modstandere - se eller tag folk I har mødt</a>
+            }
 
             @if (_recentRecaps.Count > 0)
             {
@@ -153,6 +156,7 @@ else
     private List<Document> _docs = [];
     private List<Member> _allMembers = [];
     private List<SessionRecap> _recentRecaps = [];
+    private bool _hasMainTasks;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -167,6 +171,7 @@ else
 
         _member = session.Member;
         _group = session.Member.Group;
+        _hasMainTasks = await Db.MainTasks.AnyAsync(m => m.GroupId == _group.Id);
         await RefreshAsync();
         Broadcast.Subscribe(_group.Id, OnBroadcast);
         _loaded = true;

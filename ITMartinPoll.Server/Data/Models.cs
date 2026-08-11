@@ -87,3 +87,67 @@ public class ImageRating
     public DateTime RatedAt    { get; set; } = DateTime.UtcNow;
     public SessionImage Image  { get; set; } = null!;
 }
+
+// A "which day(s) work?" poll - unlike Poll (one choice, one-and-done), every
+// voter can answer Yes/No/Maybe on every date and come back to change their
+// mind, since availability polls live over days/weeks while people's plans
+// shift.
+public class DatePoll
+{
+    public int       Id          { get; set; }
+    public string     Title       { get; set; } = "";
+    public string     Description { get; set; } = "";
+    public string?    ImageName   { get; set; }
+    public DateTime   CreatedAt   { get; set; } = DateTime.UtcNow;
+    public DateTime?  Deadline    { get; set; }
+    public bool       IsActive    { get; set; } = true;
+
+    public List<DatePollDate>        Dates        { get; set; } = [];
+    public List<DatePollChatMessage> ChatMessages { get; set; } = [];
+
+    public bool HasDeadlinePassed =>
+        Deadline.HasValue && Deadline.Value.ToUniversalTime() < DateTime.UtcNow;
+
+    // The chat is a live discussion about scheduling, not an archive - once the
+    // poll closes there's nothing left to coordinate, so close the chat with it
+    // rather than leave a stale input box on a decided poll.
+    public bool ChatOpen => IsActive && !HasDeadlinePassed;
+}
+
+public class DatePollDate
+{
+    public int      Id         { get; set; }
+    public int      DatePollId { get; set; }
+    public DateTime Date       { get; set; }
+    public int      SortOrder  { get; set; }
+
+    public DatePoll Poll { get; set; } = null!;
+    public List<DatePollResponse> Responses { get; set; } = [];
+}
+
+public class DatePollResponse
+{
+    public int      Id          { get; set; }
+    public int      DateId      { get; set; }
+    public string    VoterName   { get; set; } = "";
+
+    // "Yes" / "No" / "Maybe" - free-text rather than an enum column so it reads
+    // directly in raw SQL/sqlite browsing without a lookup table, same choice
+    // as ReadyCheckResponse.Status in the Club app.
+    public string    Status      { get; set; } = "Maybe";
+    public string    Comment     { get; set; } = "";
+    public DateTime  RespondedAt { get; set; } = DateTime.UtcNow;
+
+    public DatePollDate DateOption { get; set; } = null!;
+}
+
+public class DatePollChatMessage
+{
+    public int      Id         { get; set; }
+    public int      DatePollId { get; set; }
+    public string   SenderName { get; set; } = "";
+    public string   Text       { get; set; } = "";
+    public DateTime SentAt     { get; set; } = DateTime.UtcNow;
+
+    public DatePoll Poll { get; set; } = null!;
+}

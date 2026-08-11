@@ -23,6 +23,16 @@ else
             {
                 <div class="task-form">
                     <div class="task-field"><label>Opgave</label><input @bind="_newTitle" class="task-input" maxlength="200" placeholder="Hvad skal gøres?" /></div>
+                    @if (_mainTasks.Any())
+                    {
+                        <div class="task-field">
+                            <label>Hovedopgave</label>
+                            <select @bind="_newMainTaskId" class="task-input">
+                                <option value="">— vælg hovedopgave —</option>
+                                @foreach (var mt in _mainTasks) { <option value="@mt.Id">@mt.Title</option> }
+                            </select>
+                        </div>
+                    }
                     <div class="task-row">
                         <div class="task-field">
                             <label>Tildelt til (valgfrit)</label>
@@ -34,7 +44,7 @@ else
                         <div class="task-field"><label>Deadline (valgfrit)</label><input @bind="_newDue" type="date" class="task-input" /></div>
                     </div>
                     <div class="task-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newDesc" rows="2" class="task-input task-textarea" /></div>
-                    <button class="task-save-btn" @onclick="AddAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle))">Gem opgave</button>
+                    <button class="task-save-btn" @onclick="AddAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle) || (_mainTasks.Any() && string.IsNullOrEmpty(_newMainTaskId)))">Gem opgave</button>
                 </div>
             }
 
@@ -43,20 +53,32 @@ else
                 <div class="task-section-label">Åbne opgaver</div>
                 @foreach (var t in _open)
                 {
-                    <div class="task-row-item">
-                        <button class="task-check" @onclick="() => CompleteAsync(t.Id)" title="Markér som udført">○</button>
+                    <div class="task-row-item @(t.AssignedToName == _member!.Name ? "task-row-mine" : "")">
                         <div class="task-info">
                             <div class="task-item-title">@t.Title</div>
                             @if (!string.IsNullOrEmpty(t.Description)) { <div class="task-item-desc">@t.Description</div> }
+                            @if (string.IsNullOrEmpty(t.AssignedToName))
+                            {
+                                <div class="task-badge task-badge-open">⚡ Ingen har taget den</div>
+                            }
+                            else
+                            {
+                                <div class="task-badge task-badge-claimed">✋ @t.AssignedToName klarer det</div>
+                            }
                             <div class="task-meta">
-                                @if (!string.IsNullOrEmpty(t.AssignedToName)) { <span>👤 @t.AssignedToName</span> }
                                 @if (t.DueDate.HasValue) { <span class="@(t.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @t.DueDate.Value.ToString("dd MMM yyyy")</span> }
                                 <span>Oprettet af @t.CreatedByName</span>
                             </div>
-                            @if (string.IsNullOrEmpty(t.AssignedToName) || t.AssignedToName != _member!.Name)
-                            {
-                                <button class="task-take-btn" @onclick="() => TakeAsync(t.Id)">Jeg tager den 👋</button>
-                            }
+                            <div style="display:flex;gap:8px">
+                                @if (t.AssignedToName == _member!.Name)
+                                {
+                                    <button class="task-complete-btn" @onclick="() => CompleteAsync(t.Id)">Markér som færdig ✓</button>
+                                }
+                                else
+                                {
+                                    <button class="task-take-btn" @onclick="() => TakeAsync(t.Id)">Jeg tager den 👋</button>
+                                }
+                            </div>
                         </div>
                         <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
                     </div>
@@ -73,10 +95,10 @@ else
                 @foreach (var t in _done)
                 {
                     <div class="task-row-item task-done-row">
-                        <div class="task-check task-check-done">✓</div>
                         <div class="task-info">
                             <div class="task-item-title">@t.Title</div>
-                            <div class="task-meta"><span>Udført af @t.CompletedByName · @t.CompletedAt?.ToString("dd MMM yyyy")</span></div>
+                            <div class="task-badge task-badge-done">✅ Færdig af @t.CompletedByName</div>
+                            <div class="task-meta"><span>@t.CompletedAt?.ToString("dd MMM yyyy")</span></div>
                         </div>
                         <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
                     </div>
@@ -105,10 +127,13 @@ else
     .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
     .task-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
     .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
-    .task-done-row { opacity: .5; }
-    .task-check { background: transparent; border: 2px solid var(--border); border-radius: 50%; width: 28px; height: 28px; flex-shrink: 0; cursor: pointer; color: transparent; font-size: 14px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
-    .task-check:hover { border-color: var(--green); color: var(--green); }
-    .task-check-done { border-color: var(--green); color: var(--green); cursor: default; }
+    .task-row-mine { border-color: #6366f1; background: rgba(99,102,241,.08); }
+    .task-done-row { opacity: .6; }
+    .task-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin: 2px 0 6px; }
+    .task-badge-open    { background: var(--red);    color: white; }
+    .task-badge-claimed { background: #d97706;       color: white; }
+    .task-badge-done    { background: var(--green);  color: white; }
+    .task-complete-btn  { width: auto; padding: 8px 16px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
     .task-info { flex: 1; }
     .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
     .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
@@ -125,10 +150,11 @@ else
     private Member? _member;
     private Group? _group;
     private bool _loaded, _adding;
-    private string _newTitle = "", _newAssignedTo = "", _newDesc = "";
+    private string _newTitle = "", _newAssignedTo = "", _newDesc = "", _newMainTaskId = "";
     private DateTime? _newDue;
     private List<Assignment> _open = [], _done = [];
     private List<Member> _members = [];
+    private List<MainTask> _mainTasks = [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -149,13 +175,21 @@ else
         _open = all.Where(a => !a.IsCompleted).OrderBy(a => a.DueDate).ToList();
         _done = all.Where(a => a.IsCompleted).OrderByDescending(a => a.CompletedAt).Take(10).ToList();
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+        _mainTasks = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.SortOrder).ToListAsync();
     }
 
     private async Task AddAsync()
     {
+        if (_mainTasks.Any() && string.IsNullOrEmpty(_newMainTaskId)) return;
+
+        Guid? mainTaskId = string.IsNullOrEmpty(_newMainTaskId) ? null : Guid.Parse(_newMainTaskId);
         var title = _newTitle.Trim();
+        if (mainTaskId is not null)
+            title = GroupHome.PrefixWithMainTask(title, _mainTasks.First(mt => mt.Id == mainTaskId).Title);
+
         Db.Assignments.Add(new Assignment
         {
+            MainTaskId = mainTaskId,
             GroupId = _group!.Id,
             Title = title,
             Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
@@ -164,7 +198,7 @@ else
             CreatedByName = _member!.Name,
         });
         await Db.SaveChangesAsync();
-        _newTitle = ""; _newAssignedTo = ""; _newDesc = ""; _newDue = null; _adding = false;
+        _newTitle = ""; _newAssignedTo = ""; _newDesc = ""; _newDue = null; _newMainTaskId = ""; _adding = false;
         await RefreshAsync();
         _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "✅ Ny opgave", $"{_member.Name}: {title}");
     }

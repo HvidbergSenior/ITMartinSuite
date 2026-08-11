@@ -1,0 +1,109 @@
+@inject PollDb Db
+@inject DatePollBroadcastService Broadcast
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="chat-widget-header" style="border-bottom:1px solid var(--border);padding:10px 0">
+    <span>💬 Chat om afstemningen</span>
+</div>
+<div class="chat-widget-messages" id="datepoll-chat-@DatePollId" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px 0">
+    @foreach (var m in _messages)
+    {
+        <div class="chat-widget-msg @(m.SenderName == VoterName ? "mine" : "")">
+            <div class="chat-widget-sender">@m.SenderName</div>
+            <div class="chat-widget-bubble">@m.Text</div>
+        </div>
+    }
+    @if (_messages.Count == 0)
+    {
+        <div class="chat-widget-empty">Ingen beskeder endnu.</div>
+    }
+</div>
+
+@if (ChatOpen)
+{
+    <div class="chat-widget-input-row" style="padding:8px 0">
+        <input class="chat-widget-input poll-input" placeholder="Skriv..." value="@_text"
+               @oninput="e => _text = e.Value?.ToString() ?? string.Empty" @onkeydown="OnKey" style="flex:1" />
+        <button class="chat-widget-send" @onclick="SendAsync" disabled="@string.IsNullOrWhiteSpace(_text)">➤</button>
+    </div>
+}
+else
+{
+    <div class="chat-widget-empty">Afstemningen er lukket - chatten er ikke længere åben.</div>
+}
+
+<style>
+    .chat-widget-msg { display: flex; flex-direction: column; max-width: 85%; align-self: flex-start; }
+    .chat-widget-msg.mine { align-self: flex-end; align-items: flex-end; }
+    .chat-widget-sender { font-size: 11px; font-weight: 700; color: var(--muted-2); margin-bottom: 2px; }
+    .chat-widget-bubble { background: var(--card); border-radius: 12px 12px 12px 3px; padding: 7px 11px; font-size: 13px; color: var(--text); word-break: break-word; }
+    .chat-widget-msg.mine .chat-widget-bubble { background: var(--accent-strong); color: white; border-radius: 12px 12px 3px 12px; }
+    .chat-widget-empty { color: var(--muted-2); font-size: 12px; text-align: center; padding: 12px 0; }
+    .chat-widget-input-row { display: flex; gap: 6px; }
+    .chat-widget-send { background: var(--accent-strong); color: white; border: none; border-radius: 10px; width: 40px; font-size: 14px; cursor: pointer; }
+    .chat-widget-send:disabled { opacity: .4; }
+</style>
+
+@code {
+    [Parameter, EditorRequired] public int DatePollId { get; set; }
+    [Parameter, EditorRequired] public bool ChatOpen { get; set; }
+    [Parameter, EditorRequired] public string VoterName { get; set; } = "";
+
+    private string _text = "";
+    private List<DatePollChatMessage> _messages = [];
+    private bool _subscribed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _subscribed) return;
+        await RefreshAsync();
+        Broadcast.Subscribe(DatePollId, OnBroadcast);
+        _subscribed = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _messages = await Db.DatePollChat
+            .Where(m => m.DatePollId == DatePollId)
+            .OrderBy(m => m.SentAt)
+            .Take(100)
+            .ToListAsync();
+    }
+
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SendAsync();
+    }
+
+    private async Task SendAsync()
+    {
+        var text = _text.Trim();
+        if (string.IsNullOrEmpty(text) || !ChatOpen) return;
+
+        Db.DatePollChat.Add(new DatePollChatMessage
+        {
+            DatePollId = DatePollId,
+            SenderName = string.IsNullOrWhiteSpace(VoterName) ? "Anonym" : VoterName,
+            Text       = text,
+        });
+        await Db.SaveChangesAsync();
+        _text = "";
+        await RefreshAsync();
+        Broadcast.Broadcast(DatePollId);
+        try { await JS.InvokeVoidAsync("eval", $"document.getElementById('datepoll-chat-{DatePollId}').scrollTop = 999999"); } catch { }
+    }
+
+    private void OnBroadcast() => InvokeAsync(async () =>
+    {
+        await RefreshAsync();
+        StateHasChanged();
+    });
+
+    public ValueTask DisposeAsync()
+    {
+        if (_subscribed) Broadcast.Unsubscribe(DatePollId, OnBroadcast);
+        return ValueTask.CompletedTask;
+    }
+}

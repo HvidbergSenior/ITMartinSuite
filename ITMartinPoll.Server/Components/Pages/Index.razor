@@ -13,7 +13,7 @@
         Problem="At lave en hurtig afstemning blandt venner eller familie kræver normalt en konto, et betalt værktøj, eller et rodet opslag hvor svarene drukner."
         Formaal="Opret en afstemning på få sekunder. Del et link — alle kan stemme uden login, og du ser resultatet med det samme." />
 
-    @if (!_polls.Any() && !_sessions.Any())
+    @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any())
     {
         <div class="poll-empty">
             <p>Ingen aktive meningsmålinger lige nu</p>
@@ -43,6 +43,38 @@
                         }
                         <div class="poll-card-meta">
                             <span>Tryk for at bedømme</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+        }
+
+        @if (_datePolls.Any())
+        {
+        <div class="vote-section-label">📅 Datoafstemninger — hvilke dage passer?</div>
+        <div class="poll-list">
+            @foreach (var dp in _datePolls)
+            {
+                <a class="poll-card" href="/datepoll/@dp.Id">
+                    @if (!string.IsNullOrEmpty(dp.ImageName))
+                    {
+                        <img class="poll-card-img" src="/poll-images/@dp.ImageName" alt="" />
+                    }
+                    <div class="poll-card-body">
+                        <div class="poll-card-title">@dp.Title</div>
+                        @if (!string.IsNullOrEmpty(dp.Description))
+                        {
+                            <div class="poll-card-desc">@dp.Description</div>
+                        }
+                        <div class="poll-card-meta">
+                            <span>@dp.Dates.Count datoer</span>
+                            @if (dp.Deadline.HasValue)
+                            {
+                                <span class="poll-deadline @(dp.HasDeadlinePassed ? "expired" : "")">
+                                    @(dp.HasDeadlinePassed ? "Lukket" : "Frist: " + dp.Deadline.Value.ToString("d. MMM"))
+                                </span>
+                            }
                         </div>
                     </div>
                 </a>
@@ -87,6 +119,7 @@
 @code {
     private List<Poll>         _polls    = [];
     private List<ImageSession> _sessions = [];
+    private List<DatePoll>     _datePolls = [];
 
     protected override void OnInitialized()
     {
@@ -114,6 +147,20 @@
                 Description    = s.Description,
                 CoverImageName = s.CoverImageName,
                 Images         = s.Images.ToList(),
+            })
+            .ToList();
+
+        _datePolls = Db.DatePolls
+            .Where(dp => dp.IsActive)
+            .OrderByDescending(dp => dp.CreatedAt)
+            .Select(dp => new DatePoll
+            {
+                Id          = dp.Id,
+                Title       = dp.Title,
+                Description = dp.Description,
+                ImageName   = dp.ImageName,
+                Deadline    = dp.Deadline,
+                Dates       = dp.Dates.ToList(),
             })
             .ToList();
     }

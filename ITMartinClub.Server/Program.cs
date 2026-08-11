@@ -184,6 +184,16 @@ using (var scope = app.Services.CreateScope())
     if (!hasPinColumn)
         db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Pin TEXT NOT NULL DEFAULT ''");
 
+    var hasContactInfoColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'ContactInfo'").AsEnumerable().First() > 0;
+    if (!hasContactInfoColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN ContactInfo TEXT NULL");
+
+    var hasRoleColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Role'").AsEnumerable().First() > 0;
+    if (!hasRoleColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Role TEXT NULL");
+
     var hasMinutesColumn = db.Database.SqlQueryRaw<int>(
         "SELECT COUNT(*) AS Value FROM pragma_table_info('ReadyChecks') WHERE name = 'Minutes'").AsEnumerable().First() > 0;
     if (!hasMinutesColumn)
@@ -247,6 +257,35 @@ using (var scope = app.Services.CreateScope())
             "Status"        TEXT NOT NULL DEFAULT 'Yes'
         )
         """);
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "MainTasks" (
+            "Id"                TEXT NOT NULL PRIMARY KEY,
+            "GroupId"           TEXT NOT NULL,
+            "Title"             TEXT NOT NULL,
+            "DefinitionOfDone"  TEXT NULL,
+            "SortOrder"         INTEGER NOT NULL DEFAULT 0,
+            "CreatedAt"         TEXT NOT NULL
+        )
+        """);
+
+    var hasMainTaskIdColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Assignments') WHERE name = 'MainTaskId'").AsEnumerable().First() > 0;
+    if (!hasMainTaskIdColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Assignments ADD COLUMN MainTaskId TEXT NULL");
+
+    // Bogshoppen is the pilot group for the task-board-first front page - once
+    // a group has any MainTasks, GroupHome switches from the general dashboard
+    // to showing only the open-task board grouped by these. Seed once; leave
+    // alone afterwards so renames/reordering in the app stick.
+    var bogshoppenGroup = db.Groups.FirstOrDefault(g => g.Slug == "bogshoppen");
+    if (bogshoppenGroup is not null && !db.MainTasks.Any(m => m.GroupId == bogshoppenGroup.Id))
+    {
+        var seedTitles = new[] { "Salg", "Organisering", "Opbevaring", "Transport", "Andet" };
+        for (var i = 0; i < seedTitles.Length; i++)
+            db.MainTasks.Add(new ITMartinClub.Server.Data.Entities.MainTask { GroupId = bogshoppenGroup.Id, Title = seedTitles[i], SortOrder = i });
+        db.SaveChanges();
+    }
 }
 
 if (!app.Environment.IsDevelopment())

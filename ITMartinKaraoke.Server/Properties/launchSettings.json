@@ -5,7 +5,9 @@
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5221",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "KaraokeSettings__LibraryRoot": "M:\\CD-Rips",
+        "ConnectionStrings__KaraokeDb": "Data Source=C:\\KaraokeStudioLocalData\\karaoke.db"
       }
     }
   }

@@ -14,5 +14,6 @@ public sealed class Group
     public List<Document> Documents { get; set; } = [];
     public List<CalendarEvent> Events { get; set; } = [];
     public List<Assignment> Assignments { get; set; } = [];
+    public List<MainTask> MainTasks { get; set; } = [];
     public List<BulletinPost> Posts { get; set; } = [];
 }

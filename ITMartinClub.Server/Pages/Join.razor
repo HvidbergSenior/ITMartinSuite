@@ -38,6 +38,11 @@
                 <input @bind="_pin" placeholder="min. 4 cifre" class="join-input" type="password" maxlength="20" @onkeydown="OnPinKey" />
                 <div class="join-hint">Første gang: vælg selv en PIN. Kendte navne: brug din tidligere PIN - det er hvad der forhindrer andre i at logge ind som dig.</div>
             </div>
+            <div class="join-field">
+                <label>Kontaktinfo (telefon/email, valgfrit)</label>
+                <input @bind="_contactInfo" placeholder="fx 12345678 eller navn@mail.dk" class="join-input" maxlength="100" />
+                <div class="join-hint">Vises for de andre medlemmer under Medlemmer. Skriv igen her for at opdatere.</div>
+            </div>
             <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
                 @(_joining ? "Tilmelder..." : "Tilmeld")
             </button>
@@ -71,6 +76,7 @@
     private string _name = "";
     private string _code = "";
     private string _pin = "";
+    private string _contactInfo = "";
     private string? _error;
     private bool _joining;
     private bool _loaded;
@@ -131,6 +137,13 @@
                     return;
                 }
             }
+
+            // Contact info is re-entered (not required) on every login rather than
+            // set-once - leaving it blank keeps whatever was there before, typing
+            // something new overwrites it, so a member can update their number/email
+            // just by logging in again with the new value filled in.
+            if (!string.IsNullOrWhiteSpace(_contactInfo))
+                member.ContactInfo = _contactInfo.Trim();
 
             var session = new MemberSession { MemberId = member.Id };
             Db.Sessions.Add(session);

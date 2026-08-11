@@ -61,6 +61,33 @@
                 </div>
             }
 
+            <div class="admin-section-label">DATOAFSTEMNINGER</div>
+            <a href="/admin/datepoll/create" class="admin-create-btn">+ Ny datoafstemning</a>
+
+            @if (!_datePolls.Any())
+            {
+                <div class="poll-empty" style="padding:24px 0"><p>Ingen datoafstemninger endnu</p></div>
+            }
+            @foreach (var dp in _datePolls)
+            {
+                <div class="admin-poll-row">
+                    <div class="admin-poll-info">
+                        <span class="@(dp.IsActive ? "admin-active" : "admin-inactive")">
+                            @(dp.IsActive ? "● Aktiv" : "○ Inaktiv")
+                        </span>
+                        <span class="admin-poll-title">@dp.Title</span>
+                        <span class="admin-poll-votes">@dp.Dates.Count datoer</span>
+                    </div>
+                    <div class="admin-poll-actions">
+                        <a href="/admin/datepoll/edit/@dp.Id" class="admin-btn">Rediger</a>
+                        <button class="admin-btn" @onclick="() => ToggleDatePoll(dp)">
+                            @(dp.IsActive ? "Deaktiver" : "Aktivér")
+                        </button>
+                        <button class="admin-btn danger" @onclick="() => DeleteDatePoll(dp)">Slet</button>
+                    </div>
+                </div>
+            }
+
             <div class="admin-section-label" style="margin-top:24px">MENINGSMÅLINGER</div>
             <a href="/admin/create" class="admin-create-btn">+ Ny meningsmåling</a>
 
@@ -97,6 +124,7 @@
     private bool               _pinWrong = false;
     private List<Poll>         _polls    = [];
     private List<ImageSession> _sessions = [];
+    private List<DatePoll>     _datePolls = [];
 
     protected override void OnInitialized() => Load();
 
@@ -112,6 +140,12 @@
             .OrderByDescending(s => s.CreatedAt)
             .Select(s => new ImageSession { Id = s.Id, Title = s.Title, Question = s.Question, IsActive = s.IsActive,
                                             Images = s.Images.ToList() })
+            .ToList();
+
+        _datePolls = Db.DatePolls
+            .OrderByDescending(dp => dp.CreatedAt)
+            .Select(dp => new DatePoll { Id = dp.Id, Title = dp.Title, IsActive = dp.IsActive,
+                                         Dates = dp.Dates.ToList() })
             .ToList();
     }
 
@@ -138,6 +172,24 @@
         var poll = await Db.Polls.FindAsync(p.Id);
         if (poll is null) return;
         Db.Polls.Remove(poll);
+        await Db.SaveChangesAsync();
+        Load();
+    }
+
+    private async Task ToggleDatePoll(DatePoll dp)
+    {
+        var poll = await Db.DatePolls.FindAsync(dp.Id);
+        if (poll is null) return;
+        poll.IsActive = !poll.IsActive;
+        await Db.SaveChangesAsync();
+        Load();
+    }
+
+    private async Task DeleteDatePoll(DatePoll dp)
+    {
+        var poll = await Db.DatePolls.FindAsync(dp.Id);
+        if (poll is null) return;
+        Db.DatePolls.Remove(poll);
         await Db.SaveChangesAsync();
         Load();
     }

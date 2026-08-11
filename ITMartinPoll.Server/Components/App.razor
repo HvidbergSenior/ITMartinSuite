@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
+    <script>
+        // Applied before first paint to avoid a flash of the wrong theme -
+        // must run this early (top of <head>), not deferred like other scripts.
+        (function () {
+            var theme = localStorage.getItem('poll_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0F1117" />
     <base href="/" />
-    <link rel="stylesheet" href="app.css?v=7" />
+    <link rel="stylesheet" href="app.css?v=8" />
     <link rel="stylesheet" href="ITMartinPoll.Server.styles.css" />
     <HeadOutlet />
 </head>
@@ -15,8 +23,27 @@
     <script>
         window.scrollToId = function(id) {
             var el = document.getElementById(id);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (el) el.scrollIntoView({ block: 'start' });
         };
+    </script>
+
+    <button id="themeToggleBtn" title="Skift lys/mørk visning">🌓</button>
+    <script>
+    (function () {
+        var btn = document.getElementById('themeToggleBtn');
+        function sync() {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            btn.textContent = current === 'light' ? '🌙' : '☀️';
+        }
+        btn.addEventListener('click', function () {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            var next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('poll_theme', next);
+            sync();
+        });
+        sync();
+    })();
     </script>
 <script>
 (function(){

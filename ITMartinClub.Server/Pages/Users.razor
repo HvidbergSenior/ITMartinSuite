@@ -1,0 +1,85 @@
+@page "/g/{slug}/users"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="users" />
+
+        <div class="task-body">
+            <h2 class="task-title" style="margin-bottom:16px">Medlemmer (@_members.Count)</h2>
+
+            @foreach (var m in _members)
+            {
+                <div class="task-row-item">
+                    <div class="task-info">
+                        <div class="task-item-title">
+                            @m.Name
+                            @if (!string.IsNullOrWhiteSpace(m.Role))
+                            {
+                                <span class="role-badge">@m.Role</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(m.ContactInfo))
+                        {
+                            <div class="task-item-desc">📞 @m.ContactInfo</div>
+                        }
+                        <div class="task-meta">
+                            <span>Tilmeldt @m.JoinedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                            @if (_openCountByName.TryGetValue(m.Name, out var count) && count > 0)
+                            {
+                                <span>📋 @count åbne opgave@(count == 1 ? "" : "r")</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .task-body { padding: 16px; }
+    .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
+    .task-info { flex: 1; }
+    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .role-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: rgba(59,130,246,.12); border-radius: 999px; padding: 2px 9px; vertical-align: middle; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded;
+    private List<Member> _members = [];
+    private Dictionary<string, int> _openCountByName = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+
+        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+
+        _openCountByName = (await Db.Assignments
+                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && a.AssignedToName != null)
+                .ToListAsync())
+            .GroupBy(a => a.AssignedToName!)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        _loaded = true;
+        StateHasChanged();
+    }
+}

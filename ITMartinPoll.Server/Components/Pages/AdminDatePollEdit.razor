@@ -1,0 +1,251 @@
+@page "/admin/datepoll/create"
+@page "/admin/datepoll/edit/{DatePollId:int}"
+@rendermode InteractiveServer
+@inject PollDb         Db
+@inject AdminSession   Session
+@inject NavigationManager Nav
+
+<PageTitle>@(_isNew ? "Ny" : "Rediger") datoafstemning</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/admin" class="poll-back">← Admin</a>
+        <span class="poll-logo">@(_isNew ? "Ny datoafstemning" : "Rediger")</span>
+    </header>
+
+    @if (!Session.IsAdmin)
+    {
+        <div class="poll-empty"><p>Ingen adgang. <a href="/admin">Log ind</a></p></div>
+    }
+    else
+    {
+        <div class="admin-form">
+
+            <label class="form-label">Titel</label>
+            <input class="poll-input" placeholder="Hvad skal I finde en dato til?"
+                   @bind="_title" @bind:event="oninput" />
+
+            <label class="form-label">Beskrivelse</label>
+            <textarea class="poll-textarea" rows="4"
+                      placeholder="Uddyb gerne baggrunden…"
+                      @bind="_description" @bind:event="oninput"></textarea>
+
+            <label class="form-label">Billede (valgfrit)</label>
+            <InputFile OnChange="OnImageSelected" accept="image/*" class="file-input" />
+            @if (!string.IsNullOrEmpty(_imageName))
+            {
+                <img src="/poll-images/@_imageName" class="admin-preview-img" alt="" />
+            }
+
+            <label class="form-label">Frist (valgfrit)</label>
+            <input type="date" class="poll-input"
+                   value="@_deadlineStr"
+                   @onchange="e => _deadlineStr = e.Value?.ToString() ?? string.Empty" />
+
+            <label class="form-label">Datoer</label>
+            @for (int i = 0; i < _dates.Count; i++)
+            {
+                var idx = i;
+                <div class="option-row">
+                    <input type="date" class="poll-input option-input"
+                           value="@_dates[idx]"
+                           @onchange="e => _dates[idx] = e.Value?.ToString() ?? string.Empty" />
+                    @if (_dates.Count > 1)
+                    {
+                        <button class="admin-btn danger small" @onclick="() => _dates.RemoveAt(idx)">✕</button>
+                    }
+                </div>
+            }
+            <button class="admin-btn" @onclick="() => _dates.Add(string.Empty)">+ Tilføj dato</button>
+
+            @if (!_isNew)
+            {
+                <label class="form-label">Resultater</label>
+                @foreach (var d in _results)
+                {
+                    <div class="poll-results" style="padding:0 0 12px">
+                        <div class="poll-results-label" style="margin-bottom:6px">@d.Date.ToString("dddd d. MMMM")</div>
+                        @foreach (var (status, count) in d.Counts)
+                        {
+                            var pct = d.Total > 0 ? (int)Math.Round(count * 100.0 / d.Total) : 0;
+                            <div class="poll-result-row">
+                                <div class="poll-result-label">@StatusLabel(status)</div>
+                                <div class="poll-result-bar-wrap">
+                                    <div class="poll-result-bar" style="width:@pct%;background:@StatusColor(status)"></div>
+                                </div>
+                                <div class="poll-result-pct">@pct%</div>
+                                <div class="poll-result-count">(@count)</div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (_comments.Count > 0)
+                {
+                    <div class="poll-comments" style="padding:0">
+                        <div class="poll-comments-label">Kommentarer</div>
+                        @foreach (var c in _comments)
+                        {
+                            <div class="poll-comment">
+                                <span class="poll-comment-opt" style="background:@StatusColor(c.Status)">
+                                    @c.DateLabel · @StatusLabel(c.Status)
+                                </span>
+                                <span class="session-comment-name @(string.IsNullOrWhiteSpace(c.VoterName) ? "anon" : "")">
+                                    @(string.IsNullOrWhiteSpace(c.VoterName) ? "Anonym" : c.VoterName)
+                                </span>
+                                <span class="poll-comment-text">@c.Comment</span>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="form-error">@_error</div>
+            }
+
+            <button class="poll-submit-btn" @onclick="Save">
+                @(_isNew ? "Opret datoafstemning" : "Gem ændringer")
+            </button>
+
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int DatePollId { get; set; }
+
+    private bool _isNew = true;
+    private string _title = "";
+    private string _description = "";
+    private string _deadlineStr = "";
+    private string? _imageName;
+    private List<string> _dates = [DateTime.Today.ToString("yyyy-MM-dd")];
+    private string _error = "";
+
+    private List<DateResult> _results = [];
+    private List<CommentRow> _comments = [];
+
+    private record DateResult(DateTime Date, int Total, List<(string Status, int Count)> Counts);
+    private record CommentRow(string DateLabel, string Status, string VoterName, string Comment);
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "Yes" => "✅ Ja", "No" => "❌ Nej", _ => "🤔 Måske"
+    };
+
+    private static string StatusColor(string status) => status switch
+    {
+        "Yes" => "#16A34A", "No" => "#B91C1C", _ => "#B45309"
+    };
+
+    protected override void OnInitialized()
+    {
+        _isNew = DatePollId == 0;
+        if (_isNew) return;
+
+        var p = Db.DatePolls
+            .Where(x => x.Id == DatePollId)
+            .Select(x => new
+            {
+                x.Title, x.Description, x.ImageName, x.Deadline,
+                Dates = x.Dates.OrderBy(d => d.SortOrder)
+                    .Select(d => new
+                    {
+                        d.Date,
+                        Responses = d.Responses.Select(r => new { r.Status, r.VoterName, r.Comment }).ToList(),
+                    }).ToList(),
+            })
+            .FirstOrDefault();
+
+        if (p is null) return;
+
+        _title       = p.Title;
+        _description = p.Description;
+        _imageName   = p.ImageName;
+        _deadlineStr = p.Deadline?.ToString("yyyy-MM-dd") ?? "";
+        _dates       = p.Dates.Select(d => d.Date.ToString("yyyy-MM-dd")).ToList();
+        if (_dates.Count == 0) _dates = [DateTime.Today.ToString("yyyy-MM-dd")];
+
+        _results = p.Dates.Select(d => new DateResult(
+            d.Date, d.Responses.Count,
+            new[] { "Yes", "Maybe", "No" }.Select(s => (s, d.Responses.Count(r => r.Status == s))).ToList()
+        )).ToList();
+
+        _comments = p.Dates.SelectMany(d => d.Responses
+                .Where(r => !string.IsNullOrWhiteSpace(r.Comment))
+                .Select(r => new CommentRow(d.Date.ToString("d. MMM"), r.Status, r.VoterName, r.Comment)))
+            .ToList();
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
+        var name = $"{Guid.NewGuid():N}{ext}";
+        var path = Path.Combine("/app/data/images", name);
+
+        Directory.CreateDirectory("/app/data/images");
+        await using var fs = File.Create(path);
+        await using var ms = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await ms.CopyToAsync(fs);
+
+        _imageName = name;
+    }
+
+    private async Task Save()
+    {
+        _error = "";
+        if (string.IsNullOrWhiteSpace(_title)) { _error = "Titel mangler"; return; }
+
+        var cleanDates = _dates
+            .Where(d => DateTime.TryParse(d, out _))
+            .Select(d => DateTime.Parse(d))
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+        if (cleanDates.Count == 0) { _error = "Tilføj mindst én dato"; return; }
+
+        DateTime? deadline = null;
+        if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var dl))
+            deadline = dl.ToUniversalTime();
+
+        if (_isNew)
+        {
+            var poll = new DatePoll
+            {
+                Title       = _title.Trim(),
+                Description = _description.Trim(),
+                ImageName   = _imageName,
+                Deadline    = deadline,
+                IsActive    = true,
+                CreatedAt   = DateTime.UtcNow,
+                Dates       = cleanDates.Select((d, i) => new DatePollDate { Date = d, SortOrder = i }).ToList(),
+            };
+            Db.DatePolls.Add(poll);
+        }
+        else
+        {
+            var poll = await Db.DatePolls.FindAsync(DatePollId);
+            if (poll is null) return;
+            poll.Title       = _title.Trim();
+            poll.Description = _description.Trim();
+            poll.ImageName   = _imageName;
+            poll.Deadline    = deadline;
+
+            // Dates are re-keyed rather than diffed - simplest correct option
+            // given how rare editing an already-answered date poll's date list
+            // should be; existing responses cascade-delete with their date.
+            var existing = Db.DatePollDates.Where(d => d.DatePollId == DatePollId).ToList();
+            Db.DatePollDates.RemoveRange(existing);
+            foreach (var (date, idx) in cleanDates.Select((d, i) => (d, i)))
+                Db.DatePollDates.Add(new DatePollDate { DatePollId = DatePollId, Date = date, SortOrder = idx });
+        }
+
+        await Db.SaveChangesAsync();
+        Nav.NavigateTo("/admin");
+    }
+}

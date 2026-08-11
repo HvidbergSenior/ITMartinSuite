@@ -12,6 +12,7 @@ public sealed class ClubDbContext(DbContextOptions<ClubDbContext> options) : DbC
     public DbSet<DocumentRead> DocumentReads => Set<DocumentRead>();
     public DbSet<CalendarEvent> Events => Set<CalendarEvent>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
+    public DbSet<MainTask> MainTasks => Set<MainTask>();
     public DbSet<BulletinPost> Posts => Set<BulletinPost>();
     public DbSet<ClubChatMessage> Chat => Set<ClubChatMessage>();
     public DbSet<ClubPushSubscription> PushSubscriptions => Set<ClubPushSubscription>();

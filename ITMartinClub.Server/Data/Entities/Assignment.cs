@@ -4,6 +4,7 @@ public sealed class Assignment
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid GroupId { get; set; }
+    public Guid? MainTaskId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? AssignedToName { get; set; }
@@ -15,4 +16,5 @@ public sealed class Assignment
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Group Group { get; set; } = null!;
+    public MainTask? MainTask { get; set; }
 }

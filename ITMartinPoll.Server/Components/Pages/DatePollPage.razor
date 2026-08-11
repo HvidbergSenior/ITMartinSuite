@@ -1,0 +1,262 @@
+@page "/datepoll/{DatePollId:int}"
+@rendermode InteractiveServer
+@inject PollDb      Db
+@inject IJSRuntime  JS
+@inject NavigationManager Nav
+@inject DatePollBroadcastService Broadcast
+@implements IAsyncDisposable
+
+<PageTitle>@(_poll?.Title ?? "Datoafstemning")</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/" class="poll-back">← Tilbage</a>
+    </header>
+
+    @if (_poll is null)
+    {
+        <div class="poll-empty"><p>Afstemningen findes ikke.</p></div>
+    }
+    else
+    {
+        <div class="poll-view">
+
+            @if (!string.IsNullOrEmpty(_poll.ImageName))
+            {
+                <img class="poll-hero-img" src="/poll-images/@_poll.ImageName" alt="" />
+            }
+
+            <div class="poll-content">
+                <h1 class="poll-title">@_poll.Title</h1>
+
+                @if (!string.IsNullOrEmpty(_poll.Description))
+                {
+                    <p class="poll-body">@_poll.Description</p>
+                }
+
+                @if (_poll.Deadline.HasValue)
+                {
+                    <div class="poll-deadline-banner @(_poll.HasDeadlinePassed ? "expired" : "")">
+                        @(_poll.HasDeadlinePassed
+                            ? "Denne afstemning er lukket"
+                            : "Åben til " + _poll.Deadline.Value.ToString("d. MMMM yyyy"))
+                    </div>
+                }
+            </div>
+
+            @if (!_hasName)
+            {
+                <div class="admin-form" style="padding:0 16px">
+                    <label class="form-label">Dit navn</label>
+                    <input class="poll-input" placeholder="Skriv dit navn for at svare"
+                           @bind="_voterName" @bind:event="oninput" @onkeydown="OnNameKey" />
+                    <button class="poll-submit-btn" @onclick="SaveName" disabled="@string.IsNullOrWhiteSpace(_voterName)">Fortsæt</button>
+                </div>
+            }
+            else
+            {
+                <a class="poll-back" style="display:block;padding:0 16px;margin-top:8px;cursor:pointer" @onclick='() => JS.InvokeVoidAsync("scrollToId", "chat")'>↓ Gå til chat</a>
+
+                <div class="admin-form" style="padding-top:0">
+                    @{ int? lastMonthKey = null; }
+                    @foreach (var d in _poll.Dates.OrderBy(x => x.Date))
+                    {
+                        var dateId = d.Id;
+                        var mine = _myResponses.GetValueOrDefault(dateId);
+                        var monthKey = d.Date.Year * 12 + d.Date.Month;
+                        if (monthKey != lastMonthKey)
+                        {
+                            lastMonthKey = monthKey;
+                            <div class="month-header">@d.Date.ToString("MMMM yyyy")</div>
+                        }
+                        <div class="poll-results" style="padding:0 0 16px">
+                            <div class="poll-results-label" style="margin-bottom:8px">@d.Date.ToString("dddd d. MMMM")</div>
+
+                            <div class="option-row" style="margin-bottom:8px">
+                                <button class="admin-btn @(mine?.Status == "Yes" ? "datepoll-active-yes" : "")" @onclick='() => RespondAsync(dateId, "Yes")'>✅ Ja</button>
+                                <button class="admin-btn @(mine?.Status == "Maybe" ? "datepoll-active-maybe" : "")" @onclick='() => RespondAsync(dateId, "Maybe")'>🤔 Måske</button>
+                                <button class="admin-btn @(mine?.Status == "No" ? "datepoll-active-no" : "")" @onclick='() => RespondAsync(dateId, "No")'>❌ Nej</button>
+                            </div>
+
+                            @if (mine is not null)
+                            {
+                                <input class="poll-input" placeholder="Kommentar (valgfrit), fx 'ikke sikker endnu, måske'"
+                                       value="@mine.Comment" maxlength="200"
+                                       @onchange="e => SaveCommentAsync(dateId, e.Value?.ToString() ?? string.Empty)" />
+                            }
+
+                            @{ var counts = d.Responses.GroupBy(r => r.Status).ToDictionary(g => g.Key, g => g.Count()); }
+                            <div class="poll-card-meta" style="margin-top:8px">
+                                <span>✅ @counts.GetValueOrDefault("Yes")</span>
+                                <span>🤔 @counts.GetValueOrDefault("Maybe")</span>
+                                <span>❌ @counts.GetValueOrDefault("No")</span>
+                            </div>
+                        </div>
+                    }
+
+                    @if (_poll.ChatOpen)
+                    {
+                        <div class="option-row" style="margin-top:4px">
+                            <input type="date" class="poll-input" value="@_suggestedDate"
+                                   @onchange="e => _suggestedDate = e.Value?.ToString() ?? string.Empty" />
+                            <button class="admin-btn" @onclick="SuggestDateAsync" disabled="@string.IsNullOrEmpty(_suggestedDate)">+ Foreslå dato</button>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_suggestError))
+                        {
+                            <div class="form-error">@_suggestError</div>
+                        }
+                    }
+                </div>
+
+                <div class="admin-form" style="padding-top:0" id="chat">
+                    <DatePollChatWidget DatePollId="DatePollId" ChatOpen="_poll.ChatOpen" VoterName="_voterName" />
+                </div>
+            }
+
+        </div>
+    }
+</div>
+
+<style>
+    .datepoll-active-yes   { background: #16A34A !important; border-color: #16A34A !important; color: white !important; }
+    .datepoll-active-maybe { background: #B45309 !important; border-color: #B45309 !important; color: white !important; }
+    .datepoll-active-no    { background: #B91C1C !important; border-color: #B91C1C !important; color: white !important; }
+    .month-header { font-size: 15px; font-weight: 800; color: var(--text); padding: 20px 0 4px; border-bottom: 2px solid var(--accent-strong); margin-bottom: 8px; text-transform: capitalize; }
+</style>
+
+@code {
+    [Parameter] public int DatePollId { get; set; }
+
+    private DatePoll? _poll;
+    private bool _hasName;
+    private string _voterName = "";
+    private Dictionary<int, DatePollResponse> _myResponses = [];
+    private string _suggestedDate = "";
+    private string _suggestError = "";
+    private bool _subscribed;
+
+    protected override void OnInitialized() => LoadPoll();
+
+    private void LoadPoll()
+    {
+        _poll = Db.DatePolls
+            .Where(p => p.Id == DatePollId)
+            .Select(p => new DatePoll
+            {
+                Id = p.Id, Title = p.Title, Description = p.Description, ImageName = p.ImageName,
+                Deadline = p.Deadline, IsActive = p.IsActive,
+                Dates = p.Dates.Select(d => new DatePollDate
+                {
+                    Id = d.Id, Date = d.Date, SortOrder = d.SortOrder,
+                    Responses = d.Responses.ToList(),
+                }).ToList(),
+            })
+            .FirstOrDefault();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _poll is null) return;
+        _voterName = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+        _hasName = !string.IsNullOrWhiteSpace(_voterName);
+        if (_hasName) LoadMyResponses();
+
+        Broadcast.Subscribe(DatePollId, OnBroadcast);
+        _subscribed = true;
+
+        StateHasChanged();
+    }
+
+    private void OnBroadcast() => InvokeAsync(() =>
+    {
+        LoadPoll();
+        if (_hasName) LoadMyResponses();
+        StateHasChanged();
+    });
+
+    public ValueTask DisposeAsync()
+    {
+        if (_subscribed) Broadcast.Unsubscribe(DatePollId, OnBroadcast);
+        return ValueTask.CompletedTask;
+    }
+
+    private void LoadMyResponses()
+    {
+        _myResponses = _poll!.Dates
+            .SelectMany(d => d.Responses.Where(r => r.VoterName == _voterName))
+            .ToDictionary(r => r.DateId, r => r);
+    }
+
+    private async Task OnNameKey(KeyboardEventArgs e) { if (e.Key == "Enter") await SaveName(); }
+
+    private async Task SaveName()
+    {
+        if (string.IsNullOrWhiteSpace(_voterName)) return;
+        await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _voterName.Trim());
+        _voterName = _voterName.Trim();
+        _hasName = true;
+        LoadMyResponses();
+    }
+
+    private async Task RespondAsync(int dateId, string status)
+    {
+        if (_poll is null || _poll.HasDeadlinePassed) return;
+
+        var existing = await Db.DatePollResponses
+            .FirstOrDefaultAsync(r => r.DateId == dateId && r.VoterName == _voterName);
+        if (existing is not null)
+        {
+            existing.Status = status;
+            existing.RespondedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            Db.DatePollResponses.Add(new DatePollResponse
+            {
+                DateId = dateId, VoterName = _voterName, Status = status,
+            });
+        }
+        await Db.SaveChangesAsync();
+        LoadPoll();
+        LoadMyResponses();
+        StateHasChanged();
+        Broadcast.Broadcast(DatePollId);
+    }
+
+    private async Task SaveCommentAsync(int dateId, string comment)
+    {
+        if (_poll is null || _poll.HasDeadlinePassed) return;
+
+        var existing = await Db.DatePollResponses
+            .FirstOrDefaultAsync(r => r.DateId == dateId && r.VoterName == _voterName);
+        if (existing is null) return;
+        existing.Comment = comment.Trim();
+        await Db.SaveChangesAsync();
+        LoadPoll();
+        LoadMyResponses();
+        Broadcast.Broadcast(DatePollId);
+    }
+
+    private async Task SuggestDateAsync()
+    {
+        _suggestError = "";
+        if (_poll is null || _poll.HasDeadlinePassed) return;
+        if (!DateTime.TryParse(_suggestedDate, out var date)) { _suggestError = "Ugyldig dato"; return; }
+
+        if (_poll.Dates.Any(d => d.Date.Date == date.Date))
+        {
+            _suggestError = "Den dato er allerede på listen";
+            return;
+        }
+
+        var nextSort = _poll.Dates.Count == 0 ? 0 : _poll.Dates.Max(d => d.SortOrder) + 1;
+        Db.DatePollDates.Add(new DatePollDate { DatePollId = DatePollId, Date = date.Date, SortOrder = nextSort });
+        await Db.SaveChangesAsync();
+
+        _suggestedDate = "";
+        LoadPoll();
+        LoadMyResponses();
+        StateHasChanged();
+        Broadcast.Broadcast(DatePollId);
+    }
+}

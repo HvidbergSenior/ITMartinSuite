@@ -97,6 +97,9 @@ else
                 {
                     <div class="admin-member-row">
                         <span>@m.Name</span>
+                        <input class="admin-role-input" placeholder="Rolle, fx Leder"
+                               value="@m.Role" maxlength="40"
+                               @onchange="e => SaveRoleAsync(m.Id, e.Value?.ToString() ?? string.Empty)" />
                         <span class="admin-member-date">Tilmeldt @m.JoinedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
                         <button class="admin-reset-btn" @onclick="() => ResetPinAsync(m.Id)" title="Nulstil PIN, hvis medlemmet har glemt den">Nulstil PIN</button>
                         <button class="admin-del-btn" @onclick="() => RemoveMemberAsync(m.Id)">Fjern</button>
@@ -135,6 +138,8 @@ else
     .admin-member-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
     .admin-member-row:last-child { border-bottom: none; }
     .admin-member-row span:first-child { flex: 1; font-weight: 600; }
+    .admin-role-input { width: 120px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; color: var(--text); font-size: 12px; outline: none; }
+    .admin-role-input:focus { border-color: var(--accent); }
     .admin-member-date { font-size: 12px; color: var(--muted); }
     .admin-del-btn { background: transparent; border: 1px solid rgba(248,113,113,.3); border-radius: 6px; color: var(--red); padding: 4px 10px; font-size: 12px; cursor: pointer; }
     .admin-del-btn:hover { background: rgba(248,113,113,.1); }
@@ -332,6 +337,14 @@ else
         await Db.SaveChangesAsync();
         _pinResetName = member.Name;
         StateHasChanged();
+    }
+
+    private async Task SaveRoleAsync(Guid memberId, string role)
+    {
+        var member = await Db.Members.FindAsync(memberId);
+        if (member == null) return;
+        member.Role = string.IsNullOrWhiteSpace(role) ? null : role.Trim();
+        await Db.SaveChangesAsync();
     }
 
     private async Task ClearPostsAsync()
