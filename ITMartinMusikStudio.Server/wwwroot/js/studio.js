@@ -6,6 +6,7 @@ window.studio = (function() {
     var _camStream = null;
     var _songKey = null;
     var _videoMode = false;
+    var _section = null; // optional lyric-section label for "record one verse at a time"
     var _mixAudios = [];
     var _mixVolume = 0.5; // default lower than full - reduces speaker bleed into the mic when no headphones are used
     var _audioCtx = null;
@@ -14,9 +15,10 @@ window.studio = (function() {
 
     // ── Recording ──────────────────────────────────────────────────────────────
 
-    function startRecording(songKey, videoMode) {
+    function startRecording(songKey, videoMode, section) {
         _songKey = songKey;
         _videoMode = !!videoMode;
+        _section = section || null;
         _chunks = [];
 
         // Explicitly OFF: these are WebRTC voice-call constraints (tuned for
@@ -132,13 +134,33 @@ window.studio = (function() {
         });
     }
 
-    function startOverdub(songKey, playUrl, videoMode) {
+    function startOverdub(songKey, playUrl, videoMode, startSeconds) {
         stopMix();
         var playback = new Audio(playUrl);
         playback.volume = _mixVolume;
-        playback.play().catch(function(e) { console.error("Overdub playback failed", e); });
-        _mixAudios = [playback];
-        return startRecording(songKey, videoMode);
+        playback.preload = "auto"; // start buffering now, in parallel with mic setup below
+        // Seeking only works reliably once metadata's loaded - setting
+        // currentTime immediately after `new Audio()` is a no-op in most
+        // browsers since duration/seekable range aren't known yet.
+        var seek = startSeconds || 0;
+        if (seek > 0) {
+            playback.addEventListener('loadedmetadata', function () {
+                try { playback.currentTime = seek; } catch (e) {}
+            }, { once: true });
+        }
+        // Recording must be fully ready (mic permission granted, AudioContext
+        // wired up - startRecording's getUserMedia round-trip is not
+        // instant) BEFORE the backing track starts playing. Previously
+        // playback started first and recording began however long that
+        // setup took afterwards, so everything you sang got captured that
+        // much late relative to a fresh instrumental at mixdown time -
+        // sounded "not synced". Starting the recorder first means any
+        // leftover gap is silence at the top of the take (harmless,
+        // trimmable) instead of losing real singing.
+        return startRecording(songKey, videoMode).then(function () {
+            _mixAudios = [playback];
+            playback.play().catch(function(e) { console.error("Overdub playback failed", e); });
+        });
     }
 
     function stopRecording() {
@@ -150,7 +172,9 @@ window.studio = (function() {
             var recorder = _mediaRecorder;
             var capturedMime = recorder.mimeType || (_videoMode ? "video/webm" : "audio/webm");
             var capturedKey = _songKey;
+            var capturedSection = _section;
             _mediaRecorder = null;
+            _section = null;
 
             // Stop video preview
             var preview = document.getElementById("rec-preview");
@@ -167,7 +191,10 @@ window.studio = (function() {
 
                 if (!capturedKey || blob.size === 0) { resolve(); return; }
 
-                fetch("/api/recording/" + encodeURIComponent(capturedKey), {
+                var url = "/api/recording/" + encodeURIComponent(capturedKey);
+                if (capturedSection) url += "?section=" + encodeURIComponent(capturedSection);
+
+                fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": capturedMime },
                     body: blob
@@ -337,10 +364,19 @@ window.studio = (function() {
         return Promise.reject(new Error("getUserMedia not supported"));
     }
 
+    // Reads back an <audio>/<video> element's current scrub position - used
+    // by the "set section start time" button so the user can find the spot
+    // by ear in a normal player instead of typing seconds by hand.
+    function getAudioCurrentTime(elementId) {
+        var el = document.getElementById(elementId);
+        return el ? el.currentTime : 0;
+    }
+
     return {
         startRecording: startRecording,
         stopRecording: stopRecording,
         startOverdub: startOverdub,
+        getAudioCurrentTime: getAudioCurrentTime,
         playMix: playMix,
         stopMix: stopMix,
         setMixVolume: setMixVolume,
