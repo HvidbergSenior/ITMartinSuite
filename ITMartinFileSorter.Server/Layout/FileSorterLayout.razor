@@ -1,9 +1,11 @@
 ﻿
 @inherits LayoutComponentBase
+@using Microsoft.JSInterop
 
 @inject IConfiguration Configuration
+@inject IJSRuntime JS
 
-<div class="app-shell">
+<div class="app-shell" data-theme="@_theme">
 
     <header class="app-header fs-header">
 
@@ -17,27 +19,27 @@
             <NavLink class="fs-nav-link"
                      href="/filesorter"
                      Match="NavLinkMatch.All">
-                📦 Cleanup
+                📦 Oprydning
             </NavLink>
 
             <NavLink class="fs-nav-link"
                      href="/package2">
-                ✨ Enhancement
+                ✨ Forbedring
             </NavLink>
 
             <NavLink class="fs-nav-link"
                      href="/package3">
-                🔎 Search &amp; People
+                🔎 Søgning &amp; Personer
             </NavLink>
 
             <NavLink class="fs-nav-link"
                      href="/history">
-                📜 History
+                📜 Historik
             </NavLink>
 
             <NavLink class="fs-nav-link"
                      href="/browse">
-                📁 Browse
+                📁 Gennemse
             </NavLink>
 
             <NavLink class="fs-nav-link"
@@ -47,10 +49,14 @@
 
             <a class="fs-nav-link"
                href="@GalleryUrl">
-                🎬 Gallery ↗
+                🎬 Galleri ↗
             </a>
 
         </nav>
+
+        <button class="theme-toggle-btn" @onclick="ToggleTheme" title="Skift lys/mørk visning">
+            @(_theme == "light" ? "🌙" : "☀️")
+        </button>
 
     </header>
 
@@ -58,11 +64,34 @@
         @Body
     </main>
     <ToastContainer />
-    <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin</footer>
+    <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
 
 </div>
 
 @code {
+    // Defaults to dark to match this app's existing dark aesthetic (and the
+    // CSS default below), so an unset localStorage value never causes a
+    // visible flash on first paint.
+    private string _theme = "dark";
+
     private string GalleryUrl =>
         Configuration["Apps:GalleryUrl"] ?? "https://gallery.itmartin.dk";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "filesorter_theme");
+        if (stored == "light")
+        {
+            _theme = "light";
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleTheme()
+    {
+        _theme = _theme == "light" ? "dark" : "light";
+        _ = JS.InvokeVoidAsync("localStorage.setItem", "filesorter_theme", _theme);
+    }
 }

@@ -22,7 +22,7 @@
     <div class="p1-header">
         <div>
             <h1 class="p1-title">📦 Package 1</h1>
-            <div class="p1-subtitle">Discover · Deduplicate · Organise · Thumbnail</div>
+            <div class="p1-subtitle">Find · Fjern dubletter · Organiser · Miniaturer</div>
         </div>
     </div>
 
@@ -30,18 +30,18 @@
     {
         <div class="p1-card">
             <div class="p1-field">
-                <label class="p1-label">Source folder</label>
+                <label class="p1-label">Kildemappe</label>
                 <input class="p1-input" @bind="_folderPath" placeholder="/data" />
             </div>
             <div class="p1-field">
-                <label class="p1-label">Output folder <span class="p1-optional">(leave empty to use default library)</span></label>
+                <label class="p1-label">Outputmappe <span class="p1-optional">(lad stå tom for at bruge standardbiblioteket)</span></label>
                 <input class="p1-input" @bind="_outputPath" placeholder="/jobs/mie" />
             </div>
             <div class="p1-toggle-row">
                 <label class="p1-toggle">
                     <input type="checkbox" @bind="_enableAi" />
-                    <span>AI classification</span>
-                    <span class="p1-optional">(detects blurry, solid-colour, memes, screenshots — uses Claude API)</span>
+                    <span>AI-klassificering</span>
+                    <span class="p1-optional">(finder slørede billeder, ensfarvede billeder, memes, screenshots — bruger Claude API)</span>
                 </label>
             </div>
             <button class="p1-btn-start" @onclick="Start" disabled="@string.IsNullOrWhiteSpace(_folderPath)">
@@ -59,8 +59,8 @@
         <div class="p1-card p1-card--running">
 
             <div class="p1-status-row">
-                <span class="p1-badge p1-badge--running">● Running</span>
-                <span class="p1-step">@(_running?.CurrentStep ?? "Starting…")</span>
+                <span class="p1-badge p1-badge--running">● Kører</span>
+                <span class="p1-step">@(_running?.CurrentStep ?? "Starter…")</span>
             </div>
 
             @if (_running?.ProgressTotal > 0)
@@ -84,7 +84,7 @@
                         <div class="p1-chips">
                             @foreach (var (type, count) in counts.OrderByDescending(x => x.Value))
                             {
-                                <span class="p1-chip">@TypeIcon(type) @type <strong>@count</strong></span>
+                                <span class="p1-chip">@TypeIcon(type) @TypeLabel(type) <strong>@count</strong></span>
                             }
                         </div>
                     }
@@ -92,9 +92,9 @@
             }
 
             <div class="p1-meta">
-                Started @_running?.StartedAtUtc.ToString("HH:mm:ss") UTC
+                Startet @_running?.StartedAtUtc.ToString("HH:mm:ss") UTC
                 &nbsp;·&nbsp;
-                Running @FormatDuration(DateTime.UtcNow - (_running?.StartedAtUtc ?? DateTime.UtcNow))
+                Kørt i @FormatDuration(DateTime.UtcNow - (_running?.StartedAtUtc ?? DateTime.UtcNow))
             </div>
 
         </div>
@@ -108,13 +108,13 @@
 
         <div class="p1-card p1-card--done">
             <div class="p1-done-icon">✅</div>
-            <div class="p1-done-title">Package 1 complete</div>
-            <div class="p1-done-meta">Finished in @duration</div>
+            <div class="p1-done-title">Package 1 fuldført</div>
+            <div class="p1-done-meta">Færdig på @duration</div>
             <div class="p1-done-actions">
                 <a href="@_curatorUrl" class="p1-btn-curator" target="_blank">
-                    🎬 Open Curator →
+                    🎬 Åbn Curator →
                 </a>
-                <button class="p1-btn-again" @onclick="Reset">Run again</button>
+                <button class="p1-btn-again" @onclick="Reset">Kør igen</button>
             </div>
         </div>
     }
@@ -122,7 +122,7 @@
     @if (_recent.Count > 0)
     {
         <div class="p1-card" style="margin-top:16px;">
-            <div class="p1-section-title">Recent runs</div>
+            <div class="p1-section-title">Seneste kørsler</div>
             <div class="p1-history">
                 @foreach (var r in _recent)
                 {
@@ -307,6 +307,17 @@
         "Audio"    => "🎵",
         "Document" => "📄",
         _          => "❓"
+    };
+
+    // Danish display label - the underlying "type" value stays in English
+    // since it's the raw key produced by the scan/classification pipeline.
+    private static string TypeLabel(string type) => type switch
+    {
+        "Image"    => "Billede",
+        "Video"    => "Video",
+        "Audio"    => "Lyd",
+        "Document" => "Dokument",
+        _          => type
     };
 
     private static string FormatDuration(TimeSpan ts)

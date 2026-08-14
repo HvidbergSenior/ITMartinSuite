@@ -10,6 +10,8 @@
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
+@using ITMartinFileSorter.Server.Services
+@using Microsoft.JSInterop
 @implements IDisposable
 
 @inject ProgressService Progress
@@ -25,26 +27,45 @@
 @inject ISmartFoldersService SmartFoldersService
 @inject IPackage3Service Package3Service
 @inject IImageTaggingService ImageTaggingService
+@inject IJSRuntime JS
+@inject FileSorterPushService PushService
 
-<PageLayout Title="📦 Package 1 — Cleanup & Structure">
+<PageLayout Title="📦 Package 1 — Oprydning & Struktur">
 
     <div class="filesorter-app">
+
+        <div class="info-toggle-row">
+            <button class="info-toggle-btn" @onclick="TogglePush" disabled="@_pushBusy">
+                @(_pushSubscribed ? "🔕 Slå notifikationer fra" : "🔔 Få besked når Package 1 er færdig")
+            </button>
+            <button class="info-toggle-btn" @onclick="ToggleInfo">
+                @(_showInfo ? "🙈 Skjul info" : "ℹ️ Vis info")
+            </button>
+        </div>
+
+        @if (_showInfo)
+        {
+            <ProblemPurposeBanner
+                Problem="Billeder og videoer fra telefoner og gamle harddiske ender tit som en stor, rodet bunke uden dato eller struktur — svært at finde noget i, og svært at vide hvad der egentlig er gemt og sikkert."
+                Formaal="FileSorter scanner mappen, fjerner dubletter og organiserer automatisk alt efter dato i et rent, gennemsøgeligt bibliotek du kan bladre i."
+                Beskrivelse="Peg på kildemappen og tryk 'Start Cleanup' for at køre Package 1 (sortering + oprydning). Kør derefter eventuelt AI-forbedring (Package 2) og Temamapper-tilkøbene nedenfor (Rejser, Årbog, Find personer m.fl.), når biblioteket er klar." />
+        }
 
         <ContentCard CssClass="scan-hero-card">
 
             <h2 class="mb-3">
-                Cleanup & Structure
+                Oprydning & Struktur
             </h2>
 
             <p class="hero-text">
-                Scan, deduplicate and organize media files.
+                Scan, fjern dubletter og organiser dine mediefiler.
             </p>
 
             <div class="scan-action-row">
                 <button class="btn btn-primary btn-lg"
                         disabled="@IsScanning"
                         @onclick="ScanFolder">
-                    @(IsScanning ? Progress.Info.Stage : "Start Cleanup")
+                    @(IsScanning ? Progress.Info.Stage : "Start oprydning")
                 </button>
                 @if (!string.IsNullOrWhiteSpace(FolderPath))
                 {
@@ -69,20 +90,20 @@
                 Total="@Progress.Info.TotalWork"
                 Percent="@ProgressPercent"
                 CurrentItem="@CurrentFileName"
-                LoadingText="Processing media..."
+                LoadingText="Behandler filer..."
                 Icon="📂" />
 
             @if (_waitingSeconds > 0)
             {
                 <div class="scan-waiting-msg">
-                    ⏳ Waiting for worker to finish… @_waitingSeconds s
+                    ⏳ Venter på at workeren bliver færdig… @_waitingSeconds s
                 </div>
             }
         }
 
         @if (ShowSummary)
         {
-            <SectionTitle Title="Cleanup Summary" />
+            <SectionTitle Title="Oprydningsoversigt" />
 
             <div class="main-category-row mt-3">
 
@@ -104,7 +125,7 @@
                                 f.SizeBytes);
 
                     <CategorySummaryCard
-                        Title="@cat"
+                        Title="@CategoryLabel(cat)"
                         ReviewCount="0"
                         ProcessedCount="@filesInCat.Count"
                         Total="@filesInCat.Count"
@@ -121,7 +142,7 @@
 
                     <div class="summary-box">
                         <div class="summary-title">
-                            Total Files
+                            Filer i alt
                         </div>
 
                         <div class="summary-value">
@@ -131,7 +152,7 @@
 
                     <div class="summary-box">
                         <div class="summary-title">
-                            Files To Keep
+                            Filer der beholdes
                         </div>
 
                         <div class="summary-value">
@@ -141,7 +162,7 @@
 
                     <div class="summary-box">
                         <div class="summary-title">
-                            Files To Delete
+                            Filer der slettes
                         </div>
 
                         <div class="summary-value">
@@ -151,7 +172,7 @@
 
                     <div class="summary-box">
                         <div class="summary-title">
-                            Duplicate Groups
+                            Dublet-grupper
                         </div>
 
                         <div class="summary-value">
@@ -161,7 +182,7 @@
 
                     <div class="summary-box">
                         <div class="summary-title">
-                            Total Size
+                            Samlet størrelse
                         </div>
 
                         <div class="summary-value">
@@ -172,7 +193,7 @@
 
                     <div class="summary-box">
                         <div class="summary-title">
-                            Space Saved
+                            Plads sparet
                         </div>
 
                         <div class="summary-value">
@@ -240,12 +261,6 @@
                                 disabled="@(_addonBusy is not null)"
                                 @onclick="RunRejserAsync">
                             @(_addonBusy == "Rejser" ? "⏳ Rejser..." : "🧳 Rejser")
-                        </button>
-
-                        <button class="btn btn-outline-primary"
-                                disabled="@(_addonBusy is not null)"
-                                @onclick="RunHjemmeRejserAsync">
-                            @(_addonBusy == "Hjemme & rejser" ? "⏳ Hjemme & rejser..." : "🏠 Hjemme & rejser")
                         </button>
 
                         <span style="display:flex;gap:6px;align-items:center">
@@ -363,7 +378,7 @@
                 <ActionButtonBar CssClass="bottom export-bar">
                     <button class="btn btn-primary btn-lg"
                             @onclick="ContinueToEnhancement">
-                        ✨ Continue To Enhancement
+                        ✨ Fortsæt til Forbedring
                     </button>
                     <span class="spacer"></span>
                     <div class="text-muted" style="font-size:13px;max-width:420px">
@@ -377,7 +392,7 @@
                 <ActionButtonBar CssClass="bottom export-bar">
                     <div class="export-status">
                         <span class="text-success">
-                            ✔ Cleanup completed
+                            ✔ Oprydning gennemført
                         </span>
                     </div>
                 </ActionButtonBar>
@@ -390,6 +405,11 @@
 </PageLayout>
 
 @code {
+
+    private bool _showInfo = true;
+
+    private bool _pushSubscribed;
+    private bool _pushBusy;
 
     private string FolderPath = "";
 
@@ -447,6 +467,77 @@
         InvokeAsync(StateHasChanged);
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "filesorter_show_info");
+        if (stored == "hidden")
+        {
+            _showInfo = false;
+            StateHasChanged();
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("fileSorterPush.registerServiceWorker");
+            var endpoint = await JS.InvokeAsync<string?>("fileSorterPush.getSubscriptionEndpoint");
+            _pushSubscribed = !string.IsNullOrWhiteSpace(endpoint);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            // Push isn't supported in every browser/context - fail quietly,
+            // the toggle button just stays in its "off" state.
+            Logger.LogWarning(ex, "Push subscription status check failed");
+        }
+    }
+
+    private async Task TogglePush()
+    {
+        if (_pushBusy) return;
+        _pushBusy = true;
+        StateHasChanged();
+
+        try
+        {
+            if (_pushSubscribed)
+            {
+                await JS.InvokeVoidAsync("fileSorterPush.unsubscribeFromPush");
+                _pushSubscribed = false;
+            }
+            else
+            {
+                var permission = await JS.InvokeAsync<string>("fileSorterPush.requestPushPermission");
+                if (permission == "granted")
+                {
+                    var publicKey = PushService.GetPublicKey();
+                    var endpoint = await JS.InvokeAsync<string?>("fileSorterPush.subscribeForPush", publicKey);
+                    _pushSubscribed = !string.IsNullOrWhiteSpace(endpoint);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Push toggle failed");
+        }
+        finally
+        {
+            _pushBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleInfo()
+    {
+        // Fire-and-forget the localStorage write - awaiting it here made the
+        // toggle visibly lag behind the click, since Blazor doesn't re-render
+        // until the handler completes and this JS round-trip isn't needed
+        // before the UI can update.
+        _showInfo = !_showInfo;
+        _ = JS.InvokeVoidAsync("localStorage.setItem", "filesorter_show_info", _showInfo ? "shown" : "hidden");
+    }
+
     public void Dispose()
     {
         Progress.OnChange -=
@@ -462,7 +553,7 @@
 
         if (string.IsNullOrWhiteSpace(FolderPath))
         {
-            ErrorMessage = "No source folder configured (MediaSettings:SourceRoot).";
+            ErrorMessage = "Ingen kildemappe konfigureret (MediaSettings:SourceRoot).";
             return;
         }
 
@@ -550,6 +641,13 @@
                     await InvokeAsync(
                         StateHasChanged);
 
+                    // Package1 sort itself just finished (manifest.json written) -
+                    // fire-and-forget so a slow/offline push send never blocks the
+                    // UI from moving on to the default pipeline below.
+                    _ = PushService.SendToAllAsync(
+                        "📦 Package 1 færdig",
+                        $"{ScanResult.TotalFiles} filer sorteret, {ScanResult.DuplicateGroups} dublet-grupper fundet.");
+
                     await RunDefaultPipelineAsync(exportRoot!);
 
                     break;
@@ -585,7 +683,7 @@
     // Default one-click pipeline - Package1 already scans+dedupes+classifies+
     // exports in one workflow (see Package1WorkflowDefinition), so everything
     // here runs automatically once that's done. Package2 (AI enhancement) and
-    // every Temamapper add-on (Rejser/Årbog/Efter person/Hjemme & rejser) stay
+    // every Temamapper add-on (Rejser/Årbog/Efter person) stay
     // explicitly opt-in, not part of the default run.
     private async Task RunDefaultPipelineAsync(string libraryPath)
     {
@@ -681,9 +779,6 @@
 
     private Task RunRejserAsync() =>
         RunAddonAsync("Rejser", () => SmartFoldersService.GenerateTripFoldersAsync(LibraryPath));
-
-    private Task RunHjemmeRejserAsync() =>
-        RunAddonAsync("Hjemme & rejser", () => SmartFoldersService.GenerateHomeAwayFoldersAsync(LibraryPath));
 
     private Task RunAarbogAsync() =>
         RunAddonAsync("Årbog", () => SmartFoldersService.GenerateYearbookAsync(LibraryPath, _yearbookYear));
@@ -781,6 +876,20 @@
         return
             $"{len:0.#} {sizes[order]}";
     }
+
+    // Danish display label for a category - the underlying "cat" value stays
+    // in English since it's matched against CategoryHelper.GetCategory() and
+    // used as a CSS class key, both defined outside Pages/ (out of scope here).
+    private static string CategoryLabel(string cat) =>
+        cat switch
+        {
+            "Audio" => "Lyd",
+            "Documents" => "Dokumenter",
+            "Images" => "Billeder",
+            "Videos" => "Videoer",
+            "Screenshots" => "Screenshots",
+            _ => cat
+        };
 
     private static string GetCategoryCssClass(
         string cat) =>

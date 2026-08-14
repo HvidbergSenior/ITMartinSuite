@@ -15,53 +15,53 @@
 @inject IConfiguration Configuration
 @inject ILogger<Package2> Logger
 
-<PageLayout Title="✨ Package 2 — Enhancement">
+<PageLayout Title="✨ Package 2 — Forbedring">
 
     <div class="filesorter-app">
 
         <ContentCard CssClass="scan-hero-card">
 
-            <h2 class="mb-3">Video & Audio Enhancement</h2>
+            <h2 class="mb-3">Video- & lydforbedring</h2>
 
             <p class="hero-text">
-                Restore and enhance your media using ffmpeg processing pipelines.
+                Genopliv og forbedr dine medier med ffmpeg-behandlingspipelines.
             </p>
 
             <div class="p2-field mt-3">
-                <div class="p2-label">Library folder</div>
+                <div class="p2-label">Biblioteksmappe</div>
                 <input class="p2-input" @bind="LibraryPath" disabled="@IsRunning" placeholder="/library/jespermette" />
-                <div class="p2-hint">Folder containing manifest.json (or scanned directly if missing)</div>
+                <div class="p2-hint">Mappe der indeholder manifest.json (eller scannes direkte hvis den mangler)</div>
             </div>
 
             <div class="p2-profile-grid mt-3">
 
                 <div>
-                    <div class="p2-label">Restoration Profile</div>
+                    <div class="p2-label">Restaureringsprofil</div>
                     <select class="p2-select"
                             @bind="SelectedRestorationProfile"
                             @bind:after="RefreshConfiguration"
                             disabled="@IsRunning">
-                        <option value="@RestorationProfile.FamilyArchive">Family Archive</option>
+                        <option value="@RestorationProfile.FamilyArchive">Familiearkiv</option>
                         <option value="@RestorationProfile.Hi8">Hi8</option>
                         <option value="@RestorationProfile.VHS">VHS</option>
-                        <option value="@RestorationProfile.VHSAggressive">VHS Aggressive</option>
-                        <option value="@RestorationProfile.HandheldCamera">Handheld Camera</option>
-                        <option value="@RestorationProfile.CleanDigitalCapture">Clean Digital Capture</option>
+                        <option value="@RestorationProfile.VHSAggressive">VHS (aggressiv)</option>
+                        <option value="@RestorationProfile.HandheldCamera">Håndholdt kamera</option>
+                        <option value="@RestorationProfile.CleanDigitalCapture">Ren digital optagelse</option>
                     </select>
                 </div>
 
                 <div>
-                    <div class="p2-label">Enhancement Profile</div>
+                    <div class="p2-label">Forbedringsprofil</div>
                     <select class="p2-select"
                             @bind="SelectedEnhancementProfile"
                             @bind:after="RefreshConfiguration"
                             disabled="@IsRunning">
-                        <option value="@EnhancementProfile.FastPreview">Fast Preview</option>
+                        <option value="@EnhancementProfile.FastPreview">Hurtig forhåndsvisning</option>
                         <option value="@EnhancementProfile.Standard">Standard</option>
-                        <option value="@EnhancementProfile.HighQuality">High Quality</option>
-                        <option value="@EnhancementProfile.Archival">Archival</option>
-                        <option value="@EnhancementProfile.WebOptimized">Web Optimized</option>
-                        <option value="@EnhancementProfile.AggressiveAi">Aggressive AI</option>
+                        <option value="@EnhancementProfile.HighQuality">Høj kvalitet</option>
+                        <option value="@EnhancementProfile.Archival">Arkivkvalitet</option>
+                        <option value="@EnhancementProfile.WebOptimized">Weboptimeret</option>
+                        <option value="@EnhancementProfile.AggressiveAi">Aggressiv AI</option>
                     </select>
                 </div>
 
@@ -78,7 +78,7 @@
                     <button class="btn btn-primary btn-lg"
                             @onclick="StartPackage2"
                             disabled="@string.IsNullOrWhiteSpace(LibraryPath)">
-                        ✨ Start Enhancement
+                        ✨ Start forbedring
                     </button>
                 </div>
             }
@@ -93,7 +93,7 @@
                 Total="@Progress.Info.TotalWork"
                 Percent="@ProgressPercent"
                 CurrentItem=""
-                LoadingText="Enhancing media..."
+                LoadingText="Forbedrer medier..."
                 Icon="✨" />
         }
 
@@ -101,12 +101,12 @@
         {
             <ContentCard>
                 <div class="text-success">
-                    ✔ Enhancement job submitted — check Status page for progress
+                    ✔ Forbedringsjob sendt — se Status-siden for fremgang
                 </div>
             </ContentCard>
         }
 
-        <ContentCard Title="Active Configuration">
+        <ContentCard Title="Aktiv konfiguration">
 
             <div class="p2-config-grid">
 
@@ -119,37 +119,37 @@
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Crop</span>
+                        <span class="p2-config-key">Beskæring</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableCrop)">
                             @BoolLabel(ActiveConfig.Video.EnableCrop)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Denoise</span>
+                        <span class="p2-config-key">Støjreduktion</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableDenoise)">
                             @BoolLabel(ActiveConfig.Video.EnableDenoise)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Sharpen</span>
+                        <span class="p2-config-key">Skarphed</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableSharpen)">
                             @BoolLabel(ActiveConfig.Video.EnableSharpen)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Stabilization</span>
+                        <span class="p2-config-key">Stabilisering</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableStabilization)">
                             @BoolLabel(ActiveConfig.Video.EnableStabilization)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Color Correction</span>
+                        <span class="p2-config-key">Farvekorrektion</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableColorCorrection)">
                             @BoolLabel(ActiveConfig.Video.EnableColorCorrection)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Upscaling</span>
+                        <span class="p2-config-key">Opskalering</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Video.EnableUpscaling)">
                             @BoolLabel(ActiveConfig.Video.EnableUpscaling)
                         </span>
@@ -157,27 +157,27 @@
                 </div>
 
                 <div class="p2-config-group">
-                    <div class="p2-config-title">Audio</div>
+                    <div class="p2-config-title">Lyd</div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Normalize</span>
+                        <span class="p2-config-key">Normalisering</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableNormalize)">
                             @BoolLabel(ActiveConfig.Audio.EnableNormalize)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Noise Reduction</span>
+                        <span class="p2-config-key">Støjreduktion</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableNoiseReduction)">
                             @BoolLabel(ActiveConfig.Audio.EnableNoiseReduction)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">AI Enhancement</span>
+                        <span class="p2-config-key">AI-forbedring</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableAiEnhancement)">
                             @BoolLabel(ActiveConfig.Audio.EnableAiEnhancement)
                         </span>
                     </div>
                     <div class="p2-config-row">
-                        <span class="p2-config-key">Speech Enhancement</span>
+                        <span class="p2-config-key">Taleforbedring</span>
                         <span class="p2-config-val @OnOff(ActiveConfig.Audio.EnableSpeechEnhancement)">
                             @BoolLabel(ActiveConfig.Audio.EnableSpeechEnhancement)
                         </span>
@@ -246,7 +246,7 @@
 
         if (string.IsNullOrWhiteSpace(LibraryPath))
         {
-            ErrorMessage = "Library folder path is required.";
+            ErrorMessage = "Biblioteksmappe er påkrævet.";
             return;
         }
 
@@ -284,7 +284,7 @@
         }
     }
 
-    private static string BoolLabel(bool value) => value ? "On" : "Off";
+    private static string BoolLabel(bool value) => value ? "Til" : "Fra";
 
     private static string OnOff(bool value) => value ? "on" : "off";
 }

@@ -5,25 +5,26 @@
 
 @inject IPackageHistoryService HistoryService
 
-<PageLayout Title="📜 Package 1 — Run History">
+<PageLayout Title="📜 Package 1 — Kørselshistorik">
 
     <div class="filesorter-app">
 
         <ContentCard>
             <p class="hero-text">
-                Every sorting run, with proof of whether every source file was accounted for —
-                exported, marked a duplicate, or logged as failed. A "Mismatch" means some files
-                are unaccounted for and the source shouldn't be treated as safely backed up yet.
+                Hver sorteringskørsel, med bevis for om alle kildefiler er gjort rede for —
+                eksporteret, markeret som dublet, eller logget som fejlet. "Mismatch" betyder at
+                nogle filer ikke er gjort rede for, og kilden bør ikke behandles som sikkert
+                sikkerhedskopieret endnu.
             </p>
         </ContentCard>
 
         @if (_runs is null)
         {
-            <ContentCard><p class="hero-text">Loading…</p></ContentCard>
+            <ContentCard><p class="hero-text">Indlæser…</p></ContentCard>
         }
         else if (_runs.Count == 0)
         {
-            <ContentCard><p class="hero-text">No runs yet.</p></ContentCard>
+            <ContentCard><p class="hero-text">Ingen kørsler endnu.</p></ContentCard>
         }
         else
         {
@@ -37,25 +38,25 @@
                     </div>
 
                     <div class="mt-2 p2-hint">
-                        <strong>Source:</strong> @(run.SourcePath ?? "—") &nbsp;→&nbsp;
-                        <strong>Output:</strong> @(run.OutputPath ?? "(default library)")
+                        <strong>Kilde:</strong> @(run.SourcePath ?? "—") &nbsp;→&nbsp;
+                        <strong>Output:</strong> @(run.OutputPath ?? "(standardbibliotek)")
                     </div>
 
                     <div class="p2-config-grid mt-2">
                         <div class="p2-config-row">
-                            <span class="p2-config-key">Source files</span>
+                            <span class="p2-config-key">Kildefiler</span>
                             <span class="p2-config-val">@run.SourceFileCount (@FormatBytes(run.SourceSizeBytes))</span>
                         </div>
                         <div class="p2-config-row">
-                            <span class="p2-config-key">Exported</span>
+                            <span class="p2-config-key">Eksporteret</span>
                             <span class="p2-config-val">@run.ExportedFileCount (@FormatBytes(run.ExportedSizeBytes))</span>
                         </div>
                         <div class="p2-config-row">
-                            <span class="p2-config-key">Duplicates excluded</span>
+                            <span class="p2-config-key">Dubletter udelukket</span>
                             <span class="p2-config-val">@run.DuplicateFileCount</span>
                         </div>
                         <div class="p2-config-row">
-                            <span class="p2-config-key">Failed / skipped</span>
+                            <span class="p2-config-key">Fejlet / sprunget over</span>
                             <span class="p2-config-val">@run.FailedFileCount</span>
                         </div>
                     </div>
@@ -66,9 +67,9 @@
                         if (shrink > 1)
                         {
                             <div class="mt-2 p2-hint">
-                                Output is @(Math.Round(shrink, 0))% smaller than source — expected from video
-                                re-encoding and/or duplicate removal, not a sign of lost files (see the file
-                                counts above for that proof instead).
+                                Output er @(Math.Round(shrink, 0))% mindre end kilden — forventet ved
+                                video-genkodning og/eller dubletfjernelse, ikke et tegn på tabte filer
+                                (se filtallene ovenfor for det bevis i stedet).
                             </div>
                         }
                     }
@@ -76,7 +77,7 @@
                     @if (run.FailedFiles.Count > 0)
                     {
                         <details class="mt-2">
-                            <summary class="p2-hint" style="cursor:pointer">@run.FailedFiles.Count failed file(s) — click to see why</summary>
+                            <summary class="p2-hint" style="cursor:pointer">@run.FailedFiles.Count fejlet(e) fil(er) — klik for at se hvorfor</summary>
                             <ul class="mt-2">
                                 @foreach (var f in run.FailedFiles)
                                 {
@@ -111,10 +112,10 @@
 
     private static string VerdictLabel(ReconciliationVerdict v) => v switch
     {
-        ReconciliationVerdict.Verified => "✓ Verified — every file accounted for",
-        ReconciliationVerdict.Mismatch => "⚠ Mismatch — some files unaccounted for",
-        ReconciliationVerdict.InProgress => "… Still running — check back once it finishes",
-        _ => "? Unknown — not enough data to verify"
+        ReconciliationVerdict.Verified => "✓ Verificeret — alle filer er gjort rede for",
+        ReconciliationVerdict.Mismatch => "⚠ Mismatch — nogle filer er ikke gjort rede for",
+        ReconciliationVerdict.InProgress => "… Kører stadig — tjek igen når den er færdig",
+        _ => "? Ukendt — ikke nok data til at verificere"
     };
 
     private static string FormatBytes(long bytes)

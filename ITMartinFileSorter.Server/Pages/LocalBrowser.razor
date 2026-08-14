@@ -10,7 +10,7 @@
 @inject NavigationManager Navigation
 @inject ILogger<LocalBrowser> Logger
 
-<PageLayout Title="📁 Browse Local Files">
+<PageLayout Title="📁 Gennemse lokale filer">
 
     <div class="filesorter-app">
 
@@ -18,19 +18,19 @@
 
             <div class="library-header">
 
-                <SectionTitle Title="📁 Local Files" />
+                <SectionTitle Title="📁 Lokale filer" />
 
                 <div class="library-actions">
 
                     <button class="btn btn-secondary"
                             @onclick="GoBack"
                             disabled="@(!CanGoBack)">
-                        ← Back
+                        ← Tilbage
                     </button>
 
                     <button class="btn btn-secondary"
                             @onclick="GoToRoot">
-                        📁 Source Root
+                        📁 Kilderod
                     </button>
 
                 </div>
@@ -46,7 +46,7 @@
 
             @if (Folders.Any())
             {
-                <ContentCard Title="📁 Folders">
+                <ContentCard Title="📁 Mapper">
 
                     <div class="library-grid">
 
@@ -66,14 +66,14 @@
                                     </div>
 
                                     <div class="folder-meta">
-                                        @folder.FileCount files
+                                        @folder.FileCount filer
                                     </div>
 
                                 </div>
 
                                 <a class="folder-export-btn"
                                    href="@($"/api/guest-export/folder?path={Uri.EscapeDataString(folder.FullPath)}")"
-                                   title="Download ZIP for guest"
+                                   title="Download ZIP til gæst"
                                    @onclick:stopPropagation>
                                     ⬇️
                                 </a>
@@ -88,7 +88,7 @@
 
             @if (Files.Any())
             {
-                <ContentCard Title="@($"🎬 Media ({Files.Count})")">
+                <ContentCard Title="@($"🎬 Medier ({Files.Count})")">
 
                     <div class="media-grid">
 
@@ -147,7 +147,7 @@
 
             @if (!Folders.Any() && !Files.Any() && !string.IsNullOrWhiteSpace(CurrentPath))
             {
-                <EmptyState Title="Empty folder" Text="No media files found here" />
+                <EmptyState Title="Tom mappe" Text="Ingen mediefiler fundet her" />
             }
 
         </div>

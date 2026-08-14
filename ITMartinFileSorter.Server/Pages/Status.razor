@@ -13,11 +13,11 @@
 
     <div class="page-container stack">
 
-        <SectionTitle Title="⚙️ Worker Status" />
+        <SectionTitle Title="⚙️ Worker-status" />
 
         @if (Running is not null)
         {
-            <ContentCard Title="🔄 Running">
+            <ContentCard Title="🔄 Kører">
 
                 <div class="status-row">
                     <span class="status-label">Workflow</span>
@@ -25,7 +25,7 @@
                 </div>
 
                 <div class="status-row">
-                    <span class="status-label">Step</span>
+                    <span class="status-label">Trin</span>
                     <span class="status-step">@Running.CurrentStep</span>
                 </div>
 
@@ -33,14 +33,14 @@
                 {
                     var pct = (int)((double)Running.ProgressCurrent! / Running.ProgressTotal * 100);
                     <div class="status-row">
-                        <span class="status-label">Progress</span>
+                        <span class="status-label">Fremgang</span>
                         <span>@Running.ProgressCurrent / @Running.ProgressTotal (@pct%)</span>
                     </div>
                     <div class="progress-bar-track">
                         <div class="progress-bar-fill" style="width: @pct%"></div>
                     </div>
                     <div class="status-row">
-                        <span class="status-label">File</span>
+                        <span class="status-label">Fil</span>
                         <span class="status-step">@Running.ProgressItem</span>
                     </div>
                     @if (!string.IsNullOrEmpty(Running.ProgressData))
@@ -49,12 +49,12 @@
                         if (counts is not null && counts.Count > 0)
                         {
                             <div class="status-row">
-                                <span class="status-label">Found</span>
+                                <span class="status-label">Fundet</span>
                                 <div class="category-chips">
                                     @foreach (var (type, count) in counts.OrderByDescending(x => x.Value))
                                     {
                                         <span class="category-chip chip-@type.ToLower()">
-                                            @GetTypeIcon(type) @type <strong>@count</strong>
+                                            @GetTypeIcon(type) @GetTypeLabel(type) <strong>@count</strong>
                                         </span>
                                     }
                                 </div>
@@ -64,12 +64,12 @@
                 }
 
                 <div class="status-row">
-                    <span class="status-label">Started</span>
+                    <span class="status-label">Startet</span>
                     <span>@Running.StartedAtUtc.ToString("HH:mm:ss") UTC</span>
                 </div>
 
                 <div class="status-row">
-                    <span class="status-label">Running for</span>
+                    <span class="status-label">Har kørt i</span>
                     <span>@FormatDuration(DateTime.UtcNow - Running.StartedAtUtc)</span>
                 </div>
 
@@ -77,12 +77,12 @@
         }
         else
         {
-            <EmptyState Title="Idle" Text="No workflow is currently running" />
+            <EmptyState Title="Inaktiv" Text="Ingen workflow kører i øjeblikket" />
         }
 
         @if (Recent.Any())
         {
-            <ContentCard Title="📋 Recent">
+            <ContentCard Title="📋 Seneste">
 
                 <div class="history-list">
 
@@ -166,6 +166,17 @@
         "Audio"    => "🎵",
         "Document" => "📄",
         _          => "❓"
+    };
+
+    // Danish display label - the underlying "type" value stays in English
+    // since it's the raw key produced by the scan/classification pipeline.
+    private static string GetTypeLabel(string type) => type switch
+    {
+        "Image"    => "Billede",
+        "Video"    => "Video",
+        "Audio"    => "Lyd",
+        "Document" => "Dokument",
+        _          => type
     };
 
     private static string FormatDuration(TimeSpan ts)
