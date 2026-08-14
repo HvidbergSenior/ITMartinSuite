@@ -1,24 +1,36 @@
-@page "/"
-@page "/library"
-@page "/library/bookcase"
+@page "/g/{slug}"
+@page "/g/{slug}/bookcase"
 
 @using ITMartin.Ai.Interfaces
 @using ITMartinLibrary.Application.Interfaces
 @using ITMartinLibrary.Domain.Entities
+@using ITMartinLibrary.Infrastructure
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 
 @inject IJSRuntime JS
 @inject IScannedShelfRepository ShelfRepo
 @inject ILibraryShelfRecognitionService ShelfRecognition
+@inject LibraryDbContext Db
 @implements IAsyncDisposable
 
 <PageTitle>Bogsamling – Scan hylde</PageTitle>
 
+@if (!_loaded)
+{
+    <div class="library-page"><div class="page-container">Indlæser...</div></div>
+}
+else if (_group is null)
+{
+    <div class="library-page"><div class="page-container">Ukendt samling "@Slug". <a href="/">‹ Tilbage</a></div></div>
+}
+else
+{
 <div class="library-page">
     <div class="page-container">
 
         <div class="scan-hero-card">
-            <h1>📷 Scan bogreol</h1>
+            <h1>📷 Scan bogreol – @_group.Name</h1>
             <p class="hero-text">Scan én hylde ad gangen. Tryk Færdig når alle hylder er fotograferet.</p>
         </div>
 
@@ -122,6 +134,7 @@
 
     </div>
 </div>
+}
 
 <style>
     .shelf-camera-wrap {
@@ -367,10 +380,14 @@
 </style>
 
 @code {
-    private const string SearchUrl = "https://search-books.itmartin.dk";
+    [Parameter] public string Slug { get; set; } = "";
+
+    private string SearchUrl => $"https://search-books.itmartin.dk/g/{Slug}";
 
     private enum PageState { Starting, Ready, Analyzing }
 
+    private bool _loaded;
+    private LibraryGroup? _group;
     private PageState _state = PageState.Starting;
     private string? _cameraError;
     private string? _error;
@@ -380,9 +397,15 @@
     private double _zoomLevel = 1.0;
     private bool _magnifierMode;
 
+    protected override async Task OnInitializedAsync()
+    {
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _loaded = true;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender || _group is null) return;
 
         try
         {
@@ -445,7 +468,7 @@
 
         try
         {
-            var existing = await ShelfRepo.GetAllWithBooksAsync(default);
+            var existing = await ShelfRepo.GetAllWithBooksAsync(_group!.Id, default);
             var nextNumber = existing.Count == 0 ? 1 : existing.Max(x => x.ShelfNumber) + 1;
 
             var shelves = new List<ScannedShelf>();
@@ -454,6 +477,7 @@
                 var result = await ShelfRecognition.AnalyzeAsync(imgPath, CancellationToken.None);
                 shelves.Add(new ScannedShelf
                 {
+                    GroupId = _group.Id,
                     ShelfNumber = nextNumber++,
                     ImagePath = imgPath,
                     ScannedAt = DateTime.UtcNow,
@@ -461,6 +485,7 @@
                         .Where(i => !string.IsNullOrWhiteSpace(i.Title))
                         .Select(i => new ShelfBook
                         {
+                            GroupId = _group.Id,
                             Title = i.Title ?? "",
                             Author = i.Author ?? "",
                             BBoxX = i.BBoxX ?? 0,

@@ -27,7 +27,7 @@ public class BarcodeEnrichmentWorker : BackgroundService
             try
             {
                 Console.WriteLine("WAITING FOR BARCODE...");
-                var barcode = await _queue.DequeueAsync(stoppingToken);
+                var (groupId, barcode) = await _queue.DequeueAsync(stoppingToken);
 
                 Console.WriteLine($"PROCESSING {barcode}");
 
@@ -39,7 +39,7 @@ public class BarcodeEnrichmentWorker : BackgroundService
                 var lookupService = scope.ServiceProvider
                     .GetRequiredService<IBarcodeLookupService>();
 
-                var item = await repository.GetByBarcodeAsync(barcode);
+                var item = await repository.GetByBarcodeAsync(groupId, barcode);
 
                 if (item is null)
                     continue;

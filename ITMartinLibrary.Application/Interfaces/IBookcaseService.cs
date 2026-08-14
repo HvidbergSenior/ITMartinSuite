@@ -5,13 +5,14 @@ namespace ITMartinLibrary.Application.Interfaces;
 public interface IBookcaseService
 {
     Task<ScanResult> ProcessShelvesAsync(
+        Guid groupId,
         IList<(int ShelfNumber, string ImagePath)> shelves,
         IProgress<string>? progress,
         CancellationToken ct);
 
-    Task<IList<ShelfSearchResult>> SearchAsync(string query, CancellationToken ct);
-    Task<int> GetTotalBookCountAsync(CancellationToken ct);
-    Task ClearAllAsync(CancellationToken ct);
+    Task<IList<ShelfSearchResult>> SearchAsync(Guid groupId, string query, CancellationToken ct);
+    Task<int> GetTotalBookCountAsync(Guid groupId, CancellationToken ct);
+    Task ClearAllAsync(Guid groupId, CancellationToken ct);
 }
 
 public sealed record ScanResult(int NewBooks, int SkippedBooks);

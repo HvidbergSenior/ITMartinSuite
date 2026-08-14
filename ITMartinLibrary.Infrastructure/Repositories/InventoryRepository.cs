@@ -13,9 +13,9 @@ namespace ITMartinLibrary.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<List<InventoryItem>> GetAllAsync()
+        public async Task<List<InventoryItem>> GetAllAsync(Guid groupId)
         {
-            return await _db.Items.ToListAsync();
+            return await _db.Items.Where(x => x.GroupId == groupId).ToListAsync();
         }
 
         public async Task AddAsync(InventoryItem item)
@@ -24,30 +24,31 @@ namespace ITMartinLibrary.Infrastructure.Repositories
             await _db.SaveChangesAsync();
         }
 
-        public async Task<List<InventoryItem>> SearchAsync(string text)
+        public async Task<List<InventoryItem>> SearchAsync(Guid groupId, string text)
         {
             return await _db.Items
-                .Where(x =>
-                    x.Title.Contains(text) ||
-                    x.Barcode.Contains(text))
+                .Where(x => x.GroupId == groupId &&
+                    (x.Title.Contains(text) || x.Barcode.Contains(text)))
                 .ToListAsync();
         }
 
-        public async Task<InventoryItem?> GetByBarcodeAsync(string barcode)
+        public async Task<InventoryItem?> GetByBarcodeAsync(Guid groupId, string barcode)
         {
             return await _db.Items
-                .FirstOrDefaultAsync(x => x.Barcode == barcode);
+                .FirstOrDefaultAsync(x => x.GroupId == groupId && x.Barcode == barcode);
         }
 
-        public async Task<InventoryItem?> GetByTitleAsync(string title)
+        public async Task<InventoryItem?> GetByTitleAsync(Guid groupId, string title)
         {
             return await _db.Items
-                .FirstOrDefaultAsync(x => x.Title.ToLower() == title.ToLower());
+                .FirstOrDefaultAsync(x => x.GroupId == groupId && x.Title.ToLower() == title.ToLower());
         }
 
-        public async Task<InventoryItem?> GetByIdAsync(int id)
+        // Filters by GroupId too (not just Id) so a URL with someone else's
+        // item id can't be used to read/edit across tenants.
+        public async Task<InventoryItem?> GetByIdAsync(Guid groupId, int id)
         {
-            return await _db.Items.FindAsync(id);
+            return await _db.Items.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == groupId);
         }
 
         public async Task UpdateAsync(InventoryItem item)

@@ -16,10 +16,11 @@ public class InventoryService
         _queue = queue;
     }
 
-    public async Task AddAsync(InventoryItem item)
+    public async Task AddAsync(Guid groupId, InventoryItem item)
     {
         var now = DateTime.UtcNow;
 
+        item.GroupId = groupId;
         item.FirstScannedAt = now;
         item.LastScannedAt = now;
         item.DetailsUpdatedAt = now;
@@ -30,14 +31,14 @@ public class InventoryService
         await _repository.AddAsync(item);
 
         if (!string.IsNullOrWhiteSpace(item.Barcode))
-            _queue.Enqueue(item.Barcode);
+            _queue.Enqueue(groupId, item.Barcode);
     }
 
-    public async Task<(InventoryItem Item, bool IsNew)> ScanOrIncrementAsync(string barcode)
+    public async Task<(InventoryItem Item, bool IsNew)> ScanOrIncrementAsync(Guid groupId, string barcode)
     {
         var now = DateTime.UtcNow;
 
-        var item = await _repository.GetByBarcodeAsync(barcode);
+        var item = await _repository.GetByBarcodeAsync(groupId, barcode);
         bool isNew;
 
         if (item is null)
@@ -49,6 +50,7 @@ public class InventoryService
 
             item = new InventoryItem
             {
+                GroupId = groupId,
                 Barcode = barcode,
                 Title = "Untitled",
                 Type = type,
@@ -71,7 +73,7 @@ public class InventoryService
             await _repository.UpdateAsync(item);
         }
 
-        _queue.Enqueue(barcode);
+        _queue.Enqueue(groupId, barcode);
 
         return (item, isNew);
     }
@@ -81,19 +83,19 @@ public class InventoryService
         await _repository.UpdateAsync(item);
     }
 
-    public async Task<InventoryItem?> GetByIdAsync(int id)
+    public async Task<InventoryItem?> GetByIdAsync(Guid groupId, int id)
     {
-        return await _repository.GetByIdAsync(id);
+        return await _repository.GetByIdAsync(groupId, id);
     }
 
-    public async Task<List<InventoryItem>> GetAllAsync()
+    public async Task<List<InventoryItem>> GetAllAsync(Guid groupId)
     {
-        return await _repository.GetAllAsync();
+        return await _repository.GetAllAsync(groupId);
     }
 
-    public Task<InventoryItem?> GetByBarcodeAsync(string barcode)
-        => _repository.GetByBarcodeAsync(barcode);
+    public Task<InventoryItem?> GetByBarcodeAsync(Guid groupId, string barcode)
+        => _repository.GetByBarcodeAsync(groupId, barcode);
 
-    public Task<InventoryItem?> GetByTitleAsync(string title)
-        => _repository.GetByTitleAsync(title);
+    public Task<InventoryItem?> GetByTitleAsync(Guid groupId, string title)
+        => _repository.GetByTitleAsync(groupId, title);
 }

@@ -1,18 +1,31 @@
-@page "/"
+@page "/g/{slug}"
 @rendermode InteractiveServer
 
 @using ITMartinLibrary.Application.Interfaces
 @using ITMartinLibrary.Domain.Entities
+@using ITMartinLibrary.Infrastructure
+@using Microsoft.EntityFrameworkCore
 @inject IScannedShelfRepository ShelfRepo
+@inject LibraryDbContext Db
 
 <PageTitle>Bogsamling – Søg</PageTitle>
 
+@if (!_loaded)
+{
+    <div class="library-page"><div class="page-container">Indlæser...</div></div>
+}
+else if (_group is null)
+{
+    <div class="library-page"><div class="page-container">Ukendt samling "@Slug".</div></div>
+}
+else
+{
 <div class="library-page">
     <div class="page-container">
 
         <div class="inv-header">
             <div>
-                <h1 class="inv-title">📚 Bogsamling</h1>
+                <h1 class="inv-title">📚 @_group.Name</h1>
                 <div class="inv-subtitle">@_subtitle</div>
             </div>
         </div>
@@ -84,6 +97,7 @@
 
     </div>
 </div>
+}
 
 <style>
     .library-page { min-height: 100vh; padding: 20px 16px 60px; color: var(--text-main, #e2e8f0); }
@@ -131,6 +145,10 @@
 </style>
 
 @code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private bool _loaded;
+    private LibraryGroup? _group;
     private List<(ShelfBook Book, ScannedShelf Shelf)> _allBooks = [];
     private string _search     = "";
     private string _typeFilter = "Alle";
@@ -148,7 +166,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var shelves = await ShelfRepo.GetAllWithBooksAsync(default);
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _loaded = true;
+        if (_group is null) return;
+
+        var shelves = await ShelfRepo.GetAllWithBooksAsync(_group.Id, default);
         _shelfCount = shelves.Count;
         _allBooks   = shelves
             .SelectMany(s => s.Books.Select(b => (b, s)))

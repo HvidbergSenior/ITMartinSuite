@@ -3,6 +3,7 @@
 public class InventoryItem
 {
     public int Id { get; set; }
+    public Guid GroupId { get; set; }
 
     public string Barcode { get; set; } = "";
     public int Quantity { get; set; }

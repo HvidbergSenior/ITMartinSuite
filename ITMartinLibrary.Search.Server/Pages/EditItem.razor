@@ -1,9 +1,12 @@
-@page "/edit/{Id:int}"
+@page "/g/{slug}/edit/{Id:int}"
 @rendermode InteractiveServer
 
 @using ITMartinLibrary.Application.Interfaces
+@using ITMartinLibrary.Infrastructure
+@using Microsoft.EntityFrameworkCore
 @inject InventoryService InventoryService
 @inject IBarcodeLookupService BarcodeLookupService
+@inject LibraryDbContext Db
 @inject NavigationManager Navigation
 
 <div class="library-page" style="min-height:100vh; padding:20px 16px 60px;">
@@ -33,7 +36,7 @@
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;">
                     <button class="btn btn-primary" @onclick="SearchMovie">🎬 Search Movie Details</button>
                     <button class="btn btn-success" @onclick="Save">💾 Save</button>
-                    <a href="/" class="btn btn-secondary">← Back</a>
+                    <a href="/g/@Slug" class="btn btn-secondary">← Back</a>
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(_status))
@@ -52,14 +55,21 @@
 </style>
 
 @code {
+    [Parameter] public string Slug { get; set; } = "";
     [Parameter] public int Id { get; set; }
 
+    private Guid _groupId;
     private InventoryItem? _item;
     private string? _status;
 
     protected override async Task OnInitializedAsync()
     {
-        _item = await InventoryService.GetByIdAsync(Id);
+        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (group is null) return;
+        _groupId = group.Id;
+        // Scoped by GroupId too, not just Id - otherwise a URL with someone
+        // else's item id would let you read/edit across tenants.
+        _item = await InventoryService.GetByIdAsync(_groupId, Id);
     }
 
     private async Task SearchMovie()
@@ -85,6 +95,6 @@
     {
         if (_item is null) return;
         await InventoryService.UpdateAsync(_item);
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo($"/g/{Slug}");
     }
 }

@@ -5,14 +5,14 @@ namespace ITMartinLibrary.Infrastructure.Services;
 
 public class BarcodeEnrichmentQueue : IBarcodeEnrichmentQueue
 {
-    private readonly Channel<string> _queue = Channel.CreateUnbounded<string>();
+    private readonly Channel<(Guid GroupId, string Barcode)> _queue = Channel.CreateUnbounded<(Guid, string)>();
 
-    public void Enqueue(string barcode)
+    public void Enqueue(Guid groupId, string barcode)
     {
-        _queue.Writer.TryWrite(barcode);
+        _queue.Writer.TryWrite((groupId, barcode));
     }
 
-    public async Task<string> DequeueAsync(CancellationToken cancellationToken)
+    public async Task<(Guid GroupId, string Barcode)> DequeueAsync(CancellationToken cancellationToken)
     {
         return await _queue.Reader.ReadAsync(cancellationToken);
     }

@@ -16,11 +16,12 @@ public sealed class BookcaseService : IBookcaseService
     }
 
     public async Task<ScanResult> ProcessShelvesAsync(
+        Guid groupId,
         IList<(int ShelfNumber, string ImagePath)> shelves,
         IProgress<string>? progress,
         CancellationToken ct)
     {
-        var existingTitles = await _repo.GetExistingTitlesAsync(ct);
+        var existingTitles = await _repo.GetExistingTitlesAsync(groupId, ct);
         var newBooks = 0;
         var skippedBooks = 0;
         var shelvesToSave = new List<ScannedShelf>();
@@ -49,6 +50,7 @@ public sealed class BookcaseService : IBookcaseService
 
                 booksForShelf.Add(new ShelfBook
                 {
+                    GroupId = groupId,
                     Title = item.Title ?? "",
                     Author = item.Author ?? "",
                     BBoxX = item.BBoxX ?? 0,
@@ -69,6 +71,7 @@ public sealed class BookcaseService : IBookcaseService
             {
                 shelvesToSave.Add(new ScannedShelf
                 {
+                    GroupId = groupId,
                     ShelfNumber = shelfNumber,
                     ImagePath = imagePath,
                     ScannedAt = DateTime.UtcNow,
@@ -83,9 +86,9 @@ public sealed class BookcaseService : IBookcaseService
         return new ScanResult(newBooks, skippedBooks);
     }
 
-    public async Task<IList<ShelfSearchResult>> SearchAsync(string query, CancellationToken ct)
+    public async Task<IList<ShelfSearchResult>> SearchAsync(Guid groupId, string query, CancellationToken ct)
     {
-        var shelves = await _repo.GetAllWithBooksAsync(ct);
+        var shelves = await _repo.GetAllWithBooksAsync(groupId, ct);
 
         return shelves
             .OrderBy(s => s.ShelfNumber)
@@ -103,8 +106,8 @@ public sealed class BookcaseService : IBookcaseService
             .ToList();
     }
 
-    public Task<int> GetTotalBookCountAsync(CancellationToken ct) =>
-        _repo.GetTotalBookCountAsync(ct);
+    public Task<int> GetTotalBookCountAsync(Guid groupId, CancellationToken ct) =>
+        _repo.GetTotalBookCountAsync(groupId, ct);
 
-    public Task ClearAllAsync(CancellationToken ct) => _repo.ClearAllAsync(ct);
+    public Task ClearAllAsync(Guid groupId, CancellationToken ct) => _repo.ClearAllAsync(groupId, ct);
 }

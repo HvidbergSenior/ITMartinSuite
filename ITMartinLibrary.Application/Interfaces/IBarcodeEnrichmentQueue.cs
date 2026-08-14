@@ -2,6 +2,6 @@
 
 public interface IBarcodeEnrichmentQueue
 {
-    void Enqueue(string barcode);
-    Task<string> DequeueAsync(CancellationToken cancellationToken);
+    void Enqueue(Guid groupId, string barcode);
+    Task<(Guid GroupId, string Barcode)> DequeueAsync(CancellationToken cancellationToken);
 }

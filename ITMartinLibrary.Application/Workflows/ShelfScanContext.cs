@@ -14,7 +14,7 @@ public sealed class ShelfScanContext
 
     public LibraryShelfAnalysisResult? AiResult { get; set; }
 
-    public ShelfScanResult? Result { get; set; }
+    public ITMartinLibrary.Application.Models.ShelfScanResult? Result { get; set; }
 
     // =========================
     // EXECUTION

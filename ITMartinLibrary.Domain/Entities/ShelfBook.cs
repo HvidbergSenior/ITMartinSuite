@@ -3,6 +3,7 @@ namespace ITMartinLibrary.Domain.Entities;
 public class ShelfBook
 {
     public int Id { get; set; }
+    public Guid GroupId { get; set; }
     public int ScannedShelfId { get; set; }
     public ScannedShelf Shelf { get; set; } = null!;
     public string Title { get; set; } = "";
