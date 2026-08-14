@@ -310,6 +310,14 @@ public class LibraryExportService
             destination);
     }
 
+    // Collision handling is filename-only, not content-based - if two source
+    // files share a name (e.g. the same photo/video re-imported from two
+    // different backups or an add-on's corrected copy sitting next to the
+    // original) this keeps both as separate files (name, name_2, name_3, ...)
+    // instead of deduping. Real, byte-identical duplicates can end up in the
+    // exported library this way, inflating file/photo/video counts - see
+    // DuplicateDetectionWorkflowStep for the actual dedup pass, which runs
+    // earlier and is a separate concern from this pure naming-collision fix.
     private static string EnsureUniqueFileName(
         string path)
     {

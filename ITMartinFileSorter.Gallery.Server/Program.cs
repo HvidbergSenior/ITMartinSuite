@@ -65,6 +65,17 @@ HashSet<string> HiddenFoldersFor(GalleryDef gallery) =>
         ? new HashSet<string>(RootFoldersAlwaysHidden, StringComparer.OrdinalIgnoreCase) { "Screenshots" }
         : RootFoldersAlwaysHidden;
 
+// Opt-in per tenant (Galleries__N__CoreCategoriesOnly) - for a showcase/demo
+// gallery where only the four core content categories should ever be
+// visible, regardless of whatever else lands at the library root (Undated,
+// Screenshots, DeleteCandidates, future categories, etc). Every existing
+// real tenant defaults to false and is unaffected - this is an allowlist,
+// not a replacement for the blocklist above.
+var CoreCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "Images", "Videos", "Documents", "Musik",
+};
+
 // Friendly Danish labels for the root-level folders that do stay visible -
 // the folder name on disk never changes (other pipeline code depends on the
 // exact name), this only changes what's displayed to the viewer.
@@ -146,7 +157,8 @@ var galleries = app.Configuration
         HideScreenshots: s.GetValue<bool>("HideScreenshots"),
         OnThisDayEnabled: s.GetValue<bool>("OnThisDayEnabled"),
         SearchEnabled: s.GetValue<bool>("SearchEnabled"),
-        HideAddons: s.GetValue<bool>("HideAddons")))
+        HideAddons: s.GetValue<bool>("HideAddons"),
+        CoreCategoriesOnly: s.GetValue<bool>("CoreCategoriesOnly")))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -342,9 +354,30 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         return name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#');
     }
 
+    // A category folder (Lyd/Memes/Screenshots/...) with zero files anywhere
+    // underneath it - e.g. an add-on that never actually produced anything for
+    // this tenant - still showed up as a clickable card leading to an empty
+    // "Ingen medietiler her" page. Short-circuits on the first file found, so
+    // a populated folder costs one EnumerateFiles call, not a full walk.
+    static bool HasAnyMediaFile(string dir)
+    {
+        foreach (var f in Directory.EnumerateFiles(dir))
+            if (IsMedia(f)) return true;
+
+        foreach (var sub in Directory.EnumerateDirectories(dir))
+        {
+            var name = Path.GetFileName(sub);
+            if (name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#')) continue;
+            if (name.Equals("thumbnails", StringComparison.OrdinalIgnoreCase)) continue;
+            if (HasAnyMediaFile(sub)) return true;
+        }
+        return false;
+    }
+
     var priorityFolders = Directory.EnumerateDirectories(current)
         .Where(d => !IsSystemFolder(d))
         .Where(d => atRoot && RootFolderSortPriority.ContainsKey(Path.GetFileName(d)))
+        .Where(HasAnyMediaFile)
         .OrderBy(d => RootFolderSortPriority[Path.GetFileName(d)])
         .Select(d => ToEntry(d))
         .ToList();
@@ -357,7 +390,11 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         // browsing into any year/month folder would see a spurious "thumbnails"
         // folder and could click into it to see a grid of meaningless tiny crops.
         .Where(d => !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase))
-        .Where(d => !atRoot || (!hiddenFolders.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))))
+        .Where(d => !atRoot || (
+            g.CoreCategoriesOnly
+                ? CoreCategoryNames.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))
+                : !hiddenFolders.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))))
+        .Where(HasAnyMediaFile)
         .OrderBy(Path.GetFileName)
         .Select(d => ToEntry(d))
         .ToList();
@@ -432,6 +469,7 @@ app.MapGet("/api/summary", (string gallery, HttpContext ctx) =>
         .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}@eaDir{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
         .Where(f => hiddenFolders.All(hidden =>
             !f.Contains($"{Path.DirectorySeparatorChar}{hidden}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)))
+        .Where(f => !g.CoreCategoriesOnly || CoreCategoryNames.Contains(Rel(f, g.Path).Split('/')[0]))
         .Where(IsMedia)
         // Same reasoning as the folder browse view above: a Musik folder's
         // cached album art and official music-video clips aren't real family
@@ -854,6 +892,6 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // range, folder/photo counts) is a one-time customer-handoff moment, not
 // something a family member visiting a shared link should see - opt-in per
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons);
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly);
 record LoginRequest(string Gallery, string Password);
 record FolderEntry(string name, string relPath, string? cover, int row = 99, string? icon = null);

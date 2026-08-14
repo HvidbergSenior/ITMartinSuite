@@ -41,6 +41,9 @@ public sealed class MediaDbContext
     public DbSet<Package3IndexStatusEntity> Package3IndexStatuses
         => Set<Package3IndexStatusEntity>();
 
+    public DbSet<PushSubscriptionEntity> PushSubscriptions
+        => Set<PushSubscriptionEntity>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -121,11 +124,19 @@ public sealed class MediaDbContext
         modelBuilder.Entity<MediaFaceEntity>()
             .HasIndex(x => x.MediaFilePath);
         modelBuilder.Entity<MediaFaceEntity>()
+            .HasIndex(x => x.RelativePath);
+        modelBuilder.Entity<MediaFaceEntity>()
             .HasIndex(x => x.MatchedPersonId);
 
         modelBuilder.Entity<Package3IndexStatusEntity>()
             .HasKey(x => x.Id);
         modelBuilder.Entity<Package3IndexStatusEntity>()
             .HasIndex(x => x.LibraryPath);
+
+        modelBuilder.Entity<PushSubscriptionEntity>()
+            .HasKey(x => x.Id);
+        modelBuilder.Entity<PushSubscriptionEntity>()
+            .HasIndex(x => x.Endpoint)
+            .IsUnique();
     }
 }

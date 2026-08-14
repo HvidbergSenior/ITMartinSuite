@@ -3,6 +3,7 @@ using System;
 using ITMartin.Media.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ITMartin.Media.Infrastructure.Migrations
 {
     [DbContext(typeof(MediaDbContext))]
-    partial class MediaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813094849_AddPushSubscriptions")]
+    partial class AddPushSubscriptions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.25");
@@ -64,10 +67,6 @@ namespace ITMartin.Media.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("RelativePath")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("UserConfirmed")
                         .HasColumnType("INTEGER");
 
@@ -76,8 +75,6 @@ namespace ITMartin.Media.Infrastructure.Migrations
                     b.HasIndex("MatchedPersonId");
 
                     b.HasIndex("MediaFilePath");
-
-                    b.HasIndex("RelativePath");
 
                     b.ToTable("MediaFaces");
                 });

@@ -14,7 +14,14 @@ using Microsoft.EntityFrameworkCore;
     {
         builder.Configuration["MediaSettings:SourceRoot"] = $"/jobs/{clientSlug}";
         builder.Configuration["MediaSettings:LibraryRoot"] = $"/library/{clientSlug}";
-        builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source=/library/{clientSlug}/.media.db";
+    }
+
+    // Always co-locate the media db with whatever LibraryRoot ends up being -
+    // see matching comment in ITMartinFileSorter.Server/Program.cs.
+    var libraryRootForDb = builder.Configuration["MediaSettings:LibraryRoot"];
+    if (!string.IsNullOrWhiteSpace(libraryRootForDb))
+    {
+        builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={Path.Combine(libraryRootForDb, ".media.db")}";
     }
 
     builder.Services.AddMediaPlatform(

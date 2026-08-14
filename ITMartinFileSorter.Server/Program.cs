@@ -24,7 +24,19 @@ if (!string.IsNullOrWhiteSpace(clientSlug))
 {
     builder.Configuration["MediaSettings:SourceRoot"] = $"/jobs/{clientSlug}";
     builder.Configuration["MediaSettings:LibraryRoot"] = $"/library/{clientSlug}";
-    builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source=/library/{clientSlug}/.media.db";
+}
+
+// Always co-locate the media db with whatever LibraryRoot ends up being (via
+// ClientSlug above, or a manual MediaSettings__LibraryRoot override for a local
+// one-off run) instead of requiring ConnectionStrings__MediaDb to be set
+// independently. Previously a local run pointed at a new library path silently
+// kept using the generic default db from appsettings.Development.json unless
+// someone remembered to override the connection string too - making a library
+// that had genuinely already been indexed look uncached.
+var libraryRootForDb = builder.Configuration["MediaSettings:LibraryRoot"];
+if (!string.IsNullOrWhiteSpace(libraryRootForDb))
+{
+    builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={Path.Combine(libraryRootForDb, ".media.db")}";
 }
 
 // =========================
@@ -49,6 +61,7 @@ builder.Services.AddFileSorterCore();
 builder.Services.AddFileSorterServer();
 builder.Services.AddAi();
 builder.Services.AddSingleton<ToastService>();
+builder.Services.AddSingleton<FileSorterPushService>();
 
 // =========================
 // SIGNALR (after Core so SignalR publisher overrides the null default)
@@ -210,10 +223,22 @@ if (!string.IsNullOrWhiteSpace(sourcePath) &&
 
 app.UseAntiforgery();
 
+app.MapPost("/api/push/subscribe", async (PushSubscribeRequest req, FileSorterPushService push) =>
+{
+    await push.SubscribeAsync(req.Endpoint, req.P256dh, req.Auth);
+    return Results.Ok();
+});
+
+app.MapPost("/api/push/unsubscribe", async (PushUnsubscribeRequest req, FileSorterPushService push) =>
+{
+    await push.UnsubscribeAsync(req.Endpoint);
+    return Results.Ok();
+});
+
 // TEMP DEBUG - driving the Google Drive Takeout multi-batch job, removed after
 app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage1Client client) =>
 {
-    await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1.StartPackage1Request
+    var workflowId = await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1.StartPackage1Request
     {
         SourceLibraryPath = source,
         WorkingDirectory = System.IO.Path.Combine(source, ".package1"),
@@ -223,7 +248,50 @@ app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin
         EnableOcr = false,
         Profile = "Package1"
     }, CancellationToken.None);
-    return Results.Ok("started");
+    return Results.Ok(new { workflowId });
+});
+
+// TEMP DEBUG - reset a library back to right after Package1's own export,
+// before any Package3/add-on step touched it (see Package1BaselineHelper) -
+// undoes anything an add-on run has done since, so add-ons can always be
+// experimented with, or re-run cleanly, without re-sorting from source.
+app.MapPost("/api/debug/p1-restore-baseline", async (string path) =>
+{
+    var baselinePath = ITMartin.Media.Contracts.Contracts.Runtime.Helpers.Package1BaselineHelper.GetBaselinePath(path);
+    if (!Directory.Exists(baselinePath))
+        return Results.NotFound($"No baseline found at {baselinePath} - baseline is created automatically by the first p1-start run against this library.");
+
+    await ITMartin.Media.Contracts.Contracts.Runtime.Helpers.Package1BaselineHelper.MirrorDirectoryAsync(baselinePath, path, CancellationToken.None);
+    return Results.Ok(new { restoredFrom = baselinePath });
+});
+
+// TEMP DEBUG - polling a p1-start run's progress, removed after.
+// Note: p1-start's returned "workflowId" is the background-job queue message
+// id, generated in Package1Client.StartAsync BEFORE the job is even
+// dequeued - it is NOT the same id IScanOrchestrator.StartAsync mints inside
+// StartPackage1Handler for actual WorkflowInstances tracking (Package1WorkflowState
+// carries no id field to connect the two). Rather than plumb an id through the
+// whole queue/orchestrator path just for a debug endpoint, this just returns
+// the most recently started Package1 run - fine for one-at-a-time local/test use.
+app.MapGet("/api/debug/p1-status", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var instance = await db.WorkflowInstances
+        .Where(x => x.WorkflowName == "Package1Workflow")
+        .OrderByDescending(x => x.StartedAtUtc)
+        .FirstOrDefaultAsync();
+    return instance is null
+        ? Results.NotFound()
+        : Results.Ok(new
+        {
+            instance.Status,
+            instance.CurrentStep,
+            instance.ProgressCurrent,
+            instance.ProgressTotal,
+            instance.ProgressItem,
+            instance.FailureReason,
+            instance.CompletedAtUtc
+        });
 });
 
 // TEMP DEBUG - testing Package3 face indexing end-to-end, removed after
@@ -337,9 +405,6 @@ app.MapPost("/api/debug/sf-delete-person", async (Guid personId, ITMartin.Media.
 app.MapPost("/api/debug/sf-yearbook", async (string path, int year, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.GenerateYearbookAsync(path, year)));
 
-app.MapPost("/api/debug/sf-homeaway", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
-    Results.Ok(await service.GenerateHomeAwayFoldersAsync(path)));
-
 app.MapPost("/api/debug/sf-sync-collections", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
 {
     await service.SyncGalleryCollectionsAsync(path);
@@ -348,6 +413,9 @@ app.MapPost("/api/debug/sf-sync-collections", async (string path, ITMartin.Media
 
 app.MapPost("/api/debug/sf-traditions", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.GenerateTraditionsAsync(path)));
+
+app.MapPost("/api/debug/sf-estimate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
+    Results.Ok(await service.EstimateUndatedPhotoYearsAsync(path)));
 
 app.MapPost("/api/debug/sf-bestshot", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.PickBestShotsAsync(path)));
@@ -442,3 +510,6 @@ app.MapRazorComponents<App>()
 // =========================
 
 app.Run();
+
+record PushSubscribeRequest(string Endpoint, string P256dh, string Auth);
+record PushUnsubscribeRequest(string Endpoint);

@@ -617,7 +617,12 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 File.Move(file, newPath);
 
                 var faces = await db.MediaFaces.Where(f => f.MediaFilePath == file).ToListAsync(cancellationToken);
-                foreach (var face in faces) face.MediaFilePath = newPath;
+                var newRelativePath = Path.GetRelativePath(libraryPath, newPath).Replace('\\', '/');
+                foreach (var face in faces)
+                {
+                    face.MediaFilePath = newPath;
+                    face.RelativePath = newRelativePath;
+                }
 
                 fixedCount++;
             }

@@ -124,7 +124,7 @@ public sealed class Package3Service : IPackage3Service
                 {
                     await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-                    await IndexFaceForFileAsync(db, file, recognizer, ct);
+                    await IndexFaceForFileAsync(db, libraryPath, file, recognizer, ct);
 
                     var count = Interlocked.Increment(ref processed);
 
@@ -173,9 +173,11 @@ public sealed class Package3Service : IPackage3Service
         }
     }
 
-    private async Task IndexFaceForFileAsync(MediaDbContext db, string file, IFaceRecognitionService recognizer, CancellationToken cancellationToken)
+    private async Task IndexFaceForFileAsync(MediaDbContext db, string libraryPath, string file, IFaceRecognitionService recognizer, CancellationToken cancellationToken)
     {
-        var alreadyFaceScanned = await db.MediaFaces.AnyAsync(x => x.MediaFilePath == file, cancellationToken);
+        var relativePath = GetRelativePath(libraryPath, file);
+
+        var alreadyFaceScanned = await db.MediaFaces.AnyAsync(x => x.RelativePath == relativePath, cancellationToken);
         if (alreadyFaceScanned) return;
 
         // FaceONNX only understands stills - for a video, pull one representative
@@ -201,6 +203,7 @@ public sealed class Package3Service : IPackage3Service
                 {
                     Id = Guid.NewGuid(),
                     MediaFilePath = file,
+                    RelativePath = relativePath,
                     EmbeddingJson = "[]",
                     CreatedAtUtc = DateTimeOffset.UtcNow
                 });
@@ -217,6 +220,7 @@ public sealed class Package3Service : IPackage3Service
                 {
                     Id = Guid.NewGuid(),
                     MediaFilePath = file,
+                    RelativePath = relativePath,
                     EmbeddingJson = JsonSerializer.Serialize(embedding),
                     CreatedAtUtc = DateTimeOffset.UtcNow
                 });
@@ -231,6 +235,7 @@ public sealed class Package3Service : IPackage3Service
                 {
                     Id = Guid.NewGuid(),
                     MediaFilePath = file,
+                    RelativePath = relativePath,
                     EmbeddingJson = "[]",
                     CreatedAtUtc = DateTimeOffset.UtcNow
                 });
@@ -915,6 +920,14 @@ public sealed class Package3Service : IPackage3Service
         if (magA == 0 || magB == 0) return 0;
         return dot / (Math.Sqrt(magA) * Math.Sqrt(magB));
     }
+
+    /// <summary>
+    /// Normalizes to forward slashes so the same photo indexed via a Windows
+    /// path (E:\mie\Billeder\...) and a Linux container mount (/library/mie/Billeder/...)
+    /// produces the same RelativePath and is recognized as already-indexed either way.
+    /// </summary>
+    private static string GetRelativePath(string libraryPath, string file)
+        => Path.GetRelativePath(libraryPath, file).Replace('\\', '/');
 
     private static IEnumerable<string> EnumerateLibraryImages(string libraryPath)
     {
