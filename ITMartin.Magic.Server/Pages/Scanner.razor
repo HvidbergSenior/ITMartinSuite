@@ -58,6 +58,16 @@
     {
         <div class="session-summary fade-in-panel">
             <h5 class="mb-2">📋 Denne session — @_completedCount kort</h5>
+            @{
+                var sessionTotal = _recentResults
+                    .Select(r => r.Result?.ScryfallMatchResult?.EurPrice)
+                    .Where(p => p.HasValue)
+                    .Sum(p => p!.Value);
+            }
+            @if (sessionTotal > 0)
+            {
+                <div class="session-total mb-2">Samlet værdi: <strong>€@sessionTotal.ToString("F2")</strong></div>
+            }
             <ul class="list-group mb-3">
                 @foreach (var item in _recentResults)
                 {
@@ -114,7 +124,7 @@
                     <div class="selected-set-display">
                         @if (!string.IsNullOrEmpty(sel?.IconSvgUri))
                         {
-                            <img src="@sel.IconSvgUri" class="selected-set-icon" width="28" height="28" alt="@_selectedSetCode" />
+                            <img src="@($"/api/set-icon/{_selectedSetCode}")" class="selected-set-icon" width="28" height="28" alt="@_selectedSetCode" />
                         }
                         <div class="selected-set-text">
                             <div class="selected-set-name">@(sel?.SetName ?? _selectedSetCode)</div>
@@ -132,7 +142,7 @@
                              title="@set.SetName">
                             @if (!string.IsNullOrEmpty(set.IconSvgUri))
                             {
-                                <img src="@set.IconSvgUri" class="set-tile-icon" width="22" height="22" alt="@set.SetCode" />
+                                <img src="@($"/api/set-icon/{set.SetCode}")" class="set-tile-icon" width="22" height="22" alt="@set.SetCode" />
                             }
                             <div class="set-tile-code">@set.SetCode.ToUpper()</div>
                             <div class="set-tile-name">@set.SetName</div>
@@ -257,7 +267,10 @@
     @if (_recentResults.Count > 0 && _cameraStarted)
     {
         <ul class="list-group mt-3">
-            @foreach (var item in _recentResults)
+            @* Live feed while actively scanning stays compact on purpose - the
+               full, uncapped list is what the "Denne session" summary panel
+               shows once you stop. *@
+            @foreach (var item in _recentResults.Take(10))
             {
                 <li class="list-group-item @(item.Success ? "list-group-item-success" : "list-group-item-warning") @(item.Result is not null ? "feed-item-clickable" : "")"
                     @onclick="() => SelectFeedItem(item)">
@@ -301,7 +314,7 @@
                         <div class="set-line">
                             @if (!string.IsNullOrEmpty(setIcon))
                             {
-                                <img src="@setIcon" width="18" height="18" alt="@match.SetCode" />
+                                <img src="@($"/api/set-icon/{match.SetCode}")" width="18" height="18" alt="@match.SetCode" />
                             }
                             @(match.SetName ?? match.SetCode?.ToUpperInvariant()) (@match.SetCode?.ToUpperInvariant())
                             ·
@@ -457,13 +470,16 @@
 
     private List<MagicSetSymbolDefinition> _sets = [];
 
+    // No cap - a couple hundred small tiles in a scrollable grid is nothing,
+    // and silently hiding sets past the 50th made large parts of the picker
+    // effectively invisible (and unreachable without knowing to search for
+    // the exact set name).
     private IEnumerable<MagicSetSymbolDefinition> FilteredSets =>
         string.IsNullOrWhiteSpace(_setSearch)
-            ? _sets.Take(50)
+            ? _sets
             : _sets.Where(x =>
                 x.SetName.Contains(_setSearch, StringComparison.OrdinalIgnoreCase) ||
-                x.SetCode.Contains(_setSearch, StringComparison.OrdinalIgnoreCase))
-              .Take(50);
+                x.SetCode.Contains(_setSearch, StringComparison.OrdinalIgnoreCase));
 
     private bool NoSetSymbol
     {
@@ -650,8 +666,11 @@
 
     private void AddFeedItem(string text, bool success, CardScanContext? result)
     {
+        // Uncapped - this list is the only place a whole session's worth of
+        // scans is visible at once (see the "Denne session" summary panel
+        // below), so silently dropping anything past the 10th card defeated
+        // the point of that panel on any real scanning session.
         _recentResults.Insert(0, new ScanFeedItem(text, success, result));
-        if (_recentResults.Count > 10) _recentResults.RemoveAt(_recentResults.Count - 1);
     }
 
     private async Task SelectFeedItem(ScanFeedItem item)

@@ -15,6 +15,7 @@ using ITMartin.OCR.Interfaces;
 using ITMartin.OCR.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
 
 var builder =
@@ -140,6 +141,50 @@ app.UseStaticFiles(
         RequestPath =
             "/data"
     });
+
+// =========================
+// SET ICON CACHE
+// =========================
+
+// Set icons were hotlinked straight to svgs.scryfall.io on every render -
+// fine on WiFi, unreliable on a phone's mobile connection mid-scan, which is
+// why some icons just never showed up. There are only a few dozen distinct
+// sets in play at once, so an in-memory cache (already registered below) is
+// enough - no disk/volume needed, and a cold cache just refills itself on
+// the next few requests after a restart.
+app.MapGet("/api/set-icon/{code}", async (
+    string code,
+    IMagicKnowledgeService knowledgeService,
+    IHttpClientFactory httpClientFactory,
+    IMemoryCache cache) =>
+{
+    var cacheKey = $"set-icon:{code}";
+    if (cache.TryGetValue(cacheKey, out byte[]? cached) && cached is not null)
+    {
+        return Results.File(cached, "image/svg+xml");
+    }
+
+    var sets = await knowledgeService.GetSetDefinitionsAsync();
+    var iconUri = sets.FirstOrDefault(s => string.Equals(s.SetCode, code, StringComparison.OrdinalIgnoreCase))?.IconSvgUri;
+    if (string.IsNullOrEmpty(iconUri))
+    {
+        return Results.NotFound();
+    }
+
+    try
+    {
+        var client = httpClientFactory.CreateClient();
+        var bytes = await client.GetByteArrayAsync(iconUri);
+        cache.Set(cacheKey, bytes, TimeSpan.FromDays(30));
+        return Results.File(bytes, "image/svg+xml");
+    }
+    catch
+    {
+        // Scryfall unreachable right now - better to show no icon than to
+        // hang the request or crash the page.
+        return Results.NotFound();
+    }
+});
 
 // =========================
 // BLAZOR

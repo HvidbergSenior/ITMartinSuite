@@ -40,15 +40,67 @@ public sealed class MagicSetImportService
                 .ToListAsync(cancellationToken))
             .ToHashSet();
 
+        // Only the set types someone actually plays with: mainline
+        // core/expansion sets and reprint "masters" sets. Commander
+        // precons, promos, duel decks, box toppers, starter/planeswalker
+        // decks, Un-sets, planechase/archenemy/vanguard oversized cards,
+        // and similar are real Scryfall set types but not what "which set
+        // is this card from" means for a normal collection.
         var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "core",
-            "expansion",
-            "masters"
+            "core", "expansion", "masters",
+        };
+
+        // Scryfall doesn't flag "Universes Beyond" licensed crossovers with
+        // any set-level boolean - they're regular "expansion"/"commander"/
+        // "eternal" sets as far as the API is concerned, indistinguishable
+        // by type from real Magic sets. Exact set codes (pulled from a full
+        // review of every non-digital Scryfall set) are precise where a
+        // name-keyword match would risk both false positives (a real Magic
+        // set that happens to share a word) and false negatives (a crossover
+        // whose name doesn't match any guessed keyword). Add the full family
+        // of codes for a franchise (base set + art series + tokens + promos
+        // + commander + minigames etc.), not just the main expansion, since
+        // Scryfall gives each of those its own set entry.
+        var crossoverSetCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Assassin's Creed
+            "acr", "aacr", "macr", "tacr",
+            // Avatar: The Last Airbender (both the original and Eternal sub-line)
+            "tla", "atla", "ftla", "tle", "atle", "ttle", "jtla", "ptla", "ttla",
+            // Cowboy Bebop
+            "pcbb",
+            // Doctor Who
+            "who", "twho",
+            // Fallout
+            "pip", "tpip",
+            // Final Fantasy
+            "fin", "afin", "fic", "tfic", "pfin", "rfin", "afic", "tfin", "fca",
+            // Jurassic World
+            "rex", "trex",
+            // Marvel (Super Heroes, Spider-Man, Universe, Legends inserts)
+            "msh", "amsh", "msc", "tmsc", "fmsc", "tmsh",
+            "mar", "spm", "aspm", "spe", "pspm", "tspm", "lmar",
+            // My Little Pony
+            "ptg",
+            // Star Trek
+            "trk", "trc", "ttrk",
+            // Teenage Mutant Ninja Turtles
+            "tmt", "atmt", "tmc", "ftmc", "ttmc", "pza", "ttmt",
+            // Transformers
+            "bot", "tbot",
+            // Warhammer 40,000
+            "40k", "t40k",
+            // Lord of the Rings / The Hobbit (Tolkien license)
+            "hob", "hoc", "thob",
+            "altr", "ltc", "tltc", "pltc", "fltr", "pltr", "altc", "tltr", "ltr", "mltr",
+            // Duel Masters crossover promos
+            "pmda",
         };
 
         var eligible = response.Data
             .Where(x => allowedTypes.Contains(x.SetType) && !x.Digital)
+            .Where(x => !crossoverSetCodes.Contains(x.Code))
             .ToList();
 
         // Remove sets that no longer match allowed types
@@ -88,15 +140,22 @@ public sealed class MagicSetImportService
 
         _db.Sets.AddRange(newSets);
 
-        // Refresh icon URLs for existing sets
+        // Refresh icon URLs and set type for existing sets. Sets imported
+        // before SetType tracking was added were never backfilled, so their
+        // SetType stayed blank forever.
         var iconMap = eligible.ToDictionary(x => x.Code, x => x.IconSvgUri);
+        var typeMap = eligible.ToDictionary(x => x.Code, x => x.SetType);
         var existing = await _db.Sets
-            .Where(x => existingCodes.Contains(x.SetCode) && x.IconSvgUri == "")
+            .Where(x => existingCodes.Contains(x.SetCode))
             .ToListAsync(cancellationToken);
 
         foreach (var set in existing)
-            if (iconMap.TryGetValue(set.SetCode, out var uri))
+        {
+            if (set.IconSvgUri == "" && iconMap.TryGetValue(set.SetCode, out var uri))
                 set.IconSvgUri = uri;
+            if (typeMap.TryGetValue(set.SetCode, out var setType))
+                set.SetType = setType;
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
     }
