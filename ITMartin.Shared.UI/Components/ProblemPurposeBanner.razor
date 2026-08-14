@@ -9,9 +9,18 @@
         <span class="itm-pp-label">Formål</span>
         <span class="itm-pp-text">@Formaal</span>
     </div>
+    @if (!string.IsNullOrWhiteSpace(Beskrivelse))
+    {
+        <div class="itm-pp-row">
+            <span class="itm-pp-icon">📋</span>
+            <span class="itm-pp-label">Beskrivelse</span>
+            <span class="itm-pp-text">@Beskrivelse</span>
+        </div>
+    }
 </div>
 
 @code {
     [Parameter] public string Problem { get; set; } = "";
     [Parameter] public string Formaal { get; set; } = "";
+    [Parameter] public string Beskrivelse { get; set; } = "";
 }
