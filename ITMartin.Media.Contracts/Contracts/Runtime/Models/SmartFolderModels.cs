@@ -24,11 +24,11 @@ public sealed class YearbookResult
     public required string HtmlPath { get; init; }
 }
 
-public sealed class HomeAwayResult
+public sealed class UndatedEstimateResult
 {
-    public int HomeCount { get; init; }
-    public int AwayCount { get; init; }
-    public int UngeotaggedCount { get; init; }
-    public required string HomeFolderPath { get; init; }
-    public required string AwayFolderPath { get; init; }
+    public int Processed { get; init; }
+    public int Moved { get; init; }
+    public int LowConfidenceLeftInPlace { get; init; }
+    public int NoUsableClueLeftInPlace { get; init; }
+    public int RemainingUnprocessed { get; init; }
 }

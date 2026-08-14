@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
@@ -97,6 +98,24 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             var dateResult = _dateService.GetBestDate(new MediaDateRequest(file));
             var date = dateResult.Date;
 
+            // The "Filesystem" fallback (file mtime/ctime) only kicks in when
+            // EXIF/video/document metadata and filename patterns all come up
+            // empty - and on this library, repeated copy operations have reset
+            // those timestamps to whichever day the copy happened, not the
+            // original capture date (see MediaDateService.GetSafeFileDate).
+            // Package1 already placed the file in a Year/Month folder using a
+            // trustworthy signal when it was first sorted - trust that folder
+            // location over a re-derived, corrupted timestamp. If there's no
+            // Year/Month folder either (genuinely-undated files, e.g. the
+            // Udaterede tree), the raw filesystem date is just the copy date
+            // and worse than no date at all - bucket the file under "unknown"
+            // instead of silently mis-filing it into whatever year the last
+            // copy happened to run.
+            if (!dateResult.IsReliable && dateResult.Source == "Filesystem")
+            {
+                date = TryGetDateFromFolderPath(libraryPath, file);
+            }
+
             lock (itemLock)
             {
                 items.Add(new GalleryItem(file, thumbPath, date, MediaTypeHelper.IsVideo(file)));
@@ -156,7 +175,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
 
         async Task AddPageAsync(string kind, string label, string slug, IEnumerable<string> folderFiles)
         {
-            var pageItems = BuildSmartFolderItems(folderFiles, libraryPath, thumbsRoot, thumbRelativePaths);
+            var pageItems = await BuildSmartFolderItemsAsync(folderFiles, libraryPath, thumbsRoot, thumbRelativePaths, cancellationToken);
             if (pageItems.Count == 0) return;
 
             var fileName = $"{kind}-{SanitizeFileName(slug)}.html";
@@ -218,18 +237,50 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         return links;
     }
 
-    private static List<GalleryItem> BuildSmartFolderItems(
+    // SmartFolders entries are real copied files in practice (not symlinks -
+    // the "resolve back to the original" path below is a no-op fallback for a
+    // format SmartFoldersService doesn't actually produce here), so they never
+    // hit thumbRelativePaths (keyed by the main library tree, which explicitly
+    // skips the SmartFolders subtree). Generate a thumbnail for the copy
+    // itself instead of assuming one already exists under the original's path.
+    private async Task<List<GalleryItem>> BuildSmartFolderItemsAsync(
         IEnumerable<string> folderFiles, string libraryPath, string thumbsRoot,
-        Dictionary<string, string> thumbRelativePaths)
+        Dictionary<string, string> thumbRelativePaths, CancellationToken cancellationToken)
     {
         var items = new List<GalleryItem>();
         foreach (var file in folderFiles)
         {
             var real = ResolveOriginalPath(file);
             var relative = Path.GetRelativePath(libraryPath, real);
-            if (!thumbRelativePaths.TryGetValue(relative, out var thumbRel)) continue;
 
-            var thumbPath = Path.Combine(thumbsRoot, thumbRel);
+            string thumbPath;
+            if (thumbRelativePaths.TryGetValue(relative, out var thumbRel))
+            {
+                thumbPath = Path.Combine(thumbsRoot, thumbRel);
+            }
+            else
+            {
+                var ownRelative = Path.GetRelativePath(libraryPath, file);
+                var strippedRel = Path.Combine(
+                    Path.GetDirectoryName(ownRelative) ?? "",
+                    Path.GetFileNameWithoutExtension(ownRelative) + ThumbExtension);
+                thumbPath = Path.Combine(thumbsRoot, strippedRel);
+
+                if (!File.Exists(thumbPath))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(thumbPath)!);
+                    try
+                    {
+                        await _thumbnailService.GenerateAsync(real, thumbPath, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Thumbnail generation failed for {File}", real);
+                        continue;
+                    }
+                }
+            }
+
             if (!File.Exists(thumbPath)) continue;
 
             items.Add(new GalleryItem(real, thumbPath, null, MediaTypeHelper.IsVideo(real)));
@@ -424,6 +475,24 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
 
     private static bool IsWebSafeImage(string path) =>
         WebSafeImageExtensions.Contains(Path.GetExtension(path));
+
+    // Matches the "{Year}/{MM}-{MonthName}" folder convention Package1 sorts
+    // into (e.g. "2013/03-March/IMG_1234.jpg") - anchored to the start of the
+    // relative path so a coincidental 4-digit number deeper in the path never
+    // matches.
+    private static readonly Regex YearMonthFolderPattern =
+        new(@"^(?<year>(19|20)\d{2})[\\/](?<month>0[1-9]|1[0-2])-", RegexOptions.Compiled);
+
+    private static DateTime? TryGetDateFromFolderPath(string libraryPath, string file)
+    {
+        var relative = Path.GetRelativePath(libraryPath, file);
+        var match = YearMonthFolderPattern.Match(relative);
+        if (!match.Success) return null;
+
+        var year = int.Parse(match.Groups["year"].Value);
+        var month = int.Parse(match.Groups["month"].Value);
+        return new DateTime(year, month, 1);
+    }
 
     private static string ToWebPath(string relativePath) => relativePath.Replace('\\', '/');
 

@@ -31,13 +31,6 @@ public interface ISmartFoldersService
     Task<YearbookResult?> GenerateYearbookAsync(string libraryPath, int year, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Splits geotagged photos into Home vs Away folders using the same "home"
-    /// detection as trip clustering. Only covers photos that actually carry GPS -
-    /// libraries with little/no location metadata will see very few files sorted.
-    /// </summary>
-    Task<HomeAwayResult> GenerateHomeAwayFoldersAsync(string libraryPath, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Writes a short AI (Claude Haiku) caption per photo already in a generated
     /// Yearbook folder and rebuilds its index.html to show them - a separate,
     /// paid step from GenerateYearbookAsync itself (which is free, date-only
@@ -66,8 +59,23 @@ public interface ISmartFoldersService
     Task<List<TraditionResult>> GenerateTraditionsAsync(string libraryPath, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Publishes the already-generated SmartFolders (Home/Outside/People/Yearbook)
-    /// into the Gallery web app's own "Samlinger" (Collections) feature - so they
+    /// Looks at photos that never got a real date (no EXIF, no filename pattern,
+    /// and the filesystem-timestamp fallback isn't trustworthy either - see
+    /// MediaDateService) and asks Claude vision for a best-guess year from the
+    /// photo's actual content (clothing, technology visible, image quality/era).
+    /// Only moves a photo out of Undated when the model is medium/high confidence
+    /// AND gives a real reason - low-confidence or "no usable clue" guesses stay
+    /// put rather than mis-filing a photo into a wrong year with false precision.
+    /// Moved photos land in "{year}/Ukendt måned" (never a real month - vision
+    /// can only place an era, not a date). Batched (multiple photos per call),
+    /// Haiku, hard-capped per run, and incremental via a decided.json sidecar in
+    /// Undated so a re-run only spends on photos it hasn't already decided on.
+    /// </summary>
+    Task<UndatedEstimateResult> EstimateUndatedPhotoYearsAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Publishes the already-generated SmartFolders (People/Yearbook/Trips) into
+    /// the Gallery web app's own "Samlinger" (Collections) feature - so they
     /// show as a grouped row of Danish-labeled cards on the gallery's home page,
     /// instead of requiring a click into a raw "SmartFolders" folder to find them.
     /// </summary>

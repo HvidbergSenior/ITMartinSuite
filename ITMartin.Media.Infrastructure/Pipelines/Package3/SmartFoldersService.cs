@@ -19,9 +19,14 @@ public sealed class SmartFoldersService : ISmartFoldersService
 {
     public const string RootFolderName = "SmartFolders";
 
-    // Shared "how far from home counts as away" threshold for both the
-    // Home/Outside split and trip clustering.
-    private const double AwayFromHomeKm = 10;
+    // How far from home counts as away, for trip clustering. Deliberately much
+    // larger than a literal "not at home" distance - ordinary Danish life
+    // (work, family visits, errands) routinely covers 10-50km from one precise
+    // home GPS bucket. A tight threshold here let ordinary local excursions
+    // get classified as "away" often enough that they chained (via the 3-day
+    // gap rule below) into whatever real trip happened nearby in time, merging
+    // weeks of home photos into one mislabeled "trip" folder.
+    private const double AwayFromHomeKm = 100;
     private const double HomeBucketDegrees = 0.05; // roughly 5km grid cells for finding "home"
 
     private static readonly HashSet<string> SkippedFolders =
@@ -147,62 +152,14 @@ public sealed class SmartFoldersService : ISmartFoldersService
         return points;
     }
 
-    public Task<HomeAwayResult> GenerateHomeAwayFoldersAsync(string libraryPath, CancellationToken cancellationToken = default)
-    {
-        var points = GatherDateAndGpsPoints(libraryPath, cancellationToken);
-        var geotagged = points.Where(p => p.Lat is not null && p.Lng is not null).ToList();
-        var home = FindHome(geotagged, HomeBucketDegrees);
-
-        var homeFolderPath = Path.Combine(libraryPath, RootFolderName, "Home");
-        var awayFolderPath = Path.Combine(libraryPath, RootFolderName, "Outside");
-
-        if (home is null)
-        {
-            CopyFiles([], homeFolderPath);
-            CopyFiles([], awayFolderPath);
-            return Task.FromResult(new HomeAwayResult
-            {
-                HomeCount = 0,
-                AwayCount = 0,
-                UngeotaggedCount = points.Count,
-                HomeFolderPath = homeFolderPath,
-                AwayFolderPath = awayFolderPath,
-            });
-        }
-
-        var homeFiles = new List<string>();
-        var awayFiles = new List<string>();
-
-        foreach (var p in geotagged)
-        {
-            var distanceKm = HaversineKm(home.Value.lat, home.Value.lng, p.Lat!.Value, p.Lng!.Value);
-            (distanceKm > AwayFromHomeKm ? awayFiles : homeFiles).Add(p.Path);
-        }
-
-        var homeLinked = CopyFiles(homeFiles, homeFolderPath);
-        var awayLinked = CopyFiles(awayFiles, awayFolderPath);
-
-        _logger.LogInformation(
-            "Home/Away split for {LibraryPath}: {Home} home, {Away} away, {Ungeo} without GPS",
-            libraryPath, homeLinked.Count, awayLinked.Count, points.Count - geotagged.Count);
-
-        return Task.FromResult(new HomeAwayResult
-        {
-            HomeCount = homeLinked.Count,
-            AwayCount = awayLinked.Count,
-            UngeotaggedCount = points.Count - geotagged.Count,
-            HomeFolderPath = homeFolderPath,
-            AwayFolderPath = awayFolderPath,
-        });
-    }
-
     public Task<List<TripFolderResult>> GenerateTripFoldersAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
         var points = GatherDateAndGpsPoints(libraryPath, cancellationToken);
         var sorted = points.OrderBy(p => p.Date).ToList();
 
         const double maxGapDaysAway = 3;
-        const int minFiles = 15;
+        const int minFiles = 21; // more than 20 - a real trip leaves more of a trace than that
+        const int minAwayFiles = 5; // the away cluster itself, before backfill - see below
         const double minSpanHours = 20;
         const double maxSpanDays = 45; // sanity cap - a single "trip" longer than this is almost certainly a clustering mistake
 
@@ -245,6 +202,12 @@ public sealed class SmartFoldersService : ISmartFoldersService
 
         foreach (var awayCluster in awayClusters)
         {
+            // The away cluster needs real substance on its own, before the date-window
+            // backfill below adds anything - otherwise a handful of stray away points
+            // (a GPS blip, a brief errand past the threshold) can anchor a "trip" that's
+            // almost entirely backfilled home photos padded up to minFiles.
+            if (awayCluster.Count < minAwayFiles) continue;
+
             var start = awayCluster[0].Date;
             var end = awayCluster[^1].Date;
             if ((end - start).TotalDays > maxSpanDays) continue;
@@ -260,6 +223,13 @@ public sealed class SmartFoldersService : ISmartFoldersService
             if ((end - start).TotalHours < minSpanHours) continue;
 
             var country = GuessCountry(awayCluster);
+
+            // Denmark is home - a cluster that never actually left the country
+            // is an ordinary away-from-home weekend, not a trip worth its own
+            // folder. (Foreign clusters GuessCountry can't identify still get
+            // a "Rejse <dates>" folder below - unknown isn't the same as home.)
+            if (country == "Danmark") continue;
+
             var baseName = country is not null
                 ? $"{country} {start:yyyy}"
                 : $"Rejse {start:yyyy-MM-dd} til {end:yyyy-MM-dd}";
@@ -729,6 +699,244 @@ public sealed class SmartFoldersService : ISmartFoldersService
             _ => "image/jpeg",
         };
 
+    // Batched, not one call per photo - see CLAUDE.md AI cost discipline. Each
+    // call sends several photos at once and gets back one estimate per photo.
+    private const int UndatedBatchSize = 12;
+
+    private static readonly HashSet<string> KnownUndatedFolderNames =
+        new(StringComparer.OrdinalIgnoreCase) { "Undated", "Udaterede" };
+
+    private static readonly HashSet<string> KnownImagesFolderNames =
+        new(StringComparer.OrdinalIgnoreCase) { "Images", "Billeder" };
+
+    private static readonly Tool EstimateUndatedYearsTool = new()
+    {
+        Name = "estimate_years",
+        Description = "Report a best-guess year for each photo shown, based purely on visual content",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["estimates"] = JsonSerializer.SerializeToElement(new
+                {
+                    type = "array",
+                    description = "Exactly one entry per photo shown, in the same order",
+                    items = new
+                    {
+                        type = "object",
+                        properties = new Dictionary<string, object>
+                        {
+                            ["index"] = new { type = "integer", description = "0-based index of the photo, in the order shown" },
+                            ["year"] = new { type = new[] { "integer", "null" }, description = "Best-guess year the photo was taken, or null if there's no usable visual clue (clothing, technology, image quality/era, visible dates, etc.)" },
+                            ["confidence"] = new { type = "string", @enum = new[] { "low", "medium", "high" } },
+                            ["reason"] = new { type = "string", description = "One short phrase naming the actual visual clue - not a generic explanation" },
+                        },
+                        required = new[] { "index", "year", "confidence", "reason" },
+                    },
+                }),
+            },
+            Required = ["estimates"],
+        },
+    };
+
+    private sealed record UndatedEstimate(int Index, int? Year, string Confidence, string Reason);
+
+    public async Task<UndatedEstimateResult> EstimateUndatedPhotoYearsAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var undatedRoot = KnownUndatedFolderNames
+            .Select(name => Path.Combine(libraryPath, name))
+            .FirstOrDefault(Directory.Exists);
+
+        var imagesRoot = KnownImagesFolderNames
+            .Select(name => Path.Combine(libraryPath, name))
+            .FirstOrDefault(Directory.Exists);
+
+        if (undatedRoot is null || imagesRoot is null)
+        {
+            return new UndatedEstimateResult();
+        }
+
+        var decidedPath = Path.Combine(undatedRoot, "ai_date_estimates.json");
+        var decided = LoadUndatedDecisions(decidedPath);
+
+        // Flat scan (Undated has never had Year/Month structure of its own -
+        // that's the whole point) - images only, vision can't usefully judge a
+        // date from a document or an audio file, and video frames would need
+        // ffmpeg extraction first, out of scope for this pass.
+        var allCandidates = Directory.EnumerateFiles(undatedRoot)
+            .Where(MediaTypeHelper.IsImage)
+            .Select(f => Path.GetFileName(f))
+            .Where(name => !decided.ContainsKey(name))
+            .ToList();
+
+        // Hard cap is on API calls, not files - each call covers a whole batch.
+        var maxFiles = UndatedBatchSize * MaxCallsPerRun;
+        var toProcess = allCandidates.Take(maxFiles).ToList();
+
+        var moved = 0;
+        var lowConfidence = 0;
+        var noClue = 0;
+        var callsMade = 0;
+
+        foreach (var batch in toProcess.Chunk(UndatedBatchSize))
+        {
+            if (callsMade >= MaxCallsPerRun) break;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            List<UndatedEstimate> estimates;
+            try
+            {
+                estimates = await EstimateBatchAsync(undatedRoot, batch, cancellationToken);
+                callsMade++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Undated year-estimation failed for a batch of {Count} starting at {First}", batch.Length, batch[0]);
+                continue;
+            }
+
+            foreach (var fileName in batch)
+            {
+                var estimate = estimates.FirstOrDefault(e => e.Index == Array.IndexOf(batch, fileName));
+                if (estimate is null)
+                {
+                    continue; // model dropped this index - leave undecided, retry next run
+                }
+
+                if (estimate.Year is null)
+                {
+                    noClue++;
+                    decided[fileName] = new UndatedDecision("none", null, estimate.Reason);
+                    continue;
+                }
+
+                if (estimate.Confidence is not ("medium" or "high"))
+                {
+                    lowConfidence++;
+                    decided[fileName] = new UndatedDecision("low-confidence", estimate.Year, estimate.Reason);
+                    continue;
+                }
+
+                var sourcePath = Path.Combine(undatedRoot, fileName);
+                var targetDir = Path.Combine(imagesRoot, estimate.Year.Value.ToString(), "Ukendt måned");
+                Directory.CreateDirectory(targetDir);
+
+                var targetPath = Path.Combine(targetDir, fileName);
+                var i = 1;
+                while (File.Exists(targetPath))
+                    targetPath = Path.Combine(targetDir, $"{Path.GetFileNameWithoutExtension(fileName)}_{i++}{Path.GetExtension(fileName)}");
+
+                try
+                {
+                    File.Move(sourcePath, targetPath);
+                    moved++;
+                    decided[fileName] = new UndatedDecision("moved", estimate.Year, estimate.Reason);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not move {File} to {Target}", sourcePath, targetPath);
+                }
+            }
+
+            // Same reasoning as ImageTaggingService/BestShot - save incrementally,
+            // not only at the end, so a crash partway through doesn't lose
+            // decisions (and money) already spent.
+            SaveUndatedDecisions(decidedPath, decided);
+        }
+
+        return new UndatedEstimateResult
+        {
+            Processed = moved + lowConfidence + noClue,
+            Moved = moved,
+            LowConfidenceLeftInPlace = lowConfidence,
+            NoUsableClueLeftInPlace = noClue,
+            RemainingUnprocessed = allCandidates.Count - (moved + lowConfidence + noClue),
+        };
+    }
+
+    private async Task<List<UndatedEstimate>> EstimateBatchAsync(string undatedRoot, string[] fileNames, CancellationToken cancellationToken)
+    {
+        if (_anthropicClient is null) return [];
+
+        var content = new List<ContentBlockParam>
+        {
+            new TextBlockParam
+            {
+                Text = $"These are {fileNames.Length} photos with no reliable date metadata (often Facebook/Messenger " +
+                       "downloads that strip EXIF on upload). Look at each one and guess the year it was likely taken, " +
+                       "purely from what's visible - clothing/fashion, technology (phones, cars, TVs), photo quality and " +
+                       "color grading typical of a given camera era, visible calendars/screens/dates, hairstyles, etc. " +
+                       "If a photo gives you nothing to go on (a meme, a screenshot of text, a close-up with no context), " +
+                       "say so honestly with year: null rather than guessing. Call estimate_years with exactly one entry " +
+                       "per photo, in order.",
+            },
+        };
+
+        foreach (var fileName in fileNames)
+        {
+            var bytes = await File.ReadAllBytesAsync(Path.Combine(undatedRoot, fileName), cancellationToken);
+            content.Add(new ImageBlockParam
+            {
+                Source = new Base64ImageSource { Data = Convert.ToBase64String(bytes), MediaType = GetMimeType(fileName) },
+            });
+        }
+
+        var request = new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5, // cheap, bulk per-photo work - see CLAUDE.md
+            MaxTokens = 1024,
+            System = "You estimate the rough year a photo was taken from its visual content alone. " +
+                     "Be honest about uncertainty - a wrong guess mis-files a real memory into the wrong year, " +
+                     "which is worse than leaving it unsorted. Always call estimate_years.",
+            Tools = [EstimateUndatedYearsTool],
+            ToolChoice = new ToolChoiceTool { Name = "estimate_years" },
+            Messages = [new() { Role = Role.User, Content = content }],
+        };
+
+        var response = await _anthropicClient.Messages.Create(request);
+
+        foreach (var block in response.Content)
+        {
+            if (!block.TryPickToolUse(out var toolUse)) continue;
+
+            var json = JsonSerializer.Serialize(toolUse.Input);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("estimates", out var arr)) continue;
+
+            var results = new List<UndatedEstimate>();
+            foreach (var item in arr.EnumerateArray())
+            {
+                var index = item.GetProperty("index").GetInt32();
+                var year = item.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number ? y.GetInt32() : (int?)null;
+                var confidence = item.TryGetProperty("confidence", out var c) ? c.GetString() ?? "low" : "low";
+                var reason = item.TryGetProperty("reason", out var r) ? r.GetString() ?? "" : "";
+                results.Add(new UndatedEstimate(index, year, confidence, reason));
+            }
+            return results;
+        }
+
+        return [];
+    }
+
+    private sealed record UndatedDecision(string Outcome, int? Year, string Reason);
+
+    private static Dictionary<string, UndatedDecision> LoadUndatedDecisions(string path)
+    {
+        if (!File.Exists(path)) return new Dictionary<string, UndatedDecision>();
+        try
+        {
+            var json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<Dictionary<string, UndatedDecision>>(json) ?? new Dictionary<string, UndatedDecision>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, UndatedDecision>();
+        }
+    }
+
+    private static void SaveUndatedDecisions(string path, Dictionary<string, UndatedDecision> decided) =>
+        File.WriteAllText(path, JsonSerializer.Serialize(decided, new JsonSerializerOptions { WriteIndented = true }));
+
     public async Task SyncGalleryCollectionsAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
         var smartFoldersRoot = Path.Combine(libraryPath, RootFolderName);
@@ -890,17 +1098,34 @@ public sealed class SmartFoldersService : ISmartFoldersService
         return sb.ToString();
     }
 
+    // Classifies each point individually and takes the majority country, rather
+    // than averaging every point's lat/lng first and bounding-boxing the
+    // average - a cluster spanning two real locations (e.g. home in Denmark
+    // plus a trip to Crete) averages to a coordinate near neither, which can
+    // land inside a third country's box (Croatia, roughly the midpoint) that
+    // nobody actually visited. Per-point majority vote is immune to that.
     private static string? GuessCountry(List<(string Path, DateTime Date, double? Lat, double? Lng)> cluster)
     {
-        var withGps = cluster.Where(c => c.Lat is not null && c.Lng is not null).ToList();
-        if (withGps.Count == 0) return null;
+        var perPointCountries = cluster
+            .Where(c => c.Lat is not null && c.Lng is not null)
+            .Select(c => GuessCountryForPoint(c.Lat!.Value, c.Lng!.Value))
+            .Where(name => name is not null)
+            .ToList();
 
-        var avgLat = withGps.Average(c => c.Lat!.Value);
-        var avgLng = withGps.Average(c => c.Lng!.Value);
+        if (perPointCountries.Count == 0) return null;
 
+        return perPointCountries
+            .GroupBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count())
+            .First()
+            .Key;
+    }
+
+    private static string? GuessCountryForPoint(double lat, double lng)
+    {
         foreach (var box in CountryBoxes)
         {
-            if (avgLat >= box.MinLat && avgLat <= box.MaxLat && avgLng >= box.MinLng && avgLng <= box.MaxLng)
+            if (lat >= box.MinLat && lat <= box.MaxLat && lng >= box.MinLng && lng <= box.MaxLng)
                 return box.Name;
         }
 
