@@ -1,0 +1,192 @@
+@page "/g/{slug}/reminders"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+@inject IConfiguration Config
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="reminders" />
+
+        <div class="task-body">
+            <div class="task-toolbar">
+                <h2 class="task-title">⏰ Påminder</h2>
+                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny påminder")</button>
+            </div>
+
+            @if (_adding)
+            {
+                <div class="task-form">
+                    <div class="task-field"><label>Hvad skal du huske?</label><input @bind="_newText" class="task-input" maxlength="200" /></div>
+                    <div class="task-field"><label>Dato</label><input @bind="_newDate" type="date" class="task-input" /></div>
+                    <div class="task-field">
+                        <label>Billede (valgfrit)</label>
+                        <InputFile OnChange="OnImageSelected" accept="image/*" class="task-input" />
+                    </div>
+                    <button class="task-save-btn" @onclick="SaveAsync" disabled="@(string.IsNullOrWhiteSpace(_newText) || _newDate is null)">Gem</button>
+                </div>
+            }
+
+            @if (_open.Any())
+            {
+                <div class="task-section-label">Kommende</div>
+                @foreach (var r in _open)
+                {
+                    <div class="task-row-item @(r.MemberName == _member!.Name ? "task-row-mine" : "")">
+                        @if (!string.IsNullOrEmpty(r.PhotoFileName))
+                        {
+                            <img src="/photo/@r.PhotoFileName" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0" />
+                        }
+                        <div class="task-info">
+                            <div class="task-item-title">@r.Text</div>
+                            <div class="task-meta">
+                                <span class="@(r.Date.Date < DateTime.Today ? "task-overdue" : "")">📅 @r.Date.ToString("dd MMM yyyy")</span>
+                                <span>👤 @r.MemberName</span>
+                            </div>
+                            <div style="display:flex;gap:8px">
+                                <button class="task-complete-btn" @onclick="() => ToggleDoneAsync(r.Id)">Markér som færdig ✓</button>
+                            </div>
+                        </div>
+                        <button class="task-del-btn" @onclick="() => DeleteAsync(r.Id)">✕</button>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="task-empty">Ingen kommende påminder 🎉</div>
+            }
+
+            @if (_done.Any())
+            {
+                <div class="task-section-label" style="margin-top:24px">Færdig</div>
+                @foreach (var r in _done)
+                {
+                    <div class="task-row-item task-done-row">
+                        <div class="task-info">
+                            <div class="task-item-title">@r.Text</div>
+                            <div class="task-badge task-badge-done">✅ @r.MemberName</div>
+                            <div class="task-meta"><span>@r.Date.ToString("dd MMM yyyy")</span></div>
+                        </div>
+                        <button class="task-del-btn" @onclick="() => DeleteAsync(r.Id)">✕</button>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .task-body { padding: 16px; }
+    .task-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .task-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .task-field { margin-bottom: 12px; }
+    .task-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .task-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .task-input:focus { border-color: var(--accent); }
+    .task-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .task-save-btn:disabled { opacity: .4; cursor: default; }
+    .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .task-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
+    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
+    .task-row-mine { border-color: #6366f1; background: rgba(99,102,241,.08); }
+    .task-done-row { opacity: .6; }
+    .task-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin: 2px 0 6px; }
+    .task-badge-done { background: var(--green); color: white; }
+    .task-info { flex: 1; }
+    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .task-overdue { color: var(--red) !important; }
+    .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
+    .task-del-btn:hover { color: var(--red); }
+    .task-complete-btn { width: auto; padding: 8px 16px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _adding;
+    private string _newText = "";
+    private DateTime? _newDate = DateTime.Today;
+    private byte[]? _pendingImageBytes;
+    private List<PersonalReminder> _open = [], _done = [];
+
+    private const long MaxImageBytes = 8 * 1024 * 1024;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        await RefreshAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        var all = await Db.PersonalReminders.Where(r => r.GroupId == _group!.Id).ToListAsync();
+        _open = all.Where(r => !r.Done).OrderBy(r => r.Date).ToList();
+        _done = all.Where(r => r.Done).OrderByDescending(r => r.Date).Take(20).ToList();
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > MaxImageBytes) { await JS.InvokeVoidAsync("alert", "Billedet er for stort (max 8 MB)."); return; }
+        using var stream = file.OpenReadStream(MaxImageBytes);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _pendingImageBytes = ms.ToArray();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newText) || _newDate is null) return;
+
+        string? photoFileName = null;
+        if (_pendingImageBytes is not null)
+        {
+            photoFileName = $"{Guid.NewGuid():N}.jpg";
+            var root = Config["ClubSettings:PhotosRoot"] ?? "/app/data/photos";
+            Directory.CreateDirectory(root);
+            await File.WriteAllBytesAsync(Path.Combine(root, photoFileName), _pendingImageBytes);
+        }
+
+        Db.PersonalReminders.Add(new PersonalReminder
+        {
+            GroupId = _group!.Id,
+            MemberName = _member!.Name,
+            Text = _newText.Trim(),
+            Date = _newDate.Value.ToUniversalTime(),
+            PhotoFileName = photoFileName,
+        });
+        await Db.SaveChangesAsync();
+        _newText = ""; _newDate = DateTime.Today; _pendingImageBytes = null; _adding = false;
+        await RefreshAsync();
+    }
+
+    private async Task ToggleDoneAsync(Guid id)
+    {
+        var r = await Db.PersonalReminders.FindAsync(id);
+        if (r == null) return;
+        r.Done = true;
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        var r = await Db.PersonalReminders.FindAsync(id);
+        if (r != null) { Db.PersonalReminders.Remove(r); await Db.SaveChangesAsync(); await RefreshAsync(); }
+    }
+}

@@ -74,10 +74,11 @@ else
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
 
         _openCountByName = (await Db.Assignments
-                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && a.AssignedToName != null)
+                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && a.AssignedToNames != "")
                 .ToListAsync())
-            .GroupBy(a => a.AssignedToName!)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .SelectMany(a => a.Assignees)
+            .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
         _loaded = true;
         StateHasChanged();

@@ -31,7 +31,8 @@
             </div>
             <div class="join-field">
                 <label>Invitationskode</label>
-                <input @bind="_code" placeholder="Skriv koden her" class="join-input" type="password" />
+                <input @bind="_code" placeholder="Kun nødvendig første gang" class="join-input" type="password" />
+                <div class="join-hint">Kendte navne med korrekt PIN behøver den ikke igen.</div>
             </div>
             <div class="join-field">
                 <label>Din PIN</label>
@@ -104,7 +105,6 @@
         if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv dit navn."; return; }
         if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din PIN."; return; }
         if (_group == null) return;
-        if (_code.Trim() != _group.InviteCode) { _error = "Forkert invitationskode."; return; }
 
         _joining = true;
         StateHasChanged();
@@ -112,6 +112,21 @@
         try
         {
             var member = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == _group.Id && m.Name == _name.Trim());
+
+            // A correct PIN for a known name already proves who they are - the
+            // invite code only exists to gate strangers who don't know a name/PIN
+            // yet, so returning members shouldn't have to keep re-typing it.
+            var isReturningMember = member is not null
+                && !string.IsNullOrEmpty(member.Pin)
+                && SecretHasher.Verify(_pin.Trim(), member.Pin);
+
+            if (!isReturningMember && _code.Trim() != _group.InviteCode)
+            {
+                _error = "Forkert invitationskode.";
+                _joining = false;
+                return;
+            }
+
             if (member == null)
             {
                 // New name - this PIN becomes theirs going forward.
@@ -124,18 +139,11 @@
                 // fresh one now, same as a brand new name.
                 member.Pin = SecretHasher.Hash(_pin.Trim());
             }
-            else
+            else if (!isReturningMember)
             {
-                // Existing name - the invite code alone isn't enough to prove it's
-                // really them, since everyone in the group knows the same invite
-                // code. The PIN is what stops someone else from just typing a
-                // teammate's name and getting a session as that person.
-                if (!SecretHasher.Verify(_pin.Trim(), member.Pin))
-                {
-                    _error = "Forkert PIN for dette navn. Bed en admin om at nulstille den, hvis du har glemt den.";
-                    _joining = false;
-                    return;
-                }
+                _error = "Forkert PIN for dette navn. Bed en admin om at nulstille den, hvis du har glemt den.";
+                _joining = false;
+                return;
             }
 
             // Contact info is re-entered (not required) on every login rather than

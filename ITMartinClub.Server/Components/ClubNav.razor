@@ -22,12 +22,49 @@
      destination common members need. These are deliberate mode switches, not
      a content tab list: Bruger = live/everyday, Historik = look back
      (dokumenter/gameplans + modstander-tags), Admin = planning (PIN-gated). -->
-<div class="club-mode-row">
-    <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
-    <a class="club-mode-item @(Active == "history" ? "active" : "")" href="/g/@Slug/docs">📜 Historik</a>
-    <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
-    <a class="club-mode-item @(Active == "admin" ? "active" : "")" href="/g/@Slug/admin">⚙ Admin</a>
-</div>
+@if (Slug == "hvidberg")
+{
+    <!-- Familien Hvidberg wants a stripped-down nav - just the everyday
+         checklist (which now includes Køretøj/Bad sign-up as ordinary main
+         tasks). Other pages (Admin, Historik, etc.) still work by direct
+         URL, they're just not listed here. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
+        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+    </div>
+}
+else
+{
+    <!-- Bogshoppen wants to lean the same direction as hvidberg - drop
+         Påminder/Find det from the tab bar. Unlike hvidberg it keeps
+         Historik/Medlemmer/Admin, so it's its own condition, not the
+         hvidberg branch above. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+        @if (Slug != "bogshoppen")
+        {
+            <a class="club-mode-item @(Active == "reminders" ? "active" : "")" href="/g/@Slug/reminders">⏰ Påminder</a>
+            <a class="club-mode-item @(Active == "find" ? "active" : "")" href="/g/@Slug/find">🔍 Find det</a>
+        }
+        @if (Slug == "bogshoppen")
+        {
+            <!-- Bogshoppen's "history" is its finished chores, not uploaded
+                 documents - points at the tasks page (which already lists
+                 completed tasks under "Udførte opgaver") instead of /docs. -->
+            <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
+            <a class="club-mode-item @(Active == "storage" ? "active" : "")" href="/g/@Slug/storage">🏬 Lager</a>
+            <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
+        }
+        else
+        {
+            <a class="club-mode-item @(Active == "history" ? "active" : "")" href="/g/@Slug/docs">📜 Historik</a>
+        }
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+        <a class="club-mode-item @(Active == "admin" ? "active" : "")" href="/g/@Slug/admin">⚙ Admin</a>
+    </div>
+}
 
 @if (Active != "chat")
 {

@@ -16,7 +16,7 @@ else
         <div class="task-body">
             <div class="task-toolbar">
                 <h2 class="task-title">Opgaver</h2>
-                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
+                <button class="task-add-btn" @onclick="ToggleAdding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
             </div>
 
             @if (_adding)
@@ -33,65 +33,43 @@ else
                             </select>
                         </div>
                     }
-                    <div class="task-row">
+                    <div class="task-field">
+                        <label>Tildelt til (valgfrit, vælg en eller flere)</label>
+                        <div class="task-assignee-list">
+                            @foreach (var m in _members)
+                            {
+                                <label class="task-assignee-chip">
+                                    <input type="checkbox" checked="@_newAssignedTo.Contains(m.Name)" @onchange="e => ToggleNewAssignee(m.Name, (bool)e.Value!)" />
+                                    @m.Name
+                                </label>
+                            }
+                        </div>
+                    </div>
+                    <div class="task-field"><label>Deadline (valgfrit)</label><input @bind="_newDue" type="date" class="task-input" /></div>
+                    @if (_locations.Any())
+                    {
                         <div class="task-field">
-                            <label>Tildelt til (valgfrit)</label>
-                            <select @bind="_newAssignedTo" class="task-input">
-                                <option value="">— ingen tildeling —</option>
-                                @foreach (var m in _members) { <option value="@m.Name">@m.Name</option> }
+                            <label>Opbevaringssted (valgfrit)</label>
+                            <select @bind="_newStorageLocationId" class="task-input">
+                                <option value="">— ingen —</option>
+                                @foreach (var loc in _locations) { <option value="@loc.Id">@loc.Name</option> }
                             </select>
                         </div>
-                        <div class="task-field"><label>Deadline (valgfrit)</label><input @bind="_newDue" type="date" class="task-input" /></div>
-                    </div>
+                    }
                     <div class="task-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newDesc" rows="2" class="task-input task-textarea" /></div>
-                    <button class="task-save-btn" @onclick="AddAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle) || (_mainTasks.Any() && string.IsNullOrEmpty(_newMainTaskId)))">Gem opgave</button>
-                </div>
-            }
-
-            @if (_open.Any())
-            {
-                <div class="task-section-label">Åbne opgaver</div>
-                @foreach (var t in _open)
-                {
-                    <div class="task-row-item @(t.AssignedToName == _member!.Name ? "task-row-mine" : "")">
-                        <div class="task-info">
-                            <div class="task-item-title">@t.Title</div>
-                            @if (!string.IsNullOrEmpty(t.Description)) { <div class="task-item-desc">@t.Description</div> }
-                            @if (string.IsNullOrEmpty(t.AssignedToName))
-                            {
-                                <div class="task-badge task-badge-open">⚡ Ingen har taget den</div>
-                            }
-                            else
-                            {
-                                <div class="task-badge task-badge-claimed">✋ @t.AssignedToName klarer det</div>
-                            }
-                            <div class="task-meta">
-                                @if (t.DueDate.HasValue) { <span class="@(t.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @t.DueDate.Value.ToString("dd MMM yyyy")</span> }
-                                <span>Oprettet af @t.CreatedByName</span>
-                            </div>
-                            <div style="display:flex;gap:8px">
-                                @if (t.AssignedToName == _member!.Name)
-                                {
-                                    <button class="task-complete-btn" @onclick="() => CompleteAsync(t.Id)">Markér som færdig ✓</button>
-                                }
-                                else
-                                {
-                                    <button class="task-take-btn" @onclick="() => TakeAsync(t.Id)">Jeg tager den 👋</button>
-                                }
-                            </div>
-                        </div>
-                        <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
+                    <div class="prep-form-actions">
+                        <button class="task-save-btn" @onclick="AddAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle) || (_mainTasks.Any() && string.IsNullOrEmpty(_newMainTaskId)))">@(_editingTaskId is null ? "Gem opgave" : "Opdater opgave")</button>
+                        @if (_editingTaskId is not null)
+                        {
+                            <button class="task-cancel-btn" @onclick="CancelEditTask">Annuller</button>
+                        }
                     </div>
-                }
-            }
-            else
-            {
-                <div class="task-empty">Ingen åbne opgaver 🎉</div>
+                </div>
             }
 
             @if (_done.Any())
             {
-                <div class="task-section-label" style="margin-top:24px">Udførte opgaver</div>
+                <div class="task-section-label">Udførte opgaver</div>
                 @foreach (var t in _done)
                 {
                     <div class="task-row-item task-done-row">
@@ -100,9 +78,56 @@ else
                             <div class="task-badge task-badge-done">✅ Færdig af @t.CompletedByName</div>
                             <div class="task-meta"><span>@t.CompletedAt?.ToString("dd MMM yyyy")</span></div>
                         </div>
-                        <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                            <button class="task-del-btn" @onclick="() => StartEditTask(t)">✏️</button>
+                            <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
+                        </div>
                     </div>
                 }
+            }
+
+            @if (_open.Any())
+            {
+                <div class="task-section-label" style="margin-top:24px">Åbne opgaver</div>
+                @foreach (var t in _open)
+                {
+                    <div class="task-row-item @(t.IsAssignedTo(_member!.Name) ? "task-row-mine" : "")">
+                        <div class="task-info">
+                            <div class="task-item-title">@t.Title</div>
+                            @if (!string.IsNullOrEmpty(t.Description)) { <div class="task-item-desc">@t.Description</div> }
+                            @if (t.Assignees.Count == 0)
+                            {
+                                <div class="task-badge task-badge-open">⚡ Ingen har taget den</div>
+                            }
+                            else
+                            {
+                                <div class="task-badge task-badge-claimed">✋ @t.AssigneeLabel klarer det</div>
+                            }
+                            <div class="task-meta">
+                                @if (t.DueDate.HasValue) { <span class="@(t.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @t.DueDate.Value.ToString("dd MMM yyyy")</span> }
+                                <span>Oprettet af @t.CreatedByName</span>
+                            </div>
+                            <div style="display:flex;gap:8px">
+                                @if (t.IsAssignedTo(_member!.Name))
+                                {
+                                    <button class="task-complete-btn" @onclick="() => CompleteAsync(t.Id)">Markér som færdig ✓</button>
+                                }
+                                else
+                                {
+                                    <button class="task-take-btn" @onclick="() => JoinAsync(t.Id)">@(t.Assignees.Count == 0 ? "Jeg tager den 👋" : "Deltag også 🙋")</button>
+                                }
+                            </div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                            <button class="task-del-btn" @onclick="() => StartEditTask(t)">✏️</button>
+                            <button class="task-del-btn" @onclick="() => DeleteAsync(t.Id)">✕</button>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="task-empty">Ingen åbne opgaver 🎉</div>
             }
         </div>
     </div>
@@ -143,6 +168,11 @@ else
     .task-del-btn:hover { color: var(--red); }
     .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
     .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-assignee-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .task-assignee-chip { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
+    .prep-form-actions { display: flex; gap: 8px; }
+    .prep-form-actions .task-save-btn { width: auto; flex: 1; }
+    .task-cancel-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
 </style>
 
 @code {
@@ -150,11 +180,14 @@ else
     private Member? _member;
     private Group? _group;
     private bool _loaded, _adding;
-    private string _newTitle = "", _newAssignedTo = "", _newDesc = "", _newMainTaskId = "";
+    private Guid? _editingTaskId;
+    private string _newTitle = "", _newDesc = "", _newMainTaskId = "", _newStorageLocationId = "";
+    private HashSet<string> _newAssignedTo = [];
     private DateTime? _newDue;
     private List<Assignment> _open = [], _done = [];
     private List<Member> _members = [];
     private List<MainTask> _mainTasks = [];
+    private List<StorageLocation> _locations = [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -176,6 +209,43 @@ else
         _done = all.Where(a => a.IsCompleted).OrderByDescending(a => a.CompletedAt).Take(10).ToList();
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
         _mainTasks = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.SortOrder).ToListAsync();
+        _locations = await Db.StorageLocations.Where(l => l.GroupId == _group!.Id).OrderBy(l => l.Name).ToListAsync();
+    }
+
+    private void ToggleAdding()
+    {
+        if (_adding) CancelEditTask();
+        else _adding = true;
+    }
+
+    private void CancelEditTask()
+    {
+        _editingTaskId = null;
+        _newTitle = ""; _newAssignedTo = []; _newDesc = ""; _newDue = null; _newMainTaskId = ""; _newStorageLocationId = ""; _adding = false;
+    }
+
+    private async Task StartEditTask(Assignment t)
+    {
+        _editingTaskId = t.Id;
+        var oldMainTaskTitle = t.MainTaskId is { } mtid ? _mainTasks.FirstOrDefault(m => m.Id == mtid)?.Title : null;
+        _newTitle = oldMainTaskTitle is not null ? StripMainTaskPrefix(t.Title, oldMainTaskTitle) : t.Title;
+        _newMainTaskId = t.MainTaskId?.ToString() ?? "";
+        _newStorageLocationId = t.StorageLocationId?.ToString() ?? "";
+        _newAssignedTo = t.Assignees.ToHashSet();
+        _newDue = t.DueDate?.ToLocalTime();
+        _newDesc = t.Description ?? "";
+        _adding = true;
+        // The edit form renders up near the toolbar, not next to the row you
+        // clicked - without this, editing an item further down the list
+        // looks like nothing happened because the form opens off-screen.
+        StateHasChanged();
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
+
+    private static string StripMainTaskPrefix(string title, string mainTaskTitle)
+    {
+        var prefix = $"{mainTaskTitle}: ";
+        return title.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? title[prefix.Length..] : title;
     }
 
     private async Task AddAsync()
@@ -183,34 +253,77 @@ else
         if (_mainTasks.Any() && string.IsNullOrEmpty(_newMainTaskId)) return;
 
         Guid? mainTaskId = string.IsNullOrEmpty(_newMainTaskId) ? null : Guid.Parse(_newMainTaskId);
+        Guid? locationId = string.IsNullOrEmpty(_newStorageLocationId) ? null : Guid.Parse(_newStorageLocationId);
         var title = _newTitle.Trim();
         if (mainTaskId is not null)
             title = GroupHome.PrefixWithMainTask(title, _mainTasks.First(mt => mt.Id == mainTaskId).Title);
 
+        var assignedNow = _newAssignedTo.ToList();
+
+        if (_editingTaskId is { } id)
+        {
+            var t = await Db.Assignments.FindAsync(id);
+            if (t is null) return;
+            t.MainTaskId = mainTaskId;
+            t.StorageLocationId = locationId;
+            t.Title = title;
+            t.Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim();
+            t.AssignedToNames = string.Join(';', assignedNow);
+            t.DueDate = _newDue?.ToUniversalTime();
+            await Db.SaveChangesAsync();
+            CancelEditTask();
+            await RefreshAsync();
+
+            var recipients = assignedNow.Append(t.CreatedByName)
+                .Where(n => n != _member!.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (recipients.Count > 0)
+                _ = PushService.SendToMembersAsync(Db, _group!.Id, recipients, "✏️ Opgave opdateret", $"{_member!.Name}: {title}");
+            return;
+        }
+
         Db.Assignments.Add(new Assignment
         {
             MainTaskId = mainTaskId,
+            StorageLocationId = locationId,
             GroupId = _group!.Id,
             Title = title,
             Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
-            AssignedToName = string.IsNullOrWhiteSpace(_newAssignedTo) ? null : _newAssignedTo,
+            AssignedToNames = string.Join(';', assignedNow),
             DueDate = _newDue?.ToUniversalTime(),
             CreatedByName = _member!.Name,
         });
         await Db.SaveChangesAsync();
-        _newTitle = ""; _newAssignedTo = ""; _newDesc = ""; _newDue = null; _newMainTaskId = ""; _adding = false;
+        CancelEditTask();
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "✅ Ny opgave", $"{_member.Name}: {title}");
+
+        // Only ping the people it actually concerns: the chosen assignee(s) if
+        // any were picked, otherwise the whole group since it's up for grabs.
+        var newTaskRecipients = assignedNow.Where(n => n != _member.Name).ToList();
+        if (newTaskRecipients.Count > 0)
+            _ = PushService.SendToMembersAsync(Db, _group.Id, newTaskRecipients, "✅ Ny opgave", $"{_member.Name}: {title}");
+        else if (assignedNow.Count == 0)
+            _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "✅ Ny opgave", $"{_member.Name}: {title}");
     }
 
-    private async Task TakeAsync(Guid id)
+    private void ToggleNewAssignee(string name, bool isChecked)
+    {
+        if (isChecked) _newAssignedTo.Add(name);
+        else _newAssignedTo.Remove(name);
+    }
+
+    private async Task JoinAsync(Guid id)
     {
         var t = await Db.Assignments.FindAsync(id);
         if (t == null) return;
-        t.AssignedToName = _member!.Name;
+        var priorAssignees = t.Assignees;
+        t.AddAssignee(_member!.Name);
         await Db.SaveChangesAsync();
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "👋 Opgave taget", $"{_member.Name} tager: {t.Title}");
+
+        var recipients = priorAssignees.Append(t.CreatedByName)
+            .Where(n => n != _member.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (recipients.Count > 0)
+            _ = PushService.SendToMembersAsync(Db, _group!.Id, recipients, "👋 Opgave taget", $"{_member.Name} tager: {t.Title}");
     }
 
     private async Task CompleteAsync(Guid id)
@@ -220,7 +333,11 @@ else
         t.IsCompleted = true; t.CompletedAt = DateTime.UtcNow; t.CompletedByName = _member!.Name;
         await Db.SaveChangesAsync();
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "✅ Opgave færdig", $"{_member.Name}: {t.Title}");
+
+        var recipients = t.Assignees.Append(t.CreatedByName)
+            .Where(n => n != _member.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (recipients.Count > 0)
+            _ = PushService.SendToMembersAsync(Db, _group!.Id, recipients, "✅ Opgave færdig", $"{_member.Name}: {t.Title}");
     }
 
     private async Task DeleteAsync(Guid id)

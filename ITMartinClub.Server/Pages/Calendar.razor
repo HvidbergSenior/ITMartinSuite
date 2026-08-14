@@ -16,8 +16,27 @@ else
         <div class="cal-body">
             <div class="cal-toolbar">
                 <h2 class="cal-title">Kalender</h2>
+                <button class="cal-add-btn" @onclick="ToggleAdding">@(_adding ? "✕ Annuller" : "+ Ny begivenhed")</button>
             </div>
-            <a class="link-card" href="/g/@Slug/admin" style="margin-bottom:16px">📅 Vil du oprette en begivenhed? Det gør en admin under ⚙ Admin</a>
+
+            @if (_adding)
+            {
+                <div class="cal-form">
+                    <div class="cal-field"><label>Titel</label><input @bind="_newEventTitle" class="cal-input" maxlength="120" placeholder="fx Rico opereres" /></div>
+                    <div class="cal-row">
+                        <div class="cal-field"><label>Dato & tid</label><input @bind="_newEventDate" type="datetime-local" class="cal-input" /></div>
+                        <div class="cal-field"><label>Sted (valgfrit)</label><input @bind="_newEventLocation" class="cal-input" maxlength="100" /></div>
+                    </div>
+                    <div class="cal-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newEventDesc" rows="2" class="cal-input cal-textarea" /></div>
+                    <div class="prep-form-actions">
+                        <button class="cal-save-btn" @onclick="SaveNewEventAsync" disabled="@string.IsNullOrWhiteSpace(_newEventTitle)">@(_editingEventId is null ? "Gem begivenhed" : "Opdater begivenhed")</button>
+                        @if (_editingEventId is not null)
+                        {
+                            <button class="cal-cancel-btn" @onclick="CancelAdding">Annuller</button>
+                        }
+                    </div>
+                </div>
+            }
 
             <div class="cal-section-label">Kommende</div>
             @if (!_upcoming.Any()) { <div class="cal-empty">Ingen kommende begivenheder.</div> }
@@ -32,7 +51,10 @@ else
                 <div class="cal-event">
                     <div class="cal-event-header">
                         <div class="cal-event-date">@ev.EventDate.ToLocalTime().ToString("dddd d. MMMM yyyy, HH:mm", new System.Globalization.CultureInfo("da-DK"))</div>
-                        <button class="cal-del-btn" @onclick="() => DeleteEventAsync(ev.Id)">✕</button>
+                        <div style="display:flex;gap:4px">
+                            <button class="cal-del-btn" @onclick="() => StartEditEvent(ev)">✏️</button>
+                            <button class="cal-del-btn" @onclick="() => DeleteEventAsync(ev.Id)">✕</button>
+                        </div>
                     </div>
                     <div class="cal-event-title">@ev.Title</div>
                     @if (!string.IsNullOrEmpty(ev.Location)) { <div class="cal-event-loc">📍 @ev.Location</div> }
@@ -193,7 +215,10 @@ else
     [Parameter] public string Slug { get; set; } = "";
     private Member? _member;
     private Group? _group;
-    private bool _loaded;
+    private bool _loaded, _adding;
+    private Guid? _editingEventId;
+    private string _newEventTitle = "", _newEventLocation = "", _newEventDesc = "";
+    private DateTime _newEventDate = DateTime.Now.AddDays(7);
     private List<CalendarEvent> _upcoming = [];
     private List<CalendarEvent> _past = [];
     private Dictionary<Guid, List<EventRsvp>> _rsvpsByEvent = [];
@@ -242,6 +267,67 @@ else
         var suggestionIds = _suggestionsByEvent.Values.Select(s => s.Id).ToList();
         _votesBySuggestion = (await Db.EventTimeVotes.Where(v => suggestionIds.Contains(v.SuggestionId)).ToListAsync())
             .GroupBy(v => v.SuggestionId).ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    private void ToggleAdding()
+    {
+        if (_adding) CancelAdding();
+        else _adding = true;
+    }
+
+    private void CancelAdding()
+    {
+        _editingEventId = null;
+        _newEventTitle = ""; _newEventLocation = ""; _newEventDesc = ""; _newEventDate = DateTime.Now.AddDays(7); _adding = false;
+    }
+
+    private async Task StartEditEvent(CalendarEvent ev)
+    {
+        _editingEventId = ev.Id;
+        _newEventTitle = ev.Title;
+        _newEventDate = ev.EventDate.ToLocalTime();
+        _newEventLocation = ev.Location ?? "";
+        _newEventDesc = ev.Description ?? "";
+        _adding = true;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
+
+    private async Task SaveNewEventAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newEventTitle)) return;
+        var title = _newEventTitle.Trim();
+        var dateStr = _newEventDate.ToString("d. MMM");
+
+        if (_editingEventId is { } id)
+        {
+            var ev = await Db.Events.FindAsync(id);
+            if (ev is null) return;
+            ev.Title = title;
+            ev.EventDate = _newEventDate.ToUniversalTime();
+            ev.Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim();
+            ev.Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim();
+            await Db.SaveChangesAsync();
+            CancelAdding();
+            await RefreshAsync();
+            _ = PushService.SendToGroupAsync(Db, _group!.Id, _member!.Name, "📅 Begivenhed opdateret", $"{title} – {dateStr}");
+        }
+        else
+        {
+            Db.Events.Add(new CalendarEvent
+            {
+                GroupId = _group!.Id,
+                Title = title,
+                EventDate = _newEventDate.ToUniversalTime(),
+                Location = string.IsNullOrWhiteSpace(_newEventLocation) ? null : _newEventLocation.Trim(),
+                Description = string.IsNullOrWhiteSpace(_newEventDesc) ? null : _newEventDesc.Trim(),
+                CreatedByName = _member!.Name,
+            });
+            await Db.SaveChangesAsync();
+            CancelAdding();
+            await RefreshAsync();
+            _ = PushService.SendToGroupAsync(Db, _group!.Id, _member!.Name, "📅 Ny begivenhed", $"{title} – {dateStr}");
+        }
     }
 
     private void StartTimeSuggestion(CalendarEvent ev)

@@ -1,0 +1,314 @@
+@page "/g/{slug}/storage"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_group == null) { <div class="club-loading">Gruppen findes ikke.</div> }
+else
+{
+    <div class="club-page">
+        @if (_member is not null)
+        {
+            <ClubNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="@_member.Name" Active="storage" />
+        }
+        else
+        {
+            <!-- Anyone with the link can add a storage location or vehicle
+                 here, even without being a member of the group - e.g. a
+                 helper who's picking up boxes but never joined Club. No
+                 ClubNav (it requires a member), just a plain header. -->
+            <div class="club-header">
+                <div><div class="club-name">@_group.Name</div></div>
+            </div>
+        }
+
+        <div class="task-body">
+            <div class="task-toolbar">
+                <h2 class="task-title">🏬 Opbevaring & køretøjer</h2>
+            </div>
+
+            @if (_member is null)
+            {
+                <div class="task-field" style="margin-bottom:16px">
+                    <label>Dit navn</label>
+                    <input @bind="_guestName" class="task-input" maxlength="60" placeholder="Skriv dit navn" />
+                </div>
+            }
+
+            <div class="task-section-label">📦 Opbevaringssteder</div>
+            @if (_addingLocation)
+            {
+                <div class="task-form">
+                    <div class="task-field"><label>Navn</label><input @bind="_newLocationName" class="task-input" maxlength="100" placeholder="fx Kælder hos Bedstemor" /></div>
+                    <div class="task-field"><label>Adresse (valgfrit)</label><input @bind="_newLocationAddress" class="task-input" maxlength="150" /></div>
+                    <div class="task-field"><label>Ca. størrelse (valgfrit)</label><input @bind="_newLocationSize" class="task-input" maxlength="100" placeholder="fx 10 m²" /></div>
+                    <div class="task-field"><label>Hvad er placeret der (valgfrit)</label><textarea @bind="_newLocationContents" rows="2" class="task-input task-textarea" placeholder="fx Julepynt, sommerdæk, arkivkasser" /></div>
+                    <div class="prep-form-actions">
+                        <button class="task-save-btn" @onclick="SaveLocationAsync" disabled="@(!CanSave(_newLocationName))">@(_editingLocationId is null ? "Gem" : "Opdater")</button>
+                        @if (_editingLocationId is not null)
+                        {
+                            <button class="task-cancel-btn" @onclick="CancelEditLocation">Annuller</button>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <button class="task-take-btn" @onclick="() => _addingLocation = true">+ Nyt opbevaringssted</button>
+            }
+
+            @if (!_locations.Any())
+            {
+                <div class="task-empty">Ingen opbevaringssteder endnu.</div>
+            }
+            @foreach (var loc in _locations)
+            {
+                <div class="task-row-item">
+                    <div class="task-info">
+                        <div class="task-item-title">@loc.Name</div>
+                        @if (!string.IsNullOrEmpty(loc.Address)) { <div class="task-item-desc">📍 @loc.Address</div> }
+                        @if (!string.IsNullOrEmpty(loc.ApproxSize)) { <div class="task-item-desc">📐 @loc.ApproxSize</div> }
+                        @if (!string.IsNullOrEmpty(loc.Contents)) { <div class="task-item-desc">📦 @loc.Contents</div> }
+                        <div class="task-meta"><span>Tilføjet af @loc.CreatedByName</span></div>
+                        @{ var locTasks = _tasksByLocation.GetValueOrDefault(loc.Id, []); }
+                        @if (locTasks.Count > 0)
+                        {
+                            <div class="location-task-list">
+                                @foreach (var t in locTasks)
+                                {
+                                    <div class="location-task-row">@(t.IsCompleted ? "✅" : "⚡") @t.Title</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                        <button class="task-del-btn" @onclick="() => StartEditLocation(loc)">✏️</button>
+                        <button class="task-del-btn" @onclick="() => DeleteLocationAsync(loc.Id)">✕</button>
+                    </div>
+                </div>
+            }
+
+            <div class="task-section-label" style="margin-top:24px">🚗 Køretøjer</div>
+            @if (_addingVehicle)
+            {
+                <div class="task-form">
+                    <div class="task-field"><label>Navn</label><input @bind="_newVehicleName" class="task-input" maxlength="100" placeholder="fx Trailer, Kassevogn" /></div>
+                    <div class="task-field"><label>Hvornår tilgængelig (valgfrit)</label><input @bind="_newVehicleAvailability" class="task-input" maxlength="150" placeholder="fx Weekender, ring til Martin først" /></div>
+                    <div class="prep-form-actions">
+                        <button class="task-save-btn" @onclick="SaveVehicleAsync" disabled="@(!CanSave(_newVehicleName))">@(_editingVehicleId is null ? "Gem" : "Opdater")</button>
+                        @if (_editingVehicleId is not null)
+                        {
+                            <button class="task-cancel-btn" @onclick="CancelEditVehicle">Annuller</button>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <button class="task-take-btn" @onclick="() => _addingVehicle = true">+ Nyt køretøj</button>
+            }
+
+            @if (!_vehicles.Any())
+            {
+                <div class="task-empty">Ingen køretøjer endnu.</div>
+            }
+            @foreach (var v in _vehicles)
+            {
+                <div class="task-row-item">
+                    <div class="task-info">
+                        <div class="task-item-title">@v.Name</div>
+                        @if (!string.IsNullOrEmpty(v.Availability)) { <div class="task-item-desc">🕓 @v.Availability</div> }
+                        <div class="task-meta"><span>Tilføjet af @v.CreatedByName</span></div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                        <button class="task-del-btn" @onclick="() => StartEditVehicle(v)">✏️</button>
+                        <button class="task-del-btn" @onclick="() => DeleteVehicleAsync(v.Id)">✕</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .task-body { padding: 16px; }
+    .task-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .task-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .task-field { margin-bottom: 12px; }
+    .task-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .task-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .task-input:focus { border-color: var(--accent); }
+    .task-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .task-save-btn:disabled { opacity: .4; cursor: default; }
+    .task-empty { color: var(--muted); font-size: 15px; padding: 16px 0; text-align: center; }
+    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
+    .task-info { flex: 1; }
+    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
+    .task-del-btn:hover { color: var(--red); }
+    .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; margin-bottom: 16px; }
+    .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-textarea { resize: vertical; min-height: 50px; font-family: inherit; }
+    .prep-form-actions { display: flex; gap: 8px; }
+    .prep-form-actions .task-save-btn { width: auto; flex: 1; }
+    .task-cancel-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+    .location-task-list { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .location-task-row { font-size: 12px; color: var(--muted); }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _addingLocation, _addingVehicle;
+    private Guid? _editingLocationId, _editingVehicleId;
+    private string _guestName = "";
+    private string _newLocationName = "", _newLocationAddress = "", _newLocationSize = "", _newLocationContents = "";
+    private string _newVehicleName = "", _newVehicleAvailability = "";
+    private List<StorageLocation> _locations = [];
+    private List<Vehicle> _vehicles = [];
+    private Dictionary<Guid, List<Assignment>> _tasksByLocation = [];
+
+    private string CreatorName => _member?.Name ?? _guestName.Trim();
+    private bool CanSave(string field) => !string.IsNullOrWhiteSpace(field) && !string.IsNullOrWhiteSpace(CreatorName);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // No login/membership required here - unlike every other Club page,
+        // this one has to work for someone who was just handed the link
+        // (e.g. a helper dropping off boxes) and never joined the group.
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        _member = session?.Member;
+        _group = _member?.Group ?? await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+
+        if (_group is not null) await RefreshAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _locations = await Db.StorageLocations.Where(l => l.GroupId == _group!.Id).OrderBy(l => l.Name).ToListAsync();
+        _vehicles = await Db.Vehicles.Where(v => v.GroupId == _group!.Id).OrderBy(v => v.Name).ToListAsync();
+
+        _tasksByLocation = (await Db.Assignments
+                .Where(a => a.GroupId == _group!.Id && a.StorageLocationId != null)
+                .OrderBy(a => a.IsCompleted).ThenBy(a => a.DueDate)
+                .ToListAsync())
+            .GroupBy(a => a.StorageLocationId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    private async Task StartEditLocation(StorageLocation loc)
+    {
+        _editingLocationId = loc.Id;
+        _newLocationName = loc.Name;
+        _newLocationAddress = loc.Address ?? "";
+        _newLocationSize = loc.ApproxSize ?? "";
+        _newLocationContents = loc.Contents ?? "";
+        _addingLocation = true;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
+
+    private void CancelEditLocation()
+    {
+        _editingLocationId = null;
+        _newLocationName = ""; _newLocationAddress = ""; _newLocationSize = ""; _newLocationContents = ""; _addingLocation = false;
+    }
+
+    private async Task SaveLocationAsync()
+    {
+        if (!CanSave(_newLocationName)) return;
+
+        if (_editingLocationId is { } id)
+        {
+            var loc = await Db.StorageLocations.FindAsync(id);
+            if (loc is null) return;
+            loc.Name = _newLocationName.Trim();
+            loc.Address = string.IsNullOrWhiteSpace(_newLocationAddress) ? null : _newLocationAddress.Trim();
+            loc.ApproxSize = string.IsNullOrWhiteSpace(_newLocationSize) ? null : _newLocationSize.Trim();
+            loc.Contents = string.IsNullOrWhiteSpace(_newLocationContents) ? null : _newLocationContents.Trim();
+        }
+        else
+        {
+            Db.StorageLocations.Add(new StorageLocation
+            {
+                GroupId = _group!.Id,
+                Name = _newLocationName.Trim(),
+                Address = string.IsNullOrWhiteSpace(_newLocationAddress) ? null : _newLocationAddress.Trim(),
+                ApproxSize = string.IsNullOrWhiteSpace(_newLocationSize) ? null : _newLocationSize.Trim(),
+                Contents = string.IsNullOrWhiteSpace(_newLocationContents) ? null : _newLocationContents.Trim(),
+                CreatedByName = CreatorName,
+            });
+        }
+
+        await Db.SaveChangesAsync();
+        CancelEditLocation();
+        await RefreshAsync();
+    }
+
+    private async Task DeleteLocationAsync(Guid id)
+    {
+        var loc = await Db.StorageLocations.FindAsync(id);
+        if (loc != null) { Db.StorageLocations.Remove(loc); await Db.SaveChangesAsync(); await RefreshAsync(); }
+    }
+
+    private async Task StartEditVehicle(Vehicle v)
+    {
+        _editingVehicleId = v.Id;
+        _newVehicleName = v.Name;
+        _newVehicleAvailability = v.Availability ?? "";
+        _addingVehicle = true;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
+
+    private void CancelEditVehicle()
+    {
+        _editingVehicleId = null;
+        _newVehicleName = ""; _newVehicleAvailability = ""; _addingVehicle = false;
+    }
+
+    private async Task SaveVehicleAsync()
+    {
+        if (!CanSave(_newVehicleName)) return;
+
+        if (_editingVehicleId is { } id)
+        {
+            var v = await Db.Vehicles.FindAsync(id);
+            if (v is null) return;
+            v.Name = _newVehicleName.Trim();
+            v.Availability = string.IsNullOrWhiteSpace(_newVehicleAvailability) ? null : _newVehicleAvailability.Trim();
+        }
+        else
+        {
+            Db.Vehicles.Add(new Vehicle
+            {
+                GroupId = _group!.Id,
+                Name = _newVehicleName.Trim(),
+                Availability = string.IsNullOrWhiteSpace(_newVehicleAvailability) ? null : _newVehicleAvailability.Trim(),
+                CreatedByName = CreatorName,
+            });
+        }
+
+        await Db.SaveChangesAsync();
+        CancelEditVehicle();
+        await RefreshAsync();
+    }
+
+    private async Task DeleteVehicleAsync(Guid id)
+    {
+        var v = await Db.Vehicles.FindAsync(id);
+        if (v != null) { Db.Vehicles.Remove(v); await Db.SaveChangesAsync(); await RefreshAsync(); }
+    }
+}

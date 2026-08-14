@@ -50,10 +50,26 @@
     private bool _creating;
     private string _slug = "";
 
+    // Legacy domains from the standalone ADHD/Family apps, retired in favor of
+    // a Club group - land here on the real group instead of offering to create
+    // a new, empty one that looks confusingly similar.
+    private static readonly Dictionary<string, string> RetiredDomainAliases = new()
+    {
+        ["adhd"] = "hvidberg",
+        ["idag"] = "hvidberg",
+    };
+
     protected override async Task OnInitializedAsync()
     {
         var host = new Uri(Nav.Uri).Host;
         _slug = host.Split('.')[0];
+
+        if (RetiredDomainAliases.TryGetValue(_slug, out var realSlug))
+        {
+            Nav.NavigateTo($"/g/{realSlug}", forceLoad: true);
+            return;
+        }
+
         var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == _slug);
         if (group is not null)
             Nav.NavigateTo($"/g/{group.Slug}", forceLoad: true);

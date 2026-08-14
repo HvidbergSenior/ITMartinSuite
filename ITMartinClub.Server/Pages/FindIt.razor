@@ -1,0 +1,163 @@
+@page "/g/{slug}/find"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+@inject IConfiguration Config
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="find" />
+
+        <div class="task-body">
+            <div class="task-toolbar">
+                <h2 class="task-title">🔍 Find det</h2>
+                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Læg noget")</button>
+            </div>
+
+            <input class="task-input" style="margin-bottom:16px" placeholder="Søg efter en ting..."
+                   value="@_search" @oninput="e => _search = e.Value?.ToString() ?? string.Empty" />
+
+            @if (_adding)
+            {
+                <div class="task-form">
+                    <div class="task-field"><label>Hvad?</label><input @bind="_newName" class="task-input" maxlength="100" placeholder="fx Paslæse, Nøgler" /></div>
+                    <div class="task-field"><label>Hvor?</label><input @bind="_newLocation" class="task-input" maxlength="150" placeholder="fx I skuffen under ovnen" /></div>
+                    <div class="task-field"><label>Note (valgfrit)</label><input @bind="_newNotes" class="task-input" maxlength="200" /></div>
+                    <div class="task-field">
+                        <label>Billede (valgfrit)</label>
+                        <InputFile OnChange="OnImageSelected" accept="image/*" class="task-input" />
+                    </div>
+                    <button class="task-save-btn" @onclick="SaveAsync" disabled="@(string.IsNullOrWhiteSpace(_newName) || string.IsNullOrWhiteSpace(_newLocation))">Gem</button>
+                </div>
+            }
+
+            @if (!FilteredItems.Any())
+            {
+                <div class="task-empty">Ingen ting fundet endnu.</div>
+            }
+            @foreach (var item in FilteredItems)
+            {
+                <div class="task-row-item">
+                    @if (!string.IsNullOrEmpty(item.PhotoFileName))
+                    {
+                        <img src="/photo/@item.PhotoFileName" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0" />
+                    }
+                    <div class="task-info">
+                        <div class="task-item-title">@item.Name</div>
+                        <div class="task-item-desc">📍 @item.Location</div>
+                        @if (!string.IsNullOrEmpty(item.Notes)) { <div class="task-item-desc">@item.Notes</div> }
+                        <div class="task-meta">
+                            <span>@item.StoredByName · @item.StoredAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                        </div>
+                    </div>
+                    <button class="task-del-btn" @onclick="() => DeleteAsync(item.Id)">✕</button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .task-body { padding: 16px; }
+    .task-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .task-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .task-field { margin-bottom: 12px; }
+    .task-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .task-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .task-input:focus { border-color: var(--accent); }
+    .task-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .task-save-btn:disabled { opacity: .4; cursor: default; }
+    .task-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
+    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
+    .task-info { flex: 1; }
+    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
+    .task-del-btn:hover { color: var(--red); }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _adding;
+    private string _search = "";
+    private string _newName = "", _newLocation = "", _newNotes = "";
+    private byte[]? _pendingImageBytes;
+    private List<FoundItem> _items = [];
+
+    private const long MaxImageBytes = 8 * 1024 * 1024;
+
+    private IEnumerable<FoundItem> FilteredItems =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _items
+            : _items.Where(i => i.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                              || i.Location.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        await RefreshAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _items = await Db.FoundItems.Where(i => i.GroupId == _group!.Id)
+            .OrderByDescending(i => i.StoredAt).ToListAsync();
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > MaxImageBytes) { await JS.InvokeVoidAsync("alert", "Billedet er for stort (max 8 MB)."); return; }
+        using var stream = file.OpenReadStream(MaxImageBytes);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _pendingImageBytes = ms.ToArray();
+    }
+
+    private async Task SaveAsync()
+    {
+        string? photoFileName = null;
+        if (_pendingImageBytes is not null)
+        {
+            photoFileName = $"{Guid.NewGuid():N}.jpg";
+            var root = Config["ClubSettings:PhotosRoot"] ?? "/app/data/photos";
+            Directory.CreateDirectory(root);
+            await File.WriteAllBytesAsync(Path.Combine(root, photoFileName), _pendingImageBytes);
+        }
+
+        Db.FoundItems.Add(new FoundItem
+        {
+            GroupId = _group!.Id,
+            Name = _newName.Trim(),
+            Location = _newLocation.Trim(),
+            Notes = string.IsNullOrWhiteSpace(_newNotes) ? null : _newNotes.Trim(),
+            PhotoFileName = photoFileName,
+            StoredByName = _member!.Name,
+        });
+        await Db.SaveChangesAsync();
+        _newName = ""; _newLocation = ""; _newNotes = ""; _pendingImageBytes = null; _adding = false;
+        await RefreshAsync();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        var item = await Db.FoundItems.FindAsync(id);
+        if (item != null) { Db.FoundItems.Remove(item); await Db.SaveChangesAsync(); await RefreshAsync(); }
+    }
+}

@@ -269,10 +269,37 @@ using (var scope = app.Services.CreateScope())
         )
         """);
 
+    // Assignment gained multi-assignee support - AssignedToNames (semicolon
+    // list) replaces the old single AssignedToName column. Backfill from the
+    // old column (still present in the DB, just unmapped now) then leave it
+    // alone, matching how other columns here get retired in place.
+    var hasAssignedToNamesColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Assignments') WHERE name = 'AssignedToNames'").AsEnumerable().First() > 0;
+    if (!hasAssignedToNamesColumn)
+    {
+        db.Database.ExecuteSqlRaw("ALTER TABLE Assignments ADD COLUMN AssignedToNames TEXT NOT NULL DEFAULT ''");
+        db.Database.ExecuteSqlRaw("UPDATE Assignments SET AssignedToNames = AssignedToName WHERE AssignedToName IS NOT NULL AND AssignedToName <> ''");
+    }
+
     var hasMainTaskIdColumn = db.Database.SqlQueryRaw<int>(
         "SELECT COUNT(*) AS Value FROM pragma_table_info('Assignments') WHERE name = 'MainTaskId'").AsEnumerable().First() > 0;
     if (!hasMainTaskIdColumn)
         db.Database.ExecuteSqlRaw("ALTER TABLE Assignments ADD COLUMN MainTaskId TEXT NULL");
+
+    var hasIsDailyColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('MainTasks') WHERE name = 'IsDaily'").AsEnumerable().First() > 0;
+    if (!hasIsDailyColumn)
+    {
+        db.Database.ExecuteSqlRaw("ALTER TABLE MainTasks ADD COLUMN IsDaily INTEGER NOT NULL DEFAULT 0");
+
+        // Familien Hvidberg's board is a daily chore checklist, not a one-off
+        // backlog like Bogshoppen's - flip its existing main tasks on once,
+        // right when the column is created, so it doesn't fight later toggles.
+        db.Database.ExecuteSqlRaw("""
+            UPDATE MainTasks SET IsDaily = 1
+            WHERE GroupId = (SELECT Id FROM Groups WHERE Slug = 'hvidberg')
+            """);
+    }
 
     // Bogshoppen is the pilot group for the task-board-first front page - once
     // a group has any MainTasks, GroupHome switches from the general dashboard
@@ -284,6 +311,93 @@ using (var scope = app.Services.CreateScope())
         var seedTitles = new[] { "Salg", "Organisering", "Opbevaring", "Transport", "Andet" };
         for (var i = 0; i < seedTitles.Length; i++)
             db.MainTasks.Add(new ITMartinClub.Server.Data.Entities.MainTask { GroupId = bogshoppenGroup.Id, Title = seedTitles[i], SortOrder = i });
+        db.SaveChanges();
+    }
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "FoundItems" (
+            "Id"            TEXT NOT NULL PRIMARY KEY,
+            "GroupId"       TEXT NOT NULL,
+            "Name"          TEXT NOT NULL,
+            "Location"      TEXT NOT NULL,
+            "Notes"         TEXT NULL,
+            "PhotoFileName" TEXT NULL,
+            "StoredByName"  TEXT NOT NULL DEFAULT '',
+            "StoredAt"      TEXT NOT NULL
+        )
+        """);
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "PersonalReminders" (
+            "Id"            TEXT NOT NULL PRIMARY KEY,
+            "GroupId"       TEXT NOT NULL,
+            "MemberName"    TEXT NOT NULL DEFAULT '',
+            "Text"          TEXT NOT NULL,
+            "Date"          TEXT NOT NULL,
+            "Done"          INTEGER NOT NULL DEFAULT 0,
+            "PhotoFileName" TEXT NULL,
+            "CreatedAt"     TEXT NOT NULL
+        )
+        """);
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "StorageLocations" (
+            "Id"             TEXT NOT NULL PRIMARY KEY,
+            "GroupId"        TEXT NOT NULL,
+            "Name"           TEXT NOT NULL,
+            "Address"        TEXT NULL,
+            "ApproxSize"     TEXT NULL,
+            "CreatedByName"  TEXT NOT NULL DEFAULT '',
+            "CreatedAt"      TEXT NOT NULL
+        )
+        """);
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Vehicles" (
+            "Id"             TEXT NOT NULL PRIMARY KEY,
+            "GroupId"        TEXT NOT NULL,
+            "Name"           TEXT NOT NULL,
+            "Availability"   TEXT NULL,
+            "CreatedByName"  TEXT NOT NULL DEFAULT '',
+            "CreatedAt"      TEXT NOT NULL
+        )
+        """);
+
+    var hasContentsColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('StorageLocations') WHERE name = 'Contents'").AsEnumerable().First() > 0;
+    if (!hasContentsColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE StorageLocations ADD COLUMN Contents TEXT NULL");
+
+    var hasStorageLocationIdColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Assignments') WHERE name = 'StorageLocationId'").AsEnumerable().First() > 0;
+    if (!hasStorageLocationIdColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Assignments ADD COLUMN StorageLocationId TEXT NULL");
+
+    var hasScheduledForColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Assignments') WHERE name = 'ScheduledFor'").AsEnumerable().First() > 0;
+    if (!hasScheduledForColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Assignments ADD COLUMN ScheduledFor TEXT NULL");
+
+    // Familien Hvidberg: the time-slot booking system for vehicles/bathroom
+    // (BookableResource/ResourceBooking, retired) moved back to two ordinary
+    // main tasks - people sign up for a subtask under "Køretøj"/"Bad" the
+    // same way they claim any other chore, instead of picking a start/end
+    // time. Seed once; leave alone afterwards so renames/reordering stick
+    // (same pattern as the Bogshoppen seed above).
+    var hvidbergGroup = db.Groups.FirstOrDefault(g => g.Slug == "hvidberg");
+    if (hvidbergGroup is not null)
+    {
+        var nextSort = db.MainTasks.Where(m => m.GroupId == hvidbergGroup.Id)
+            .Select(m => (int?)m.SortOrder).Max() ?? -1;
+
+        if (!db.MainTasks.Any(m => m.GroupId == hvidbergGroup.Id && m.Title == "Køretøj"))
+            db.MainTasks.Add(new ITMartinClub.Server.Data.Entities.MainTask
+                { GroupId = hvidbergGroup.Id, Title = "Køretøj", SortOrder = ++nextSort });
+
+        if (!db.MainTasks.Any(m => m.GroupId == hvidbergGroup.Id && m.Title == "Bad"))
+            db.MainTasks.Add(new ITMartinClub.Server.Data.Entities.MainTask
+                { GroupId = hvidbergGroup.Id, Title = "Bad", SortOrder = ++nextSort });
+
         db.SaveChanges();
     }
 }

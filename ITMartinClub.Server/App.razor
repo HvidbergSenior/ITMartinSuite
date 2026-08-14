@@ -46,11 +46,20 @@
                 try { await navigator.serviceWorker.register('/sw.js'); } catch (e) {}
             },
 
+            // Returns a status string so the UI can show what actually
+            // happened - the old fire-and-forget version swallowed every
+            // failure, which made it impossible to tell "browser doesn't
+            // support push" apart from "user never got asked" apart from
+            // "user said no". Called both silently on page load (works for
+            // browsers that don't require a gesture) and from a real button
+            // click (needed for Safari, which won't show the permission
+            // dialog at all unless requestPermission() runs inside a click).
             subscribePush: async function (publicKey, groupId, memberName) {
-                if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
                 try {
                     if (Notification.permission === 'default') await Notification.requestPermission();
-                    if (Notification.permission !== 'granted') return;
+                    if (Notification.permission === 'denied') return 'denied';
+                    if (Notification.permission !== 'granted') return 'unsupported';
                     var reg = await navigator.serviceWorker.ready;
                     var existing = await reg.pushManager.getSubscription();
                     var sub = existing || await reg.pushManager.subscribe({
@@ -63,7 +72,8 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ groupId, memberName, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth })
                     });
-                } catch (e) {}
+                    return 'granted';
+                } catch (e) { return 'error'; }
             },
 
             _toBytes: function (b64url) {

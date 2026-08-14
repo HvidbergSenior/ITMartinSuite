@@ -23,12 +23,27 @@ else
         <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@($"Hej, {_member.Name} 👋")"
                  Active="home" OnLogout="LeaveAsync" />
 
+        @if (_pushStatusMessage is not null)
+        {
+            <div class="push-status-banner">@_pushStatusMessage</div>
+        }
+        else
+        {
+            <!-- Some browsers (notably Safari) silently refuse to show the
+                 permission dialog unless requestPermission() runs directly
+                 inside a real click - the automatic attempt on page load
+                 (further down in OnAfterRenderAsync) works for browsers that
+                 don't require that, this button is the fallback for the
+                 ones that do. -->
+            <button class="push-enable-btn" @onclick="EnablePushAsync">🔔 Slå notifikationer til på denne enhed</button>
+        }
+
         @if (_mainTasks.Any())
         {
             <div class="task-body">
                 <div class="task-toolbar">
                     <h2 class="task-title">Åbne opgaver</h2>
-                    <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
+                    <button class="task-add-btn" @onclick="ToggleAdding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
                 </div>
 
                 <div class="task-filter-row">
@@ -51,18 +66,61 @@ else
                                 @foreach (var mt in _mainTasks) { <option value="@mt.Id">@mt.Title</option> }
                             </select>
                         </div>
-                        <div class="task-row">
+                        <div class="task-field">
+                            <label>Tildelt til (valgfrit, vælg en eller flere)</label>
+                            <div class="task-assignee-list">
+                                @foreach (var m in _members)
+                                {
+                                    <label class="task-assignee-chip">
+                                        <input type="checkbox" checked="@_newAssignedTo.Contains(m.Name)" @onchange="e => ToggleNewAssignee(m.Name, (bool)e.Value!)" />
+                                        @m.Name
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                        <div class="task-field"><label>Deadline (valgfrit)</label><input @bind="_newDue" type="date" class="task-input" /></div>
+                        @if (_locations.Any())
+                        {
                             <div class="task-field">
-                                <label>Tildelt til (valgfrit)</label>
-                                <select @bind="_newAssignedTo" class="task-input">
-                                    <option value="">— ingen tildeling —</option>
-                                    @foreach (var m in _members) { <option value="@m.Name">@m.Name</option> }
+                                <label>Opbevaringssted (valgfrit)</label>
+                                <select @bind="_newStorageLocationId" class="task-input">
+                                    <option value="">— ingen —</option>
+                                    @foreach (var loc in _locations) { <option value="@loc.Id">@loc.Name</option> }
                                 </select>
                             </div>
-                            <div class="task-field"><label>Deadline (valgfrit)</label><input @bind="_newDue" type="date" class="task-input" /></div>
-                        </div>
+                        }
                         <div class="task-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newDesc" rows="2" class="task-input task-textarea" /></div>
-                        <button class="task-save-btn" @onclick="AddTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle) || string.IsNullOrEmpty(_newMainTaskId))">Gem opgave</button>
+                        <div class="task-field">
+                            <label>Hvornår skal den vises</label>
+                            <select @bind="_newScheduleChoice" class="task-input">
+                                <option value="today">I dag</option>
+                                <option value="tomorrow">I morgen</option>
+                            </select>
+                        </div>
+                        <div class="prep-form-actions">
+                            <button class="task-save-btn" @onclick="AddTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle) || string.IsNullOrEmpty(_newMainTaskId))">@(_editingTaskId is null ? "Gem opgave" : "Opdater opgave")</button>
+                            @if (_editingTaskId is not null)
+                            {
+                                <button class="task-cancel-btn" @onclick="CancelEditTask">Annuller</button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (_tomorrowTasks.Any())
+                {
+                    <div class="tomorrow-section">
+                        <div class="task-section-label">📅 Planlagt til i morgen</div>
+                        @foreach (var t in _tomorrowTasks)
+                        {
+                            <div class="task-row-item">
+                                <div class="task-info">
+                                    <div class="task-item-title">@t.Title</div>
+                                    @if (t.Assignees.Count > 0) { <div class="task-meta"><span>👤 @t.AssigneeLabel</span></div> }
+                                </div>
+                                <button class="task-del-btn" @onclick="() => DeleteTaskAsync(t.Id)">✕</button>
+                            </div>
+                        }
                     </div>
                 }
 
@@ -70,13 +128,22 @@ else
                 @foreach (var mt in _mainTasks)
                 {
                     var tasksForMain = _openTasksFull.Where(t => t.MainTaskId == mt.Id)
-                        .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.AssignedToName == _filterAssignedTo)
+                        .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                         .ToList();
-                    <div class="maintask-group">
+                    <div class="maintask-group" style="background:@MainTaskColor(_mainTasks.IndexOf(mt))">
                         <div class="maintask-header">
                             <div class="maintask-title">@mt.Title</div>
                             <div class="maintask-count">@tasksForMain.Count</div>
                         </div>
+
+                        @if (mt.IsDaily)
+                        {
+                            var doneToday = _dailyDoneCounts.GetValueOrDefault(mt.Id);
+                            var totalToday = doneToday + tasksForMain.Count;
+                            <div class="maintask-daily-badge @(totalToday > 0 && tasksForMain.Count == 0 ? "daily-done" : "")">
+                                @(totalToday == 0 ? "Ingen opgaver i dag endnu" : tasksForMain.Count == 0 ? $"✅ Færdig i dag ({doneToday}/{totalToday})" : $"🕓 {doneToday} af {totalToday} gjort i dag")
+                            </div>
+                        }
 
                         @if (_editingDodId == mt.Id)
                         {
@@ -104,34 +171,37 @@ else
                         {
                             @foreach (var t in tasksForMain)
                             {
-                                <div class="task-row-item @(t.AssignedToName == _member!.Name ? "task-row-mine" : "")">
+                                <div class="task-row-item @(t.IsAssignedTo(_member!.Name) ? "task-row-mine" : "")">
                                     <div class="task-info">
                                         <div class="task-item-title">@t.Title</div>
                                         @if (!string.IsNullOrEmpty(t.Description)) { <div class="task-item-desc">@t.Description</div> }
-                                        @if (string.IsNullOrEmpty(t.AssignedToName))
+                                        @if (t.Assignees.Count == 0)
                                         {
                                             <div class="task-badge task-badge-open">⚡ Ingen har taget den</div>
                                         }
                                         else
                                         {
-                                            <div class="task-badge task-badge-claimed">✋ @t.AssignedToName klarer det</div>
+                                            <div class="task-badge task-badge-claimed">✋ @t.AssigneeLabel klarer det</div>
                                         }
                                         <div class="task-meta">
                                             @if (t.DueDate.HasValue) { <span class="@(t.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @t.DueDate.Value.ToString("dd MMM yyyy")</span> }
                                             <span>Oprettet af @t.CreatedByName</span>
                                         </div>
                                         <div style="display:flex;gap:8px">
-                                            @if (t.AssignedToName == _member!.Name)
+                                            @if (t.IsAssignedTo(_member!.Name))
                                             {
                                                 <button class="task-complete-btn" @onclick="() => CompleteTaskAsync(t.Id)">Markér som færdig ✓</button>
                                             }
                                             else
                                             {
-                                                <button class="task-take-btn" @onclick="() => TakeTaskAsync(t.Id)">Jeg tager den 👋</button>
+                                                <button class="task-take-btn" @onclick="() => JoinTaskAsync(t.Id)">@(t.Assignees.Count == 0 ? "Jeg tager den 👋" : "Deltag også 🙋")</button>
                                             }
                                         </div>
                                     </div>
-                                    <button class="task-del-btn" @onclick="() => DeleteTaskAsync(t.Id)">✕</button>
+                                    <div style="display:flex;flex-direction:column;gap:4px">
+                                        <button class="task-del-btn" @onclick="() => StartEditTask(t)">✏️</button>
+                                        <button class="task-del-btn" @onclick="() => DeleteTaskAsync(t.Id)">✕</button>
+                                    </div>
                                 </div>
                             }
                         }
@@ -139,7 +209,7 @@ else
                 }
 
                 @{ var uncategorized = _openTasksFull.Where(t => t.MainTaskId == null)
-                    .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.AssignedToName == _filterAssignedTo)
+                    .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                     .ToList(); }
                 @if (uncategorized.Any())
                 {
@@ -147,7 +217,7 @@ else
                         <div class="maintask-header"><div class="maintask-title">Ikke kategoriseret</div></div>
                         @foreach (var t in uncategorized)
                         {
-                            <div class="task-row-item @(t.AssignedToName == _member!.Name ? "task-row-mine" : "")" @key="t.Id">
+                            <div class="task-row-item @(t.IsAssignedTo(_member!.Name) ? "task-row-mine" : "")" @key="t.Id">
                                 <div class="task-info">
                                     <div class="task-item-title">@t.Title</div>
                                     <div class="task-meta">
@@ -333,7 +403,7 @@ else
                     <div class="club-task-row">
                         <div class="club-task-title">@t.Title</div>
                         <div class="club-task-meta">
-                            @if (!string.IsNullOrEmpty(t.AssignedToName)) { <span>👤 @t.AssignedToName</span> }
+                            @if (t.Assignees.Count > 0) { <span>👤 @t.AssigneeLabel</span> }
                             @if (t.DueDate.HasValue) { <span>📅 @t.DueDate.Value.ToString("dd MMM")</span> }
                         </div>
                     </div>
@@ -381,6 +451,13 @@ else
     .task-del-btn:hover { color: var(--red); }
     .task-take-btn { background: transparent; border: 1px solid rgba(59,130,246,.4); color: #60a5fa; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; margin-top: 8px; }
     .task-take-btn:hover { background: rgba(59,130,246,.1); }
+    .task-assignee-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .task-assignee-chip { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--text); cursor: pointer; }
+    .prep-form-actions { display: flex; gap: 8px; }
+    .prep-form-actions .task-save-btn { width: auto; flex: 1; }
+    .task-cancel-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+    .push-enable-btn { display: block; width: 100%; margin: 12px 0; padding: 10px; border-radius: 10px; border: 1px dashed var(--accent); background: transparent; color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer; }
+    .push-status-banner { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); font-size: 13px; color: var(--text); }
 
     .maintask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
     @@media (max-width: 640px) { .maintask-grid { grid-template-columns: 1fr; } }
@@ -389,6 +466,10 @@ else
     .maintask-title { font-size: 16px; font-weight: 800; color: var(--text); }
     .maintask-count { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 2px 10px; }
     .maintask-dod { font-size: 12px; color: var(--muted); background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; cursor: pointer; }
+    .maintask-daily-badge { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+    .maintask-daily-badge.daily-done { color: var(--green); background: rgba(34,197,94,.12); }
+    .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .tomorrow-section { margin-bottom: 20px; }
     .maintask-dod-edit { margin-bottom: 12px; }
     .dod-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin-bottom: 3px; }
 
@@ -462,15 +543,22 @@ else
     // Task-board-first front page: active once the group has any MainTasks
     // (see Program.cs seeding for Bogshoppen) - otherwise the dashboard above
     // still renders as before, unaffected.
+    private string? _pushStatusMessage;
     private List<MainTask> _mainTasks = [];
     private List<Assignment> _openTasksFull = [];
     private List<Member> _members = [];
+    private Dictionary<Guid, int> _dailyDoneCounts = [];
     private bool _adding, _addingMainTask;
-    private string _newTitle = "", _newMainTaskId = "", _newAssignedTo = "", _newDesc = "", _newMainTaskTitle = "";
+    private Guid? _editingTaskId;
+    private string _newTitle = "", _newMainTaskId = "", _newDesc = "", _newMainTaskTitle = "", _newStorageLocationId = "";
+    private HashSet<string> _newAssignedTo = [];
+    private List<StorageLocation> _locations = [];
     private string _filterAssignedTo = "";
+    private string _newScheduleChoice = "today";
     private DateTime? _newDue;
     private Guid? _editingDodId;
     private string _editDodText = "";
+    private List<Assignment> _tomorrowTasks = [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -499,9 +587,35 @@ else
         try
         {
             var publicKey = PushService.GetPublicKey();
-            await JS.InvokeVoidAsync("clubJs.subscribePush", publicKey, _group.Id, _member.Name);
+            var status = await JS.InvokeAsync<string>("clubJs.subscribePush", publicKey, _group.Id, _member.Name);
+            // Only surface success/hard-failure from the silent on-load
+            // attempt - leave the banner as the enable button for anything
+            // that just needs the manual click (Safari etc.), rather than
+            // reporting a false "unsupported"/"denied" before that's tried.
+            if (status == "granted")
+            {
+                _pushStatusMessage = "🔔 Notifikationer er slået til på denne enhed.";
+                StateHasChanged();
+            }
         }
         catch { }
+    }
+
+    private async Task EnablePushAsync()
+    {
+        try
+        {
+            var publicKey = PushService.GetPublicKey();
+            var status = await JS.InvokeAsync<string>("clubJs.subscribePush", publicKey, _group!.Id, _member!.Name);
+            _pushStatusMessage = status switch
+            {
+                "granted" => "🔔 Notifikationer er slået til på denne enhed.",
+                "denied" => "🔕 Du har blokeret notifikationer for denne side. Åbn browserens side-indstillinger (tryk på hængelåsen/ikonet ved adressen) → Notifikationer → Tillad, og prøv igen.",
+                "unsupported" => "⚠️ Denne browser understøtter ikke notifikationer her. På iPhone: åbn siden i Safari, tryk Del → 'Føj til hjemmeskærm', og brug appen derfra.",
+                _ => "❌ Noget gik galt. Prøv igen, eller genindlæs siden.",
+            };
+        }
+        catch { _pushStatusMessage = "❌ Noget gik galt. Prøv igen, eller genindlæs siden."; }
     }
 
     private async Task RefreshAsync()
@@ -541,14 +655,51 @@ else
 
         if (_mainTasks.Any())
         {
+            // Daily main tasks are a recurring checklist: a subtask completed on
+            // an earlier day reopens automatically so it can be done again today.
+            var dailyMainTaskIds = _mainTasks.Where(m => m.IsDaily).Select(m => m.Id).ToList();
+            if (dailyMainTaskIds.Count > 0)
+            {
+                var staleDaily = await Db.Assignments
+                    .Where(a => a.GroupId == _group!.Id && a.IsCompleted && a.MainTaskId != null
+                        && dailyMainTaskIds.Contains(a.MainTaskId!.Value)
+                        && a.CompletedAt!.Value.Date < now.Date)
+                    .ToListAsync();
+                if (staleDaily.Count > 0)
+                {
+                    foreach (var a in staleDaily) { a.IsCompleted = false; a.CompletedAt = null; a.CompletedByName = ""; }
+                    await Db.SaveChangesAsync();
+                }
+            }
+
             _openTasksFull = await Db.Assignments
-                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted)
+                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && (a.ScheduledFor == null || a.ScheduledFor <= now.Date))
                 .OrderBy(a => a.DueDate)
                 .ToListAsync();
+
+            _tomorrowTasks = await Db.Assignments
+                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && a.ScheduledFor != null && a.ScheduledFor > now.Date)
+                .OrderBy(a => a.ScheduledFor)
+                .ToListAsync();
+
+            // "Done" for a daily main task means all of today's subtasks are
+            // complete - need today's completed count alongside the open ones.
+            _dailyDoneCounts = dailyMainTaskIds.Count == 0 ? [] : (await Db.Assignments
+                    .Where(a => a.GroupId == _group!.Id && a.IsCompleted && a.MainTaskId != null
+                        && dailyMainTaskIds.Contains(a.MainTaskId!.Value))
+                    .GroupBy(a => a.MainTaskId!.Value)
+                    .Select(g => new { MainTaskId = g.Key, Count = g.Count() })
+                    .ToListAsync())
+                .ToDictionary(x => x.MainTaskId, x => x.Count);
 
             _members = await Db.Members
                 .Where(m => m.GroupId == _group!.Id)
                 .OrderBy(m => m.Name)
+                .ToListAsync();
+
+            _locations = await Db.StorageLocations
+                .Where(l => l.GroupId == _group!.Id)
+                .OrderBy(l => l.Name)
                 .ToListAsync();
         }
 
@@ -596,6 +747,43 @@ else
         }
     }
 
+    private void ToggleAdding()
+    {
+        if (_adding) CancelEditTask();
+        else _adding = true;
+    }
+
+    private void CancelEditTask()
+    {
+        _editingTaskId = null;
+        _newTitle = ""; _newMainTaskId = ""; _newAssignedTo = []; _newDesc = ""; _newDue = null; _newScheduleChoice = "today"; _newStorageLocationId = ""; _adding = false;
+    }
+
+    private async Task StartEditTask(Assignment t)
+    {
+        _editingTaskId = t.Id;
+        var oldMainTaskTitle = t.MainTaskId is { } mtid ? _mainTasks.FirstOrDefault(m => m.Id == mtid)?.Title : null;
+        _newTitle = oldMainTaskTitle is not null ? StripMainTaskPrefix(t.Title, oldMainTaskTitle) : t.Title;
+        _newMainTaskId = t.MainTaskId?.ToString() ?? "";
+        _newStorageLocationId = t.StorageLocationId?.ToString() ?? "";
+        _newAssignedTo = t.Assignees.ToHashSet();
+        _newDue = t.DueDate?.ToLocalTime();
+        _newDesc = t.Description ?? "";
+        _newScheduleChoice = t.ScheduledFor is not null ? "tomorrow" : "today";
+        _adding = true;
+        // The edit form renders up near the toolbar, not next to the row you
+        // clicked in the main-task grid below - without this, editing a task
+        // further down the board looks like nothing happened.
+        StateHasChanged();
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
+
+    private static string StripMainTaskPrefix(string title, string mainTaskTitle)
+    {
+        var prefix = $"{mainTaskTitle}: ";
+        return title.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? title[prefix.Length..] : title;
+    }
+
     private async Task AddTaskAsync()
     {
         if (string.IsNullOrWhiteSpace(_newTitle) || string.IsNullOrEmpty(_newMainTaskId)) return;
@@ -603,40 +791,100 @@ else
         var mainTaskId = Guid.Parse(_newMainTaskId);
         var mainTaskTitle = _mainTasks.First(mt => mt.Id == mainTaskId).Title;
         var title = PrefixWithMainTask(_newTitle.Trim(), mainTaskTitle);
+        var locationId = string.IsNullOrEmpty(_newStorageLocationId) ? null : (Guid?)Guid.Parse(_newStorageLocationId);
+        var assignedNow = _newAssignedTo.ToList();
+
+        if (_editingTaskId is { } id)
+        {
+            var t = await Db.Assignments.FindAsync(id);
+            if (t is null) return;
+            t.MainTaskId = mainTaskId;
+            t.StorageLocationId = locationId;
+            t.Title = title;
+            t.Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim();
+            t.AssignedToNames = string.Join(';', assignedNow);
+            t.DueDate = _newDue?.ToUniversalTime();
+            t.ScheduledFor = _newScheduleChoice == "tomorrow" ? DateTime.UtcNow.Date.AddDays(1) : null;
+            await Db.SaveChangesAsync();
+            CancelEditTask();
+            await RefreshAsync();
+
+            var recipients = assignedNow.Append(t.CreatedByName)
+                .Where(n => n != _member!.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (recipients.Count > 0)
+                _ = PushService.SendToMembersAsync(Db, _group!.Id, recipients, "✏️ Opgave opdateret", $"{_member!.Name}: {title}");
+            return;
+        }
+
         Db.Assignments.Add(new Assignment
         {
             GroupId = _group!.Id,
             MainTaskId = mainTaskId,
+            StorageLocationId = locationId,
             Title = title,
             Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
-            AssignedToName = string.IsNullOrWhiteSpace(_newAssignedTo) ? null : _newAssignedTo,
+            AssignedToNames = string.Join(';', assignedNow),
             DueDate = _newDue?.ToUniversalTime(),
+            ScheduledFor = _newScheduleChoice == "tomorrow" ? DateTime.UtcNow.Date.AddDays(1) : null,
             CreatedByName = _member!.Name,
         });
         await Db.SaveChangesAsync();
-        _newTitle = ""; _newMainTaskId = ""; _newAssignedTo = ""; _newDesc = ""; _newDue = null; _adding = false;
+        CancelEditTask();
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "✅ Ny opgave", $"{_member.Name}: {title}");
+
+        var newTaskRecipients = assignedNow.Where(n => n != _member.Name).ToList();
+        if (newTaskRecipients.Count > 0)
+            _ = PushService.SendToMembersAsync(Db, _group.Id, newTaskRecipients, "✅ Ny opgave", $"{_member.Name}: {title}");
+        else if (assignedNow.Count == 0)
+            _ = PushService.SendToGroupAsync(Db, _group.Id, _member.Name, "✅ Ny opgave", $"{_member.Name}: {title}");
+    }
+
+    private void ToggleNewAssignee(string name, bool isChecked)
+    {
+        if (isChecked) _newAssignedTo.Add(name);
+        else _newAssignedTo.Remove(name);
     }
 
     // Every subtask title starts with its main task's name, e.g. "Salg: Skriv
     // RABAT på skilt" - matches how tasks were already being titled by hand
     // before MainTask existed as a real field, so it stays readable in lists
     // that show tasks without their group header.
+    // Subtle tinted backgrounds so main-task cards are visually distinct at a
+    // glance - cycles by list position rather than being stored per-task, so
+    // reordering/renaming a main task doesn't need any data migration.
+    private static readonly string[] MainTaskColors =
+    [
+        "rgba(99,102,241,.10)",  // indigo
+        "rgba(16,185,129,.10)",  // green
+        "rgba(245,158,11,.10)",  // amber
+        "rgba(236,72,153,.10)",  // pink
+        "rgba(56,189,248,.10)",  // sky
+        "rgba(248,113,113,.10)", // red
+        "rgba(168,85,247,.10)",  // purple
+        "rgba(163,163,163,.10)", // gray
+    ];
+
+    private static string MainTaskColor(int index) => MainTaskColors[index % MainTaskColors.Length];
+
     public static string PrefixWithMainTask(string title, string mainTaskTitle)
     {
         var prefix = $"{mainTaskTitle}: ";
         return title.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? title : prefix + title;
     }
 
-    private async Task TakeTaskAsync(Guid id)
+    private async Task JoinTaskAsync(Guid id)
     {
         var t = await Db.Assignments.FindAsync(id);
         if (t == null) return;
-        t.AssignedToName = _member!.Name;
+        var priorAssignees = t.Assignees;
+        t.AddAssignee(_member!.Name);
         await Db.SaveChangesAsync();
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "👋 Opgave taget", $"{_member.Name} tager: {t.Title}");
+
+        var recipients = priorAssignees.Append(t.CreatedByName)
+            .Where(n => n != _member.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (recipients.Count > 0)
+            _ = PushService.SendToMembersAsync(Db, _group!.Id, recipients, "👋 Opgave taget", $"{_member.Name} tager: {t.Title}");
     }
 
     private async Task CompleteTaskAsync(Guid id)
@@ -646,7 +894,11 @@ else
         t.IsCompleted = true; t.CompletedAt = DateTime.UtcNow; t.CompletedByName = _member!.Name;
         await Db.SaveChangesAsync();
         await RefreshAsync();
-        _ = PushService.SendToGroupAsync(Db, _group!.Id, _member.Name, "✅ Opgave færdig", $"{_member.Name}: {t.Title}");
+
+        var recipients = t.Assignees.Append(t.CreatedByName)
+            .Where(n => n != _member.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (recipients.Count > 0)
+            _ = PushService.SendToMembersAsync(Db, _group!.Id, recipients, "✅ Opgave færdig", $"{_member.Name}: {t.Title}");
     }
 
     private async Task DeleteTaskAsync(Guid id)

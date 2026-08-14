@@ -1,6 +1,7 @@
 @inject ClubDbContext Db
 @inject ClubBroadcastService Broadcast
 @inject ClubAuthService ClubAuth
+@inject ClubPushService PushService
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -145,6 +146,11 @@
         await RefreshAsync();
         Broadcast.Broadcast(_groupId);
         try { await JS.InvokeVoidAsync("clubJs.scrollToBottom", "chat-widget-messages"); } catch { }
+
+        // Chat.razor (the dedicated /chat page) already pushes on send - this
+        // floating widget is the other surface people type from, and was
+        // missing it, so messages sent from here never notified anyone.
+        _ = PushService.SendToGroupAsync(Db, _groupId, _memberName, $"💬 {_memberName}", text);
     }
 
     private void OnBroadcast() => InvokeAsync(async () =>
