@@ -22,6 +22,10 @@
         </div>
     </div>
 
+    <ProblemPurposeBanner
+        Problem="Restaurering af gamle indspilninger/cd'er kræver overblik over hvad der mangler at blive gjort."
+        Formaal="Hold styr på fremskridt i indspilning, restaurering og karaoke-udgaver." />
+
     <input class="songs-search" type="search" placeholder="Søg sang eller artist..."
            value="@_query" @oninput="e => _query = e.Value?.ToString() ?? string.Empty" />
 

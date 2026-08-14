@@ -90,28 +90,28 @@ else
     </div>
 }
 
-<footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin</footer>
+<footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
 
 <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #0a0e18; color: #f0f4ff; font-family: -apple-system, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; }
 
     .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .auth-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 360px; text-align: center; }
+    .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 360px; text-align: center; }
     .auth-title { font-size: 22px; font-weight: 800; margin: 0 0 20px; }
-    .auth-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 11px 14px; color: white; font-size: 15px; outline: none; margin-bottom: 12px; }
+    .auth-input { width: 100%; background: rgba(255,255,255,.07); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 15px; outline: none; margin-bottom: 12px; }
     .auth-input:focus { border-color: #3b82f6; }
-    .auth-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; background: #2563eb; color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .auth-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
     .auth-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #f87171; margin-bottom: 10px; }
 
     .admin-wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 60px; }
     .admin-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
     .admin-title { font-size: 24px; font-weight: 900; }
-    .admin-count { font-size: 13px; color: #475569; }
-    .empty { color: #475569; padding: 40px 0; text-align: center; }
+    .admin-count { font-size: 13px; color: var(--muted); }
+    .empty { color: var(--muted); padding: 40px 0; text-align: center; }
 
     .leads-grid { display: flex; flex-direction: column; gap: 14px; }
-    .lead-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09); border-radius: 16px; padding: 18px 20px; }
+    .lead-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; }
     .lead-card.done { opacity: .55; }
     .lead-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
     .lead-name { font-size: 16px; font-weight: 700; }

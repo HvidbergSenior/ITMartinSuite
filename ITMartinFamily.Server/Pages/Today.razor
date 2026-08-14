@@ -5,6 +5,7 @@
 @using ITMartinFamily.Domain.Entities
 @using ITMartinFamily.Infrastructure
 @using ITMartinFamily.Server.Components
+@using ITMartin.Shared.UI.Components
 @using Microsoft.AspNetCore.Components.Web
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @using Microsoft.AspNetCore.SignalR.Client
@@ -42,6 +43,10 @@ else
             </div>
             <button class="logout-btn" @onclick="Logout">Log ud</button>
         </div>
+
+        <ProblemPurposeBanner
+            Problem="Rigtige apps er for store og komplicerede – særligt for ADHD'ere, som bruger den ene funktion, de kan finde."
+            Formaal="Din egen lille app, der bliver en del af strukturen." />
 
         <div class="tab-bar">
             <button class="tab-btn @(_tab == "husk"    ? "active" : "")" @onclick='() => SetTab("husk")'>⏰ Påminder</button>

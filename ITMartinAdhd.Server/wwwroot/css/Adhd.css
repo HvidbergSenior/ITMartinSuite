@@ -3,7 +3,7 @@
    Phone-first, dark theme, large touch targets
    ============================================= */
 
-:root {
+:root, [data-theme="dark"] {
     --adhd-bg: #0f1117;
     --adhd-surface: #171a26;
     --adhd-surface-2: #21253a;
@@ -16,6 +16,19 @@
     --adhd-danger: #ef4444;
     --adhd-radius: 14px;
     --adhd-radius-sm: 8px;
+}
+
+[data-theme="light"] {
+    --adhd-bg: #f5f5f7;
+    --adhd-surface: #ffffff;
+    --adhd-surface-2: #eef0f4;
+    --adhd-border: #e2e2e8;
+    --adhd-accent: #6366f1;
+    --adhd-accent-dark: #4f52d4;
+    --adhd-text: #16181d;
+    --adhd-muted: #6b7280;
+    --adhd-success: #22c55e;
+    --adhd-danger: #ef4444;
 }
 
 *, *::before, *::after {

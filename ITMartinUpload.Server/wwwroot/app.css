@@ -1,8 +1,26 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root, [data-theme="dark"] {
+    --bg: #080c18;
+    --surface: rgba(255,255,255,.04);
+    --border: rgba(255,255,255,.14);
+    --text: #e8eeff;
+    --muted: #64748b;
+    --accent: #2563eb;
+}
+
+[data-theme="light"] {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --border: #e2e2e8;
+    --text: #16181d;
+    --muted: #6b7280;
+}
+
 html, body {
-    background: #080c18;
-    color: #e8eeff;
+    background: var(--bg);
+    color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     min-height: 100vh;
 }
@@ -17,11 +35,11 @@ html, body {
 .header { text-align: center; margin-bottom: 32px; }
 .logo { font-size: 52px; margin-bottom: 12px; }
 .title { font-size: 26px; font-weight: 800; letter-spacing: -.3px; margin-bottom: 6px; }
-.sub { font-size: 14px; color: #64748b; }
+.sub { font-size: 14px; color: var(--muted); }
 
 /* Drop zone */
 .dropzone {
-    border: 2px dashed rgba(255,255,255,.14);
+    border: 2px dashed var(--border);
     border-radius: 20px;
     padding: 44px 24px 36px;
     text-align: center;
@@ -30,26 +48,26 @@ html, body {
     margin-bottom: 28px;
 }
 .dropzone.dragover {
-    border-color: #3b82f6;
+    border-color: var(--accent);
     background: rgba(59,130,246,.08);
 }
 .dz-icon { font-size: 40px; margin-bottom: 10px; }
-.dz-text { font-size: 16px; font-weight: 700; color: #94a3b8; margin-bottom: 4px; }
-.dz-or { font-size: 12px; color: #475569; margin-bottom: 14px; }
+.dz-text { font-size: 16px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.dz-or { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
 .dz-btn {
     display: inline-block;
-    background: #2563eb;
+    background: var(--accent);
     color: white;
     padding: 11px 24px;
     border-radius: 12px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    transition: background .15s;
+    transition: opacity .15s;
     margin-bottom: 12px;
 }
-.dz-btn:hover { background: #1d4ed8; }
-.dz-hint { font-size: 11px; color: #334155; }
+.dz-btn:hover { opacity: .85; }
+.dz-hint { font-size: 11px; color: var(--muted); }
 
 /* Sections */
 .section { margin-bottom: 28px; }
@@ -63,11 +81,11 @@ html, body {
 .section-label {
     font-size: 11px;
     font-weight: 800;
-    color: #475569;
+    color: var(--muted);
     text-transform: uppercase;
     letter-spacing: .08em;
 }
-.section-meta { font-size: 11px; color: #334155; }
+.section-meta { font-size: 11px; color: var(--muted); }
 
 /* File list */
 .file-list { display: flex; flex-direction: column; gap: 6px; }
@@ -77,8 +95,8 @@ html, body {
     align-items: flex-start;
     gap: 12px;
     padding: 12px 14px;
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(255,255,255,.07);
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 12px;
     transition: border-color .2s;
 }
@@ -97,19 +115,19 @@ html, body {
     text-overflow: ellipsis;
     margin-bottom: 2px;
 }
-.file-meta { font-size: 11px; color: #64748b; }
+.file-meta { font-size: 11px; color: var(--muted); }
 .file-err { color: #f87171; }
 
 .bar-track {
     height: 4px;
-    background: rgba(255,255,255,.08);
+    background: var(--border);
     border-radius: 2px;
     margin-top: 7px;
     overflow: hidden;
 }
 .bar-fill {
     height: 100%;
-    background: #3b82f6;
+    background: var(--accent);
     border-radius: 2px;
     transition: width .25s ease;
 }
@@ -141,7 +159,20 @@ html, body {
 /* Empty state */
 .empty-hint {
     text-align: center;
-    color: #334155;
+    color: var(--muted);
     font-size: 14px;
     padding: 40px 0;
 }
+
+.btn-primary, button[type="submit"]:not(#themeToggleBtn) {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.65rem 1.4rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+.btn-primary:hover, button[type="submit"]:not(#themeToggleBtn):hover { opacity: 0.85; }

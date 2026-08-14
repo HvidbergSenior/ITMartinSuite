@@ -1,0 +1,13 @@
+/* Light-theme overrides for the shared design tokens defined in
+   ITMartin.Shared.UI's Shared.css (:root). Dark stays exactly as
+   Shared.css already defines it - this only kicks in when
+   [data-theme="light"] is set on <html> by the theme toggle. */
+[data-theme="light"] {
+    --bg-main: #f5f5f7;
+    --bg-card: #ffffff;
+    --bg-soft: #ffffff;
+    --text-main: #16181d;
+    --text-muted: #6b7280;
+    --border: #e2e2e8;
+    --accent: #6366f1;
+}

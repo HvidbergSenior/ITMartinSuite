@@ -1,0 +1,48 @@
+@page "/"
+
+@using ITMartinLibrary.Infrastructure
+@using Microsoft.EntityFrameworkCore
+
+@inject LibraryDbContext Db
+
+<PageTitle>Bogsamling – Søg</PageTitle>
+
+<div class="library-page">
+    <div class="page-container">
+        <h1 class="inv-title">📚 Vælg samling</h1>
+
+        <ProblemPurposeBanner Problem="Et stort bibliotek er svært at overskue, når man leder efter noget bestemt."
+                               Formaal="Søg og filtrér hurtigt på tværs af hele biblioteket." />
+
+        @if (_groups.Count == 0)
+        {
+            <p>Ingen samlinger endnu.</p>
+        }
+        else
+        {
+            <div class="group-list">
+                @foreach (var g in _groups)
+                {
+                    <a class="group-card" href="/g/@g.Slug">@g.Name</a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .library-page { min-height: 100vh; padding: 20px 16px 60px; color: var(--text-main, #e2e8f0); }
+    .inv-title { font-size: 28px; font-weight: 900; margin: 0 0 16px; line-height: 1; }
+    .group-list { display: flex; flex-direction: column; gap: 10px; }
+    .group-card { display: block; padding: 16px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: #fff; text-decoration: none; font-size: 16px; font-weight: 600; }
+    .group-card:hover { background: rgba(255,255,255,.1); }
+</style>
+
+@code {
+    private List<LibraryGroup> _groups = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _groups = await Db.Groups.OrderBy(g => g.Name).ToListAsync();
+    }
+}

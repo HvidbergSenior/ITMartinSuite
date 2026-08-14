@@ -1,4 +1,24 @@
+:root, [data-theme="dark"] {
+    --bg: #0b0b0b;
+    --surface: #171717;
+    --border: #2a2a2a;
+    --text: #ffffff;
+    --muted: #64748b;
+    --accent: #2563eb;
+    --blue: #60a5fa;
+    --green: #22c55e;
+    --orange: #f59e0b;
+    --purple: #a78bfa;
+}
 
+[data-theme="light"] {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --border: #e2e2e8;
+    --text: #16181d;
+    --muted: #6b7280;
+}
 
 /* =========================================
    MAGIC KNOWLEDGE CENTER
@@ -75,6 +95,16 @@
 .magic-kpi-warning .magic-kpi-value
 {
     color: var(--orange);
+}
+
+.session-total
+{
+    font-size: 15px;
+}
+
+.session-total strong
+{
+    color: var(--green);
 }
 
 /* =========================================
@@ -1551,7 +1581,7 @@ SET ICON PICKER
     justify-content: center;
     gap: 3px;
     padding: 6px 4px 5px;
-    height: 72px;
+    min-height: 86px;
     overflow: hidden;
     background: #fff;
     border: 1px solid rgba(255,255,255,.15);

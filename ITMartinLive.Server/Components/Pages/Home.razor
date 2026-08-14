@@ -7,6 +7,11 @@
         <a href="/admin" class="ghost-btn">⚙️</a>
     </div>
 
+    <div style="padding:0 14px;">
+        <ProblemPurposeBanner Problem="Live-kommentering til events kræver typisk et separat, klodset værktøj."
+                               Formaal="Skriv og vis live-kommentarer direkte, uden ekstra opsætning." />
+    </div>
+
     @if (!_events.Any())
     {
         <div class="empty-state">

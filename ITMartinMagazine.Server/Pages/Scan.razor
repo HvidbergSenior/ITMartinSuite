@@ -16,6 +16,11 @@
         <button class="lang-btn" @onclick="ToggleLang">@(Lang == "da" ? "EN" : "DA")</button>
     </div>
 
+    <div style="padding:12px 16px 0;">
+        <ProblemPurposeBanner Problem="Digitale magasiner/artikler mangler ofte et pænt, samlet sted at blive læst."
+                               Formaal="Et browsbart magasin-layout til artikler og udgivelser." />
+    </div>
+
     @if (_phase == Phase.Camera)
     {
         <div class="camera-wrap">

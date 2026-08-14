@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ITMartinFamily.Application\ITMartinFamily.Application.csproj" />
     <ProjectReference Include="..\ITMartinFamily.Infrastructure\ITMartinFamily.Infrastructure.csproj" />
+    <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

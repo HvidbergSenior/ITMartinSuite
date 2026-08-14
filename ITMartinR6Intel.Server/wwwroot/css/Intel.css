@@ -2,7 +2,7 @@
    R6 Intel — Dark Theme
    ============================================================ */
 
-:root {
+:root, [data-theme="dark"] {
     --intel-bg: #0d0d0d;
     --intel-surface: #1a1a1a;
     --intel-border: #2a2a2a;
@@ -22,6 +22,22 @@
     --player4-color: #f97316;
     --player5-color: #06b6d4;
     --bomb-color: #fbbf24;
+}
+
+[data-theme="light"] {
+    --intel-bg: #f5f5f7;
+    --intel-surface: #ffffff;
+    --intel-border: #e2e2e8;
+    --intel-accent: #e8b800;
+    --intel-text: #16181d;
+    --intel-text-dim: #6b7280;
+    --intel-danger: #ef4444;
+}
+
+/* Structural chrome uses a hardcoded near-black rather than the variables
+   above, so it needs its own explicit light override. */
+[data-theme="light"] .intel-header {
+    background: #ffffff;
 }
 
 *, *::before, *::after {

@@ -5,7 +5,7 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
+:root, [data-theme="dark"] {
     --bg:        #0d0d0d;
     --bg-card:   #1a1a2e;
     --bg-card2:  #16213e;
@@ -17,6 +17,25 @@
     --text-muted:#9ca3af;
     --border:    rgba(255,255,255,0.08);
     --radius:    12px;
+}
+
+[data-theme="light"] {
+    --bg:        #f5f5f7;
+    --bg-card:   #ffffff;
+    --bg-card2:  #ffffff;
+    --accent:    #e8c84b;
+    --atk:       #3b82f6;
+    --def:       #22c55e;
+    --ban:       #ef4444;
+    --text:      #16181d;
+    --text-muted:#6b7280;
+    --border:    #e2e2e8;
+}
+
+/* Structural chrome uses a hardcoded near-black rather than the variables
+   above, so it needs its own explicit light override. */
+[data-theme="light"] .r6-app-header {
+    background: #ffffff;
 }
 
 body {

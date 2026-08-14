@@ -1,6 +1,22 @@
 ﻿/* pages manage their own padding */
 .app-main { padding: 0; }
 
+/* Light-theme overrides for the shared tokens from Shared.css, plus a
+   couple of app-local tokens for the scanner page's own gradient
+   background (kept pixel-identical in dark, flattened in light). */
+:root, [data-theme="dark"] {
+    --scanner-bg: linear-gradient(to bottom, #07111f 0%, #0f172a 40%, #111827 100%);
+}
+[data-theme="light"] {
+    --bg-main: #f5f5f7;
+    --bg-card: #ffffff;
+    --bg-soft: #ffffff;
+    --text-main: #16181d;
+    --text-muted: #6b7280;
+    --border: #e2e2e8;
+    --scanner-bg: #f5f5f7;
+}
+
 /* =========================================
 SHELF SCANNER
 ========================================= */
@@ -11,8 +27,8 @@ SHELF SCANNER
     padding-bottom: 110px;
     max-width: 900px;
     margin: auto;
-    background: linear-gradient(to bottom, #07111f 0%, #0f172a 40%, #111827 100%);
-    color: white;
+    background: var(--scanner-bg);
+    color: var(--text-main);
 }
 
 .scanner-header {
@@ -30,7 +46,7 @@ SHELF SCANNER
 
 .scanner-subtitle {
     margin-top: 4px;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 14px;
 }
 

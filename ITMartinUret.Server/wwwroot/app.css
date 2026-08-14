@@ -2,12 +2,13 @@
 
 html, body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #0f172a;
-    color: #f1f5f9;
+    background: var(--bg);
+    color: var(--text);
     min-height: 100vh;
 }
 
-:root {
+:root, [data-theme="dark"] {
+    --bg: #0f172a;
     --surface: #1e293b;
     --border: #334155;
     --muted: #64748b;
@@ -15,6 +16,15 @@ html, body {
     --accent: #3b82f6;
     --danger: #ef4444;
     --radius: 14px;
+}
+
+[data-theme="light"] {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --border: #e2e2e8;
+    --text: #16181d;
+    --muted: #6b7280;
 }
 
 a { color: var(--accent); }
@@ -43,7 +53,7 @@ h1 { font-size: 22px; font-weight: 800; }
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 13px; color: var(--muted); }
 .field input, .field textarea, input[type=text], input[type=email], input[type=password], textarea {
-    background: #0f172a; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
     color: var(--text); font-size: 14px; font-family: inherit; width: 100%; outline: none;
 }
 .field input:focus, .field textarea:focus { border-color: var(--accent); }
@@ -80,7 +90,7 @@ h1 { font-size: 22px; font-weight: 800; }
 .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 12px; }
 
 .attachments { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-.ai-summary { font-size: 13px; color: #cbd5e1; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
+.ai-summary { font-size: 13px; color: #cbd5e1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
 .ai-summary-tag { display: inline-block; background: #8b5cf6; color: #fff; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; border-radius: 5px; padding: 1px 6px; margin-right: 6px; }
 .ai-summary-tag.suggestions { background: #10b981; }
 

@@ -106,6 +106,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .collection-info{padding:8px 10px}
 .collection-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .collection-count{font-size:11px;color:var(--text-dim);margin-top:1px}
+.itm-pp-banner{display:flex;flex-direction:column;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:.7rem 1rem;margin-bottom:16px}
+.itm-pp-row{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}
+.itm-pp-icon{font-size:.85rem}
+.itm-pp-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#818cf8;white-space:nowrap}
+.itm-pp-text{font-size:.85rem;color:#c7d2fe}
+html[data-theme="light"] .itm-pp-text{color:#3730a3}
+html[data-theme="light"] .itm-pp-label{color:#4338ca}
+html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.3)}
 .addon-cover{background:linear-gradient(135deg,#2e1f5e,#1f2a44)}
 .addon-cover svg{width:72%;height:72%}
 .addon-desc{display:none;font-size:11px;color:var(--text-dim);line-height:1.35;margin-top:3px}
@@ -208,6 +216,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
   <div class="content">
     <div id="galleryPicker">
+      <div class="itm-pp-banner">
+        <div class="itm-pp-row">
+          <span class="itm-pp-icon">😩</span>
+          <span class="itm-pp-label">Problem</span>
+          <span class="itm-pp-text">Intet pænt sted at se det færdige resultat</span>
+        </div>
+        <div class="itm-pp-row">
+          <span class="itm-pp-icon">🎯</span>
+          <span class="itm-pp-label">Formål</span>
+          <span class="itm-pp-text">Et browsbart galleri, klar til brug</span>
+        </div>
+      </div>
       <div class="gallery-grid" id="galleryGrid"></div>
     </div>
     <div id="fileBrowser" style="display:none">
@@ -537,9 +557,63 @@ function fileSectionLabel(files) {
   return 'Filer';
 }
 
+function fileCardHtml(f, i) {
+  if (f.isVideo) return `
+    <div class="file-card" onclick="openViewer(${i})">
+      ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" alt="">` : ''}
+      <div class="file-overlay vid-overlay">▶</div>
+      <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
+    </div>`;
+  if (f.isAudio) return `
+    <div class="file-card" onclick="openViewer(${i})">
+      ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" onerror="this.remove()" alt="">` : ''}
+      <div class="file-overlay">🎵</div>
+      <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
+    </div>`;
+  if (f.isDoc) return `
+    <div class="file-card" onclick="openViewer(${i})">
+      <div class="file-overlay">📄</div>
+    </div>`;
+  return `
+    <div class="file-card" onclick="openViewer(${i})">
+      ${f.liveVideo ? '<div class="file-live-badge"><span class="dot"></span>LIVE</div>' : ''}
+      <img class="file-thumb" src="${esc(f.thumb ?? f.webPath)}" loading="lazy"
+           onerror="this.style.display='none';this.parentElement.querySelector('.file-overlay')||this.insertAdjacentHTML('afterend','<div class=file-overlay>🖼️</div>')" alt="">
+    </div>`;
+}
+
+// A collection like "USA 2015" can hold 4000+ files - building every <img>
+// and setting it all via one innerHTML blocks the main thread for seconds
+// before anything appears. Render in small batches across animation frames
+// instead: the first screenful shows almost immediately, and loading="lazy"
+// still keeps actual image fetches deferred until each card scrolls near
+// view. fileGridRenderId guards against a stale batch loop still appending
+// after the user has already navigated to a different folder/collection.
+const FILE_GRID_CHUNK_SIZE = 150;
+let fileGridRenderId = 0;
+
+function renderFileGridChunk(files, startIndex, renderId) {
+  if (renderId !== fileGridRenderId) return;
+
+  const fg2 = document.getElementById('fileGrid');
+  const end = Math.min(startIndex + FILE_GRID_CHUNK_SIZE, files.length);
+  const temp = document.createElement('div');
+  let html = '';
+  for (let i = startIndex; i < end; i++) html += fileCardHtml(files[i], i);
+  temp.innerHTML = html;
+  const frag = document.createDocumentFragment();
+  while (temp.firstChild) frag.appendChild(temp.firstChild);
+  fg2.appendChild(frag);
+
+  if (end < files.length) {
+    requestAnimationFrame(() => renderFileGridChunk(files, end, renderId));
+  }
+}
+
 function renderFileGrid(files) {
   const fg2 = document.getElementById('fileGrid');
   const fs2 = document.getElementById('fileSection');
+  fileGridRenderId++;
   if (files.length) {
     fs2.style.display = '';
     const label = fileSectionLabel(files);
@@ -550,31 +624,9 @@ function renderFileGrid(files) {
     const title = document.getElementById('hdrTitle').textContent.trim();
     labelEl.style.display = label.toLowerCase() === title.toLowerCase() ? 'none' : '';
     labelEl.textContent = label;
-    fg2.innerHTML = files.map((f, i) => {
-      if (f.isVideo) return `
-        <div class="file-card" onclick="openViewer(${i})">
-          ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" alt="">` : ''}
-          <div class="file-overlay vid-overlay">▶</div>
-          <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
-        </div>`;
-      if (f.isAudio) return `
-        <div class="file-card" onclick="openViewer(${i})">
-          ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" onerror="this.remove()" alt="">` : ''}
-          <div class="file-overlay">🎵</div>
-          <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
-        </div>`;
-      if (f.isDoc) return `
-        <div class="file-card" onclick="openViewer(${i})">
-          <div class="file-overlay">📄</div>
-        </div>`;
-      return `
-        <div class="file-card" onclick="openViewer(${i})">
-          ${f.liveVideo ? '<div class="file-live-badge"><span class="dot"></span>LIVE</div>' : ''}
-          <img class="file-thumb" src="${esc(f.thumb ?? f.webPath)}" loading="lazy"
-               onerror="this.style.display='none';this.parentElement.querySelector('.file-overlay')||this.insertAdjacentHTML('afterend','<div class=file-overlay>🖼️</div>')" alt="">
-        </div>`;
-    }).join('');
+    fg2.innerHTML = '';
     playlist = files;
+    renderFileGridChunk(files, 0, fileGridRenderId);
   } else {
     fs2.style.display = 'none';
   }
@@ -584,7 +636,6 @@ function renderFileGrid(files) {
 // every gallery by default; shown here as an example + price, not live data) ──
 const ADDONS_TEASER = [
   { id: 'rejser', icon: '🧳', name: 'Rejser', desc: 'Kunne du tænke dig jeres rejser samlet automatisk ud fra sted og dato? Så tryk her.', price: '10 kr / rejse' },
-  { id: 'hjemmerejser', icon: '🏠', name: 'Hjemme & rejser', desc: 'Adskiller de daglige billeder hjemmefra fra jeres rejser.', price: 'Gratis med Rejser', bundled: true },
   { id: 'aarbog', icon: '📖', name: 'Årbog', desc: 'Kunne du tænke dig en årbog med årets bedste billeder samlet i én mappe? Så tryk her.', price: '15 kr / år' },
   { id: 'aarbogtekst', icon: '✍️', name: 'AI-billedtekster', desc: 'Kunne du tænke dig at AI skriver en kort billedtekst til hvert billede i Årbogen? Så tryk her.', price: '20 kr / år' },
   { id: 'person', icon: '👤', name: 'Efter person', desc: 'Kunne du tænke dig automatisk at finde alle billeder af en bestemt person? Så tryk her.', price: '20 kr / person' },
@@ -604,13 +655,6 @@ const ADDON_ILLUSTRATIONS = {
     <rect x="10" y="14" width="24" height="24" rx="4" fill="#6d28d9"/>
     <rect x="34" y="34" width="24" height="24" rx="4" fill="#8b5cf6"/>
     <rect x="58" y="50" width="24" height="24" rx="4" fill="#a78bfa"/>
-  </svg>`,
-  hjemmerejser: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
-    <rect x="8" y="24" width="36" height="36" rx="5" fill="#1f2a44"/>
-    <path d="M13 40 L26 29 L39 40 V54 H13 Z" fill="#93c5fd"/>
-    <rect x="52" y="24" width="36" height="36" rx="5" fill="#2e1f5e"/>
-    <rect x="61" y="36" width="18" height="14" rx="2" fill="#c4b5fd"/>
-    <rect x="67" y="31" width="6" height="6" fill="#c4b5fd"/>
   </svg>`,
   aarbog: `<svg viewBox="0 0 96 96" preserveAspectRatio="xMidYMid meet">
     <path d="M8 22 Q28 14 48 22 V74 Q28 66 8 74 Z" fill="#3730a3"/>
@@ -694,9 +738,10 @@ function toggleAddon(id) {
   updateAddonPlaceholderStates();
 }
 
-// "Hjemme & rejser" isn't independently selectable (it's a freebie bundled
-// with Rejser) so its own placeholder box lights up whenever Rejser is picked,
-// not from a selection of its own id.
+// A `bundled` add-on isn't independently selectable - its own placeholder box
+// lights up whenever its parent ('rejser') is picked, not from a selection of
+// its own id. No add-on currently uses this, but the mechanism stays generic
+// for whichever future add-on ends up as a bundled freebie.
 function isAddonEnabled(a) {
   return selectedAddons.has(a.id) || (a.bundled && selectedAddons.has('rejser'));
 }
@@ -705,7 +750,7 @@ function isAddonEnabled(a) {
 // folders (not a separate section) so the customer sees exactly where each
 // add-on will show up once it's live - greyed out/locked until picked below
 // in Tilkøb, then lit up immediately for a preview of the end result.
-// Rejser/Hjemme&rejser/Årbog/Efter person/Live-videoklip already surface their
+// Rejser/Årbog/Efter person/Live-videoklip already surface their
 // own results through the normal Mapper/Samlinger flow once Martin runs them -
 // nothing new to build there. On This Day and Søgning have no folder of their
 // own (they're computed live), so tapping their unlocked placeholder is the

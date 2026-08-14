@@ -1,0 +1,48 @@
+@page "/"
+
+@using ITMartinLibrary.Infrastructure
+@using Microsoft.EntityFrameworkCore
+
+@inject LibraryDbContext Db
+
+<PageTitle>Bogsamling</PageTitle>
+
+<div class="library-page">
+    <div class="page-container">
+        <div class="scan-hero-card">
+            <h1>📚 Vælg samling</h1>
+        </div>
+
+        <ProblemPurposeBanner Problem="At holde overblik over et stort medie-bibliotek uden et samlet sted at browse det."
+                               Formaal="Browsbart overblik over hele biblioteket, med filtrering og detaljer per fil." />
+
+        @if (_groups.Count == 0)
+        {
+            <p>Ingen samlinger endnu.</p>
+        }
+        else
+        {
+            <div class="group-list">
+                @foreach (var g in _groups)
+                {
+                    <a class="group-card" href="/g/@g.Slug">@g.Name</a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .group-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .group-card { display: block; padding: 16px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: #fff; text-decoration: none; font-size: 16px; font-weight: 600; }
+    .group-card:hover { background: rgba(255,255,255,.1); }
+</style>
+
+@code {
+    private List<LibraryGroup> _groups = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _groups = await Db.Groups.OrderBy(g => g.Name).ToListAsync();
+    }
+}
