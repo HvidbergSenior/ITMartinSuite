@@ -34,9 +34,21 @@
     color: #c7d2fe;
 }
 
+.itm-pp-list {
+    font-size: .85rem;
+    color: #c7d2fe;
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.itm-pp-list li {
+    margin: .1rem 0;
+}
+
 /* Tuned for a dark background - #c7d2fe reads fine there but is nearly
    invisible as light-indigo-on-white once an app has a light theme. */
-html[data-theme="light"] .itm-pp-text {
+html[data-theme="light"] .itm-pp-text,
+html[data-theme="light"] .itm-pp-list {
     color: #3730a3;
 }
 

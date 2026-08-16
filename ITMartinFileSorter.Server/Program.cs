@@ -456,6 +456,54 @@ app.MapPost("/api/debug/library-polish", async (string path, ITMartin.Media.Cont
 app.MapPost("/api/debug/fix-orientation", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.FixOrientationAsync(path)));
 
+app.MapPost("/api/debug/redate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.RedateUndatedAsync(path)));
+
+app.MapPost("/api/debug/group-by-camera", async (string path, string makeContains, string folderName, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.GroupByCameraMakeAsync(path, makeContains, folderName)));
+
+app.MapPost("/api/debug/deduplicate-folder", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.DeduplicateFolderAsync(path)));
+
+app.MapGet("/api/debug/camera-survey", (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IExifService exif) =>
+{
+    var billederDir = System.IO.Path.Combine(path, "Billeder");
+    if (!System.IO.Directory.Exists(billederDir)) return Results.Ok(new { });
+
+    var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    foreach (var file in System.IO.Directory.EnumerateFiles(billederDir, "*", System.IO.SearchOption.AllDirectories))
+    {
+        if (!ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsImage(file)) continue;
+        (string? Make, string? Model, string? Software)? meta;
+        try { meta = exif.ReadMetadata(file); } catch { continue; }
+        var key = string.IsNullOrWhiteSpace(meta?.Make) && string.IsNullOrWhiteSpace(meta?.Model)
+            ? "(ingen kamera-EXIF)"
+            : $"{meta?.Make} {meta?.Model}".Trim();
+        counts[key] = counts.GetValueOrDefault(key) + 1;
+    }
+    return Results.Ok(counts.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value));
+});
+
+app.MapGet("/api/debug/exif-dump", (string path) =>
+{
+    try
+    {
+        var directories = MetadataExtractor.ImageMetadataReader.ReadMetadata(path);
+        var dump = directories.Select(d => new
+        {
+            Directory = d.Name,
+            Tags = d.Tags.Select(t => new { t.Name, Value = t.Description }).ToList(),
+            Errors = d.Errors.ToList()
+        }).ToList();
+        var xmpProps = directories.OfType<MetadataExtractor.Formats.Xmp.XmpDirectory>().FirstOrDefault()?.GetXmpProperties();
+        return Results.Ok(new { directories = dump, xmpProperties = xmpProps });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { error = ex.ToString() });
+    }
+});
+
 // TEMP DEBUG - static offline gallery export (thumbnails + HTML pages), removed after
 app.MapPost("/api/debug/gallery-export", (string path, IServiceScopeFactory scopeFactory) =>
 {
@@ -472,6 +520,133 @@ app.MapPost("/api/debug/gallery-export", (string path, IServiceScopeFactory scop
         catch (Exception ex)
         {
             logger.LogError(ex, "Gallery export failed for {Path}", path);
+        }
+    });
+    return Results.Ok("started");
+});
+
+// TEMP DEBUG - cluster visually-similar undated files (same background/scene)
+// into subfolders using perceptual hashing - no AI calls, reuses the
+// near-duplicate infrastructure from DuplicateService but with a looser
+// threshold since "similar" (not "the same photo twice") is the goal here.
+// Non-recursive: only groups files directly in `path`. Videos get a poster
+// frame extracted first (via IThumbnailService, same as the gallery) since
+// perceptual hashing only works on decoded pixels.
+app.MapPost("/api/debug/cluster-similar", (string path, int? threshold, IServiceScopeFactory scopeFactory) =>
+{
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopeFactory.CreateScope();
+        var pHash = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPerceptualHashService>();
+        var thumbs = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IThumbnailService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var th = threshold ?? 12;
+
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                logger.LogError("Cluster-similar: path not found {Path}", path);
+                return;
+            }
+
+            var files = Directory.EnumerateFiles(path).ToList();
+            var frameDir = Path.Combine(Path.GetTempPath(), "ITMartinFileSorter", "cluster-frames");
+            Directory.CreateDirectory(frameDir);
+
+            var hashes = new List<(string Path, ulong Hash)>();
+            var done = 0;
+
+            foreach (var f in files)
+            {
+                done++;
+                if (done % 200 == 0)
+                    logger.LogInformation("Cluster-similar hashing progress: {Done}/{Total}", done, files.Count);
+
+                var isVideo = ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsVideo(f);
+                var hashInput = f;
+
+                if (isVideo)
+                {
+                    var framePath = Path.Combine(frameDir, Path.GetFileNameWithoutExtension(f) + ".jpg");
+                    if (!File.Exists(framePath))
+                    {
+                        try { await thumbs.GenerateAsync(f, framePath); }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Cluster-similar: frame extraction failed for {Path}", f);
+                            continue;
+                        }
+                    }
+                    hashInput = framePath;
+                }
+
+                var hash = await pHash.ComputeAsync(hashInput);
+                if (hash is { } h) hashes.Add((f, h));
+            }
+
+            // Union-find over the hash list, threshold controls how loose
+            // "similar" is (dedup uses 6; this defaults to 12 - similar
+            // scene/background, not necessarily the same exact shot).
+            var parent = Enumerable.Range(0, hashes.Count).ToArray();
+            int Find(int x)
+            {
+                while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+                return x;
+            }
+            void Union(int a, int b)
+            {
+                a = Find(a); b = Find(b);
+                if (a != b) parent[a] = b;
+            }
+
+            for (var i = 0; i < hashes.Count; i++)
+            {
+                for (var j = i + 1; j < hashes.Count; j++)
+                {
+                    if (pHash.HammingDistance(hashes[i].Hash, hashes[j].Hash) <= th)
+                        Union(i, j);
+                }
+            }
+
+            var groups = Enumerable.Range(0, hashes.Count)
+                .GroupBy(Find)
+                .Where(g => g.Count() > 1)
+                .OrderByDescending(g => g.Count())
+                .ToList();
+
+            var groupNum = 0;
+            var moved = 0;
+
+            foreach (var group in groups)
+            {
+                groupNum++;
+                var folder = Path.Combine(path, $"Gruppe {groupNum}");
+                Directory.CreateDirectory(folder);
+
+                foreach (var idx in group)
+                {
+                    var src = hashes[idx].Path;
+                    var dest = Path.Combine(folder, Path.GetFileName(src));
+                    var attempt = 1;
+                    while (File.Exists(dest))
+                    {
+                        dest = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(src)}_{attempt}{Path.GetExtension(src)}");
+                        attempt++;
+                    }
+
+                    try { File.Move(src, dest); moved++; }
+                    catch (Exception ex) { logger.LogWarning(ex, "Cluster-similar: failed to move {Path}", src); }
+                }
+            }
+
+            logger.LogInformation(
+                "Cluster-similar complete for {Path}: {Total} files, {Hashed} hashed, {Groups} groups formed, {Moved} moved, {Singles} left ungrouped",
+                path, files.Count, hashes.Count, groups.Count, moved, hashes.Count - moved);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Cluster-similar failed for {Path}", path);
         }
     });
     return Results.Ok("started");
