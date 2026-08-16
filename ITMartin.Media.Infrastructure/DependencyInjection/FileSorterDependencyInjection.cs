@@ -32,6 +32,10 @@ public static class FileSorterDependencyInjection
             ThumbnailService>();
 
         services.AddScoped<
+            IPerceptualHashService,
+            PerceptualHashService>();
+
+        services.AddScoped<
             IDuplicateService,
             DuplicateService>();
 

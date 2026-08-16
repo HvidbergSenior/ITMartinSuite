@@ -74,9 +74,10 @@ public sealed class DuplicateDetectionWorkflowStep
                 }
 
                 state.DuplicateGroups =
-                    _duplicateService
-                        .BuildDuplicateGroups(
-                            state.MediaFiles);
+                    await _duplicateService
+                        .BuildDuplicateGroupsAsync(
+                            state.MediaFiles,
+                            cancellationToken);
 
                 foreach (var group in state.DuplicateGroups)
                 {

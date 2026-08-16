@@ -4,6 +4,7 @@ namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
 public interface IDuplicateService
 {
-        List<DuplicateGroup> BuildDuplicateGroups(
-            IReadOnlyCollection<MediaFile> files);
+        Task<List<DuplicateGroup>> BuildDuplicateGroupsAsync(
+            IReadOnlyCollection<MediaFile> files,
+            CancellationToken cancellationToken = default);
 }

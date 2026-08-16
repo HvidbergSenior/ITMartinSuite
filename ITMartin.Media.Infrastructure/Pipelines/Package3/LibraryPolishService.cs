@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading;
 using Anthropic;
 using Anthropic.Models.Messages;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
@@ -45,20 +46,35 @@ public sealed class LibraryPolishService : ILibraryPolishService
             UnplayableFolderName,
         };
 
+    // Same threshold and reasoning as DuplicateService's Package1 pass -
+    // below this many differing bits (of 64) two images are treated as the
+    // same photo re-saved at a different quality rather than two distinct
+    // photos.
+    private const int NearDuplicateHammingThreshold = 6;
+
     private readonly ILogger<LibraryPolishService> _logger;
     private readonly IDbContextFactory<MediaDbContext> _dbFactory;
     private readonly IVideoMetadataService _videoMetadata;
+    private readonly IMediaDateService _mediaDateService;
+    private readonly IExifService _exifService;
+    private readonly IPerceptualHashService _perceptualHashService;
     private readonly AnthropicClient? _anthropicClient;
 
     public LibraryPolishService(
         ILogger<LibraryPolishService> logger,
         IDbContextFactory<MediaDbContext> dbFactory,
         IVideoMetadataService videoMetadata,
+        IMediaDateService mediaDateService,
+        IExifService exifService,
+        IPerceptualHashService perceptualHashService,
         IConfiguration configuration)
     {
         _logger = logger;
         _dbFactory = dbFactory;
         _videoMetadata = videoMetadata;
+        _mediaDateService = mediaDateService;
+        _exifService = exifService;
+        _perceptualHashService = perceptualHashService;
 
         var apiKey = configuration["Claude:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -90,6 +106,286 @@ public sealed class LibraryPolishService : ILibraryPolishService
         };
     }
 
+    // English subfolder names inside Udaterede (this is where Package1 drops
+    // undated files) map to the Danish top-level category names the rest of
+    // the library uses. Screenshots deliberately excluded - that top-level
+    // folder is flat, not year/month organized, so there's nowhere dated to
+    // move one to.
+    private static readonly (string SourceSubFolder, string Category)[] RedatableCategories =
+    [
+        ("Images", "Billeder"),
+        ("Videos", "Videoer"),
+    ];
+
+    public Task<RedateUndatedResult> RedateUndatedAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var checkedCount = 0;
+        var moved = 0;
+
+        foreach (var (sourceSubFolder, category) in RedatableCategories)
+        {
+            var sourceDir = Path.Combine(libraryPath, "Udaterede", sourceSubFolder);
+            if (!Directory.Exists(sourceDir)) continue;
+
+            foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories).ToList())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                checkedCount++;
+
+                MediaDateResult dateResult;
+                try
+                {
+                    dateResult = _mediaDateService.GetBestDate(new MediaDateRequest(file));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to re-check date for {Path}", file);
+                    continue;
+                }
+
+                if (!dateResult.IsReliable || dateResult.Date is not { } date) continue;
+
+                var monthFolder = $"{date.Month:00}-{new DateTime(date.Year, date.Month, 1):MMMM}";
+                var targetDir = Path.Combine(libraryPath, category, date.Year.ToString(), monthFolder);
+
+                try
+                {
+                    Directory.CreateDirectory(targetDir);
+                    var targetPath = ResolveNameCollision(Path.Combine(targetDir, Path.GetFileName(file)));
+                    File.Move(file, targetPath);
+                    moved++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to move re-dated file {Path} to {Category}/{Year}/{Month}", file, category, date.Year, monthFolder);
+                }
+            }
+        }
+
+        _logger.LogInformation(
+            "Re-date pass complete for {LibraryPath}: {Checked} checked, {Moved} moved out of Udaterede",
+            libraryPath, checkedCount, moved);
+
+        return Task.FromResult(new RedateUndatedResult
+        {
+            Checked = checkedCount,
+            Moved = moved,
+            StillUndated = checkedCount - moved,
+        });
+    }
+
+    public Task<CameraGroupResult> GroupByCameraMakeAsync(
+        string libraryPath, string makeContains, string targetFolderName, CancellationToken cancellationToken = default)
+    {
+        var checkedCount = 0;
+        var moved = 0;
+
+        var billederDir = Path.Combine(libraryPath, "Billeder");
+        if (!Directory.Exists(billederDir))
+            return Task.FromResult(new CameraGroupResult());
+
+        var targetDir = Path.Combine(libraryPath, targetFolderName);
+
+        foreach (var file in Directory.EnumerateFiles(billederDir, "*", SearchOption.AllDirectories).ToList())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsImage(file)) continue;
+            checkedCount++;
+
+            (string? Make, string? Model, string? Software)? meta;
+            try
+            {
+                meta = _exifService.ReadMetadata(file);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read EXIF for {Path}", file);
+                continue;
+            }
+
+            var matches = (meta?.Make?.Contains(makeContains, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          (meta?.Model?.Contains(makeContains, StringComparison.OrdinalIgnoreCase) ?? false);
+            if (!matches) continue;
+
+            try
+            {
+                Directory.CreateDirectory(targetDir);
+                var targetPath = ResolveNameCollision(Path.Combine(targetDir, Path.GetFileName(file)));
+                File.Move(file, targetPath);
+                moved++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to move {Path} into {Folder}", file, targetFolderName);
+            }
+        }
+
+        _logger.LogInformation(
+            "Camera-group pass complete for {LibraryPath}: {Checked} checked, {Moved} moved into {Folder}",
+            libraryPath, checkedCount, moved, targetFolderName);
+
+        return Task.FromResult(new CameraGroupResult { Checked = checkedCount, Moved = moved });
+    }
+
+    public async Task<DeduplicateResult> DeduplicateFolderAsync(string folderPath, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(folderPath))
+            return new DeduplicateResult();
+
+        var byHash = new Dictionary<string, List<string>>();
+        var allFiles = new List<string>();
+        var checkedCount = 0;
+
+        foreach (var file in Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            checkedCount++;
+            allFiles.Add(file);
+
+            string hash;
+            try
+            {
+                hash = ComputeHash(file);
+            }
+            catch (IOException)
+            {
+                continue; // file in use / vanished mid-scan - leave it, not worth failing the whole pass
+            }
+
+            if (!byHash.TryGetValue(hash, out var group))
+            {
+                group = [];
+                byHash[hash] = group;
+            }
+            group.Add(file);
+        }
+
+        var deleted = 0;
+        var handled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in byHash.Values.Where(g => g.Count > 1))
+        {
+            // Deterministic, not meaningful - both filenames point at the
+            // exact same bytes, so which name survives doesn't matter beyond
+            // being reproducible if this pass ever runs again.
+            var ordered = group.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
+            foreach (var f in ordered) handled.Add(f);
+
+            foreach (var duplicate in ordered.Skip(1))
+            {
+                try
+                {
+                    File.Delete(duplicate);
+                    deleted++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete duplicate {Path}", duplicate);
+                }
+            }
+        }
+
+        // Near-duplicates: catches the same "same photo, different bytes"
+        // case as DuplicateService's Package1 pass (recompressed re-imports
+        // etc.), for already-sorted libraries where a scoped polish pass -
+        // not a full Package1 re-run - is the right fix (see
+        // feedback_package1_not_idempotent). Bucketed by containing folder,
+        // since files landing here are already organized into Year/Month
+        // folders and that's exactly where these collisions happen.
+        var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".heic", ".webp"
+        };
+
+        var nearDuplicateGroups = 0;
+
+        foreach (var folderGroup in allFiles
+                     .Where(f => !handled.Contains(f) && imageExtensions.Contains(Path.GetExtension(f)))
+                     .GroupBy(f => Path.GetDirectoryName(f) ?? folderPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var hashed = new List<(string Path, ulong Hash, long Size)>();
+
+            foreach (var file in folderGroup)
+            {
+                var hash = await _perceptualHashService.ComputeAsync(file, cancellationToken);
+                if (hash is { } h)
+                {
+                    long size;
+                    try { size = new FileInfo(file).Length; }
+                    catch (IOException) { continue; }
+
+                    hashed.Add((file, h, size));
+                }
+            }
+
+            var used = new bool[hashed.Count];
+
+            for (var i = 0; i < hashed.Count; i++)
+            {
+                if (used[i]) continue;
+
+                var members = new List<(string Path, ulong Hash, long Size)> { hashed[i] };
+
+                for (var j = i + 1; j < hashed.Count; j++)
+                {
+                    if (used[j]) continue;
+
+                    if (_perceptualHashService.HammingDistance(hashed[i].Hash, hashed[j].Hash) <= NearDuplicateHammingThreshold)
+                    {
+                        members.Add(hashed[j]);
+                        used[j] = true;
+                    }
+                }
+
+                if (members.Count <= 1) continue;
+
+                used[i] = true;
+                nearDuplicateGroups++;
+
+                // Largest file wins - the smaller copies are the ones that
+                // got recompressed harder on their way back into the library.
+                var keep = members.OrderByDescending(m => m.Size).First();
+                foreach (var loser in members.Where(m => m.Path != keep.Path))
+                {
+                    try
+                    {
+                        File.Delete(loser.Path);
+                        deleted++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete near-duplicate {Path}", loser.Path);
+                    }
+                }
+            }
+        }
+
+        _logger.LogInformation(
+            "Deduplicate pass complete for {FolderPath}: {Checked} checked, {Deleted} duplicates removed ({NearDuplicateGroups} were near-duplicate/recompressed matches)",
+            folderPath, checkedCount, deleted, nearDuplicateGroups);
+
+        return new DeduplicateResult { Checked = checkedCount, Deleted = deleted };
+    }
+
+    private static string ResolveNameCollision(string path)
+    {
+        if (!File.Exists(path)) return path;
+
+        var dir = Path.GetDirectoryName(path)!;
+        var name = Path.GetFileNameWithoutExtension(path);
+        var ext = Path.GetExtension(path);
+        var i = 1;
+        string candidate;
+        do
+        {
+            candidate = Path.Combine(dir, $"{name} ({i}){ext}");
+            i++;
+        } while (File.Exists(candidate));
+        return candidate;
+    }
+
     // Photos per Claude vision call - batched (never one call per file, see
     // CLAUDE.md) since the model can judge several photos' orientation from
     // one message just as reliably as one.
@@ -99,6 +395,11 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // CLAUDE.md "AI/Claude API cost discipline". A library with more unchecked
     // photos than this needs multiple clicks, on purpose.
     private const int MaxRotationChecksPerRun = 500;
+
+    // Batches are independent Claude calls - running several at once doesn't
+    // change how many calls happen (same batching as before), just how long
+    // the whole run takes. Same pattern/value as ImageTaggingService.
+    private const int RotationConcurrency = 8;
 
     // Per-path "already resolved, never look at again" marker - keeps re-runs
     // (including after new photos are added) from re-hashing/re-checking the
@@ -170,12 +471,18 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
         var toCheck = 0;
         var rotated = 0;
+        var batches = new List<List<string>>();
         var pendingClaudeCheck = new List<string>();
+
+        var stateLock = new object();
 
         void CheckpointSave()
         {
-            SaveStringSet(checkedPathsFile, checkedPaths);
-            SaveHashDecisions(decisionsFile, decisions);
+            lock (stateLock)
+            {
+                SaveStringSet(checkedPathsFile, checkedPaths);
+                SaveHashDecisions(decisionsFile, decisions);
+            }
         }
 
         foreach (var file in unresolved)
@@ -200,14 +507,29 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
             if (pendingClaudeCheck.Count >= RotationBatchSize)
             {
-                await ResolveBatchAsync(pendingClaudeCheck, libraryPath, decisions, checkedPaths, cancellationToken, r => rotated += r);
-                pendingClaudeCheck.Clear();
-                CheckpointSave();
+                batches.Add(pendingClaudeCheck);
+                pendingClaudeCheck = new List<string>();
             }
         }
 
         if (pendingClaudeCheck.Count > 0)
-            await ResolveBatchAsync(pendingClaudeCheck, libraryPath, decisions, checkedPaths, cancellationToken, r => rotated += r);
+            batches.Add(pendingClaudeCheck);
+
+        // Same total number of batches/Claude calls as running them one at a
+        // time would produce - this only shortens wall-clock time by letting
+        // several independent batch calls be in flight at once (see
+        // CLAUDE.md: fix the ratio via batching first, concurrency second).
+        var completedBatches = 0;
+        await Parallel.ForEachAsync(
+            batches,
+            new ParallelOptions { MaxDegreeOfParallelism = RotationConcurrency, CancellationToken = cancellationToken },
+            async (batch, ct) =>
+            {
+                await ResolveBatchAsync(batch, libraryPath, decisions, checkedPaths, stateLock, ct, r => Interlocked.Add(ref rotated, r));
+
+                if (Interlocked.Increment(ref completedBatches) % RotationConcurrency == 0)
+                    CheckpointSave();
+            });
 
         CheckpointSave();
 
@@ -230,6 +552,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         string libraryPath,
         Dictionary<string, int> decisions,
         HashSet<string> checkedPaths,
+        object stateLock,
         CancellationToken cancellationToken,
         Action<int> onRotated)
     {
@@ -244,6 +567,9 @@ public sealed class LibraryPolishService : ILibraryPolishService
             return;
         }
 
+        // Hashing runs unlocked (per-file I/O, safe to overlap across
+        // concurrent batches) - only the shared dictionaries and the actual
+        // in-place rotate are serialized, since those aren't thread-safe.
         var rotatedInBatch = 0;
         for (var i = 0; i < files.Count; i++)
         {
@@ -254,9 +580,12 @@ public sealed class LibraryPolishService : ILibraryPolishService
             try { hash = ComputeHash(file); }
             catch (IOException) { continue; }
 
-            decisions[hash] = degrees;
-            ApplyResolvedFile(file, degrees, ref rotatedInBatch);
-            checkedPaths.Add(Path.GetRelativePath(libraryPath, file));
+            lock (stateLock)
+            {
+                decisions[hash] = degrees;
+                ApplyResolvedFile(file, degrees, ref rotatedInBatch);
+                checkedPaths.Add(Path.GetRelativePath(libraryPath, file));
+            }
         }
 
         onRotated(rotatedInBatch);
