@@ -18,7 +18,7 @@ public static class RulesetSeeder
             new GameRuleset
             {
                 Name = "Standard (1v1)",
-                Description = "Den klassiske duel. To spillere starter med 50 Authority hver. Første spiller til 0 taber.",
+                Description = "Den klassiske duel. To spillere kæmper mod hinanden. Første spiller til 0 Authority taber.",
                 MinPlayers = 2,
                 MaxPlayers = 2,
                 IsTeamMode = false,
@@ -38,7 +38,7 @@ public static class RulesetSeeder
             new GameRuleset
             {
                 Name = "Team Play – Hydra (2v2)",
-                Description = "4 spillere i 2 hold. Hvert hold deler én fælles Authority-pulje (normalt 75). Holdkammerater kan bruge hinandens Trade og Combat til at angribe/købe sammen.",
+                Description = "4 spillere i 2 hold. Hvert hold deler én fælles Authority-pulje. Holdkammerater kan bruge hinandens Trade og Combat til at angribe/købe sammen.",
                 MinPlayers = 4,
                 MaxPlayers = 4,
                 IsTeamMode = true,
@@ -50,7 +50,7 @@ public static class RulesetSeeder
             new GameRuleset
             {
                 Name = "Team Play – Emperor (6 spillere)",
-                Description = "6 spillere i 2 hold à 3. Én spiller pr. hold er \"Emperor\" (60 Authority), de to andre er \"Admirals\" (50 Authority hver, individuelt). Admirals må kun angribe den modstående Admiral. Holdet taber hvis Emperoren falder.",
+                Description = "6 spillere i 2 hold à 3. Én spiller pr. hold er \"Emperor\" med højere Authority end de to \"Admirals\", som har deres egen individuelle Authority. Admirals må kun angribe den modstående Admiral. Holdet taber hvis Emperoren falder.",
                 MinPlayers = 6,
                 MaxPlayers = 6,
                 IsTeamMode = true,

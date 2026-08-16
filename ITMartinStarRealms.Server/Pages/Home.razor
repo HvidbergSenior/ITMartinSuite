@@ -27,14 +27,55 @@
 
         <div id="step-0" class="wizard-step">
             <div class="home-section">
-                <label class="home-label">Dit navn</label>
-                <input id="h-name" class="home-input" placeholder="Martin" maxlength="20" oninput="onNameInput()" />
-                <div class="avatar-preview-row">
-                    <div class="avatar-preview" id="h-avatar-preview">?</div>
-                    <span class="avatar-preview-label">Dit ikon (dine initialer)</span>
+                <label class="home-label">Spiltilstand</label>
+                <div class="mode-toggle-row">
+                    <button class="mode-toggle-btn mode-toggle-btn--active" id="h-mode-ranked" onclick="setMode(true)">🏆 Ranked</button>
+                    <button class="mode-toggle-btn" id="h-mode-training" onclick="setMode(false)">🎯 Træning</button>
                 </div>
-                <label class="home-label mt-2">Din farve</label>
-                <div id="h-color-grid" class="color-grid"></div>
+                <p class="mode-hint" id="h-mode-hint">Vælg dit rigtige navn - tæller med i rangliste og statistik.</p>
+            </div>
+
+            <div class="home-section" id="h-name-section">
+                <label class="home-label">Dit navn</label>
+                <div class="name-picker-featured" id="h-name-featured"></div>
+                <div class="name-picker-other" id="h-name-other-box" style="display:none">
+                    <div class="name-picker-other-label">Andre navne</div>
+                    <div id="h-name-picker" class="name-picker"></div>
+                </div>
+                <input id="h-name" class="home-input mt-1" placeholder="Eller skriv et nyt navn" maxlength="20" oninput="onNameInput()" />
+
+                <div id="h-known-profile" class="known-profile-row" style="display:none">
+                    <span id="h-known-avatar"></span>
+                    <span>Byder dig velkommen tilbage!</span>
+                </div>
+                <div id="h-pin-row" style="display:none">
+                    <label class="home-label mt-2">PIN-kode (dette navn er beskyttet)</label>
+                    <input id="h-pin-input" class="home-input" type="password" inputmode="numeric" maxlength="8" placeholder="Indtast PIN" oninput="onNameInput()" />
+                </div>
+
+                <div id="h-profile-creator" style="display:none">
+                    <div class="home-section-inner-label">Opret profil</div>
+
+                    <label class="home-label mt-2">Sæt en PIN-kode (valgfrit - beskytter dit navn mod andre)</label>
+                    <input id="h-new-pin" class="home-input" type="password" inputmode="numeric" maxlength="8" placeholder="F.eks. 4 cifre" />
+
+                    <label class="home-label mt-2">Dit ikon (valgfrit - hver spiller har sit eget)</label>
+                    <div id="h-emoji-grid" class="emoji-grid"></div>
+                    <button type="button" class="btn-ghost mt-1" id="h-emoji-more" onclick="requestMoreEmoji()">✨ Flere ikoner (AI)</button>
+
+                    <label class="home-label mt-2">Eller et AI-genereret profilbillede</label>
+                    <div class="ai-picture-row">
+                        <input id="h-ai-prompt" class="home-input" placeholder="F.eks. 'en rumpirat med solbriller'" maxlength="120" />
+                        <button type="button" class="btn-ghost" id="h-ai-generate" onclick="generateProfilePicture()">🪄 Generér</button>
+                    </div>
+                    <div id="h-ai-picture-preview" class="ai-picture-preview" style="display:none"></div>
+                </div>
+
+                <div id="h-color-section" style="display:none">
+                    <label class="home-label mt-2">Din farve</label>
+                    <div id="h-color-grid" class="color-grid"></div>
+                </div>
+
                 <button class="btn-primary mt-2" id="h-btn-ruleset" onclick="goToRuleset()" disabled>Videre →</button>
             </div>
 
@@ -46,6 +87,7 @@
             </div>
 
             <button class="btn-link mt-3" onclick="location.href='/stats'">📊 Se mine statistikker</button>
+            <button class="btn-link" onclick="location.href='/leaderboard'">🏆 Se ranglisten</button>
         </div>
 
         <div id="step-1" class="wizard-step" style="display:none">

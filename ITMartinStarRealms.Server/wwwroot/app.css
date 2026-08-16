@@ -44,6 +44,16 @@ body {
 .home-logo  { font-size: 3rem; text-align: center; margin-bottom: .5rem; }
 .home-title { font-size: 2rem; font-weight: 800; text-align: center; color: var(--accent); }
 .home-sub   { text-align: center; color: var(--muted); margin: .25rem 0 1.75rem; }
+
+/* Big circular avatar badge with the name overlaid on top - used wherever a
+   single profile is the whole point of the screen (stats header), so the
+   emoji/picture reads from across a room instead of sitting at body-text
+   size next to the name. */
+.profile-hero { display: flex; justify-content: center; margin: .5rem 0 .25rem; }
+.profile-hero-badge { position: relative; width: 7rem; height: 7rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.profile-hero-emoji { font-size: 4rem; line-height: 1; }
+.profile-hero-img { width: 100%; height: 100%; border-radius: 0; }
+.profile-hero-name { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 .4rem; font-size: 1.05rem; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.65); }
 .home-section { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.25rem; }
 .home-label { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .home-input { background: var(--bg3); border: 1px solid #333; border-radius: 8px; padding: .75rem 1rem; color: var(--text); font-size: 1rem; width: 100%; outline: none; }
@@ -65,15 +75,47 @@ body {
 .color-btn { width: 100%; aspect-ratio: 1; border-radius: 8px; border: 3px solid transparent; cursor: pointer; }
 .color-btn--active { border-color: #fff; transform: scale(1.08); }
 .color-btn--taken { opacity: .25; cursor: not-allowed; }
+
+.emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .4rem; }
+.emoji-btn { width: 100%; aspect-ratio: 1; border-radius: 8px; border: 2px solid var(--border); background: var(--bg3); cursor: pointer; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; }
+.emoji-btn--active { border-color: var(--accent); background: rgba(99,102,241,.12); }
+.emoji-btn--none { font-size: .85rem; color: var(--muted); }
 .color-dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .35rem; vertical-align: middle; }
 
 /* ── RULESET CARDS ── */
-.ruleset-card { display: block; width: 100%; text-align: left; background: var(--bg3); border: 2px solid var(--border); border-radius: 10px; padding: .8rem 1rem; margin-bottom: .5rem; cursor: pointer; }
+.ruleset-card { display: block; width: 100%; text-align: left; background: var(--bg3); border: 2px solid var(--border); border-radius: 10px; padding: .8rem 1rem; margin-bottom: .5rem; cursor: pointer; color: var(--text); }
 .ruleset-card--active { border-color: var(--accent); background: rgba(99,102,241,.12); }
 .ruleset-name { font-weight: 700; margin-bottom: .2rem; }
 .ruleset-desc { font-size: .84rem; color: var(--muted); line-height: 1.4; margin-bottom: .3rem; }
 .ruleset-meta { font-size: .76rem; color: var(--accent); }
 .custom-ruleset-form { display: flex; flex-direction: column; gap: .5rem; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-top: .5rem; }
+
+/* ── MODE TOGGLE (Ranked / Training) ── */
+.mode-toggle-row { display: flex; gap: .5rem; }
+.mode-toggle-btn { flex: 1; background: var(--bg3); border: 2px solid var(--border); border-radius: 10px; padding: .7rem; font-weight: 700; cursor: pointer; color: var(--text); }
+.mode-toggle-btn--active { border-color: var(--accent); background: rgba(99,102,241,.12); }
+.mode-hint { font-size: .8rem; color: var(--muted); margin: .4rem 0 0; }
+
+/* ── NAME PICKER ── */
+.name-picker { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .3rem; }
+/* ── IMAGE AVATARS (photo instead of an emoji string) ── */
+.avatar-img { width: 1.2em; height: 1.2em; border-radius: 50%; object-fit: cover; vertical-align: middle; display: inline-block; }
+.avatar-img--hero, .avatar-img--opp { width: 100%; height: 100%; }
+
+.name-chip { background: var(--bg3); border: 2px solid var(--border); border-radius: 999px; padding: .35rem .8rem; font-size: .85rem; cursor: pointer; color: var(--text); }
+.name-chip--active { border-color: var(--accent); background: rgba(99,102,241,.12); }
+.name-picker-featured { margin-bottom: .5rem; }
+.name-picker-featured .name-chip { font-size: 1rem; padding: .5rem 1rem; }
+.name-picker-other { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: .7rem; margin-bottom: .3rem; }
+.name-picker-other-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: .4rem; }
+.known-profile-row { display: flex; align-items: center; gap: .5rem; background: rgba(46,204,113,.1); border: 1px solid var(--success); border-radius: 8px; padding: .5rem .8rem; margin: .5rem 0; font-size: .85rem; }
+.home-section-inner-label { font-size: .8rem; font-weight: 700; color: var(--accent); margin-top: .8rem; }
+.leaderboard-section { margin-bottom: 1.2rem; }
+.leaderboard-section .home-section-inner-label { margin-bottom: .4rem; }
+.ai-picture-row { display: flex; gap: .4rem; }
+.ai-picture-row .home-input { flex: 1; }
+.ai-picture-preview { margin-top: .6rem; display: flex; align-items: center; gap: .6rem; }
+.ai-picture-preview img { width: 4rem; height: 4rem; border-radius: 50%; object-fit: cover; }
 .form-check { display: flex; align-items: center; gap: .5rem; }
 .btn-link { background: none; border: none; color: var(--accent); font-size: .88rem; cursor: pointer; text-align: center; width: 100%; padding: .4rem; }
 .btn-link:hover { text-decoration: underline; }
@@ -89,7 +131,7 @@ body {
 /* ── HERO / OPPONENTS (per-player game view) ── */
 .hero-card { margin: .8rem 1rem 0; background: var(--bg2); border: 3px solid; border-radius: var(--radius); padding: 1.1rem; text-align: center; }
 .hero-top { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-bottom: .3rem; }
-.hero-avatar { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+.hero-avatar { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; text-decoration: none; color: inherit; }
 .hero-name { font-weight: 700; font-size: 1.1rem; }
 .hero-you { color: var(--muted); font-weight: 400; font-size: .85rem; }
 .hero-points { font-size: 3.2rem; font-weight: 800; margin: .2rem 0 .8rem; }
@@ -129,7 +171,7 @@ body {
 .opp-grid { display: flex; flex-direction: column; gap: .55rem; padding: .5rem 1rem 1rem; }
 .opp-card { position: relative; display: flex; align-items: center; gap: .7rem; background: var(--bg2); border: 2px solid var(--border); border-radius: 10px; padding: .65rem .9rem; }
 .opp-card--dead { opacity: .45; filter: grayscale(.6); }
-.opp-avatar { width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; flex-shrink: 0; }
+.opp-avatar { width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; flex-shrink: 0; text-decoration: none; color: inherit; }
 .opp-info { flex: 1; min-width: 0; }
 .opp-name { font-weight: 700; font-size: .92rem; }
 .opp-team { display: block; font-size: .7rem; color: var(--accent); font-weight: 400; }
@@ -139,6 +181,8 @@ body {
 
 /* ── STATS PAGE ── */
 .stats-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: .8rem 1rem; margin-bottom: .5rem; }
+a.stats-row { text-decoration: none; color: inherit; }
+a.stats-row:hover { border-color: var(--accent); }
 .stats-name { font-weight: 700; }
 .stats-record { font-size: .85rem; color: var(--muted); }
 .stats-wl { display: flex; gap: .5rem; font-weight: 700; }

@@ -22,5 +22,12 @@ public sealed class GameSession
     // the log or a player's real point total.
     public bool HasStarted { get; set; }
 
+    // Ranked = players identify with their real, persistent (unique-name)
+    // profile and the result counts toward stats/leaderboard. Training =
+    // throwaway generated names, never touches a PlayerProfile, and its
+    // GameResult is excluded from stats so practice games don't skew anyone's
+    // real record.
+    public bool IsRanked { get; set; } = true;
+
     public List<GamePlayer> Players { get; set; } = [];
 }

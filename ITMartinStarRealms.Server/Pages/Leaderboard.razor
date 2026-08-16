@@ -1,0 +1,23 @@
+@page "/leaderboard"
+
+<div id="page-data" data-page="leaderboard" style="display:none"></div>
+
+<div class="home-page">
+    <div class="home-card" style="max-width:520px">
+        <div class="home-logo">🏆</div>
+        <h1 class="home-title">Rangliste</h1>
+        <p class="home-sub">Kun ranked spil tæller med.</p>
+
+        <div class="home-section" style="flex-direction: row; gap:.4rem;">
+            <button class="btn-ghost" id="l-filter-all" onclick="filterLeaderboard(null)">Altid</button>
+            <button class="btn-ghost" id="l-filter-1" onclick="filterLeaderboard(1)">1 mdr</button>
+            <button class="btn-ghost" id="l-filter-6" onclick="filterLeaderboard(6)">6 mdr</button>
+            <button class="btn-ghost" id="l-filter-12" onclick="filterLeaderboard(12)">12 mdr</button>
+        </div>
+
+        <div id="l-loading" class="home-sub">Indlæser…</div>
+        <div id="l-boards"></div>
+
+        <button class="btn-ghost mt-3" onclick="location.href='/'">← Tilbage</button>
+    </div>
+</div>

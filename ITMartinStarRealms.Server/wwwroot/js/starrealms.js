@@ -294,6 +294,32 @@ window.starrealms = (function() {
         return v;
     }
 
+    // Most avatars are a plain emoji stored in the Avatar string, but a
+    // profile can also point at a real image (e.g. "/img/itmartin.png") -
+    // render that as a photo instead of text wherever an avatar shows up.
+    function isImageAvatar(avatar) {
+        return typeof avatar === "string" && (avatar.indexOf("/") !== -1 || avatar.indexOf("http") === 0);
+    }
+    function avatarHtml(avatar, cssClass) {
+        if (isImageAvatar(avatar)) {
+            return '<img class="' + (cssClass || "avatar-img") + '" src="' + esc(avatar) + '">';
+        }
+        return esc(avatar || "?");
+    }
+
+    // Big badge for a single-profile header (stats page): the emoji/picture
+    // fills the whole circle and the name sits on top of it, so it reads
+    // from across a room instead of a small icon next to body-sized text.
+    function heroBadgeHtml(avatar, name, color) {
+        var bg = isImageAvatar(avatar) ? "#000" : (color || "var(--bg3)");
+        return '<div class="profile-hero-badge" style="background:' + bg + '">' +
+            (isImageAvatar(avatar)
+                ? '<img class="profile-hero-img" src="' + esc(avatar) + '">'
+                : '<span class="profile-hero-emoji">' + esc(avatar || "?") + '</span>') +
+            '<div class="profile-hero-name">' + esc(name) + '</div>' +
+            '</div>';
+    }
+
     function paintAvatarPreview(previewId, name, color) {
         var el = document.getElementById(previewId);
         if (!el) return "?";
@@ -336,27 +362,199 @@ window.starrealms = (function() {
             localStorage.setItem("sr_info_hidden", infoHidden ? "1" : "0");
         };
 
+        var EMOJI_BASE = ["🚀","🛸","👽","🤖","🎯","⚔️","🏆","🔥","⭐","💥","🌟","🛡️","🪐","☄️","💫","🎮","🦾","🧨","⚡","👾","🐙"];
+
         var state = {
-            avatar: "?",
+            avatar: "",
             color: localStorage.getItem("profile_color") || COLORS[0],
             rulesets: [],
             selectedRulesetId: null,
             selectedRuleset: null,
-            startingPoints: 50
+            startingPoints: 50,
+            isRanked: true,
+            profiles: [],
+            emojiOptions: EMOJI_BASE.slice(),
+            aiPictureUrl: null
         };
 
         document.getElementById("h-name").value = localStorage.getItem("profile_name") || "";
 
-        function paintAvatar() { state.avatar = paintAvatarPreview("h-avatar-preview", document.getElementById("h-name").value, state.color); }
-        function paintColors() { renderColorGrid("h-color-grid", COLORS, state.color, [], function(c) { state.color = c; paintColors(); paintAvatar(); }); }
-        paintAvatar();
+        function paintColors() { renderColorGrid("h-color-grid", COLORS, state.color, [], function(c) { state.color = c; paintColors(); }); }
         paintColors();
 
+        function takenEmoji() {
+            return state.profiles.map(function(p) { return p.avatar; }).filter(function(a) { return !isImageAvatar(a) && a; });
+        }
+
+        function renderEmojiGrid() {
+            var taken = takenEmoji();
+            var el = document.getElementById("h-emoji-grid");
+            var cells = state.emojiOptions.map(function(e) {
+                var isTaken = taken.indexOf(e) !== -1 && e !== state.avatar;
+                var active = e === state.avatar ? " emoji-btn--active" : "";
+                var takenAttr = isTaken ? " disabled title=\"Allerede i brug\"" : "";
+                return '<button type="button" class="emoji-btn' + (isTaken ? " color-btn--taken" : "") + active + '" data-emoji="' + e + '"' + takenAttr + '>' + e + '</button>';
+            });
+            cells.unshift('<button type="button" class="emoji-btn emoji-btn--none' + (state.avatar === "" ? " emoji-btn--active" : "") + '" data-emoji="">Intet</button>');
+            el.innerHTML = cells.join("");
+            el.querySelectorAll(".emoji-btn:not([disabled])").forEach(function(btn) {
+                btn.onclick = function() {
+                    state.avatar = btn.getAttribute("data-emoji");
+                    state.aiPictureUrl = null;
+                    document.getElementById("h-ai-picture-preview").style.display = "none";
+                    renderEmojiGrid();
+                };
+            });
+        }
+
+        window.requestMoreEmoji = function() {
+            var btn = document.getElementById("h-emoji-more");
+            btn.disabled = true;
+            btn.textContent = "Genererer…";
+            apiPost("/api/emoji-suggestions", { exclude: state.emojiOptions.concat(takenEmoji()) }).then(function(more) {
+                if (more && more.length) state.emojiOptions = state.emojiOptions.concat(more);
+                renderEmojiGrid();
+            }).catch(function() {}).then(function() {
+                btn.disabled = false;
+                btn.textContent = "✨ Flere ikoner (AI)";
+            });
+        };
+
+        window.generateProfilePicture = function() {
+            var prompt = document.getElementById("h-ai-prompt").value.trim() || document.getElementById("h-name").value.trim();
+            if (!prompt) return;
+            var btn = document.getElementById("h-ai-generate");
+            btn.disabled = true;
+            btn.textContent = "Genererer…";
+            apiPost("/api/profile-picture", { prompt: prompt }).then(function(res) {
+                state.avatar = res.url;
+                state.aiPictureUrl = res.url;
+                var prev = document.getElementById("h-ai-picture-preview");
+                prev.style.display = "";
+                prev.innerHTML = '<img src="' + esc(res.url) + '"><span>Valgt som ikon</span>';
+                renderEmojiGrid();
+            }).catch(function() {
+                showError("Kunne ikke generere billede - prøv igen.");
+            }).then(function() {
+                btn.disabled = false;
+                btn.textContent = "🪄 Generér";
+            });
+        };
+
         window.onNameInput = function() {
-            document.getElementById("h-btn-ruleset").disabled = !document.getElementById("h-name").value.trim();
-            paintAvatar();
+            var name = document.getElementById("h-name").value.trim();
+            renderNamePicker();
+
+            var known = state.isRanked ? state.profiles.find(function(p) { return p.name.toLowerCase() === name.toLowerCase(); }) : null;
+            var creator = document.getElementById("h-profile-creator");
+            var colorSection = document.getElementById("h-color-section");
+            var knownRow = document.getElementById("h-known-profile");
+            var pinRow = document.getElementById("h-pin-row");
+            var pinOk = true;
+            if (!state.isRanked) {
+                // Training still picks a name and a color like a real profile
+                // - it just never becomes one (see saveOnGoToRuleset: isRanked
+                // decides whether the result is ever attached to a
+                // PlayerProfile, not whether the picker looks different).
+                creator.style.display = "none";
+                knownRow.style.display = "none";
+                pinRow.style.display = "none";
+                colorSection.style.display = name ? "" : "none";
+                if (name) paintColors();
+            } else if (!name) {
+                creator.style.display = "none";
+                colorSection.style.display = "none";
+                knownRow.style.display = "none";
+                pinRow.style.display = "none";
+            } else if (known) {
+                creator.style.display = "none";
+                colorSection.style.display = "none";
+                knownRow.style.display = "flex";
+                document.getElementById("h-known-avatar").innerHTML = avatarHtml(known.avatar);
+                state.avatar = known.avatar;
+                state.color = known.color || state.color;
+                pinRow.style.display = known.hasPin ? "" : "none";
+                pinOk = !known.hasPin || document.getElementById("h-pin-input").value.trim().length > 0;
+            } else {
+                creator.style.display = "";
+                colorSection.style.display = "";
+                knownRow.style.display = "none";
+                pinRow.style.display = "none";
+                renderEmojiGrid();
+                paintColors();
+            }
+            document.getElementById("h-btn-ruleset").disabled = !name || !pinOk;
         };
         window.onNameInput();
+
+        // Only ~20-40 real players ever - show them all as one-tap buttons so
+        // nobody has to type (and risk a typo splintering) a name that
+        // already exists.
+        var TRAINING_ADJECTIVES = ["Rap", "Rasende", "Snu", "Modig", "Hurtig", "List", "Vild", "Cool"];
+        var TRAINING_NOUNS = ["Pirat", "Kommandør", "Ranger", "Merc", "Blob", "Drone", "Kaptajn", "Rumvæsen"];
+
+        function generateTrainingName() {
+            var a = TRAINING_ADJECTIVES[Math.floor(Math.random() * TRAINING_ADJECTIVES.length)];
+            var n = TRAINING_NOUNS[Math.floor(Math.random() * TRAINING_NOUNS.length)];
+            return a + n + Math.floor(Math.random() * 90 + 10);
+        }
+
+        // ITMartin is featured on its own; everyone else lives in a
+        // collapsed "Andre navne" box so the picker doesn't turn into a wall
+        // of buttons as the player list grows.
+        function renderNamePicker() {
+            var featuredEl = document.getElementById("h-name-featured");
+            var otherBox = document.getElementById("h-name-other-box");
+            var otherEl = document.getElementById("h-name-picker");
+            if (!state.isRanked) { featuredEl.innerHTML = ""; otherBox.style.display = "none"; return; }
+
+            var current = document.getElementById("h-name").value.trim().toLowerCase();
+            function chip(p) {
+                var active = p.name.toLowerCase() === current ? " name-chip--active" : "";
+                return '<button type="button" class="name-chip' + active + '" data-name="' + esc(p.name) + '">' +
+                    avatarHtml(p.avatar) + ' ' + esc(p.name) + '</button>';
+            }
+
+            var featured = state.profiles.filter(function(p) { return p.name === "ITMartin"; });
+            var others = state.profiles.filter(function(p) { return p.name !== "ITMartin"; });
+
+            featuredEl.innerHTML = featured.map(chip).join("");
+            if (others.length > 0) {
+                otherBox.style.display = "";
+                otherEl.innerHTML = others.map(chip).join("");
+            } else {
+                otherBox.style.display = "none";
+            }
+
+            featuredEl.querySelectorAll(".name-chip").forEach(function(btn) {
+                btn.onclick = function() { document.getElementById("h-name").value = btn.getAttribute("data-name"); window.onNameInput(); };
+            });
+            otherEl.querySelectorAll(".name-chip").forEach(function(btn) {
+                btn.onclick = function() { document.getElementById("h-name").value = btn.getAttribute("data-name"); window.onNameInput(); };
+            });
+        }
+
+        window.setMode = function(ranked) {
+            state.isRanked = ranked;
+            document.getElementById("h-mode-ranked").classList.toggle("mode-toggle-btn--active", ranked);
+            document.getElementById("h-mode-training").classList.toggle("mode-toggle-btn--active", !ranked);
+            document.getElementById("h-mode-hint").textContent = ranked
+                ? "Vælg dit rigtige navn - tæller med i rangliste og statistik."
+                : "Vælg navn og farve som normalt - resultatet tæller bare ikke med i rangliste eller statistik.";
+            document.getElementById("h-name-section").style.display = "";
+            var input = document.getElementById("h-name");
+            input.style.display = "";
+            input.value = ranked
+                ? (localStorage.getItem("profile_name") || "")
+                : generateTrainingName();
+            window.onNameInput();
+        };
+
+        apiGet("/api/profiles").then(function(list) {
+            state.profiles = list;
+            renderNamePicker();
+            window.onNameInput();
+        }).catch(function() {});
 
         window.onJoinCodeInput = function() {
             document.getElementById("h-btn-join").disabled = !document.getElementById("h-join-code").value.trim();
@@ -371,9 +569,25 @@ window.starrealms = (function() {
         window.goToRuleset = function() {
             var name = document.getElementById("h-name").value.trim();
             if (!name) return;
-            localStorage.setItem("profile_name", name);
-            localStorage.setItem("profile_avatar", state.avatar);
-            localStorage.setItem("profile_color", state.color);
+            // Training's generated name is only for this one game - never
+            // overwrite the real saved identity with it. The active name for
+            // whichever game gets created/joined next travels via
+            // sessionStorage (see handoff below), not the persisted default.
+            if (state.isRanked) {
+                localStorage.setItem("profile_name", name);
+                localStorage.setItem("profile_avatar", state.avatar);
+                localStorage.setItem("profile_color", state.color);
+            }
+            sessionStorage.setItem("active_name", name);
+            sessionStorage.setItem("active_avatar", state.avatar);
+            sessionStorage.setItem("active_color", state.color);
+            sessionStorage.setItem("active_ranked", state.isRanked ? "1" : "0");
+            // Whichever applies: unlocking an existing PIN-protected name, or
+            // setting a fresh PIN while creating a brand-new one.
+            var pinField = document.getElementById("h-pin-row").style.display !== "none"
+                ? document.getElementById("h-pin-input")
+                : document.getElementById("h-new-pin");
+            sessionStorage.setItem("active_pin", (pinField && pinField.value.trim()) || "");
 
             apiGet("/api/rulesets").then(function(list) {
                 state.rulesets = list;
@@ -456,7 +670,7 @@ window.starrealms = (function() {
             if (!state.selectedRuleset) { window.showStep(1); return; }
             document.getElementById("h-btn-create").disabled = true;
             document.getElementById("h-btn-create").textContent = "Opretter…";
-            apiPost("/api/sessions", { rulesetId: state.selectedRulesetId, startingPoints: state.startingPoints })
+            apiPost("/api/sessions", { rulesetId: state.selectedRulesetId, startingPoints: state.startingPoints, isRanked: state.isRanked })
                 .then(function(session) { location.href = "/game/" + session.code; })
                 .catch(function(err) {
                     document.getElementById("h-btn-create").disabled = false;
@@ -471,9 +685,19 @@ window.starrealms = (function() {
             apiGet("/api/sessions/" + encodeURIComponent(code)).then(function() {
                 var name = document.getElementById("h-name").value.trim();
                 if (name) {
-                    localStorage.setItem("profile_name", name);
-                    localStorage.setItem("profile_avatar", state.avatar);
-                    localStorage.setItem("profile_color", state.color);
+                    if (state.isRanked) {
+                        localStorage.setItem("profile_name", name);
+                        localStorage.setItem("profile_avatar", state.avatar);
+                        localStorage.setItem("profile_color", state.color);
+                    }
+                    sessionStorage.setItem("active_name", name);
+                    sessionStorage.setItem("active_avatar", state.avatar);
+                    sessionStorage.setItem("active_color", state.color);
+                    sessionStorage.setItem("active_ranked", state.isRanked ? "1" : "0");
+                    var pinField = document.getElementById("h-pin-row").style.display !== "none"
+                        ? document.getElementById("h-pin-input")
+                        : document.getElementById("h-new-pin");
+                    sessionStorage.setItem("active_pin", (pinField && pinField.value.trim()) || "");
                 }
                 location.href = "/game/" + code;
             }).catch(function() { showError("Spil ikke fundet. Tjek koden."); });
@@ -495,14 +719,29 @@ window.starrealms = (function() {
         var deviceToken = ensureLocalId("device_id");
         var pulseTimers = {};
 
-        var profileName = localStorage.getItem("profile_name") || "";
+        // One-shot handoff from Home for the game about to be joined/created -
+        // takes priority over the persisted default so a Training session's
+        // generated name never gets confused with the real saved identity.
+        // Consumed (not just read) so a later direct-URL visit to /game/{code}
+        // falls back to the persisted profile instead of replaying a stale name.
+        var handoffName = sessionStorage.getItem("active_name");
+        var isRanked = sessionStorage.getItem("active_ranked") !== "0";
+        var profileName = handoffName || localStorage.getItem("profile_name") || "";
+        var joinAvatar = handoffName ? sessionStorage.getItem("active_avatar") : null;
+        var joinColorOverride = handoffName ? sessionStorage.getItem("active_color") : null;
+        var handoffPin = sessionStorage.getItem("active_pin") || "";
+        sessionStorage.removeItem("active_name");
+        sessionStorage.removeItem("active_avatar");
+        sessionStorage.removeItem("active_color");
+        sessionStorage.removeItem("active_ranked");
+        sessionStorage.removeItem("active_pin");
 
         var state = {
             session: null,
             me: null,
             profileId: null,
-            joinAvatar: initialsFromName(profileName),
-            joinColor: localStorage.getItem("profile_color") || COLORS[0],
+            joinAvatar: joinAvatar || initialsFromName(profileName),
+            joinColor: joinColorOverride || localStorage.getItem("profile_color") || COLORS[0],
             pollTimer: null,
             winnerShown: false,
             shotCombo: [],
@@ -512,10 +751,21 @@ window.starrealms = (function() {
 
         var profileAvatar = state.joinAvatar;
 
-        apiPost("/api/profile", { deviceToken: deviceToken, name: profileName, avatar: profileAvatar })
-            .then(function(profile) { state.profileId = profile.id; })
-            .catch(function() {})
-            .then(loadSession);
+        // Training names are throwaway - never create/reuse a real
+        // PlayerProfile for one, so it can't be found in the name picker or
+        // counted on the leaderboard later. A PIN-protected name that fails
+        // to unlock stops the join outright, rather than quietly letting
+        // someone play under that name with no real claim to it.
+        (isRanked
+            ? apiPost("/api/profile", { deviceToken: deviceToken, name: profileName, avatar: profileAvatar, pin: handoffPin })
+                .then(function(profile) { state.profileId = profile.id; })
+                .catch(function(err) {
+                    alert(err.message || "Kunne ikke bekræfte profilen.");
+                    location.href = "/";
+                    return Promise.reject(err);
+                })
+            : Promise.resolve()
+        ).then(loadSession).catch(function() {});
 
         function loadSession() {
             apiGet("/api/sessions/" + encodeURIComponent(code)).then(function(session) {
@@ -576,9 +826,11 @@ window.starrealms = (function() {
         }
 
         function doJoin(name, avatar, color, onDone) {
-            localStorage.setItem("profile_name", name);
-            localStorage.setItem("profile_avatar", avatar);
-            localStorage.setItem("profile_color", color);
+            if (isRanked) {
+                localStorage.setItem("profile_name", name);
+                localStorage.setItem("profile_avatar", avatar);
+                localStorage.setItem("profile_color", color);
+            }
             apiPost("/api/sessions/" + encodeURIComponent(code) + "/join", {
                 token: token, name: name, avatar: avatar, color: color, profileId: state.profileId
             }).then(function() {
@@ -595,7 +847,7 @@ window.starrealms = (function() {
             document.getElementById("i-ruleset-name").textContent = session.rulesetName;
             document.getElementById("i-count").textContent = session.players.length + "/6";
             document.getElementById("i-players-list").innerHTML = session.players.map(function(p) {
-                return '<div class="invite-player-row"><span class="color-dot" style="background:' + p.color + '"></span>' + esc(p.avatar) + ' ' + esc(p.name) + '</div>';
+                return '<div class="invite-player-row"><span class="color-dot" style="background:' + p.color + '"></span>' + avatarHtml(p.avatar) + ' ' + esc(p.name) + '</div>';
             }).join("");
             document.getElementById("g-invite").style.display = "";
 
@@ -657,7 +909,7 @@ window.starrealms = (function() {
 
             function applyShot(player, delta) {
                 var before = player.points;
-                player.points = Math.max(state.session.minPoints, Math.min(state.session.maxPoints, player.points + delta));
+                player.points = Math.min(state.session.maxPoints, player.points + delta);
                 var actualDelta = player.points - before;
                 renderHero();
                 renderOpponents({});
@@ -665,7 +917,7 @@ window.starrealms = (function() {
                     var up = actualDelta > 0;
                     starrealms.vibrateForAmount(actualDelta);
                     starrealms.playImpact(actualDelta, up);
-                    if (player.points <= state.session.minPoints) starrealms.playEliminate();
+                    if (player.points <= 0) starrealms.playEliminate();
                     var isMe = state.me && player.id === state.me.id;
                     var targetEl = isMe
                         ? document.getElementById("g-hero-points")
@@ -756,7 +1008,7 @@ window.starrealms = (function() {
             var s = state.session;
             var me = s.players.find(function(p) { return p.id === state.me.id; });
             if (!me) return;
-            var eliminated = me.points <= s.minPoints;
+            var eliminated = me.points <= 0;
             var el = document.getElementById("g-hero-card");
             el.className = "hero-card";
             el.style.borderColor = me.color;
@@ -777,9 +1029,13 @@ window.starrealms = (function() {
                 ? "🔫 SKYD" + (resolvedTarget ? " " + esc(resolvedTarget.name) : "") + (comboEmpty ? "" : " −" + comboTotal)
                 : "💚 HELBRED" + (comboEmpty ? "" : " +" + comboTotal);
 
+            var heroProfileLink = me.profileId ? '/stats?profileId=' + encodeURIComponent(me.profileId) : null;
+
             el.innerHTML =
                 '<div class="hero-top">' +
-                    '<div class="hero-avatar" style="background:' + me.color + '">' + (eliminated ? "💀" : esc(me.avatar)) + '</div>' +
+                    (heroProfileLink
+                        ? '<a class="hero-avatar" href="' + heroProfileLink + '" style="background:' + me.color + '">' + (eliminated ? "💀" : avatarHtml(me.avatar, "avatar-img avatar-img--hero")) + '</a>'
+                        : '<div class="hero-avatar" style="background:' + me.color + '">' + (eliminated ? "💀" : avatarHtml(me.avatar, "avatar-img avatar-img--hero")) + '</div>') +
                     '<div class="hero-name">' + esc(me.name) + ' <span class="hero-you">(dig)</span></div>' +
                 '</div>' +
                 '<div class="hero-points" id="g-hero-points" style="color:' + me.color + '">' + me.points + '</div>' +
@@ -801,7 +1057,7 @@ window.starrealms = (function() {
                                 others.map(function(p) {
                                     var active = p.id === resolvedTargetId ? " target-chip--active" : "";
                                     return '<button class="target-chip' + active + '" style="border-color:' + p.color + '" onclick="selectShootTarget(\'' + p.id + '\')">' +
-                                        '<span class="target-chip-avatar" style="background:' + p.color + '">' + esc(p.avatar) + '</span>' + esc(p.name) +
+                                        '<span class="target-chip-avatar" style="background:' + p.color + '">' + avatarHtml(p.avatar) + '</span>' + esc(p.name) +
                                         '</button>';
                                 }).join("") +
                             '</div>' +
@@ -834,7 +1090,7 @@ window.starrealms = (function() {
             var others = s.players.filter(function(p) { return !state.me || p.id !== state.me.id; }).sort(function(a, b) { return a.sortOrder - b.sortOrder; });
 
             el.innerHTML = others.map(function(p) {
-                var dead = p.points <= s.minPoints;
+                var dead = p.points <= 0;
                 var pulseCls = "";
                 if (prevPoints[p.id] !== undefined && prevPoints[p.id] !== p.points) {
                     pulseCls = p.points > prevPoints[p.id] ? " score-row--up" : " score-row--down";
@@ -844,8 +1100,12 @@ window.starrealms = (function() {
                     var mine = state.me && s.players.find(function(x) { return x.id === state.me.id; });
                     teamLabel = '<span class="opp-team">Hold ' + (p.team + 1) + (mine && mine.team === p.team ? " (dit)" : "") + '</span>';
                 }
+                var oppProfileLink = p.profileId ? '/stats?profileId=' + encodeURIComponent(p.profileId) : null;
+                var oppAvatarHtml = dead ? "💀" : avatarHtml(p.avatar, "avatar-img avatar-img--opp");
                 return '<div class="opp-card' + pulseCls + (dead ? " opp-card--dead" : "") + '" data-opp-id="' + p.id + '" style="border-color:' + p.color + '">' +
-                    '<div class="opp-avatar" style="background:' + p.color + '">' + (dead ? "💀" : esc(p.avatar)) + '</div>' +
+                    (oppProfileLink
+                        ? '<a class="opp-avatar" href="' + oppProfileLink + '" style="background:' + p.color + '" title="Se profil">' + oppAvatarHtml + '</a>'
+                        : '<div class="opp-avatar" style="background:' + p.color + '">' + oppAvatarHtml + '</div>') +
                     '<div class="opp-info"><div class="opp-name">' + esc(p.name) + teamLabel + '</div>' +
                     '<div class="opp-color-label"><span class="color-dot" style="background:' + p.color + '"></span>farve</div></div>' +
                     '<div class="opp-points" style="color:' + p.color + '">' + p.points + '</div>' +
@@ -857,7 +1117,7 @@ window.starrealms = (function() {
                     var delta = p.points - prevPoints[p.id];
                     starrealms.vibrateForAmount(delta);
                     starrealms.playImpact(delta, delta > 0);
-                    if (p.points <= state.session.minPoints) starrealms.playEliminate();
+                    if (p.points <= 0) starrealms.playEliminate();
                 }
             });
         }
@@ -875,7 +1135,7 @@ window.starrealms = (function() {
             var winnerName, winnerColor, winnerIds;
             if (s.isTeamMode) {
                 var aliveTeams = {};
-                s.players.forEach(function(p) { if (p.points > s.minPoints) aliveTeams[p.team] = true; });
+                s.players.forEach(function(p) { if (p.points > 0) aliveTeams[p.team] = true; });
                 var teams = Object.keys(aliveTeams);
                 if (teams.length !== 1) return;
                 var teamNum = parseInt(teams[0], 10);
@@ -884,7 +1144,7 @@ window.starrealms = (function() {
                 winnerColor = teammate ? teammate.color : "#fff";
                 winnerIds = s.players.filter(function(p) { return p.team === teamNum; }).map(function(p) { return p.id; });
             } else {
-                var alive = s.players.filter(function(p) { return p.points > s.minPoints; });
+                var alive = s.players.filter(function(p) { return p.points > 0; });
                 if (alive.length !== 1) return;
                 winnerName = alive[0].name;
                 winnerColor = alive[0].color;
@@ -961,7 +1221,10 @@ window.starrealms = (function() {
                 ctx.fillStyle = "#fff";
                 ctx.font = "700 22px -apple-system, Segoe UI, sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText(p.avatar || "?", 96, y + 62);
+                // Canvas can't render an <img> avatar as text - fall back to
+                // initials for the exported share image (loading+clipping a
+                // photo into a circle here isn't worth it for a nice-to-have export).
+                ctx.fillText(isImageAvatar(p.avatar) ? initialsFromName(p.name) : (p.avatar || "?"), 96, y + 62);
 
                 ctx.textAlign = "left";
                 ctx.fillStyle = "#f0f0f0";
@@ -993,8 +1256,80 @@ window.starrealms = (function() {
 
     function initStats() {
         var deviceToken = localStorage.getItem("device_id");
+        var urlProfileId = new URLSearchParams(location.search).get("profileId");
         var profile = null;
+        var isOwnProfile = false;
         var activeMonths = null;
+        var activeRuleset = "";
+        var editState = { avatar: "", emojiOptions: ["🚀","🛸","👽","🤖","🎯","⚔️","🏆","🔥","⭐","💥","🌟","🛡️","🪐","☄️","💫","🎮","🦾","🧨","⚡","👾","🐙"], profiles: [] };
+
+        window.toggleEditProfile = function() {
+            var panel = document.getElementById("s-edit-panel");
+            var opening = panel.style.display === "none";
+            panel.style.display = opening ? "" : "none";
+            if (opening) {
+                document.getElementById("s-edit-name").value = profile.name;
+                editState.avatar = profile.avatar;
+                apiGet("/api/profiles").then(function(list) { editState.profiles = list; renderEmojiGridStats(); }).catch(function() {});
+                renderEmojiGridStats();
+            }
+        };
+
+        function renderEmojiGridStats() {
+            var taken = editState.profiles.map(function(p) { return p.avatar; }).filter(function(a) { return a && !isImageAvatar(a) && a !== profile.avatar; });
+            var el = document.getElementById("s-emoji-grid");
+            var cells = editState.emojiOptions.map(function(e) {
+                var isTaken = taken.indexOf(e) !== -1;
+                var active = e === editState.avatar ? " emoji-btn--active" : "";
+                return '<button type="button" class="emoji-btn' + (isTaken ? " color-btn--taken" : "") + active + '" data-emoji="' + e + '"' + (isTaken ? " disabled" : "") + '>' + e + '</button>';
+            });
+            cells.unshift('<button type="button" class="emoji-btn emoji-btn--none' + (editState.avatar === "" ? " emoji-btn--active" : "") + '" data-emoji="">Intet</button>');
+            el.innerHTML = cells.join("");
+            el.querySelectorAll(".emoji-btn:not([disabled])").forEach(function(btn) {
+                btn.onclick = function() {
+                    editState.avatar = btn.getAttribute("data-emoji");
+                    document.getElementById("s-ai-picture-preview").style.display = "none";
+                    renderEmojiGridStats();
+                };
+            });
+        }
+
+        window.requestMoreEmojiStats = function() {
+            var btn = document.getElementById("s-emoji-more");
+            btn.disabled = true; btn.textContent = "Genererer…";
+            apiPost("/api/emoji-suggestions", { exclude: editState.emojiOptions }).then(function(more) {
+                if (more && more.length) editState.emojiOptions = editState.emojiOptions.concat(more);
+                renderEmojiGridStats();
+            }).catch(function() {}).then(function() { btn.disabled = false; btn.textContent = "✨ Flere ikoner (AI)"; });
+        };
+
+        window.generateProfilePictureStats = function() {
+            var prompt = document.getElementById("s-ai-prompt").value.trim() || document.getElementById("s-edit-name").value.trim();
+            if (!prompt) return;
+            var btn = document.getElementById("s-ai-generate");
+            btn.disabled = true; btn.textContent = "Genererer…";
+            apiPost("/api/profile-picture", { prompt: prompt }).then(function(res) {
+                editState.avatar = res.url;
+                var prev = document.getElementById("s-ai-picture-preview");
+                prev.style.display = "";
+                prev.innerHTML = '<img src="' + esc(res.url) + '"><span>Valgt som ikon</span>';
+                renderEmojiGridStats();
+            }).catch(function() { alert("Kunne ikke generere billede - prøv igen."); })
+              .then(function() { btn.disabled = false; btn.textContent = "🪄 Generér"; });
+        };
+
+        window.saveProfileEdit = function() {
+            var name = document.getElementById("s-edit-name").value.trim();
+            if (!name) return;
+            apiPost("/api/profile", { deviceToken: deviceToken, name: name, avatar: editState.avatar }).then(function(updated) {
+                profile = updated;
+                localStorage.setItem("profile_name", updated.name);
+                localStorage.setItem("profile_avatar", updated.avatar);
+                document.getElementById("s-hero").innerHTML = heroBadgeHtml(profile.avatar, profile.name);
+                document.getElementById("s-who").textContent = "head-to-head mod dine modstandere";
+                document.getElementById("s-edit-panel").style.display = "none";
+            }).catch(function(err) { alert((err && err.message) ? err.message.replace(/^"|"$/g, "") : "Kunne ikke gemme"); });
+        };
 
         function paintFilters() {
             [["s-filter-all", null], ["s-filter-1", 1], ["s-filter-6", 6], ["s-filter-12", 12]].forEach(function(pair) {
@@ -1008,8 +1343,25 @@ window.starrealms = (function() {
             loadRows();
         };
 
+        window.filterStatsRuleset = function(ruleset) {
+            activeRuleset = ruleset || "";
+            loadRows();
+        };
+
+        apiGet("/api/rulesets").then(function(list) {
+            var sel = document.getElementById("s-ruleset-filter");
+            list.forEach(function(r) {
+                var opt = document.createElement("option");
+                opt.value = r.name;
+                opt.textContent = r.name;
+                sel.appendChild(opt);
+            });
+        }).catch(function() {});
+
         function loadRows() {
-            var url = "/api/stats?profileId=" + encodeURIComponent(profile.id) + (activeMonths ? "&sinceMonths=" + activeMonths : "");
+            var url = "/api/stats?profileId=" + encodeURIComponent(profile.id) +
+                (activeMonths ? "&sinceMonths=" + activeMonths : "") +
+                (activeRuleset ? "&ruleset=" + encodeURIComponent(activeRuleset) : "");
             apiGet(url).then(function(rows) {
                 var el = document.getElementById("s-rows");
                 if (rows.length === 0) {
@@ -1028,23 +1380,110 @@ window.starrealms = (function() {
             }).catch(function() {});
         }
 
-        if (!deviceToken) {
-            document.getElementById("s-loading").style.display = "none";
-            document.getElementById("s-empty").style.display = "";
-            return;
-        }
+        var lookup = urlProfileId
+            ? apiGet("/api/profile/" + encodeURIComponent(urlProfileId))
+            : (deviceToken ? apiGet("/api/profile?deviceToken=" + encodeURIComponent(deviceToken)) : Promise.reject());
 
-        apiGet("/api/profile?deviceToken=" + encodeURIComponent(deviceToken)).then(function(p) {
+        lookup.then(function(p) {
             profile = p;
+            isOwnProfile = !urlProfileId || (deviceToken && p.deviceToken === deviceToken);
             document.getElementById("s-loading").style.display = "none";
             document.getElementById("s-content").style.display = "";
-            document.getElementById("s-who").textContent = p.avatar + " " + p.name + " · head-to-head mod dine modstandere";
+            document.getElementById("s-hero").innerHTML = heroBadgeHtml(p.avatar, p.name);
+            document.getElementById("s-who").textContent = isOwnProfile ? "head-to-head mod dine modstandere" : "head-to-head mod deres modstandere";
+            document.getElementById("s-edit-toggle").style.display = isOwnProfile ? "" : "none";
             paintFilters();
             loadRows();
+            if (isOwnProfile) loadMyTeams();
         }).catch(function() {
             document.getElementById("s-loading").style.display = "none";
             document.getElementById("s-empty").style.display = "";
         });
+
+        // Any team you're a member of - custom name (e.g. "The Fighters") is
+        // shared by every member and editable by any of them, since this is
+        // a family score tracker rather than something needing real
+        // ownership/permissions.
+        function loadMyTeams() {
+            apiGet("/api/teams/mine?deviceToken=" + encodeURIComponent(deviceToken)).then(function(teams) {
+                if (!teams.length) return;
+                document.getElementById("s-teams-section").style.display = "";
+                document.getElementById("s-teams-rows").innerHTML = teams.map(function(t) {
+                    return '<div class="stats-row"><div style="flex:1">' +
+                        '<input class="home-input" data-team-id="' + t.id + '" value="' + esc(t.name || "") + '" placeholder="' + esc(t.memberNames) + '" maxlength="30">' +
+                        '<div class="stats-record">' + esc(t.memberNames) + '</div></div>' +
+                        '<button type="button" class="btn-ghost" data-save-team="' + t.id + '">Gem</button></div>';
+                }).join("");
+                document.getElementById("s-teams-rows").querySelectorAll("[data-save-team]").forEach(function(btn) {
+                    btn.onclick = function() {
+                        var id = btn.getAttribute("data-save-team");
+                        var input = document.querySelector('[data-team-id="' + id + '"]');
+                        apiPost("/api/teams/" + id + "/name", { deviceToken: deviceToken, name: input.value.trim() })
+                            .catch(function() { alert("Kunne ikke gemme holdnavn"); });
+                    };
+                });
+            }).catch(function() {});
+        }
+    }
+
+    function initLeaderboard() {
+        var activeMonths = null;
+
+        function paintFilters() {
+            [["l-filter-all", null], ["l-filter-1", 1], ["l-filter-6", 6], ["l-filter-12", 12]].forEach(function(pair) {
+                document.getElementById(pair[0]).disabled = pair[1] === activeMonths;
+            });
+        }
+
+        window.filterLeaderboard = function(months) {
+            activeMonths = months;
+            paintFilters();
+            loadBoards();
+        };
+
+        function renderBoard(rulesetName, rows, isTeamMode) {
+            var medals = ["🥇", "🥈", "🥉"];
+            var body = rows.length === 0
+                ? '<div class="home-sub">Ingen ranked spil endnu.</div>'
+                : rows.map(function(r, i) {
+                    var rank = medals[i] || ("#" + (i + 1));
+                    // Teams have no single avatar/profile page to link to - a
+                    // team is a pairing, not a person - so the row is static.
+                    var nameLine = isTeamMode
+                        ? '<div class="stats-name">' + rank + ' ' + esc(r.name) + '</div><div class="stats-record">' + esc(r.memberNames) + '</div>'
+                        : '<div class="stats-name">' + rank + ' ' + avatarHtml(r.avatar) + ' ' + esc(r.name) + '</div>' +
+                          '<div class="stats-record">' + r.gamesPlayed + ' spil · ' + r.winRate + '% vundet</div>';
+                    var row = '<div>' + nameLine + '</div>' +
+                        '<div class="stats-wl"><span class="stats-wins">' + r.wins + ' V</span>' +
+                        '<span class="stats-losses">' + r.losses + ' T</span>' +
+                        (r.draws > 0 ? '<span class="stats-draws">' + r.draws + ' U</span>' : '') + '</div>';
+                    return isTeamMode
+                        ? '<div class="stats-row">' + row + '</div>'
+                        : '<a class="stats-row" href="/stats?profileId=' + encodeURIComponent(r.profileId) + '">' + row + '</a>';
+                }).join("");
+            return '<div class="leaderboard-section"><div class="home-section-inner-label">' + esc(rulesetName) + (isTeamMode ? " · hold" : "") + '</div>' + body + '</div>';
+        }
+
+        function loadBoards() {
+            document.getElementById("l-loading").style.display = "";
+            var boardsEl = document.getElementById("l-boards");
+            var since = activeMonths ? "sinceMonths=" + activeMonths : "";
+            apiGet("/api/rulesets").then(function(rulesets) {
+                return Promise.all(rulesets.map(function(r) {
+                    var url = (r.isTeamMode ? "/api/leaderboard/teams?" : "/api/leaderboard?") +
+                        since + (since ? "&" : "") + "ruleset=" + encodeURIComponent(r.name);
+                    return apiGet(url).then(function(rows) { return { name: r.name, rows: rows, isTeamMode: r.isTeamMode }; });
+                })).then(function(boards) {
+                    document.getElementById("l-loading").style.display = "none";
+                    boardsEl.innerHTML = boards.map(function(b) { return renderBoard(b.name, b.rows, b.isTeamMode); }).join("");
+                });
+            }).catch(function() {
+                document.getElementById("l-loading").style.display = "none";
+            });
+        }
+
+        paintFilters();
+        loadBoards();
     }
 
     // ── Dispatch on load ─────────────────────────────────────────────────
@@ -1055,5 +1494,6 @@ window.starrealms = (function() {
         if (page === "home") initHome();
         else if (page === "game") initGame(pageData.getAttribute("data-code"));
         else if (page === "stats") initStats();
+        else if (page === "leaderboard") initLeaderboard();
     });
 })();
