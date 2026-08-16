@@ -1255,7 +1255,7 @@ window.starrealms = (function() {
     // ═══════════════════════════════════════════════════════════════════
 
     function initStats() {
-        var deviceToken = localStorage.getItem("device_id");
+        var deviceToken = ensureLocalId("device_id");
         var urlProfileId = new URLSearchParams(location.search).get("profileId");
         var profile = null;
         var isOwnProfile = false;
@@ -1268,8 +1268,8 @@ window.starrealms = (function() {
             var opening = panel.style.display === "none";
             panel.style.display = opening ? "" : "none";
             if (opening) {
-                document.getElementById("s-edit-name").value = profile.name;
-                editState.avatar = profile.avatar;
+                document.getElementById("s-edit-name").value = profile ? profile.name : "";
+                editState.avatar = profile ? profile.avatar : "";
                 apiGet("/api/profiles").then(function(list) { editState.profiles = list; renderEmojiGridStats(); }).catch(function() {});
                 renderEmojiGridStats();
             }
@@ -1321,13 +1321,23 @@ window.starrealms = (function() {
         window.saveProfileEdit = function() {
             var name = document.getElementById("s-edit-name").value.trim();
             if (!name) return;
+            var wasNew = !profile;
             apiPost("/api/profile", { deviceToken: deviceToken, name: name, avatar: editState.avatar }).then(function(updated) {
                 profile = updated;
+                isOwnProfile = true;
                 localStorage.setItem("profile_name", updated.name);
                 localStorage.setItem("profile_avatar", updated.avatar);
                 document.getElementById("s-hero").innerHTML = heroBadgeHtml(profile.avatar, profile.name);
-                document.getElementById("s-who").textContent = "head-to-head mod dine modstandere";
+                document.getElementById("s-who").textContent = "Dine opgør mod dine modstandere";
                 document.getElementById("s-edit-panel").style.display = "none";
+                if (wasNew) {
+                    document.getElementById("s-empty").style.display = "none";
+                    document.getElementById("s-content").style.display = "";
+                    document.getElementById("s-edit-toggle").style.display = "";
+                    paintFilters();
+                    loadRows();
+                    loadMyTeams();
+                }
             }).catch(function(err) { alert((err && err.message) ? err.message.replace(/^"|"$/g, "") : "Kunne ikke gemme"); });
         };
 
@@ -1390,7 +1400,7 @@ window.starrealms = (function() {
             document.getElementById("s-loading").style.display = "none";
             document.getElementById("s-content").style.display = "";
             document.getElementById("s-hero").innerHTML = heroBadgeHtml(p.avatar, p.name);
-            document.getElementById("s-who").textContent = isOwnProfile ? "head-to-head mod dine modstandere" : "head-to-head mod deres modstandere";
+            document.getElementById("s-who").textContent = isOwnProfile ? "Dine opgør mod dine modstandere" : "Opgør mod deres modstandere";
             document.getElementById("s-edit-toggle").style.display = isOwnProfile ? "" : "none";
             paintFilters();
             loadRows();

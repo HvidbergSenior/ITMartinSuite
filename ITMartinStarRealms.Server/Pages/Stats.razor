@@ -8,31 +8,34 @@
         <h1 class="home-title">Mine statistikker</h1>
 
         <div id="s-loading" class="home-sub">Indlæser…</div>
-        <div id="s-empty" class="home-sub" style="display:none">Du har ikke spillet nogen spil på denne enhed endnu.</div>
+        <div id="s-empty" style="display:none">
+            <p class="home-sub">Du har ikke en profil på denne enhed endnu.</p>
+            <button class="btn-primary" onclick="toggleEditProfile()">👤 Opret profil</button>
+        </div>
+
+        <div id="s-edit-panel" style="display:none">
+            <label class="home-label mt-2">Navn</label>
+            <input id="s-edit-name" class="home-input" maxlength="20" />
+
+            <label class="home-label mt-2">Ikon</label>
+            <div id="s-emoji-grid" class="emoji-grid"></div>
+            <button type="button" class="btn-ghost mt-1" id="s-emoji-more" onclick="requestMoreEmojiStats()">✨ Flere ikoner (AI)</button>
+
+            <label class="home-label mt-2">Eller et AI-genereret profilbillede</label>
+            <div class="ai-picture-row">
+                <input id="s-ai-prompt" class="home-input" placeholder="F.eks. 'en rumpirat med solbriller'" maxlength="120" />
+                <button type="button" class="btn-ghost" id="s-ai-generate" onclick="generateProfilePictureStats()">🪄 Generér</button>
+            </div>
+            <div id="s-ai-picture-preview" class="ai-picture-preview" style="display:none"></div>
+
+            <button class="btn-primary mt-2" onclick="saveProfileEdit()">Gem</button>
+        </div>
 
         <div id="s-content" style="display:none">
             <div id="s-hero" class="profile-hero"></div>
             <p class="home-sub" id="s-who"></p>
 
             <button class="btn-ghost" id="s-edit-toggle" onclick="toggleEditProfile()" style="display:none">✏️ Rediger profil</button>
-
-            <div id="s-edit-panel" style="display:none">
-                <label class="home-label mt-2">Navn</label>
-                <input id="s-edit-name" class="home-input" maxlength="20" />
-
-                <label class="home-label mt-2">Ikon</label>
-                <div id="s-emoji-grid" class="emoji-grid"></div>
-                <button type="button" class="btn-ghost mt-1" id="s-emoji-more" onclick="requestMoreEmojiStats()">✨ Flere ikoner (AI)</button>
-
-                <label class="home-label mt-2">Eller et AI-genereret profilbillede</label>
-                <div class="ai-picture-row">
-                    <input id="s-ai-prompt" class="home-input" placeholder="F.eks. 'en rumpirat med solbriller'" maxlength="120" />
-                    <button type="button" class="btn-ghost" id="s-ai-generate" onclick="generateProfilePictureStats()">🪄 Generér</button>
-                </div>
-                <div id="s-ai-picture-preview" class="ai-picture-preview" style="display:none"></div>
-
-                <button class="btn-primary mt-2" onclick="saveProfileEdit()">Gem</button>
-            </div>
 
             <div class="home-section" style="flex-direction: row; gap:.4rem;">
                 <button class="btn-ghost" id="s-filter-all" onclick="filterStats(null)">Altid</button>

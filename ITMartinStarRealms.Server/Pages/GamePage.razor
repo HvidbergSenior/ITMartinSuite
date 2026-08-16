@@ -19,6 +19,7 @@
             <label class="home-label mt-2">Din farve</label>
             <div id="n-color-grid" class="color-grid"></div>
             <button class="btn-primary mt-2" id="n-btn-join" onclick="joinAsPlayer()" disabled>Deltag i spillet</button>
+            <button class="btn-link mt-2" onclick="location.href='/'">← Annuller</button>
         </div>
     </div>
 </div>
@@ -35,6 +36,7 @@
         <div id="i-players-list" class="invite-players-list mt-3"></div>
 
         <button class="btn-primary mt-3" id="g-invite-start-btn" onclick="hideInvite()">▶️ Start spillet</button>
+        <button class="btn-link mt-2" onclick="location.href='/'">← Annuller</button>
     </div>
 </div>
 
@@ -42,6 +44,7 @@
 
 <div id="g-main" class="game-page" style="display:none">
     <div class="game-header">
+        <button class="btn-reset" onclick="location.href='/'" title="Til forsiden">🏠</button>
         <span class="code-badge">@Code</span>
         <button class="btn-reset" onclick="resetGame()" title="Nulstil spil">🔄</button>
     </div>
@@ -66,6 +69,7 @@
         <div class="winner-name" id="g-winner-name"></div>
         <img id="g-winner-preview" class="winner-preview" style="display:none" alt="Resultat" />
         <a id="g-winner-download" class="btn-primary mt-2" download="star-realms-resultat.png">⬇ Download billede</a>
+        <button class="btn-secondary mt-2" onclick="location.href='/'">🚀 Nyt spil</button>
         <button class="btn-ghost mt-2" onclick="hideWinner()">Luk</button>
     </div>
 </div>

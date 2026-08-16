@@ -14,8 +14,25 @@
 
         <div id="h-info-panel">
             <ProblemPurposeBanner
-                Problem="Man mister overblikket over point midt i et Star Realms-parti, og bagefter er det umuligt at huske, hvem der egentlig vinder oftest."
-                Formaal="Ét sted at holde styr på point live fra hver sin telefon, og en historik der viser, hvem der faktisk vinder over tid." />
+                ProblemPoints='@(new[]
+                {
+                    "Regler til spil kan være svære at forstå.",
+                    "Regler kan tolkes.",
+                    "Ofte kender nogle spillere reglerne bedre end andre.",
+                    "Man stopper med at spille gode spil, fordi de går lidt i glemmebogen."
+                })'
+                FormaalPoints='@(new[]
+                {
+                    "Appen kan bruges til at samle tydelige beskrivelser af regler.",
+                    "Appen kan bruges til at give en ekstra motivation til at blive ved med at spille spillet.",
+                    "Appen kan bruges til at bevare statistikker og gøre spillet ekstra interessant."
+                })'
+                LosningPoints='@(new[]
+                {
+                    "Træning/Ranked mulighed.",
+                    "Alle regler er beskrevet og kan editeres.",
+                    "Historik bliver opdateret."
+                })' />
 
             <HowToUseBanner Steps='@(new[]
             {
