@@ -237,6 +237,7 @@ html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-c
       </div>
       <div id="folderSection">
         <div class="section-label">Mapper</div>
+        <div class="collection-sub" id="demoPhotoNotice" style="display:none">📸 Farvefelterne herover er kun demo-pladsholdere — i det rigtige galleri er det jeres egne billeder og videoer.</div>
         <div id="folderGrid"></div>
       </div>
       <div id="specialSearchBar" style="display:none">
@@ -391,6 +392,7 @@ async function selectGallery(slug, name) {
   galleryDisplayName = name;
   document.getElementById('galleryPicker').style.display = 'none';
   document.getElementById('fileBrowser').style.display   = '';
+  document.getElementById('demoPhotoNotice').style.display = slug === 'demo' ? '' : 'none';
   const data = await res.json();
   parentRelPath = data.parentRelPath;
   renderBrowse(data, name);
