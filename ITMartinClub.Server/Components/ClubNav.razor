@@ -22,7 +22,18 @@
      destination common members need. These are deliberate mode switches, not
      a content tab list: Bruger = live/everyday, Historik = look back
      (dokumenter/gameplans + modstander-tags), Admin = planning (PIN-gated). -->
-@if (Slug == "hvidberg")
+@if (Slug == "demo")
+{
+    <!-- Public demo tier - only the two tabs a first-time visitor actually
+         needs to get the idea (everyday tasks + who's in the group). Admin/
+         Historik/Påminder etc. are real features but not what a 30-second
+         demo click-through is for. -->
+    <div class="club-mode-row">
+        <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+        <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
+    </div>
+}
+else if (Slug == "hvidberg")
 {
     <!-- Familien Hvidberg wants a stripped-down nav - just the everyday
          checklist (which now includes Køretøj/Bad sign-up as ordinary main
@@ -66,7 +77,7 @@ else
     </div>
 }
 
-@if (Active != "chat")
+@if (Active != "chat" && Slug != "demo")
 {
     <ClubChatWidget Slug="@Slug" />
 }
