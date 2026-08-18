@@ -19,6 +19,13 @@
     <div style="padding:12px 16px 0;">
         <ProblemPurposeBanner Problem="Digitale magasiner/artikler mangler ofte et pænt, samlet sted at blive læst."
                                Formaal="Et browsbart magasin-layout til artikler og udgivelser." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Scan forsiden af et blad med kameraet.",
+            "Se blad og pris blive registreret automatisk.",
+            "Find det igen senere via browsbart magasin-layout.",
+        })' />
     </div>
 
     @if (_phase == Phase.Camera)

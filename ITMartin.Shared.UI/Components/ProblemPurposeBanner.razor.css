@@ -7,6 +7,14 @@
     border-radius: 10px;
     padding: .7rem 1rem;
     margin-bottom: 1rem;
+    /* Deliberately fixed, not inherited - each app has its own ambient
+       font/theme, but this banner needs to look identical everywhere it
+       appears, not blend into whichever host app it's dropped into. */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.itm-pp-icon {
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
 }
 
 .itm-pp-row {

@@ -1,16 +1,27 @@
-<div class="itm-hw-banner">
-    <div class="itm-hw-header">
-        <span class="itm-hw-icon">👉</span>
-        <span class="itm-hw-label">Sådan bruger du appen</span>
+@using Microsoft.Extensions.Configuration
+@if (Enabled)
+{
+    <div class="itm-hw-banner">
+        <div class="itm-hw-header">
+            <span class="itm-hw-icon">👉</span>
+            <span class="itm-hw-label">Sådan bruger du appen</span>
+        </div>
+        <ol class="itm-hw-steps">
+            @foreach (var step in Steps)
+            {
+                <li>@step</li>
+            }
+        </ol>
     </div>
-    <ol class="itm-hw-steps">
-        @foreach (var step in Steps)
-        {
-            <li>@step</li>
-        }
-    </ol>
-</div>
+}
 
 @code {
+    [Inject] private IConfiguration Configuration { get; set; } = null!;
+
     [Parameter] public string[] Steps { get; set; } = [];
+
+    // See ProblemPurposeBanner for the Show/InfoBanners:Enabled pattern -
+    // kept identical here so one config flag toggles both banners together.
+    [Parameter] public bool? Show { get; set; }
+    private bool Enabled => Show ?? Configuration.GetValue("InfoBanners:Enabled", true);
 }

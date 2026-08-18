@@ -9,6 +9,13 @@
     Problem="Et stort musikbibliotek spredt over mapper og undermapper er besværligt at browse og afspille samlet, uden en ordentlig afspiller."
     Formaal="Ét sted at browse album og kunstnere fra biblioteket, og afspille direkte i browseren." />
 
+<HowToUseBanner Steps='@(new[]
+{
+    "Vælg et album eller en kunstner fra biblioteket.",
+    "Afspil direkte i browseren, ingen ekstra app nødvendig.",
+    "Sæt sange i kø til en karaoke- eller fest-aften.",
+})' />
+
 <div style="display:flex;gap:.5rem;margin-bottom:.8rem">
     <button class="ka-btn-ghost" style="width:auto;margin:0;padding:.4rem 1rem;@(_view == "albums" ? $"border-color:var(--accent);color:var(--accent)" : "")" @onclick='() => _view = "albums"'>Album</button>
     <button class="ka-btn-ghost" style="width:auto;margin:0;padding:.4rem 1rem;@(_view == "artists" ? $"border-color:var(--accent);color:var(--accent)" : "")" @onclick='() => _view = "artists"'>Kunstner</button>

@@ -35,12 +35,37 @@ public static class DemoSeeder
         };
         db.Members.AddRange(members);
 
-        db.MainTasks.AddRange(
+        var mainTasks = new[]
+        {
             new MainTask { GroupId = group.Id, Title = "Rydde op på værelset", IsDaily = true, SortOrder = 0 },
             new MainTask { GroupId = group.Id, Title = "Lektier", IsDaily = true, SortOrder = 1 },
             new MainTask { GroupId = group.Id, Title = "Tage skraldet ud", IsDaily = true, SortOrder = 2 },
             new MainTask { GroupId = group.Id, Title = "Planlægge fødselsdag", DefinitionOfDone = "Gæsteliste og kage bestilt", IsDaily = false, SortOrder = 3 },
-            new MainTask { GroupId = group.Id, Title = "Booke sommerferie", IsDaily = false, SortOrder = 4 });
+            new MainTask { GroupId = group.Id, Title = "Booke sommerferie", IsDaily = false, SortOrder = 4 },
+        };
+        db.MainTasks.AddRange(mainTasks);
+
+        // A couple of today's tasks already claimed, so the demo doesn't
+        // land on an all-empty "Ingen åbne opgaver" list for every card -
+        // Jonas (the auto-logged-in demo viewer) has taken one himself, and
+        // "Planlægge fødselsdag" shows as a fælles opgave both parents share.
+        db.Assignments.AddRange(
+            new Assignment
+            {
+                GroupId = group.Id,
+                MainTaskId = mainTasks[0].Id,
+                Title = mainTasks[0].Title,
+                AssignedToNames = "Jonas",
+                CreatedByName = "Jonas",
+            },
+            new Assignment
+            {
+                GroupId = group.Id,
+                MainTaskId = mainTasks[3].Id,
+                Title = mainTasks[3].Title,
+                AssignedToNames = "Mette;Jonas",
+                CreatedByName = "Mette",
+            });
 
         db.Posts.Add(new BulletinPost
         {

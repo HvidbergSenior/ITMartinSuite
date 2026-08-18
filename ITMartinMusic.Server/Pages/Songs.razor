@@ -39,6 +39,13 @@ else
                 Problem="Nye sange og demoer bliver ofte delt spredt over sms og mail, uden et samlet sted at lytte og give feedback."
                 Formaal="Ét sted at lytte til numrene, sammenligne versioner, og samle feedback fra dem der skal høre dem." />
 
+            <HowToUseBanner Steps='@(new[]
+            {
+                "Vælg en sang fra listen for at lytte.",
+                "Sammenlign forskellige versioner af samme nummer.",
+                "Skriv feedback direkte på sangen, som andre kan se.",
+            })' />
+
             @if (!_songs.Any())
             {
                 <div style="text-align:center;padding:80px 0;color:#64748b">

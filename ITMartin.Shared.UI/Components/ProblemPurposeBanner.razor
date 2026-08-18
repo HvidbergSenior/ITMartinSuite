@@ -1,70 +1,76 @@
-<div class="itm-pp-banner">
-    <div class="itm-pp-row">
-        <span class="itm-pp-icon">😩</span>
-        <span class="itm-pp-label">Problem</span>
-        @if (ProblemPoints is { Length: > 0 })
+@using Microsoft.Extensions.Configuration
+@if (Enabled)
+{
+    <div class="itm-pp-banner">
+        <div class="itm-pp-row">
+            <span class="itm-pp-icon">😩</span>
+            <span class="itm-pp-label">Problem</span>
+            @if (ProblemPoints is { Length: > 0 })
+            {
+                <ol class="itm-pp-list">
+                    @foreach (var point in ProblemPoints)
+                    {
+                        <li>@point</li>
+                    }
+                </ol>
+            }
+            else
+            {
+                <span class="itm-pp-text">@Problem</span>
+            }
+        </div>
+        <div class="itm-pp-row">
+            <span class="itm-pp-icon">🎯</span>
+            <span class="itm-pp-label">Formål</span>
+            @if (FormaalPoints is { Length: > 0 })
+            {
+                <ol class="itm-pp-list">
+                    @foreach (var point in FormaalPoints)
+                    {
+                        <li>@point</li>
+                    }
+                </ol>
+            }
+            else
+            {
+                <span class="itm-pp-text">@Formaal</span>
+            }
+        </div>
+        @if (LosningPoints is { Length: > 0 })
         {
-            <ol class="itm-pp-list">
-                @foreach (var point in ProblemPoints)
-                {
-                    <li>@point</li>
-                }
-            </ol>
+            <div class="itm-pp-row">
+                <span class="itm-pp-icon">✅</span>
+                <span class="itm-pp-label">Løsning</span>
+                <ol class="itm-pp-list">
+                    @foreach (var point in LosningPoints)
+                    {
+                        <li>@point</li>
+                    }
+                </ol>
+            </div>
         }
-        else
+        else if (!string.IsNullOrWhiteSpace(Losning))
         {
-            <span class="itm-pp-text">@Problem</span>
+            <div class="itm-pp-row">
+                <span class="itm-pp-icon">✅</span>
+                <span class="itm-pp-label">Løsning</span>
+                <span class="itm-pp-text">@Losning</span>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Beskrivelse))
+        {
+            <div class="itm-pp-row">
+                <span class="itm-pp-icon">📋</span>
+                <span class="itm-pp-label">Beskrivelse</span>
+                <span class="itm-pp-text">@Beskrivelse</span>
+            </div>
         }
     </div>
-    <div class="itm-pp-row">
-        <span class="itm-pp-icon">🎯</span>
-        <span class="itm-pp-label">Formål</span>
-        @if (FormaalPoints is { Length: > 0 })
-        {
-            <ol class="itm-pp-list">
-                @foreach (var point in FormaalPoints)
-                {
-                    <li>@point</li>
-                }
-            </ol>
-        }
-        else
-        {
-            <span class="itm-pp-text">@Formaal</span>
-        }
-    </div>
-    @if (LosningPoints is { Length: > 0 })
-    {
-        <div class="itm-pp-row">
-            <span class="itm-pp-icon">✅</span>
-            <span class="itm-pp-label">Løsning</span>
-            <ol class="itm-pp-list">
-                @foreach (var point in LosningPoints)
-                {
-                    <li>@point</li>
-                }
-            </ol>
-        </div>
-    }
-    else if (!string.IsNullOrWhiteSpace(Losning))
-    {
-        <div class="itm-pp-row">
-            <span class="itm-pp-icon">✅</span>
-            <span class="itm-pp-label">Løsning</span>
-            <span class="itm-pp-text">@Losning</span>
-        </div>
-    }
-    @if (!string.IsNullOrWhiteSpace(Beskrivelse))
-    {
-        <div class="itm-pp-row">
-            <span class="itm-pp-icon">📋</span>
-            <span class="itm-pp-label">Beskrivelse</span>
-            <span class="itm-pp-text">@Beskrivelse</span>
-        </div>
-    }
-</div>
+}
 
 @code {
+    [Inject] private IConfiguration Configuration { get; set; } = null!;
+
     [Parameter] public string Problem { get; set; } = "";
     [Parameter] public string Formaal { get; set; } = "";
     [Parameter] public string Losning { get; set; } = "";
@@ -76,4 +82,14 @@
     [Parameter] public string[]? ProblemPoints { get; set; }
     [Parameter] public string[]? FormaalPoints { get; set; }
     [Parameter] public string[]? LosningPoints { get; set; }
+
+    // Explicit per-call override (null = fall back to the app-wide config
+    // flag below) - lets a specific page hide the banner without turning it
+    // off everywhere.
+    [Parameter] public bool? Show { get; set; }
+
+    // InfoBanners:Enabled - one config flag per app to turn both onboarding
+    // banners (this one + HowToUseBanner) on/off without touching every
+    // page that renders them. Defaults to on.
+    private bool Enabled => Show ?? Configuration.GetValue("InfoBanners:Enabled", true);
 }

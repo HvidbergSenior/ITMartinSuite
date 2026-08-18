@@ -23,9 +23,14 @@ public static class DemoSeeder
         db.Sessions.Add(session);
         await db.SaveChangesAsync();
 
+        // Real scores from an actual game (session 6AQSXF, 2026-08-16) rather
+        // than invented players - this is Martin's own recreational scoreboard
+        // data (not a customer's), so using it directly for the demo is fine.
+        // Avatars simplified to initials instead of copying the real uploaded
+        // profile photos over.
         db.Players.AddRange(
-            new GamePlayer { SessionId = session.Id, Name = "Anna", Avatar = "🚀", Color = "#e74c3c", Points = 32, SortOrder = 0 },
-            new GamePlayer { SessionId = session.Id, Name = "Bo", Avatar = "🛸", Color = "#3498db", Points = 41, SortOrder = 1 });
+            new GamePlayer { SessionId = session.Id, Name = "ITMartin", Avatar = "IM", Color = "#f1c40f", Points = 50, SortOrder = 0 },
+            new GamePlayer { SessionId = session.Id, Name = "Bertil Prut", Avatar = "BP", Color = "#e74c3c", Points = 50, SortOrder = 1 });
 
         await db.SaveChangesAsync();
     }

@@ -16,6 +16,13 @@
         <ProblemPurposeBanner Problem="At holde overblik over et stort medie-bibliotek uden et samlet sted at browse det."
                                Formaal="Browsbart overblik over hele biblioteket, med filtrering og detaljer per fil." />
 
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Vælg en samling for at se, hvad der allerede er registreret.",
+            "Scan et nyt eksemplar med kameraet for at tilføje det til samlingen.",
+            "Brug filtrering og søgning til hurtigt at finde et bestemt eksemplar igen.",
+        })' />
+
         @if (_groups.Count == 0)
         {
             <p>Ingen samlinger endnu.</p>

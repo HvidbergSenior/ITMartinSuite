@@ -13,6 +13,13 @@
             Problem="Svært at holde styr på hvem der drak hvad til en fest"
             Formaal="Opgørelse af drikkevarer, til en bar-aften" />
 
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Opret en session, og del koden med festens deltagere.",
+            "Registrer drikkevarer, efterhånden som de bliver bestilt.",
+            "Se opgørelsen live, og få den delt op, når aftenen er slut.",
+        })' />
+
         <div class="home-section">
             <label class="home-label">Session name</label>
             <input class="home-input" @bind="SessionName" @bind:event="oninput" placeholder="Friday at Mikkeller" maxlength="40" />

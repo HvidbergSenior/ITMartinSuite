@@ -46,6 +46,16 @@
   [data-theme="light"] .itm-pp-label{color:#4338ca}
   [data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.3)}
 
+  .itm-hw-banner{display:flex;flex-direction:column;gap:6px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:10px;padding:.7rem 1rem;margin-bottom:16px}
+  .itm-hw-header{display:flex;align-items:baseline;gap:.5rem}
+  .itm-hw-icon{font-size:.85rem}
+  .itm-hw-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4ade80}
+  .itm-hw-steps{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:3px}
+  .itm-hw-steps li{font-size:.85rem;color:#bbf7d0;line-height:1.4}
+  [data-theme="light"] .itm-hw-label{color:#15803d}
+  [data-theme="light"] .itm-hw-steps li{color:#166534}
+  [data-theme="light"] .itm-hw-banner{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.3)}
+
   /* Content */
   .content{padding:16px 16px 100px}
   .section-label{font-size:11px;font-weight:700;color:var(--muted3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
@@ -127,6 +137,17 @@
       <span class="itm-pp-label">Formål</span>
       <span class="itm-pp-text">Husk hvor tingene er, uden at lede</span>
     </div>
+  </div>
+  <div class="itm-hw-banner">
+    <div class="itm-hw-header">
+      <span class="itm-hw-icon">👉</span>
+      <span class="itm-hw-label">Sådan bruger du appen</span>
+    </div>
+    <ol class="itm-hw-steps">
+      <li>Tag et billede af, hvor du lægger en ting fra dig.</li>
+      <li>Skriv et par søgeord på billedet, så du kan finde det igen.</li>
+      <li>Søg på ordet senere, og få billedet frem med det samme.</li>
+    </ol>
   </div>
   <div class="section-label" id="sectionLabel">Seneste</div>
   <div class="items" id="itemList"></div>

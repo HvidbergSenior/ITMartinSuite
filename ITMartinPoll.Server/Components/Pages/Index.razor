@@ -13,6 +13,13 @@
         Problem="At lave en hurtig afstemning blandt venner eller familie kræver normalt en konto, et betalt værktøj, eller et rodet opslag hvor svarene drukner."
         Formaal="Opret en afstemning på få sekunder. Del et link — alle kan stemme uden login, og du ser resultatet med det samme." />
 
+    <HowToUseBanner Steps='@(new[]
+    {
+        "Opret en afstemning med de svarmuligheder, du vil have.",
+        "Del linket med dem, der skal stemme.",
+        "Følg resultatet live, efterhånden som svarene kommer ind.",
+    })' />
+
     @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any())
     {
         <div class="poll-empty">

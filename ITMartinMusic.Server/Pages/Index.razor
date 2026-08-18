@@ -70,6 +70,16 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+
+        // Demo tier: a real visitor has no name/access-code to type - walk
+        // straight in as a fixed demo user instead of showing the login form.
+        if (Config.GetValue<bool>("Musik:SeedDemoData"))
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", "musik_name", "Demo");
+            Nav.NavigateTo("/songs", forceLoad: true);
+            return;
+        }
+
         var saved = await JS.InvokeAsync<string?>("localStorage.getItem", "musik_name");
         if (!string.IsNullOrWhiteSpace(saved))
         {
