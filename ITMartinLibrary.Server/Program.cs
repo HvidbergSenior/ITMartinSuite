@@ -133,6 +133,9 @@ using (var scope = app.Services.CreateScope())
     await AddGroupIdColumnAsync("Items");
     await AddGroupIdColumnAsync("ScannedShelves");
     await AddGroupIdColumnAsync("ShelfBooks");
+
+    if (app.Configuration.GetValue<bool>("Library:SeedDemoData"))
+        await ITMartinLibrary.Infrastructure.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

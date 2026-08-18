@@ -26,6 +26,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PlayerDbContext>();
     db.Database.EnsureCreated();
+
+    if (app.Configuration.GetValue<bool>("Player:SeedDemoData"))
+        await ITMartinPlayer.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

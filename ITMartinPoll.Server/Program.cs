@@ -103,6 +103,9 @@ using (var scope = app.Services.CreateScope())
             FOREIGN KEY ("DatePollId") REFERENCES "DatePolls" ("Id") ON DELETE CASCADE
         );
     """);
+
+    if (app.Configuration.GetValue<bool>("Poll:SeedDemoData"))
+        await ITMartinPoll.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

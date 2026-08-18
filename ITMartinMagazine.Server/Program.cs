@@ -20,6 +20,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<MagazineDbContext>();
     db.Database.EnsureCreated();
+
+    if (app.Configuration.GetValue<bool>("Magazine:SeedDemoData"))
+        await ITMartinMagazine.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

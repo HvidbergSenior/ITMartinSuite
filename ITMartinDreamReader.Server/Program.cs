@@ -120,6 +120,9 @@ using (var scope = app.Services.CreateScope())
         db.Categories.AddRange(toAdd);
         db.SaveChanges();
     }
+
+    if (app.Configuration.GetValue<bool>("DreamReader:SeedDemoData"))
+        await ITMartinDreamReader.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 app.UseStaticFiles();

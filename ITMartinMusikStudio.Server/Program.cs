@@ -40,6 +40,9 @@ using (var scope = app.Services.CreateScope())
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN CoverImagePath TEXT NOT NULL DEFAULT ''"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SectionTimings TEXT NULL"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN LineBeats TEXT NULL"); } catch { }
+
+    if (app.Configuration.GetValue<bool>("MusikStudio:SeedDemoData"))
+        await ITMartinMusikStudio.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

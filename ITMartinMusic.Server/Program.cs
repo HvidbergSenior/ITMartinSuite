@@ -51,6 +51,9 @@ using (var scope = app.Services.CreateScope())
             UploadedAt TEXT NOT NULL DEFAULT '',
             IsVisible  INTEGER NOT NULL DEFAULT 1
         )");
+
+    if (app.Configuration.GetValue<bool>("Musik:SeedDemoData"))
+        await ITMartinMusic.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

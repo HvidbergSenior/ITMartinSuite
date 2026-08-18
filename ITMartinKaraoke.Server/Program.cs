@@ -26,6 +26,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<KaraokeDbContext>();
     db.Database.EnsureCreated();
+
+    if (app.Configuration.GetValue<bool>("Karaoke:SeedDemoData"))
+        await ITMartinKaraoke.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

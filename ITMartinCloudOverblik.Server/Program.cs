@@ -17,6 +17,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<CloudDbContext>();
     db.Database.EnsureCreated();
+
+    if (app.Configuration.GetValue<bool>("CloudOverblik:SeedDemoData"))
+        await ITMartinCloudOverblik.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

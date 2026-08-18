@@ -400,6 +400,11 @@ using (var scope = app.Services.CreateScope())
 
         db.SaveChanges();
     }
+
+    // Demo tier only — set on the demo compose service, never on the real
+    // club-web pointed at production data. Idempotent (see DemoSeeder).
+    if (app.Configuration.GetValue<bool>("Club:SeedDemoData"))
+        await DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

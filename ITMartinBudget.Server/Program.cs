@@ -121,6 +121,11 @@ using (var scope = app.Services.CreateScope())
 
     db.Database.Migrate();
 
+    // Demo tier only — set on the demo compose service, never on the real
+    // budget-web pointed at the production data volume. Idempotent (see
+    // DemoSeeder), so safe even if the container restarts.
+    if (app.Configuration.GetValue<bool>("Budget:SeedDemoData"))
+        await ITMartinBudget.Infrastructure.DemoSeeder.SeedAsync(db);
 }
 
 // =========================
@@ -134,6 +139,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 var adminPin = app.Configuration["Budget:AdminPin"] ?? "budget2025";
+var isDemo = app.Configuration.GetValue<bool>("Budget:SeedDemoData");
 
 // Long random secret for the no-login "quick overview" - deliberately not the
 // 4-digit admin PIN, since this link gets shared and saved to a device instead
@@ -151,7 +157,7 @@ app.Use(async (ctx, next) =>
               || path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)
               || path.StartsWith("/quick", StringComparison.OrdinalIgnoreCase)
               || path.StartsWith("/api/quick", StringComparison.OrdinalIgnoreCase);
-    if (bypass || (ctx.Request.Cookies.TryGetValue("budget_auth", out var v) && v == adminPin))
+    if (isDemo || bypass || (ctx.Request.Cookies.TryGetValue("budget_auth", out var v) && v == adminPin))
     {
         await next();
         return;

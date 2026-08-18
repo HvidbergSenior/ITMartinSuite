@@ -21,6 +21,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AdhdDbContext>();
     db.Database.Migrate();
+
+    if (app.Configuration.GetValue<bool>("Adhd:SeedDemoData"))
+        await ITMartinAdhd.Infrastructure.DemoSeeder.SeedAsync(db);
 }
 
 var photoDir = app.Configuration["AdhdSettings:PhotoDir"] ?? "/app/data/photos";

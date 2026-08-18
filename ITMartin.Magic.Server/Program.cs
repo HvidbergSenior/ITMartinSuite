@@ -117,6 +117,9 @@ var importer =
 await importer.ImportAsync(
     CancellationToken.None);
 
+if (app.Configuration.GetValue<bool>("MagicPriser:SeedDemoData"))
+    await ITMartin.Magic.Infrastructure.Persistence.DemoSeeder.SeedAsync(db);
+
 // app.UseHttpsRedirection();
 
 app.UseStaticFiles();

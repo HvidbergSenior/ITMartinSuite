@@ -49,6 +49,9 @@ using (var scope = app.Services.CreateScope())
     await SeedService.SeedAppsAsync(db);
     await SeedService.UpdateAppUrlsAsync(db);
     await SeedService.SeedStepsAsync(db);
+
+    if (app.Configuration.GetValue<bool>("TestHub:SeedDemoData"))
+        await ITMartinTestHub.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

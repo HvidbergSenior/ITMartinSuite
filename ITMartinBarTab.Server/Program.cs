@@ -33,6 +33,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BarTabDbContext>();
     db.Database.EnsureCreated();
+
+    if (app.Configuration.GetValue<bool>("BarTab:SeedDemoData"))
+        await ITMartinBarTab.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

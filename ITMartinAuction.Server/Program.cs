@@ -67,6 +67,9 @@ using (var scope = app.Services.CreateScope())
             // Column or table already exists — ignore
         }
     }
+
+    if (app.Configuration.GetValue<bool>("Auction:SeedDemoData"))
+        await ITMartinAuction.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

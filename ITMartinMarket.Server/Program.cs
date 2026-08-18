@@ -19,6 +19,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<MarketDbContext>();
     await db.Database.EnsureCreatedAsync();
+
+    if (app.Configuration.GetValue<bool>("Market:SeedDemoData"))
+        await ITMartinMarket.Infrastructure.DemoSeeder.SeedAsync(db);
 }
 
 Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "data", "items"));

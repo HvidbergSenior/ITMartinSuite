@@ -62,6 +62,9 @@ using (var scope = app.Services.CreateScope())
     }
     catch { }
     await RulesetSeeder.SeedAsync(db);
+
+    if (app.Configuration.GetValue<bool>("StarRealms:SeedDemoData"))
+        await ITMartinStarRealms.Server.Data.DemoSeeder.SeedAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())
