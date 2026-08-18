@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @inject ClubDbContext Db
 @inject NavigationManager Nav
+@inject IConfiguration Configuration
 
 <div class="create-wrap">
     <div class="create-card">
@@ -61,6 +62,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Demo tier: the seeded demo group's slug ("demo") never matches a
+        // real subdomain, since the demo hostname (e.g. idag-demo.itmartin.dk)
+        // splits to "idag-demo" - walk straight into it instead of showing
+        // the create-group screen to every visitor.
+        if (Configuration.GetValue<bool>("Club:SeedDemoData"))
+        {
+            Nav.NavigateTo($"/g/{ITMartinClub.Server.Services.DemoSeeder.DemoSlug}", forceLoad: true);
+            return;
+        }
+
         var host = new Uri(Nav.Uri).Host;
         _slug = host.Split('.')[0];
 
