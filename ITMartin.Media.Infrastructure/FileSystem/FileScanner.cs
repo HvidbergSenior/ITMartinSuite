@@ -17,12 +17,17 @@ public sealed class FileScanner : IFileScanner
         return Task.FromResult(files);
     }
 
-    private static readonly HashSet<string> SkippedFolders =
-    [
-        "@eadir", "@eaDir", "#recycle", "#snapshot",
-        ".@__thumb", "@recently-snapshot", ".synophoto",
-        ".package1", ".package2", "thumbnails", "SmartFolders"
-    ];
+    private static readonly HashSet<string> SkippedFolders = new(
+        [
+            "@eadir", "#recycle", "#snapshot",
+            ".@__thumb", "@recently-snapshot", ".synophoto",
+            ".package1", ".package2", "thumbnails", "SmartFolders",
+            // Windows/OS system folders — never real content, and $RECYCLE.BIN's
+            // per-user subfolders are access-denied to a normal process, which
+            // previously crashed the whole scan rather than just skipping it.
+            "$RECYCLE.BIN", "System Volume Information"
+        ],
+        StringComparer.OrdinalIgnoreCase);
 
     public IEnumerable<string> EnumerateFiles(
         string rootPath)
@@ -77,9 +82,22 @@ public sealed class FileScanner : IFileScanner
 
     private static bool TryEnsureZipExtracted(string zipPath, out string extractedDir)
     {
-        extractedDir = Path.Combine(
-            Path.GetDirectoryName(zipPath) ?? string.Empty,
-            Path.GetFileNameWithoutExtension(zipPath) + "_extracted");
+        var baseDir = Path.GetDirectoryName(zipPath) ?? string.Empty;
+        var baseName = Path.GetFileNameWithoutExtension(zipPath);
+
+        // A sibling folder with the exact same name (no suffix) already
+        // existing means someone (Explorer, a prior manual extract) already
+        // unpacked this zip — extracting again into a "_extracted" sibling
+        // would duplicate every file inside it. Only fall back to our own
+        // "_extracted" folder when no such sibling exists.
+        var alreadyExtracted = Path.Combine(baseDir, baseName);
+        if (Directory.Exists(alreadyExtracted))
+        {
+            extractedDir = alreadyExtracted;
+            return true;
+        }
+
+        extractedDir = Path.Combine(baseDir, baseName + "_extracted");
 
         if (Directory.Exists(extractedDir))
         {

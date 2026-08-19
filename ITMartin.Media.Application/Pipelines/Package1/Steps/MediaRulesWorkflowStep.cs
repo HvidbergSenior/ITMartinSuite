@@ -10,13 +10,23 @@ namespace ITMartin.Media.Application.Pipelines.Package1.Steps;
 public sealed class MediaRulesWorkflowStep
     : Package1WorkflowStepBase
 {
+    private static readonly HashSet<string> WebSafeVideoCodecs =
+        new(StringComparer.OrdinalIgnoreCase) { "h264", "hevc" };
+
+    private readonly ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IVideoMetadataService
+        _videoMetadataService;
+
     private readonly ILogger<
             MediaRulesWorkflowStep>
         _logger;
 
     public MediaRulesWorkflowStep(
+        ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IVideoMetadataService videoMetadataService,
         ILogger<MediaRulesWorkflowStep> logger)
     {
+        _videoMetadataService =
+            videoMetadataService;
+
         _logger =
             logger;
     }
@@ -144,12 +154,22 @@ public sealed class MediaRulesWorkflowStep
 
     switch (extension)
     {
-        // Canonical video format
+        // ".mp4" is just a container - the codec inside still needs checking.
+        // Old point-and-shoots/camcorders often wrote MPEG-4 Part 2 or other
+        // non-web-safe codecs into an .mp4 file, and no browser can play
+        // those, so trusting the extension alone let them through unfixed.
         case ".mp4":
 
-            mediaFile.IsNormalized = true;
-            mediaFile.RequiresNormalization = false;
-            mediaFile.RequiresEnhancement = true;
+            var codec = _videoMetadataService.GetVideoCodec(mediaFile.FullPath);
+            var webSafe = codec is not null && WebSafeVideoCodecs.Contains(codec);
+
+            mediaFile.IsNormalized = webSafe;
+            mediaFile.RequiresNormalization = !webSafe;
+            mediaFile.RequiresEnhancement = webSafe;
+
+            _logger.LogInformation(
+                "Codec check for {File}: {Codec} (web-safe={WebSafe})",
+                mediaFile.FileName, codec ?? "unknown", webSafe);
 
             break;
 

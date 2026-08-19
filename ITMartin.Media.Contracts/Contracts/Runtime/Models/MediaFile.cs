@@ -90,6 +90,12 @@
 
         public bool IsDateReliable { get; private set; }
 
+        // True when only Year came from a trustworthy source (an ancestor
+        // folder name) - Month/Day are placeholders, never a real date.
+        // Export routing uses this to land the file in "{year}/Ukendt måned"
+        // instead of a fully-dated month folder or the flat Undated bucket.
+        public bool IsYearOnly { get; private set; }
+
         public bool IsImage =>
             Type == MediaType.Image;
 
@@ -196,12 +202,16 @@
 
         public void SetDate(
             DateTime? date,
-            bool isReliable)
+            bool isReliable,
+            bool isYearOnly = false)
         {
             CreatedAt = date;
 
             IsDateReliable =
                 isReliable;
+
+            IsYearOnly =
+                isYearOnly;
 
             if (date is { } d)
             {

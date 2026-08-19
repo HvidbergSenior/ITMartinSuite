@@ -25,7 +25,37 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             "thumbnails", "working", "enhanced", "manifests", "temp",
             "SmartFolders", RootFolderName,
             "LivePhotos",
+            // Handled entirely by BuildFileFolderPagesAsync instead - walking them
+            // here would sweep incidental images (album art, scanned-doc thumbnails)
+            // into the year-based photo grid as if they were real photos. Tenants'
+            // libraries use either Danish or English category names depending on
+            // when/how they were sorted (e.g. Mie has "Musik", Rico has "Audio") -
+            // both must be covered, not just whichever one was checked first.
+            "Musik", "Audio", "Dokumenter", "Documents",
+            // Flagged-as-duplicate copies staged for review/deletion, not real
+            // library content - walking this folder shows every kept photo a
+            // second time (found on Rico's library: 17,260 files in here alone).
+            "DeleteCandidates",
         };
+
+    private const string ScreenshotFolderName = "Skærmbilleder";
+
+    // Top-level folders that get their own browsable section instead of
+    // being mixed into the normal year grid: photos re-grouped by camera
+    // (see LibraryPolishService.GroupByCameraMakeAsync), and screenshots -
+    // most of which have no reliable date at all, so mixing them into the
+    // year grid means most end up dumped in "Ukendt dato" as a chat-capture/
+    // receipt pile instead of their own section.
+    private static readonly (string FolderName, string Kind)[] FlatSections =
+    [
+        ("Olympus Camera", "kamera"),
+        ("Canon Camera", "kamera"),
+        (ScreenshotFolderName, "screenshot"),
+    ];
+
+    private static bool IsScreenshot(string path) =>
+        path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Any(segment => segment.Equals(ScreenshotFolderName, StringComparison.OrdinalIgnoreCase));
 
     private readonly IThumbnailService _thumbnailService;
     private readonly IMediaDateService _dateService;
@@ -124,20 +154,72 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             }
         });
 
-        var byYear = items
+        // Flat sections (camera re-groupings, screenshots) get their own
+        // browsable page below instead of the normal year grid - a
+        // camera-grouped photo still has a real EXIF date and would
+        // otherwise also appear in its year page (shown twice); a screenshot
+        // usually has no reliable date at all and would otherwise just pile
+        // up in "Ukendt dato".
+        var flatSectionPaths = FlatSections
+            .Select(s => Path.Combine(libraryPath, s.FolderName) + Path.DirectorySeparatorChar)
+            .ToList();
+        var yearItems = items
+            .Where(i => !flatSectionPaths.Any(p => i.SourcePath.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        var byYear = yearItems
             .GroupBy(i => i.Date?.Year.ToString() ?? UnknownYearLabel)
-            .OrderByDescending(g => g.Key, StringComparer.Ordinal)
+            // Real years newest-first, but Ukendt dato always last - it's a
+            // catch-all bucket, not a "year", and reading top-to-bottom as a
+            // timeline is confusing if the undated pile leads it off.
+            .OrderBy(g => g.Key == UnknownYearLabel ? 1 : 0)
+            .ThenByDescending(g => g.Key, StringComparer.Ordinal)
             .ToList();
 
         foreach (var yearGroup in byYear)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var ordered = yearGroup.OrderBy(i => i.Date ?? DateTime.MinValue).ToList();
+            var note = yearGroup.Key == UnknownYearLabel
+                ? "Disse filer har ingen dato i sig selv, og lå heller ikke i en mappe der afslørede årstallet - " +
+                  "derfor kunne de ikke sorteres ind under et bestemt år. Skal et billede flyttes til det rigtige år: " +
+                  "find filen under \"Udaterede\" (vist i klammer under hvert billede herunder), flyt den til den " +
+                  "rigtige Year/MM-Month-mappe i Billeder eller Videoer, og kør eksporten igen."
+                : null;
+
+            // Billeder and Videoer are separate folders per year (not one mixed
+            // grid) - matches how Musik/Dokumenter already work, and keeps a
+            // sideways video thumbnail from reading as a bug sitting next to photos.
+            var photos = ordered.Where(i => !i.IsVideo).ToList();
+            var videos = ordered.Where(i => i.IsVideo).ToList();
+            var subPages = new List<(string Label, string FileName, int Count)>();
+
+            if (photos.Count > 0)
+            {
+                var fileName = $"{SanitizeFileName(yearGroup.Key)}-billeder.html";
+                await File.WriteAllTextAsync(
+                    Path.Combine(galleryRoot, fileName),
+                    BuildYearMediaPageHtml("Billeder", yearGroup.Key, photos, galleryRoot, $"{yearGroup.Key}.html", note),
+                    cancellationToken);
+                subPages.Add(("Billeder", fileName, photos.Count));
+            }
+            if (videos.Count > 0)
+            {
+                var fileName = $"{SanitizeFileName(yearGroup.Key)}-videoer.html";
+                await File.WriteAllTextAsync(
+                    Path.Combine(galleryRoot, fileName),
+                    BuildYearMediaPageHtml("Videoer", yearGroup.Key, videos, galleryRoot, $"{yearGroup.Key}.html", null),
+                    cancellationToken);
+                subPages.Add(("Videoer", fileName, videos.Count));
+            }
+
             var yearHtmlPath = Path.Combine(galleryRoot, $"{yearGroup.Key}.html");
-            await File.WriteAllTextAsync(yearHtmlPath, BuildYearHtml(yearGroup.Key, ordered, galleryRoot), cancellationToken);
+            await File.WriteAllTextAsync(yearHtmlPath, BuildFolderIndexHtml(yearGroup.Key, subPages), cancellationToken);
         }
 
         var smartFolderLinks = await BuildSmartFolderPagesAsync(libraryPath, galleryRoot, thumbsRoot, thumbRelativePaths, cancellationToken);
+        smartFolderLinks.AddRange(await BuildFileFolderPagesAsync(libraryPath, galleryRoot, cancellationToken));
+        smartFolderLinks.AddRange(await BuildFlatSectionPagesAsync(libraryPath, galleryRoot, items, cancellationToken));
 
         var indexPath = Path.Combine(libraryPath, "index.html");
         await File.WriteAllTextAsync(indexPath, BuildIndexHtml(byYear, libraryPath, galleryRoot, smartFolderLinks), cancellationToken);
@@ -182,7 +264,9 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             var pagePath = Path.Combine(galleryRoot, fileName);
             await File.WriteAllTextAsync(pagePath, BuildYearHtml(label, pageItems, galleryRoot), cancellationToken);
 
-            var cover = pageItems.FirstOrDefault(i => !i.IsVideo) ?? pageItems.FirstOrDefault();
+            var cover = pageItems.FirstOrDefault(i => !i.IsVideo && !IsScreenshot(i.SourcePath))
+                ?? pageItems.FirstOrDefault(i => !i.IsVideo)
+                ?? pageItems.FirstOrDefault();
             var hrefFromLibraryRoot = ToWebPath(Path.Combine(Path.GetFileName(galleryRoot), fileName));
             links.Add(new SmartFolderLink(kind, label, hrefFromLibraryRoot, cover?.ThumbPath));
         }
@@ -230,7 +314,12 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
 
                 var year = Path.GetFileName(yearDir);
                 var href = ToWebPath(Path.GetRelativePath(libraryPath, existingHtml));
-                links.Add(new SmartFolderLink("aarbog", $"Årbog {year}", href, CoverThumbPath: null));
+                // Reuse one of the yearbook's own copied photos as the card cover
+                // (full-resolution, not a generated thumbnail - fine for a local
+                // file:// viewer where there's no network transfer cost) rather
+                // than leaving the card blank like a plain text link.
+                var cover = Directory.EnumerateFiles(yearDir).FirstOrDefault(IsWebSafeImage);
+                links.Add(new SmartFolderLink("aarbog", $"Årbog {year}", href, cover));
             }
         }
 
@@ -289,6 +378,189 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         return items;
     }
 
+    // Musik/Dokumenter never make it into the by-year grid (EnumerateLibraryMedia
+    // only walks image/video files), so without this they'd be invisible from the
+    // offline viewer - present as one flat, thumbnail-free page per folder instead
+    // (playable <audio> for tracks, plain download links for documents).
+    // One page per leaf folder ("headline" - an album, or a Year/Month bucket)
+    // plus a landing page of folder cards, mirroring how Trips/People work -
+    // browsing 3,733 tracks or 873 documents as one giant flat list doesn't scale.
+    private async Task<List<SmartFolderLink>> BuildFileFolderPagesAsync(
+        string libraryPath, string galleryRoot, CancellationToken cancellationToken)
+    {
+        var links = new List<SmartFolderLink>();
+        // Only one of each pair will actually exist for a given library - Danish
+        // vs English category names depending on when/how it was sorted.
+        foreach (var (folderName, kind) in new[]
+                 {
+                     ("Musik", "musik"), ("Audio", "musik"),
+                     ("Dokumenter", "dokumenter"), ("Documents", "dokumenter"),
+                 })
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var folderPath = Path.Combine(libraryPath, folderName);
+            if (!Directory.Exists(folderPath)) continue;
+
+            // iTunes' own library keeps a huge nested cache of per-track cover
+            // art (Album Artwork\...\<hash>\NN\NN\NN\<file>, one image per
+            // leaf folder) and internal database/plist files alongside the
+            // real songs - none of that is music to browse, and left in it
+            // turns the index into hundreds of junk "1 file" album cards.
+            var files = Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories)
+                .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}Album Artwork{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                .Where(f => kind != "musik" || MediaTypeHelper.IsAudio(f))
+                .ToList();
+            if (files.Count == 0) continue;
+
+            var headlineCards = new List<(string Label, string FileName, int Count)>();
+            var byHeadline = files
+                .GroupBy(f => Path.GetDirectoryName(Path.GetRelativePath(folderPath, f)) ?? "")
+                .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in byHeadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var headlineLabel = string.IsNullOrEmpty(group.Key) ? folderName : group.Key.Replace('\\', '/');
+                var orderedFiles = group.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
+
+                var pageFileName = $"{kind}-{SanitizeFileName(group.Key)}.html";
+                var pagePath = Path.Combine(galleryRoot, pageFileName);
+                await File.WriteAllTextAsync(
+                    pagePath, BuildFileListHtml(headlineLabel, orderedFiles, galleryRoot, $"{kind}.html"), cancellationToken);
+
+                headlineCards.Add((headlineLabel, pageFileName, orderedFiles.Count));
+            }
+
+            var indexFileName = $"{kind}.html";
+            await File.WriteAllTextAsync(
+                Path.Combine(galleryRoot, indexFileName), BuildFolderIndexHtml(folderName, headlineCards), cancellationToken);
+
+            var href = ToWebPath(Path.Combine(Path.GetFileName(galleryRoot), indexFileName));
+            links.Add(new SmartFolderLink(kind, $"{folderName} ({files.Count})", href, CoverThumbPath: null));
+        }
+
+        return links;
+    }
+
+    // Reuses thumbnails already generated in the main pass (these files were
+    // never excluded from EnumerateLibraryMedia, just pulled out of the
+    // year grid above) - no extra thumbnailing work needed here.
+    private async Task<List<SmartFolderLink>> BuildFlatSectionPagesAsync(
+        string libraryPath, string galleryRoot, List<GalleryItem> items, CancellationToken cancellationToken)
+    {
+        var links = new List<SmartFolderLink>();
+
+        foreach (var (folderName, kind) in FlatSections)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var folderPath = Path.Combine(libraryPath, folderName) + Path.DirectorySeparatorChar;
+            var folderItems = items
+                .Where(i => i.SourcePath.StartsWith(folderPath, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(i => i.Date ?? DateTime.MinValue)
+                .ToList();
+            if (folderItems.Count == 0) continue;
+
+            var photos = folderItems.Where(i => !i.IsVideo).ToList();
+            var videos = folderItems.Where(i => i.IsVideo).ToList();
+            var subPages = new List<(string Label, string FileName, int Count)>();
+            var slug = SanitizeFileName(folderName);
+
+            if (photos.Count > 0)
+            {
+                var fileName = $"{slug}-billeder.html";
+                await File.WriteAllTextAsync(
+                    Path.Combine(galleryRoot, fileName),
+                    BuildYearMediaPageHtml("Billeder", folderName, photos, galleryRoot, $"{slug}.html", null),
+                    cancellationToken);
+                subPages.Add(("Billeder", fileName, photos.Count));
+            }
+            if (videos.Count > 0)
+            {
+                var fileName = $"{slug}-videoer.html";
+                await File.WriteAllTextAsync(
+                    Path.Combine(galleryRoot, fileName),
+                    BuildYearMediaPageHtml("Videoer", folderName, videos, galleryRoot, $"{slug}.html", null),
+                    cancellationToken);
+                subPages.Add(("Videoer", fileName, videos.Count));
+            }
+
+            var indexFileName = $"{slug}.html";
+            await File.WriteAllTextAsync(
+                Path.Combine(galleryRoot, indexFileName), BuildFolderIndexHtml(folderName, subPages), cancellationToken);
+
+            var cover = photos.FirstOrDefault(i => !IsScreenshot(i.SourcePath))?.ThumbPath ?? photos.FirstOrDefault()?.ThumbPath;
+            var href = ToWebPath(Path.Combine(Path.GetFileName(galleryRoot), indexFileName));
+            links.Add(new SmartFolderLink(kind, folderName, href, cover));
+        }
+
+        return links;
+    }
+
+    private static string BuildFolderIndexHtml(string sectionLabel, List<(string Label, string FileName, int Count)> cards)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<!doctype html><html lang=\"da\"><head><meta charset=\"utf-8\">");
+        sb.AppendLine($"<title>{WebUtility.HtmlEncode(sectionLabel)}</title>");
+        sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+        sb.AppendLine("""
+            <style>
+              body{background:#0b1220;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:1.5rem 1rem 4rem}
+              h1{text-align:center;font-size:1.6rem;margin-bottom:.25rem}
+              a.back{display:block;text-align:center;color:#7b8aad;text-decoration:none;margin-bottom:1rem}
+              .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;max-width:1200px;margin:1rem auto 0}
+              .card{background:#111a2e;border:1px solid #223154;border-radius:14px;padding:1rem 1.2rem;text-decoration:none;color:inherit;display:block}
+              .card .label{font-size:1.05rem}
+              .card .count{color:#7b8aad;font-size:.85rem;margin-top:.2rem}
+            </style>
+            """);
+        sb.AppendLine("</head><body>");
+        sb.AppendLine($"<h1>{WebUtility.HtmlEncode(sectionLabel)}</h1>");
+        sb.AppendLine("<a class=\"back\" href=\"../index.html\">&larr; Forside</a>");
+        sb.AppendLine("<div class=\"grid\">");
+        foreach (var card in cards)
+        {
+            sb.AppendLine($"<a class=\"card\" href=\"{card.FileName}\"><div class=\"label\">{WebUtility.HtmlEncode(card.Label)}</div>" +
+                          $"<div class=\"count\">{card.Count} filer</div></a>");
+        }
+        sb.AppendLine("</div></body></html>");
+        return sb.ToString();
+    }
+
+    private static string BuildFileListHtml(string label, List<string> files, string galleryRoot, string backHref)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<!doctype html><html lang=\"da\"><head><meta charset=\"utf-8\">");
+        sb.AppendLine($"<title>{WebUtility.HtmlEncode(label)}</title>");
+        sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+        sb.AppendLine("""
+            <style>
+              body{background:#0b1220;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:1.5rem 1rem 4rem}
+              h1{text-align:center;font-size:1.6rem;margin-bottom:.25rem}
+              a.back{display:block;text-align:center;color:#7b8aad;text-decoration:none;margin-bottom:1rem}
+              .wrap{max-width:800px;margin:0 auto}
+              ul{list-style:none;padding:0;margin:0}
+              li{padding:.5rem 0;border-bottom:1px solid #182347}
+              a.file{color:#eef2ff;text-decoration:none}
+              a.file:hover{color:#8fa1d0}
+              audio{width:100%;margin-top:.3rem;height:2rem}
+            </style>
+            """);
+        sb.AppendLine("</head><body><div class=\"wrap\">");
+        sb.AppendLine($"<h1>{WebUtility.HtmlEncode(label)}</h1>");
+        sb.AppendLine($"<a class=\"back\" href=\"{backHref}\">&larr; Tilbage</a>");
+        sb.AppendLine("<ul>");
+        foreach (var file in files)
+        {
+            var href = ToWebPath(Path.GetRelativePath(galleryRoot, file));
+            var name = Path.GetFileName(file);
+            sb.AppendLine(MediaTypeHelper.IsAudio(file)
+                ? $"<li>{WebUtility.HtmlEncode(name)}<audio controls preload=\"none\" src=\"{href}\"></audio></li>"
+                : $"<li><a class=\"file\" href=\"{href}\" download>{WebUtility.HtmlEncode(name)}</a></li>");
+        }
+        sb.AppendLine("</ul></div></body></html>");
+        return sb.ToString();
+    }
+
     // SmartFolders entries are symlinks back to the real library file wherever
     // the OS/environment allows it (falls back to a real copy otherwise, per
     // SmartFoldersService) - resolve back to the original so the mirrored
@@ -313,17 +585,23 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         return string.IsNullOrWhiteSpace(cleaned) ? "unavngivet" : cleaned;
     }
 
-    private static string BuildYearHtml(string yearLabel, List<GalleryItem> items, string galleryRoot)
+    // A year's Billeder/Videoer are each their own generated page (not a mixed
+    // grid) - matches how Musik/Dokumenter already browse, and a sideways video
+    // thumbnail sitting next to photos used to read as a bug rather than the
+    // separate, unrelated problem it actually is.
+    private static string BuildYearMediaPageHtml(
+        string sectionLabel, string yearLabel, List<GalleryItem> items, string galleryRoot, string backHref, string? note)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!doctype html><html lang=\"da\"><head><meta charset=\"utf-8\">");
-        sb.AppendLine($"<title>{WebUtility.HtmlEncode(yearLabel)}</title>");
+        sb.AppendLine($"<title>{WebUtility.HtmlEncode(sectionLabel)} {WebUtility.HtmlEncode(yearLabel)}</title>");
         sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
         sb.AppendLine("""
             <style>
               body{background:#0b1220;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:1.5rem 1rem 4rem}
               h1{text-align:center;font-size:1.6rem;margin-bottom:.25rem}
               a.back{display:block;text-align:center;color:#7b8aad;text-decoration:none;margin-bottom:1rem}
+              p.note{max-width:700px;margin:0 auto 1.2rem;color:#7b8aad;font-size:.85rem;text-align:center;line-height:1.5}
               .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.6rem;max-width:1400px;margin:0 auto}
               .grid figure{margin:0;cursor:pointer;background:#111a2e;border:1px solid #223154;border-radius:8px;overflow:hidden}
               .grid img{width:100%;display:block;aspect-ratio:1;object-fit:cover}
@@ -333,13 +611,15 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
               .lightbox .nav{position:absolute;top:0;bottom:0;width:15%;display:flex;align-items:center;font-size:2.5rem;color:#7b8aad;background:none;border:none;cursor:pointer}
               .lightbox .prev{left:0;justify-content:flex-start;padding-left:1rem}
               .lightbox .next{right:0;justify-content:flex-end;padding-right:1rem}
-              .lightbox .close{position:absolute;top:1rem;right:1.2rem;font-size:1.8rem;color:#eef2ff;background:none;border:none;cursor:pointer}
+              .lightbox .close{position:absolute;top:1rem;right:1.2rem;font-size:1.8rem;color:#eef2ff;background:none;border:none;cursor:pointer;z-index:2}
               .lightbox .caption{margin-top:.75rem;color:#7b8aad;font-size:.85rem}
             </style>
             """);
         sb.AppendLine("</head><body>");
-        sb.AppendLine($"<h1>{WebUtility.HtmlEncode(yearLabel)}</h1>");
-        sb.AppendLine("<a class=\"back\" href=\"../index.html\">&larr; Alle &aring;r</a>");
+        sb.AppendLine($"<h1>{WebUtility.HtmlEncode(sectionLabel)} - {WebUtility.HtmlEncode(yearLabel)}</h1>");
+        sb.AppendLine($"<a class=\"back\" href=\"{backHref}\">&larr; {WebUtility.HtmlEncode(yearLabel)}</a>");
+        if (note is not null)
+            sb.AppendLine($"<p class=\"note\">{WebUtility.HtmlEncode(note)}</p>");
         sb.AppendLine("<div class=\"grid\" id=\"grid\"></div>");
 
         sb.AppendLine("<div class=\"lightbox\" id=\"lb\"><button class=\"close\" onclick=\"closeLb()\">&times;</button>" +
@@ -352,7 +632,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         {
             var thumb = ToWebPath(Path.GetRelativePath(galleryRoot, item.ThumbPath));
             var full = ToWebPath(Path.GetRelativePath(galleryRoot, item.SourcePath));
-            var caption = item.Date?.ToString("d. MMMM yyyy") ?? "";
+            var caption = item.Date?.ToString("d. MMMM yyyy") ?? full;
             sb.Append("{t:\"").Append(JsEscape(thumb)).Append("\",f:\"").Append(JsEscape(full))
               .Append("\",v:").Append(item.IsVideo ? "true" : "false")
               .Append(",w:").Append(item.IsVideo || IsWebSafeImage(item.SourcePath) ? "true" : "false")
@@ -369,6 +649,116 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
               fig.appendChild(img);
               fig.onclick = () => openLb(i);
               grid.appendChild(fig);
+            });
+
+            let current = -1;
+            const lb = document.getElementById('lb');
+            const lbMedia = document.getElementById('lbMedia');
+            const lbCaption = document.getElementById('lbCaption');
+
+            function render() {
+              const it = items[current];
+              lbMedia.innerHTML = it.v
+                ? `<video src="${it.f}" controls autoplay></video>`
+                : `<img src="${it.w ? it.f : it.t}">`;
+              lbCaption.textContent = it.d;
+            }
+            function openLb(i) { current = i; render(); lb.classList.add('open'); }
+            function closeLb() { lb.classList.remove('open'); lbMedia.innerHTML = ''; }
+            function step(delta) {
+              current = (current + delta + items.length) % items.length;
+              render();
+            }
+            document.addEventListener('keydown', e => {
+              if (!lb.classList.contains('open')) return;
+              if (e.key === 'Escape') closeLb();
+              if (e.key === 'ArrowLeft') step(-1);
+              if (e.key === 'ArrowRight') step(1);
+            });
+            """);
+        sb.AppendLine("</script></body></html>");
+        return sb.ToString();
+    }
+
+    private static string BuildYearHtml(string yearLabel, List<GalleryItem> items, string galleryRoot, string? note = null)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<!doctype html><html lang=\"da\"><head><meta charset=\"utf-8\">");
+        sb.AppendLine($"<title>{WebUtility.HtmlEncode(yearLabel)}</title>");
+        sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+        sb.AppendLine("""
+            <style>
+              body{background:#0b1220;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:1.5rem 1rem 4rem}
+              h1{text-align:center;font-size:1.6rem;margin-bottom:.25rem}
+              h2.section{max-width:1400px;margin:1.5rem auto .6rem;font-size:1rem;color:#c2cbe6;font-weight:600}
+              a.back{display:block;text-align:center;color:#7b8aad;text-decoration:none;margin-bottom:1rem}
+              p.note{max-width:700px;margin:0 auto 1.2rem;color:#7b8aad;font-size:.85rem;text-align:center;line-height:1.5}
+              .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.6rem;max-width:1400px;margin:0 auto}
+              .grid figure{margin:0;cursor:pointer;background:#111a2e;border:1px solid #223154;border-radius:8px;overflow:hidden}
+              .grid img{width:100%;display:block;aspect-ratio:1;object-fit:cover}
+              .lightbox{display:none;position:fixed;inset:0;background:rgba(4,7,15,.94);z-index:10;align-items:center;justify-content:center;flex-direction:column}
+              .lightbox.open{display:flex}
+              .lightbox img, .lightbox video{max-width:92vw;max-height:82vh}
+              .lightbox .nav{position:absolute;top:0;bottom:0;width:15%;display:flex;align-items:center;font-size:2.5rem;color:#7b8aad;background:none;border:none;cursor:pointer}
+              .lightbox .prev{left:0;justify-content:flex-start;padding-left:1rem}
+              .lightbox .next{right:0;justify-content:flex-end;padding-right:1rem}
+              .lightbox .close{position:absolute;top:1rem;right:1.2rem;font-size:1.8rem;color:#eef2ff;background:none;border:none;cursor:pointer;z-index:2}
+              .lightbox .caption{margin-top:.75rem;color:#7b8aad;font-size:.85rem}
+            </style>
+            """);
+        sb.AppendLine("</head><body>");
+        sb.AppendLine($"<h1>{WebUtility.HtmlEncode(yearLabel)}</h1>");
+        sb.AppendLine("<a class=\"back\" href=\"../index.html\">&larr; Alle &aring;r</a>");
+        if (note is not null)
+            sb.AppendLine($"<p class=\"note\">{WebUtility.HtmlEncode(note)}</p>");
+
+        // Photos and videos get their own grid rather than one mixed timeline -
+        // a sideways video thumbnail sitting next to photos reads as a bug even
+        // when it's really just an unrelated, separate problem (the fixer only
+        // ever handles images, never video rotation).
+        var hasPhotos = items.Any(i => !i.IsVideo);
+        var hasVideos = items.Any(i => i.IsVideo);
+        if (hasPhotos)
+        {
+            sb.AppendLine("<h2 class=\"section\">Billeder</h2>");
+            sb.AppendLine("<div class=\"grid\" id=\"gridPhotos\"></div>");
+        }
+        if (hasVideos)
+        {
+            sb.AppendLine("<h2 class=\"section\">Videoer</h2>");
+            sb.AppendLine("<div class=\"grid\" id=\"gridVideos\"></div>");
+        }
+
+        sb.AppendLine("<div class=\"lightbox\" id=\"lb\"><button class=\"close\" onclick=\"closeLb()\">&times;</button>" +
+                      "<button class=\"nav prev\" onclick=\"step(-1)\">&#8249;</button>" +
+                      "<button class=\"nav next\" onclick=\"step(1)\">&#8250;</button>" +
+                      "<div id=\"lbMedia\"></div><div class=\"caption\" id=\"lbCaption\"></div></div>");
+
+        sb.AppendLine("<script>const items = [");
+        foreach (var item in items)
+        {
+            var thumb = ToWebPath(Path.GetRelativePath(galleryRoot, item.ThumbPath));
+            var full = ToWebPath(Path.GetRelativePath(galleryRoot, item.SourcePath));
+            // No date to show on the Ukendt dato page - show the file's relative
+            // path instead, so it can actually be found and moved to fix it.
+            var caption = item.Date?.ToString("d. MMMM yyyy") ?? full;
+            sb.Append("{t:\"").Append(JsEscape(thumb)).Append("\",f:\"").Append(JsEscape(full))
+              .Append("\",v:").Append(item.IsVideo ? "true" : "false")
+              .Append(",w:").Append(item.IsVideo || IsWebSafeImage(item.SourcePath) ? "true" : "false")
+              .Append(",d:\"").Append(JsEscape(caption)).Append("\"},");
+        }
+        sb.AppendLine("];");
+
+        sb.AppendLine("""
+            const gridPhotos = document.getElementById('gridPhotos');
+            const gridVideos = document.getElementById('gridVideos');
+            items.forEach((it, i) => {
+              const fig = document.createElement('figure');
+              const img = document.createElement('img');
+              img.src = it.t; img.loading = 'lazy';
+              fig.appendChild(img);
+              fig.onclick = () => openLb(i);
+              (it.v ? gridVideos : gridPhotos)?.appendChild(fig);
             });
 
             let current = -1;
@@ -430,7 +820,9 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         sb.AppendLine("<div class=\"grid\">");
         foreach (var yearGroup in byYear)
         {
-            var cover = yearGroup.FirstOrDefault(i => !i.IsVideo) ?? yearGroup.First();
+            var cover = yearGroup.FirstOrDefault(i => !i.IsVideo && !IsScreenshot(i.SourcePath))
+                ?? yearGroup.FirstOrDefault(i => !i.IsVideo)
+                ?? yearGroup.First();
             var coverWeb = ToWebPath(Path.GetRelativePath(libraryPath, cover.ThumbPath));
             var href = ToWebPath(Path.Combine(Path.GetFileName(galleryRoot), $"{yearGroup.Key}.html"));
             sb.AppendLine($"<a class=\"card\" href=\"{href}\"><img src=\"{coverWeb}\" loading=\"lazy\">" +
@@ -442,6 +834,10 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         AppendSmartFolderSection(sb, "Personer", "person", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Steder", "sted", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Ture", "tur", smartFolderLinks, galleryRoot, libraryPath);
+        AppendSmartFolderSection(sb, "Kameraer", "kamera", smartFolderLinks, galleryRoot, libraryPath);
+        AppendSmartFolderSection(sb, "Skærmbilleder", "screenshot", smartFolderLinks, galleryRoot, libraryPath);
+        AppendSmartFolderSection(sb, "Musik", "musik", smartFolderLinks, galleryRoot, libraryPath);
+        AppendSmartFolderSection(sb, "Dokumenter", "dokumenter", smartFolderLinks, galleryRoot, libraryPath);
 
         sb.AppendLine("</body></html>");
         return sb.ToString();
@@ -477,11 +873,13 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         WebSafeImageExtensions.Contains(Path.GetExtension(path));
 
     // Matches the "{Year}/{MM}-{MonthName}" folder convention Package1 sorts
-    // into (e.g. "2013/03-March/IMG_1234.jpg") - anchored to the start of the
-    // relative path so a coincidental 4-digit number deeper in the path never
-    // matches.
+    // into (e.g. "Billeder/2013/03-March/IMG_1234.jpg") - the Year/Month pair is
+    // nested one level under the top category folder (Billeder/Videoer/...), not
+    // at the relative-path root, so this must match mid-path. Anchored to a path
+    // separator (or start-of-string) immediately before the year so a coincidental
+    // 4-digit number deeper in a filename never matches.
     private static readonly Regex YearMonthFolderPattern =
-        new(@"^(?<year>(19|20)\d{2})[\\/](?<month>0[1-9]|1[0-2])-", RegexOptions.Compiled);
+        new(@"(?:^|[\\/])(?<year>(19|20)\d{2})[\\/](?<month>0[1-9]|1[0-2])-", RegexOptions.Compiled);
 
     private static DateTime? TryGetDateFromFolderPath(string libraryPath, string file)
     {

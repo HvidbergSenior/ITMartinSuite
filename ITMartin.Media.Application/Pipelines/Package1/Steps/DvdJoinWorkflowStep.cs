@@ -63,7 +63,9 @@ public sealed class DvdJoinWorkflowStep : Package1WorkflowStepBase
         if (!Directory.Exists(directory) || maxDepth < 0) yield break;
 
         var name = Path.GetFileName(directory);
-        if (name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#'))
+        if (name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#') ||
+            name.Equals("$RECYCLE.BIN", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase))
             yield break;
 
         var hasContent = Directory

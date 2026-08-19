@@ -98,22 +98,23 @@ public sealed class StartPackage1Handler
 
         // Free add-ons folded into the normal sort pass instead of being
         // separate, easy-to-forget catch-up steps run by hand via debug
-        // endpoints - each is either free (no Claude API cost) or, in
-        // IndexFacesAsync's case, local-only ONNX. All are already incremental
-        // (skip work already done), so a re-run against a mostly-unchanged
-        // library only costs time for what's actually new. Each step is
-        // independently try/caught so one failing step doesn't hide or block
-        // the others - the sorted files are already safely in place regardless.
+        // endpoints - each is either free (no Claude API cost), local-only
+        // ONNX (IndexFacesAsync), or cheap enough to treat as free by policy
+        // (ClassifyUnhandledFilesAsync - text-only Haiku calls, capped at 500
+        // files/run, ~$0.05/run). All are already incremental (skip work
+        // already done), so a re-run against a mostly-unchanged library only
+        // costs time for what's actually new. Each step is independently
+        // try/caught so one failing step doesn't hide or block the others -
+        // the sorted files are already safely in place regardless.
         //
-        // Deliberately NOT auto-chained here - these make real Claude API
-        // calls and stay manual/paid add-ons per CLAUDE.md's cost-discipline
-        // rule and their own docstrings:
-        //   - ILibraryPolishService.FixOrientationAsync (Ret rotation)
+        // Everything still excluded here belongs to Package3 - the paid
+        // features tier, kept manual/opt-in per CLAUDE.md's cost-discipline
+        // rule because each makes real, non-trivial Claude API calls:
+        //   - ILibraryPolishService.FixOrientationAsync (rotation, vision calls)
         //   - IImageTaggingService.TagLibraryAsync
         //   - ISmartFoldersService.EstimateUndatedPhotoYearsAsync
         //   - ISmartFoldersService.AddYearbookCaptionsAsync
         //   - ISmartFoldersService.PickBestShotsAsync
-        //   - IPackage3Service.ClassifyUnhandledFilesAsync
         // GenerateYearbookAsync also stays manual - it needs a specific year
         // chosen, which is a curatorial decision, not a mechanical cleanup step.
         await RunAddonStepAsync("IndexFaces", outputPath,
@@ -136,6 +137,19 @@ public sealed class StartPackage1Handler
 
         await RunAddonStepAsync("StaticGalleryExport", outputPath,
             () => _staticGalleryExportService.ExportAsync(outputPath, cancellationToken));
+
+        // Runs last - it classifies whatever FileDiscovery couldn't recognize
+        // (dumped under Unhandled/), so it only makes sense after every other
+        // step above has had a chance to move/consume files out of there.
+        await RunAddonStepAsync("ClassifyUnhandled", outputPath,
+            () => _package3Service.ClassifyUnhandledFilesAsync(outputPath, cancellationToken: cancellationToken));
+
+        // Runs after ClassifyUnhandled for the same reason - clusters whatever
+        // is genuinely still left in Undated/Unhandled once every other pass has
+        // had its shot. Free/local (reuses IndexFaces's ONNX embeddings, no
+        // Claude calls), so it belongs in this free tier, not the paid one below.
+        await RunAddonStepAsync("GenerateUnknownPersonFolders", outputPath,
+            () => _smartFoldersService.GenerateUnknownPersonFoldersAsync(outputPath, cancellationToken: cancellationToken));
     }
 
     private async Task RunAddonStepAsync(string stepName, string outputPath, Func<Task> step)

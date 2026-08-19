@@ -459,6 +459,24 @@ app.MapPost("/api/debug/fix-orientation", async (string path, ITMartin.Media.Con
 app.MapPost("/api/debug/redate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.RedateUndatedAsync(path)));
 
+// Package4 - library health check. Actually opens/decodes every file and
+// reports which ones fail, rather than trusting extension/codec metadata.
+// Free, local-only, read-only (never modifies anything).
+app.MapPost("/api/debug/p4-verify", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+    Results.Ok(await service.VerifyLibraryAsync(path)));
+
+// Structure/path-portability check - metadata-only (no file content read), so
+// this is safe to point straight at a NAS path or an external HD in place,
+// without copying the library back locally first. Catches the collections.json
+// backslash/absolute-path bug class documented in feedback_walk_through_ux.
+app.MapPost("/api/debug/p4-verify-structure", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+    Results.Ok(await service.VerifyStructureAsync(path)));
+
+// Fixes what p4-verify-structure finds in collections.json in place - never
+// re-sorts, never touches real library content.
+app.MapPost("/api/debug/p4-repair-collections", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+    Results.Ok(await service.RepairCollectionsPathsAsync(path)));
+
 app.MapPost("/api/debug/group-by-camera", async (string path, string makeContains, string folderName, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.GroupByCameraMakeAsync(path, makeContains, folderName)));
 

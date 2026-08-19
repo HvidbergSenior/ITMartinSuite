@@ -583,6 +583,25 @@ public sealed class Package3Service : IPackage3Service
         return earthRadiusM * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
+    // LibraryExportService currently names this folder "Undated", but it was
+    // "Udaterede" (Danish) before that rename - libraries sorted under the old
+    // name (e.g. Mie's) still have it on disk under the old name, and nothing
+    // ever renames an existing customer's folders in place. Checking only the
+    // current name here silently found zero undated files for any pre-rename
+    // library - both the folder-existence check and every per-file path match
+    // need to recognize either name.
+    private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede"];
+
+    private static bool IsUnderUndatedFolder(string path) =>
+        UndatedFolderNames.Any(name =>
+            path.Contains($"{Path.DirectorySeparatorChar}{name}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+            || path.Contains($"/{name}/", StringComparison.OrdinalIgnoreCase));
+
+    private static string? FindUndatedFolder(string libraryPath) =>
+        UndatedFolderNames
+            .Select(name => Path.Combine(libraryPath, name))
+            .FirstOrDefault(Directory.Exists);
+
     public async Task<UndatedEstimationResult> EstimateUndatedDatesAsync(
         string libraryPath,
         double faceThreshold = 0.5,
@@ -617,8 +636,7 @@ public sealed class Package3Service : IPackage3Service
                 catch (JsonException) { continue; }
                 if (vector.Length == 0) continue;
 
-                var isUndated = face.MediaFilePath.Contains($"{Path.DirectorySeparatorChar}Undated{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
-                    || face.MediaFilePath.Contains("/Undated/", StringComparison.OrdinalIgnoreCase);
+                var isUndated = IsUnderUndatedFolder(face.MediaFilePath);
 
                 if (isUndated)
                 {
@@ -652,8 +670,9 @@ public sealed class Package3Service : IPackage3Service
         }
 
         // ===== Pass 2: GPS proximity, for anything not already matched =====
-        var undatedFiles = Directory.Exists(Path.Combine(libraryPath, "Undated"))
-            ? Directory.EnumerateFiles(Path.Combine(libraryPath, "Undated"), "*", SearchOption.AllDirectories)
+        var undatedFolder = FindUndatedFolder(libraryPath);
+        var undatedFiles = undatedFolder is not null
+            ? Directory.EnumerateFiles(undatedFolder, "*", SearchOption.AllDirectories)
                 .Where(f => !handled.Contains(f))
                 .ToList()
             : [];
@@ -666,7 +685,7 @@ public sealed class Package3Service : IPackage3Service
             foreach (var file in EnumerateLibraryImages(libraryPath))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (file.Contains($"{Path.DirectorySeparatorChar}Undated{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                if (IsUnderUndatedFolder(file))
                     continue;
 
                 var coords = gpsService.GetCoordinates(file);
@@ -716,7 +735,7 @@ public sealed class Package3Service : IPackage3Service
     // files (moved out of Unhandled) are naturally skipped on the next run.
     public async Task<UnhandledClassificationResult> ClassifyUnhandledFilesAsync(
         string libraryPath,
-        int maxFiles = 5000,
+        int maxFiles = 500,
         CancellationToken cancellationToken = default)
     {
         const int batchSize = 100;

@@ -191,4 +191,55 @@ public class VideoMetadataService : IVideoMetadataService
     {
         throw new NotImplementedException();
     }
+
+    // A ".mp4" extension only means "MP4 container" - it says nothing about
+    // what's actually encoded inside. Old camcorders/point-and-shoots often
+    // wrote MPEG-4 Part 2 ("mpeg4") or other codecs into an .mp4 container,
+    // and no browser's <video> element decodes those, only H.264/H.265/VP8/
+    // VP9/AV1. Trusting the extension alone (as MediaRulesWorkflowStep used
+    // to) let non-web-safe video silently skip normalization.
+    public string? GetVideoCodec(string path)
+    {
+        try
+        {
+            var ffprobePath = OperatingSystem.IsWindows()
+                ? Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffprobe.exe")
+                : "ffprobe";
+
+            var arguments =
+                "-v error " +
+                "-select_streams v:0 " +
+                "-show_entries stream=codec_name " +
+                "-of default=noprint_wrappers=1:nokey=1 " +
+                $"\"{path}\"";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffprobePath,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
+
+            using var process = Process.Start(psi);
+            if (process is null) return null;
+
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+
+            if (process.ExitCode != 0) return null;
+
+            var codec = output.Trim();
+            return string.IsNullOrWhiteSpace(codec) ? null : codec;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetVideoCodec failed for {Path}", path);
+            return null;
+        }
+    }
 }

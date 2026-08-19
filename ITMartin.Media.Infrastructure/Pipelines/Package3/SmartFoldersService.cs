@@ -40,6 +40,10 @@ public sealed class SmartFoldersService : ISmartFoldersService
             "LivePhotos",
             // Generated offline-gallery thumbnails - not real content.
             "_Galleri",
+            // Chat captures, receipts, scrolled-song screenshots - not the kind of
+            // photo that belongs in a trip/person/yearbook page, even though they
+            // pass the same image-file check as real photos.
+            "Skærmbilleder",
         };
 
     // Coarse, offline country lookup for trip-folder naming - deliberately rough
@@ -937,6 +941,54 @@ public sealed class SmartFoldersService : ISmartFoldersService
     private static void SaveUndatedDecisions(string path, Dictionary<string, UndatedDecision> decided) =>
         File.WriteAllText(path, JsonSerializer.Serialize(decided, new JsonSerializerOptions { WriteIndented = true }));
 
+    // Same two folder-name generations as KnownUndatedFolderNames, plus the
+    // FileDiscoveryWorkflowStep catch-all for unrecognized file types - a photo
+    // still sitting in either one after IndexFaces/EstimateUndatedDates/
+    // ClassifyUnhandled have all run is genuinely leftover, not just early in
+    // the pipeline. Checked both slash directions - same reasoning as
+    // IsUnderUndatedFolder in Package3Service: this typically runs on a Windows
+    // dev box against a library that then gets synced to the NAS/Linux side.
+    private static readonly string[] LeftoverFolderNames = ["Undated", "Udaterede", "Unhandled"];
+
+    private static bool IsUnderLeftoverFolder(string path) =>
+        LeftoverFolderNames.Any(name =>
+            path.Contains($"{Path.DirectorySeparatorChar}{name}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+            || path.Contains($"/{name}/", StringComparison.OrdinalIgnoreCase));
+
+    public async Task<List<PersonFolderResult>> GenerateUnknownPersonFoldersAsync(string libraryPath, double threshold = 0.5, CancellationToken cancellationToken = default)
+    {
+        // Library-wide clustering, same call the manual "tag a face" UI uses -
+        // filtering to just the leftover files happens after, below. Letting
+        // dated photos of the same person contribute to a cluster's centroid
+        // only improves matching for the leftover files that get kept; it never
+        // changes which files end up in the output.
+        var clusters = await _package3.DiscoverUnnamedPeopleAsync(libraryPath, threshold);
+
+        var results = new List<PersonFolderResult>();
+        var n = 0;
+
+        foreach (var cluster in clusters)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var leftoverFiles = cluster.MediaFilePaths.Where(IsUnderLeftoverFolder).ToList();
+            if (leftoverFiles.Count < 3) continue; // same noise floor as the source clustering
+
+            n++;
+            var folderPath = Path.Combine(libraryPath, RootFolderName, "UkendtePersoner", $"Person {n}");
+            var mapping = CopyFiles(leftoverFiles, folderPath);
+            if (mapping.Count == 0) continue;
+
+            results.Add(new PersonFolderResult { Name = $"Ukendt person {n}", FileCount = mapping.Count, FolderPath = folderPath });
+        }
+
+        _logger.LogInformation(
+            "Generated {Count} unknown-person folders from Undated/Unhandled leftovers for {LibraryPath}",
+            results.Count, libraryPath);
+
+        return results;
+    }
+
     public async Task SyncGalleryCollectionsAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
         var smartFoldersRoot = Path.Combine(libraryPath, RootFolderName);
@@ -953,9 +1005,18 @@ public sealed class SmartFoldersService : ISmartFoldersService
             if (!Directory.Exists(folder)) return;
             // index.html/captions.json/decided.json are this folder's own
             // generated sidecars, never real content to show as a "photo".
+            // Normalized to forward slashes - "portable across machines" has to
+            // mean portable across OS too, not just across Windows machines.
+            // This sync typically runs on a Windows dev box, then the library
+            // (and this collections.json) gets synced to the NAS where
+            // gallery-web runs in a Linux container - Path.Combine there treats
+            // a literal backslash as just another filename character, not a
+            // separator, so an unnormalized Windows-style relative path here
+            // silently resolves to zero files once served (see
+            // feedback_walk_through_ux history - this shipped once already).
             var files = Directory.EnumerateFiles(folder)
                 .Where(f => MediaTypeHelper.IsImage(f) || MediaTypeHelper.IsVideo(f))
-                .Select(f => Path.GetRelativePath(libraryPath, f))
+                .Select(f => Path.GetRelativePath(libraryPath, f).Replace('\\', '/'))
                 .ToList();
             if (files.Count == 0) return;
             collections.Add(new MediaCollection { Name = name, Type = type, FilePaths = files });
@@ -1008,6 +1069,17 @@ public sealed class SmartFoldersService : ISmartFoldersService
                 AddCollection(Path.GetFileName(personDir), personDir, "Person");
         }
 
+        // Anonymous face clusters from GenerateUnknownPersonFoldersAsync - same
+        // "Person" collection type as real named people (the gallery UI already
+        // knows how to show that), the folder name itself ("Ukendt person 1")
+        // is what tells them apart from a tagged name.
+        var unknownPeopleRoot = Path.Combine(smartFoldersRoot, "UkendtePersoner");
+        if (Directory.Exists(unknownPeopleRoot))
+        {
+            foreach (var personDir in Directory.EnumerateDirectories(unknownPeopleRoot))
+                AddCollection(Path.GetFileName(personDir), personDir, "Person");
+        }
+
         // One collection per year, not one giant merged "Årbøger" bucket -
         // browsing every year's yearbook photos as a single undifferentiated
         // pile isn't useful; each year is its own card.
@@ -1020,7 +1092,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
                 var yearFiles = Directory.EnumerateFiles(yearDir)
                     .Where(f => !Path.GetFileName(f).Equals("index.html", StringComparison.OrdinalIgnoreCase))
                     .Where(f => !Path.GetFileName(f).Equals("captions.json", StringComparison.OrdinalIgnoreCase))
-                    .Select(f => Path.GetRelativePath(libraryPath, f))
+                    .Select(f => Path.GetRelativePath(libraryPath, f).Replace('\\', '/'))
                     .ToList();
                 if (yearFiles.Count > 0)
                     collections.Add(new MediaCollection { Name = $"Årbog {year}", Type = "Yearbook", FilePaths = yearFiles });
@@ -1064,17 +1136,35 @@ public sealed class SmartFoldersService : ISmartFoldersService
             <style>
               body{background:#0b1220;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:2rem 1rem}
               h1{text-align:center;font-size:1.8rem}
+              a.back{display:block;text-align:center;color:#7b8aad;text-decoration:none;margin-bottom:1rem}
               .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;max-width:1200px;margin:2rem auto 0}
-              .grid figure{margin:0;background:#111a2e;border:1px solid #223154;border-radius:12px;overflow:hidden}
+              .grid figure{margin:0;cursor:pointer;background:#111a2e;border:1px solid #223154;border-radius:12px;overflow:hidden}
               .grid img, .grid video{width:100%;display:block;aspect-ratio:1;object-fit:cover}
               .grid figcaption{font-size:.72rem;color:#7b8aad;text-align:center;padding:.4rem}
               .grid figcaption .caption{display:block;color:#c7d2fe;font-size:.78rem;margin-bottom:.15rem}
+              .lightbox{display:none;position:fixed;inset:0;background:rgba(4,7,15,.94);z-index:10;align-items:center;justify-content:center;flex-direction:column}
+              .lightbox.open{display:flex}
+              .lightbox img, .lightbox video{max-width:92vw;max-height:82vh}
+              .lightbox .nav{position:absolute;top:0;bottom:0;width:15%;display:flex;align-items:center;font-size:2.5rem;color:#7b8aad;background:none;border:none;cursor:pointer}
+              .lightbox .prev{left:0;justify-content:flex-start;padding-left:1rem}
+              .lightbox .next{right:0;justify-content:flex-end;padding-right:1rem}
+              .lightbox .close{position:absolute;top:1rem;right:1.2rem;font-size:1.8rem;color:#eef2ff;background:none;border:none;cursor:pointer;z-index:2}
+              .lightbox .caption{margin-top:.75rem;color:#7b8aad;font-size:.85rem}
             </style>
             """);
         sb.AppendLine("</head><body>");
         sb.AppendLine($"<h1>Årbog {year}</h1>");
-        sb.AppendLine("<div class=\"grid\">");
+        // This page lives at SmartFolders/Yearbook/{year}/index.html - three
+        // levels below the library root, where the real index.html (built by
+        // StaticGalleryExportService) lives.
+        sb.AppendLine("<a class=\"back\" href=\"../../../index.html\">&larr; Forside</a>");
+        sb.AppendLine("<div class=\"grid\" id=\"grid\"></div>");
+        sb.AppendLine("<div class=\"lightbox\" id=\"lb\"><button class=\"close\" onclick=\"closeLb()\">&times;</button>" +
+                      "<button class=\"nav prev\" onclick=\"step(-1)\">&#8249;</button>" +
+                      "<button class=\"nav next\" onclick=\"step(1)\">&#8250;</button>" +
+                      "<div id=\"lbMedia\"></div><div class=\"caption\" id=\"lbCaption\"></div></div>");
 
+        sb.AppendLine("<script>const items = [");
         foreach (var item in selected)
         {
             if (!mapping.TryGetValue(item.Path, out var fileName)) continue;
@@ -1082,21 +1172,61 @@ public sealed class SmartFoldersService : ISmartFoldersService
             var ext = Path.GetExtension(fileName).ToLowerInvariant();
             if (ext is ".heic" or ".heif") continue; // not renderable directly by browsers; still present in the folder itself
 
-            var encodedName = WebUtility.HtmlEncode(fileName);
-            var media = MediaTypeHelper.IsVideo(fileName)
-                ? $"<video src=\"{encodedName}\" muted preload=\"metadata\" controls></video>"
-                : $"<img src=\"{encodedName}\" loading=\"lazy\">";
+            var isVideo = MediaTypeHelper.IsVideo(fileName);
+            var caption = captions is not null && captions.TryGetValue(fileName, out var c) && !string.IsNullOrWhiteSpace(c)
+                ? $"{c} - {item.Date:d. MMMM}"
+                : item.Date.ToString("d. MMMM");
 
-            var captionHtml = captions is not null && captions.TryGetValue(fileName, out var caption) && !string.IsNullOrWhiteSpace(caption)
-                ? $"<span class=\"caption\">{WebUtility.HtmlEncode(caption)}</span>"
-                : "";
-
-            sb.AppendLine($"<figure>{media}<figcaption>{captionHtml}{item.Date:d. MMMM}</figcaption></figure>");
+            sb.Append("{f:\"").Append(JsEscape(fileName)).Append("\",v:").Append(isVideo ? "true" : "false")
+              .Append(",d:\"").Append(JsEscape(caption)).Append("\"},");
         }
+        sb.AppendLine("];");
 
-        sb.AppendLine("</div></body></html>");
+        sb.AppendLine("""
+            const grid = document.getElementById('grid');
+            items.forEach((it, i) => {
+              const fig = document.createElement('figure');
+              const media = it.v
+                ? Object.assign(document.createElement('video'), { src: it.f, muted: true, preload: 'metadata', controls: false })
+                : Object.assign(document.createElement('img'), { src: it.f, loading: 'lazy' });
+              fig.appendChild(media);
+              const caption = document.createElement('figcaption');
+              caption.textContent = it.d;
+              fig.appendChild(caption);
+              fig.onclick = () => openLb(i);
+              grid.appendChild(fig);
+            });
+
+            let current = -1;
+            const lb = document.getElementById('lb');
+            const lbMedia = document.getElementById('lbMedia');
+            const lbCaption = document.getElementById('lbCaption');
+
+            function render() {
+              const it = items[current];
+              lbMedia.innerHTML = it.v
+                ? `<video src="${it.f}" controls autoplay></video>`
+                : `<img src="${it.f}">`;
+              lbCaption.textContent = it.d;
+            }
+            function openLb(i) { current = i; render(); lb.classList.add('open'); }
+            function closeLb() { lb.classList.remove('open'); lbMedia.innerHTML = ''; }
+            function step(delta) {
+              current = (current + delta + items.length) % items.length;
+              render();
+            }
+            document.addEventListener('keydown', e => {
+              if (!lb.classList.contains('open')) return;
+              if (e.key === 'Escape') closeLb();
+              if (e.key === 'ArrowLeft') step(-1);
+              if (e.key === 'ArrowRight') step(1);
+            });
+            """);
+        sb.AppendLine("</script></body></html>");
         return sb.ToString();
     }
+
+    private static string JsEscape(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
     // Classifies each point individually and takes the majority country, rather
     // than averaging every point's lat/lng first and bounding-boxing the

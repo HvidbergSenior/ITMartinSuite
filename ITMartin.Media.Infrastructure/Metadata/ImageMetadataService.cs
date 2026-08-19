@@ -1,6 +1,8 @@
-﻿using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+﻿using System.Globalization;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
+using MetadataExtractor.Formats.Xmp;
 using SixLabors.ImageSharp;
 namespace ITMartin.Media.Infrastructure.Metadata;
 
@@ -53,6 +55,29 @@ public class ImageMetadataService : IImageMetadataService
                 }
             }
 
+            // Some HEIC-derived JPEGs (seen from certain iOS export paths)
+            // carry no classic EXIF date tags at all - only Orientation - but
+            // still have the real capture date in the XMP packet (which is
+            // where Windows Explorer's "Date Taken" column reads it from in
+            // that case). Worth trying before giving up on the image.
+            if (date == null)
+            {
+                var xmp = directories.OfType<XmpDirectory>().FirstOrDefault();
+                var xmpProps = xmp?.GetXmpProperties();
+                if (xmpProps != null)
+                {
+                    foreach (var key in XmpDateKeys)
+                    {
+                        if (xmpProps.TryGetValue(key, out var raw) &&
+                            TryParseXmpDate(raw, out var xmpDate))
+                        {
+                            date = xmpDate;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (date != null)
             {
                 return date;
@@ -65,6 +90,24 @@ public class ImageMetadataService : IImageMetadataService
         }
 
         return null;
+    }
+
+    // Priority order: the real capture moment, then whatever's next best.
+    private static readonly string[] XmpDateKeys =
+    [
+        "exif:DateTimeOriginal",
+        "photoshop:DateCreated",
+        "xmp:CreateDate",
+        "xmp:ModifyDate",
+    ];
+
+    private static bool TryParseXmpDate(string raw, out DateTime date)
+    {
+        // XMP dates are ISO 8601 ("2025-09-29T10:14:23+02:00") - Windows
+        // Explorer's own "Date Taken" reader accepts the same format, which
+        // is how these files show a real date there despite MetadataExtractor
+        // finding nothing in the classic EXIF IFDs.
+        return DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
     }
 
     public (int Width, int Height)? GetDimensions(

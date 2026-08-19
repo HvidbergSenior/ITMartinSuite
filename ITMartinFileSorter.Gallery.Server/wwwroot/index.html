@@ -215,7 +215,7 @@ html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-c
     <button class="hdr-btn" id="btnTheme" title="Skift lys/mørk visning">🌓</button>
   </div>
   <div class="content">
-    <div id="galleryPicker">
+    <div id="galleryPicker" style="display:none">
       <div class="itm-pp-banner">
         <div class="itm-pp-row">
           <span class="itm-pp-icon">😩</span>
@@ -240,6 +240,15 @@ html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-c
         <div class="collection-sub" id="demoPhotoNotice" style="display:none">📸 Farvefelterne herover er kun demo-pladsholdere — i det rigtige galleri er det jeres egne billeder og videoer.</div>
         <div id="folderGrid"></div>
       </div>
+      <div id="addonsSection" class="addons-secondary" style="display:none">
+        <div class="section-label">Tilkøb</div>
+        <div class="collection-sub">Tryk på et tilkøb for at se mere og vælge det. Sidste chance inden I får det hele med på USB/harddisk.</div>
+        <div class="collection-row" id="addonsRow"></div>
+        <div class="addons-sendbar" id="addonsSendBar">
+          <div class="addons-sendbar-label" id="addonsSendLabel"></div>
+          <button id="addonsSendBtn" onclick="sendAddonRequest()">Send anmodning</button>
+        </div>
+      </div>
       <div id="specialSearchBar" style="display:none">
         <input type="text" id="specialSearchInput" class="form-control" placeholder="Søg (fødselsdag, strand, jul...)">
         <button id="specialSearchBtn" onclick="runSpecialSearch()">Søg</button>
@@ -258,15 +267,6 @@ html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-c
         <div class="section-label">Eksempel:</div>
         <div class="collection-sub">Fundet automatisk (ansigter og årstal).</div>
         <div class="collection-row" id="examplesRow"></div>
-      </div>
-      <div id="addonsSection" class="addons-secondary" style="display:none">
-        <div class="section-label">Tilkøb</div>
-        <div class="collection-sub">Tryk på et tilkøb for at se mere og vælge det. Sidste chance inden I får det hele med på USB/harddisk.</div>
-        <div class="collection-row" id="addonsRow"></div>
-        <div class="addons-sendbar" id="addonsSendBar">
-          <div class="addons-sendbar-label" id="addonsSendLabel"></div>
-          <button id="addonsSendBtn" onclick="sendAddonRequest()">Send anmodning</button>
-        </div>
       </div>
     </div>
   </div>
@@ -636,16 +636,38 @@ function renderFileGrid(files) {
 
 // ── Add-on teaser (static - these are real, built features, just not run for
 // every gallery by default; shown here as an example + price, not live data) ──
+// Maps each addon tile to the real collections.json Type it corresponds to
+// (see SmartFoldersService.SyncGalleryCollectionsAsync's AddCollection calls),
+// so a tenant that already has real results for an add-on shows an actual
+// cover photo instead of the generic illustration - concrete proof beats a
+// mockup once it exists. On This Day/Søgning/Live-videoklip have no
+// collections.json entry (computed live, or not a SmartFolders output at
+// all) - they always fall back to the illustration.
+const ADDON_COLLECTION_TYPES = {
+  rejser: 'Trip', aarbog: 'Yearbook', aarbogtekst: 'Yearbook',
+  person: 'Person', bestofburst: 'BestShot', traditions: 'Tradition',
+};
+
+function realAddonCover(addonId) {
+  const type = ADDON_COLLECTION_TYPES[addonId];
+  if (!type || !collectionsData) return null;
+  const match = collectionsData.find(c => c.type === type && c.cover);
+  return match ? match.cover : null;
+}
+
+function addonCoverHtml(a, enabled) {
+  const cover = realAddonCover(a.id);
+  if (cover) {
+    return `<img src="${esc(cover)}" loading="lazy" onerror="this.style.display='none'" alt="" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  return enabled ? (ADDON_ILLUSTRATIONS[a.id] || a.icon) : '🔒';
+}
+
 const ADDONS_TEASER = [
   { id: 'rejser', icon: '🧳', name: 'Rejser', desc: 'Kunne du tænke dig jeres rejser samlet automatisk ud fra sted og dato? Så tryk her.', price: '10 kr / rejse' },
   { id: 'aarbog', icon: '📖', name: 'Årbog', desc: 'Kunne du tænke dig en årbog med årets bedste billeder samlet i én mappe? Så tryk her.', price: '15 kr / år' },
-  { id: 'aarbogtekst', icon: '✍️', name: 'AI-billedtekster', desc: 'Kunne du tænke dig at AI skriver en kort billedtekst til hvert billede i Årbogen? Så tryk her.', price: '20 kr / år' },
   { id: 'person', icon: '👤', name: 'Efter person', desc: 'Kunne du tænke dig automatisk at finde alle billeder af en bestemt person? Så tryk her.', price: '20 kr / person' },
-  { id: 'onthisday', icon: '📅', name: 'På denne dag', desc: 'Kunne du tænke dig at se billeder fra denne dag, år for år? Så tryk her.', price: '25 kr' },
-  { id: 'search', icon: '🔍', name: 'Søgning & mærker', desc: 'Kunne du tænke dig at kunne søge i jeres billeder (fødselsdag, strand, jul, kæledyr...)? Så tryk her.', price: '50 kr' },
-  { id: 'bestofburst', icon: '⭐', name: 'Bedste billede', desc: 'Kunne du tænke dig at AI vælger det bedste billede fra hver serie af ens billeder? Så tryk her.', price: '30 kr' },
-  { id: 'traditions', icon: '🎄', name: 'Traditioner', desc: 'Kunne du tænke dig at sammenligne faste begivenheder år for år (jul, fødselsdage, skolestart)? Så tryk her.', price: '25 kr' },
-  { id: 'livephotos', icon: '📱', name: 'Live-videoklip', desc: 'Kunne du tænke dig videoklippene der automatisk følger med jeres "Live"-billeder fra iPhone? Så tryk her.', price: '15 kr' },
+  { id: 'traditions', icon: '🎄', name: 'Traditioner og mærkedage', desc: 'Kunne du tænke dig at sammenligne faste begivenheder år for år (jul, fødselsdage, bryllup, skolestart)? Så tryk her.', price: '25 kr' },
 ];
 
 // Tiny inline illustrations so each add-on shows what it actually produces,
@@ -763,11 +785,17 @@ const SPECIAL_ADDON_VIEWS = new Set(['onthisday', 'search']);
 function addonPlaceholderCard(a) {
   const enabled = isAddonEnabled(a);
   const clickable = enabled && SPECIAL_ADDON_VIEWS.has(a.id);
+  const hasRealCover = !!realAddonCover(a.id);
+  // A real cover photo is concrete proof this add-on already works for this
+  // library - shown regardless of whether the customer has picked it in
+  // Tilkøb yet, with just the lock badge indicating it's still a paid,
+  // not-yet-purchased add-on. Falls back to the generic illustration/lock
+  // icon exactly as before when no real result exists yet.
   return `
     <div class="folder-card addon-placeholder${enabled ? ' enabled' : ''}" data-addon-id="${a.id}" title="${esc(a.name)}"
          ${clickable ? `onclick="openAddonPlaceholder('${a.id}')" style="cursor:pointer"` : ''}>
-      <div class="folder-cover${enabled ? ' addon-cover' : ''}">${enabled ? (ADDON_ILLUSTRATIONS[a.id] || a.icon) : '🔒'}
-        ${enabled ? '<div class="addon-placeholder-badge">✓</div>' : ''}
+      <div class="folder-cover${(enabled || hasRealCover) ? ' addon-cover' : ''}">${addonCoverHtml(a, enabled)}
+        ${enabled ? '<div class="addon-placeholder-badge">✓</div>' : (hasRealCover ? '<div class="addon-placeholder-badge" style="background:rgba(0,0,0,.6)">🔒</div>' : '')}
       </div>
       <div class="folder-info">
         <div class="folder-name">${esc(a.name)}</div>
@@ -808,21 +836,50 @@ function setAddonPersonName(value) {
   updateAddonsSendBar();
 }
 
+// Per-unit label used when building a live price from real collection counts
+// (demo showcase only - see computeAddonPricing).
+const ADDON_PRICE_UNIT = { rejser: 'rejse', aarbog: 'år', person: 'person', traditions: 'begivenhed' };
+
+// Demo-only: real prices computed from this library's actual collections
+// instead of the generic marketing price, so the demo shows what it would
+// really cost for THIS content. Yearbook counts every year; the others only
+// count units with at least 10 photos (too few photos isn't worth selling
+// as its own add-on). Returns null (falls back to the static teaser price)
+// when there's no matching collection yet (e.g. Rejser/Traditioner haven't
+// found anything in this curated set).
+function computeAddonPricing(addonId) {
+  if (!collectionsData) return null;
+  const type = ADDON_COLLECTION_TYPES[addonId];
+  if (!type) return null;
+  const minCount = addonId === 'aarbog' ? 0 : 10;
+  const units = collectionsData.filter(c => c.type === type && c.fileCount >= minCount);
+  if (!units.length) return null;
+  const unit = ADDON_PRICE_UNIT[addonId] || 'stk';
+  return `20 kr/${unit} (${units.length} stk) · alle for 100 kr`;
+}
+
 function renderAddonsTeaser() {
   loadAddonSelection();
   loadAddonPersonName();
-  document.getElementById('addonsRow').innerHTML = ADDONS_TEASER.map(a => `
+  // On the demo gallery this row is purely a showcase of real prices for
+  // this content - not an actual purchase flow (no click-to-select, no send
+  // bar). Other tenants keep the normal interactive picker.
+  const isDemoShowcase = currentGallery === 'demoversion';
+  document.getElementById('addonsRow').innerHTML = ADDONS_TEASER.map(a => {
+    const priceText = (isDemoShowcase && computeAddonPricing(a.id)) || a.price;
+    return `
     <div class="collection-card addon-card${a.bundled ? ' bundled' : ''}${selectedAddons.has(a.id) ? ' selected' : ''}"
-         ${a.bundled ? '' : `onclick="toggleAddon('${a.id}')"`}>
-      <div class="collection-cover addon-cover">${ADDON_ILLUSTRATIONS[a.id] || a.icon}<div class="addon-check">✓</div></div>
+         ${(a.bundled || isDemoShowcase) ? '' : `onclick="toggleAddon('${a.id}')"`}>
+      <div class="collection-cover addon-cover">${addonCoverHtml(a, true)}${isDemoShowcase ? '' : '<div class="addon-check">✓</div>'}</div>
       <div class="collection-info">
         <div class="collection-name">${esc(a.name)}</div>
         <div class="addon-desc">${esc(a.desc)}</div>
-        ${a.id === 'person' ? `<input type="text" class="addon-name-input" placeholder="Hvem?" value="${esc(addonPersonName)}"
+        ${(a.id === 'person' && !isDemoShowcase) ? `<input type="text" class="addon-name-input" placeholder="Hvem?" value="${esc(addonPersonName)}"
              onclick="event.stopPropagation()" oninput="setAddonPersonName(this.value)">` : ''}
-        <div class="addon-price">${esc(a.price)}</div>
+        <div class="addon-price">${esc(priceText)}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   updateAddonsSendBar();
 }
 
@@ -834,6 +891,9 @@ function updateAddonsSendBar() {
   const bar   = document.getElementById('addonsSendBar');
   const label = document.getElementById('addonsSendLabel');
   const btn   = document.getElementById('addonsSendBtn');
+
+  // Demo showcase has no purchase flow - see renderAddonsTeaser.
+  if (currentGallery === 'demoversion') { bar.classList.remove('show', 'sent'); return; }
 
   if (!selectedAddons.size) { bar.classList.remove('show', 'sent'); return; }
 
@@ -882,6 +942,12 @@ async function loadCollections(slug) {
   const data = await res.json();
   collectionsData = data.collections || [];
   renderCollections();
+  // Addon placeholder cards (Mapper row + Tilkøb row) render on the initial
+  // page load, before this fetch resolves - they need a repaint now that
+  // collectionsData is actually populated, or a real cover photo that just
+  // became available silently never shows up until the next full reload.
+  updateAddonPlaceholderStates();
+  if (document.getElementById('addonsRow')) renderAddonsTeaser();
 }
 
 function collectionCardHtml(c) {

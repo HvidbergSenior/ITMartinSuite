@@ -80,6 +80,10 @@ public static class FileSorterDependencyInjection
             LibraryPolishService>();
 
         services.AddScoped<
+            IPackage4Service,
+            ITMartin.Media.Infrastructure.Pipelines.Package4.Package4Service>();
+
+        services.AddScoped<
             IGalleryThumbnailService,
             GalleryThumbnailService>();
 

@@ -98,6 +98,27 @@ public class MediaDateService : IMediaDateService
             Console.WriteLine($"[MEDIA DATE ERROR] {ex.Message}");
         }
 
+        // 📁 YEAR-ONLY, FROM AN ANCESTOR FOLDER NAME
+        // Real customer archives are routinely pre-organized into year
+        // folders by whatever tool/person handled them before FileSorter -
+        // often the *only* real signal left once a video's been re-encoded
+        // by that earlier pass and lost its embedded creation_time. Ahead of
+        // the raw filesystem timestamp below: a human-assigned year folder
+        // is more informative than "whenever this happened to be copied".
+        // Still not a full date - Month/Day are unknown, so this always
+        // carries IsYearOnly=true and IsReliable=false; export routing sends
+        // it to "{year}/Ukendt måned", never a specific month.
+        var parentYear = TryInferYearFromParentFolder(path);
+
+        if (parentYear != null)
+        {
+            return new MediaDateResult(
+                new DateTime(parentYear.Value, 1, 1),
+                false,
+                "ParentFolderYear",
+                IsYearOnly: true);
+        }
+
         // ⚠️ LOW TRUST FALLBACK
         var fallback = GetSafeFileDate(path);
 
@@ -113,6 +134,37 @@ public class MediaDateService : IMediaDateService
             null,
             false,
             "None");
+    }
+
+    // Walks up from the file's own folder looking for an ancestor whose name
+    // is (or contains) a standalone plausible year - e.g. ".../Exported/
+    // Video/2010/MVI_1473.mp4" -> 2010. Capped at a few levels so an
+    // unrelated distant ancestor (a drive letter, a customer name) can't
+    // accidentally match. Nearest folder wins; a folder matching literally
+    // "today's year" is not excluded - it's exactly as untrustworthy as any
+    // other single-signal year folder, which is why this tier is IsYearOnly/
+    // IsReliable=false rather than a full trusted date either way.
+    private static readonly Regex YearFolderPattern = new(@"(?<![0-9])(19[5-9]\d|20\d{2})(?![0-9])");
+    private const int MaxAncestorLevels = 5;
+
+    private static int? TryInferYearFromParentFolder(string path)
+    {
+        var dir = Path.GetDirectoryName(path);
+        var levels = 0;
+
+        while (!string.IsNullOrEmpty(dir) && levels < MaxAncestorLevels)
+        {
+            var name = Path.GetFileName(dir);
+            var match = YearFolderPattern.Match(name);
+
+            if (match.Success && int.TryParse(match.Value, out var year) && year <= DateTime.Now.Year)
+                return year;
+
+            dir = Path.GetDirectoryName(dir);
+            levels++;
+        }
+
+        return null;
     }
 
     private static DateTime? TryParseDateFromFileName(string path)

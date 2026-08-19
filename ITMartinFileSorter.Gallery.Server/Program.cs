@@ -857,6 +857,12 @@ static List<MediaCollection> LoadCollections(string libraryPath)
         foreach (var c in collections)
         {
             c.FilePaths = c.FilePaths
+                // Defensive: some collections.json files were written by a
+                // Windows dev box with backslash separators, which this Linux
+                // container's Path.Combine treats as a literal filename
+                // character rather than a directory separator - normalize
+                // before combining, on top of the writer-side fix.
+                .Select(f => f.Replace('\\', '/'))
                 .Select(f => Path.IsPathRooted(f) ? f : Path.GetFullPath(Path.Combine(libraryPath, f)))
                 .ToList();
         }

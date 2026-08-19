@@ -18,6 +18,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
 
     private readonly AnthropicClient _client;
     private readonly ILogger<AiEnrichmentService> _logger;
+    private readonly bool _isConfigured;
 
     public AiEnrichmentService(
         IConfiguration configuration,
@@ -26,11 +27,18 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         _logger = logger;
 
         var apiKey = configuration["Claude:ApiKey"];
+        _isConfigured = !string.IsNullOrWhiteSpace(apiKey);
 
-        if (string.IsNullOrWhiteSpace(apiKey))
-            throw new InvalidOperationException("Missing Claude API key");
+        // Don't throw here — this service gets constructed via DI even on
+        // runs with AI classification disabled (e.g. local dev without
+        // magic.env loaded), which would otherwise crash the whole workflow
+        // job before it ever checks whether AI is actually needed. Each
+        // public method checks _isConfigured instead and no-ops with a
+        // warning, same fallback pattern as DailyBrief's BriefingService.
+        if (!_isConfigured)
+            _logger.LogWarning("Claude:ApiKey not configured — AI enrichment will be skipped");
 
-        _client = new AnthropicClient { ApiKey = apiKey };
+        _client = new AnthropicClient { ApiKey = apiKey ?? "" };
     }
 
     public async Task EnrichBatchAsync(
@@ -38,6 +46,9 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         Func<Task>? onBatchCompleted = null,
         CancellationToken cancellationToken = default)
     {
+        if (!_isConfigured)
+            return;
+
         var filesToProcess = files.Where(NeedsAi).ToList();
 
         if (filesToProcess.Count == 0)
@@ -171,7 +182,7 @@ public sealed class AiEnrichmentService : IAiEnrichmentService
         List<(Guid Id, string RelativePath)> items,
         CancellationToken cancellationToken = default)
     {
-        if (items.Count == 0)
+        if (!_isConfigured || items.Count == 0)
             return [];
 
         var prompt = BuildUnhandledPrompt(items);

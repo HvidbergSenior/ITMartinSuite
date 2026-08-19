@@ -58,6 +58,10 @@ public sealed class LibraryPolishService : ILibraryPolishService
     private readonly IMediaDateService _mediaDateService;
     private readonly IExifService _exifService;
     private readonly IPerceptualHashService _perceptualHashService;
+    // Called once, sequentially - the orientation pre-check runs one file at
+    // a time inside the main foreach (unlike Package3Service's parallel face
+    // indexing, which needs a pool of instances for concurrent ONNX calls).
+    private readonly IFaceRecognitionService _faceRecognitionService;
     private readonly AnthropicClient? _anthropicClient;
 
     public LibraryPolishService(
@@ -67,6 +71,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         IMediaDateService mediaDateService,
         IExifService exifService,
         IPerceptualHashService perceptualHashService,
+        Func<IFaceRecognitionService> faceRecognitionFactory,
         IConfiguration configuration)
     {
         _logger = logger;
@@ -75,6 +80,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         _mediaDateService = mediaDateService;
         _exifService = exifService;
         _perceptualHashService = perceptualHashService;
+        _faceRecognitionService = faceRecognitionFactory();
 
         var apiKey = configuration["Claude:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -500,6 +506,24 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 continue;
             }
 
+            // Free local pass before spending a Claude call: most personal
+            // photos needing an orientation fix contain a person, and the
+            // face detector (already running locally for IndexFacesAsync)
+            // only reliably finds faces when the image is actually upright.
+            // Only trust a rotation that finds faces AND is the sole
+            // rotation to do so - anything ambiguous (faces at multiple
+            // angles, or none at all) falls through to Claude vision below
+            // instead of risking a wrong guess.
+            var faceDegrees = await TryDetectOrientationViaFacesAsync(file, cancellationToken);
+            if (faceDegrees is { } fd)
+            {
+                decisions[hash] = fd;
+                ApplyResolvedFile(file, fd, ref rotated);
+                checkedPaths.Add(Path.GetRelativePath(libraryPath, file));
+                toCheck++;
+                continue;
+            }
+
             if (toCheck >= MaxRotationChecksPerRun) continue; // capped - remains unresolved for the next run
 
             pendingClaudeCheck.Add(file);
@@ -589,6 +613,59 @@ public sealed class LibraryPolishService : ILibraryPolishService
         }
 
         onRotated(rotatedInBatch);
+    }
+
+    // Tries every rotation locally via the face detector before falling back
+    // to a paid Claude vision call. Writes each candidate rotation to a temp
+    // file (never mutates the real one until a decision is made) and picks
+    // the single rotation that found faces, if exactly one did.
+    private async Task<int?> TryDetectOrientationViaFacesAsync(string filePath, CancellationToken cancellationToken)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"rotcheck_{Guid.NewGuid():N}");
+
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            var faceCounts = new Dictionary<int, int>();
+
+            foreach (var degrees in new[] { 0, 90, 180, 270 })
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var tempPath = Path.Combine(tempDir, $"{degrees}{Path.GetExtension(filePath)}");
+
+                try
+                {
+                    var mode = degrees switch
+                    {
+                        90 => RotateMode.Rotate90,
+                        180 => RotateMode.Rotate180,
+                        270 => RotateMode.Rotate270,
+                        _ => RotateMode.None,
+                    };
+
+                    using (var image = Image.Load(filePath))
+                    {
+                        if (mode != RotateMode.None) image.Mutate(x => x.Rotate(mode));
+                        image.Save(tempPath);
+                    }
+
+                    var faces = await _faceRecognitionService.ExtractFaceEmbeddingsAsync(tempPath);
+                    faceCounts[degrees] = faces.Count;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    faceCounts[degrees] = 0;
+                }
+            }
+
+            var withFaces = faceCounts.Where(kv => kv.Value > 0).ToList();
+            return withFaces.Count == 1 ? withFaces[0].Key : null;
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort cleanup */ }
+        }
     }
 
     private void ApplyResolvedFile(string file, int degrees, ref int rotatedCounter)

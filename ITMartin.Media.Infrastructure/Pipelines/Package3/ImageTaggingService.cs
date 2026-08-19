@@ -47,7 +47,38 @@ public sealed class ImageTaggingService : IImageTaggingService
     // more untagged photos than the cap needs multiple clicks, on purpose.
     private const int MaxCallsPerRun = 500;
 
+    // Guards manifest.json against two overlapping TagLibraryAsync runs for the
+    // same library racing each other's writes - each call gets its own service
+    // instance (this class isn't a singleton), so the per-call saveLock below
+    // does nothing to stop a second concurrent invocation from opening the same
+    // manifest.json for write at the same moment. On Windows that race surfaces
+    // as UnauthorizedAccessException rather than a sharing-violation IOException,
+    // which is exactly what made this look like a filesystem/permissions bug
+    // instead of a concurrency one (see feedback_walk_through_ux history - the
+    // known-flaky Package1.razor Start button invites exactly this: a user
+    // double-clicking a tag/caption action after the first click appears to do
+    // nothing). Keyed by the normalized library path so unrelated libraries
+    // never block each other.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _libraryLocks = new(StringComparer.OrdinalIgnoreCase);
+
+    private static SemaphoreSlim GetLibraryLock(string libraryPath) =>
+        _libraryLocks.GetOrAdd(Path.GetFullPath(libraryPath), static _ => new SemaphoreSlim(1, 1));
+
     public async Task<ImageTaggingResult> TagLibraryAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var libraryLock = GetLibraryLock(libraryPath);
+        await libraryLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await TagLibraryCoreAsync(libraryPath, cancellationToken);
+        }
+        finally
+        {
+            libraryLock.Release();
+        }
+    }
+
+    private async Task<ImageTaggingResult> TagLibraryCoreAsync(string libraryPath, CancellationToken cancellationToken)
     {
         // Loaded twice deliberately. `manifest` is rebased to local absolute
         // paths (Package1ManifestLoader does this automatically whenever

@@ -129,7 +129,8 @@ public sealed class MetadataWorkflowStep
                         {
                             file.SetDate(
                                 result.Date,
-                                result.IsReliable);
+                                result.IsReliable,
+                                result.IsYearOnly);
                         }
                     }
 

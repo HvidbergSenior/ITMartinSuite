@@ -112,16 +112,25 @@ public class LibraryExportService
                                 category)
                             : musicSubPath is not null
                                 ? Path.Combine(root, category, musicSubPath)
-                                : !file.IsDateReliable
+                                : file.IsYearOnly
+                                    // Year came from an ancestor folder name, not a
+                                    // real date - sort by it, but never claim a
+                                    // specific month we don't actually know.
                                     ? Path.Combine(
-                                        root,
-                                        "Undated",
-                                        category)
-                                    : Path.Combine(
                                         root,
                                         category,
                                         safeYear.ToString(),
-                                        monthFolder);
+                                        "Ukendt måned")
+                                    : !file.IsDateReliable
+                                        ? Path.Combine(
+                                            root,
+                                            "Undated",
+                                            category)
+                                        : Path.Combine(
+                                            root,
+                                            category,
+                                            safeYear.ToString(),
+                                            monthFolder);
 
                 Directory.CreateDirectory(
                     targetDir);

@@ -42,6 +42,11 @@ using (var scope = app.Services.CreateScope())
     // left in place unused rather than migrated.
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Tasks ADD COLUMN AssignedTo TEXT"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Tasks ADD COLUMN CompletedBy TEXT"); } catch { }
+    // Was missing here even though CompletedBy above got added - on any
+    // family.db created before this feature, marking a task done threw
+    // "no such column: CompletedAt" mid-save, so the completion silently
+    // never persisted and the task kept reappearing as open.
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Tasks ADD COLUMN CompletedAt TEXT"); } catch { }
     // Existing rows used ClaimedBy for the same purpose - carry it forward.
     try { db.Database.ExecuteSqlRaw("UPDATE Tasks SET AssignedTo = ClaimedBy WHERE AssignedTo IS NULL AND ClaimedBy IS NOT NULL"); } catch { }
     try { db.Database.ExecuteSqlRaw("UPDATE Tasks SET CompletedBy = ClaimedBy WHERE CompletedBy IS NULL AND CompletedAt IS NOT NULL"); } catch { }
