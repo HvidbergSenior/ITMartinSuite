@@ -25,7 +25,16 @@ public sealed class RabbitMqBackgroundJobQueue
                 HostName  = configuration["RabbitMq:Host"] ?? "rabbitmq",
                 UserName  = configuration["RabbitMq:User"] ?? "guest",
                 Password  = configuration["RabbitMq:Password"] ?? "guest",
-                Port      = int.TryParse(configuration["RabbitMq:Port"], out var p) ? p : 5672
+                Port      = int.TryParse(configuration["RabbitMq:Port"], out var p) ? p : 5672,
+                // EventingBasicConsumer + an async handler is a known-broken
+                // combination: the Received event fires the handler fire-and-forget
+                // on the dispatch thread, so its continuation (including the
+                // BasicAck call) resumes on a thread-pool thread. IModel isn't
+                // safe for concurrent use across threads, so that Ack can desync
+                // the channel and silently stop further deliveries. DispatchConsumersAsync
+                // + AsyncEventingBasicConsumer below properly awaits the handler
+                // on the dispatch thread instead.
+                DispatchConsumersAsync = true
             };
         Console.WriteLine(
             $"RabbitMQ Host: {factory.HostName}");
@@ -78,7 +87,7 @@ public sealed class RabbitMqBackgroundJobQueue
         Func<BackgroundJob, Task> handler)
     {
         var consumer =
-            new EventingBasicConsumer(
+            new AsyncEventingBasicConsumer(
                 _channel);
 
         consumer.Received += async (_, eventArgs) =>
