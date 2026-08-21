@@ -23,9 +23,9 @@ RUN apt-get update && \
 # no GPU in this container. --break-system-packages needed on Debian
 # bookworm's externally-managed Python (no venv here, single-purpose image).
 RUN pip3 install --break-system-packages --no-cache-dir \
-    torch torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    torch torchaudio --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple && \
     pip3 install --break-system-packages --no-cache-dir \
-    demucs piano_transcription_inference pretty_midi soundfile
+    demucs piano_transcription_inference pretty_midi soundfile librosa
 
 # Bake in the ~165MB piano-transcription checkpoint at build time (source:
 # Zenodo, the model authors' own release - see PianoTranscriptionService.cs)

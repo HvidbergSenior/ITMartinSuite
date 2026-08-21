@@ -459,6 +459,104 @@ app.MapPost("/api/debug/fix-orientation", async (string path, ITMartin.Media.Con
 app.MapPost("/api/debug/redate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.RedateUndatedAsync(path)));
 
+app.MapPost("/api/debug/reclassify-screenshots", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.ReclassifyScreenshotsAsync(path, maxFiles ?? 500)));
+
+// Reverse of reclassify-screenshots: finds real screenshots sitting
+// misfiled in an Images/Billeder-side folder and moves them into a
+// screenshots folder. Real (Haiku-cheap but real) per-file Claude cost -
+// maxFiles is a REQUIRED hard cap, same convention as check-orientation-ai.
+app.MapPost("/api/debug/find-screenshots-in-images", async (string sourcePath, string destPath, int maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+{
+    if (maxFiles <= 0 || maxFiles > 5000)
+        return Results.BadRequest("maxFiles must be between 1 and 5000.");
+    return Results.Ok(await service.FindScreenshotsInImagesAsync(sourcePath, destPath, maxFiles));
+});
+
+// Free-only rotation fix - never touches the paid Claude fallback FixOrientationAsync
+// has. Auto-fixes what the local face-detection tier is confident about, reports
+// the rest for manual review instead of guessing or skipping silently.
+app.MapPost("/api/debug/fix-orientation-free", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.FixOrientationFreeOnlyAsync(path)));
+
+// Same free face-detection check as fix-orientation-free, but report-only -
+// never writes anything, for reviewing what's rotated before committing to a fix.
+app.MapPost("/api/debug/detect-rotated-images", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.DetectRotatedImagesAsync(path)));
+
+// AI-vision alternative to the free face-detection check - real Claude cost
+// (Haiku, batched 20/call), so maxImages is a REQUIRED hard cap, not just a
+// suggestion - this must never be callable without an explicit ceiling on
+// how many photos (and therefore how many dollars) one call can trigger.
+// Report-only, never writes anything.
+app.MapPost("/api/debug/check-orientation-ai", async (string path, int maxImages, ITMartin.Ai.Interfaces.IPhotoOrientationCheckService service) =>
+{
+    if (maxImages <= 0 || maxImages > 2000)
+        return Results.BadRequest("maxImages must be between 1 and 2000.");
+    if (!Directory.Exists(path))
+        return Results.NotFound();
+
+    var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".heic", ".webp" };
+    var images = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
+        .Where(f => extensions.Contains(Path.GetExtension(f)))
+        .Take(maxImages)
+        .Select(f => (FullPath: f, RelativePath: Path.GetRelativePath(path, f)))
+        .ToList();
+
+    var allResults = new List<ITMartin.Ai.Models.PhotoOrientationResult>();
+    var apiCalls = 0;
+    foreach (var batch in images.Chunk(ITMartin.Ai.Services.ClaudePhotoOrientationCheckService.BatchSize))
+    {
+        apiCalls++;
+        allResults.AddRange(await service.CheckBatchAsync(batch));
+    }
+
+    return Results.Ok(new
+    {
+        photosChecked = images.Count,
+        apiCalls,
+        needsRotation = allResults.Where(r => r.NeedsRotation).ToList(),
+        allResults,
+    });
+});
+
+// Runs against whatever's actually on disk right now (not just one Package1
+// run's own file set) - catches duplicates introduced by merging separate
+// folders/runs together after the fact. Free, local, never auto-deletes.
+app.MapPost("/api/debug/find-duplicates", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.FindDuplicatesInLibraryAsync(path)));
+
+app.MapPost("/api/debug/p4-verify-delivery-structure", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+    Results.Ok(await service.VerifyDeliveryStructureAsync(path)));
+
+// "Just before delivery" package (2026-08-20) - runs every free/local check
+// together in one call: file integrity, structure/extensions, rotation
+// (free tier only), duplicates (exact + near). Nothing here costs anything
+// or auto-deletes/auto-moves beyond what each individual check already does
+// on its own (orientation fixes confident rotations; everything else only
+// reports). Meant to run right before a library ships to a customer's HD/USB.
+app.MapPost("/api/debug/pre-delivery-check", async (
+    string path,
+    ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service package4,
+    ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService polish) =>
+{
+    var integrity   = await package4.VerifyLibraryAsync(path);
+    var structure   = await package4.VerifyStructureAsync(path);
+    var delivery    = await package4.VerifyDeliveryStructureAsync(path);
+    var orientation = await polish.FixOrientationFreeOnlyAsync(path);
+    var duplicates  = await polish.FindDuplicatesInLibraryAsync(path);
+
+    return Results.Ok(new
+    {
+        integrity,
+        structure,
+        delivery,
+        orientation,
+        duplicates,
+        checkedAtUtc = DateTime.UtcNow,
+    });
+});
+
 // Package4 - library health check. Actually opens/decodes every file and
 // reports which ones fail, rather than trusting extension/codec metadata.
 // Free, local-only, read-only (never modifies anything).

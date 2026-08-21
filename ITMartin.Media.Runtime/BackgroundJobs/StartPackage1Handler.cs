@@ -132,6 +132,9 @@ public sealed class StartPackage1Handler
         await RunAddonStepAsync("GenerateTraditions", outputPath,
             () => _smartFoldersService.GenerateTraditionsAsync(outputPath, cancellationToken));
 
+        await RunAddonStepAsync("GenerateSimilarSceneFolders", outputPath,
+            () => _smartFoldersService.GenerateSimilarSceneFoldersAsync(outputPath, cancellationToken));
+
         await RunAddonStepAsync("SyncGalleryCollections", outputPath,
             () => _smartFoldersService.SyncGalleryCollectionsAsync(outputPath, cancellationToken));
 

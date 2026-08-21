@@ -57,7 +57,43 @@ public sealed class DuplicateService
                 grouped.Add(file);
         }
 
-        // Pass 2: near-duplicates. A photo re-imported from a second source
+        // Pass 2: exact reliable-date match. A file's own already-resolved
+        // capture timestamp (real EXIF/video/document metadata, full
+        // second precision, set earlier by MetadataWorkflowStep) is a
+        // strong, free duplicate signal on its own - two files sharing the
+        // exact same capture instant are essentially always the same shot
+        // saved twice. Deliberately full DateTime equality, not just the
+        // same day/minute: same-*minute* matching was tried and produced
+        // massive false positives against ordinary burst photography
+        // (consecutive shots a few seconds apart landing in the same
+        // minute). Only ever considers dates MediaDateService itself
+        // marked reliable (real metadata, not a filesystem-timestamp
+        // fallback), and excludes today outright as an extra guard against
+        // a copy-date slipping through as "reliable".
+        var today = DateTime.Today;
+
+        foreach (var byDate in files
+                     .Where(f => !grouped.Contains(f) && f.IsDateReliable && f.CreatedAt.HasValue && f.CreatedAt.Value.Date != today)
+                     .GroupBy(f => f.CreatedAt!.Value)
+                     .Where(g => g.Count() > 1))
+        {
+            var members =
+                byDate
+                    .OrderByDescending(f => f.SizeBytes)
+                    .ToList();
+
+            groups.Add(new DuplicateGroup
+            {
+                Hash = $"datematch:{byDate.Key:O}",
+                Files = members,
+                TotalSizeBytes = members.Sum(f => f.SizeBytes)
+            });
+
+            foreach (var file in members)
+                grouped.Add(file);
+        }
+
+        // Pass 3: near-duplicates. A photo re-imported from a second source
         // (e.g. an iCloud recovery batch, a second phone backup) gets
         // recompressed along the way, so its bytes - and therefore its exact
         // hash - differ from the original even though it's visually the same

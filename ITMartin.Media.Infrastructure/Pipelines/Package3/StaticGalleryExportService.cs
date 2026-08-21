@@ -488,7 +488,14 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             await File.WriteAllTextAsync(
                 Path.Combine(galleryRoot, indexFileName), BuildFolderIndexHtml(folderName, subPages), cancellationToken);
 
-            var cover = photos.FirstOrDefault(i => !IsScreenshot(i.SourcePath))?.ThumbPath ?? photos.FirstOrDefault()?.ThumbPath;
+            // Prefer the most recent reliably-dated photo for the card cover -
+            // sorting undated items to DateTime.MinValue (see folderItems above)
+            // meant they always won FirstOrDefault(), so a section's cover was
+            // effectively a random undated screenshot/photo rather than anything
+            // representative.
+            var cover = photos.Where(i => i.Date.HasValue).OrderByDescending(i => i.Date).FirstOrDefault(i => !IsScreenshot(i.SourcePath))?.ThumbPath
+                ?? photos.Where(i => i.Date.HasValue).OrderByDescending(i => i.Date).FirstOrDefault()?.ThumbPath
+                ?? photos.FirstOrDefault()?.ThumbPath;
             var href = ToWebPath(Path.Combine(Path.GetFileName(galleryRoot), indexFileName));
             links.Add(new SmartFolderLink(kind, folderName, href, cover));
         }

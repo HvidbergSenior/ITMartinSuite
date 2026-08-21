@@ -99,10 +99,12 @@ public sealed class Package3Service : IPackage3Service
         // SQLite writers safe; status writes are still throttled to keep
         // contention low.
         // Each worker loads its own copy of 3 ONNX models (detector, landmarks,
-        // embedder) - going to ProcessorCount-1 (11 here) OOM-killed the whole
-        // container. Capped at 4 concurrent recognizers as a safer starting
-        // point; revisit upward only while watching real memory usage.
-        var degreeOfParallelism = Math.Min(2, Math.Max(1, Environment.ProcessorCount - 1));
+        // embedder) - the original cap of 2 was tuned for a memory-constrained
+        // Docker container (ProcessorCount-1 OOM-killed it). FileSorter never
+        // runs in a container though (confirmed permanent: always local,
+        // bare-metal) - on real hardware with real RAM, leave 4 threads free
+        // for the OS/everything else and use the rest.
+        var degreeOfParallelism = Math.Min(12, Math.Max(1, Environment.ProcessorCount - 4));
         var recognizerPool = new System.Collections.Concurrent.ConcurrentBag<IFaceRecognitionService>();
         for (var i = 0; i < degreeOfParallelism; i++)
             recognizerPool.Add(_faceRecognitionFactory());

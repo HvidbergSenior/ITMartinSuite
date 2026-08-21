@@ -133,14 +133,41 @@ var DanishMonthNames = new Dictionary<string, string>(StringComparer.OrdinalIgno
     ["July"] = "Juli", ["August"] = "August", ["September"] = "September",
     ["October"] = "Oktober", ["November"] = "November", ["December"] = "December",
 };
-var MonthFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{2})-([A-Za-z]+)$");
+// Optional " - 1. halvdel"/" - 2. halvdel" suffix (see LibraryExportService's
+// MonthHalfSplitThreshold) is captured separately so callers can either keep
+// it (DanishFolderName, for display) or strip it (MonthLabelFor, for grouping
+// both halves of a month back under one inline label).
+var MonthFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{2})-([A-Za-z]+)( - [12]\. halvdel)?$");
+
+// LibraryExportService's current date-range grouping (recursive best-gap
+// bisection - see project_package1_month_split memory): either "dd-dd
+// MonthNameDanish" for a same-month range, or "Abbr-Abbr" for a cross-month
+// range. Same shape as Package4Service's GroupLabelPattern. Already Danish
+// and already a display-ready label as-is, unlike MonthFolderPattern above
+// (which names things in English and needs DanishMonthNames translation).
+var DateRangeFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{2}-\d{2} \p{L}+|[A-ZÆØÅ][a-zæøå]{2}-[A-ZÆØÅ][a-zæøå]{2})$");
 
 string DanishFolderName(string rawName)
 {
     var monthMatch = MonthFolderPattern.Match(rawName);
     if (monthMatch.Success && DanishMonthNames.TryGetValue(monthMatch.Groups[2].Value, out var danishMonth))
-        return $"{monthMatch.Groups[1].Value}-{danishMonth}";
+        return $"{monthMatch.Groups[1].Value}-{danishMonth}{monthMatch.Groups[3].Value}";
     return rawName;
+}
+
+// Just the month part ("07-Juli"), halvdel suffix stripped - both halves of a
+// split month collapse back into one inline label in the flattened view.
+// Also recognizes the newer date-range folder names, returned as-is since
+// they're already Danish and already a single (non-halvdel-split) group.
+string? MonthLabelFor(string rawName)
+{
+    var m = MonthFolderPattern.Match(rawName);
+    if (m.Success)
+    {
+        var danish = DanishMonthNames.TryGetValue(m.Groups[2].Value, out var dm) ? dm : m.Groups[2].Value;
+        return $"{m.Groups[1].Value}-{danish}";
+    }
+    return DateRangeFolderPattern.IsMatch(rawName) ? rawName : null;
 }
 mime.Mappings[".flac"] = "audio/flac";
 mime.Mappings[".ogg"]  = "audio/ogg";
@@ -413,8 +440,45 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     // art thumbnails that aren't even a real photo of anything.
     var inMusikFolder = Rel(current, r).Split('/')[0].Equals("Musik", StringComparison.OrdinalIgnoreCase);
 
-    var files = Directory.EnumerateFiles(current)
-        .Where(IsMedia)
+    // A Year folder whose only children are Month folders (LibraryExportService
+    // only creates these once a year is "busy" - see MonthSplitThreshold) reads
+    // as an extra click for no reason - flatten it into one continuous view with
+    // inline month labels instead of forcing a folder-per-month click. Never
+    // applies inside Musik (organized by Artist/Album, not Year/Month at all).
+    // "- 1. halvdel"/"- 2. halvdel" (see MonthHalfSplitThreshold) collapse back
+    // into one label - that split exists for the static HD export's page size,
+    // not something the live viewer needs to expose as a separate group.
+    var isFlattenableYear =
+        !inMusikFolder && !atRoot && folders.Count > 0 &&
+        folders.All(f => MonthLabelFor(Path.GetFileName(f.relPath)) is not null);
+
+    IEnumerable<string> filePaths;
+    Dictionary<string, string>? monthLabelByPath = null;
+
+    if (isFlattenableYear)
+    {
+        monthLabelByPath = new Dictionary<string, string>();
+        var monthDirs = Directory.EnumerateDirectories(current).Where(d => !IsSystemFolder(d) && !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase));
+        var gathered = new List<string>();
+        foreach (var monthDir in monthDirs)
+        {
+            var label = MonthLabelFor(Path.GetFileName(monthDir));
+            if (label is null) continue;
+            foreach (var f in Directory.EnumerateFiles(monthDir).Where(IsMedia))
+            {
+                gathered.Add(f);
+                monthLabelByPath[f] = label;
+            }
+        }
+        filePaths = gathered;
+        folders = []; // flattened - no separate Month folder cards
+    }
+    else
+    {
+        filePaths = Directory.EnumerateFiles(current).Where(IsMedia);
+    }
+
+    var files = filePaths
         .Where(f => !inMusikFolder || IsAud(Ext(f)))
         .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
         .Select(f =>
@@ -434,6 +498,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
                 isAudio   = IsAud(ext),
                 isDoc     = IsDoc(ext),
                 liveVideo = FindLivePhotoVideo(f, r, g.Slug),
+                monthLabel = monthLabelByPath?.GetValueOrDefault(f),
             };
         })
         .ToList();

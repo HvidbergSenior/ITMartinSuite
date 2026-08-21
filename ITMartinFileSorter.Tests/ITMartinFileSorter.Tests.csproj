@@ -27,6 +27,9 @@
     <ProjectReference Include="..\ITMartinFileSorter.Application\ITMartinFileSorter.Application.csproj" />
     <ProjectReference Include="..\ITMartinFileSorter.Infrastructure\ITMartinFileSorter.Infrastructure.csproj" />
     <ProjectReference Include="..\ITMartinFileSorter.Domain\ITMartinFileSorter.Domain.csproj" />
+    <ProjectReference Include="..\ITMartin.Media.Application\ITMartin.Media.Application.csproj" />
+    <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
+    <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

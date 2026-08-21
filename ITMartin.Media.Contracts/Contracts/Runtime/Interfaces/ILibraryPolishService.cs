@@ -31,6 +31,50 @@ public interface ILibraryPolishService
     // no AI) - safe to run as often as needed.
     Task<CameraGroupResult> GroupByCameraMakeAsync(string libraryPath, string makeContains, string targetFolderName, CancellationToken cancellationToken = default);
 
+    // Re-checks every file already sorted into the Screenshots/Skærmbilleder
+    // category against Claude's own is_screenshot judgment (real app/phone UI
+    // chrome - status bar, buttons, nav icons - visible in the image), not
+    // just the extension/folder it landed in during Package1. Anything NOT a
+    // real screenshot moves to Images/Billeder's own Andet subfolder instead
+    // of staying miscategorized. Opt-in only, same as FixOrientationAsync -
+    // makes real (Haiku-cheap but real) Claude API calls per file.
+    Task<ScreenshotReclassifyResult> ReclassifyScreenshotsAsync(string libraryPath, int maxFiles = 500, CancellationToken cancellationToken = default);
+
+    // Free-only rotation fix - the same face-detection tier FixOrientationAsync
+    // already tries before falling back to a paid Claude call, but exposed on
+    // its own so it can run without ever touching that fallback. Auto-fixes
+    // whatever it's confident about (finds faces, one consistent rotation);
+    // anything ambiguous (no face, or faces at multiple angles) is reported
+    // in NeedsManualReview rather than guessed at or silently skipped - never
+    // costs anything, never automatic-only, always leaves a manual list.
+    Task<FreeOrientationFixResult> FixOrientationFreeOnlyAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Report-only counterpart to FixOrientationFreeOnlyAsync - same free
+    // face-detection check, but never calls ApplyResolvedFile, so nothing on
+    // disk changes. For "just show me what's rotated" before committing to a
+    // bulk fix.
+    Task<RotationDetectionResult> DetectRotatedImagesAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Runs against an already-sorted/delivered library (not a fresh Package1
+    // import) - IDuplicateService's exact-hash + perceptual-hash passes only
+    // ever compare files within one Package1 run, so duplicates introduced
+    // by merging separate folders/runs together after the fact (see
+    // feedback_hd_delivery_verification) are never caught by it. Free, local,
+    // never auto-deletes: exact byte-identical matches are unambiguous but
+    // still only reported (same as near-duplicates) - deletion is the
+    // caller's call, same convention as DeduplicateFolderAsync's own
+    // "caller's responsibility to have confirmed with the user first".
+    Task<NearDuplicateReport> FindDuplicatesInLibraryAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Reverse of ReclassifyScreenshotsAsync: scans an Images/Billeder-side
+    // folder (top-level only, not recursive - caller picks the exact scope,
+    // e.g. just an Udaterede pile rather than the whole category) for real
+    // phone/app screenshots that were never routed to Skærmbilleder in the
+    // first place, and moves them there. Same real (Haiku-cheap but real)
+    // per-file Claude cost as ReclassifyScreenshotsAsync - opt-in only,
+    // required maxFiles cap.
+    Task<ScreenshotReclassifyResult> FindScreenshotsInImagesAsync(string sourceFolder, string destScreenshotsFolder, int maxFiles, CancellationToken cancellationToken = default);
+
     // Byte-identical duplicate removal, scoped to exactly one folder's own
     // subtree - never compares across folder boundaries, since a SmartFolders
     // copy being byte-identical to its Billeder original is by design, not a

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Password Vault</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: system-ui, sans-serif; background: #16181d; color: #e8e8e8; margin: 0; padding: 24px; }
+  .wrap { max-width: 480px; margin: 40px auto; }
+  .wrap.wide { max-width: 720px; }
+  h1 { font-size: 1.4em; }
+  .card { background: #1f232b; border: 1px solid #2f3542; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  input, textarea { width: 100%; box-sizing: border-box; background: #12141a; color: #eee; border: 1px solid #333a47; border-radius: 6px; padding: 9px 10px; margin: 6px 0 12px; font-size: 0.95em; }
+  label { font-size: 0.85em; color: #aab; }
+  button { background: #3a5fa8; color: #fff; border: none; border-radius: 6px; padding: 9px 16px; cursor: pointer; font-size: 0.95em; }
+  button:hover { background: #4a6fc0; }
+  button.ghost { background: transparent; border: 1px solid #3a5fa8; color: #9ab4e8; }
+  button.danger { background: #a83a3a; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .err { color: #ff8080; font-size: 0.9em; margin-top: 4px; }
+  .ok { color: #7fd77f; }
+  .muted { color: #99a; font-size: 0.85em; }
+  a.link { color: #8ab4f8; cursor: pointer; text-decoration: underline; }
+  .entry { border-bottom: 1px solid #2f3542; padding: 10px 0; }
+  .entry:last-child { border-bottom: none; }
+  .entry-title { font-weight: 600; }
+  .entry-field { display: flex; gap: 8px; align-items: center; margin-top: 4px; font-size: 0.9em; }
+  .entry-field code { background: #12141a; padding: 2px 6px; border-radius: 4px; flex: 1; overflow: auto; }
+  .recovery-box { background: #12141a; border: 1px dashed #6a5; padding: 14px; border-radius: 6px; font-family: monospace; font-size: 1.1em; text-align: center; letter-spacing: 1px; margin: 12px 0; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div id="view-login" class="wrap">
+  <h1>🔐 Password Vault</h1>
+  <div class="card">
+    <label>Email</label>
+    <input id="login-email" type="email" autocomplete="username">
+    <label>Master-adgangskode</label>
+    <input id="login-password" type="password" autocomplete="current-password">
+    <div class="row">
+      <button onclick="doLogin()">Log ind</button>
+    </div>
+    <div id="login-err" class="err"></div>
+    <p class="muted">
+      <a class="link" onclick="showView('signup')">Opret ny konto</a> ·
+      <a class="link" onclick="showView('recover')">Glemt adgangskode?</a>
+    </p>
+  </div>
+</div>
+
+<div id="view-signup" class="wrap hidden">
+  <h1>🔐 Opret vault</h1>
+  <div class="card">
+    <label>Email</label>
+    <input id="signup-email" type="email" autocomplete="username">
+    <label>Master-adgangskode</label>
+    <input id="signup-password" type="password" autocomplete="new-password">
+    <label>Gentag adgangskode</label>
+    <input id="signup-password2" type="password" autocomplete="new-password">
+    <p class="muted">Din master-adgangskode sendes ALDRIG til serveren - kun til at låse din vault op lokalt i browseren.</p>
+    <button onclick="doSignup()">Opret</button>
+    <div id="signup-err" class="err"></div>
+  </div>
+  <p class="muted"><a class="link" onclick="showView('login')">← Tilbage til login</a></p>
+</div>
+
+<div id="view-recovery-shown" class="wrap hidden">
+  <h1>💾 Gem din gendannelsesnøgle</h1>
+  <div class="card">
+    <p>Hvis du glemmer din master-adgangskode, er dette den ENESTE måde at komme ind i din vault igen på. Vi gemmer den ikke - kun du har den.</p>
+    <div class="recovery-box" id="recovery-key-display"></div>
+    <p class="muted">Skriv den ned, print den, eller gem den et sikkert sted - ikke i denne browser.</p>
+    <button onclick="confirmRecoverySaved()">Jeg har gemt den</button>
+  </div>
+</div>
+
+<div id="view-recover" class="wrap hidden">
+  <h1>🔑 Gendan adgang</h1>
+  <div class="card">
+    <label>Email</label>
+    <input id="recover-email" type="email">
+    <label>Gendannelsesnøgle</label>
+    <input id="recover-key" placeholder="XXXXX-XXXXX-...">
+    <label>Ny master-adgangskode</label>
+    <input id="recover-newpw" type="password">
+    <button onclick="doRecover()">Gendan adgang</button>
+    <div id="recover-err" class="err"></div>
+    <div id="recover-ok" class="ok"></div>
+  </div>
+  <p class="muted"><a class="link" onclick="showView('login')">← Tilbage til login</a></p>
+</div>
+
+<div id="view-vault" class="wrap wide hidden">
+  <div class="row" style="justify-content:space-between">
+    <h1>🔐 Din vault</h1>
+    <button class="ghost" onclick="doLogout()">Log ud</button>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Ny adgangskode</h3>
+    <label>Hvad er det til</label>
+    <input id="new-site" placeholder="f.eks. gmail.com">
+    <label>Brugernavn</label>
+    <input id="new-username">
+    <label>Adgangskode</label>
+    <div class="row">
+      <input id="new-secret" style="flex:1">
+      <button class="ghost" onclick="fillGenerated()">🎲 Generér</button>
+    </div>
+    <label>Noter</label>
+    <textarea id="new-notes" rows="2"></textarea>
+    <button onclick="addEntry()">Gem</button>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Gemte adgangskoder</h3>
+    <input id="search" placeholder="Søg..." oninput="renderEntries()">
+    <div id="entries"></div>
+  </div>
+</div>
+
+<script src="js/vault-crypto.js"></script>
+<script>
+let masterKey = null;
+let dek = null;
+let entriesCache = [];
+
+function showView(name) {
+  ["login","signup","recovery-shown","recover","vault"].forEach(v =>
+    document.getElementById("view-" + v).classList.toggle("hidden", v !== name));
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers||{}) } });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// ── Signup ──────────────────────────────────────────────────────────────
+let pendingRecoveryKeyString = null;
+
+async function doSignup() {
+  const err = document.getElementById("signup-err");
+  err.textContent = "";
+  const email = document.getElementById("signup-email").value.trim();
+  const pw1 = document.getElementById("signup-password").value;
+  const pw2 = document.getElementById("signup-password2").value;
+  if (!email || pw1.length < 8) { err.textContent = "Email og en adgangskode på mindst 8 tegn kræves."; return; }
+  if (pw1 !== pw2) { err.textContent = "Adgangskoderne matcher ikke."; return; }
+
+  const salt = VaultCrypto.randomBytesB64(16);
+  const mk = await VaultCrypto.deriveMasterKey(pw1, salt);
+  const loginAuthProof = await VaultCrypto.proofFromKey(mk, "login-auth");
+
+  const newDek = await VaultCrypto.generateDek();
+  const wrappedByMaster = await VaultCrypto.wrapKey(newDek, mk);
+
+  const recoveryString = VaultCrypto.generateRecoveryKeyString();
+  const recoveryKey = await VaultCrypto.recoveryStringToKey(recoveryString);
+  const wrappedByRecovery = await VaultCrypto.wrapKey(newDek, recoveryKey);
+  const recoveryAuthProof = await VaultCrypto.proofFromKey(newDek, "recovery-auth");
+
+  try {
+    await api("/api/signup", { method: "POST", body: JSON.stringify({
+      email, salt, loginAuthProof, recoveryAuthProof,
+      wrappedDekByMaster: wrappedByMaster.ciphertext, wrappedDekByMasterIv: wrappedByMaster.iv,
+      wrappedDekByRecovery: wrappedByRecovery.ciphertext, wrappedDekByRecoveryIv: wrappedByRecovery.iv,
+    })});
+  } catch (e) { err.textContent = "Kunne ikke oprette konto (findes emailen allerede?)."; return; }
+
+  masterKey = mk;
+  dek = newDek;
+  pendingRecoveryKeyString = recoveryString;
+  document.getElementById("recovery-key-display").textContent = recoveryString;
+  showView("recovery-shown");
+}
+
+function confirmRecoverySaved() {
+  pendingRecoveryKeyString = null;
+  loadVault();
+}
+
+// ── Login ───────────────────────────────────────────────────────────────
+async function doLogin() {
+  const err = document.getElementById("login-err");
+  err.textContent = "";
+  const email = document.getElementById("login-email").value.trim();
+  const pw = document.getElementById("login-password").value;
+  try {
+    const { salt } = await api("/api/salt?email=" + encodeURIComponent(email));
+    const mk = await VaultCrypto.deriveMasterKey(pw, salt);
+    const loginAuthProof = await VaultCrypto.proofFromKey(mk, "login-auth");
+    const result = await api("/api/login", { method: "POST", body: JSON.stringify({ email, loginAuthProof }) });
+    const unwrappedDek = await VaultCrypto.unwrapKey(result.wrappedDekByMaster, result.wrappedDekByMasterIv, mk);
+    masterKey = mk;
+    dek = unwrappedDek;
+    loadVault();
+  } catch (e) {
+    err.textContent = "Forkert email eller adgangskode.";
+  }
+}
+
+async function doLogout() {
+  await api("/api/logout", { method: "POST" });
+  masterKey = null; dek = null; entriesCache = [];
+  showView("login");
+}
+
+// ── Recovery ────────────────────────────────────────────────────────────
+async function doRecover() {
+  const err = document.getElementById("recover-err");
+  const ok = document.getElementById("recover-ok");
+  err.textContent = ""; ok.textContent = "";
+  const email = document.getElementById("recover-email").value.trim();
+  const recoveryString = document.getElementById("recover-key").value.trim();
+  const newPw = document.getElementById("recover-newpw").value;
+  if (newPw.length < 8) { err.textContent = "Ny adgangskode skal være mindst 8 tegn."; return; }
+
+  try {
+    const blob = await api("/api/recovery-blob?email=" + encodeURIComponent(email));
+    const recoveryKey = await VaultCrypto.recoveryStringToKey(recoveryString);
+    const recoveredDek = await VaultCrypto.unwrapKey(blob.wrappedDekByRecovery, blob.wrappedDekByRecoveryIv, recoveryKey);
+    const recoveryAuthProof = await VaultCrypto.proofFromKey(recoveredDek, "recovery-auth");
+
+    const newSalt = VaultCrypto.randomBytesB64(16);
+    const newMk = await VaultCrypto.deriveMasterKey(newPw, newSalt);
+    const newLoginAuthProof = await VaultCrypto.proofFromKey(newMk, "login-auth");
+    const newWrapped = await VaultCrypto.wrapKey(recoveredDek, newMk);
+
+    await api("/api/recover/complete", { method: "POST", body: JSON.stringify({
+      email, recoveryAuthProof, newSalt, newLoginAuthProof,
+      newWrappedDekByMaster: newWrapped.ciphertext, newWrappedDekByMasterIv: newWrapped.iv,
+    })});
+    ok.textContent = "Adgangskode nulstillet. Du kan nu logge ind.";
+  } catch (e) {
+    err.textContent = "Kunne ikke gendanne - tjek email og gendannelsesnøgle.";
+  }
+}
+
+// ── Vault ───────────────────────────────────────────────────────────────
+async function loadVault() {
+  showView("vault");
+  const raw = await api("/api/vault/entries");
+  entriesCache = [];
+  for (const row of raw) {
+    try {
+      const json = await VaultCrypto.aesDecrypt(dek, row.ciphertext, row.iv);
+      entriesCache.push({ id: row.id, ...JSON.parse(json) });
+    } catch (e) { /* skip entries that fail to decrypt rather than crash the list */ }
+  }
+  renderEntries();
+}
+
+function renderEntries() {
+  const q = (document.getElementById("search").value || "").toLowerCase();
+  const list = entriesCache.filter(e => !q || (e.site + e.username).toLowerCase().includes(q));
+  const container = document.getElementById("entries");
+  container.innerHTML = "";
+  for (const e of list) {
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.innerHTML = `
+      <div class="entry-title">${escapeHtml(e.site)}</div>
+      <div class="entry-field"><span class="muted" style="width:70px">Bruger</span><code>${escapeHtml(e.username||"")}</code></div>
+      <div class="entry-field"><span class="muted" style="width:70px">Kode</span><code class="pw-hidden" data-pw="${escapeHtml(e.password||"")}">••••••••</code>
+        <button class="ghost" onclick="toggleReveal(this)">👁</button>
+        <button class="ghost" onclick="copyText('${escapeHtml((e.password||"").replace(/'/g,"\\'"))}')">📋</button></div>
+      ${e.notes ? `<div class="entry-field"><span class="muted" style="width:70px">Noter</span><code>${escapeHtml(e.notes)}</code></div>` : ""}
+      <div style="margin-top:6px"><button class="ghost" onclick="deleteEntry('${e.id}')">🗑 Slet</button></div>
+    `;
+    container.appendChild(div);
+  }
+}
+
+function toggleReveal(btn) {
+  const code = btn.parentElement.querySelector(".pw-hidden");
+  code.textContent = code.textContent === "••••••••" ? code.dataset.pw : "••••••••";
+}
+function copyText(t) { navigator.clipboard.writeText(t); }
+function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+
+function fillGenerated() {
+  document.getElementById("new-secret").value = VaultCrypto.generatePassword({ length: 20 });
+}
+
+async function addEntry() {
+  const site = document.getElementById("new-site").value.trim();
+  const username = document.getElementById("new-username").value.trim();
+  const password = document.getElementById("new-secret").value;
+  const notes = document.getElementById("new-notes").value.trim();
+  if (!site || !password) return;
+
+  const payload = JSON.stringify({ site, username, password, notes });
+  const { ciphertext, iv } = await VaultCrypto.aesEncrypt(dek, payload);
+  await api("/api/vault/entries", { method: "POST", body: JSON.stringify({ ciphertext, iv }) });
+
+  document.getElementById("new-site").value = "";
+  document.getElementById("new-username").value = "";
+  document.getElementById("new-secret").value = "";
+  document.getElementById("new-notes").value = "";
+  loadVault();
+}
+
+async function deleteEntry(id) {
+  await api("/api/vault/entries/" + id, { method: "DELETE" });
+  loadVault();
+}
+
+showView("login");
+</script>
+</body>
+</html>

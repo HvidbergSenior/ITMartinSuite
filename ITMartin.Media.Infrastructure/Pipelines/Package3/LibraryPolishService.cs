@@ -62,6 +62,14 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // a time inside the main foreach (unlike Package3Service's parallel face
     // indexing, which needs a pool of instances for concurrent ONNX calls).
     private readonly IFaceRecognitionService _faceRecognitionService;
+    // Kept alongside the single instance above so DetectRotatedImagesAsync can
+    // create its own independent instance per parallel partition instead -
+    // FaceOnnxRecognitionService serializes every call behind an internal
+    // lock, so sharing one instance across concurrent workers wouldn't
+    // actually parallelize anything (see AddAi's own comment on this factory).
+    private readonly Func<IFaceRecognitionService> _faceRecognitionFactory;
+    private readonly IImageAnalysisService _imageAnalysis;
+    private readonly IDuplicateService _duplicateService;
     private readonly AnthropicClient? _anthropicClient;
 
     public LibraryPolishService(
@@ -72,6 +80,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
         IExifService exifService,
         IPerceptualHashService perceptualHashService,
         Func<IFaceRecognitionService> faceRecognitionFactory,
+        IImageAnalysisService imageAnalysis,
+        IDuplicateService duplicateService,
         IConfiguration configuration)
     {
         _logger = logger;
@@ -80,7 +90,10 @@ public sealed class LibraryPolishService : ILibraryPolishService
         _mediaDateService = mediaDateService;
         _exifService = exifService;
         _perceptualHashService = perceptualHashService;
+        _faceRecognitionFactory = faceRecognitionFactory;
         _faceRecognitionService = faceRecognitionFactory();
+        _imageAnalysis = imageAnalysis;
+        _duplicateService = duplicateService;
 
         var apiKey = configuration["Claude:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -112,16 +125,22 @@ public sealed class LibraryPolishService : ILibraryPolishService
         };
     }
 
-    // English subfolder names inside Udaterede (this is where Package1 drops
-    // undated files) map to the Danish top-level category names the rest of
-    // the library uses. Screenshots deliberately excluded - that top-level
-    // folder is flat, not year/month organized, so there's nowhere dated to
-    // move one to.
+    // Subfolder names inside the undated top-level folder map 1:1 to
+    // CategoryHelper's own category names, whichever naming convention this
+    // particular library was sorted with - Package1's default changed from
+    // English to Danish 2026-08-20 (see CategoryHelper), but existing
+    // already-sorted libraries are never renamed, so both must keep working.
+    // Screenshots deliberately excluded - that top-level folder is flat, not
+    // year/month organized, so there's nowhere dated to move one to.
     private static readonly (string SourceSubFolder, string Category)[] RedatableCategories =
     [
-        ("Images", "Billeder"),
-        ("Videos", "Videoer"),
+        ("Images", "Images"),
+        ("Videos", "Videos"),
+        ("Billeder", "Billeder"),
+        ("Videoer", "Videoer"),
     ];
+
+    private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede"];
 
     public Task<RedateUndatedResult> RedateUndatedAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
@@ -130,7 +149,9 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
         foreach (var (sourceSubFolder, category) in RedatableCategories)
         {
-            var sourceDir = Path.Combine(libraryPath, "Udaterede", sourceSubFolder);
+            var undatedFolder = UndatedFolderNames.FirstOrDefault(f => Directory.Exists(Path.Combine(libraryPath, f, sourceSubFolder)));
+            if (undatedFolder is null) continue;
+            var sourceDir = Path.Combine(libraryPath, undatedFolder, sourceSubFolder);
             if (!Directory.Exists(sourceDir)) continue;
 
             foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories).ToList())
@@ -169,7 +190,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         }
 
         _logger.LogInformation(
-            "Re-date pass complete for {LibraryPath}: {Checked} checked, {Moved} moved out of Udaterede",
+            "Re-date pass complete for {LibraryPath}: {Checked} checked, {Moved} moved out of Undated",
             libraryPath, checkedCount, moved);
 
         return Task.FromResult(new RedateUndatedResult
@@ -571,6 +592,336 @@ public sealed class LibraryPolishService : ILibraryPolishService
         };
     }
 
+    // How many images get checked against Claude in one AnalyzeImageAsync
+    // round of concurrency - same reasoning as FixOrientationAsync's
+    // RotationConcurrency, just not batched into a single prompt since
+    // AnalyzeImageAsync is a fixed one-image-per-call API (ImageTaggingService
+    // uses the same shape for the same reason).
+    private const int ScreenshotReclassifyConcurrency = 8;
+
+    // Learned the hard way (2026-08-20, Rico's library): pixel-dimension
+    // heuristics for "is this really a screenshot" are unreliable - real
+    // screenshots and unrelated photos/drawings overlap heavily in size.
+    // What actually works is Claude looking at whether real phone/app UI
+    // chrome (status bar, nav buttons, app controls) is visible - which is
+    // exactly what ClaudeImageAnalysisService's is_screenshot field already
+    // reports, previously computed but never consumed for this purpose.
+    public async Task<ScreenshotReclassifyResult> ReclassifyScreenshotsAsync(string libraryPath, int maxFiles = 500, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(libraryPath)) return new ScreenshotReclassifyResult();
+
+        var screenshotsFolder = new[] { "Screenshots", "Skærmbilleder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (screenshotsFolder is null) return new ScreenshotReclassifyResult();
+
+        var imagesFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists)
+            ?? Path.Combine(libraryPath, "Billeder");
+        var andetDir = Path.Combine(imagesFolder, "Andet", "FraSkærmbilleder");
+
+        var allFiles = Directory.EnumerateFiles(screenshotsFolder, "*", SearchOption.TopDirectoryOnly)
+            .Where(MediaTypeHelper.IsImage)
+            .ToList();
+        var toCheck = allFiles.Take(maxFiles).ToList();
+        var remaining = allFiles.Count - toCheck.Count;
+
+        var kept = 0; var movedOut = 0; var failed = 0;
+        var moveLock = new object();
+
+        await Parallel.ForEachAsync(
+            toCheck,
+            new ParallelOptions { MaxDegreeOfParallelism = ScreenshotReclassifyConcurrency, CancellationToken = cancellationToken },
+            async (file, ct) =>
+            {
+                try
+                {
+                    var result = await _imageAnalysis.AnalyzeImageAsync(file);
+                    if (result.IsScreenshot)
+                    {
+                        Interlocked.Increment(ref kept);
+                        return;
+                    }
+
+                    lock (moveLock)
+                    {
+                        Directory.CreateDirectory(andetDir);
+                        var dest = Path.Combine(andetDir, Path.GetFileName(file));
+                        var i = 2;
+                        while (File.Exists(dest))
+                        {
+                            dest = Path.Combine(andetDir, $"{Path.GetFileNameWithoutExtension(file)}_{i}{Path.GetExtension(file)}");
+                            i++;
+                        }
+                        File.Move(file, dest);
+                    }
+                    Interlocked.Increment(ref movedOut);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Screenshot reclassification failed for {Path}", file);
+                    Interlocked.Increment(ref failed);
+                }
+            });
+
+        _logger.LogInformation(
+            "Screenshot reclassification complete for {LibraryPath}: {Kept} kept, {MovedOut} moved out, {Failed} failed, {Remaining} remaining (capped at {Cap}/run)",
+            libraryPath, kept, movedOut, failed, remaining, maxFiles);
+
+        return new ScreenshotReclassifyResult
+        {
+            Checked          = toCheck.Count,
+            KeptAsScreenshot = kept,
+            MovedOut         = movedOut,
+            Failed           = failed,
+            RemainingOverCap = Math.Max(0, remaining),
+        };
+    }
+
+    public async Task<ScreenshotReclassifyResult> FindScreenshotsInImagesAsync(string sourceFolder, string destScreenshotsFolder, int maxFiles, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(sourceFolder)) return new ScreenshotReclassifyResult();
+
+        var allFiles = Directory.EnumerateFiles(sourceFolder, "*", SearchOption.TopDirectoryOnly)
+            .Where(MediaTypeHelper.IsImage)
+            .ToList();
+        var toCheck = allFiles.Take(maxFiles).ToList();
+        var remaining = allFiles.Count - toCheck.Count;
+
+        var kept = 0; var movedOut = 0; var failed = 0;
+        var moveLock = new object();
+
+        await Parallel.ForEachAsync(
+            toCheck,
+            new ParallelOptions { MaxDegreeOfParallelism = ScreenshotReclassifyConcurrency, CancellationToken = cancellationToken },
+            async (file, ct) =>
+            {
+                try
+                {
+                    var result = await _imageAnalysis.AnalyzeImageAsync(file);
+                    if (!result.IsScreenshot)
+                    {
+                        Interlocked.Increment(ref kept);
+                        return;
+                    }
+
+                    lock (moveLock)
+                    {
+                        Directory.CreateDirectory(destScreenshotsFolder);
+                        var dest = Path.Combine(destScreenshotsFolder, Path.GetFileName(file));
+                        var i = 2;
+                        while (File.Exists(dest))
+                        {
+                            dest = Path.Combine(destScreenshotsFolder, $"{Path.GetFileNameWithoutExtension(file)}_{i}{Path.GetExtension(file)}");
+                            i++;
+                        }
+                        File.Move(file, dest);
+                    }
+                    Interlocked.Increment(ref movedOut);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Screenshot detection failed for {Path}", file);
+                    Interlocked.Increment(ref failed);
+                }
+            });
+
+        _logger.LogInformation(
+            "Screenshot detection complete for {SourceFolder}: {Kept} kept as images, {MovedOut} moved to screenshots, {Failed} failed, {Remaining} remaining (capped at {Cap}/run)",
+            sourceFolder, kept, movedOut, failed, remaining, maxFiles);
+
+        return new ScreenshotReclassifyResult
+        {
+            Checked          = toCheck.Count,
+            KeptAsScreenshot = kept,
+            MovedOut         = movedOut,
+            Failed           = failed,
+            RemainingOverCap = Math.Max(0, remaining),
+        };
+    }
+
+    // Same face-detection tier FixOrientationAsync tries first, exposed on
+    // its own so it can run without ever touching the paid Claude fallback
+    // ("should not cost a thing" - user, 2026-08-20). Whatever the free tier
+    // can't confidently resolve is reported for manual review, not guessed
+    // at or silently left as-is.
+    public async Task<FreeOrientationFixResult> FixOrientationFreeOnlyAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(libraryPath)) return new FreeOrientationFixResult();
+
+        var images = EnumerateImagesForRotationCheck(libraryPath, cancellationToken).ToList();
+        var checkedCount = 0;
+        var rotated = 0;
+        var needsReview = new List<string>();
+
+        foreach (var file in images)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            checkedCount++;
+
+            var faceDegrees = await TryDetectOrientationViaFacesAsync(file, cancellationToken);
+            if (faceDegrees is { } fd)
+            {
+                ApplyResolvedFile(file, fd, ref rotated);
+            }
+            else
+            {
+                needsReview.Add(Path.GetRelativePath(libraryPath, file));
+            }
+        }
+
+        _logger.LogInformation(
+            "Free-only orientation check complete for {LibraryPath}: {Checked} checked, {Rotated} rotated, {NeedsReview} need manual review",
+            libraryPath, checkedCount, rotated, needsReview.Count);
+
+        return new FreeOrientationFixResult
+        {
+            PhotosChecked     = checkedCount,
+            PhotosRotated     = rotated,
+            NeedsManualReview = needsReview,
+        };
+    }
+
+    public async Task<RotationDetectionResult> DetectRotatedImagesAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(libraryPath)) return new RotationDetectionResult();
+
+        var images = EnumerateImagesForRotationCheck(libraryPath, cancellationToken).ToList();
+        var checkedCount = 0;
+        var rotatedImages = new System.Collections.Concurrent.ConcurrentBag<RotatedImageInfo>();
+        var needsReview = new System.Collections.Concurrent.ConcurrentBag<string>();
+
+        // A real library can be tens of thousands of images, and this check
+        // does 4 rotation candidates x one ONNX face-detection call each -
+        // sequential would take hours. FaceOnnxRecognitionService serializes
+        // every call behind an internal lock, so sharing one instance across
+        // workers wouldn't actually parallelize anything - each partition
+        // gets its own independent instance via the factory instead (same
+        // reasoning as AddAi's own Func<IFaceRecognitionService> comment).
+        var degreeOfParallelism = Environment.ProcessorCount;
+        var partitions = images
+            .Select((file, index) => (file, index))
+            .GroupBy(x => x.index % degreeOfParallelism)
+            .Select(g => g.Select(x => x.file).ToList())
+            .ToList();
+
+        await Task.WhenAll(partitions.Select(async partition =>
+        {
+            var faceService = _faceRecognitionFactory();
+            foreach (var file in partition)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Interlocked.Increment(ref checkedCount);
+
+                var faceDegrees = await TryDetectOrientationViaFacesAsync(file, cancellationToken, faceService);
+                if (faceDegrees is { } fd)
+                {
+                    if (fd != 0)
+                    {
+                        rotatedImages.Add(new RotatedImageInfo
+                        {
+                            RelativePath  = Path.GetRelativePath(libraryPath, file),
+                            DegreesNeeded = fd,
+                        });
+                    }
+                }
+                else
+                {
+                    needsReview.Add(Path.GetRelativePath(libraryPath, file));
+                }
+            }
+        }));
+
+        _logger.LogInformation(
+            "Rotation detection complete for {LibraryPath}: {Checked} checked, {Rotated} need rotation, {NeedsReview} need manual review",
+            libraryPath, checkedCount, rotatedImages.Count, needsReview.Count);
+
+        return new RotationDetectionResult
+        {
+            PhotosChecked     = checkedCount,
+            RotatedImages     = rotatedImages.OrderBy(r => r.RelativePath).ToList(),
+            NeedsManualReview = needsReview.OrderBy(r => r).ToList(),
+        };
+    }
+
+    // Runs IDuplicateService's own exact+perceptual-hash logic against
+    // whatever is actually on disk right now, bucketed by (Year, Month)
+    // folder path the same way the original Package1 pass buckets by
+    // (Year, Month) metadata - close enough once a library is already
+    // sorted, and avoids re-deriving date metadata from scratch. Never
+    // deletes anything - only reports groups, same convention as
+    // DeduplicateFolderAsync ("caller's responsibility to have confirmed
+    // with the user first").
+    public async Task<NearDuplicateReport> FindDuplicatesInLibraryAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(libraryPath)) return new NearDuplicateReport();
+
+        var files = Directory.EnumerateFiles(libraryPath, "*", SearchOption.AllDirectories)
+            .Where(f => !Path.GetFileName(Path.GetDirectoryName(f) ?? "").Equals("thumbnails", StringComparison.OrdinalIgnoreCase))
+            .Where(MediaTypeHelper.IsImage)
+            .ToList();
+
+        var mediaFiles = new List<MediaFile>();
+        foreach (var f in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string hash;
+            try { hash = ComputeHash(f); }
+            catch (IOException) { continue; }
+
+            var info = new FileInfo(f);
+            // Real per-file capture timestamp (same MediaDateService Package1
+            // itself uses) rather than a year-only placeholder - lets
+            // BuildDuplicateGroupsAsync's exact-timestamp pass work correctly
+            // against an already-sorted library, not just fresh imports.
+            // Falls back to a non-reliable Jan-1-of-year guess (same as
+            // before) only when no real date can be resolved, purely to keep
+            // the near-duplicate pass's Year/Month bucketing populated.
+            var dateResult = _mediaDateService.GetBestDate(new MediaDateRequest(f));
+            var mediaFile = dateResult.Date is { } realDate
+                ? new MediaFile(f, realDate, ITMartin.Media.Contracts.Contracts.Runtime.Enums.MediaType.Image, info.Length, isDateReliable: dateResult.IsReliable)
+                : new MediaFile(f, new DateTime(ExtractYearFromPath(f, libraryPath) ?? 2000, 1, 1), ITMartin.Media.Contracts.Contracts.Runtime.Enums.MediaType.Image, info.Length, isDateReliable: false);
+            mediaFile.SetHash(hash);
+            mediaFiles.Add(mediaFile);
+        }
+
+        var groups = await _duplicateService.BuildDuplicateGroupsAsync(mediaFiles, cancellationToken);
+
+        var reportGroups = groups.Select(g => new NearDuplicateGroupInfo
+        {
+            Kind = g.Hash.StartsWith("phash:") ? "near" : "exact",
+            RelativePaths = g.Files.Select(f => Path.GetRelativePath(libraryPath, f.FullPath)).ToList(),
+            TotalSizeBytes = g.TotalSizeBytes,
+        }).ToList();
+
+        _logger.LogInformation(
+            "Duplicate scan complete for {LibraryPath}: {Files} files scanned, {Exact} exact groups, {Near} near-duplicate groups",
+            libraryPath, mediaFiles.Count, reportGroups.Count(g => g.Kind == "exact"), reportGroups.Count(g => g.Kind == "near"));
+
+        return new NearDuplicateReport
+        {
+            FilesScanned = mediaFiles.Count,
+            ExactGroups  = reportGroups.Count(g => g.Kind == "exact"),
+            NearGroups   = reportGroups.Count(g => g.Kind == "near"),
+            Groups       = reportGroups,
+        };
+    }
+
+    // Best-effort: looks for a 4-digit year as a whole path segment - fine
+    // for scoping the perceptual-hash comparison buckets, not meant to be
+    // authoritative metadata.
+    private static int? ExtractYearFromPath(string filePath, string libraryPath)
+    {
+        var rel = Path.GetRelativePath(libraryPath, filePath);
+        foreach (var segment in rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            if (segment.Length == 4 && int.TryParse(segment, out var year) && year is > 1990 and < 2100)
+                return year;
+        }
+        return null;
+    }
+
     private async Task ResolveBatchAsync(
         List<string> files,
         string libraryPath,
@@ -619,8 +970,9 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // to a paid Claude vision call. Writes each candidate rotation to a temp
     // file (never mutates the real one until a decision is made) and picks
     // the single rotation that found faces, if exactly one did.
-    private async Task<int?> TryDetectOrientationViaFacesAsync(string filePath, CancellationToken cancellationToken)
+    private async Task<int?> TryDetectOrientationViaFacesAsync(string filePath, CancellationToken cancellationToken, IFaceRecognitionService? faceService = null)
     {
+        faceService ??= _faceRecognitionService;
         var tempDir = Path.Combine(Path.GetTempPath(), $"rotcheck_{Guid.NewGuid():N}");
 
         try
@@ -650,7 +1002,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
                         image.Save(tempPath);
                     }
 
-                    var faces = await _faceRecognitionService.ExtractFaceEmbeddingsAsync(tempPath);
+                    var faces = await faceService.ExtractFaceEmbeddingsAsync(tempPath);
                     faceCounts[degrees] = faces.Count;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)

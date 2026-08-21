@@ -30,4 +30,15 @@ public interface IPackage4Service
     /// against already-sorted output). Only ever touches collections.json.
     /// </summary>
     Task<StructureRepairResult> RepairCollectionsPathsAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Automated "does this delivered HD/USB actually look right" check -
+    /// run this after every delivery, not just when something looks off.
+    /// Reports every file extension seen per category folder (spot-checks
+    /// for misfiled/junk content) and flags any Year/Month folder whose
+    /// shape doesn't match the current threshold rules (flat under
+    /// MonthSplitThreshold, Month folders above it, half-month split above
+    /// MonthHalfSplitThreshold). Metadata-only, safe against a NAS mount.
+    /// </summary>
+    Task<DeliveryStructureReport> VerifyDeliveryStructureAsync(string libraryPath, CancellationToken cancellationToken = default);
 }
