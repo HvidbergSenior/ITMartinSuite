@@ -169,6 +169,32 @@ string? MonthLabelFor(string rawName)
     }
     return DateRangeFolderPattern.IsMatch(rawName) ? rawName : null;
 }
+
+// Danish month abbreviation (3 letters, as used in the "Abbr-Abbr" date-range
+// folder form) -> calendar month number, for sorting that form chronologically.
+var DanishMonthAbbrToNumber = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+{
+    ["Jan"] = 1, ["Feb"] = 2, ["Mar"] = 3, ["Apr"] = 4, ["Maj"] = 5, ["Jun"] = 6,
+    ["Jul"] = 7, ["Aug"] = 8, ["Sep"] = 9, ["Okt"] = 10, ["Nov"] = 11, ["Dec"] = 12,
+};
+
+// Leading calendar-month number for a month/date-range folder, purely for
+// chronological ordering - never shown to the user, so an imperfect guess
+// for an unrecognized shape (falls back to 0) just means "sorts first" rather
+// than crashing or breaking the grouping this exists to fix.
+int MonthSortKeyFor(string rawName)
+{
+    var m = MonthFolderPattern.Match(rawName);
+    if (m.Success && int.TryParse(m.Groups[1].Value, out var n)) return n;
+
+    var digitMatch = System.Text.RegularExpressions.Regex.Match(rawName, @"\d{1,2}");
+    if (digitMatch.Success && int.TryParse(digitMatch.Value, out var d)) return d;
+
+    var abbrMatch = System.Text.RegularExpressions.Regex.Match(rawName, @"[A-ZÆØÅ][a-zæøå]{2}");
+    if (abbrMatch.Success && DanishMonthAbbrToNumber.TryGetValue(abbrMatch.Value, out var mn)) return mn;
+
+    return 0;
+}
 mime.Mappings[".flac"] = "audio/flac";
 mime.Mappings[".ogg"]  = "audio/ogg";
 
@@ -454,20 +480,27 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
 
     IEnumerable<string> filePaths;
     Dictionary<string, string>? monthLabelByPath = null;
+    // Chronological sort key per month folder (the leading month number, e.g.
+    // "02-Februar" -> 2) - see the ordering fix below for why this exists.
+    Dictionary<string, int>? monthSortKeyByPath = null;
 
     if (isFlattenableYear)
     {
         monthLabelByPath = new Dictionary<string, string>();
+        monthSortKeyByPath = new Dictionary<string, int>();
         var monthDirs = Directory.EnumerateDirectories(current).Where(d => !IsSystemFolder(d) && !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase));
         var gathered = new List<string>();
         foreach (var monthDir in monthDirs)
         {
-            var label = MonthLabelFor(Path.GetFileName(monthDir));
+            var folderName = Path.GetFileName(monthDir);
+            var label = MonthLabelFor(folderName);
             if (label is null) continue;
+            var sortKey = MonthSortKeyFor(folderName);
             foreach (var f in Directory.EnumerateFiles(monthDir).Where(IsMedia))
             {
                 gathered.Add(f);
                 monthLabelByPath[f] = label;
+                monthSortKeyByPath[f] = sortKey;
             }
         }
         filePaths = gathered;
@@ -478,9 +511,19 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         filePaths = Directory.EnumerateFiles(current).Where(IsMedia);
     }
 
+    // Filesystem LastWriteTimeUtc alone is NOT a safe sort key across a
+    // flattened multi-month view - repeated copy/re-import passes on a real
+    // tenant library leave this timestamp reflecting when a file was last
+    // copied in, not when it was taken, so files from different months end
+    // up interleaved. That interleaving is what made the month-divider
+    // header (see wwwroot/index.html) flip back and forth and appear to
+    // repeat instead of showing once per month. Grouping by the month's own
+    // chronological key first keeps every month's files contiguous; within
+    // a month, LastWriteTimeUtc is still a reasonable enough tiebreaker.
     var files = filePaths
         .Where(f => !inMusikFolder || IsAud(Ext(f)))
-        .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
+        .OrderByDescending(f => monthSortKeyByPath?.GetValueOrDefault(f) ?? 0)
+        .ThenByDescending(f => File.GetLastWriteTimeUtc(f))
         .Select(f =>
         {
             var ext = Ext(f);
