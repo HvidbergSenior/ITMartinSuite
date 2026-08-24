@@ -315,49 +315,6 @@ app.MapGet("/api/debug/p1-status", async (Microsoft.EntityFrameworkCore.IDbConte
         });
 });
 
-// TEMP DEBUG - Package4 (social/vlog clip enhancement). source is scanned
-// directly for video files (no manifest.json needed for a one-off clip
-// folder); workingDirectory holds working/checkpoints/delivery subfolders.
-app.MapPost("/api/debug/p4-start", async (
-    string source,
-    string workingDirectory,
-    ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Client client,
-    bool enableStabilization = false,
-    double trimStartSeconds = 0,
-    double? trimEndSeconds = null) =>
-{
-    var workflowId = await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package4.StartPackage4Request
-    {
-        SourceLibraryPath = source,
-        WorkingDirectory = workingDirectory,
-        EnableStabilization = enableStabilization,
-        TrimStartSeconds = trimStartSeconds,
-        TrimEndSeconds = trimEndSeconds
-    }, CancellationToken.None);
-    return Results.Ok(new { workflowId });
-});
-
-app.MapGet("/api/debug/p4-status", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
-{
-    await using var db = await dbFactory.CreateDbContextAsync();
-    var instance = await db.WorkflowInstances
-        .Where(x => x.WorkflowName == "Package4Workflow")
-        .OrderByDescending(x => x.StartedAtUtc)
-        .FirstOrDefaultAsync();
-    return instance is null
-        ? Results.NotFound()
-        : Results.Ok(new
-        {
-            instance.Status,
-            instance.CurrentStep,
-            instance.ProgressCurrent,
-            instance.ProgressTotal,
-            instance.ProgressItem,
-            instance.FailureReason,
-            instance.CompletedAtUtc
-        });
-});
-
 // TEMP DEBUG - testing Package3 face indexing end-to-end, removed after
 app.MapPost("/api/debug/p3-index-faces", (string path, IServiceScopeFactory scopeFactory) =>
 {

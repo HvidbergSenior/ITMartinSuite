@@ -15,8 +15,6 @@ public static class MediaPlatformDependencyInjection
 
         services.AddPackage2Pipeline(configuration);
 
-        services.AddPackage4Pipeline(configuration);
-
         return services;
     }
 }
