@@ -83,4 +83,64 @@ public interface ILibraryPolishService
     // the rest. Real, irreversible deletion - caller's responsibility to
     // have confirmed with the user first.
     Task<DeduplicateResult> DeduplicateFolderAsync(string folderPath, CancellationToken cancellationToken = default);
+
+    // Standalone counterpart to FileStatusWorkflowStep, for a library that's
+    // already sorted (not a fresh Package1 import) - e.g. re-running against
+    // D:\mie after the fact. Shares the same filestatus.json registry, so a
+    // file resolved by either path is recognized by the other. Runs every
+    // applicable step-flag (CategoryIsSet, SubCategoryIsSet, DateIsSet,
+    // RotationIsCorrect (free tier), NotDuplicate, IsNormalized,
+    // QualityChecked, FileIsReadable) against whatever isn't already IsDone -
+    // a file with every applicable flag true is skipped entirely on the next
+    // call, so repeated runs against the same library only ever get cheaper.
+    // Images still ambiguous after the free tiers fall to a capped number of
+    // real Claude calls (is_screenshot/is_meme/is_chat, same call also
+    // answers QualityChecked at no extra cost) - maxAiCalls is a required
+    // hard cap, same convention as every other per-file AI pass in this suite.
+    //
+    // includeSlowSteps=false skips the two genuinely slow phases - rotation
+    // face-detection and AI classification - entirely (no ONNX/Claude calls
+    // made at all). Structure/format flags (CategoryIsSet, SubCategoryIsSet
+    // when resolvable from EXIF alone, NotDuplicate, IsNormalized, DateIsSet,
+    // FileIsReadable) still get resolved and saved, so a library lands in its
+    // correct folders and gets its conversion needs flagged as fast as
+    // possible. Files left with an unresolved RotationIsCorrect/ambiguous
+    // SubCategoryIsSet simply aren't IsDone yet - a later includeSlowSteps=true
+    // call picks them back up without re-deriving anything already resolved.
+    // maxRotationChecksPerRun bounds how many photos get the expensive free
+    // rotation check (4x decode+ONNX each) in this ONE call - the actual fix
+    // for a call that used to take 7-12+ hours against a large backlog.
+    // Defaults to 500 (same value FixOrientationAsync already uses). Anything
+    // past the cap is left unresolved, not quarantined - a future call (see
+    // RunUntilConvergedAsync) picks it up, since the front of the queue is
+    // guaranteed to shrink every round (each checked photo is either fixed
+    // in place or moved to RotationUkendt, never left pending).
+    // maxFilesScannedPerRun bounds the sequential scan phase (hash + EXIF +
+    // video metadata, one ffprobe spawn per video) the same way
+    // maxRotationChecksPerRun bounds the rotation phase - found necessary
+    // 2026-08-24 running against a video-heavy backlog, where the scan phase
+    // alone could dominate a call's wall-clock time before rotation-checking
+    // was ever reached. Defaults to 3000. Same shrinks-every-round
+    // convergence via RunUntilConvergedAsync.
+    Task<FileStatusReport> RunAllStepsAsync(string libraryPath, int maxAiCalls, int? maxRotationParallelism = null, bool includeSlowSteps = true, int? maxRotationChecksPerRun = null, int? maxFilesScannedPerRun = null, CancellationToken cancellationToken = default);
+
+    // Automates "keep calling RunAllStepsAsync until it stops making
+    // progress" - each round only touches files that aren't IsDone yet, and
+    // unresolvable rotation cases get quarantined into RotationUkendt, so the
+    // residual naturally shrinks (and gets cheaper) every round without
+    // re-deriving anything already known. Stops early once every file is
+    // IsDone, or once a round makes zero additional progress over the last
+    // one (further calls would just re-pay the same cheap walk for the same
+    // irreducible residual) - maxIterations is a hard safety ceiling either
+    // way, same "always a real cap" convention as every other loop in this
+    // suite.
+    Task<FileStatusReport> RunUntilConvergedAsync(string libraryPath, int maxAiCallsPerIteration, int? maxRotationParallelism = null, int maxIterations = 10, CancellationToken cancellationToken = default);
+
+    // One-time cleanup for a specific mess found in already-sorted libraries:
+    // "BurstN" subfolders (not produced by any current pipeline step) that
+    // group a handful of files under a Year/Month folder. Moves every file
+    // back up into the parent folder (collision-safe rename) and removes the
+    // now-empty BurstN folder. Never touches a folder that isn't literally
+    // named "Burst" followed by digits.
+    Task<BurstFlattenResult> FlattenBurstFoldersAsync(string libraryPath, CancellationToken cancellationToken = default);
 }

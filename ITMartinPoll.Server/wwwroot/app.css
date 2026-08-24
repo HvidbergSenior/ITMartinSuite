@@ -147,11 +147,28 @@ a { color: inherit; text-decoration: none; }
 .poll-view { padding-bottom: 64px; }
 
 .poll-hero-img {
-    width: 96px;
-    height: 96px;
-    object-fit: cover;
+    max-width: min(420px, 100%);
+    max-height: 420px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     display: block;
     margin: 16px auto 0;
+    border-radius: 10px;
+    border: 1px solid var(--border-3);
+}
+
+/* Extra photos interleaved between date rows - same "never crop, just fit"
+   rule as the hero image (see poll-hero-img), just smaller since there can
+   be several of these down the page. */
+.poll-spread-img {
+    max-width: min(320px, 100%);
+    max-height: 320px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: 20px auto;
     border-radius: 10px;
     border: 1px solid var(--border-3);
 }
@@ -440,8 +457,31 @@ a { color: inherit; text-decoration: none; }
 
 .admin-preview-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; }
 
+.admin-spread-preview { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 8px; }
+.admin-spread-preview-item { position: relative; }
+.admin-spread-preview-item .admin-preview-img { max-height: 110px; }
+.admin-spread-preview-item .admin-btn { position: absolute; top: 4px; right: 4px; }
+
 .option-row { display: flex; gap: 8px; align-items: center; }
 .option-input { flex: 1; }
+
+/* ── Voter matrix (admin: who voted what) ── */
+
+.voter-matrix-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+
+.voter-matrix { border-collapse: collapse; width: 100%; font-size: 13px; }
+
+.voter-matrix th, .voter-matrix td {
+    padding: 8px 10px;
+    text-align: center;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border-2);
+}
+
+.voter-matrix th { color: var(--muted-2); font-weight: 600; background: var(--card); }
+.voter-matrix td.voter-name, .voter-matrix th:first-child { text-align: left; color: var(--text); font-weight: 600; position: sticky; left: 0; background: var(--bg); }
+.voter-matrix th:first-child { background: var(--card); }
+.voter-matrix tr:last-child td { border-bottom: none; }
 
 .form-error { color: var(--danger); font-size: 14px; }
 

@@ -1,11 +1,33 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject PlayerIdentityService Identity
+@implements IDisposable
 
 <div class="r6-shell">
 
     <header class="r6-app-header">
         <div class="r6-header-inner">
-            <span class="r6-logo">R6</span>
-            <span class="r6-header-title">ASSISTANT</span>
+            <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;color:inherit">
+                <span class="r6-logo">R6</span>
+                <span class="r6-header-title">ASSISTANT</span>
+            </a>
+
+            @if (_editingName)
+            {
+                <form style="margin-left:auto;display:flex;gap:6px" @onsubmit="SaveName">
+                    <input @bind="_nameInput" placeholder="Dit navn" style="width:120px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text);font-size:.85rem" />
+                    <button type="submit" class="player-name-save-btn">Gem</button>
+                </form>
+            }
+            else
+            {
+                <button class="player-name-btn" style="margin-left:auto" @onclick="StartEditingName">
+                    👤 @(Identity.Name ?? "Hvem er du?")
+                </button>
+            }
+
+            <nav style="display:flex;gap:8px">
+                <a href="/admin" style="color:var(--text-muted);text-decoration:none;font-size:.85rem">🛠 Admin</a>
+            </nav>
         </div>
     </header>
 
@@ -15,3 +37,33 @@
     <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
 
 </div>
+
+@code {
+    private bool _editingName;
+    private string _nameInput = "";
+
+    protected override void OnInitialized() => Identity.OnChanged += OnIdentityChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Identity.EnsureLoadedAsync();
+        StateHasChanged();
+    }
+
+    private void OnIdentityChanged() => InvokeAsync(StateHasChanged);
+
+    private void StartEditingName()
+    {
+        _nameInput = Identity.Name ?? "";
+        _editingName = true;
+    }
+
+    private async Task SaveName()
+    {
+        await Identity.SetNameAsync(_nameInput);
+        _editingName = false;
+    }
+
+    public void Dispose() => Identity.OnChanged -= OnIdentityChanged;
+}

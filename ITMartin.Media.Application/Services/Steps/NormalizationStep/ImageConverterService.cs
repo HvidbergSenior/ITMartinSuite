@@ -53,6 +53,30 @@ public class ImageConverterService : IImageConverterService
         return ConvertibleExtensions.Contains(ext);
     }
 
+    public bool TryGetSourceOrientation(string path, out ushort orientation) =>
+        TryReadOrientationTag(path, out orientation);
+
+    private static bool TryReadOrientationTag(string path, out ushort orientation)
+    {
+        orientation = 0;
+        try
+        {
+            var exif = ImageMetadataReader.ReadMetadata(path)
+                .OfType<ExifIfd0Directory>()
+                .FirstOrDefault();
+
+            if (exif == null || !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
+                return false;
+
+            orientation = (ushort)exif.GetInt32(ExifDirectoryBase.TagOrientation);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public bool ShouldKeepOriginal(string path)
     {
         var name =
@@ -330,15 +354,7 @@ public class ImageConverterService : IImageConverterService
     {
         try
         {
-            var exif = ImageMetadataReader.ReadMetadata(inputPath)
-                .OfType<ExifIfd0Directory>()
-                .FirstOrDefault();
-
-            if (exif == null || !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
-                return null;
-
-            var orientation = (ushort)exif.GetInt32(ExifDirectoryBase.TagOrientation);
-            if (orientation <= 1)
+            if (!TryReadOrientationTag(inputPath, out var orientation) || orientation <= 1)
                 return null;
 
             var tempRoot = Path.Combine(Path.GetTempPath(), "ITMartinFileSorter", "images");
@@ -368,20 +384,7 @@ public class ImageConverterService : IImageConverterService
     {
         try
         {
-            var exif = ImageMetadataReader.ReadMetadata(originalPath)
-                .OfType<ExifIfd0Directory>()
-                .FirstOrDefault();
-
-            if (exif == null ||
-                !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
-            {
-                return;
-            }
-
-            var orientation = (ushort)exif.GetInt32(
-                ExifDirectoryBase.TagOrientation);
-
-            if (orientation <= 1)
+            if (!TryReadOrientationTag(originalPath, out var orientation) || orientation <= 1)
             {
                 return;
             }

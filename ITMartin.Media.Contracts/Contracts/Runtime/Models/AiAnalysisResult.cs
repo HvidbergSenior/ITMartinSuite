@@ -17,4 +17,6 @@ public class AiAnalysisResult
     public bool IsMeme { get; set; }
 
     public bool IsScreenshot { get; set; }
+
+    public bool IsChat { get; set; }
 }

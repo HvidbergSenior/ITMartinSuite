@@ -34,7 +34,9 @@ public sealed class Package1Client
                     request.SourceLibraryPath,
                 OverrideYear = request.OverrideYear,
                 OutputPath = request.OutputPath,
-                EnableAiClassification = request.EnableAiClassification
+                EnableAiClassification = request.EnableAiClassification,
+                EnableDeduplication = request.EnableDeduplication,
+                EnableBaselineSnapshot = request.EnableBaselineSnapshot
             };
 
         await _backgroundJobQueue

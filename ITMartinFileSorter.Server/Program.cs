@@ -217,6 +217,26 @@ if (!string.IsNullOrWhiteSpace(sourcePath) &&
         });
 }
 
+// Package4 Studio can browse folders outside the library/source roots (e.g. a
+// standalone test folder like C:\BertilTest) - /libraryfiles and /sourcefiles
+// only cover their own configured roots, so this serves an absolute path directly.
+app.MapGet(
+    "/localfile",
+    (string path) =>
+    {
+        if (!File.Exists(path))
+        {
+            return Results.NotFound();
+        }
+
+        var contentType =
+            provider.TryGetContentType(path, out var type)
+                ? type
+                : "application/octet-stream";
+
+        return Results.File(path, contentType, enableRangeProcessing: true);
+    });
+
 // =========================
 // PIPELINE
 // =========================
@@ -236,14 +256,15 @@ app.MapPost("/api/push/unsubscribe", async (PushUnsubscribeRequest req, FileSort
 });
 
 // TEMP DEBUG - driving the Google Drive Takeout multi-batch job, removed after
-app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage1Client client) =>
+app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage1Client client, bool enableDeduplication = true, bool enableBaselineSnapshot = true) =>
 {
     var workflowId = await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1.StartPackage1Request
     {
         SourceLibraryPath = source,
         WorkingDirectory = System.IO.Path.Combine(source, ".package1"),
         OutputPath = output,
-        EnableDeduplication = true,
+        EnableDeduplication = enableDeduplication,
+        EnableBaselineSnapshot = enableBaselineSnapshot,
         EnableAiClassification = false,
         EnableOcr = false,
         Profile = "Package1"
@@ -278,6 +299,49 @@ app.MapGet("/api/debug/p1-status", async (Microsoft.EntityFrameworkCore.IDbConte
     await using var db = await dbFactory.CreateDbContextAsync();
     var instance = await db.WorkflowInstances
         .Where(x => x.WorkflowName == "Package1Workflow")
+        .OrderByDescending(x => x.StartedAtUtc)
+        .FirstOrDefaultAsync();
+    return instance is null
+        ? Results.NotFound()
+        : Results.Ok(new
+        {
+            instance.Status,
+            instance.CurrentStep,
+            instance.ProgressCurrent,
+            instance.ProgressTotal,
+            instance.ProgressItem,
+            instance.FailureReason,
+            instance.CompletedAtUtc
+        });
+});
+
+// TEMP DEBUG - Package4 (social/vlog clip enhancement). source is scanned
+// directly for video files (no manifest.json needed for a one-off clip
+// folder); workingDirectory holds working/checkpoints/delivery subfolders.
+app.MapPost("/api/debug/p4-start", async (
+    string source,
+    string workingDirectory,
+    ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Client client,
+    bool enableStabilization = false,
+    double trimStartSeconds = 0,
+    double? trimEndSeconds = null) =>
+{
+    var workflowId = await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package4.StartPackage4Request
+    {
+        SourceLibraryPath = source,
+        WorkingDirectory = workingDirectory,
+        EnableStabilization = enableStabilization,
+        TrimStartSeconds = trimStartSeconds,
+        TrimEndSeconds = trimEndSeconds
+    }, CancellationToken.None);
+    return Results.Ok(new { workflowId });
+});
+
+app.MapGet("/api/debug/p4-status", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var instance = await db.WorkflowInstances
+        .Where(x => x.WorkflowName == "Package4Workflow")
         .OrderByDescending(x => x.StartedAtUtc)
         .FirstOrDefaultAsync();
     return instance is null
@@ -528,6 +592,54 @@ app.MapPost("/api/debug/find-duplicates", async (string path, ITMartin.Media.Con
 
 app.MapPost("/api/debug/p4-verify-delivery-structure", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
     Results.Ok(await service.VerifyDeliveryStructureAsync(path)));
+
+// Runs every applicable step-flag (CategoryIsSet, SubCategoryIsSet, DateIsSet,
+// RotationIsCorrect free-tier, NotDuplicate, IsNormalized, QualityChecked,
+// FileIsReadable) against an already-sorted library - see FileStatusWorkflowStep
+// for the fresh-import equivalent. Only files not already IsDone in
+// filestatus.json get looked at, so re-running the same library only ever
+// costs what's newly unresolved. maxAiCalls is a REQUIRED hard cap (real
+// Claude cost for whatever's still ambiguous after the free tiers).
+app.MapPost("/api/debug/run-all-steps", async (string path, int maxAiCalls, int? maxRotationParallelism, bool? includeSlowSteps, int? maxRotationChecksPerRun, int? maxFilesScannedPerRun, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+{
+    if (maxAiCalls < 0 || maxAiCalls > 5000)
+        return Results.BadRequest("maxAiCalls must be between 0 and 5000.");
+    if (maxRotationParallelism is < 1)
+        return Results.BadRequest("maxRotationParallelism must be at least 1.");
+    if (maxRotationChecksPerRun is < 0)
+        return Results.BadRequest("maxRotationChecksPerRun must be at least 0.");
+    if (maxFilesScannedPerRun is < 0)
+        return Results.BadRequest("maxFilesScannedPerRun must be at least 0.");
+    return Results.Ok(await service.RunAllStepsAsync(path, maxAiCalls, maxRotationParallelism, includeSlowSteps ?? true, maxRotationChecksPerRun, maxFilesScannedPerRun));
+});
+
+// Automates re-triggering run-all-steps round after round until the
+// residual stops shrinking (or every file is done) - see
+// ILibraryPolishService.RunUntilConvergedAsync. maxAiCalls is the PER-ROUND
+// cap, same required-hard-cap convention as run-all-steps.
+app.MapPost("/api/debug/run-until-converged", async (string path, int maxAiCalls, int? maxRotationParallelism, int? maxIterations, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+{
+    if (maxAiCalls < 0 || maxAiCalls > 5000)
+        return Results.BadRequest("maxAiCalls must be between 0 and 5000.");
+    if (maxRotationParallelism is < 1)
+        return Results.BadRequest("maxRotationParallelism must be at least 1.");
+    if (maxIterations is < 1)
+        return Results.BadRequest("maxIterations must be at least 1.");
+    return Results.Ok(await service.RunUntilConvergedAsync(path, maxAiCalls, maxRotationParallelism, maxIterations ?? 10));
+});
+
+// Read-only view of the isDone registry - "viewable state" for a library:
+// counts by category/flag, and a sample of what still needs manual review.
+app.MapGet("/api/debug/file-status-report", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFileStatusRegistryService registry) =>
+{
+    var loaded = await registry.LoadAsync(path);
+    return Results.Ok(registry.BuildReport(loaded));
+});
+
+// One-time cleanup for "BurstN" folders found in already-sorted libraries -
+// see LibraryPolishService.FlattenBurstFoldersAsync.
+app.MapPost("/api/debug/flatten-bursts", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.FlattenBurstFoldersAsync(path)));
 
 // "Just before delivery" package (2026-08-20) - runs every free/local check
 // together in one call: file integrity, structure/extensions, rotation

@@ -36,6 +36,10 @@ public static class FileSorterDependencyInjection
             PerceptualHashService>();
 
         services.AddScoped<
+            IImageQualityService,
+            ImageQualityService>();
+
+        services.AddScoped<
             IDuplicateService,
             DuplicateService>();
 
@@ -58,6 +62,10 @@ public static class FileSorterDependencyInjection
         services.AddSingleton<
             ICollectionStore,
             JsonCollectionStore>();
+
+        services.AddSingleton<
+            IFileStatusRegistryService,
+            FileStatusRegistryService>();
 
         services.AddScoped<
             IPackage3Service,

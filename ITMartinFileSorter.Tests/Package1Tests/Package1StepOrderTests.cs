@@ -48,18 +48,21 @@ public class Package1StepOrderTests
         "MetadataWorkflowStep",             // 6.  Reads EXIF/video metadata - date, GPS, camera model, etc.
         "DuplicateDetectionWorkflowStep",   // 7.  Exact-hash + perceptual-hash image duplicate grouping.
         "AudioDuplicateDetectionWorkflowStep", // 8.  Same idea, scoped to audio tracks.
-        "ImageNormalizationWorkflowStep",   // 9.  HEIC/HEIF/AVIF -> JPG conversion, orientation baking.
-        "VideoNormalizationWorkflowStep",   // 10. Container/codec normalization for web-safe playback.
-        "VideoSegmentationWorkflowStep",    // 11. Splits oversized/multi-clip videos where applicable.
-        "SegmentThumbnailWorkflowStep",     // 12. Thumbnails for the segments produced just above.
-        "CleanupEvaluationWorkflowStep",    // 13. Decides Keep/Delete/Review per file (junk, near-duplicates).
-        "AiClassificationWorkflowStep",     // 14. Optional Claude-based classification (EnableAiClassification).
-        "Manifest1BuildWorkflowStep",       // 15. Builds the in-memory Package1 manifest from everything above.
-        "ExportWorkflowExecutionStep",      // 16. Physically copies files into the final category/Year/group layout.
-        "GalleryThumbnailWorkflowStep",     // 17. Generates the gallery's own per-file thumbnails, post-export.
-        // NOTE: ThumbnailWorkflowStep is intentionally NOT in this list - it's a
-        // real constructor parameter but is commented out of the actual Steps
-        // array (it operates on pre-export source paths, the wrong stage).
+        "ImageNormalizationWorkflowStep",   // 9.  HEIC/HEIF/AVIF -> JPG conversion, orientation baking (now on every image).
+        "ImageQualityWorkflowStep",         // 10. Free local blur/solid-color check on every image.
+        "VideoNormalizationWorkflowStep",   // 11. Container/codec normalization for web-safe playback.
+        "CleanupEvaluationWorkflowStep",    // 12. Decides Keep/Delete/Review per file (junk, near-duplicates).
+        "AiClassificationWorkflowStep",     // 13. Optional Claude-based classification (EnableAiClassification).
+        "Manifest1BuildWorkflowStep",       // 14. Builds the in-memory Package1 manifest from everything above.
+        "ExportWorkflowExecutionStep",      // 15. Physically copies files into the final category/Year/group layout.
+        "GalleryThumbnailWorkflowStep",     // 16. Generates the gallery's own per-file thumbnails, post-export.
+        "FileStatusWorkflowStep",           // 17. Writes filestatus.json - needs ExportedPath/category already settled.
+        // NOTE: VideoSegmentationWorkflowStep, SegmentThumbnailWorkflowStep, and
+        // ThumbnailWorkflowStep were removed 2026-08-24 - all three were
+        // permanently dead code (no UI/request field ever set EnableSegmentation
+        // to true, so segmentation and its thumbnail step could never run;
+        // ThumbnailWorkflowStep was already commented out of the real Steps
+        // array, superseded by GalleryThumbnailWorkflowStep).
     ];
 
     [Test]

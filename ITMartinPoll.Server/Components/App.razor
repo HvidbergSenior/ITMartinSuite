@@ -13,7 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0F1117" />
     <base href="/" />
-    <link rel="stylesheet" href="app.css?v=8" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
     <link rel="stylesheet" href="ITMartinPoll.Server.styles.css" />
     <HeadOutlet />
 </head>
@@ -69,3 +69,13 @@
 </script>
 </body>
 </html>
+
+@code {
+    // Was a manually-incremented "?v=8" that never got bumped across
+    // deploys, exactly why a CSS fix (poll-hero-img sizing, 2026-08-24)
+    // silently kept serving the stale cached version behind Cloudflare's
+    // edge cache (max-age=14400) even after a fresh deploy. Same
+    // per-process-start cache-buster pattern already used by PDF-tool/
+    // DailyBrief - auto-bumps every deploy since it's a fresh process.
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

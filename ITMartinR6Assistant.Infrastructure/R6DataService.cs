@@ -6,8 +6,11 @@ namespace ITMartinR6Assistant.Infrastructure;
 
 public class R6DataService : IR6DataService
 {
+    private readonly string _path = Path.Combine(AppContext.BaseDirectory, "Data", "r6data.json");
     private R6GameData? _cache;
     private readonly SemaphoreSlim _lock = new(1, 1);
+
+    public event Action? OnDataChanged;
 
     private async Task<R6GameData> LoadAsync()
     {
@@ -18,8 +21,7 @@ public class R6DataService : IR6DataService
         {
             if (_cache is not null) return _cache;
 
-            var path = Path.Combine(AppContext.BaseDirectory, "Data", "r6data.json");
-            var json = await File.ReadAllTextAsync(path);
+            var json = await File.ReadAllTextAsync(_path);
             _cache = JsonSerializer.Deserialize<R6GameData>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -52,5 +54,23 @@ public class R6DataService : IR6DataService
         var map = await GetMap(mapName);
         return map?.Sites.FirstOrDefault(s =>
             string.Equals(s.Name, siteName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Same file the app reads from is already the writable, volume-mounted
+    // Data folder on the real deployment - no separate "editable copy" needed.
+    public async Task SaveAsync(R6GameData data)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            await File.WriteAllTextAsync(_path, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
+            _cache = data;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+        OnDataChanged?.Invoke();
     }
 }

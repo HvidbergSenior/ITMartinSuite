@@ -23,15 +23,14 @@ public sealed class Package1WorkflowDefinition
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
         AudioDuplicateDetectionWorkflowStep audioDuplicateDetectionWorkflowStep,
         ImageNormalizationWorkflowStep imageNormalizationWorkflowStep,
+        ImageQualityWorkflowStep imageQualityWorkflowStep,
         VideoNormalizationWorkflowStep videoNormalizationWorkflowStep,
-        VideoSegmentationWorkflowStep videoSegmentationWorkflowStep,
-        SegmentThumbnailWorkflowStep segmentThumbnailWorkflowStep,
         CleanupEvaluationWorkflowStep cleanupEvaluationWorkflowStep,
         AiClassificationWorkflowStep aiClassificationWorkflowStep,
         Manifest1BuildWorkflowStep manifest1BuildWorkflowStep,
         ExportWorkflowExecutionStep exportWorkflowExecutionStep,
-        ThumbnailWorkflowStep thumbnailWorkflowStep,
-        GalleryThumbnailWorkflowStep galleryThumbnailWorkflowStep)
+        GalleryThumbnailWorkflowStep galleryThumbnailWorkflowStep,
+        FileStatusWorkflowStep fileStatusWorkflowStep)
     {
         Steps =
         [
@@ -53,11 +52,11 @@ public sealed class Package1WorkflowDefinition
 
             imageNormalizationWorkflowStep,
 
+            // Needs NormalizedPath (image side) already resolved - reads
+            // whichever file the export will actually use.
+            imageQualityWorkflowStep,
+
             videoNormalizationWorkflowStep,
-
-            videoSegmentationWorkflowStep,
-
-            segmentThumbnailWorkflowStep,
 
             cleanupEvaluationWorkflowStep,
 
@@ -67,12 +66,15 @@ public sealed class Package1WorkflowDefinition
 
             exportWorkflowExecutionStep,
 
-            // Runs against the final exported library, unlike the unused
-            // thumbnailWorkflowStep above (which operates on source paths,
-            // before export - the wrong stage, hence never enabled).
-            galleryThumbnailWorkflowStep
+            // Runs against the final exported library, post-export (the
+            // pre-export ThumbnailWorkflowStep this superseded was removed
+            // 2026-08-24 - dead code, never wired into this array).
+            galleryThumbnailWorkflowStep,
 
-            //thumbnailWorkflowStep
+            // Last - needs each file's final ExportedPath/category settled,
+            // so every earlier step (classification, export routing) has
+            // already run.
+            fileStatusWorkflowStep
         ];
     }
 }

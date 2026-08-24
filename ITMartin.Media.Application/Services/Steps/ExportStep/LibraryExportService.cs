@@ -221,9 +221,13 @@ public class LibraryExportService
                                         safeYear.ToString(),
                                         "Ukendt måned")
                                     : !file.IsDateReliable
+                                        // No "Udaterede" catch-all - a genuinely
+                                        // dateless real photo still belongs to its
+                                        // real category, it just sits directly at
+                                        // the category root instead of a Year
+                                        // folder (see feedback_no_catchall_folders).
                                         ? Path.Combine(
                                             root,
-                                            "Udaterede",
                                             category)
                                         : groupLabelByFileId.TryGetValue(file.Id, out var groupLabel)
                                             ? Path.Combine(
@@ -376,11 +380,11 @@ public class LibraryExportService
                 "Dokumenter",
                 "Musik",
                 "Memes",
+                "Chat",
                 "Skærmbilleder",
                 "LivePhotos",
                 "SlettesKandidater",
                 "Duplikater",
-                "Udaterede",
                 "Ikke_identificeret"
             };
 

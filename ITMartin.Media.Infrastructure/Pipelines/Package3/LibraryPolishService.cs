@@ -24,6 +24,19 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // RootFoldersHiddenFromBrowsing).
     public const string UnplayableFolderName = "Afspilningsfejl";
 
+    // Same quarantine pattern as UnplayableFolderName, applied to photos the
+    // free rotation-check genuinely can't resolve (no face detected at any
+    // rotation - the fast tier's answer will never change on a re-run, since
+    // the ONNX model doesn't change between runs). Moving them out of the
+    // main Year/Month structure - rather than leaving them in place with
+    // RotationIsCorrect=false forever - is what keeps every ordinary run
+    // fast and bounded: the main scan skips this folder entirely (see
+    // RotationSkipFolders/ClassifySkipFolders), so the same doomed files
+    // never get re-decoded and re-checked every time. This is the one place
+    // meant to be pointed at the paid FixOrientationAsync tier later, on
+    // demand, instead of a whole-library rescan.
+    public const string RotationUnknownFolderName = "RotationUkendt";
+
     // OS-generated cache files that sometimes leak in from the original
     // source folder (e.g. a Windows Explorer thumbnail cache) - never real
     // photo content, safe to remove outright.
@@ -43,7 +56,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         new(StringComparer.OrdinalIgnoreCase)
         {
             "_Galleri", "SmartFolders", ".package1", ".package2", ".package3", ".ReferencePhotos",
-            UnplayableFolderName,
+            UnplayableFolderName, RotationUnknownFolderName,
         };
 
     // Same threshold and reasoning as DuplicateService's Package1 pass -
@@ -70,6 +83,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
     private readonly Func<IFaceRecognitionService> _faceRecognitionFactory;
     private readonly IImageAnalysisService _imageAnalysis;
     private readonly IDuplicateService _duplicateService;
+    private readonly IFileStatusRegistryService _fileStatusRegistry;
     private readonly AnthropicClient? _anthropicClient;
 
     public LibraryPolishService(
@@ -82,6 +96,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         Func<IFaceRecognitionService> faceRecognitionFactory,
         IImageAnalysisService imageAnalysis,
         IDuplicateService duplicateService,
+        IFileStatusRegistryService fileStatusRegistry,
         IConfiguration configuration)
     {
         _logger = logger;
@@ -94,6 +109,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         _faceRecognitionService = faceRecognitionFactory();
         _imageAnalysis = imageAnalysis;
         _duplicateService = duplicateService;
+        _fileStatusRegistry = fileStatusRegistry;
 
         var apiKey = configuration["Claude:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -451,7 +467,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
     private static readonly HashSet<string> RotationSkipFolders =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ".package1", ".package2", ".package3", "_Galleri", UnplayableFolderName,
+            ".package1", ".package2", ".package3", "_Galleri", UnplayableFolderName, RotationUnknownFolderName,
             "thumbnails", "working", "enhanced", "manifests", "temp",
         };
 
@@ -750,30 +766,80 @@ public sealed class LibraryPolishService : ILibraryPolishService
     {
         if (!Directory.Exists(libraryPath)) return new FreeOrientationFixResult();
 
+        // Shares the SAME sidecar files as FixOrientationAsync (see that
+        // method's own comments) - a file resolved by either the free or
+        // paid tier is skipped by both from then on, and a duplicate of an
+        // already-decided photo (same pre-rotation hash, e.g. a SmartFolders
+        // copy) resolves for free instantly without a face-check at all.
+        var checkedPathsFile = Path.Combine(libraryPath, RotationCheckedFileName);
+        var decisionsFile = Path.Combine(libraryPath, RotationDecisionsFileName);
+
+        var checkedPaths = LoadStringSet(checkedPathsFile);
+        var decisions = LoadHashDecisions(decisionsFile);
+
         var images = EnumerateImagesForRotationCheck(libraryPath, cancellationToken).ToList();
+        var unresolved = images
+            .Where(f => !checkedPaths.Contains(Path.GetRelativePath(libraryPath, f)))
+            .ToList();
+
         var checkedCount = 0;
         var rotated = 0;
         var needsReview = new List<string>();
+        var sinceSave = 0;
 
-        foreach (var file in images)
+        foreach (var file in unresolved)
         {
             cancellationToken.ThrowIfCancellationRequested();
             checkedCount++;
 
-            var faceDegrees = await TryDetectOrientationViaFacesAsync(file, cancellationToken);
-            if (faceDegrees is { } fd)
+            var relativePath = Path.GetRelativePath(libraryPath, file);
+
+            string? hash = null;
+            try { hash = ComputeHash(file); } catch (IOException) { /* in use/vanished - fall through to a fresh check */ }
+
+            if (hash is not null && decisions.TryGetValue(hash, out var cachedDegrees))
             {
-                ApplyResolvedFile(file, fd, ref rotated);
+                ApplyResolvedFile(file, cachedDegrees, ref rotated);
+                checkedPaths.Add(relativePath);
             }
             else
             {
-                needsReview.Add(Path.GetRelativePath(libraryPath, file));
+                var faceDegrees = await TryDetectOrientationViaFacesAsync(file, cancellationToken);
+                if (faceDegrees is { } fd)
+                {
+                    if (hash is not null) decisions[hash] = fd;
+                    ApplyResolvedFile(file, fd, ref rotated);
+                    checkedPaths.Add(relativePath);
+                }
+                else
+                {
+                    // Quarantine rather than leave in place and re-try forever -
+                    // this free-tier answer will never change on a re-run (same
+                    // model, same photo). Moving it into RotationUnknownFolderName
+                    // (now in RotationSkipFolders) means it's simply never
+                    // enumerated by a future free-only run again - only an
+                    // explicit paid FixOrientationAsync pass points at that
+                    // folder specifically. No need to add it to checkedPaths -
+                    // the folder-level skip already guarantees it.
+                    var moved = MoveIntoCategoryFolder(libraryPath, file, RotationUnknownFolderName);
+                    needsReview.Add(moved ?? relativePath);
+                }
+            }
+
+            if (++sinceSave >= 500)
+            {
+                SaveStringSet(checkedPathsFile, checkedPaths);
+                SaveHashDecisions(decisionsFile, decisions);
+                sinceSave = 0;
             }
         }
 
+        SaveStringSet(checkedPathsFile, checkedPaths);
+        SaveHashDecisions(decisionsFile, decisions);
+
         _logger.LogInformation(
-            "Free-only orientation check complete for {LibraryPath}: {Checked} checked, {Rotated} rotated, {NeedsReview} need manual review",
-            libraryPath, checkedCount, rotated, needsReview.Count);
+            "Free-only orientation check complete for {LibraryPath}: {Checked} newly checked, {Rotated} rotated, {NeedsReview} need manual review, {AlreadyDone} already resolved from a prior run",
+            libraryPath, checkedCount, rotated, needsReview.Count, images.Count - unresolved.Count);
 
         return new FreeOrientationFixResult
         {
@@ -906,6 +972,550 @@ public sealed class LibraryPolishService : ILibraryPolishService
             NearGroups   = reportGroups.Count(g => g.Kind == "near"),
             Groups       = reportGroups,
         };
+    }
+
+    // Folder names this pass already trusts as-is - a file sitting here is
+    // taken at its word rather than re-classified (SmartFolders copies, admin
+    // folders, etc.).
+    private static readonly HashSet<string> ClassifySkipFolders =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".package1", ".package2", ".package3", "_Galleri", "SmartFolders",
+            UnplayableFolderName, RotationUnknownFolderName, "thumbnails", "working", "enhanced", "manifests", "temp",
+            "Duplikater", "SlettesKandidater", "Ikke_identificeret",
+        };
+
+    private const int ClassifyAiConcurrency = 8;
+
+    // Same canonical-codec allowlist MediaRulesWorkflowStep uses at
+    // fresh-import time - kept as its own copy here since this pass works
+    // directly off files on disk, not shared machinery.
+    private static readonly HashSet<string> WebSafeVideoCodecsForNormalizedCheck =
+        new(StringComparer.OrdinalIgnoreCase) { "h264", "hevc" };
+
+    // Categories that are actually date-organized (Year/Month folders) -
+    // matches FileStatusWorkflowStep's own list.
+    private static readonly HashSet<string> DateOrganizedCategories =
+        new(StringComparer.OrdinalIgnoreCase) { "Billeder", "Videoer" };
+
+    private static List<string> BuildApplicableFlags(bool isImage, bool isVideo, string currentFolder)
+    {
+        var applicable = new List<string>
+        {
+            StepFlags.FileIsReadable, StepFlags.CategoryIsSet, StepFlags.SubCategoryIsSet,
+            StepFlags.NotDuplicate, StepFlags.IsNormalized,
+        };
+        if (DateOrganizedCategories.Contains(currentFolder)) applicable.Add(StepFlags.DateIsSet);
+        // RotationIsCorrect deliberately NOT added here - it only applies once
+        // a file's category resolves to real photos (Billeder), added at that
+        // point below. A screenshot/chat/meme was never rotated by a camera,
+        // so checking its orientation is meaningless.
+        if (isImage) applicable.Add(StepFlags.QualityChecked);
+        return applicable;
+    }
+
+    // Re-derives the same canonical-format rule MediaRulesWorkflowStep uses
+    // at fresh-import time (jpg/mp4-h264-or-hevc/mp3/pdf), so an
+    // already-sorted library gets a faithful, not invented, answer.
+    private (bool Normalized, string? Suggestion) CheckNormalized(string file, bool isImage, bool isVideo, bool isAudio)
+    {
+        var ext = Path.GetExtension(file).ToLowerInvariant();
+        if (isImage)
+            return ext is ".jpg" or ".jpeg"
+                ? (true, null)
+                : (false, $"{ext} is not the canonical image format (jpg) - needs conversion");
+
+        if (isVideo)
+        {
+            if (ext != ".mp4") return (false, $"{ext} is not the canonical video container (mp4) - needs conversion");
+            string? codec;
+            try { codec = _videoMetadata.GetVideoCodec(file); }
+            catch (Exception) { codec = null; }
+            var webSafe = codec is not null && WebSafeVideoCodecsForNormalizedCheck.Contains(codec);
+            return webSafe ? (true, null) : (false, $"Codec '{codec ?? "unknown"}' isn't web-safe - needs re-encoding");
+        }
+
+        if (isAudio)
+            return ext == ".mp3" ? (true, null) : (false, $"{ext} is not the canonical audio format (mp3) - needs conversion");
+
+        return ext == ".pdf" ? (true, null) : (false, $"{ext} is not the canonical document format (pdf) - needs conversion");
+    }
+
+    // Runs every applicable step-flag against whatever isn't already IsDone
+    // in the registry - the real, unified answer to "run all of FileSorter's
+    // steps against an already-sorted library, and shrink the pool every
+    // time". Cheapest-first per file: registry fast-path (no hash) -> decode
+    // check -> hash-keyed duplicate/done check -> free per-type checks
+    // (format, date, camera-EXIF category, free rotation via local face
+    // detection) -> AI vision only for whatever's still ambiguous (capped at
+    // maxAiCalls, same call also answers QualityChecked at no extra cost).
+    // RotationIsCorrect's PAID escalation is deliberately NOT part of this
+    // pass - that stays FixOrientationAsync's own explicit, cost-gated call;
+    // here a face-detection miss just leaves RotationIsCorrect false with a
+    // suggestion pointing at that endpoint.
+    // Hard ceiling on how many photos get the expensive free rotation check
+    // (4x decode+ONNX each) in ONE call - the actual fix for a call that used
+    // to take 7-12+ hours against a large backlog. Anything past this cap
+    // just stays unresolved for the next call to pick up (registry already
+    // saves at the end of every call, so nothing is lost) - combined with
+    // RunUntilConvergedAsync, the backlog shrinks over several fast, bounded
+    // rounds instead of one unbounded one. Same "always a real cap in code"
+    // convention as MaxRotationChecksPerRun (FixOrientationAsync) and
+    // maxAiCalls - never optional, never something to forget to set.
+    private const int DefaultMaxRotationChecksPerRun = 1000;
+
+    // Hard ceiling on how many not-yet-done files the SEQUENTIAL scan phase
+    // touches in one call - found 2026-08-24 running this against mie: the
+    // rotation cap alone wasn't enough, since the scan phase (hash + EXIF +
+    // video metadata) is itself uncapped and spawns one ffprobe process per
+    // video for creation-time - a video-heavy backlog can dominate a call's
+    // wall-clock time before rotation-checking is ever reached. Once hit,
+    // the scan just stops - remaining files are left completely untouched
+    // (not upserted, not counted) for a future call to pick up, same
+    // "shrinks every round" convergence as the rotation cap.
+    private const int DefaultMaxFilesScannedPerRun = 3000;
+
+    public async Task<FileStatusReport> RunAllStepsAsync(
+        string libraryPath, int maxAiCalls, int? maxRotationParallelism = null, bool includeSlowSteps = true,
+        int? maxRotationChecksPerRun = null, int? maxFilesScannedPerRun = null, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(libraryPath))
+            return new FileStatusReport();
+
+        var overallStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var registry = await _fileStatusRegistry.LoadAsync(libraryPath, cancellationToken);
+        _logger.LogInformation("RunAllSteps[{LibraryPath}] registry load: {Elapsed}", libraryPath, overallStopwatch.Elapsed);
+
+        var doneByPath = registry.Values
+            .Where(r => r.IsDone)
+            .GroupBy(r => r.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var allFiles = EnumerateForClassification(libraryPath, cancellationToken).ToList();
+        var aiQueue = new List<(string File, string Hash, string RelativePath, FileInfo Info, Dictionary<string, FlagState> Partial, List<string> Applicable)>();
+        var rotationQueue = new List<(string File, string Hash, string RelativePath, string Category, FileInfo Info, Dictionary<string, FlagState> Flags, List<string> Applicable)>();
+        var rotatedCount = 0;
+        var changed = false;
+        var checkedSinceSave = 0;
+        var effectiveScanCap = Math.Max(0, maxFilesScannedPerRun ?? DefaultMaxFilesScannedPerRun);
+        var scannedThisRun = 0;
+        var scanCapHit = false;
+
+        foreach (var file in allFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var relativePath = Path.GetRelativePath(libraryPath, file);
+
+            FileInfo info;
+            try { info = new FileInfo(file); }
+            catch (IOException) { continue; }
+
+            if (doneByPath.TryGetValue(relativePath, out var knownDone) &&
+                knownDone.SizeBytes == info.Length &&
+                knownDone.LastWriteUtc == info.LastWriteTimeUtc)
+            {
+                continue; // same file, same spot, already fully done - no hash needed
+            }
+
+            if (scannedThisRun >= effectiveScanCap)
+            {
+                scanCapHit = true;
+                break; // rest of allFiles left completely untouched - picked up next call
+            }
+            scannedThisRun++;
+
+            var isImage = ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsImage(file);
+            var isVideo = ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsVideo(file);
+            var isAudio = ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsAudio(file);
+            var isDocument = ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsDocument(file);
+            if (!isImage && !isVideo && !isAudio && !isDocument) continue; // unrecognized type - out of scope here
+
+            string hash;
+            try { hash = ComputeHash(file); }
+            catch (IOException) { continue; }
+
+            if (registry.TryGetValue(hash, out var existingByHash) && existingByHash.IsDone)
+                continue; // resolved under this hash already (e.g. seen at another path)
+
+            if (++checkedSinceSave >= 1000)
+            {
+                await _fileStatusRegistry.SaveAsync(libraryPath, registry, cancellationToken);
+                checkedSinceSave = 0;
+            }
+
+            var currentFolder = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+            var applicable = BuildApplicableFlags(isImage, isVideo, currentFolder);
+            var flags = new Dictionary<string, FlagState>();
+
+            // --- FileIsReadable ---
+            bool readable;
+            string? unreadableReason = null;
+            if (isImage)
+            {
+                try { var identified = SixLabors.ImageSharp.Image.Identify(file); readable = identified is not null; if (!readable) unreadableReason = "Could not identify image format"; }
+                catch (Exception ex) { readable = false; unreadableReason = $"Image failed to decode ({ex.GetType().Name})"; }
+            }
+            else
+            {
+                readable = info.Length > 0;
+                if (!readable) unreadableReason = "File is 0 bytes";
+            }
+            flags[StepFlags.FileIsReadable] = new FlagState { Value = readable, Suggestion = unreadableReason };
+
+            if (!readable)
+            {
+                UpsertRecord(registry, hash, relativePath, currentFolder, applicable, flags, info);
+                changed = true;
+                continue;
+            }
+
+            flags[StepFlags.CategoryIsSet] = new FlagState { Value = true };
+
+            var isDup = registry.TryGetValue(hash, out var dupRecord) && !string.Equals(dupRecord.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase);
+            flags[StepFlags.NotDuplicate] = new FlagState { Value = !isDup, Suggestion = isDup ? $"Exact duplicate of {dupRecord!.RelativePath}" : null };
+
+            var (normalized, normSuggestion) = CheckNormalized(file, isImage, isVideo, isAudio);
+            flags[StepFlags.IsNormalized] = new FlagState { Value = normalized, Suggestion = normSuggestion };
+
+            if (applicable.Contains(StepFlags.DateIsSet))
+            {
+                var dateResult = _mediaDateService.GetBestDate(new MediaDateRequest(file));
+                var hasYearFolder = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Skip(1).FirstOrDefault() is { } seg && seg.Length == 4 && int.TryParse(seg, out _);
+                var dateOk = dateResult.IsReliable || hasYearFolder;
+                flags[StepFlags.DateIsSet] = new FlagState { Value = dateOk, Suggestion = dateOk ? null : "No reliable date source (EXIF/GPS/face-match) found" };
+            }
+
+            var category = currentFolder;
+
+            if (isImage)
+            {
+                var ambiguousFolder = currentFolder.Equals("Billeder", StringComparison.OrdinalIgnoreCase) ||
+                                       currentFolder.Equals("Images", StringComparison.OrdinalIgnoreCase);
+
+                var queuedForAi = false;
+                var resolvedAsPhoto = false;
+                if (!ambiguousFolder)
+                {
+                    // Already sitting in a folder that names an unambiguous
+                    // category (Skærmbilleder/Chat/Memes/LivePhotos) - trust it.
+                    // Never a real camera photo, so no rotation check applies.
+                    flags[StepFlags.SubCategoryIsSet] = new FlagState { Value = true };
+                    flags[StepFlags.QualityChecked] = new FlagState { Value = true };
+                }
+                else
+                {
+                    (string? Make, string? Model, string? Software)? meta;
+                    try { meta = _exifService.ReadMetadata(file); } catch (Exception) { meta = null; }
+                    var hasCameraExif = !string.IsNullOrWhiteSpace(meta?.Make) || !string.IsNullOrWhiteSpace(meta?.Model);
+
+                    if (hasCameraExif)
+                    {
+                        // Real camera EXIF is the strongest free signal there
+                        // is - screenshots/chat/memes categorically never
+                        // carry it. No AI call made, so quality isn't
+                        // independently verified - not treated as an open
+                        // problem for a confirmed real photo, just unchecked.
+                        category = "Billeder";
+                        resolvedAsPhoto = true;
+                        flags[StepFlags.SubCategoryIsSet] = new FlagState { Value = true };
+                        flags[StepFlags.QualityChecked] = new FlagState { Value = true };
+                    }
+                    else
+                    {
+                        // Ambiguous - only the AI tier can tell Photo/Screenshot/
+                        // Chat/Meme apart from here. Queue with whatever's
+                        // already resolved so far; SubCategoryIsSet/QualityChecked/
+                        // rotation get filled in after the AI batch below, once
+                        // the real category (and whether rotation even applies)
+                        // is known.
+                        queuedForAi = true;
+                        aiQueue.Add((file, hash, relativePath, info, flags, applicable));
+                    }
+                }
+
+                // Rotation - free tier only (local face detection, no cost),
+                // and only for confirmed real photos - a screenshot/chat/meme
+                // was never rotated by a camera, so this doesn't apply to them.
+                // Deferred to a parallel pass below instead of run inline here -
+                // each check is 4x ONNX face-detection calls per photo, and
+                // sequential was the actual bottleneck on a real library.
+                var queuedForRotation = false;
+                if (resolvedAsPhoto)
+                {
+                    applicable.Add(StepFlags.RotationIsCorrect);
+                    queuedForRotation = true;
+                    rotationQueue.Add((file, hash, relativePath, category, info, flags, applicable));
+                }
+
+                if (queuedForAi || queuedForRotation) { changed = true; continue; } // Upsert happens after the deferred pass(es) below
+            }
+            else
+            {
+                // Video/Audio/Document - trust the existing sub-classification,
+                // nothing ambiguous enough here to warrant AI.
+                flags[StepFlags.SubCategoryIsSet] = new FlagState { Value = true };
+            }
+
+            UpsertRecord(registry, hash, relativePath, category, applicable, flags, info);
+            changed = true;
+        }
+
+        _logger.LogInformation(
+            "RunAllSteps[{LibraryPath}] sequential scan: {Elapsed}, {Scanned} of {Total} files scanned this run{Capped} ({RotationQueued} queued for rotation, {AiQueued} queued for AI)",
+            libraryPath, overallStopwatch.Elapsed, scannedThisRun, allFiles.Count,
+            scanCapHit ? $" (capped at {effectiveScanCap} - rest left for a future run)" : "",
+            rotationQueue.Count, aiQueue.Count);
+
+        if (rotationQueue.Count > 0)
+        {
+            // Rotation-check-via-faces disabled here: TryDetectOrientationViaFacesAsync
+            // only resolves a rotation when a face is found at EXACTLY ONE of the 4
+            // trial rotations. Any photo with no detectable face (most non-portrait
+            // photos) or with a face found at more than one rotation (routine
+            // detector ambiguity) came back "unresolved" - and unresolved used to mean
+            // quarantined into RotationUkendt, permanently, even though the vast
+            // majority of those photos were already correctly oriented. Confirmed by
+            // hand-checking 100 quarantined files from C:\mie\RotationUkendt: none
+            // actually needed rotating, several had obvious faces yet still landed
+            // there. Leaving rotation unresolved-but-in-place (same as the old
+            // !includeSlowSteps fast path) until a real fix exists is safer than
+            // guessing.
+            foreach (var item in rotationQueue)
+                UpsertRecord(registry, item.Hash, item.RelativePath, item.Category, item.Applicable, item.Flags, item.Info);
+            changed = true;
+        }
+
+        var aiStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var aiCallsUsed = 0;
+        if (aiQueue.Count > 0 && !includeSlowSteps)
+        {
+            // Fast pass: leave SubCategoryIsSet/QualityChecked (and
+            // RotationIsCorrect, added once the real category is known) out
+            // of Flags entirely - file stays wherever it already sits and
+            // not-done, resolved by a later includeSlowSteps=true run.
+            foreach (var item in aiQueue)
+                UpsertRecord(registry, item.Hash, item.RelativePath, "Billeder", item.Applicable, item.Partial, item.Info);
+            changed = true;
+        }
+        else if (aiQueue.Count > 0 && _anthropicClient is not null)
+        {
+            var toCheck = aiQueue.Take(Math.Max(0, maxAiCalls)).ToList();
+            var moveLock = new object();
+
+            await Parallel.ForEachAsync(
+                toCheck,
+                new ParallelOptions { MaxDegreeOfParallelism = ClassifyAiConcurrency, CancellationToken = cancellationToken },
+                async (item, ct) =>
+                {
+                    AiAnalysisResult result;
+                    try { result = await _imageAnalysis.AnalyzeImageAsync(item.File); }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Classify AI check failed for {Path}", item.File);
+                        return;
+                    }
+
+                    var resolvedCategory =
+                        result.IsChat ? "Chat" :
+                        result.IsMeme ? "Memes" :
+                        result.IsScreenshot ? "Skærmbilleder" :
+                        "Billeder";
+
+                    var qualityOk = !result.IsBlurry && !result.IsSolidColor;
+
+                    // Rotation only applies once we know it's a real photo -
+                    // run before taking the lock (slow, no shared state needed).
+                    int? faceDegrees = null;
+                    if (resolvedCategory == "Billeder")
+                        faceDegrees = await TryDetectOrientationViaFacesAsync(item.File, ct);
+
+                    var finalRelativePath = item.RelativePath;
+                    var finalInfo = item.Info;
+                    var rotatedHere = 0;
+
+                    lock (moveLock)
+                    {
+                        if (resolvedCategory != "Billeder")
+                        {
+                            finalRelativePath = MoveIntoCategoryFolder(libraryPath, item.File, resolvedCategory) ?? item.RelativePath;
+                            try { finalInfo = new FileInfo(Path.Combine(libraryPath, finalRelativePath)); } catch (IOException) { }
+                        }
+                        else if (faceDegrees is { } fd)
+                        {
+                            ApplyResolvedFile(item.File, fd, ref rotatedHere);
+                            try { finalInfo = new FileInfo(item.File); } catch (IOException) { }
+                        }
+
+                        item.Partial[StepFlags.SubCategoryIsSet] = new FlagState { Value = true };
+                        item.Partial[StepFlags.QualityChecked] = new FlagState
+                        {
+                            Value = qualityOk,
+                            Suggestion = qualityOk ? null : result.IsBlurry ? "Image appears blurry" : "Image appears to be a solid color/blank",
+                        };
+                        if (resolvedCategory == "Billeder")
+                        {
+                            item.Applicable.Add(StepFlags.RotationIsCorrect);
+                            item.Partial[StepFlags.RotationIsCorrect] = faceDegrees is not null
+                                ? new FlagState { Value = true }
+                                : new FlagState { Value = false, Suggestion = "No face detected at any rotation - run the paid rotation-fix pass or review manually" };
+                        }
+
+                        UpsertRecord(registry, item.Hash, finalRelativePath, resolvedCategory, item.Applicable, item.Partial, finalInfo);
+                    }
+
+                    Interlocked.Add(ref rotatedCount, rotatedHere);
+                    Interlocked.Increment(ref aiCallsUsed);
+                });
+
+            changed = true;
+
+            foreach (var skipped in aiQueue.Skip(toCheck.Count))
+            {
+                skipped.Partial[StepFlags.SubCategoryIsSet] = new FlagState { Value = false, Suggestion = "Ambiguous (no camera EXIF) - needs the AI classification tier, over this run's cap" };
+                skipped.Partial[StepFlags.QualityChecked] = new FlagState { Value = false, Suggestion = "Not checked yet - same AI call as SubCategoryIsSet" };
+                UpsertRecord(registry, skipped.Hash, skipped.RelativePath, "Billeder", skipped.Applicable, skipped.Partial, skipped.Info);
+            }
+        }
+        else
+        {
+            foreach (var item in aiQueue)
+            {
+                item.Partial[StepFlags.SubCategoryIsSet] = new FlagState { Value = false, Suggestion = "Ambiguous (no camera EXIF) - needs the AI classification tier (none available this run)" };
+                item.Partial[StepFlags.QualityChecked] = new FlagState { Value = false, Suggestion = "Not checked yet - same AI call as SubCategoryIsSet" };
+                UpsertRecord(registry, item.Hash, item.RelativePath, "Billeder", item.Applicable, item.Partial, item.Info);
+            }
+            if (aiQueue.Count > 0) changed = true;
+        }
+
+        if (aiQueue.Count > 0)
+            _logger.LogInformation("RunAllSteps[{LibraryPath}] AI classification phase: {Elapsed} for {Used} calls", libraryPath, aiStopwatch.Elapsed, aiCallsUsed);
+
+        var saveStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        if (changed)
+            await _fileStatusRegistry.SaveAsync(libraryPath, registry, cancellationToken);
+        _logger.LogInformation("RunAllSteps[{LibraryPath}] final registry save: {Elapsed}", libraryPath, saveStopwatch.Elapsed);
+
+        _logger.LogInformation(
+            "Run-all-steps complete for {LibraryPath}: {Total} files walked, {Rotated} rotated for free, {AiCalls} AI checks used (capped at {Cap}), total elapsed {TotalElapsed}",
+            libraryPath, allFiles.Count, rotatedCount, aiCallsUsed, maxAiCalls, overallStopwatch.Elapsed);
+
+        return _fileStatusRegistry.BuildReport(registry);
+    }
+
+    public Task<FileStatusReport> RunUntilConvergedAsync(
+        string libraryPath, int maxAiCallsPerIteration, int? maxRotationParallelism = null,
+        int maxIterations = 10, CancellationToken cancellationToken = default) =>
+        ConvergenceLoop.RunAsync(
+            () => RunAllStepsAsync(libraryPath, maxAiCallsPerIteration, maxRotationParallelism, includeSlowSteps: true, cancellationToken: cancellationToken),
+            maxIterations,
+            cancellationToken);
+
+    private static void UpsertRecord(
+        Dictionary<string, FileStatusRecord> registry, string hash, string relativePath, string category,
+        List<string> applicableFlags, Dictionary<string, FlagState> flags, FileInfo info)
+    {
+        registry[hash] = new FileStatusRecord
+        {
+            ContentHash = hash,
+            RelativePath = relativePath,
+            Category = category,
+            ApplicableFlags = applicableFlags,
+            Flags = flags,
+            SizeBytes = info.Length,
+            LastWriteUtc = info.LastWriteTimeUtc,
+            LastUpdatedUtc = DateTimeOffset.UtcNow,
+        };
+    }
+
+    // Physically relocates a misclassified file into its resolved category
+    // folder (created alongside the library's other top-level categories),
+    // collision-safe. Returns the new relative path, or null if the move
+    // failed (file left where it was, flagged NeedsManualReview by the caller
+    // implicitly falling through to the next run).
+    private string? MoveIntoCategoryFolder(string libraryPath, string currentFullPath, string category)
+    {
+        try
+        {
+            var destDir = Path.Combine(libraryPath, category);
+            Directory.CreateDirectory(destDir);
+            var destPath = ResolveNameCollision(Path.Combine(destDir, Path.GetFileName(currentFullPath)));
+            File.Move(currentFullPath, destPath);
+            return Path.GetRelativePath(libraryPath, destPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to move {Path} into {Category}", currentFullPath, category);
+            return null;
+        }
+    }
+
+    private IEnumerable<string> EnumerateForClassification(string directory, CancellationToken cancellationToken)
+    {
+        foreach (var file in Directory.EnumerateFiles(directory))
+            yield return file;
+
+        foreach (var subDir in Directory.EnumerateDirectories(directory))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (ClassifySkipFolders.Contains(Path.GetFileName(subDir))) continue;
+
+            foreach (var file in EnumerateForClassification(subDir, cancellationToken))
+                yield return file;
+        }
+    }
+
+    // "BurstN" subfolders aren't produced by any current pipeline step (see
+    // feedback re: 2026-08-22 cleanup) - this just undoes the grouping:
+    // move every file back up to the parent folder, remove the now-empty
+    // BurstN directory. Matches only a literal "Burst" + digits folder name,
+    // never touches anything else.
+    private static readonly System.Text.RegularExpressions.Regex BurstFolderPattern =
+        new(@"^Burst\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    public Task<BurstFlattenResult> FlattenBurstFoldersAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(libraryPath))
+            return Task.FromResult(new BurstFlattenResult());
+
+        var foldersFlattened = 0;
+        var filesMoved = 0;
+
+        foreach (var burstDir in Directory.EnumerateDirectories(libraryPath, "*", SearchOption.AllDirectories)
+                     .Where(d => BurstFolderPattern.IsMatch(Path.GetFileName(d)))
+                     .ToList())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var parent = Path.GetDirectoryName(burstDir)!;
+
+            foreach (var file in Directory.EnumerateFiles(burstDir, "*", SearchOption.AllDirectories).ToList())
+            {
+                try
+                {
+                    var destPath = ResolveNameCollision(Path.Combine(parent, Path.GetFileName(file)));
+                    File.Move(file, destPath);
+                    filesMoved++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to flatten {Path} out of its Burst folder", file);
+                }
+            }
+
+            try
+            {
+                Directory.Delete(burstDir, recursive: true);
+                foldersFlattened++;
+            }
+            catch (IOException) { /* left-over subfolder/file that failed to move above - skip */ }
+        }
+
+        _logger.LogInformation(
+            "Burst-folder flatten complete for {LibraryPath}: {Folders} folders flattened, {Files} files moved back to their parent",
+            libraryPath, foldersFlattened, filesMoved);
+
+        return Task.FromResult(new BurstFlattenResult { FoldersFlattened = foldersFlattened, FilesMoved = filesMoved });
     }
 
     // Best-effort: looks for a 4-digit year as a whole path segment - fine

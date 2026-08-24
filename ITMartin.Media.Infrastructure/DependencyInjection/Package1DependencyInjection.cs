@@ -48,19 +48,16 @@ public static class Package1DependencyInjection
             FileDiscoveryWorkflowStep>();
 
         services.AddScoped<
-            VideoSegmentationWorkflowStep>();
-
-        services.AddScoped<
             HashWorkflowStep>();
-
-        services.AddScoped<
-            SegmentThumbnailWorkflowStep>();
 
         services.AddScoped<
             MetadataWorkflowStep>();
 
         services.AddScoped<
             ImageNormalizationWorkflowStep>();
+
+        services.AddScoped<
+            ImageQualityWorkflowStep>();
 
         services.AddScoped<
             MediaRulesWorkflowStep>();
@@ -70,9 +67,6 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             VideoNormalizationWorkflowStep>();
-
-        services.AddScoped<
-            ThumbnailWorkflowStep>();
 
         services.AddScoped<
             DuplicateDetectionWorkflowStep>();
@@ -94,6 +88,10 @@ public static class Package1DependencyInjection
 
         services.AddScoped<
             GalleryThumbnailWorkflowStep>();
+
+        services.AddScoped<
+            FileStatusWorkflowStep>();
+
         services.AddScoped<
             IBackgroundJobHandler,
             StartPackage1Handler>();

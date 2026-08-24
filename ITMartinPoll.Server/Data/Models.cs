@@ -102,8 +102,15 @@ public class DatePoll
     public DateTime?  Deadline    { get; set; }
     public bool       IsActive    { get; set; } = true;
 
+    // Optional, plain-text comparison - same trust level as the admin PIN
+    // (Poll:AdminPin), proportionate to what this actually protects (a
+    // family/friends scheduling poll, not sensitive data). Null/empty means
+    // no password required, same as today.
+    public string?    Password    { get; set; }
+
     public List<DatePollDate>        Dates        { get; set; } = [];
     public List<DatePollChatMessage> ChatMessages { get; set; } = [];
+    public List<DatePollImage>       Images       { get; set; } = [];
 
     public bool HasDeadlinePassed =>
         Deadline.HasValue && Deadline.Value.ToUniversalTime() < DateTime.UtcNow;
@@ -138,6 +145,14 @@ public class DatePollResponse
     public string    Comment     { get; set; } = "";
     public DateTime  RespondedAt { get; set; } = DateTime.UtcNow;
 
+    // "If you could only pick one, which week would you actually prefer?" -
+    // separate from Status (which is per-date availability), this is a
+    // single exclusive pick across every date in the poll: at most one of a
+    // voter's responses in a given DatePoll should ever have this true.
+    // Independent of availability - someone can prefer a week and still mark
+    // it Maybe/No if a conflict didn't stop them wishing it worked out.
+    public bool      IsPreferred { get; set; }
+
     public DatePollDate DateOption { get; set; } = null!;
 }
 
@@ -148,6 +163,19 @@ public class DatePollChatMessage
     public string   SenderName { get; set; } = "";
     public string   Text       { get; set; } = "";
     public DateTime SentAt     { get; set; } = DateTime.UtcNow;
+
+    public DatePoll Poll { get; set; } = null!;
+}
+
+// Extra photos shown interleaved between the date rows on the voter page -
+// separate from DatePoll.ImageName (the single hero image at the very top).
+// Purely decorative/personal, no relation to any specific date.
+public class DatePollImage
+{
+    public int    Id        { get; set; }
+    public int    DatePollId { get; set; }
+    public string FileName  { get; set; } = "";
+    public int    SortOrder { get; set; }
 
     public DatePoll Poll { get; set; } = null!;
 }

@@ -67,6 +67,10 @@ using (var scope = app.Services.CreateScope())
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Votes\" ADD COLUMN \"VoterName\" TEXT NOT NULL DEFAULT '';"); }
     catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"DatePollResponses\" ADD COLUMN \"IsPreferred\" INTEGER NOT NULL DEFAULT 0;"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"DatePolls\" ADD COLUMN \"Password\" TEXT;"); }
+    catch { /* column already exists */ }
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "DatePolls" (
@@ -76,7 +80,8 @@ using (var scope = app.Services.CreateScope())
             "ImageName"   TEXT,
             "CreatedAt"   TEXT    NOT NULL,
             "Deadline"    TEXT,
-            "IsActive"    INTEGER NOT NULL DEFAULT 1
+            "IsActive"    INTEGER NOT NULL DEFAULT 1,
+            "Password"    TEXT
         );
         CREATE TABLE IF NOT EXISTS "DatePollDates" (
             "Id"         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -92,6 +97,7 @@ using (var scope = app.Services.CreateScope())
             "Status"      TEXT    NOT NULL DEFAULT 'Maybe',
             "Comment"     TEXT    NOT NULL DEFAULT '',
             "RespondedAt" TEXT    NOT NULL,
+            "IsPreferred" INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY ("DateId") REFERENCES "DatePollDates" ("Id") ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS "DatePollChat" (
@@ -100,6 +106,13 @@ using (var scope = app.Services.CreateScope())
             "SenderName" TEXT    NOT NULL DEFAULT '',
             "Text"       TEXT    NOT NULL DEFAULT '',
             "SentAt"     TEXT    NOT NULL,
+            FOREIGN KEY ("DatePollId") REFERENCES "DatePolls" ("Id") ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS "DatePollImages" (
+            "Id"         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            "DatePollId" INTEGER NOT NULL,
+            "FileName"   TEXT    NOT NULL DEFAULT '',
+            "SortOrder"  INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY ("DatePollId") REFERENCES "DatePolls" ("Id") ON DELETE CASCADE
         );
     """);

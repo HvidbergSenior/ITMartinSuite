@@ -84,16 +84,19 @@ public sealed class StartPackage1Handler
         // sort, not just the first one. A failure here shouldn't block the
         // add-on chain - the sort itself already succeeded either way, but
         // it does mean no safe rollback point exists for this run.
-        try
+        if (request.EnableBaselineSnapshot)
         {
-            await Package1BaselineHelper.MirrorDirectoryAsync(
-                outputPath,
-                Package1BaselineHelper.GetBaselinePath(outputPath),
-                cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Baseline snapshot failed for {OutputPath}", outputPath);
+            try
+            {
+                await Package1BaselineHelper.MirrorDirectoryAsync(
+                    outputPath,
+                    Package1BaselineHelper.GetBaselinePath(outputPath),
+                    cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Baseline snapshot failed for {OutputPath}", outputPath);
+            }
         }
 
         // Free add-ons folded into the normal sort pass instead of being

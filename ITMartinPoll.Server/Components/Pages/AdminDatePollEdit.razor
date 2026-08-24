@@ -30,17 +30,36 @@
                       placeholder="Uddyb gerne baggrunden…"
                       @bind="_description" @bind:event="oninput"></textarea>
 
-            <label class="form-label">Billede (valgfrit)</label>
+            <label class="form-label">Topbillede (valgfrit)</label>
             <InputFile OnChange="OnImageSelected" accept="image/*" class="file-input" />
             @if (!string.IsNullOrEmpty(_imageName))
             {
                 <img src="/poll-images/@_imageName" class="admin-preview-img" alt="" />
             }
 
+            <label class="form-label">Ekstra billeder, spredt ud mellem datoerne (valgfrit)</label>
+            <InputFile OnChange="OnSpreadImagesSelected" accept="image/*" multiple class="file-input" />
+            @if (_spreadImageNames.Count > 0)
+            {
+                <div class="admin-spread-preview">
+                    @foreach (var name in _spreadImageNames)
+                    {
+                        <div class="admin-spread-preview-item">
+                            <img src="/poll-images/@name" class="admin-preview-img" alt="" />
+                            <button class="admin-btn danger small" type="button" @onclick="() => _spreadImageNames.Remove(name)">✕</button>
+                        </div>
+                    }
+                </div>
+            }
+
             <label class="form-label">Frist (valgfrit)</label>
             <input type="date" class="poll-input"
                    value="@_deadlineStr"
                    @onchange="e => _deadlineStr = e.Value?.ToString() ?? string.Empty" />
+
+            <label class="form-label">Adgangskode (valgfrit)</label>
+            <input class="poll-input" placeholder="Lad stå tom for ingen adgangskode"
+                   @bind="_password" @bind:event="oninput" />
 
             <label class="form-label">Datoer</label>
             @for (int i = 0; i < _dates.Count; i++)
@@ -60,11 +79,57 @@
 
             @if (!_isNew)
             {
+                @if (_voters.Count > 0)
+                {
+                    <label class="form-label">Deltagere (@_voters.Count)</label>
+                    <div class="voter-matrix-wrap">
+                        <table class="voter-matrix">
+                            <thead>
+                                <tr>
+                                    <th>Navn</th>
+                                    @foreach (var d in _results)
+                                    {
+                                        <th>@d.Date.ToString("d/M")</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var v in _voters)
+                                {
+                                    <tr>
+                                        <td class="voter-name">@v.Name</td>
+                                        @foreach (var d in _results)
+                                        {
+                                            var cell = v.ByDate.TryGetValue(d.Date, out var c) ? c : ("", false);
+                                            <td title="@(cell.Item1 == "" ? "Ikke svaret" : StatusLabel(cell.Item1))">
+                                                @(cell.Item1 == "" ? "—" : StatusIcon(cell.Item1))@(cell.Item2 ? "⭐" : "")
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
                 <label class="form-label">Resultater</label>
                 @foreach (var d in _results)
                 {
-                    <div class="poll-results" style="padding:0 0 12px">
-                        <div class="poll-results-label" style="margin-bottom:6px">@d.Date.ToString("dddd d. MMMM")</div>
+                    var noCount = d.Counts.FirstOrDefault(c => c.Status == "No").Count;
+                    var flagged = noCount >= NoVoteFlagThreshold;
+                    <div class="poll-results" style="padding:0 0 12px@(flagged ? ";opacity:.5" : "")">
+                        <div class="poll-results-label" style="margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                            <span>@d.Date.ToString("dddd d. MMMM")</span>
+                            @if (d.PreferredCount > 0)
+                            {
+                                <span style="font-size:12px;font-weight:700;color:#CA8A04">⭐ @d.PreferredCount foretrækker</span>
+                            }
+                            @if (flagged)
+                            {
+                                <span style="font-size:12px;font-weight:700;color:#B91C1C">⚠ @noCount kan ikke</span>
+                                <button class="admin-btn danger small" @onclick="() => RemoveDate(d.Date)">Fjern denne dato</button>
+                            }
+                        </div>
                         @foreach (var (status, count) in d.Counts)
                         {
                             var pct = d.Total > 0 ? (int)Math.Round(count * 100.0 / d.Total) : 0;
@@ -121,18 +186,27 @@
     private string _description = "";
     private string _deadlineStr = "";
     private string? _imageName;
+    private List<string> _spreadImageNames = [];
+    private string? _password;
     private List<string> _dates = [DateTime.Today.ToString("yyyy-MM-dd")];
     private string _error = "";
 
     private List<DateResult> _results = [];
     private List<CommentRow> _comments = [];
+    private List<VoterRow> _voters = [];
 
-    private record DateResult(DateTime Date, int Total, List<(string Status, int Count)> Counts);
+    private record DateResult(DateTime Date, int Total, List<(string Status, int Count)> Counts, int PreferredCount);
     private record CommentRow(string DateLabel, string Status, string VoterName, string Comment);
+    private record VoterRow(string Name, Dictionary<DateTime, (string Status, bool Preferred)> ByDate);
 
     private static string StatusLabel(string status) => status switch
     {
         "Yes" => "✅ Ja", "No" => "❌ Nej", _ => "🤔 Måske"
+    };
+
+    private static string StatusIcon(string status) => status switch
+    {
+        "Yes" => "✅", "No" => "❌", "Maybe" => "🤔", _ => "—"
     };
 
     private static string StatusColor(string status) => status switch
@@ -140,21 +214,33 @@
         "Yes" => "#16A34A", "No" => "#B91C1C", _ => "#B45309"
     };
 
+    // A week the admin might want to rule out at a glance - stays visible
+    // (never auto-removed) but greyed out with a warning and a manual
+    // "remove" button, since only the admin should decide a week is truly
+    // off the table.
+    private const int NoVoteFlagThreshold = 5;
+
     protected override void OnInitialized()
     {
         _isNew = DatePollId == 0;
         if (_isNew) return;
 
+        LoadPollData();
+    }
+
+    private void LoadPollData()
+    {
         var p = Db.DatePolls
             .Where(x => x.Id == DatePollId)
             .Select(x => new
             {
-                x.Title, x.Description, x.ImageName, x.Deadline,
+                x.Title, x.Description, x.ImageName, x.Deadline, x.Password,
+                Images = x.Images.OrderBy(i => i.SortOrder).Select(i => i.FileName).ToList(),
                 Dates = x.Dates.OrderBy(d => d.SortOrder)
                     .Select(d => new
                     {
                         d.Date,
-                        Responses = d.Responses.Select(r => new { r.Status, r.VoterName, r.Comment }).ToList(),
+                        Responses = d.Responses.Select(r => new { r.Status, r.VoterName, r.Comment, r.IsPreferred }).ToList(),
                     }).ToList(),
             })
             .FirstOrDefault();
@@ -164,19 +250,61 @@
         _title       = p.Title;
         _description = p.Description;
         _imageName   = p.ImageName;
+        _spreadImageNames = p.Images;
         _deadlineStr = p.Deadline?.ToString("yyyy-MM-dd") ?? "";
+        _password    = p.Password;
         _dates       = p.Dates.Select(d => d.Date.ToString("yyyy-MM-dd")).ToList();
         if (_dates.Count == 0) _dates = [DateTime.Today.ToString("yyyy-MM-dd")];
 
         _results = p.Dates.Select(d => new DateResult(
             d.Date, d.Responses.Count,
-            new[] { "Yes", "Maybe", "No" }.Select(s => (s, d.Responses.Count(r => r.Status == s))).ToList()
+            new[] { "Yes", "Maybe", "No" }.Select(s => (s, d.Responses.Count(r => r.Status == s))).ToList(),
+            d.Responses.Count(r => r.IsPreferred)
         )).ToList();
 
         _comments = p.Dates.SelectMany(d => d.Responses
                 .Where(r => !string.IsNullOrWhiteSpace(r.Comment))
                 .Select(r => new CommentRow(d.Date.ToString("d. MMM"), r.Status, r.VoterName, r.Comment)))
             .ToList();
+
+        // One row per distinct person who has answered at least one date -
+        // multi-name voting (e.g. "Vibz, Eigil, Bertil") already creates a
+        // separate DatePollResponse per name, so this naturally lists
+        // individuals rather than raw submissions.
+        var voterNames = p.Dates.SelectMany(d => d.Responses.Select(r => r.VoterName))
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _voters = voterNames.Select(name => new VoterRow(
+            name,
+            p.Dates.ToDictionary(
+                d => d.Date,
+                d =>
+                {
+                    var r = d.Responses.FirstOrDefault(x => string.Equals(x.VoterName, name, StringComparison.OrdinalIgnoreCase));
+                    return (r?.Status ?? "", r?.IsPreferred ?? false);
+                })
+        )).ToList();
+    }
+
+    // Admin-only, explicit action - a flagged week is never removed
+    // automatically, only offered up for a one-click removal once it's
+    // crossed the No-vote threshold. Its responses go with it (same
+    // no-explicit-cascade-cleanup convention Save() already uses above for
+    // the whole-date-list re-key case).
+    private async Task RemoveDate(DateTime date)
+    {
+        var toRemove = await Db.DatePollDates
+            .Where(d => d.DatePollId == DatePollId && d.Date == date)
+            .ToListAsync();
+        if (toRemove.Count == 0) return;
+
+        Db.DatePollDates.RemoveRange(toRemove);
+        await Db.SaveChangesAsync();
+
+        LoadPollData();
     }
 
     private async Task OnImageSelected(InputFileChangeEventArgs e)
@@ -196,6 +324,27 @@
         _imageName = name;
     }
 
+    // Multiple files at once - each gets the same GUID-rename treatment as
+    // the hero image, appended to whatever's already staged so repeated
+    // selections accumulate instead of replacing.
+    private async Task OnSpreadImagesSelected(InputFileChangeEventArgs e)
+    {
+        Directory.CreateDirectory("/app/data/images");
+
+        foreach (var file in e.GetMultipleFiles(maximumFileCount: 20))
+        {
+            var ext  = Path.GetExtension(file.Name).ToLowerInvariant();
+            var name = $"{Guid.NewGuid():N}{ext}";
+            var path = Path.Combine("/app/data/images", name);
+
+            await using var fs = File.Create(path);
+            await using var ms = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            await ms.CopyToAsync(fs);
+
+            _spreadImageNames.Add(name);
+        }
+    }
+
     private async Task Save()
     {
         _error = "";
@@ -213,6 +362,8 @@
         if (!string.IsNullOrEmpty(_deadlineStr) && DateTime.TryParse(_deadlineStr, out var dl))
             deadline = dl.ToUniversalTime();
 
+        var cleanPassword = string.IsNullOrWhiteSpace(_password) ? null : _password.Trim();
+
         if (_isNew)
         {
             var poll = new DatePoll
@@ -221,9 +372,11 @@
                 Description = _description.Trim(),
                 ImageName   = _imageName,
                 Deadline    = deadline,
+                Password    = cleanPassword,
                 IsActive    = true,
                 CreatedAt   = DateTime.UtcNow,
                 Dates       = cleanDates.Select((d, i) => new DatePollDate { Date = d, SortOrder = i }).ToList(),
+                Images      = _spreadImageNames.Select((n, i) => new DatePollImage { FileName = n, SortOrder = i }).ToList(),
             };
             Db.DatePolls.Add(poll);
         }
@@ -235,6 +388,13 @@
             poll.Description = _description.Trim();
             poll.ImageName   = _imageName;
             poll.Deadline    = deadline;
+            poll.Password    = cleanPassword;
+
+            // Same re-key-rather-than-diff convention as the dates list below.
+            var existingImages = Db.DatePollImages.Where(i => i.DatePollId == DatePollId).ToList();
+            Db.DatePollImages.RemoveRange(existingImages);
+            foreach (var (name, idx) in _spreadImageNames.Select((n, i) => (n, i)))
+                Db.DatePollImages.Add(new DatePollImage { DatePollId = DatePollId, FileName = name, SortOrder = idx });
 
             // Dates are re-keyed rather than diffed - simplest correct option
             // given how rare editing an already-answered date poll's date list

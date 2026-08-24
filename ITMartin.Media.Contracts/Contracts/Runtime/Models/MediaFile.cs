@@ -42,6 +42,22 @@
 
         public bool IsNormalized { get; set; }
 
+        // True when the source file carried a usable EXIF Orientation tag
+        // (any value 1-8) at import time - Package1 already baked it into the
+        // pixels correctly (see ImageConverterService), so FileStatusWorkflowStep
+        // can trust RotationIsCorrect immediately instead of deferring to the
+        // expensive face-detection fallback. False means no tag existed at
+        // all - genuinely unknown, the only case worth the expensive check.
+        public bool OrientationKnownFromExif { get; set; }
+
+        // Null = never examined this run. Set by the free local quality
+        // check (every image, no AI cost) and overwritten by the paid AI
+        // classification's own verdict when that's also enabled, since the
+        // AI result is the more reliable of the two.
+        public bool? IsBlurry { get; set; }
+
+        public bool? IsSolidColor { get; set; }
+
         public bool IsEnhanced { get; set; }
         public CleanupDecision CleanupDecision { get; set; } =
             CleanupDecision.Keep;

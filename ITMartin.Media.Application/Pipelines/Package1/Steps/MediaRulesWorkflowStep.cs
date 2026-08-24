@@ -75,10 +75,12 @@ public sealed class MediaRulesWorkflowStep
     private static readonly string[] ScreenshotKeywords =
         ["screenshot", "screen shot", "screen_shot", "skærmbillede", "bildschirmfoto", "capture_", "captura"];
 
-    // No dedicated Meme category - filename-only heuristics can't reliably tell a
-    // meme from a personal photo shared the same way (both come through as
-    // received_/fb_img_-style names from messaging apps). Unclassified images
-    // fall through to OtherImage -> the regular Images category instead.
+    // Meme/Chat exist as real categories (see MediaSubCategory), but filename
+    // heuristics alone can't reliably tell them apart from a personal photo
+    // shared the same way (both come through as received_/fb_img_-style names
+    // from messaging apps) - that distinction is left to AiClassificationWorkflowStep's
+    // AI tier (is_meme/is_chat). Unclassified images fall through to OtherImage
+    // -> the regular Images category, same as before.
 
     private static readonly string[] ScreenRecordingKeywords =
         ["screenrecord", "screen record", "skærmoptagelse"];

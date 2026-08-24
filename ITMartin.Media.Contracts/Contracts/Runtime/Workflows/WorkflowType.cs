@@ -4,6 +4,7 @@ public enum WorkflowType
 {
     Package1,
     Package2,
+    Package4,
 
     MagicCardScan,
     ReceiptScan,

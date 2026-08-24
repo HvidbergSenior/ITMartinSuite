@@ -12,6 +12,8 @@ public static class CategoryHelper
     public static string GetCategory(MediaFile file) =>
         file.SubCategory == MediaSubCategory.Screenshot ? "Skærmbilleder" :
         file.SubCategory == MediaSubCategory.LivePhotoVideo ? "LivePhotos" :
+        file.SubCategory == MediaSubCategory.Meme ? "Memes" :
+        file.SubCategory == MediaSubCategory.Chat ? "Chat" :
         file.MainCategory switch
         {
             MediaMainCategory.Image => "Billeder",
