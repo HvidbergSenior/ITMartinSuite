@@ -87,7 +87,15 @@ public sealed class FileStatusWorkflowStep : Package1WorkflowStepBase
             var isImage = file.Type == MediaType.Image;
             var isDateOrganized = DateOrganizedCategories.Contains(category);
 
-            var applicable = new List<string> { StepFlags.CategoryIsSet, StepFlags.SubCategoryIsSet, StepFlags.NotDuplicate, StepFlags.IsNormalized, StepFlags.FileIsReadable };
+            // IsNormalized only ever gets set true by ImageNormalizationWorkflowStep/
+            // VideoNormalizationWorkflowStep, both of which skip everything but
+            // Image/Video by design (audio/documents are just copied, never
+            // "normalized" to begin with) - so it must only be applicable for
+            // those two types, or every audio/document file would sit at
+            // IsDone=false forever and Package3's convergence loop would keep
+            // re-touching them on every single run.
+            var applicable = new List<string> { StepFlags.CategoryIsSet, StepFlags.SubCategoryIsSet, StepFlags.NotDuplicate, StepFlags.FileIsReadable };
+            if (isImage || file.Type == MediaType.Video) applicable.Add(StepFlags.IsNormalized);
             if (isDateOrganized) applicable.Add(StepFlags.DateIsSet);
             if (isImage)
             {

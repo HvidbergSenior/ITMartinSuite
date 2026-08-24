@@ -14,6 +14,7 @@ public sealed class Package1WorkflowDefinition
         Steps { get; }
 
     public Package1WorkflowDefinition(
+        CleanStartWorkflowStep cleanStartWorkflowStep,
         DvdJoinWorkflowStep dvdJoinWorkflowStep,
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
         MediaRulesWorkflowStep mediaRulesWorkflowStep,
@@ -34,6 +35,10 @@ public sealed class Package1WorkflowDefinition
     {
         Steps =
         [
+            // Must run before anything else scans/reads the source folder -
+            // see CleanStartWorkflowStep for why.
+            cleanStartWorkflowStep,
+
             dvdJoinWorkflowStep,
 
             fileDiscoveryWorkflowStep,

@@ -42,6 +42,9 @@ public static class Package1DependencyInjection
             Package1CleanupResultBuilder>();
 
         services.AddScoped<
+            CleanStartWorkflowStep>();
+
+        services.AddScoped<
             DvdJoinWorkflowStep>();
 
         services.AddScoped<

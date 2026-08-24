@@ -40,23 +40,24 @@ public class Package1StepOrderTests
     // test pass.
     private static readonly string[] ExpectedStepOrder =
     [
-        "DvdJoinWorkflowStep",              // 1.  Joins split DVD-rip video segments back into whole files, if any.
-        "FileDiscoveryWorkflowStep",        // 2.  Walks the source tree, builds the initial MediaFile list.
-        "MediaRulesWorkflowStep",           // 3.  Extension/codec-based type classification (incl. real .mp4 codec check).
-        "LivePhotoDetectionWorkflowStep",   // 4.  Pairs iPhone Live Photo stills with their motion-clip video.
-        "HashWorkflowStep",                 // 5.  Computes each file's content hash.
-        "MetadataWorkflowStep",             // 6.  Reads EXIF/video metadata - date, GPS, camera model, etc.
-        "DuplicateDetectionWorkflowStep",   // 7.  Exact-hash + perceptual-hash image duplicate grouping.
-        "AudioDuplicateDetectionWorkflowStep", // 8.  Same idea, scoped to audio tracks.
-        "ImageNormalizationWorkflowStep",   // 9.  HEIC/HEIF/AVIF -> JPG conversion, orientation baking (now on every image).
-        "ImageQualityWorkflowStep",         // 10. Free local blur/solid-color check on every image.
-        "VideoNormalizationWorkflowStep",   // 11. Container/codec normalization for web-safe playback.
-        "CleanupEvaluationWorkflowStep",    // 12. Decides Keep/Delete/Review per file (junk, near-duplicates).
-        "AiClassificationWorkflowStep",     // 13. Optional Claude-based classification (EnableAiClassification).
-        "Manifest1BuildWorkflowStep",       // 14. Builds the in-memory Package1 manifest from everything above.
-        "ExportWorkflowExecutionStep",      // 15. Physically copies files into the final category/Year/group layout.
-        "GalleryThumbnailWorkflowStep",     // 16. Generates the gallery's own per-file thumbnails, post-export.
-        "FileStatusWorkflowStep",           // 17. Writes filestatus.json - needs ExportedPath/category already settled.
+        "CleanStartWorkflowStep",           // 1.  Strips a prior run's generated artifacts (_Galleri, SmartFolders, .packageN, manifest/collections/filestatus.json) so a re-copied already-sorted library scans as clean raw input.
+        "DvdJoinWorkflowStep",              // 2.  Joins split DVD-rip video segments back into whole files, if any.
+        "FileDiscoveryWorkflowStep",        // 3.  Walks the source tree, builds the initial MediaFile list.
+        "MediaRulesWorkflowStep",           // 4.  Extension/codec-based type classification (incl. real .mp4 codec check).
+        "LivePhotoDetectionWorkflowStep",   // 5.  Pairs iPhone Live Photo stills with their motion-clip video.
+        "HashWorkflowStep",                 // 6.  Computes each file's content hash.
+        "MetadataWorkflowStep",             // 7.  Reads EXIF/video metadata - date, GPS, camera model, etc.
+        "DuplicateDetectionWorkflowStep",   // 8.  Exact-hash + perceptual-hash image duplicate grouping.
+        "AudioDuplicateDetectionWorkflowStep", // 9.  Same idea, scoped to audio tracks.
+        "ImageNormalizationWorkflowStep",   // 10. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (now on every image).
+        "ImageQualityWorkflowStep",         // 11. Free local blur/solid-color check on every image.
+        "VideoNormalizationWorkflowStep",   // 12. Container/codec normalization for web-safe playback.
+        "CleanupEvaluationWorkflowStep",    // 13. Decides Keep/Delete/Review per file (junk, near-duplicates).
+        "AiClassificationWorkflowStep",     // 14. Optional Claude-based classification (EnableAiClassification).
+        "Manifest1BuildWorkflowStep",       // 15. Builds the in-memory Package1 manifest from everything above.
+        "ExportWorkflowExecutionStep",      // 16. Physically copies files into the final category/Year/group layout.
+        "GalleryThumbnailWorkflowStep",     // 17. Generates the gallery's own per-file thumbnails, post-export.
+        "FileStatusWorkflowStep",           // 18. Writes filestatus.json - needs ExportedPath/category already settled.
         // NOTE: VideoSegmentationWorkflowStep, SegmentThumbnailWorkflowStep, and
         // ThumbnailWorkflowStep were removed 2026-08-24 - all three were
         // permanently dead code (no UI/request field ever set EnableSegmentation

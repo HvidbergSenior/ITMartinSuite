@@ -21,7 +21,7 @@ public sealed class FileScanner : IFileScanner
         [
             "@eadir", "#recycle", "#snapshot",
             ".@__thumb", "@recently-snapshot", ".synophoto",
-            ".package1", ".package2", "thumbnails", "SmartFolders",
+            ".package1", ".package2", "thumbnails", "SmartFolders", "_Galleri",
             // Windows/OS system folders — never real content, and $RECYCLE.BIN's
             // per-user subfolders are access-denied to a normal process, which
             // previously crashed the whole scan rather than just skipping it.

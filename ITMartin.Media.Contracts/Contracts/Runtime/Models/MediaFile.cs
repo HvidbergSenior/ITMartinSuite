@@ -192,8 +192,13 @@
 
             SubCategory = type switch
             {
+                // Audio is just copied, never run through classification -
+                // there's no pipeline step that ever resolves UnknownAudio to
+                // anything else, so defaulting to it here would leave every
+                // audio file's SubCategoryIsSet flag false forever (see
+                // FileStatusWorkflowStep) and it would never reach IsDone.
                 MediaType.Audio =>
-                    MediaSubCategory.UnknownAudio,
+                    MediaSubCategory.Music,
 
                 MediaType.Video =>
                     MediaSubCategory.UnknownVideo,

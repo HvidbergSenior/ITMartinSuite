@@ -158,4 +158,22 @@ public class FileStatusWorkflowStepTests
 
         record.IsDone.Should().BeTrue();
     }
+
+    [Test]
+    public async Task An_audio_file_reaches_IsDone_just_from_being_copied_no_normalization_expected()
+    {
+        // Audio is just copied, never run through Package1's normalization/
+        // classification steps - IsNormalized and RotationIsCorrect/
+        // QualityChecked must not be applicable to it, or it would sit at
+        // IsDone=false forever and Package3's convergence loop would keep
+        // re-touching every music file on every single run.
+        File.WriteAllBytes(Path.Combine(_root, "song.mp3"), [0x01, 0x02, 0x03]);
+        var file = new MediaFile(Path.Combine(_root, "song.mp3"), DateTime.UtcNow, MediaType.Audio, 3);
+        file.SetHash("hash-audio-just-copied");
+
+        var record = await RunAndGetRecordAsync(file);
+
+        record.IsDone.Should().BeTrue();
+        record.ApplicableFlags.Should().NotContain(StepFlags.IsNormalized);
+    }
 }
