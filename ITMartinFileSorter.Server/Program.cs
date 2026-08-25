@@ -493,6 +493,41 @@ app.MapPost("/api/debug/tag-images", async (string path, ITMartin.Media.Contract
 app.MapPost("/api/debug/p3-estimate-undated", async (string path, int? maxDatedReferenceFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
     Results.Ok(await service.EstimateUndatedDatesAsync(path, maxDatedReferenceFiles: maxDatedReferenceFiles)));
 
+// see Package3Service.DateLivePhotosByFaceMatchAsync.
+app.MapPost("/api/debug/p3-date-livephotos", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+    Results.Ok(await service.DateLivePhotosByFaceMatchAsync(path)));
+
+// Groups a folder's files by "how many faces were detected" using the
+// already-computed MediaFaces index (free, no new work) - lets a folder
+// full of undated photos be split into "has people" vs "no people
+// detected" (landscapes/houses/objects/pets) without any AI vision calls.
+app.MapGet("/api/debug/face-count-summary", async (string folderPrefix, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var rows = await db.MediaFaces
+        .Where(x => x.MediaFilePath.StartsWith(folderPrefix))
+        .Select(x => new { x.MediaFilePath, x.EmbeddingJson })
+        .ToListAsync();
+
+    var byFile = rows
+        .GroupBy(x => x.MediaFilePath)
+        .Select(g => new
+        {
+            Path = g.Key,
+            FaceCount = g.Count(x => x.EmbeddingJson != "[]"),
+        })
+        .ToList();
+
+    return Results.Ok(new
+    {
+        TotalFiles = byFile.Count,
+        NoFaceDetected = byFile.Count(x => x.FaceCount == 0),
+        OnePerson = byFile.Count(x => x.FaceCount == 1),
+        TwoOrMorePeople = byFile.Count(x => x.FaceCount >= 2),
+        Files = byFile,
+    });
+});
+
 // Diagnostic for schema/data-connection drift on a long-lived .media.db -
 // e.g. this once revealed the server had been connecting to a stale,
 // unrelated database (wrong MediaSettings:LibraryRoot) instead of the

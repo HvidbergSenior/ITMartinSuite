@@ -75,6 +75,22 @@ public interface IPackage3Service
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// For LivePhotos videos sitting loose at LivePhotos root or in a
+    /// "Ukendt måned" subfolder (year known/unknown, no real date), runs face
+    /// detection directly on the video (pulls a representative frame - most
+    /// of these have no real still sibling at all, only an auto-generated
+    /// thumbnails/ preview, so this can't rely on a .jpg existing) and
+    /// matches against Billeder's already-indexed dated reference set. A
+    /// confident match moves the video into LivePhotoVideoer/{year}/ (year-
+    /// only, no month subfolder - not Billeder, videos don't belong mixed
+    /// into the photo category) and moves a real still sibling too, if one
+    /// happens to exist, into Billeder/{year}/{month}/ since that genuinely
+    /// is a photo.
+    /// </summary>
+    Task<LivePhotoDatingResult> DateLivePhotosByFaceMatchAsync(
+        string libraryPath, double faceThreshold = 0.5, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Text-only (filename/path, no image bytes) AI pass over the Unhandled
     /// folder - files FileSorter couldn't recognize by extension. Moves
     /// confident real-content matches into their real category, obvious junk

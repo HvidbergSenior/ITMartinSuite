@@ -808,6 +808,171 @@ public sealed class Package3Service : IPackage3Service
         };
     }
 
+    // LivePhotos entries here are almost always video-only (no real .jpg
+    // still, just an auto-generated thumbnails/ preview) and the folder is
+    // normally excluded from EnumerateLibraryImages entirely (SkippedFolders),
+    // so this indexes the undated videos directly (frame-extraction based
+    // face detection, same as any video) rather than going through the
+    // normal enumeration. Matches against Billeder's already-indexed dated
+    // reference set (no new dated-reference indexing here - reuses whatever
+    // IndexFacesAsync already built for Billeder), but a confident match
+    // moves the video into LivePhotoVideoer/{year}/ - NOT into Billeder
+    // (videos don't belong mixed into the photo category) and NOT split into
+    // month subfolders (LivePhotoVideoer is year-only, matching the flat
+    // policy also applied to Skærmbilleder/Dokumenter). A real still sibling
+    // (rare) still follows the video into Billeder if one exists, since that
+    // genuinely is a photo.
+    public async Task<LivePhotoDatingResult> DateLivePhotosByFaceMatchAsync(
+        string libraryPath, double faceThreshold = 0.5, CancellationToken cancellationToken = default)
+    {
+        var livePhotosFolder = Path.Combine(libraryPath, "LivePhotos");
+        if (!Directory.Exists(livePhotosFolder)) return new LivePhotoDatingResult();
+
+        var billederFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (billederFolder is null) return new LivePhotoDatingResult();
+
+        var livePhotosFullPath = Path.GetFullPath(livePhotosFolder).TrimEnd(Path.DirectorySeparatorChar);
+
+        // The still half of a Live Photo pair usually doesn't exist as a real
+        // file here at all - only the "thumbnails/" auto-generated preview
+        // does (confirmed 2026-08-25 on mie's real library: every loose/
+        // Ukendt-måned entry is video-only). IndexFaceForFileAsync already
+        // knows how to pull a representative frame from a video and run face
+        // detection on that, so this runs directly against the .mp4 instead
+        // of assuming a real .jpg sibling exists.
+        var undatedVideos = Directory.EnumerateFiles(livePhotosFolder, "*", SearchOption.AllDirectories)
+            .Where(MediaTypeHelper.IsVideo)
+            .Where(f =>
+            {
+                var parent = Path.GetDirectoryName(f)!;
+                if (parent.EndsWith($"{Path.DirectorySeparatorChar}thumbnails", StringComparison.OrdinalIgnoreCase)) return false;
+                var isLoose = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar).Equals(livePhotosFullPath, StringComparison.OrdinalIgnoreCase);
+                var isUkendtMaaned = Path.GetFileName(parent).Equals("Ukendt måned", StringComparison.OrdinalIgnoreCase);
+                return isLoose || isUkendtMaaned;
+            })
+            .ToList();
+
+        var checkedCount = undatedVideos.Count;
+        var moved = 0;
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var recognizer = _faceRecognitionFactory();
+        try
+        {
+            foreach (var video in undatedVideos)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await IndexFaceForFileAsync(db, libraryPath, video, recognizer, cancellationToken);
+            }
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            (recognizer as IDisposable)?.Dispose();
+        }
+
+        // Reference set: every already-indexed, already-dated Billeder face -
+        // built earlier by IndexFacesAsync/EstimateUndatedDatesAsync, not
+        // rebuilt here.
+        var allFaces = await db.MediaFaces
+            .Where(x => x.EmbeddingJson != "[]")
+            .Select(x => new { x.MediaFilePath, x.EmbeddingJson })
+            .ToListAsync(cancellationToken);
+
+        var dated = new List<(float[] Embedding, string YearMonth)>();
+        foreach (var face in allFaces)
+        {
+            if (!face.MediaFilePath.StartsWith(billederFolder, StringComparison.OrdinalIgnoreCase)) continue;
+            if (IsUnderUndatedFolder(face.MediaFilePath)) continue;
+            var ym = ExtractYearMonthFolder(face.MediaFilePath);
+            if (ym is null) continue;
+            float[] vector;
+            try { vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? []; }
+            catch (JsonException) { continue; }
+            if (vector.Length == 0) continue;
+            dated.Add((vector, ym));
+        }
+
+        foreach (var video in undatedVideos)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var videoFaces = await db.MediaFaces
+                .Where(x => x.MediaFilePath == video && x.EmbeddingJson != "[]")
+                .Select(x => x.EmbeddingJson)
+                .ToListAsync(cancellationToken);
+
+            var best = 0.0;
+            string? bestYearMonth = null;
+            foreach (var json in videoFaces)
+            {
+                float[] vector;
+                try { vector = JsonSerializer.Deserialize<float[]>(json) ?? []; }
+                catch (JsonException) { continue; }
+                if (vector.Length == 0) continue;
+
+                foreach (var (refEmbedding, ym) in dated)
+                {
+                    var sim = CosineSimilarity(vector, refEmbedding);
+                    if (sim > best) { best = sim; bestYearMonth = ym; }
+                }
+            }
+
+            if (best < faceThreshold || bestYearMonth is null) continue;
+
+            // Video goes to LivePhotoVideoer/{year}/ - not Billeder (it's not
+            // a photo) and year-only, no month subfolder. A real
+            // (non-thumbnail) still sibling is rare here - most of these
+            // videos have no still at all, only an auto-generated
+            // thumbnails/ preview - but if one genuinely exists, it's a real
+            // photo and follows the usual Billeder/{year}/{month} placement.
+            var still = Path.ChangeExtension(video, ".jpg");
+            var year = bestYearMonth.Split('/')[0];
+            var videoDestDir = Path.Combine(libraryPath, "LivePhotoVideoer", year);
+            var stillDestDir = Path.Combine(billederFolder, bestYearMonth.Replace('/', Path.DirectorySeparatorChar));
+
+            try
+            {
+                Directory.CreateDirectory(videoDestDir);
+                var videoDest = ResolveNameCollisionPublic(Path.Combine(videoDestDir, Path.GetFileName(video)));
+                File.Move(video, videoDest);
+                moved++;
+
+                if (File.Exists(still))
+                {
+                    Directory.CreateDirectory(stillDestDir);
+                    var stillDest = ResolveNameCollisionPublic(Path.Combine(stillDestDir, Path.GetFileName(still)));
+                    File.Move(still, stillDest);
+                }
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Failed to move matched LivePhoto video {Video}", video);
+            }
+        }
+
+        return new LivePhotoDatingResult { Checked = checkedCount, Moved = moved };
+    }
+
+    private static string ResolveNameCollisionPublic(string path)
+    {
+        if (!File.Exists(path)) return path;
+        var dir = Path.GetDirectoryName(path)!;
+        var name = Path.GetFileNameWithoutExtension(path);
+        var ext = Path.GetExtension(path);
+        var i = 1;
+        string candidate;
+        do
+        {
+            candidate = Path.Combine(dir, $"{name} ({i}){ext}");
+            i++;
+        } while (File.Exists(candidate));
+        return candidate;
+    }
+
     // Text-only (filename/path) - no image bytes sent - so a large batch size
     // here is still cheap. MaxFiles is a hard ceiling per run (CLAUDE.md AI
     // cost discipline): an unexpectedly huge Unhandled folder gets truncated
