@@ -35,6 +35,7 @@
         Social,
         Meme,
         Chat,
+        AlbumArt,
         OtherImage,
         UnknownImage,
 

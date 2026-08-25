@@ -85,6 +85,31 @@ public sealed class MediaRulesWorkflowStep
     private static readonly string[] ScreenRecordingKeywords =
         ["screenrecord", "screen record", "skærmoptagelse"];
 
+    // Standard filenames media players/taggers use for embedded cover art
+    // (Windows Media Player, iTunes, foobar2000, etc. all follow one of
+    // these conventions). Requires the image to actually sit in a folder
+    // with audio files too - a personal photo that happens to be named
+    // "cover.jpg" (e.g. a scanned book cover) shouldn't get swept into Musik
+    // just because of its name alone. Anything this misses (non-standard
+    // names) is left for Package3's manual triage.
+    private static readonly string[] AlbumArtFileNames =
+        ["cover", "folder", "albumart", "albumartsmall", "albumartlarge", "front", "back"];
+
+    private static readonly string[] AudioExtensions =
+        [".mp3", ".flac", ".wav", ".aac", ".m4a", ".wma", ".ogg"];
+
+    private static bool LooksLikeAlbumArt(MediaFile mediaFile)
+    {
+        var nameLower = Path.GetFileNameWithoutExtension(mediaFile.FileName).ToLowerInvariant();
+        if (!AlbumArtFileNames.Contains(nameLower)) return false;
+
+        var directory = Path.GetDirectoryName(mediaFile.FullPath);
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory)) return false;
+
+        return Directory.EnumerateFiles(directory)
+            .Any(f => AudioExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase));
+    }
+
     // Exact-resolution matching was tried and confirmed broken on real data
     // (2026-07-31, Malene's library): a genuine screenshot exported at
     // 960x2079 matched no hardcoded device resolution, because any resize,
@@ -97,6 +122,12 @@ public sealed class MediaRulesWorkflowStep
     private static void ClassifyImageSubCategory(MediaFile mediaFile)
     {
         if (mediaFile.Type != MediaType.Image) return;
+
+        if (LooksLikeAlbumArt(mediaFile))
+        {
+            mediaFile.SubCategory = MediaSubCategory.AlbumArt;
+            return;
+        }
 
         var nameLower = Path.GetFileNameWithoutExtension(mediaFile.FileName).ToLowerInvariant();
 

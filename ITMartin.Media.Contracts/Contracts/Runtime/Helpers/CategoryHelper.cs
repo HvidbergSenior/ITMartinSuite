@@ -14,6 +14,7 @@ public static class CategoryHelper
         file.SubCategory == MediaSubCategory.LivePhotoVideo ? "LivePhotos" :
         file.SubCategory == MediaSubCategory.Meme ? "Memes" :
         file.SubCategory == MediaSubCategory.Chat ? "Chat" :
+        file.SubCategory == MediaSubCategory.AlbumArt ? "Musik" :
         file.MainCategory switch
         {
             MediaMainCategory.Image => "Billeder",
