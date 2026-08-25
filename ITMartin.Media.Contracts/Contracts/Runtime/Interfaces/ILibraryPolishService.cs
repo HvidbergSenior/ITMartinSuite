@@ -156,4 +156,18 @@ public interface ILibraryPolishService
     // heuristic alone has a known false-positive (a Facebook timeline cover
     // photo, found on mie's real library 2026-08-25). Free, local, no AI.
     Task<AlbumArtReclassifyResult> ReclassifyAlbumArtAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Generalizes ReclassifyAlbumArtAsync's filename-only matching - found
+    // necessary 2026-08-25 when a whole folder of band promo/single-cover
+    // scans (Billeder/2000/Ukendt måned - "fTAP.jpg", "greenus.jpg",
+    // "triplike.jpg", none matching any cover/front/back filename hint) sat
+    // right next to files that DID match. The tell wasn't the name, it was
+    // the folder: every file in it was small (web-scraped/scanned art, not
+    // camera output) and had no camera EXIF at all. Groups files by their
+    // containing leaf folder and flags any folder where most files are both
+    // small and EXIF-camera-less - report-only, never moves anything, since
+    // folder-level heuristics are inherently softer than a single confirmed
+    // filename pattern and this one specific real photo folder could
+    // legitimately be all small/no-EXIF (old scanned prints, MMS photos).
+    Task<NonPhotoClusterReport> FindNonPhotoClustersAsync(string libraryPath, CancellationToken cancellationToken = default);
 }

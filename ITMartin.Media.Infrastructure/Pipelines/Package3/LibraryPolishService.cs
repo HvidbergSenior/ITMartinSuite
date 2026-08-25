@@ -1599,6 +1599,76 @@ public sealed class LibraryPolishService : ILibraryPolishService
         });
     }
 
+    // Real digital-camera/phone photos essentially never fall under this size
+    // even at low quality settings; web-scraped/scanned CD art routinely
+    // does. Deliberately conservative (a genuine low-res old photo can be
+    // this small too) - paired with the no-EXIF check below so a folder only
+    // gets flagged when BOTH signals agree.
+    private const long SmallFileSizeThresholdBytes = 60_000;
+    private const double SuspectFolderMinFraction = 0.8;
+    private const int SuspectFolderMinFileCount = 5;
+
+    public Task<NonPhotoClusterReport> FindNonPhotoClustersAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var imagesFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (imagesFolder is null) return Task.FromResult(new NonPhotoClusterReport());
+
+        var foldersScanned = 0;
+        var suspects = new List<SuspectFolder>();
+
+        foreach (var dir in Directory.EnumerateDirectories(imagesFolder, "*", SearchOption.AllDirectories)
+                     .Append(imagesFolder)
+                     .Where(d => !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var files = Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly)
+                .Where(MediaTypeHelper.IsImage)
+                .ToList();
+            if (files.Count < SuspectFolderMinFileCount) continue;
+
+            foldersScanned++;
+
+            var smallNoExifCount = 0;
+            long totalSize = 0;
+            foreach (var file in files)
+            {
+                long size;
+                try { size = new FileInfo(file).Length; }
+                catch (Exception) { continue; }
+                totalSize += size;
+
+                if (size > SmallFileSizeThresholdBytes) continue;
+
+                (string? Make, string? Model, string? Software)? meta;
+                try { meta = _exifService.ReadMetadata(file); }
+                catch (Exception) { meta = null; }
+
+                var hasCameraExif = !string.IsNullOrWhiteSpace(meta?.Make) || !string.IsNullOrWhiteSpace(meta?.Model);
+                if (!hasCameraExif) smallNoExifCount++;
+            }
+
+            if (smallNoExifCount < files.Count * SuspectFolderMinFraction) continue;
+
+            suspects.Add(new SuspectFolder
+            {
+                FolderPath = dir,
+                FileCount = files.Count,
+                NoExifCount = smallNoExifCount,
+                AvgFileSizeBytes = totalSize / files.Count,
+                SampleFileNames = files.Take(5).Select(Path.GetFileName).ToList()!,
+            });
+        }
+
+        _logger.LogInformation(
+            "Non-photo cluster scan complete for {LibraryPath}: {Scanned} folders scanned, {Suspects} flagged",
+            libraryPath, foldersScanned, suspects.Count);
+
+        return Task.FromResult(new NonPhotoClusterReport { FoldersScanned = foldersScanned, SuspectFolders = suspects });
+    }
+
     // Best-effort: looks for a 4-digit year as a whole path segment - fine
     // for scoping the perceptual-hash comparison buckets, not meant to be
     // authoritative metadata.
