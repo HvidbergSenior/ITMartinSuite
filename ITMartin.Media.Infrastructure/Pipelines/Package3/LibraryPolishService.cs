@@ -1524,6 +1524,18 @@ public sealed class LibraryPolishService : ILibraryPolishService
         new(@"^AlbumArt[ _]?[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}[ _]Large(_\d+)?$",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
+    // "00-artist-album-year" - the standard cover-art naming convention scene
+    // release groups use for an MP3 rip's track-00 art file. Found
+    // 2026-08-25 on mie's real library (00-alt-j-an awesome wave-2012.jpg,
+    // 00-va-intouchables-ost-2011.jpg) sitting loose at the Billeder root -
+    // both were real camera photos of the physical CD (large, high-res, real
+    // EXIF), so the size/resolution detector never had a chance; only the
+    // filename gives it away. Distinctive enough (nothing personal is named
+    // "00-<text>-<year>") to auto-move like the GUID cache pattern.
+    private static readonly System.Text.RegularExpressions.Regex AlbumArtSceneReleasePattern =
+        new(@"^00[-_].+[-_](19|20)\d{2}$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
     // Same exact-name list Package1's MediaRulesWorkflowStep uses, plus
     // "endswith" matching (catches "VA - Absolute Music 69 - front.jpg",
     // "Erkenntnis Theorietapecover.jpg") - broader than Package1's check
@@ -1558,7 +1570,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
             var nameLower = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
 
-            if (AlbumArtCachePattern.IsMatch(Path.GetFileNameWithoutExtension(file)))
+            if (AlbumArtCachePattern.IsMatch(Path.GetFileNameWithoutExtension(file)) ||
+                AlbumArtSceneReleasePattern.IsMatch(Path.GetFileNameWithoutExtension(file)))
             {
                 try
                 {
