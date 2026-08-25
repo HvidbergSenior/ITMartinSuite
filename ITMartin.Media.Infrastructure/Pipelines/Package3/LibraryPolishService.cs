@@ -1518,6 +1518,80 @@ public sealed class LibraryPolishService : ILibraryPolishService
         return Task.FromResult(new BurstFlattenResult { FoldersFlattened = foldersFlattened, FilesMoved = filesMoved });
     }
 
+    // Windows Media Player/Zune's own cache naming - a GUID is never a
+    // coincidence, so this pattern alone is safe to move automatically.
+    private static readonly System.Text.RegularExpressions.Regex AlbumArtCachePattern =
+        new(@"^AlbumArt[ _]?[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}[ _]Large(_\d+)?$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Same exact-name list Package1's MediaRulesWorkflowStep uses, plus
+    // "endswith" matching (catches "VA - Absolute Music 69 - front.jpg",
+    // "Erkenntnis Theorietapecover.jpg") - broader than Package1's check
+    // since there's no audio-sibling signal left to lean on post-sort, so
+    // these are review-only, never auto-moved.
+    private static readonly string[] AlbumArtNameHints =
+        ["cover", "folder", "albumart", "albumartsmall", "albumartlarge", "front", "back"];
+
+    public Task<AlbumArtReclassifyResult> ReclassifyAlbumArtAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var imagesFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (imagesFolder is null) return Task.FromResult(new AlbumArtReclassifyResult());
+
+        var musikFolder = new[] { "Musik", "Music" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists)
+            ?? Path.Combine(libraryPath, "Musik");
+        var albumArtDir = Path.Combine(musikFolder, "AlbumArt");
+
+        var checkedCount = 0;
+        var moved = 0;
+        var reviewCandidates = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(imagesFolder, "*", SearchOption.AllDirectories)
+                     .Where(MediaTypeHelper.IsImage)
+                     .ToList())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            checkedCount++;
+
+            var nameLower = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+
+            if (AlbumArtCachePattern.IsMatch(Path.GetFileNameWithoutExtension(file)))
+            {
+                try
+                {
+                    Directory.CreateDirectory(albumArtDir);
+                    var targetPath = ResolveNameCollision(Path.Combine(albumArtDir, Path.GetFileName(file)));
+                    File.Move(file, targetPath);
+                    moved++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to move album-art cache file {Path} to Musik", file);
+                }
+                continue;
+            }
+
+            if (AlbumArtNameHints.Any(hint => nameLower.EndsWith(hint, StringComparison.Ordinal)))
+            {
+                reviewCandidates.Add(file);
+            }
+        }
+
+        _logger.LogInformation(
+            "Album-art reclassify complete for {LibraryPath}: {Checked} checked, {Moved} moved (cache-pattern), {Review} flagged for manual review",
+            libraryPath, checkedCount, moved, reviewCandidates.Count);
+
+        return Task.FromResult(new AlbumArtReclassifyResult
+        {
+            Checked = checkedCount,
+            MovedHighConfidence = moved,
+            ReviewCandidates = reviewCandidates,
+        });
+    }
+
     // Best-effort: looks for a 4-digit year as a whole path segment - fine
     // for scoping the perceptual-hash comparison buckets, not meant to be
     // authoritative metadata.

@@ -143,4 +143,17 @@ public interface ILibraryPolishService
     // now-empty BurstN folder. Never touches a folder that isn't literally
     // named "Burst" followed by digits.
     Task<BurstFlattenResult> FlattenBurstFoldersAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Post-hoc counterpart to MediaRulesWorkflowStep's Package1-time album-art
+    // detection: catches art that was already sitting in Billeder BEFORE that
+    // fix existed (an already-sorted library, not a fresh import), where the
+    // original audio-sibling-in-same-folder signal no longer applies since
+    // Package1 already split images and audio into separate category trees.
+    // Only the unambiguous "AlbumArt <GUID> Large" cache-file pattern (Windows
+    // Media Player/Zune's own naming, never a real photo) is moved
+    // automatically; everything else that merely matches a cover/front/back-
+    // style filename is reported in ReviewCandidates, not moved, since that
+    // heuristic alone has a known false-positive (a Facebook timeline cover
+    // photo, found on mie's real library 2026-08-25). Free, local, no AI.
+    Task<AlbumArtReclassifyResult> ReclassifyAlbumArtAsync(string libraryPath, CancellationToken cancellationToken = default);
 }
