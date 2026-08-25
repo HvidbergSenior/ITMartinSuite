@@ -168,9 +168,12 @@ public interface ILibraryPolishService
     // small/low-resolution and EXIF-camera-less (dimensions checked, not just
     // file size, so a heavily-compressed but full-resolution real photo isn't
     // caught by size alone; .gif counts on its own - never real camera
-    // output) - report-only, never moves anything, since folder-level
-    // heuristics are inherently softer than a single confirmed filename
-    // pattern and this one specific real photo folder could legitimately be
-    // all small/no-EXIF (old scanned prints, MMS photos).
+    // output). Messaging-app filenames (image0 f4b1ccbc.jpeg, IMG_0001.jpg,
+    // WhatsApp Image...) are excluded outright - those apps strip EXIF and
+    // re-compress on save, which otherwise looks identical to downloaded art
+    // (found on mie's real library 2026-08-25: Billeder/2021/Ukendt måned,
+    // 38 files, all real photos). Report-only, never moves anything, since
+    // folder-level heuristics are inherently softer than a single confirmed
+    // filename pattern.
     Task<NonPhotoClusterReport> FindNonPhotoClustersAsync(string libraryPath, CancellationToken cancellationToken = default);
 }

@@ -1605,8 +1605,23 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // this small too) - paired with the no-EXIF check below so a folder only
     // gets flagged when BOTH signals agree.
     private const long SmallFileSizeThresholdBytes = 60_000;
-    private const double SuspectFolderMinFraction = 0.8;
-    private const int SuspectFolderMinFileCount = 5;
+    // Lowered 2026-08-25 after Billeder/2007 (4 files, 2 of them non-photo)
+    // slipped past the original 5-file/80% gate entirely - a small mixed
+    // folder is exactly the case a human glance is cheapest for, so err
+    // toward surfacing it rather than requiring near-total dominance.
+    private const double SuspectFolderMinFraction = 0.25;
+    private const int SuspectFolderMinFileCount = 1;
+
+    // Real photos, not art - messaging apps (iMessage/Messenger/WhatsApp)
+    // strip EXIF on save and often re-compress down in resolution, which
+    // otherwise trips both signals above. Found 2026-08-25 on mie's real
+    // library: Billeder/2021/Ukendt måned was 38 files named like
+    // "image0 f4b1ccbc.jpeg" - checked one, a real photo of a church, not
+    // downloaded content. Same idea as AlbumArtNameHints but inverted: this
+    // list suppresses the flag rather than raising it.
+    private static readonly System.Text.RegularExpressions.Regex RealPhotoNamePattern =
+        new(@"^((image|img|dsc|pxl|screenshot)[_ ]?\d|whatsapp[_ ]image)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public Task<NonPhotoClusterReport> FindNonPhotoClustersAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
@@ -1632,6 +1647,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
             foldersScanned++;
 
             var smallNoExifCount = 0;
+            var suspectFileNames = new List<string>();
             long totalSize = 0;
             foreach (var file in files)
             {
@@ -1645,8 +1661,13 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 if (Path.GetExtension(file).Equals(".gif", StringComparison.OrdinalIgnoreCase))
                 {
                     smallNoExifCount++;
+                    suspectFileNames.Add(Path.GetFileName(file));
                     continue;
                 }
+
+                // Messaging-app naming overrides everything below - real
+                // photo, just EXIF-stripped/re-compressed by the app on save.
+                if (RealPhotoNamePattern.IsMatch(Path.GetFileNameWithoutExtension(file))) continue;
 
                 (int? Width, int? Height) dimensions;
                 try { dimensions = _exifService.GetDimensions(file); }
@@ -1671,7 +1692,11 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 catch (Exception) { meta = null; }
 
                 var hasCameraExif = !string.IsNullOrWhiteSpace(meta?.Make) || !string.IsNullOrWhiteSpace(meta?.Model);
-                if (!hasCameraExif) smallNoExifCount++;
+                if (!hasCameraExif)
+                {
+                    smallNoExifCount++;
+                    suspectFileNames.Add(Path.GetFileName(file)!);
+                }
             }
 
             if (smallNoExifCount < files.Count * SuspectFolderMinFraction) continue;
@@ -1682,7 +1707,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 FileCount = files.Count,
                 NoExifCount = smallNoExifCount,
                 AvgFileSizeBytes = totalSize / files.Count,
-                SampleFileNames = files.Take(5).Select(Path.GetFileName).ToList()!,
+                SampleFileNames = suspectFileNames.Take(10).ToList(),
             });
         }
 
