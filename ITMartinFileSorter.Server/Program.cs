@@ -490,8 +490,35 @@ app.MapPost("/api/debug/sf-yearbook-captions", async (string path, int year, ITM
 app.MapPost("/api/debug/tag-images", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IImageTaggingService service) =>
     Results.Ok(await service.TagLibraryAsync(path)));
 
-app.MapPost("/api/debug/p3-estimate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
-    Results.Ok(await service.EstimateUndatedDatesAsync(path)));
+app.MapPost("/api/debug/p3-estimate-undated", async (string path, int? maxDatedReferenceFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+    Results.Ok(await service.EstimateUndatedDatesAsync(path, maxDatedReferenceFiles: maxDatedReferenceFiles)));
+
+// Diagnostic for schema/data-connection drift on a long-lived .media.db -
+// e.g. this once revealed the server had been connecting to a stale,
+// unrelated database (wrong MediaSettings:LibraryRoot) instead of the
+// intended library, which looked like a hang/performance bug but wasn't.
+app.MapGet("/api/debug/db-check-indexes", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var conn = db.Database.GetDbConnection();
+    await conn.OpenAsync();
+    using var cmd = conn.CreateCommand();
+    cmd.CommandText = "SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='MediaFaces';";
+    var results = new List<object>();
+    await using var reader = await cmd.ExecuteReaderAsync();
+    while (await reader.ReadAsync())
+        results.Add(new { Name = reader.GetString(0), Sql = reader.IsDBNull(1) ? null : reader.GetString(1) });
+
+    using var countCmd = conn.CreateCommand();
+    countCmd.CommandText = "SELECT COUNT(*) FROM MediaFaces;";
+    var count = (long)(await countCmd.ExecuteScalarAsync())!;
+
+    using var pragmaCmd = conn.CreateCommand();
+    pragmaCmd.CommandText = "PRAGMA journal_mode;";
+    var journalMode = (string)(await pragmaCmd.ExecuteScalarAsync())!;
+
+    return Results.Ok(new { RowCount = count, JournalMode = journalMode, Indexes = results });
+});
 
 app.MapGet("/api/debug/mediafaces-paths", async (string like, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
 {

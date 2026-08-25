@@ -8,8 +8,17 @@ public interface IPackage3Service
     /// Walks every image under libraryPath, extracting face embeddings for any
     /// file not already indexed. 100% local (FaceONNX) - no API cost. Safe to
     /// re-run - already-indexed files are skipped, so an interrupted run just resumes.
+    /// maxDatedReferenceFiles caps how many already-dated photos get indexed as
+    /// the reference set for EstimateUndatedDatesAsync's face-matching pass -
+    /// every undated candidate is still indexed regardless of this cap (that
+    /// side is small and is the whole point of the pass). Sampled evenly
+    /// across every Year/Month bucket (not a flat stride over the whole
+    /// list), so a big year doesn't crowd out a sparse one - every dated
+    /// month contributes at least one reference photo. Null means no cap (index everything -
+    /// the original behavior). Re-running with a higher cap only indexes the
+    /// newly-included files, thanks to the already-indexed skip.
     /// </summary>
-    Task IndexFacesAsync(string libraryPath, CancellationToken cancellationToken = default);
+    Task IndexFacesAsync(string libraryPath, int? maxDatedReferenceFiles = null, CancellationToken cancellationToken = default);
 
     Task<Package3IndexStatus?> GetIndexStatusAsync(string libraryPath, Package3IndexType indexType);
 
@@ -62,6 +71,7 @@ public interface IPackage3Service
         string libraryPath,
         double faceThreshold = 0.5,
         double gpsToleranceMeters = 500,
+        int? maxDatedReferenceFiles = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

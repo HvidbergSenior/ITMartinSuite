@@ -54,9 +54,49 @@ public sealed class Package3Service : IPackage3Service
         _logger = logger;
     }
 
-    public async Task IndexFacesAsync(string libraryPath, CancellationToken cancellationToken = default)
+    // Shared by IndexFacesAsync's dated-reference cap and Pass 2's GPS dated-
+    // reference cap (EstimateUndatedDatesAsync) - both need "a bounded but
+    // representative sample of already-dated files", not the whole library.
+    // Stratified by Year/Month, not a flat index-stride over the whole list -
+    // a stride over an unbalanced list (e.g. one year with 5000 photos,
+    // another with 50) would let the big year dominate the sample and could
+    // skip a sparse year/month entirely. An even share per bucket guarantees
+    // every dated month that exists contributes at least one reference file.
+    private static List<string> SampleDatedFiles(List<string> datedFiles, int cap)
     {
-        var files = EnumerateLibraryImages(libraryPath).ToList();
+        if (datedFiles.Count <= cap) return datedFiles;
+
+        var byYearMonth = datedFiles
+            .Select(f => (File: f, YearMonth: ExtractYearMonthFolder(f)))
+            .GroupBy(x => x.YearMonth ?? "")
+            .Select(g => g.Select(x => x.File).ToList())
+            .ToList();
+
+        var perBucket = Math.Max(1, cap / Math.Max(1, byYearMonth.Count));
+        return byYearMonth
+            .SelectMany(bucket => bucket.Count <= perBucket
+                ? bucket
+                : Enumerable.Range(0, perBucket).Select(i => bucket[(int)(i * (double)bucket.Count / perBucket)]))
+            .Take(cap)
+            .ToList();
+    }
+
+    public async Task IndexFacesAsync(string libraryPath, int? maxDatedReferenceFiles = null, CancellationToken cancellationToken = default)
+    {
+        var allFiles = EnumerateLibraryImages(libraryPath).ToList();
+
+        List<string> files;
+        if (maxDatedReferenceFiles is { } cap)
+        {
+            var undatedFiles = allFiles.Where(IsUnderUndatedFolder).ToList();
+            var datedFiles = allFiles.Where(f => !IsUnderUndatedFolder(f)).ToList();
+            files = undatedFiles.Concat(SampleDatedFiles(datedFiles, cap)).ToList();
+        }
+        else
+        {
+            files = allFiles;
+        }
+
         var typeName = Package3IndexType.Faces.ToString();
 
         await using (var db = await _dbFactory.CreateDbContextAsync(cancellationToken))
@@ -560,8 +600,21 @@ public sealed class Package3Service : IPackage3Service
         return personId;
     }
 
+    // LibraryExportService stopped producing fixed "{MM:00}-{MonthName}"
+    // folders (e.g. "08-August") a while back in favor of calendar-bucket
+    // groups labeled "{groupIndex} {MonthName}" or, for a group spanning
+    // more than one month, "{groupIndex} {MonthName}-{MonthName}" (e.g.
+    // "8 August", "3 Marts-April" - see LibraryExportService's
+    // SplitByCalendarBuckets). This regex still expected the old format, so
+    // it matched nothing against any library using the new one - found
+    // 2026-08-25 running EstimateUndatedDatesAsync against mie's real
+    // library, where every dated folder uses the new scheme: the "already
+    // dated" reference set this method needs was silently empty the whole
+    // time, which fully explains the previously observed "0 moved, hard
+    // ceiling" behavior (see feedback_undated_dating_ceiling) - it was never
+    // actually a ceiling, the reference set just never populated.
     private static readonly System.Text.RegularExpressions.Regex YearMonthFolderPattern =
-        new(@"[\\/](\d{4})[\\/](\d{2}-[A-Za-z]+)[\\/]", System.Text.RegularExpressions.RegexOptions.Compiled);
+        new(@"[\\/](\d{4})[\\/](\d+ [A-Za-z]+(?:-[A-Za-z]+)?)[\\/]", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     // Pulls the exact "{year}/{month-folder}" segment straight from an
     // already-dated file's own path (e.g. ".../Images/2025/02-February/x.jpg")
@@ -592,7 +645,15 @@ public sealed class Package3Service : IPackage3Service
     // current name here silently found zero undated files for any pre-rename
     // library - both the folder-existence check and every per-file path match
     // need to recognize either name.
-    private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede"];
+    // "Ikke i årsmapper" replaces the flat Undated/Udaterede convention for
+    // libraries reorganized 2026-08-25 (mie's real library) into pattern-
+    // based subfolders (Kamera (IMG), Facebook, GUID-eksport, etc.) under
+    // Billeder instead of one flat bucket. The substring check below works
+    // for it unchanged (any nesting depth), since it only looks for the
+    // folder name itself appearing as a path segment - only FindUndatedFolder
+    // needed a real fix, since Undated/Udaterede sit at the library root but
+    // this one is nested under Billeder.
+    private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede", "Ikke i årsmapper"];
 
     private static bool IsUnderUndatedFolder(string path) =>
         UndatedFolderNames.Any(name =>
@@ -601,19 +662,20 @@ public sealed class Package3Service : IPackage3Service
 
     private static string? FindUndatedFolder(string libraryPath) =>
         UndatedFolderNames
-            .Select(name => Path.Combine(libraryPath, name))
+            .SelectMany(name => new[] { Path.Combine(libraryPath, name), Path.Combine(libraryPath, "Billeder", name) })
             .FirstOrDefault(Directory.Exists);
 
     public async Task<UndatedEstimationResult> EstimateUndatedDatesAsync(
         string libraryPath,
         double faceThreshold = 0.5,
         double gpsToleranceMeters = 500,
+        int? maxDatedReferenceFiles = null,
         CancellationToken cancellationToken = default)
     {
         // Populate/refresh MediaFaces for the whole library (skip-if-already-
         // indexed, free/local) so both the dated reference set and the
         // Undated candidates have embeddings to compare.
-        await IndexFacesAsync(libraryPath, cancellationToken);
+        await IndexFacesAsync(libraryPath, maxDatedReferenceFiles, cancellationToken);
 
         var movedByFace = 0;
         var movedByGps = 0;
@@ -674,7 +736,13 @@ public sealed class Package3Service : IPackage3Service
         // ===== Pass 2: GPS proximity, for anything not already matched =====
         var undatedFolder = FindUndatedFolder(libraryPath);
         var undatedFiles = undatedFolder is not null
+            // Raw Directory.EnumerateFiles, not EnumerateLibraryImages - the
+            // undated folder never had a thumbnails/ subfolder problem before
+            // (Undated/Udaterede were flat), but Ikke i årsmapper's pattern
+            // subfolders each have their own, and this was walking straight
+            // into them, doubling every count with the thumbnail copy.
             ? Directory.EnumerateFiles(undatedFolder, "*", SearchOption.AllDirectories)
+                .Where(f => !Path.GetDirectoryName(f)!.EndsWith($"{Path.DirectorySeparatorChar}thumbnails", StringComparison.OrdinalIgnoreCase))
                 .Where(f => !handled.Contains(f))
                 .ToList()
             : [];
@@ -684,11 +752,21 @@ public sealed class Package3Service : IPackage3Service
             var gpsService = _gpsService;
             var datedGps = new List<(double Lat, double Lng, string YearMonth)>();
 
-            foreach (var file in EnumerateLibraryImages(libraryPath))
+            // Same cap as IndexFacesAsync's face-reference set - without it
+            // this reads EXIF/GPS from the ENTIRE library serially (found
+            // 2026-08-25 on mie's real library: ~43,000 files, single file at
+            // a time, no cap at all - looked like a hang because it's I/O-
+            // bound, not CPU-bound, but it was really just an unbounded scan
+            // that happened to eventually finish).
+            var gpsReferenceFiles = EnumerateLibraryImages(libraryPath)
+                .Where(f => !IsUnderUndatedFolder(f))
+                .ToList();
+            if (maxDatedReferenceFiles is { } gpsCap)
+                gpsReferenceFiles = SampleDatedFiles(gpsReferenceFiles, gpsCap);
+
+            foreach (var file in gpsReferenceFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (IsUnderUndatedFolder(file))
-                    continue;
 
                 var coords = gpsService.GetCoordinates(file);
                 if (coords is null) continue;
@@ -850,9 +928,28 @@ public sealed class Package3Service : IPackage3Service
     {
         try
         {
-            var category = Path.GetFileName(Path.GetDirectoryName(undatedPath)!); // Undated/{category}/file -> category
-            var undatedRoot = Path.GetDirectoryName(Path.GetDirectoryName(undatedPath)!)!; // .../Undated
-            var libraryRoot = Path.GetDirectoryName(undatedRoot)!;
+            string category, libraryRoot;
+
+            // New convention: .../{category}/Ikke i årsmapper/{pattern-subfolder}/file -
+            // one level deeper than Undated/Udaterede, and the pattern-subfolder name
+            // (e.g. "Kamera (IMG)") is NOT the category, so the old two-parents-up
+            // logic below would both mis-derive the category and land two folders too
+            // shallow. Found 2026-08-25 fixing this method for mie's real library,
+            // where Billeder was reorganized into Ikke i årsmapper/<pattern> subfolders.
+            var marker = $"{Path.DirectorySeparatorChar}Ikke i årsmapper{Path.DirectorySeparatorChar}";
+            var markerIndex = undatedPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (markerIndex >= 0)
+            {
+                var categoryDir = undatedPath[..markerIndex]; // .../{category}
+                category = Path.GetFileName(categoryDir);
+                libraryRoot = Path.GetDirectoryName(categoryDir)!;
+            }
+            else
+            {
+                category = Path.GetFileName(Path.GetDirectoryName(undatedPath)!); // Undated/{category}/file -> category
+                var undatedRoot = Path.GetDirectoryName(Path.GetDirectoryName(undatedPath)!)!; // .../Undated
+                libraryRoot = Path.GetDirectoryName(undatedRoot)!;
+            }
 
             var destDir = Path.Combine(libraryRoot, category, yearMonth.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(destDir);
