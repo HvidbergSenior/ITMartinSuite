@@ -1574,7 +1574,14 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 continue;
             }
 
-            if (AlbumArtNameHints.Any(hint => nameLower.EndsWith(hint, StringComparison.Ordinal)))
+            // Strip a trailing collision suffix ("_2", " 2", "(2)") before
+            // matching - found necessary 2026-08-25 on mie's real library,
+            // where repeated imports left sequences like Folder_2..Folder_8.jpg
+            // that the plain EndsWith check missed entirely.
+            var nameWithoutCollisionSuffix =
+                System.Text.RegularExpressions.Regex.Replace(nameLower, @"[ _]?\(?\d+\)?$", "");
+
+            if (AlbumArtNameHints.Any(hint => nameWithoutCollisionSuffix.EndsWith(hint, StringComparison.Ordinal)))
             {
                 reviewCandidates.Add(file);
             }
