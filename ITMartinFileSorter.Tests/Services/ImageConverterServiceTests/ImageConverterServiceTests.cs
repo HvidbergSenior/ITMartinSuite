@@ -1,5 +1,6 @@
 using FluentAssertions;
 using ITMartin.Media.Application.Services.Steps.NormalizationStep;
+using Microsoft.Extensions.Logging.Abstractions;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
@@ -22,7 +23,7 @@ public class ImageConverterServiceTests
     {
         _dir = Path.Combine(Path.GetTempPath(), "ImageConverterServiceTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
-        _service = new ImageConverterService();
+        _service = new ImageConverterService(NullLogger<ImageConverterService>.Instance);
     }
 
     [TearDown]
