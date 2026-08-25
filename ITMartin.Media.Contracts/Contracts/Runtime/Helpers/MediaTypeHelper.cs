@@ -13,7 +13,9 @@ public static class MediaTypeHelper
             ".mpeg",
             ".mts",
             ".m2ts",
-            ".wmv"
+            ".wmv",
+            ".vob",
+            ".m4v"
         ];
 
     private static readonly HashSet<string>
@@ -39,7 +41,11 @@ public static class MediaTypeHelper
             ".aac",
             ".flac",
             ".ogg",
-            ".m4a"
+            ".m4a",
+            ".wma",
+            ".opus",
+            ".m4r",
+            ".m4b"
         ];
 
     public static bool IsVideo(
