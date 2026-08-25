@@ -1640,7 +1640,31 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 catch (Exception) { continue; }
                 totalSize += size;
 
-                if (size > SmallFileSizeThresholdBytes) continue;
+                // .gif is never real camera/phone output - counts on its own,
+                // no need for the size/EXIF checks below.
+                if (Path.GetExtension(file).Equals(".gif", StringComparison.OrdinalIgnoreCase))
+                {
+                    smallNoExifCount++;
+                    continue;
+                }
+
+                (int? Width, int? Height) dimensions;
+                try { dimensions = _exifService.GetDimensions(file); }
+                catch (Exception) { dimensions = (null, null); }
+                var maxDimension = dimensions.Width.HasValue && dimensions.Height.HasValue
+                    ? Math.Max(dimensions.Width.Value, dimensions.Height.Value)
+                    : (int?)null;
+
+                // A real camera photo can be small on disk if heavily
+                // compressed, but it still decodes to full resolution - this
+                // ceiling keeps that case out regardless of file size.
+                if (maxDimension is >= 1600) continue;
+
+                // Small on disk OR low native resolution - either is
+                // consistent with web-scraped/scanned art, real cameras
+                // (even old ones) don't produce low-res output.
+                var looksLikeArtSize = size <= SmallFileSizeThresholdBytes || maxDimension is <= 800;
+                if (!looksLikeArtSize) continue;
 
                 (string? Make, string? Model, string? Software)? meta;
                 try { meta = _exifService.ReadMetadata(file); }

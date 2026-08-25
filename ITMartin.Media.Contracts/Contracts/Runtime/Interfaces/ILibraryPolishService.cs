@@ -165,9 +165,12 @@ public interface ILibraryPolishService
     // the folder: every file in it was small (web-scraped/scanned art, not
     // camera output) and had no camera EXIF at all. Groups files by their
     // containing leaf folder and flags any folder where most files are both
-    // small and EXIF-camera-less - report-only, never moves anything, since
-    // folder-level heuristics are inherently softer than a single confirmed
-    // filename pattern and this one specific real photo folder could
-    // legitimately be all small/no-EXIF (old scanned prints, MMS photos).
+    // small/low-resolution and EXIF-camera-less (dimensions checked, not just
+    // file size, so a heavily-compressed but full-resolution real photo isn't
+    // caught by size alone; .gif counts on its own - never real camera
+    // output) - report-only, never moves anything, since folder-level
+    // heuristics are inherently softer than a single confirmed filename
+    // pattern and this one specific real photo folder could legitimately be
+    // all small/no-EXIF (old scanned prints, MMS photos).
     Task<NonPhotoClusterReport> FindNonPhotoClustersAsync(string libraryPath, CancellationToken cancellationToken = default);
 }
