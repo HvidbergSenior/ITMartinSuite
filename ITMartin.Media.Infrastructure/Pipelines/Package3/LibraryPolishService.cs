@@ -1594,7 +1594,14 @@ public sealed class LibraryPolishService : ILibraryPolishService
             var nameWithoutCollisionSuffix =
                 System.Text.RegularExpressions.Regex.Replace(nameLower, @"[ _]?\(?\d+\)?$", "");
 
-            if (AlbumArtNameHints.Any(hint => nameWithoutCollisionSuffix.EndsWith(hint, StringComparison.Ordinal)))
+            // Also strip spaces/underscores/dashes before matching - "Album
+            // Art.jpg" (a real file on mie's library) doesn't literally
+            // contain "albumart" as a substring otherwise.
+            var nameNormalized =
+                nameWithoutCollisionSuffix.Replace(" ", "").Replace("_", "").Replace("-", "");
+
+            if (AlbumArtNameHints.Any(hint => nameWithoutCollisionSuffix.EndsWith(hint, StringComparison.Ordinal))
+                || AlbumArtNameHints.Any(hint => nameNormalized.EndsWith(hint, StringComparison.Ordinal)))
             {
                 reviewCandidates.Add(file);
             }
@@ -1610,6 +1617,58 @@ public sealed class LibraryPolishService : ILibraryPolishService
             MovedHighConfidence = moved,
             ReviewCandidates = reviewCandidates,
         });
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex WebWatermarkPattern =
+        new(@"^www[a-z0-9]+$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    public Task<WebWatermarkReclassifyResult> ReclassifyWebWatermarksAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var imagesFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (imagesFolder is null) return Task.FromResult(new WebWatermarkReclassifyResult());
+
+        var andetDir = Path.Combine(imagesFolder, "Andet");
+
+        var checkedCount = 0;
+        var moved = 0;
+
+        foreach (var file in Directory.EnumerateFiles(imagesFolder, "*", SearchOption.AllDirectories)
+                     .Where(MediaTypeHelper.IsImage)
+                     // Andet is this method's own destination and lives
+                     // inside Billeder - without this, a file already moved
+                     // there (or its thumbnails/ copy) gets "found" again and
+                     // collision-renamed into a stray (1) duplicate of
+                     // itself. Found 2026-08-25 running this against mie's
+                     // real library.
+                     .Where(f => !f.StartsWith(andetDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                     .ToList())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            checkedCount++;
+
+            if (!WebWatermarkPattern.IsMatch(Path.GetFileNameWithoutExtension(file))) continue;
+
+            try
+            {
+                Directory.CreateDirectory(andetDir);
+                var targetPath = ResolveNameCollision(Path.Combine(andetDir, Path.GetFileName(file)));
+                File.Move(file, targetPath);
+                moved++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to move web-watermark file {Path} to Andet", file);
+            }
+        }
+
+        _logger.LogInformation(
+            "Web-watermark reclassify complete for {LibraryPath}: {Checked} checked, {Moved} moved",
+            libraryPath, checkedCount, moved);
+
+        return Task.FromResult(new WebWatermarkReclassifyResult { Checked = checkedCount, Moved = moved });
     }
 
     // Real digital-camera/phone photos essentially never fall under this size

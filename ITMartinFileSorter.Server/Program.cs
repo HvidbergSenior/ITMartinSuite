@@ -649,6 +649,10 @@ app.MapPost("/api/debug/reclassify-albumart", async (string path, ITMartin.Media
 app.MapPost("/api/debug/find-nonphoto-clusters", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.FindNonPhotoClustersAsync(path)));
 
+// see LibraryPolishService.ReclassifyWebWatermarksAsync.
+app.MapPost("/api/debug/reclassify-web-watermarks", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.ReclassifyWebWatermarksAsync(path)));
+
 // "Just before delivery" package (2026-08-20) - runs every free/local check
 // together in one call: file integrity, structure/extensions, rotation
 // (free tier only), duplicates (exact + near). Nothing here costs anything

@@ -176,4 +176,13 @@ public interface ILibraryPolishService
     // folder-level heuristics are inherently softer than a single confirmed
     // filename pattern.
     Task<NonPhotoClusterReport> FindNonPhotoClustersAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Scene-release/warez-site watermark banners ("wwwDarksideRGcom.jpg",
+    // "WWWOPUSCODECCOM.jpg", "wwwTmtsorguk.jpg" - all found loose at
+    // Billeder's root on mie's real library, 2026-08-25) - a compressed
+    // domain name (starts "www", rest is letters/digits only, no spaces) is
+    // never a real photo filename, so this auto-moves like the album-art
+    // cache pattern. Goes to Billeder/Andet, not Musik/AlbumArt - these
+    // aren't music-related, just generic downloaded junk.
+    Task<WebWatermarkReclassifyResult> ReclassifyWebWatermarksAsync(string libraryPath, CancellationToken cancellationToken = default);
 }
