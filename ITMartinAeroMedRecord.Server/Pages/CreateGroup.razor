@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject AeroDbContext Db
 @inject NavigationManager Nav
+@inject AeroAuthService Auth
+@inject IJSRuntime Js
 
 <div class="create-wrap">
     <div class="create-card">
@@ -62,6 +64,18 @@
     private string _name = "", _invite = "", _pin = "";
     private string? _error;
     private bool _creating;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // If the browser already has a valid session (from a previous join),
+        // send them straight into their group instead of showing "opret
+        // team" every time they open the bare root URL.
+        var session = await Auth.ResolveAnySessionAsync(Js, Db);
+        if (session is not null)
+            Nav.NavigateTo($"/g/{session.Member.Group.Slug}", forceLoad: true);
+    }
 
     private static string Slugify(string name) =>
         new(name.Trim().ToLowerInvariant().Where(c => char.IsLetterOrDigit(c) || c == '-').ToArray());

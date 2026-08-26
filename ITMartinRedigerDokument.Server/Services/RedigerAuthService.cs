@@ -25,4 +25,21 @@ public sealed class RedigerAuthService
 
         return null;
     }
+
+    // Root "/" (CreateGroup) doesn't know a slug up front - it just needs to
+    // know whether *any* valid session exists so it can redirect straight
+    // into that group instead of always showing the create-team screen.
+    public async Task<MemberSession?> ResolveAnySessionAsync(IJSRuntime js, RedigerDbContext db)
+    {
+        var sessionId = await js.InvokeAsync<string?>("redigerJs.getSession");
+
+        if (!Guid.TryParse(sessionId, out var sid))
+            return null;
+
+        var session = await db.Sessions
+            .Include(s => s.Member).ThenInclude(m => m.Group)
+            .FirstOrDefaultAsync(s => s.Id == sid);
+
+        return session is not null && session.ExpiresAt >= DateTime.UtcNow ? session : null;
+    }
 }
