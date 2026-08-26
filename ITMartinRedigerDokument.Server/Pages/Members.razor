@@ -1,0 +1,138 @@
+@page "/g/{Slug}/members"
+@rendermode InteractiveServer
+@inject RedigerDbContext Db
+@inject RedigerAuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+
+@if (_group is null)
+{
+    <p style="padding:20px">Indlæser...</p>
+}
+else
+{
+    <div class="home-wrap">
+        <RedigerNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="@($"Logget ind som {_me?.Name}")" Active="members" OnLogout="LeaveAsync" />
+
+        <div class="home-body">
+            <InfoBanners PageKey="members" Beskrivelse="Her kan I se hvem der er med i teamet, og hvor mange åbne opgaver hver især har." />
+
+            <h2 class="page-title">Medlemmer (@_members.Count)</h2>
+
+            @foreach (var m in _members)
+            {
+                <div class="member-row">
+                    <div class="member-name">@m.Name</div>
+                    <div class="member-meta">
+                        <span>Tilmeldt @m.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                        @if (_openCountByName.TryGetValue(m.Name, out var count) && count > 0)
+                        {
+                            <span>📋 @count åbne opgave@(count == 1 ? "" : "r")</span>
+                        }
+                    </div>
+
+                    @if (_editingInfoId == m.Id)
+                    {
+                        <div class="member-info-edit">
+                            <input class="member-info-input" @bind="_editInfoText" placeholder="fx rolle, telefon, hvad du kan hjælpe med..." maxlength="200" />
+                            <button class="icon-btn" @onclick="SaveInfoAsync" title="Gem">✓</button>
+                            <button class="icon-btn" @onclick="() => _editingInfoId = null" title="Annullér">✕</button>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(m.PersonligInfo))
+                    {
+                        <div class="member-info-row">
+                            <span class="member-info-text">ℹ️ @m.PersonligInfo</span>
+                            @if (_me?.Id == m.Id)
+                            {
+                                <button class="icon-btn" @onclick="() => StartEditInfo(m)" title="Redigér">✏️</button>
+                            }
+                        </div>
+                    }
+                    else if (_me?.Id == m.Id)
+                    {
+                        <button class="member-info-add-btn" @onclick="() => StartEditInfo(m)">+ Tilføj personlig info</button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <style>
+        .home-wrap { max-width: 900px; margin: 0 auto; color: var(--text); }
+        .home-body { padding: 16px 16px 64px; }
+        .page-title { font-size: 18px; font-weight: 800; margin: 0 0 16px; color: var(--text); }
+        .member-row { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+        .member-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+        .member-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+        .member-info-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+        .member-info-text { font-size: 13px; color: var(--text); }
+        .member-info-edit { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+        .member-info-input { flex: 1; background: var(--surface); border: 1px solid var(--accent); border-radius: 6px; padding: 6px 10px; color: var(--text); font-size: 13px; box-sizing: border-box; }
+        .member-info-add-btn { margin-top: 8px; background: transparent; border: 1px dashed var(--border); color: var(--muted); border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+        .member-info-add-btn:hover { color: var(--text); border-color: var(--accent); }
+        .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 4px; line-height: 1; }
+        .icon-btn:hover { color: var(--text); }
+    </style>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Group? _group;
+    private Member? _me;
+    private List<Member> _members = [];
+    private Dictionary<string, int> _openCountByName = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_group is null) return;
+
+        var session = await Auth.ResolveSessionAsync(Js, Db, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _me = session.Member;
+
+        _members = await Db.Members.Where(m => m.GroupId == _group.Id).OrderBy(m => m.Name).ToListAsync();
+
+        _openCountByName = (await Db.Assignments
+                .Where(a => a.GroupId == _group.Id && !a.IsCompleted && a.AssignedToName != "")
+                .ToListAsync())
+            .GroupBy(a => a.AssignedToName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        StateHasChanged();
+    }
+
+    private async Task LeaveAsync()
+    {
+        await Js.InvokeVoidAsync("redigerJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+    }
+
+    private Guid? _editingInfoId;
+    private string _editInfoText = "";
+
+    private void StartEditInfo(Member m)
+    {
+        _editingInfoId = m.Id;
+        _editInfoText = m.PersonligInfo ?? "";
+    }
+
+    private async Task SaveInfoAsync()
+    {
+        var m = _members.FirstOrDefault(x => x.Id == _editingInfoId);
+        if (m is not null)
+        {
+            m.PersonligInfo = string.IsNullOrWhiteSpace(_editInfoText) ? null : _editInfoText.Trim();
+            await Db.SaveChangesAsync();
+        }
+        _editingInfoId = null;
+    }
+}

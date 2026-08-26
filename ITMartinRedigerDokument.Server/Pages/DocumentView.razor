@@ -54,7 +54,7 @@ else
                             <div class="comment-row"><b>@c.AuthorName:</b> @c.Text</div>
                         }
                         <div class="comment-add">
-                            <input @bind="_newComment[section.Id]" placeholder="Skriv en kommentar..." class="task-add-input" @onkeydown="e => OnCommentKeyDown(e, section)" />
+                            <input @bind="_newComment[section.Id]" @bind:event="oninput" placeholder="Skriv en kommentar..." class="task-add-input" @onkeydown="e => OnCommentKeyDown(e, section)" />
                         </div>
                     </div>
                 }

@@ -15,6 +15,8 @@ public sealed class AeroDbContext(DbContextOptions<AeroDbContext> options) : DbC
     public DbSet<MainTask> MainTasks => Set<MainTask>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
     public DbSet<Reference> References => Set<Reference>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<AeroPushSubscription> PushSubscriptions => Set<AeroPushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

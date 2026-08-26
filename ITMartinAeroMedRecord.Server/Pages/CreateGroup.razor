@@ -5,9 +5,15 @@
 
 <div class="create-wrap">
     <div class="create-card">
-        <div style="font-size:48px;margin-bottom:12px">🚁</div>
-        <h1 class="create-title">AeroMedRecord</h1>
+        <div style="font-size:48px;margin-bottom:12px">💬</div>
+        <h1 class="create-title">Formidling</h1>
         <p class="create-sub">Dokumenter og opgaver — ét sted for hele teamet</p>
+
+        <InfoBanners PageKey="create"
+            Problem='Opgaveløsning for flere medlemmer i et team kan være svær at håndtere. Overblik og "Definition of Done" er ofte mangelvarer og skaber tunge, langsommelige processer. Man benytter måske processtyringsværktøjer, som i sig selv er store systemer og behøver en proces at styre :-)'
+            Formaal="Et processtyringsværktøj skal være tilpasset det enkelte team. Antal personer, forskellige roller og forskellige mennesker. Det skal også tilpasses opgaven. Rammerne, domænet måske kunden."
+            Beskrivelse="Formidling er teamets sted til at koordinere arbejdet omkring AeroMedRecord: upload dokumentet, rediger det i browseren afsnit for afsnit, og fordel arbejdet som opgaver."
+            Steps="@_createSteps" />
 
         @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
 
@@ -46,6 +52,13 @@
 </style>
 
 @code {
+    private static readonly string[] _createSteps =
+    [
+        "Skriv et team-navn — det bliver til jeres adresse, f.eks. /g/konceptteam.",
+        "Vælg en adgangskode til teamet, som du deler med resten af gruppen — den bruges til at tilmelde sig.",
+        "Vælg din egen personlige PIN — den bruges til at logge ind som dig selv fremover."
+    ];
+
     private string _name = "", _invite = "", _pin = "";
     private string? _error;
     private bool _creating;

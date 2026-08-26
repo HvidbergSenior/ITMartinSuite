@@ -1,0 +1,270 @@
+@page "/g/{Slug}/chat"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject AeroDbContext Db
+@inject AeroAuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+@inject IConfiguration Configuration
+@inject AeroPushService PushService
+@inject AeroBroadcastService Broadcast
+
+@if (_group is null)
+{
+    <p style="padding:20px">Indlæser...</p>
+}
+else
+{
+    <div class="home-wrap">
+        <AeroNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="@($"Logget ind som {_me?.Name}")" Active="chat" OnLogout="LeaveAsync" />
+
+        <div class="home-body">
+            <InfoBanners PageKey="chat" Beskrivelse="Her kan teamet skrive sammen - beskeder, billeder og screenshots, alt samlet ét sted i stedet for spredt i mails og andre kanaler." />
+
+            <div class="chat-list">
+                @foreach (var m in _messages)
+                {
+                    <div class="chat-row @(m.AuthorName == _me?.Name ? "mine" : "")">
+                        <div class="chat-bubble">
+                            <div class="chat-meta">
+                                <span class="chat-author">@m.AuthorName</span>
+                                <span class="chat-time">@m.CreatedAt.ToLocalTime().ToString("dd MMM HH:mm")</span>
+                            </div>
+                            @if (m.ImageFileName is not null)
+                            {
+                                <a href="/chat-image/@m.Id" target="_blank">
+                                    <img class="chat-image" src="/chat-image/@m.Id" alt="Billede" />
+                                </a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(m.Text))
+                            {
+                                <div class="chat-text">@m.Text</div>
+                            }
+                        </div>
+                    </div>
+                }
+                @if (_messages.Count == 0)
+                {
+                    <div class="hint">Ingen beskeder endnu — skriv den første nedenfor.</div>
+                }
+            </div>
+
+            @if (_error is not null) { <div class="create-error">@_error</div> }
+            @if (_imagePreviewName is not null)
+            {
+                <div class="chat-pending-image">📎 @_imagePreviewName <button class="icon-btn" @onclick="ClearPendingImage" title="Fjern">✕</button></div>
+            }
+
+            <div class="chat-input-row">
+                <label class="btn-attach" title="Vedhæft billede/screenshot">
+                    📷
+                    <InputFile OnChange="OnImageSelectedAsync" style="display:none" accept="image/*" />
+                </label>
+                <input class="chat-input" @bind="_draft" @bind:event="oninput" @onkeydown="OnKeyDown" placeholder="Skriv en besked..." maxlength="2000" />
+                <button class="btn-send" @onclick="SendAsync" disabled="@_sending">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .home-wrap { max-width: 900px; margin: 0 auto; color: var(--text); }
+        .home-body { padding: 16px 16px 24px; display: flex; flex-direction: column; }
+        .chat-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; min-height: 200px; }
+        .chat-row { display: flex; }
+        .chat-row.mine { justify-content: flex-end; }
+        .chat-bubble { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; max-width: 80%; }
+        .chat-row.mine .chat-bubble { background: var(--accent); border-color: var(--accent); color: white; }
+        .chat-meta { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+        .chat-author { font-size: 12px; font-weight: 700; }
+        .chat-time { font-size: 11px; color: var(--muted); }
+        .chat-row.mine .chat-time { color: rgba(255,255,255,.75); }
+        .chat-text { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+        .chat-image { max-width: 100%; max-height: 320px; border-radius: 10px; margin-bottom: 6px; display: block; }
+        .hint { color: var(--muted); font-size: 13px; padding: 10px 0; }
+        .chat-pending-image { font-size: 12px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; width: fit-content; }
+        .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0; line-height: 1; }
+        .icon-btn:hover { color: var(--text); }
+        .chat-input-row { display: flex; gap: 8px; align-items: center; position: sticky; bottom: 12px; }
+        .btn-attach { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 16px; }
+        .chat-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none; box-sizing: border-box; }
+        .chat-input:focus { border-color: var(--accent); }
+        .btn-send { background: var(--accent); color: white; border: none; padding: 11px 18px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700; }
+        .btn-send:disabled { opacity: .5; cursor: default; }
+        .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 12px; }
+    </style>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Group? _group;
+    private Member? _me;
+    private List<ChatMessage> _messages = [];
+    private string _draft = "";
+    private bool _sending;
+    private string? _error;
+
+    private byte[]? _pendingImageBytes;
+    private string? _pendingImageContentType;
+    private string? _pendingImageExt;
+    private string? _imagePreviewName;
+
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _refreshCts;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_group is null) return;
+
+        var session = await Auth.ResolveSessionAsync(Js, Db, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _me = session.Member;
+
+        await LoadAsync();
+        StateHasChanged();
+
+        // Simple polling refresh so other members' messages show up without
+        // a manual reload - good enough for a small team, no need for a full
+        // SignalR pub-sub for this.
+        _refreshCts = new CancellationTokenSource();
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+        _ = PollAsync(_refreshCts.Token);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (await _refreshTimer!.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task LoadAsync()
+    {
+        _messages = await Db.ChatMessages.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.CreatedAt).ToListAsync();
+    }
+
+    private async Task OnImageSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        var file = e.File;
+        if (file is null) return;
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            _error = "Kun billeder understøttes.";
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await using (var inStream = file.OpenReadStream(maxAllowedSize: 8 * 1024 * 1024))
+                await inStream.CopyToAsync(ms);
+
+            _pendingImageBytes = ms.ToArray();
+            _pendingImageContentType = file.ContentType;
+            _pendingImageExt = Path.GetExtension(file.Name) is { Length: > 0 } ext ? ext : ".png";
+            _imagePreviewName = file.Name;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Billedet kunne ikke læses (maks 8 MB): {ex.Message}";
+        }
+    }
+
+    private void ClearPendingImage()
+    {
+        _pendingImageBytes = null;
+        _pendingImageContentType = null;
+        _pendingImageExt = null;
+        _imagePreviewName = null;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+            await SendAsync();
+    }
+
+    private async Task SendAsync()
+    {
+        _error = null;
+        var text = _draft.Trim();
+        if (text.Length == 0 && _pendingImageBytes is null) return;
+
+        _sending = true;
+        StateHasChanged();
+
+        try
+        {
+            var message = new ChatMessage
+            {
+                GroupId = _group!.Id,
+                AuthorName = _me!.Name,
+                Text = text,
+            };
+
+            if (_pendingImageBytes is not null)
+            {
+                var chatImagesRoot = Configuration["AeroSettings:ChatImagesRoot"] ?? "/app/data/chat-images";
+                var groupDir = Path.Combine(chatImagesRoot, _group.Id.ToString());
+                Directory.CreateDirectory(groupDir);
+
+                var storedFileName = $"{Guid.NewGuid():N}{_pendingImageExt}";
+                await File.WriteAllBytesAsync(Path.Combine(groupDir, storedFileName), _pendingImageBytes);
+
+                message.ImageFileName = storedFileName;
+                message.ImageContentType = _pendingImageContentType;
+            }
+
+            Db.ChatMessages.Add(message);
+            await Db.SaveChangesAsync();
+
+            var pushBody = text.Length > 0 ? text : "📷 sendte et billede";
+            _ = PushService.SendToGroupAsync(Db, _group!.Id, _me!.Name, $"💬 {_me.Name}", pushBody);
+            Broadcast.Broadcast(_group.Id);
+
+            _draft = "";
+            ClearPendingImage();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Kunne ikke sende: {ex.Message}";
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private async Task LeaveAsync()
+    {
+        await Js.InvokeVoidAsync("aeroJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _refreshCts?.Cancel();
+        _refreshTimer?.Dispose();
+        _refreshCts?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

@@ -9,6 +9,8 @@
         <h1 class="create-title">Opret team</h1>
         <p class="create-sub">Dokumenter og opgaver — ét sted for hele teamet</p>
 
+        <InfoBanners PageKey="create" Beskrivelse="Et lille team-værktøj: upload et .docx-dokument, rediger det i browseren afsnit for afsnit, og fordel det praktiske arbejde som opgaver." />
+
         @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
 
         <div class="create-field"><label>Team-navn</label><input @bind="_name" placeholder="fx AeroMedRecord" class="create-input" maxlength="100" /></div>

@@ -4,8 +4,6 @@
 @inject RedigerAuthService Auth
 @inject NavigationManager Nav
 @inject IJSRuntime Js
-@inject IConfiguration Configuration
-@inject ITMartin.Documents.Interfaces.IDocxImportService DocxImport
 
 @if (_group is null)
 {
@@ -14,102 +12,114 @@
 else
 {
     <div class="home-wrap">
-        <header class="home-header">
-            <div>
-                <h1>@_group.Name</h1>
-                <div class="home-sub">Logget ind som @_me?.Name</div>
-                <div class="home-members">👥 @string.Join(", ", _members.Select(m => m.Name))</div>
-            </div>
-        </header>
+        <RedigerNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="@($"Logget ind som {_me?.Name}")" Active="home" OnLogout="LeaveAsync" />
 
-        <div class="home-toolbar">
-            <button class="btn-ghost" @onclick="AddColumnAsync">+ Kolonne</button>
-        </div>
+        <div class="home-body">
+            <InfoBanners PageKey="home" Beskrivelse="@($"{_group.Name} er et lille team-værktøj: upload et .docx-dokument, rediger det i browseren afsnit for afsnit, og fordel det praktiske arbejde som opgaver — alt samlet på denne side.")" />
 
-        <div class="maintask-grid">
-            @foreach (var col in _mainTasks)
+            @if (_pushStatusMessage is not null)
             {
-                <div class="maintask-card" style="background:@ColumnColor(_mainTasks.IndexOf(col))">
-                    <div class="maintask-header"><h2>@col.Title</h2><span class="section-count">@_assignments.Count(a => a.MainTaskId == col.Id)</span></div>
-
-                    @foreach (var a in _assignments.Where(x => x.MainTaskId == col.Id))
-                    {
-                        <div class="task-card @(a.IsCompleted ? "done" : "")">
-                            <div class="task-card-row">
-                                <input type="checkbox" checked="@a.IsCompleted" @onchange="e => ToggleAsync(a, (bool)e.Value!)" />
-                                <span>@a.Title</span>
-                            </div>
-                            <select class="task-owner-select" value="@a.AssignedToName" @onchange="e => SetOwnerAsync(a, (string)e.Value!)">
-                                <option value="">— ingen ansvarlig —</option>
-                                @foreach (var m in _members)
-                                {
-                                    <option value="@m.Name">@m.Name</option>
-                                }
-                            </select>
-                        </div>
-                    }
-                    <div class="task-add-row">
-                        <input @bind="_newTaskTitle[col.Id]" placeholder="Ny opgave..." class="task-add-input" @onkeydown="e => OnTaskKeyDown(e, col.Id)" />
-                    </div>
-                </div>
+                <div class="push-status-banner">@_pushStatusMessage</div>
+            }
+            else
+            {
+                <button class="push-enable-btn" @onclick="EnablePushAsync">🔔 Slå notifikationer til på denne enhed</button>
             }
 
-            <div class="maintask-card" style="background:@ColumnColor(_mainTasks.Count)">
-                <div class="maintask-header">
-                    <h2>Dokumenter</h2>
-                    <span class="section-count">@_documents.Count</span>
-                </div>
-                <label class="btn-file">
-                    + Upload
-                    <InputFile OnChange="OnFileSelectedAsync" style="display:none" accept=".docx" />
-                </label>
-                @if (_uploadError is not null) { <div class="create-error">@_uploadError</div> }
-                @if (_uploading) { <div class="hint">Importerer dokument...</div> }
+            <div class="home-toolbar">
+                <div class="home-members">👥 @string.Join(", ", _members.Select(m => m.Name))</div>
+                <button class="btn-ghost" @onclick="AddColumnAsync">+ Kolonne</button>
+            </div>
 
-                <div class="doc-list">
-                    @foreach (var doc in _documents)
-                    {
-                        <a class="doc-row" href="/g/@Slug/documents/@doc.Id">
-                            <span class="doc-title">@doc.Title</span>
-                            <span class="doc-meta">uploadet af @doc.UploadedByName</span>
-                        </a>
-                    }
-                    @if (_documents.Count == 0)
-                    {
-                        <div class="hint">Ingen dokumenter endnu.</div>
-                    }
-                </div>
+            <div class="maintask-grid">
+                @foreach (var col in _mainTasks)
+                {
+                    <div class="maintask-card" style="background:@ColumnColor(_mainTasks.IndexOf(col))">
+                        <div class="maintask-header">
+                            @if (_editingColumnId == col.Id)
+                            {
+                                <input class="column-title-input" @bind="_editColumnTitle" @bind:event="oninput" @onkeydown="e => OnColumnEditKeyDown(e, col)" />
+                                <div class="column-edit-actions">
+                                    <button class="icon-btn" @onclick="() => SaveColumnAsync(col)" title="Gem">✓</button>
+                                    <button class="icon-btn" @onclick="() => _editingColumnId = null" title="Annullér">✕</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <h2>@col.Title</h2>
+                                <div class="column-edit-actions">
+                                    <span class="section-count">@_assignments.Count(a => a.MainTaskId == col.Id)</span>
+                                    <button class="icon-btn" @onclick="() => StartEditColumn(col)" title="Omdøb kolonne">✏️</button>
+                                    <button class="icon-btn" @onclick="() => DeleteColumnAsync(col)" title="Slet kolonne">🗑️</button>
+                                </div>
+                            }
+                        </div>
+
+                        @foreach (var a in _assignments.Where(x => x.MainTaskId == col.Id))
+                        {
+                            <div class="task-card @(a.IsCompleted ? "done" : "")">
+                                @if (_editingTaskId == a.Id)
+                                {
+                                    <input class="task-add-input" @bind="_editTaskTitle" @bind:event="oninput" @onkeydown="e => OnTaskEditKeyDown(e, a)" />
+                                    <div class="task-edit-actions">
+                                        <button class="icon-btn" @onclick="() => SaveTaskAsync(a)" title="Gem">✓</button>
+                                        <button class="icon-btn" @onclick="() => _editingTaskId = null" title="Annullér">✕</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="task-card-row">
+                                        <input type="checkbox" checked="@a.IsCompleted" @onchange="e => ToggleAsync(a, (bool)e.Value!)" />
+                                        <span>@a.Title</span>
+                                        <div class="task-edit-actions">
+                                            <button class="icon-btn" @onclick="() => StartEditTask(a)" title="Redigér">✏️</button>
+                                            <button class="icon-btn" @onclick="() => DeleteTaskAsync(a)" title="Slet">🗑️</button>
+                                        </div>
+                                    </div>
+                                    <select class="task-owner-select" value="@a.AssignedToName" @onchange="e => SetOwnerAsync(a, (string)e.Value!)">
+                                        <option value="">— ingen ansvarlig —</option>
+                                        @foreach (var m in _members)
+                                        {
+                                            <option value="@m.Name">@m.Name</option>
+                                        }
+                                    </select>
+                                }
+                            </div>
+                        }
+                        <div class="task-add-row">
+                            <input @bind="_newTaskTitle[col.Id]" @bind:event="oninput" placeholder="Ny opgave..." class="task-add-input" @onkeydown="e => OnTaskKeyDown(e, col.Id)" />
+                        </div>
+                    </div>
+                }
             </div>
         </div>
     </div>
 
     <style>
-        .home-wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 64px; color: var(--text); }
-        .home-header h1 { margin: 0; font-size: 24px; }
-        .home-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
-        .home-members { color: var(--muted); font-size: 13px; margin-top: 2px; }
-        .home-toolbar { display: flex; justify-content: flex-end; margin-top: 20px; }
-        .maintask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; margin-top: 12px; }
+        .home-wrap { max-width: 900px; margin: 0 auto; color: var(--text); }
+        .home-body { padding: 16px 16px 64px; }
+        .home-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .home-members { color: var(--muted); font-size: 13px; }
+        .push-enable-btn { display: block; width: 100%; margin: 12px 0; padding: 10px; border-radius: 10px; border: 1px dashed var(--accent); background: transparent; color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer; }
+        .push-status-banner { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); font-size: 13px; color: var(--text); }
+        .maintask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
         @@media (max-width: 640px) { .maintask-grid { grid-template-columns: 1fr; } }
         .maintask-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
-        .maintask-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .maintask-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
         .maintask-header h2 { margin: 0; font-size: 16px; font-weight: 800; color: var(--text); }
         .section-count { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 2px 10px; }
-        .btn-file, .btn-ghost { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
-        .btn-file { display: block; width: fit-content; margin-bottom: 10px; }
-        .hint { color: var(--muted); font-size: 13px; padding: 10px 0; }
-        .doc-list { display: flex; flex-direction: column; gap: 8px; }
-        .doc-row { display: flex; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; text-decoration: none; color: var(--text); }
-        .doc-row:hover { border-color: var(--accent); }
-        .doc-title { font-weight: 600; }
-        .doc-meta { color: var(--muted); font-size: 12px; }
-        .task-card { background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px; }
+        .column-edit-actions, .task-edit-actions { display: flex; align-items: center; gap: 4px; }
+        .column-title-input { flex: 1; background: var(--surface); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 8px; color: var(--text); font-size: 14px; font-weight: 700; box-sizing: border-box; }
+        .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 4px; line-height: 1; }
+        .icon-btn:hover { color: var(--text); }
         .task-card-row { display: flex; align-items: center; gap: 8px; }
+        .task-card-row span { flex: 1; }
+        .btn-ghost { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .task-card { background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px; }
         .task-card.done span { text-decoration: line-through; color: var(--muted); }
         .task-owner-select { width: 100%; margin-top: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-size: 11px; box-sizing: border-box; }
         .task-add-row { margin-top: 6px; }
         .task-add-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text); font-size: 12px; box-sizing: border-box; }
-        .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 12px; }
     </style>
 }
 
@@ -118,13 +128,15 @@ else
 
     private Group? _group;
     private Member? _me;
-    private List<Document> _documents = [];
     private List<MainTask> _mainTasks = [];
     private List<Assignment> _assignments = [];
     private List<Member> _members = [];
     private Dictionary<Guid, string> _newTaskTitle = [];
-    private bool _uploading;
-    private string? _uploadError;
+    private string? _pushStatusMessage;
+    private Guid? _editingTaskId;
+    private string _editTaskTitle = "";
+    private Guid? _editingColumnId;
+    private string _editColumnTitle = "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -149,7 +161,7 @@ else
 
         if (_mainTasks.Count == 0)
         {
-            Db.MainTasks.Add(new MainTask { GroupId = _group.Id, Title = "Tasks", SortOrder = 0 });
+            Db.MainTasks.Add(new MainTask { GroupId = _group.Id, Title = "Opgaver", SortOrder = 0 });
             await Db.SaveChangesAsync();
             await LoadAsync();
         }
@@ -159,79 +171,11 @@ else
 
     private async Task LoadAsync()
     {
-        _documents = await Db.Documents.Where(d => d.GroupId == _group!.Id).OrderByDescending(d => d.UploadedAt).ToListAsync();
         _mainTasks = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.SortOrder).ToListAsync();
-        _assignments = await Db.Assignments.Where(a => a.GroupId == _group!.Id).OrderBy(a => a.CreatedAt).ToListAsync();
+        _assignments = await Db.Assignments.Where(a => a.GroupId == _group!.Id && !a.IsCompleted).OrderBy(a => a.CreatedAt).ToListAsync();
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
         foreach (var col in _mainTasks)
             _newTaskTitle.TryAdd(col.Id, "");
-    }
-
-    private async Task OnFileSelectedAsync(InputFileChangeEventArgs e)
-    {
-        _uploadError = null;
-        var file = e.File;
-        if (file is null) return;
-
-        if (!file.Name.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
-        {
-            _uploadError = "Kun .docx-filer understøttes.";
-            return;
-        }
-
-        _uploading = true;
-        StateHasChanged();
-
-        try
-        {
-            var docsRoot = Configuration["RedigerSettings:DocsRoot"] ?? "/app/data/documents";
-            var groupDir = Path.Combine(docsRoot, _group!.Id.ToString());
-            Directory.CreateDirectory(groupDir);
-
-            var storedFileName = $"{Guid.NewGuid():N}.docx";
-            var storedPath = Path.Combine(groupDir, storedFileName);
-
-            await using (var outStream = File.Create(storedPath))
-            await using (var inStream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024))
-            {
-                await inStream.CopyToAsync(outStream);
-            }
-
-            var document = new Document
-            {
-                GroupId = _group.Id,
-                Title = Path.GetFileNameWithoutExtension(file.Name),
-                OriginalFileName = file.Name,
-                StoredFileName = storedFileName,
-                UploadedByName = _me!.Name,
-            };
-            Db.Documents.Add(document);
-            await Db.SaveChangesAsync();
-
-            await using (var parseStream = File.OpenRead(storedPath))
-            {
-                var parsed = DocxImport.ParseDocx(parseStream);
-                Db.Sections.AddRange(parsed.Select(p => new DocumentSection
-                {
-                    DocumentId = document.Id,
-                    GroupId = _group.Id,
-                    SortOrder = p.SortOrder,
-                    Heading = p.Heading,
-                    Text = p.Text,
-                }));
-                await Db.SaveChangesAsync();
-            }
-
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            _uploadError = $"Import fejlede: {ex.Message}";
-        }
-        finally
-        {
-            _uploading = false;
-        }
     }
 
     private async Task AddColumnAsync()
@@ -247,6 +191,9 @@ else
         a.IsCompleted = value;
         a.CompletedAt = value ? DateTime.UtcNow : null;
         await Db.SaveChangesAsync();
+        // Completed tasks move to Historik, not just strike through here - the
+        // list this binds to is already filtered to !IsCompleted.
+        await LoadAsync();
     }
 
     private async Task SetOwnerAsync(Assignment a, string name)
@@ -273,9 +220,86 @@ else
         await LoadAsync();
     }
 
+    private void StartEditTask(Assignment a)
+    {
+        _editingTaskId = a.Id;
+        _editTaskTitle = a.Title;
+    }
+
+    private async Task SaveTaskAsync(Assignment a)
+    {
+        var title = _editTaskTitle.Trim();
+        if (title.Length > 0) a.Title = title;
+        await Db.SaveChangesAsync();
+        _editingTaskId = null;
+        await LoadAsync();
+    }
+
+    private async Task OnTaskEditKeyDown(KeyboardEventArgs e, Assignment a)
+    {
+        if (e.Key == "Enter") await SaveTaskAsync(a);
+        else if (e.Key == "Escape") _editingTaskId = null;
+    }
+
+    private async Task DeleteTaskAsync(Assignment a)
+    {
+        Db.Assignments.Remove(a);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private void StartEditColumn(MainTask col)
+    {
+        _editingColumnId = col.Id;
+        _editColumnTitle = col.Title;
+    }
+
+    private async Task SaveColumnAsync(MainTask col)
+    {
+        var title = _editColumnTitle.Trim();
+        if (title.Length > 0) col.Title = title;
+        await Db.SaveChangesAsync();
+        _editingColumnId = null;
+        await LoadAsync();
+    }
+
+    private async Task OnColumnEditKeyDown(KeyboardEventArgs e, MainTask col)
+    {
+        if (e.Key == "Enter") await SaveColumnAsync(col);
+        else if (e.Key == "Escape") _editingColumnId = null;
+    }
+
+    private async Task DeleteColumnAsync(MainTask col)
+    {
+        // Cascade: deleting a column takes its tasks (open and completed)
+        // with it - there's no "uncategorized" bucket to fall back to here,
+        // unlike Club's Assignments board.
+        var inColumn = await Db.Assignments.Where(a => a.MainTaskId == col.Id).ToListAsync();
+        Db.Assignments.RemoveRange(inColumn);
+        Db.MainTasks.Remove(col);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task LeaveAsync()
+    {
+        await Js.InvokeVoidAsync("redigerJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+    }
+
+    private Task EnablePushAsync()
+    {
+        // Placeholder until push notifications are actually wired up (needs
+        // VAPID keys + a push-subscription table + service worker, see
+        // project_redigerdokument_document_coordination memory) - shows a
+        // clear status instead of silently doing nothing when clicked.
+        _pushStatusMessage = "🔕 Notifikationer er ikke sat op endnu for denne app.";
+        return Task.CompletedTask;
+    }
+
     // Same cycling pastel palette as Club's MainTaskColor, so a new column
-    // (or the trailing Documents card) always gets a distinct tint rather
-    // than a stored-per-item color that would need migrating on reorder.
+    // always gets a distinct tint rather than a stored-per-item color that
+    // would need migrating on reorder.
     private static readonly string[] ColumnColors =
     [
         "rgba(99,102,241,.10)",  // indigo

@@ -12,5 +12,9 @@ public sealed class Member
     public string Pin { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Free-text, self-set by the member (e.g. role, contact info) - shown to
+    // teammates on Medlemmer, editable only by the member themselves.
+    public string? PersonligInfo { get; set; }
+
     public Group Group { get; set; } = null!;
 }

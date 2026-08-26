@@ -22,6 +22,15 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RedigerDbContext>();
     db.Database.EnsureCreated();
+
+    // EnsureCreated only builds the schema for a brand-new database file - it
+    // does nothing once the DB already exists, so a column added to an
+    // entity after go-live needs its own explicit check+ALTER here (same
+    // pattern as Club's ScheduledFor column).
+    var hasPersonligInfoColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'PersonligInfo'").AsEnumerable().First() > 0;
+    if (!hasPersonligInfoColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN PersonligInfo TEXT NULL");
 }
 
 if (!app.Environment.IsDevelopment())
