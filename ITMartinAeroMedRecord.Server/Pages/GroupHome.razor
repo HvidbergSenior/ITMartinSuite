@@ -22,50 +22,47 @@ else
             </div>
         </header>
 
-        <div class="home-columns">
-            <section class="home-section" style="background:rgba(99,102,241,.10)">
-                <div class="section-head">
-                    <div class="section-head-title"><h2>Opgaver</h2><span class="section-count">@_assignments.Count</span></div>
-                    <button class="btn-ghost" @onclick="AddColumnAsync">+ Kolonne</button>
-                </div>
+        <div class="home-toolbar">
+            <button class="btn-ghost" @onclick="AddColumnAsync">+ Kolonne</button>
+        </div>
 
-                <div class="board">
-                    @foreach (var col in _mainTasks)
+        <div class="maintask-grid">
+            @foreach (var col in _mainTasks)
+            {
+                <div class="maintask-card" style="background:@ColumnColor(_mainTasks.IndexOf(col))">
+                    <div class="maintask-header"><h2>@col.Title</h2><span class="section-count">@_assignments.Count(a => a.MainTaskId == col.Id)</span></div>
+
+                    @foreach (var a in _assignments.Where(x => x.MainTaskId == col.Id))
                     {
-                        <div class="board-col">
-                            <div class="board-col-head">@col.Title</div>
-                            @foreach (var a in _assignments.Where(x => x.MainTaskId == col.Id))
-                            {
-                                <div class="task-card @(a.IsCompleted ? "done" : "")">
-                                    <div class="task-card-row">
-                                        <input type="checkbox" checked="@a.IsCompleted" @onchange="e => ToggleAsync(a, (bool)e.Value!)" />
-                                        <span>@a.Title</span>
-                                    </div>
-                                    <select class="task-owner-select" value="@a.AssignedToName" @onchange="e => SetOwnerAsync(a, (string)e.Value!)">
-                                        <option value="">— ingen ansvarlig —</option>
-                                        @foreach (var m in _members)
-                                        {
-                                            <option value="@m.Name">@m.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                            }
-                            <div class="task-add-row">
-                                <input @bind="_newTaskTitle[col.Id]" placeholder="Ny opgave..." class="task-add-input" @onkeydown="e => OnTaskKeyDown(e, col.Id)" />
+                        <div class="task-card @(a.IsCompleted ? "done" : "")">
+                            <div class="task-card-row">
+                                <input type="checkbox" checked="@a.IsCompleted" @onchange="e => ToggleAsync(a, (bool)e.Value!)" />
+                                <span>@a.Title</span>
                             </div>
+                            <select class="task-owner-select" value="@a.AssignedToName" @onchange="e => SetOwnerAsync(a, (string)e.Value!)">
+                                <option value="">— ingen ansvarlig —</option>
+                                @foreach (var m in _members)
+                                {
+                                    <option value="@m.Name">@m.Name</option>
+                                }
+                            </select>
                         </div>
                     }
+                    <div class="task-add-row">
+                        <input @bind="_newTaskTitle[col.Id]" placeholder="Ny opgave..." class="task-add-input" @onkeydown="e => OnTaskKeyDown(e, col.Id)" />
+                    </div>
                 </div>
-            </section>
+            }
 
-            <section class="home-section" style="background:rgba(16,185,129,.10)">
-                <div class="section-head">
-                    <div class="section-head-title"><h2>Dokumenter</h2><span class="section-count">@_documents.Count</span></div>
-                    <label class="btn-file">
-                        + Upload
-                        <InputFile OnChange="OnFileSelectedAsync" style="display:none" accept=".docx" />
-                    </label>
+            <div class="maintask-card" style="background:@ColumnColor(_mainTasks.Count)">
+                <div class="maintask-header">
+                    <h2>Dokumenter</h2>
+                    <span class="section-count">@_documents.Count</span>
                 </div>
+                <label class="btn-file">
+                    + Upload
+                    <InputFile OnChange="OnFileSelectedAsync" style="display:none" accept=".docx" />
+                </label>
                 @if (_uploadError is not null) { <div class="create-error">@_uploadError</div> }
                 @if (_uploading) { <div class="hint">Importerer dokument...</div> }
 
@@ -82,7 +79,7 @@ else
                         <div class="hint">Ingen dokumenter endnu.</div>
                     }
                 </div>
-            </section>
+            </div>
         </div>
     </div>
 
@@ -91,23 +88,21 @@ else
         .home-header h1 { margin: 0; font-size: 24px; }
         .home-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
         .home-members { color: var(--muted); font-size: 13px; margin-top: 2px; }
-        .home-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; margin-top: 28px; }
-        @@media (max-width: 700px) { .home-columns { grid-template-columns: 1fr; } }
-        .home-section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 0; }
-        .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-        .section-head-title { display: flex; align-items: center; gap: 8px; }
-        .section-head h2 { margin: 0; font-size: 17px; }
+        .home-toolbar { display: flex; justify-content: flex-end; margin-top: 20px; }
+        .maintask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; margin-top: 12px; }
+        @@media (max-width: 640px) { .maintask-grid { grid-template-columns: 1fr; } }
+        .maintask-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+        .maintask-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .maintask-header h2 { margin: 0; font-size: 16px; font-weight: 800; color: var(--text); }
         .section-count { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 2px 10px; }
         .btn-file, .btn-ghost { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .btn-file { display: block; width: fit-content; margin-bottom: 10px; }
         .hint { color: var(--muted); font-size: 13px; padding: 10px 0; }
         .doc-list { display: flex; flex-direction: column; gap: 8px; }
-        .doc-row { display: flex; justify-content: space-between; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; text-decoration: none; color: var(--text); }
+        .doc-row { display: flex; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; text-decoration: none; color: var(--text); }
         .doc-row:hover { border-color: var(--accent); }
         .doc-title { font-weight: 600; }
         .doc-meta { color: var(--muted); font-size: 12px; }
-        .board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
-        .board-col { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 220px; flex-shrink: 0; }
-        .board-col-head { font-weight: 700; margin-bottom: 10px; font-size: 14px; }
         .task-card { background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px; }
         .task-card-row { display: flex; align-items: center; gap: 8px; }
         .task-card.done span { text-decoration: line-through; color: var(--muted); }
@@ -277,4 +272,21 @@ else
         _newTaskTitle[mainTaskId] = "";
         await LoadAsync();
     }
+
+    // Same cycling pastel palette as Club's MainTaskColor, so a new column
+    // (or the trailing Documents card) always gets a distinct tint rather
+    // than a stored-per-item color that would need migrating on reorder.
+    private static readonly string[] ColumnColors =
+    [
+        "rgba(99,102,241,.10)",  // indigo
+        "rgba(16,185,129,.10)",  // green
+        "rgba(245,158,11,.10)",  // amber
+        "rgba(236,72,153,.10)",  // pink
+        "rgba(56,189,248,.10)",  // sky
+        "rgba(248,113,113,.10)", // red
+        "rgba(168,85,247,.10)",  // purple
+        "rgba(163,163,163,.10)", // gray
+    ];
+
+    private static string ColumnColor(int index) => ColumnColors[index % ColumnColors.Length];
 }
