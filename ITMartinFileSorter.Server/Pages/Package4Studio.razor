@@ -1,0 +1,1100 @@
+@page "/package4-studio"
+@implements IDisposable
+
+@using System.Diagnostics
+@using System.Globalization
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package4
+@using ITMartin.Media.Infrastructure.Persistence
+@using Microsoft.EntityFrameworkCore
+
+@inject IPackage4Client Package4Client
+@inject ILibraryPathProvider LibraryPathProvider
+@inject IDbContextFactory<MediaDbContext> DbFactory
+
+<PageTitle>Package 4 Studio</PageTitle>
+
+<div class="p4-page">
+    <div class="p4-header">
+        <h1>🎬 Package 4 Studio</h1>
+        <div class="p4-sub">Vlog/social clip enhancement — play, tune, re-run, add text</div>
+    </div>
+
+    <div class="p4-tabs">
+        <button type="button" class="p4-tab @(_tab == "browse" ? "active" : "")" @onclick='() => _tab = "browse"'>Gennemse &amp; Afspil</button>
+        <button type="button" class="p4-tab @(_tab == "run" ? "active" : "")" @onclick='() => _tab = "run"'>Kør Package 4</button>
+        <button type="button" class="p4-tab @(_tab == "text" ? "active" : "")" @onclick='() => _tab = "text"'>Tekst-overlay</button>
+        <button type="button" class="p4-tab @(_tab == "effects" ? "active" : "")" @onclick='() => _tab = "effects"'>Effekter</button>
+    </div>
+
+    @if (_tab == "browse")
+    {
+        <div class="p4-card">
+            <label class="p4-label">Mappe (relativ til library root @LibraryPathProvider.LibraryRoot, eller en fuld sti som C:\...)</label>
+            <div class="p4-row">
+                <input class="p4-input" @bind="_browseFolder" placeholder=".package4" />
+                <button type="button" class="p4-btn" @onclick="RefreshFiles">Opdater</button>
+            </div>
+
+            @if (_browseError is not null)
+            {
+                <div class="p4-error">@_browseError</div>
+            }
+
+            <div class="p4-file-list">
+                @foreach (var f in _files)
+                {
+                    <div class="p4-file-row @(f == _selectedFile ? "selected" : "")">
+                        <span class="p4-file-name" @onclick="() => SelectFile(f)">
+                            @(IsVideo(f) ? "🎞" : "🖼") @Path.GetFileName(f)
+                        </span>
+                        <span class="p4-file-size">@FormatSize(new FileInfo(f).Length)</span>
+                        @if (_pendingDelete == f)
+                        {
+                            <span class="p4-file-confirm">
+                                Slet permanent?
+                                <button type="button" class="p4-btn-tiny p4-btn-danger" @onclick="() => DeleteFile(f)">Ja</button>
+                                <button type="button" class="p4-btn-tiny" @onclick="() => _pendingDelete = null">Nej</button>
+                            </span>
+                        }
+                        else
+                        {
+                            <button type="button" class="p4-btn-tiny p4-btn-danger" @onclick="() => _pendingDelete = f">🗑</button>
+                        }
+                    </div>
+                }
+                @if (_files.Count == 0)
+                {
+                    <div class="p4-empty">Ingen filer fundet endnu — klik "Opdater".</div>
+                }
+            </div>
+            @if (_deleteError is not null)
+            {
+                <div class="p4-error">@_deleteError</div>
+            }
+
+            @if (_selectedFile is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">@Path.GetFileName(_selectedFile)</div>
+                    @if (IsVideo(_selectedFile))
+                    {
+                        <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_selectedFile)"></video>
+                    }
+                    else
+                    {
+                        <img class="p4-media" src="@ToLibraryUrl(_selectedFile)" alt="" />
+                    }
+                </div>
+            }
+        </div>
+    }
+    else if (_tab == "run")
+    {
+        <div class="p4-card">
+            <label class="p4-label">Kildemappe (scannes for videoer)</label>
+            <input class="p4-input" @bind="_runSource" placeholder="C:\BertilTest\Videoer" />
+
+            <label class="p4-label">Arbejdsmappe (working/checkpoints/delivery oprettes her)</label>
+            <input class="p4-input" @bind="_runWorkingDir" placeholder="C:\BertilTest\.package4" />
+
+            <div class="p4-section-label">Video / farve</div>
+            <div class="p4-toggle-grid">
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableWhiteBalance" /> Hvidbalance</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableExposureContrast" /> Eksponering/kontrast</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableSaturationVibrance" /> Mætning</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableColorGrade" /> Farvegradering</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableSharpen" /> Skarphed</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableNoiseReduction" /> Støjreduktion</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableDeflicker" /> Flimmer-fjernelse</label>
+                <label class="p4-toggle warn"><input type="checkbox" @bind="_enableStabilization" /> Stabilisering ⚠ (kendt fejl - se kode)</label>
+            </div>
+
+            <div class="p4-section-label">Lyd</div>
+            <div class="p4-toggle-grid">
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableAudioNoiseReduction" /> Støjreduktion</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableWindNoiseReduction" /> Vindstøj</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableHumRemoval" /> Brum-fjernelse</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableAudioEq" /> EQ</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableDeEss" /> De-ess</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableAudioCompression" /> Kompression</label>
+                <label class="p4-toggle"><input type="checkbox" @bind="_enableLoudnessNormalization" /> Lydstyrke-normalisering</label>
+            </div>
+
+            <div class="p4-section-label">Klip &amp; levering</div>
+            <div class="p4-row">
+                <div class="p4-field">
+                    <label class="p4-label">Trim start (sek)</label>
+                    <input class="p4-input-sm" type="number" step="0.1" @bind="_trimStart" />
+                </div>
+                <div class="p4-field">
+                    <label class="p4-label">Trim slut (sek, valgfri)</label>
+                    <input class="p4-input-sm" type="number" step="0.1" @bind="_trimEndText" />
+                </div>
+                <div class="p4-field">
+                    <label class="p4-label">CRF</label>
+                    <input class="p4-input-sm" type="number" @bind="_deliveryCrf" />
+                </div>
+                <div class="p4-field">
+                    <label class="p4-label">Maxrate (Mbps)</label>
+                    <input class="p4-input-sm" type="number" @bind="_deliveryMaxRateMbps" />
+                </div>
+            </div>
+
+            <button type="button" class="p4-btn-start" @onclick="() => RunPackage4()" disabled="@(string.IsNullOrWhiteSpace(_runSource) || string.IsNullOrWhiteSpace(_runWorkingDir) || _running)">
+                ▶ Kør Package 4
+            </button>
+
+            @if (_runError is not null)
+            {
+                <div class="p4-error">@_runError</div>
+            }
+
+            @if (_lastStatus is not null)
+            {
+                <div class="p4-status">
+                    <div><strong>Status:</strong> @_lastStatus.Status</div>
+                    <div><strong>Trin:</strong> @_lastStatus.CurrentStep</div>
+                    @if (_lastStatus.FailureReason is not null)
+                    {
+                        <div class="p4-error">@_lastStatus.FailureReason</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else if (_tab == "text")
+    {
+        <div class="p4-card">
+            <div class="p4-sub" style="margin-bottom: 12px;">DaVinci Fusion/Text+-inspireret - virker på både video og billeder (ffmpeg drawtext).</div>
+
+            <label class="p4-label">Fil (fuld sti)</label>
+            <input class="p4-input" @bind="_textInputPath" placeholder="C:\BertilTest\.package4\delivery\....mp4" />
+
+            <label class="p4-label">Tekst</label>
+            <input class="p4-input" @bind="_textContent" placeholder="Sommer 2027 🌞" />
+
+            <div class="p4-row">
+                <div class="p4-field">
+                    <label class="p4-label">Placering</label>
+                    <select class="p4-input-sm" @bind="_textPosition">
+                        <option value="top">Top</option>
+                        <option value="center">Center</option>
+                        <option value="bottom">Bund</option>
+                    </select>
+                </div>
+                <div class="p4-field">
+                    <label class="p4-label">Skriftstørrelse</label>
+                    <input class="p4-input-sm" type="number" @bind="_textFontSize" />
+                </div>
+                <div class="p4-field">
+                    <label class="p4-label">Farve</label>
+                    <input class="p4-input-sm" @bind="_textColor" placeholder="white" />
+                </div>
+            </div>
+
+            @if (_textIsVideo)
+            {
+                <div class="p4-row">
+                    <div class="p4-field">
+                        <label class="p4-label">Start (sek)</label>
+                        <input class="p4-input-sm" type="number" step="0.1" @bind="_textStartSeconds" />
+                    </div>
+                    <div class="p4-field">
+                        <label class="p4-label">Varighed (sek)</label>
+                        <input class="p4-input-sm" type="number" step="0.1" @bind="_textDurationSeconds" />
+                    </div>
+                </div>
+            }
+
+            <button type="button" class="p4-btn-start" @onclick="() => ApplyTextOverlay()" disabled="@(string.IsNullOrWhiteSpace(_textInputPath) || string.IsNullOrWhiteSpace(_textContent) || _textRunning)">
+                ✚ Tilføj tekst
+            </button>
+
+            @if (_textError is not null)
+            {
+                <div class="p4-error">@_textError</div>
+            }
+
+            @if (_textOutputPath is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">Resultat: @Path.GetFileName(_textOutputPath)</div>
+                    @if (IsVideo(_textOutputPath))
+                    {
+                        <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_textOutputPath)"></video>
+                    }
+                    else
+                    {
+                        <img class="p4-media" src="@ToLibraryUrl(_textOutputPath)" alt="" />
+                    }
+                </div>
+            }
+        </div>
+    }
+    else if (_tab == "effects")
+    {
+        <div class="p4-card">
+            <div class="p4-section-label" style="margin-top:0;border-top:none;padding-top:0;">🗣 Auto-undertekster (Whisper)</div>
+            <label class="p4-label">Fil (fuld sti, video)</label>
+            <input class="p4-input" @bind="_capInputPath" placeholder="C:\BertilTest\.package4\delivery\....mp4" />
+            <button type="button" class="p4-btn-start" @onclick="ApplyAutoCaptions" disabled="@(string.IsNullOrWhiteSpace(_capInputPath) || _capRunning)">
+                📝 Generér undertekster
+            </button>
+            @if (_capRunning)
+            {
+                <div class="p4-sub">Transskriberer med Whisper (kan tage et minut)...</div>
+            }
+            @if (_capError is not null)
+            {
+                <div class="p4-error">@_capError</div>
+            }
+            @if (_capOutputPath is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">Resultat: @Path.GetFileName(_capOutputPath)</div>
+                    <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_capOutputPath)"></video>
+                </div>
+            }
+
+            <div class="p4-section-label">🎵 Musik/lydspor</div>
+            <label class="p4-label">Fil (fuld sti, video)</label>
+            <input class="p4-input" @bind="_musicInputPath" placeholder="C:\BertilTest\.package4\delivery\....mp4" />
+            <label class="p4-label">Musikfil (fuld sti, mp3/wav)</label>
+            <input class="p4-input" @bind="_musicTrackPath" placeholder="C:\Musik\track.mp3" />
+            <div class="p4-field">
+                <label class="p4-label">Musik-lydstyrke (0.0 - 1.0)</label>
+                <input class="p4-input-sm" type="number" step="0.05" min="0" max="1" @bind="_musicVolume" />
+            </div>
+            <button type="button" class="p4-btn-start" @onclick="ApplyMusicTrack" disabled="@(string.IsNullOrWhiteSpace(_musicInputPath) || string.IsNullOrWhiteSpace(_musicTrackPath) || _musicRunning)">
+                🎵 Tilføj musik
+            </button>
+            @if (_musicError is not null)
+            {
+                <div class="p4-error">@_musicError</div>
+            }
+            @if (_musicOutputPath is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">Resultat: @Path.GetFileName(_musicOutputPath)</div>
+                    <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_musicOutputPath)"></video>
+                </div>
+            }
+
+            <div class="p4-section-label">⏩ Hastighed (speed ramp)</div>
+            <label class="p4-label">Fil (fuld sti, video)</label>
+            <input class="p4-input" @bind="_speedInputPath" placeholder="C:\BertilTest\.package4\delivery\....mp4" />
+            <div class="p4-row">
+                <div class="p4-field">
+                    <label class="p4-label">Faktor (0.25 = 4x langsom, 4 = 4x hurtig)</label>
+                    <input class="p4-input-sm" type="number" step="0.1" min="0.25" max="4" @bind="_speedFactor" />
+                </div>
+                <div class="p4-field">
+                    <label class="p4-label">Start (sek, valgfri - hele klip hvis tom)</label>
+                    <input class="p4-input-sm" type="number" step="0.1" @bind="_speedRangeStartText" />
+                </div>
+                <div class="p4-field">
+                    <label class="p4-label">Slut (sek, valgfri)</label>
+                    <input class="p4-input-sm" type="number" step="0.1" @bind="_speedRangeEndText" />
+                </div>
+            </div>
+            <div class="p4-sub">Uden start/slut ændres hele klippets hastighed. Med start/slut trimmes klippet til det interval først, og kun det bliver hastighedsændret.</div>
+            <button type="button" class="p4-btn-start" @onclick="ApplySpeedRamp" disabled="@(string.IsNullOrWhiteSpace(_speedInputPath) || _speedRunning)">
+                ⏩ Anvend hastighed
+            </button>
+            @if (_speedError is not null)
+            {
+                <div class="p4-error">@_speedError</div>
+            }
+            @if (_speedOutputPath is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">Resultat: @Path.GetFileName(_speedOutputPath)</div>
+                    <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_speedOutputPath)"></video>
+                </div>
+            }
+
+            <div class="p4-section-label">📐 Formatbeskæring (aspect ratio)</div>
+            <label class="p4-label">Fil (fuld sti, video)</label>
+            <input class="p4-input" @bind="_cropInputPath" placeholder="C:\BertilTest\.package4\delivery\....mp4" />
+            <label class="p4-label">Format</label>
+            <select class="p4-input-sm" @bind="_cropPreset">
+                <option value="9:16">9:16 (Reels/TikTok)</option>
+                <option value="1:1">1:1 (kvadrat)</option>
+                <option value="16:9">16:9 (bredformat)</option>
+            </select>
+            <button type="button" class="p4-btn-start" @onclick="ApplyAspectCrop" disabled="@(string.IsNullOrWhiteSpace(_cropInputPath) || _cropRunning)">
+                📐 Beskær
+            </button>
+            @if (_cropError is not null)
+            {
+                <div class="p4-error">@_cropError</div>
+            }
+            @if (_cropOutputPath is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">Resultat: @Path.GetFileName(_cropOutputPath)</div>
+                    <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_cropOutputPath)"></video>
+                </div>
+            }
+
+            <div class="p4-section-label">🔊 Del lyd/video</div>
+            <div class="p4-sub">Laver en lydfil (uden video) og en stum video (uden lyd) - så lyden kan redigeres separat.</div>
+            <label class="p4-label">Fil (fuld sti, video)</label>
+            <input class="p4-input" @bind="_splitInputPath" placeholder="C:\BertilTest\.package4\delivery\....mp4" />
+            <button type="button" class="p4-btn-start" @onclick="ApplySplitAudioVideo" disabled="@(string.IsNullOrWhiteSpace(_splitInputPath) || _splitRunning)">
+                🔊 Del i lyd + video
+            </button>
+            @if (_splitError is not null)
+            {
+                <div class="p4-error">@_splitError</div>
+            }
+            @if (_splitAudioOutputPath is not null && _splitVideoOutputPath is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">Lyd: @Path.GetFileName(_splitAudioOutputPath)</div>
+                    <audio controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_splitAudioOutputPath)"></audio>
+                    <div class="p4-label">Stum video: @Path.GetFileName(_splitVideoOutputPath)</div>
+                    <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_splitVideoOutputPath)"></video>
+                </div>
+            }
+
+            <div class="p4-section-label">🔁 Erstat lyd</div>
+            <div class="p4-sub">Sætter en (redigeret) lydfil ind på en video, i stedet for dens nuværende lyd.</div>
+            <label class="p4-label">Fil (fuld sti, video)</label>
+            <input class="p4-input" @bind="_replaceVideoPath" placeholder="C:\BertilTest\.package4\delivery\....silent.mp4" />
+            <label class="p4-label">Ny lydfil (fuld sti)</label>
+            <input class="p4-input" @bind="_replaceAudioPath" placeholder="C:\BertilTest\.package4\delivery\....audio.mp3" />
+            <button type="button" class="p4-btn-start" @onclick="ApplyReplaceAudio" disabled="@(string.IsNullOrWhiteSpace(_replaceVideoPath) || string.IsNullOrWhiteSpace(_replaceAudioPath) || _replaceRunning)">
+                🔁 Erstat lyd
+            </button>
+            @if (_replaceError is not null)
+            {
+                <div class="p4-error">@_replaceError</div>
+            }
+            @if (_replaceOutputPath is not null)
+            {
+                <div class="p4-preview">
+                    <div class="p4-label">Resultat: @Path.GetFileName(_replaceOutputPath)</div>
+                    <video controls preload="metadata" class="p4-media" src="@ToLibraryUrl(_replaceOutputPath)"></video>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .p4-page { max-width: 900px; margin: 0 auto; padding: 20px 16px 64px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .p4-header h1 { font-size: 24px; margin-bottom: 4px; }
+    .p4-sub { color: #888; font-size: 14px; }
+    .p4-tabs { display: flex; gap: 8px; margin: 20px 0; border-bottom: 1px solid #333; }
+    .p4-tab { background: none; border: none; padding: 10px 16px; color: #999; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; }
+    .p4-tab.active { color: #fff; border-bottom-color: #818CF8; }
+    .p4-card { background: #161825; border: 1px solid #262a40; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .p4-label { font-size: 12px; font-weight: 700; letter-spacing: .5px; color: #9CA3AF; margin-top: 6px; }
+    .p4-section-label { font-size: 13px; font-weight: 700; color: #818CF8; margin-top: 14px; border-top: 1px solid #262a40; padding-top: 12px; }
+    .p4-input, .p4-input-sm { background: #0F1117; border: 1px solid #262a40; border-radius: 6px; color: #F0F0F0; padding: 8px 10px; font-size: 14px; }
+    .p4-input { width: 100%; }
+    .p4-input-sm { width: 100px; }
+    .p4-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .p4-field { display: flex; flex-direction: column; gap: 4px; }
+    .p4-btn, .p4-btn-start { background: #262a40; border: 1px solid #3a3f5c; color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .p4-btn-start { background: #4338CA; border-color: #4338CA; margin-top: 14px; align-self: flex-start; padding: 10px 20px; font-weight: 600; }
+    .p4-btn-start:disabled { opacity: .5; cursor: not-allowed; }
+    .p4-toggle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+    .p4-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #ddd; }
+    .p4-toggle.warn { color: #D97706; }
+    .p4-file-list { max-height: 260px; overflow-y: auto; border: 1px solid #262a40; border-radius: 6px; }
+    .p4-file-row { padding: 8px 10px; border-bottom: 1px solid #1e2030; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+    .p4-file-row:hover { background: #1e2030; }
+    .p4-file-row.selected { background: #1E1B4B; color: #A5B4FC; }
+    .p4-file-name { cursor: pointer; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .p4-file-size { color: #6B7280; font-size: 11px; flex-shrink: 0; }
+    .p4-file-confirm { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #F87171; flex-shrink: 0; }
+    .p4-btn-tiny { background: #262a40; border: 1px solid #3a3f5c; color: #fff; padding: 3px 8px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+    .p4-btn-danger { border-color: #7F1D1D; color: #F87171; }
+    .p4-btn-danger:hover { background: #7F1D1D; color: #fff; }
+    .p4-empty { padding: 16px; text-align: center; color: #6B7280; font-size: 13px; }
+    .p4-preview { margin-top: 12px; }
+    .p4-media { width: 100%; max-height: 480px; background: #000; border-radius: 8px; }
+    .p4-error { color: #F87171; font-size: 13px; margin-top: 6px; }
+    .p4-status { margin-top: 12px; font-size: 13px; background: #0F1117; border: 1px solid #262a40; border-radius: 6px; padding: 10px; }
+</style>
+
+@code {
+    private string _tab = "browse";
+
+    // BROWSE
+    private string _browseFolder = ".package4";
+    private List<string> _files = [];
+    private string? _selectedFile;
+    private string? _browseError;
+    private string? _pendingDelete;
+    private string? _deleteError;
+
+    // RUN
+    private string _runSource = "";
+    private string _runWorkingDir = "";
+    private bool _enableWhiteBalance = true;
+    private bool _enableExposureContrast = true;
+    private bool _enableSaturationVibrance = true;
+    private bool _enableColorGrade = true;
+    private bool _enableSharpen = true;
+    private bool _enableNoiseReduction = true;
+    private bool _enableDeflicker = true;
+    private bool _enableStabilization = false;
+    private bool _enableAudioNoiseReduction = true;
+    private bool _enableWindNoiseReduction = true;
+    private bool _enableHumRemoval = true;
+    private bool _enableAudioEq = true;
+    private bool _enableDeEss = true;
+    private bool _enableAudioCompression = true;
+    private bool _enableLoudnessNormalization = true;
+    private double _trimStart = 0;
+    private string _trimEndText = "";
+    private int _deliveryCrf = 21;
+    private int _deliveryMaxRateMbps = 6;
+    private bool _running;
+    private string? _runError;
+    private WorkflowStatusView? _lastStatus;
+    private System.Threading.Timer? _statusTimer;
+
+    // TEXT OVERLAY
+    private string _textInputPath = "";
+    private string _textContent = "";
+    private string _textPosition = "bottom";
+    private int _textFontSize = 48;
+    private string _textColor = "white";
+    private double _textStartSeconds = 0;
+    private double _textDurationSeconds = 5;
+    private bool _textRunning;
+    private string? _textError;
+    private string? _textOutputPath;
+    private bool _textIsVideo => IsVideo(_textInputPath);
+
+    private readonly string _ffmpegPath = OperatingSystem.IsWindows()
+        ? Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe")
+        : "ffmpeg";
+
+    private readonly string _ffmpegDir = OperatingSystem.IsWindows()
+        ? Path.Combine(AppContext.BaseDirectory, "ffmpeg")
+        : "";
+
+    // EFFECTS - auto-captions
+    private string _capInputPath = "";
+    private bool _capRunning;
+    private string? _capError;
+    private string? _capOutputPath;
+
+    private const string PythonExe =
+        @"C:\Users\hvidb\AppData\Local\Programs\Python\Python312\python.exe";
+
+    // EFFECTS - music track
+    private string _musicInputPath = "";
+    private string _musicTrackPath = "";
+    private double _musicVolume = 0.3;
+
+    // EFFECTS - split audio/video
+    private string _splitInputPath = "";
+    private bool _splitRunning;
+    private string? _splitError;
+    private string? _splitAudioOutputPath;
+    private string? _splitVideoOutputPath;
+
+    // EFFECTS - replace audio
+    private string _replaceVideoPath = "";
+    private string _replaceAudioPath = "";
+    private bool _replaceRunning;
+    private string? _replaceError;
+    private string? _replaceOutputPath;
+    private bool _musicRunning;
+    private string? _musicError;
+    private string? _musicOutputPath;
+
+    // EFFECTS - speed ramp
+    private string _speedInputPath = "";
+    private double _speedFactor = 2.0;
+    private string _speedRangeStartText = "";
+    private string _speedRangeEndText = "";
+    private bool _speedRunning;
+    private string? _speedError;
+    private string? _speedOutputPath;
+
+    // EFFECTS - aspect crop
+    private string _cropInputPath = "";
+    private string _cropPreset = "9:16";
+    private bool _cropRunning;
+    private string? _cropError;
+    private string? _cropOutputPath;
+
+    protected override void OnInitialized()
+    {
+        _runWorkingDir = Path.Combine(LibraryPathProvider.LibraryRoot, ".package4");
+    }
+
+    private static bool IsVideo(string path) =>
+        path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".mov", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatSize(long bytes) =>
+        bytes > 1_000_000 ? $"{bytes / 1_000_000.0:F1} MB" : $"{bytes / 1024.0:F0} KB";
+
+    // /libraryfiles is an existing static-file mount rooted at LibraryPathProvider.LibraryRoot
+    // (see Program.cs) - reuse it instead of building a new file-serving endpoint.
+    private string ToLibraryUrl(string absolutePath)
+    {
+        var relative = Path.GetRelativePath(LibraryPathProvider.LibraryRoot, absolutePath);
+        if (relative.StartsWith("..") || Path.IsPathRooted(relative))
+        {
+            // Outside the library root entirely (e.g. a standalone test folder) -
+            // /libraryfiles can't reach it, so fall back to serving by absolute path.
+            return $"/localfile?path={Uri.EscapeDataString(absolutePath)}";
+        }
+
+        return $"/libraryfiles/{Uri.EscapeDataString(relative.Replace('\\', '/')).Replace("%2F", "/")}";
+    }
+
+    private void RefreshFiles()
+    {
+        _browseError = null;
+        try
+        {
+            var trimmed = _browseFolder?.Trim() ?? string.Empty;
+            var folder = Path.IsPathRooted(trimmed)
+                ? trimmed
+                : Path.Combine(LibraryPathProvider.LibraryRoot, trimmed);
+            if (!Directory.Exists(folder))
+            {
+                _browseError = $"Mappe findes ikke: {folder}";
+                _files = [];
+                return;
+            }
+
+            _files = Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
+                .Where(f => IsVideo(f) || f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _browseError = ex.Message;
+        }
+    }
+
+    private void SelectFile(string file)
+    {
+        _selectedFile = file;
+    }
+
+    private void DeleteFile(string file)
+    {
+        _deleteError = null;
+        try
+        {
+            File.Delete(file);
+            _files.Remove(file);
+            if (_selectedFile == file) _selectedFile = null;
+        }
+        catch (Exception ex)
+        {
+            _deleteError = ex.Message;
+        }
+        finally
+        {
+            _pendingDelete = null;
+        }
+    }
+
+    private async Task RunPackage4()
+    {
+        _runError = null;
+        _running = true;
+
+        try
+        {
+            double? trimEnd = double.TryParse(_trimEndText, NumberStyles.Float, CultureInfo.InvariantCulture, out var te) ? te : null;
+
+            await Package4Client.StartAsync(new StartPackage4Request
+            {
+                SourceLibraryPath = _runSource,
+                WorkingDirectory = _runWorkingDir,
+                EnableWhiteBalance = _enableWhiteBalance,
+                EnableExposureContrast = _enableExposureContrast,
+                EnableSaturationVibrance = _enableSaturationVibrance,
+                EnableColorGrade = _enableColorGrade,
+                EnableSharpen = _enableSharpen,
+                EnableNoiseReduction = _enableNoiseReduction,
+                EnableDeflicker = _enableDeflicker,
+                EnableStabilization = _enableStabilization,
+                EnableAudioNoiseReduction = _enableAudioNoiseReduction,
+                EnableWindNoiseReduction = _enableWindNoiseReduction,
+                EnableHumRemoval = _enableHumRemoval,
+                EnableAudioEq = _enableAudioEq,
+                EnableDeEss = _enableDeEss,
+                EnableAudioCompression = _enableAudioCompression,
+                EnableLoudnessNormalization = _enableLoudnessNormalization,
+                TrimStartSeconds = _trimStart,
+                TrimEndSeconds = trimEnd,
+                DeliveryCrf = _deliveryCrf,
+                DeliveryMaxRateMbps = _deliveryMaxRateMbps
+            }, CancellationToken.None);
+
+            _statusTimer?.Dispose();
+            _statusTimer = new System.Threading.Timer(async _ => await PollStatus(), null, 0, 4000);
+        }
+        catch (Exception ex)
+        {
+            _runError = ex.Message;
+            _running = false;
+        }
+    }
+
+    private sealed record WorkflowStatusView(string Status, string? CurrentStep, string? FailureReason);
+
+    private async Task PollStatus()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var instance = await db.WorkflowInstances
+            .Where(x => x.WorkflowName == "Package4Workflow")
+            .OrderByDescending(x => x.StartedAtUtc)
+            .FirstOrDefaultAsync();
+
+        if (instance is null) return;
+
+        _lastStatus = new WorkflowStatusView(instance.Status.ToString(), instance.CurrentStep, instance.FailureReason);
+
+        if (instance.Status.ToString() is "Completed" or "Failed" or "Cancelled")
+        {
+            _running = false;
+            _statusTimer?.Dispose();
+            _statusTimer = null;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ApplyTextOverlay()
+    {
+        _textError = null;
+        _textRunning = true;
+        _textOutputPath = null;
+
+        try
+        {
+            if (!File.Exists(_textInputPath))
+            {
+                _textError = "Filen findes ikke.";
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_textInputPath)!;
+            var extension = Path.GetExtension(_textInputPath);
+            var outputFile = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(_textInputPath)}.texted{extension}");
+
+            // fontcolor/fontsize/position via drawtext - x/y expressions center-align
+            // then offset per the chosen preset; text is escaped for ffmpeg's filter syntax.
+            var escapedText = _textContent.Replace("\\", "\\\\").Replace(":", "\\:").Replace("'", "\\'");
+            var yExpr = _textPosition switch
+            {
+                "top" => "h*0.08",
+                "center" => "(h-text_h)/2",
+                _ => "h*0.85"
+            };
+
+            // ffmpeg's Windows builds have no fontconfig set up, so drawtext needs an
+            // explicit fontfile - otherwise it fails with "Fontconfig error: Cannot
+            // load default config file". Path colon must be escaped for the filter parser.
+            const string fontFile = "C\\:/Windows/Fonts/arial.ttf";
+            var drawtext = $"drawtext=fontfile='{fontFile}':text='{escapedText}':fontsize={_textFontSize}:fontcolor={_textColor}:x=(w-text_w)/2:y={yExpr}:box=1:boxcolor=black@0.4:boxborderw=10";
+
+            string arguments;
+            if (IsVideo(_textInputPath))
+            {
+                drawtext += $":enable='between(t,{_textStartSeconds.ToString(CultureInfo.InvariantCulture)},{(_textStartSeconds + _textDurationSeconds).ToString(CultureInfo.InvariantCulture)})'";
+                arguments = $"-y -i \"{Path.GetFileName(_textInputPath)}\" -vf \"{drawtext}\" -c:v libx264 -preset medium -crf 20 -c:a copy \"{Path.GetFileName(outputFile)}\"";
+            }
+            else
+            {
+                arguments = $"-y -i \"{Path.GetFileName(_textInputPath)}\" -vf \"{drawtext}\" \"{Path.GetFileName(outputFile)}\"";
+            }
+
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = _ffmpegPath,
+                    Arguments = arguments,
+                    WorkingDirectory = directory,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            var stderr = await stderrTask;
+
+            if (process.ExitCode != 0)
+            {
+                _textError = $"ffmpeg fejlede: {stderr}";
+                return;
+            }
+
+            _textOutputPath = outputFile;
+        }
+        catch (Exception ex)
+        {
+            _textError = ex.Message;
+        }
+        finally
+        {
+            _textRunning = false;
+        }
+    }
+
+    // Shared runner for the effects handlers below - captures stderr (ffmpeg/whisper
+    // both report progress and errors there), same pattern as ApplyTextOverlay.
+    private async Task<(int ExitCode, string Stderr)> RunProcessAsync(string fileName, string arguments, string workingDir, string? extraPathDir = null)
+    {
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                WorkingDirectory = workingDir,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+
+        if (!string.IsNullOrEmpty(extraPathDir))
+        {
+            process.StartInfo.EnvironmentVariables["PATH"] = extraPathDir + ";" + Environment.GetEnvironmentVariable("PATH");
+        }
+
+        process.Start();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var stderr = await stderrTask;
+        return (process.ExitCode, stderr);
+    }
+
+    // ffmpeg filter options that embed a Windows absolute path break the filter
+    // parser on the colon after the drive letter - same fix as drawtext's fontfile.
+    private static string EscapeFilterPath(string path) =>
+        path.Replace("\\", "/").Replace(":", "\\:");
+
+    private async Task ApplyAutoCaptions()
+    {
+        _capError = null;
+        _capRunning = true;
+        _capOutputPath = null;
+
+        try
+        {
+            if (!File.Exists(_capInputPath))
+            {
+                _capError = "Filen findes ikke.";
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_capInputPath)!;
+            var baseName = Path.GetFileNameWithoutExtension(_capInputPath);
+            var captionsDir = Path.Combine(directory, ".captions");
+            Directory.CreateDirectory(captionsDir);
+
+            var (whisperExit, whisperErr) = await RunProcessAsync(
+                PythonExe,
+                $"-m whisper --model base --output_format srt --output_dir \"{captionsDir}\" \"{_capInputPath}\"",
+                directory,
+                extraPathDir: _ffmpegDir);
+
+            var srtPath = Path.Combine(captionsDir, $"{baseName}.srt");
+            if (whisperExit != 0 || !File.Exists(srtPath))
+            {
+                _capError = $"Whisper fejlede: {whisperErr}";
+                return;
+            }
+
+            var outputFile = Path.Combine(directory, $"{baseName}.captioned.mp4");
+            var subtitlesFilter = $"subtitles='{EscapeFilterPath(srtPath)}':force_style='FontName=Arial,FontSize=20,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=0'";
+            var arguments = $"-y -i \"{_capInputPath}\" -vf \"{subtitlesFilter}\" -c:v libx264 -preset medium -crf 20 -c:a copy \"{outputFile}\"";
+
+            var (exitCode, stderr) = await RunProcessAsync(_ffmpegPath, arguments, directory);
+            if (exitCode != 0)
+            {
+                _capError = $"ffmpeg fejlede: {stderr}";
+                return;
+            }
+
+            _capOutputPath = outputFile;
+        }
+        catch (Exception ex)
+        {
+            _capError = ex.Message;
+        }
+        finally
+        {
+            _capRunning = false;
+        }
+    }
+
+    private async Task ApplyMusicTrack()
+    {
+        _musicError = null;
+        _musicRunning = true;
+        _musicOutputPath = null;
+
+        try
+        {
+            if (!File.Exists(_musicInputPath))
+            {
+                _musicError = "Videofilen findes ikke.";
+                return;
+            }
+            if (!File.Exists(_musicTrackPath))
+            {
+                _musicError = "Musikfilen findes ikke.";
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_musicInputPath)!;
+            var outputFile = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(_musicInputPath)}.music.mp4");
+            var volume = _musicVolume.ToString(CultureInfo.InvariantCulture);
+
+            var filterComplex = $"[1:a]volume={volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[aout]";
+            var arguments = $"-y -i \"{_musicInputPath}\" -i \"{_musicTrackPath}\" -filter_complex \"{filterComplex}\" -map 0:v -map \"[aout]\" -c:v copy -c:a aac -b:a 192k \"{outputFile}\"";
+
+            var (exitCode, stderr) = await RunProcessAsync(_ffmpegPath, arguments, directory);
+            if (exitCode != 0)
+            {
+                _musicError = $"ffmpeg fejlede: {stderr}";
+                return;
+            }
+
+            _musicOutputPath = outputFile;
+        }
+        catch (Exception ex)
+        {
+            _musicError = ex.Message;
+        }
+        finally
+        {
+            _musicRunning = false;
+        }
+    }
+
+    private async Task ApplySplitAudioVideo()
+    {
+        _splitError = null;
+        _splitRunning = true;
+        _splitAudioOutputPath = null;
+        _splitVideoOutputPath = null;
+
+        try
+        {
+            if (!File.Exists(_splitInputPath))
+            {
+                _splitError = "Videofilen findes ikke.";
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_splitInputPath)!;
+            var baseName = Path.GetFileNameWithoutExtension(_splitInputPath);
+            var audioOutputFile = Path.Combine(directory, $"{baseName}.audio.mp3");
+            var videoOutputFile = Path.Combine(directory, $"{baseName}.silent.mp4");
+
+            // -vn drops the video stream (audio-only output); -an drops the
+            // audio stream (silent video, stream-copied so no re-encode).
+            var (audioExit, audioStderr) = await RunProcessAsync(_ffmpegPath, $"-y -i \"{_splitInputPath}\" -vn -c:a libmp3lame -q:a 2 \"{audioOutputFile}\"", directory);
+            if (audioExit != 0)
+            {
+                _splitError = $"ffmpeg fejlede (lyd): {audioStderr}";
+                return;
+            }
+
+            var (videoExit, videoStderr) = await RunProcessAsync(_ffmpegPath, $"-y -i \"{_splitInputPath}\" -an -c:v copy \"{videoOutputFile}\"", directory);
+            if (videoExit != 0)
+            {
+                _splitError = $"ffmpeg fejlede (video): {videoStderr}";
+                return;
+            }
+
+            _splitAudioOutputPath = audioOutputFile;
+            _splitVideoOutputPath = videoOutputFile;
+        }
+        catch (Exception ex)
+        {
+            _splitError = ex.Message;
+        }
+        finally
+        {
+            _splitRunning = false;
+        }
+    }
+
+    private async Task ApplyReplaceAudio()
+    {
+        _replaceError = null;
+        _replaceRunning = true;
+        _replaceOutputPath = null;
+
+        try
+        {
+            if (!File.Exists(_replaceVideoPath))
+            {
+                _replaceError = "Videofilen findes ikke.";
+                return;
+            }
+            if (!File.Exists(_replaceAudioPath))
+            {
+                _replaceError = "Lydfilen findes ikke.";
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_replaceVideoPath)!;
+            var outputFile = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(_replaceVideoPath)}.newaudio.mp4");
+
+            var arguments = $"-y -i \"{_replaceVideoPath}\" -i \"{_replaceAudioPath}\" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest \"{outputFile}\"";
+            var (exitCode, stderr) = await RunProcessAsync(_ffmpegPath, arguments, directory);
+            if (exitCode != 0)
+            {
+                _replaceError = $"ffmpeg fejlede: {stderr}";
+                return;
+            }
+
+            _replaceOutputPath = outputFile;
+        }
+        catch (Exception ex)
+        {
+            _replaceError = ex.Message;
+        }
+        finally
+        {
+            _replaceRunning = false;
+        }
+    }
+
+    // atempo only accepts 0.5-2.0 per stage, so factors outside that range chain
+    // multiple atempo filters (e.g. 4x = atempo=2.0,atempo=2.0).
+    private static string BuildAtempoChain(double factor)
+    {
+        var stages = new List<double>();
+        var remaining = factor;
+        while (remaining > 2.0)
+        {
+            stages.Add(2.0);
+            remaining /= 2.0;
+        }
+        while (remaining < 0.5)
+        {
+            stages.Add(0.5);
+            remaining /= 0.5;
+        }
+        stages.Add(remaining);
+        return string.Join(",", stages.Select(s => $"atempo={s.ToString(CultureInfo.InvariantCulture)}"));
+    }
+
+    private async Task ApplySpeedRamp()
+    {
+        _speedError = null;
+        _speedRunning = true;
+        _speedOutputPath = null;
+
+        try
+        {
+            if (!File.Exists(_speedInputPath))
+            {
+                _speedError = "Filen findes ikke.";
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_speedInputPath)!;
+            var outputFile = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(_speedInputPath)}.speed{_speedFactor.ToString(CultureInfo.InvariantCulture)}x.mp4");
+
+            var startParsed = double.TryParse(_speedRangeStartText, NumberStyles.Float, CultureInfo.InvariantCulture, out var rangeStart);
+            var endParsed = double.TryParse(_speedRangeEndText, NumberStyles.Float, CultureInfo.InvariantCulture, out var rangeEnd);
+            var hasRange = startParsed && endParsed && rangeEnd > rangeStart;
+
+            var trimArgs = hasRange
+                ? $"-ss {rangeStart.ToString(CultureInfo.InvariantCulture)} -t {(rangeEnd - rangeStart).ToString(CultureInfo.InvariantCulture)} "
+                : "";
+
+            var ptsFactor = (1.0 / _speedFactor).ToString(CultureInfo.InvariantCulture);
+            var atempoChain = BuildAtempoChain(_speedFactor);
+            var arguments = $"-y {trimArgs}-i \"{_speedInputPath}\" -vf \"setpts={ptsFactor}*PTS\" -af \"{atempoChain}\" -c:v libx264 -preset medium -crf 20 \"{outputFile}\"";
+
+            var (exitCode, stderr) = await RunProcessAsync(_ffmpegPath, arguments, directory);
+            if (exitCode != 0)
+            {
+                _speedError = $"ffmpeg fejlede: {stderr}";
+                return;
+            }
+
+            _speedOutputPath = outputFile;
+        }
+        catch (Exception ex)
+        {
+            _speedError = ex.Message;
+        }
+        finally
+        {
+            _speedRunning = false;
+        }
+    }
+
+    private async Task ApplyAspectCrop()
+    {
+        _cropError = null;
+        _cropRunning = true;
+        _cropOutputPath = null;
+
+        try
+        {
+            if (!File.Exists(_cropInputPath))
+            {
+                _cropError = "Filen findes ikke.";
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(_cropInputPath)!;
+            var presetSlug = _cropPreset.Replace(":", "-");
+            var outputFile = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(_cropInputPath)}.crop{presetSlug}.mp4");
+
+            var parts = _cropPreset.Split(':');
+            var ar = double.Parse(parts[0], CultureInfo.InvariantCulture) / double.Parse(parts[1], CultureInfo.InvariantCulture);
+            var arText = ar.ToString(CultureInfo.InvariantCulture);
+
+            // Generic centered crop to the target aspect ratio without needing ffprobe
+            // first - min(iw, ih*ar) picks whichever dimension the source is short on.
+            var cropFilter = $"crop='min(iw,ih*{arText})':'min(ih,iw/{arText})':'(iw-min(iw,ih*{arText}))/2':'(ih-min(ih,iw/{arText}))/2'";
+            var arguments = $"-y -i \"{_cropInputPath}\" -vf \"{cropFilter}\" -c:v libx264 -preset medium -crf 20 -c:a copy \"{outputFile}\"";
+
+            var (exitCode, stderr) = await RunProcessAsync(_ffmpegPath, arguments, directory);
+            if (exitCode != 0)
+            {
+                _cropError = $"ffmpeg fejlede: {stderr}";
+                return;
+            }
+
+            _cropOutputPath = outputFile;
+        }
+        catch (Exception ex)
+        {
+            _cropError = ex.Message;
+        }
+        finally
+        {
+            _cropRunning = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _statusTimer?.Dispose();
+    }
+}

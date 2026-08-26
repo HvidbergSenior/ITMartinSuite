@@ -7,6 +7,7 @@ using ITMartin.Media.Application.Pipelines.Package1.Clients;
 using ITMartin.Media.Application.Pipelines.Package1.Services;
 using ITMartin.Media.Application.Pipelines.Package2.Clients;
 using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Application.Pipelines.Package4.Clients;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
@@ -56,6 +57,10 @@ public static class FileSorterServerDependencyInjection
         services.AddScoped<
             IPackage2Client,
             Package2Client>();
+
+        services.AddScoped<
+            IPackage4Client,
+            Package4Client>();
 
         services.AddScoped<
             IImageConverterService,
