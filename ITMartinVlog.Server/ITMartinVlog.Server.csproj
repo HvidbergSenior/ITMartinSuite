@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>ITMartinVlog.Server</RootNamespace>
+        <AssemblyName>ITMartinVlog.Server</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
+        <ProjectReference Include="..\ITMartin.Media.Application\ITMartin.Media.Application.csproj" />
+        <ProjectReference Include="..\ITMartin.Media.Contracts\ITMartin.Media.Contracts.csproj" />
+        <ProjectReference Include="..\ITMartin.Media.Infrastructure\ITMartin.Media.Infrastructure.csproj" />
+        <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.25" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
+    </ItemGroup>
+
+    <!-- Reuse FileSorter.Server's bundled ffmpeg/ffprobe binaries for local Windows dev
+         instead of duplicating ~430MB of binaries in this project; Docker installs ffmpeg
+         via apt instead (see Dockerfile), so this ItemGroup only matters outside Docker. -->
+    <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+        <None Include="..\ITMartinFileSorter.Server\ffmpeg\**\*.*" LinkBase="ffmpeg">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+</Project>

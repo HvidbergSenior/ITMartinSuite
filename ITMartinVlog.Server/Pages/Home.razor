@@ -1,0 +1,314 @@
+@page "/"
+@rendermode InteractiveServer
+@using ITMartin.Ai.Interfaces
+@inject VlogEditorService Editor
+@inject VlogFfmpegService Ffmpeg
+@inject IVideoAssistantService Ai
+
+<div class="home-page">
+    <div class="home-card vlog-card">
+        <div class="home-logo">🎬</div>
+        <h1 class="home-title">Vlog Studio</h1>
+        <p class="home-sub">Din personlige video-redigering - kun de effekter du faktisk vil bruge</p>
+
+        <ProblemPurposeBanner
+            Problem="Man skal bruge kæmpestore systemer som DaVinci eller CapCut for bare at rette et par ting i en video."
+            Formaal="Et lille vlog-værktøj hvor du kun tilføjer de effekter du faktisk har brug for. Filmen forbliver din og personlig - AI er en hjælper, ikke en der laver videoen for dig." />
+
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Peg på en mappe med videoklip og vælg en fil.",
+            "Tryk 🚀 Optimér for de faste basisrettelser, eller vælg selv enkelte effekter.",
+            "Lyt/se resultatet med det samme - alle versioner gemmes og kan slettes eller genbesøges."
+        })' />
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="vlog-error">@ErrorMessage</div>
+        }
+
+        <div class="home-section">
+            <label class="home-label">Mappe med klip</label>
+            <div class="vlog-folder-row">
+                <input class="home-input" @bind="FolderPath" @bind:event="oninput" placeholder="C:\BertilTest" />
+                <button class="btn-primary" @onclick="BrowseFolder">Vis filer</button>
+            </div>
+        </div>
+
+        @if (Files.Count > 0)
+        {
+            <div class="vlog-file-list">
+                @foreach (var file in Files)
+                {
+                    <button class="vlog-file-chip @(file == SelectedFile ? "active" : "")" @onclick="() => SelectFile(file)">
+                        @Path.GetFileName(file)
+                    </button>
+                }
+            </div>
+        }
+
+        @if (SelectedFile is not null && CurrentVersion is not null)
+        {
+            <div class="vlog-editor">
+                <div class="vlog-player-col">
+                    @if (IsAudio(CurrentVersion.FilePath))
+                    {
+                        <audio controls class="vlog-player" src="@MediaUrl(CurrentVersion.FilePath)"></audio>
+                    }
+                    else
+                    {
+                        <video controls class="vlog-player" src="@MediaUrl(CurrentVersion.FilePath)"></video>
+                    }
+                    <div class="vlog-current-label">@CurrentVersion.Label</div>
+
+                    @if (Busy)
+                    {
+                        <div class="vlog-busy">⏳ Arbejder... (@BusyLabel)</div>
+                    }
+
+                    <button class="btn-primary vlog-optimize-btn" @onclick="ApplyOptimize" disabled="@(Busy || IsCurrentAudio)">🚀 Optimér</button>
+                    <button class="btn-secondary" @onclick="ExtractAudio" disabled="@(Busy || IsCurrentAudio)">🎧 Udtræk lyd</button>
+                    @if (IsCurrentAudio)
+                    {
+                        <p class="vlog-ai-hint">Dette er et udtrukket lydspor - vælg en videoversion for at bruge effekter.</p>
+                    }
+                </div>
+
+                <div class="vlog-versions-col">
+                    <div class="vlog-section-title">Versioner</div>
+                    @foreach (var v in Versions.AsEnumerable().Reverse())
+                    {
+                        <div class="vlog-version-row @(v.Id == SelectedVersionId ? "active" : "")">
+                            <button class="vlog-version-select" @onclick="() => SelectVersion(v.Id)">
+                                @v.Label
+                                <span class="vlog-version-date">@v.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                            </button>
+                            @if (v.Id != "v0")
+                            {
+                                <button class="vlog-version-delete" title="Slet version" @onclick="() => DeleteVersion(v.Id)">🗑</button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="home-section vlog-effects">
+                <div class="vlog-section-title">Video-effekter</div>
+                <div class="vlog-effect-grid">
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Hvidbalance", new VlogEffectOptions { WhiteBalance = true })'>Hvidbalance</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Eksponering/kontrast", new VlogEffectOptions { ExposureContrast = true })'>Eksponering/kontrast</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Mætning", new VlogEffectOptions { SaturationVibrance = true })'>Mætning</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Farvegrading", new VlogEffectOptions { ColorGrade = true })'>Farvegrading</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Skarphed", new VlogEffectOptions { Sharpen = true })'>Skarphed</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Støjreduktion", new VlogEffectOptions { NoiseReduction = true })'>Støjreduktion</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Flimmer-fix", new VlogEffectOptions { Deflicker = true })'>Flimmer-fix</button>
+                </div>
+
+                <div class="vlog-section-title">Lyd-effekter</div>
+                <div class="vlog-effect-grid">
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Lydstøjreduktion", new VlogEffectOptions { AudioNoiseReduction = true })'>Lydstøjreduktion</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Vindstøj", new VlogEffectOptions { WindNoiseReduction = true })'>Fjern vindstøj</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Brumfjerner", new VlogEffectOptions { HumRemoval = true })'>Fjern brum</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Lyd-EQ", new VlogEffectOptions { AudioEq = true })'>Lyd-EQ</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("De-ess", new VlogEffectOptions { DeEss = true })'>De-ess</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Lydkomprimering", new VlogEffectOptions { AudioCompression = true })'>Lydkomprimering</button>
+                    <button class="btn-secondary" disabled="@(Busy || IsCurrentAudio)" @onclick='() => ApplyEffect("Lydnormalisering", new VlogEffectOptions { LoudnessNormalization = true })'>Lydnormalisering</button>
+                </div>
+            </div>
+
+            <div class="home-section vlog-ai">
+                <div class="vlog-section-title">🤖 Spørg AI</div>
+                <p class="vlog-ai-hint">AI hjælper med at se på klippet - den laver ikke filmen for dig.</p>
+
+                <label class="home-label">Sammenlign med (valgfrit)</label>
+                <select class="home-input" @bind="CompareVersionId">
+                    <option value="">Ingen - kun nuværende version</option>
+                    @foreach (var v in Versions.Where(v => v.Id != SelectedVersionId && !IsAudio(v.FilePath)))
+                    {
+                        <option value="@v.Id">@v.Label</option>
+                    }
+                </select>
+
+                <input class="home-input" @bind="AiQuestion" @bind:event="oninput" placeholder="Er der forskel på de to klip?" />
+                <button class="btn-primary" @onclick="AskAi" disabled="@(AiBusy || string.IsNullOrWhiteSpace(AiQuestion))">
+                    @(AiBusy ? "Spørger..." : "Spørg")
+                </button>
+
+                @if (!string.IsNullOrWhiteSpace(AiAnswer))
+                {
+                    <div class="vlog-ai-answer">@AiAnswer</div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string FolderPath = "";
+    private List<string> Files = [];
+    private string? SelectedFile;
+    private List<VlogVersion> Versions = [];
+    private string? SelectedVersionId;
+    private string? ErrorMessage;
+    private bool Busy;
+    private string BusyLabel = "";
+
+    private string AiQuestion = "";
+    private string? AiAnswer;
+    private bool AiBusy;
+    private string CompareVersionId = "";
+
+    private static readonly string[] VideoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".m4v"];
+
+    private VlogVersion? CurrentVersion =>
+        Versions.FirstOrDefault(v => v.Id == SelectedVersionId);
+
+    private bool IsCurrentAudio =>
+        CurrentVersion is not null && IsAudio(CurrentVersion.FilePath);
+
+    private void BrowseFolder()
+    {
+        ErrorMessage = null;
+        Files = [];
+        SelectedFile = null;
+
+        if (string.IsNullOrWhiteSpace(FolderPath) || !Directory.Exists(FolderPath))
+        {
+            ErrorMessage = "Mappen findes ikke.";
+            return;
+        }
+
+        Files = Directory.EnumerateFiles(FolderPath)
+            .Where(f => VideoExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .OrderBy(f => f)
+            .ToList();
+
+        if (Files.Count == 0)
+        {
+            ErrorMessage = "Ingen videofiler fundet i mappen.";
+        }
+    }
+
+    private void SelectFile(string file)
+    {
+        ErrorMessage = null;
+        SelectedFile = file;
+        Versions = Editor.LoadVersions(file);
+        SelectedVersionId = Versions.LastOrDefault()?.Id;
+    }
+
+    private void SelectVersion(string id) => SelectedVersionId = id;
+
+    private void DeleteVersion(string id)
+    {
+        if (SelectedFile is null) return;
+        Editor.DeleteVersion(SelectedFile, id);
+        Versions = Editor.LoadVersions(SelectedFile);
+        if (SelectedVersionId == id)
+        {
+            SelectedVersionId = Versions.LastOrDefault()?.Id;
+        }
+    }
+
+    private Task ApplyOptimize() => ApplyEffect("Optimér", VlogEffectOptions.Optimize());
+
+    private async Task ApplyEffect(string label, VlogEffectOptions options)
+    {
+        if (SelectedFile is null || CurrentVersion is null) return;
+
+        ErrorMessage = null;
+        Busy = true;
+        BusyLabel = label;
+        StateHasChanged();
+
+        try
+        {
+            var newVersion = await Editor.ApplyEffectsAsync(SelectedFile, CurrentVersion.FilePath, label, options, CancellationToken.None);
+            Versions = Editor.LoadVersions(SelectedFile);
+            SelectedVersionId = newVersion.Id;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private async Task ExtractAudio()
+    {
+        if (SelectedFile is null || CurrentVersion is null) return;
+
+        ErrorMessage = null;
+        Busy = true;
+        BusyLabel = "Udtrækker lyd";
+        StateHasChanged();
+
+        try
+        {
+            var workspace = VlogEditorService.WorkspaceRoot(SelectedFile);
+            var audioPath = await Ffmpeg.ExtractAudioAsync(CurrentVersion.FilePath, Path.Combine(workspace, "runs", "audio"), CancellationToken.None);
+            var newVersion = Editor.RegisterExternalVersion(SelectedFile, "🎧 Lyd", audioPath);
+            Versions = Editor.LoadVersions(SelectedFile);
+            SelectedVersionId = newVersion.Id;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private async Task AskAi()
+    {
+        if (SelectedFile is null || CurrentVersion is null || string.IsNullOrWhiteSpace(AiQuestion)) return;
+
+        AiBusy = true;
+        AiAnswer = null;
+        StateHasChanged();
+
+        try
+        {
+            if (IsAudio(CurrentVersion.FilePath))
+            {
+                AiAnswer = "AI kan kun se på billeder fra en video-version - vælg en videoversion (ikke en lydudtrækning) i versionslisten først.";
+                return;
+            }
+
+            var workspace = VlogEditorService.WorkspaceRoot(SelectedFile);
+            var frameDir = Path.Combine(workspace, "runs", "frames");
+
+            var frames = new List<string>();
+            frames.AddRange(await Ffmpeg.ExtractFramesAsync(CurrentVersion.FilePath, frameDir, 3, CancellationToken.None));
+
+            if (!string.IsNullOrEmpty(CompareVersionId))
+            {
+                var compareVersion = Versions.FirstOrDefault(v => v.Id == CompareVersionId);
+                if (compareVersion is not null && !IsAudio(compareVersion.FilePath))
+                {
+                    frames.AddRange(await Ffmpeg.ExtractFramesAsync(compareVersion.FilePath, frameDir, 3, CancellationToken.None));
+                }
+            }
+
+            AiAnswer = await Ai.AskAsync(AiQuestion, frames, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            AiAnswer = $"Noget gik galt: {ex.Message}";
+        }
+        finally
+        {
+            AiBusy = false;
+        }
+    }
+
+    private static bool IsAudio(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() is ".mp3" or ".wav";
+
+    private static string MediaUrl(string path) => $"/api/media?path={Uri.EscapeDataString(path)}";
+}
