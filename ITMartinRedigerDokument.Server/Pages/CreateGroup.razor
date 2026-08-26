@@ -1,0 +1,94 @@
+@page "/"
+@rendermode InteractiveServer
+@inject RedigerDbContext Db
+@inject NavigationManager Nav
+
+<div class="create-wrap">
+    <div class="create-card">
+        <div style="font-size:48px;margin-bottom:12px">📝</div>
+        <h1 class="create-title">Opret team</h1>
+        <p class="create-sub">Dokumenter og opgaver — ét sted for hele teamet</p>
+
+        @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
+
+        <div class="create-field"><label>Team-navn</label><input @bind="_name" placeholder="fx AeroMedRecord" class="create-input" maxlength="100" /></div>
+        <div class="create-field">
+            <label>Adgangskode til teamet</label>
+            <input @bind="_invite" placeholder="f.eks. aeromed2026" class="create-input" maxlength="40" />
+            <div class="create-hint-text">Den kode som teammedlemmer skal bruge for at tilmelde sig.</div>
+        </div>
+        <div class="create-field">
+            <label>Din personlige PIN</label>
+            <input @bind="_pin" type="password" placeholder="min. 4 cifre" class="create-input" maxlength="20" />
+        </div>
+        <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">@(_creating ? "Opretter..." : "Opret team")</button>
+
+        <div style="margin-top:20px;font-size:13px;color:var(--muted)">
+            Har du allerede en team-kode? <a href="/g/join">Deltag i et team</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .create-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .create-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 480px; text-align: center; color: var(--text); }
+    .create-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; }
+    .create-sub { font-size: 14px; color: var(--muted); margin: 0 0 28px; }
+    .create-field { text-align: left; margin-bottom: 14px; }
+    .create-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .create-hint-text { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+    .create-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none; box-sizing: border-box; }
+    .create-input:focus { border-color: var(--accent); }
+    .create-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .create-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .create-btn:disabled { opacity: .5; cursor: default; }
+    .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; text-align: left; }
+</style>
+
+@code {
+    private string _name = "", _invite = "", _pin = "";
+    private string? _error;
+    private bool _creating;
+
+    private static string Slugify(string name) =>
+        new(name.Trim().ToLowerInvariant().Where(c => char.IsLetterOrDigit(c) || c == '-').ToArray());
+
+    private async Task CreateAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv et team-navn."; return; }
+        if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en adgangskode."; return; }
+        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din personlige PIN."; return; }
+
+        var slug = Slugify(_name);
+        if (slug.Length == 0) { _error = "Team-navnet skal indeholde bogstaver eller tal."; return; }
+
+        _creating = true;
+        StateHasChanged();
+
+        try
+        {
+            if (await Db.Groups.AnyAsync(g => g.Slug == slug))
+            {
+                _error = $"Et team med navnet \"{_name}\" findes allerede.";
+                _creating = false;
+                return;
+            }
+
+            Db.Groups.Add(new Group
+            {
+                Slug = slug,
+                Name = _name.Trim(),
+                InviteCode = _invite.Trim(),
+                AdminPin = SecretHasher.Hash(_pin.Trim()),
+            });
+            await Db.SaveChangesAsync();
+            Nav.NavigateTo($"/g/{slug}/join", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Noget gik galt: {ex.Message}";
+            _creating = false;
+        }
+    }
+}

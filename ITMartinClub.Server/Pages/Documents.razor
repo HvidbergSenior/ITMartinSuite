@@ -5,7 +5,6 @@
 @inject IJSRuntime JS
 @inject ClubBroadcastService Broadcast
 @inject ClubAuthService ClubAuth
-@inject IConfiguration Config
 @implements IDisposable
 
 @if (!_loaded)
@@ -27,9 +26,9 @@ else
                 <a class="link-card" href="/g/@Slug/opponents" style="margin-bottom:14px">🕵️ Modstandere - se eller tag folk I har mødt</a>
             }
 
+            <div class="doc-toolbar"><h2 class="doc-title">🎬 Seneste resuméer</h2></div>
             @if (_recentRecaps.Count > 0)
             {
-                <div class="doc-toolbar"><h2 class="doc-title">🎬 Seneste resuméer</h2></div>
                 @foreach (var recap in _recentRecaps)
                 {
                     <div class="recap-box @(recap.Kind == "Practice" ? "practice" : "")">
@@ -39,67 +38,9 @@ else
                     </div>
                 }
             }
-
-            <div class="doc-toolbar">
-                <h2 class="doc-title">Dokumenter</h2>
-                <button class="doc-upload-btn" @onclick="() => _uploading = !_uploading">
-                    @(_uploading ? "✕ Annuller" : "+ Upload dokument")
-                </button>
-            </div>
-
-            @if (_uploading)
+            else
             {
-                <div class="doc-upload-card">
-                    <div class="doc-field">
-                        <label>Titel</label>
-                        <input @bind="_newTitle" placeholder="Hvad er dokumentet?" class="doc-input" maxlength="120" />
-                    </div>
-                    <div class="doc-field">
-                        <label>Fil (PDF, Word, billede mm.)</label>
-                        <InputFile OnChange="OnFileSelected" class="doc-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt" />
-                    </div>
-                    @if (!string.IsNullOrEmpty(_uploadError))
-                    {
-                        <div class="doc-error">@_uploadError</div>
-                    }
-                    <button class="doc-save-btn" @onclick="UploadAsync" disabled="@(_uploading && _selectedFile == null || string.IsNullOrWhiteSpace(_newTitle))">
-                        @(_saving ? "Uploader..." : "Upload")
-                    </button>
-                </div>
-            }
-
-            @if (!_docs.Any())
-            {
-                <div class="doc-empty">Ingen dokumenter endnu. Upload det første!</div>
-            }
-            @foreach (var doc in _docs)
-            {
-                var isRead = doc.Reads.Any(r => r.MemberId == _member.Id);
-                <div class="doc-row @(isRead ? "" : "doc-unread")" @onclick="() => OpenDocAsync(doc)">
-                    <div class="doc-icon">@FileIcon(doc.OriginalFileName)</div>
-                    <div class="doc-info">
-                        <div class="doc-doc-title">
-                            @if (!isRead) { <span class="doc-new-badge">NYT</span> }
-                            @doc.Title
-                        </div>
-                        <div class="doc-meta">@doc.OriginalFileName · @doc.UploadedByName · @doc.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</div>
-                        <div class="doc-reads">
-                            @{
-                                var readers = doc.Reads.Select(r => r.Member.Name).ToList();
-                                var nonReaders = _allMembers.Where(m => !doc.Reads.Any(r => r.MemberId == m.Id)).Select(m => m.Name).ToList();
-                            }
-                            @if (readers.Any())
-                            {
-                                <span class="doc-read-yes">✓ @string.Join(", ", readers)</span>
-                            }
-                            @if (nonReaders.Any())
-                            {
-                                <span class="doc-read-no">⏳ @string.Join(", ", nonReaders)</span>
-                            }
-                        </div>
-                    </div>
-                    <div class="doc-arrow">↓</div>
-                </div>
+                <div class="doc-empty">Ingen resuméer endnu.</div>
             }
         </div>
     </div>
@@ -109,31 +50,7 @@ else
     .doc-body { padding: 16px; }
     .doc-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .doc-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
-    .doc-upload-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .doc-upload-btn:hover { background: #1d4ed8; }
-    .doc-upload-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
-    .doc-field { margin-bottom: 14px; }
-    .doc-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
-    .doc-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
-    .doc-input:focus { border-color: var(--accent); }
-    .doc-file-input { color: var(--muted); font-size: 13px; }
-    .doc-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
-    .doc-save-btn:disabled { opacity: .4; cursor: default; }
-    .doc-save-btn:hover:not(:disabled) { background: #15803d; }
-    .doc-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--red); margin-bottom: 12px; }
     .doc-empty { text-align: center; color: var(--muted); padding: 60px 0; font-size: 15px; }
-    .doc-row { display: flex; align-items: flex-start; gap: 14px; padding: 14px 12px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; cursor: pointer; background: var(--card); transition: background .15s; }
-    .doc-row:hover { background: var(--surface); }
-    .doc-unread { border-color: rgba(59,130,246,.3); background: rgba(59,130,246,.05); }
-    .doc-icon { font-size: 28px; }
-    .doc-info { flex: 1; }
-    .doc-doc-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; color: var(--text); }
-    .doc-new-badge { background: var(--accent); color: white; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
-    .doc-meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-    .doc-reads { font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
-    .doc-read-yes { color: var(--green); }
-    .doc-read-no { color: var(--muted); }
-    .doc-arrow { font-size: 18px; color: var(--muted); padding-top: 4px; }
 
     .recap-box { background: rgba(168,85,247,.08); border: 1px solid rgba(168,85,247,.25); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
     .recap-box.practice { background: rgba(14,165,233,.08); border-color: rgba(14,165,233,.25); }
@@ -148,13 +65,6 @@ else
     private Member? _member;
     private Group? _group;
     private bool _loaded;
-    private bool _uploading;
-    private bool _saving;
-    private string _newTitle = "";
-    private IBrowserFile? _selectedFile;
-    private string _uploadError = "";
-    private List<Document> _docs = [];
-    private List<Member> _allMembers = [];
     private List<SessionRecap> _recentRecaps = [];
     private bool _hasMainTasks;
 
@@ -181,93 +91,12 @@ else
 
     private async Task RefreshAsync()
     {
-        _docs = await Db.Documents
-            .Include(d => d.Reads).ThenInclude(r => r.Member)
-            .Where(d => d.GroupId == _group!.Id)
-            .OrderByDescending(d => d.UploadedAt)
-            .ToListAsync();
-
-        _allMembers = await Db.Members.Where(m => m.GroupId == _group!.Id).ToListAsync();
-
         _recentRecaps = await Db.SessionRecaps
             .Where(r => r.GroupId == _group!.Id)
             .OrderByDescending(r => r.CreatedAt)
             .Take(5)
             .ToListAsync();
     }
-
-    private void OnFileSelected(InputFileChangeEventArgs e) => _selectedFile = e.File;
-
-    private async Task OpenDocAsync(Document doc)
-    {
-        if (!doc.Reads.Any(r => r.MemberId == _member!.Id))
-        {
-            Db.DocumentReads.Add(new DocumentRead { DocumentId = doc.Id, MemberId = _member!.Id });
-            await Db.SaveChangesAsync();
-            Broadcast.Broadcast(_group!.Id);
-        }
-        await JS.InvokeVoidAsync("open", $"/download/{doc.Id}", "_blank");
-    }
-
-    private async Task UploadAsync()
-    {
-        _uploadError = "";
-        if (_selectedFile == null) { _uploadError = "Vælg en fil."; return; }
-        if (string.IsNullOrWhiteSpace(_newTitle)) { _uploadError = "Skriv en titel."; return; }
-        if (_selectedFile.Size > 10 * 1024 * 1024) { _uploadError = "Filen er for stor (max 10 MB)."; return; }
-
-        _saving = true;
-        StateHasChanged();
-
-        try
-        {
-            var docsRoot = Config["ClubSettings:DocsRoot"] ?? "/app/data/documents";
-            var dir = Path.Combine(docsRoot, _group!.Id.ToString());
-            Directory.CreateDirectory(dir);
-            var ext = Path.GetExtension(_selectedFile.Name);
-            var stored = $"{Guid.NewGuid()}{ext}";
-            var path = Path.Combine(dir, stored);
-
-            await using var fs = new FileStream(path, FileMode.Create);
-            await _selectedFile.OpenReadStream(10 * 1024 * 1024).CopyToAsync(fs);
-
-            var doc = new Document
-            {
-                GroupId = _group.Id,
-                Title = _newTitle.Trim(),
-                OriginalFileName = _selectedFile.Name,
-                StoredFileName = stored,
-                UploadedByName = _member!.Name,
-            };
-            Db.Documents.Add(doc);
-            await Db.SaveChangesAsync();
-            Broadcast.Broadcast(_group.Id);
-
-            _newTitle = "";
-            _selectedFile = null;
-            _uploading = false;
-            await RefreshAsync();
-        }
-        catch (Exception ex)
-        {
-            _uploadError = ex.Message;
-        }
-        finally
-        {
-            _saving = false;
-            StateHasChanged();
-        }
-    }
-
-    private static string FileIcon(string fileName) => Path.GetExtension(fileName).ToLower() switch
-    {
-        ".pdf" => "📕",
-        ".doc" or ".docx" => "📘",
-        ".xls" or ".xlsx" => "📗",
-        ".ppt" or ".pptx" => "📙",
-        ".jpg" or ".jpeg" or ".png" => "🖼️",
-        _ => "📄"
-    };
 
     private void OnBroadcast() => InvokeAsync(async () => { await RefreshAsync(); StateHasChanged(); });
     public void Dispose() { if (_group != null) Broadcast.Unsubscribe(_group.Id, OnBroadcast); }

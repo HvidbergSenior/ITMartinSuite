@@ -1,0 +1,233 @@
+@page "/g/{Slug}/documents/{DocId:guid}"
+@rendermode InteractiveServer
+@inject RedigerDbContext Db
+@inject RedigerAuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+
+@if (_document is null || _me is null)
+{
+    <p style="padding:20px">Indlæser...</p>
+}
+else
+{
+    <div class="doc-wrap">
+        <a href="/g/@Slug" class="back-link">&larr; @_group?.Name</a>
+        <header class="doc-header">
+            <h1>@_document.Title</h1>
+            <a class="btn-ghost" href="/download/@_document.Id">⬇ Download original (.docx)</a>
+        </header>
+        <div class="doc-meta">Uploadet af @_document.UploadedByName</div>
+
+        @foreach (var section in _sections)
+        {
+            <div class="section-card">
+                @if (!string.IsNullOrWhiteSpace(section.Heading))
+                {
+                    <div class="section-heading">@(section.Heading)</div>
+                }
+
+                @if (_editingSectionId == section.Id)
+                {
+                    <textarea class="section-edit" @bind="_editText" rows="6"></textarea>
+                    <div class="section-actions">
+                        <button class="btn-primary" @onclick="() => SaveSectionAsync(section)">Gem</button>
+                        <button class="btn-ghost" @onclick="() => _editingSectionId = null">Annullér</button>
+                    </div>
+                }
+                else
+                {
+                    <p class="section-text">@(section.Text)</p>
+                    <div class="section-meta">sidst redigeret af @(string.IsNullOrEmpty(section.LastEditedByName) ? "-" : section.LastEditedByName)</div>
+                    <div class="section-actions">
+                        <button class="btn-ghost" @onclick="() => StartEdit(section)">✎ Redigér</button>
+                        <button class="btn-ghost" @onclick="() => ToggleComments(section.Id)">💬 @_comments.GetValueOrDefault(section.Id)?.Count kommentar(er)</button>
+                        <button class="btn-ghost" @onclick="() => ToggleRefs(section.Id)">🔗 @_references.GetValueOrDefault(section.Id)?.Count reference(r)</button>
+                    </div>
+                }
+
+                @if (_openComments.Contains(section.Id))
+                {
+                    <div class="comment-box">
+                        @foreach (var c in _comments.GetValueOrDefault(section.Id) ?? [])
+                        {
+                            <div class="comment-row"><b>@c.AuthorName:</b> @c.Text</div>
+                        }
+                        <div class="comment-add">
+                            <input @bind="_newComment[section.Id]" placeholder="Skriv en kommentar..." class="task-add-input" @onkeydown="e => OnCommentKeyDown(e, section)" />
+                        </div>
+                    </div>
+                }
+
+                @if (_openRefs.Contains(section.Id))
+                {
+                    <div class="comment-box">
+                        @foreach (var r in _references.GetValueOrDefault(section.Id) ?? [])
+                        {
+                            <div class="comment-row">
+                                @if (r.Assignment is not null) { <span>✅ @r.Assignment.Title</span> }
+                                @if (!string.IsNullOrWhiteSpace(r.CodeReference)) { <span>💻 @r.CodeReference</span> }
+                            </div>
+                        }
+                        <div class="ref-add">
+                            <select @bind="_newRefTaskId[section.Id]" class="task-add-input">
+                                <option value="">(ingen opgave)</option>
+                                @foreach (var a in _allAssignments)
+                                {
+                                    <option value="@a.Id">@a.Title</option>
+                                }
+                            </select>
+                            <input @bind="_newRefCode[section.Id]" placeholder="Kode-reference (fil/linje eller URL)" class="task-add-input" />
+                            <button class="btn-ghost" @onclick="() => AddReferenceAsync(section)">+ Tilføj</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <style>
+        .doc-wrap { max-width: 800px; margin: 0 auto; padding: 20px 16px 64px; color: var(--text); }
+        .back-link { color: var(--muted); font-size: 13px; text-decoration: none; }
+        .doc-header { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+        .doc-header h1 { margin: 0; font-size: 22px; }
+        .doc-meta { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+        .section-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+        .section-heading { font-weight: 700; color: var(--accent); margin-bottom: 6px; font-size: 14px; }
+        .section-text { white-space: pre-wrap; margin: 0 0 8px; line-height: 1.5; }
+        .section-meta { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+        .section-edit { width: 100%; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; padding: 10px; color: var(--text); font-size: 14px; box-sizing: border-box; font-family: inherit; }
+        .section-actions { display: flex; gap: 8px; margin-top: 6px; }
+        .btn-primary { background: var(--accent); color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; text-decoration: none; }
+        .comment-box { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+        .comment-row { font-size: 13px; padding: 4px 0; }
+        .comment-add, .ref-add { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+        .task-add-input { flex: 1; min-width: 140px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text); font-size: 12px; box-sizing: border-box; }
+    </style>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [Parameter] public Guid DocId { get; set; }
+
+    private Group? _group;
+    private Member? _me;
+    private Document? _document;
+    private List<DocumentSection> _sections = [];
+    private List<Assignment> _allAssignments = [];
+    private Dictionary<Guid, List<Comment>> _comments = [];
+    private Dictionary<Guid, List<Reference>> _references = [];
+    private HashSet<Guid> _openComments = [];
+    private HashSet<Guid> _openRefs = [];
+    private Dictionary<Guid, string> _newComment = [];
+    private Dictionary<Guid, string> _newRefCode = [];
+    private Dictionary<Guid, string> _newRefTaskId = [];
+
+    private Guid? _editingSectionId;
+    private string _editText = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_group is null) return;
+
+        var session = await Auth.ResolveSessionAsync(Js, Db, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _me = session.Member;
+
+        _document = await Db.Documents.FirstOrDefaultAsync(d => d.Id == DocId && d.GroupId == _group.Id);
+        if (_document is null) return;
+
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        _sections = await Db.Sections.Where(s => s.DocumentId == DocId).OrderBy(s => s.SortOrder).ToListAsync();
+        _allAssignments = await Db.Assignments.Where(a => a.GroupId == _group!.Id).OrderBy(a => a.CreatedAt).ToListAsync();
+
+        _comments = (await Db.Comments.Where(c => _sections.Select(s => s.Id).Contains(c.SectionId)).OrderBy(c => c.CreatedAt).ToListAsync())
+            .GroupBy(c => c.SectionId).ToDictionary(g => g.Key, g => g.ToList());
+
+        _references = (await Db.References.Include(r => r.Assignment).Where(r => _sections.Select(s => s.Id).Contains(r.SectionId)).OrderBy(r => r.CreatedAt).ToListAsync())
+            .GroupBy(r => r.SectionId).ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var s in _sections)
+        {
+            _newComment.TryAdd(s.Id, "");
+            _newRefCode.TryAdd(s.Id, "");
+            _newRefTaskId.TryAdd(s.Id, "");
+        }
+    }
+
+    private void StartEdit(DocumentSection section)
+    {
+        _editingSectionId = section.Id;
+        _editText = section.Text;
+    }
+
+    private async Task SaveSectionAsync(DocumentSection section)
+    {
+        Db.SectionVersions.Add(new SectionVersion { SectionId = section.Id, Text = section.Text, EditedByName = section.LastEditedByName });
+
+        section.Text = _editText;
+        section.LastEditedByName = _me!.Name;
+        section.LastEditedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+
+        _editingSectionId = null;
+        await LoadAsync();
+    }
+
+    private void ToggleComments(Guid sectionId)
+    {
+        if (!_openComments.Add(sectionId)) _openComments.Remove(sectionId);
+    }
+
+    private void ToggleRefs(Guid sectionId)
+    {
+        if (!_openRefs.Add(sectionId)) _openRefs.Remove(sectionId);
+    }
+
+    private async Task OnCommentKeyDown(KeyboardEventArgs e, DocumentSection section)
+    {
+        if (e.Key != "Enter") return;
+        var text = _newComment.GetValueOrDefault(section.Id, "").Trim();
+        if (text.Length == 0) return;
+
+        Db.Comments.Add(new Comment { SectionId = section.Id, GroupId = _group!.Id, AuthorName = _me!.Name, Text = text });
+        await Db.SaveChangesAsync();
+        _newComment[section.Id] = "";
+        await LoadAsync();
+    }
+
+    private async Task AddReferenceAsync(DocumentSection section)
+    {
+        var taskIdText = _newRefTaskId.GetValueOrDefault(section.Id, "");
+        var code = _newRefCode.GetValueOrDefault(section.Id, "").Trim();
+        Guid? assignmentId = Guid.TryParse(taskIdText, out var parsed) ? parsed : null;
+
+        if (assignmentId is null && code.Length == 0) return;
+
+        Db.References.Add(new Reference
+        {
+            GroupId = _group!.Id,
+            SectionId = section.Id,
+            AssignmentId = assignmentId,
+            CodeReference = code.Length > 0 ? code : null,
+            CreatedByName = _me!.Name,
+        });
+        await Db.SaveChangesAsync();
+        _newRefCode[section.Id] = "";
+        _newRefTaskId[section.Id] = "";
+        await LoadAsync();
+    }
+}

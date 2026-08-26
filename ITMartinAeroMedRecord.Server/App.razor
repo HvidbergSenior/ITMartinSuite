@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('rd_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>AeroMedRecord</title>
+    <base href="/" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="ITMartinAeroMedRecord.Server.styles.css?v=@CacheBuster" />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script>
+        window.aeroJs = {
+            getSession: function () {
+                var ls = localStorage.getItem('rd_session');
+                if (ls) return ls;
+                var m = document.cookie.match(/(?:^|;\s*)rd_session=([^;]+)/);
+                return m ? m[1] : null;
+            },
+            setSession: function (v) {
+                localStorage.setItem('rd_session', v);
+                document.cookie = 'rd_session=' + v + ';path=/;max-age=2592000;samesite=lax';
+            },
+            clearSession: function () {
+                localStorage.removeItem('rd_session');
+                document.cookie = 'rd_session=;path=/;max-age=0';
+            }
+        };
+    </script>
+    <div id="components-reconnect-modal">
+        <span class="reconnect-msg">Forbinder igen...</span>
+        <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+    </div>
+</body>
+</html>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

@@ -33,11 +33,105 @@ window.starrealms = (function() {
         } catch (e) { /* audio not available */ }
     }
 
+    // Filtered white-noise burst - the basis for thuds, crunches, farts and
+    // other "physical" sounds a pure oscillator can't produce.
+    function noiseBurst(duration, gainPeak, filterType, filterFreq, filterQ) {
+        try {
+            var c = audioCtx();
+            var size = Math.max(1, Math.floor(c.sampleRate * duration));
+            var buffer = c.createBuffer(1, size, c.sampleRate);
+            var data = buffer.getChannelData(0);
+            for (var i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+            var src = c.createBufferSource();
+            src.buffer = buffer;
+            var filter = c.createBiquadFilter();
+            filter.type = filterType || "lowpass";
+            filter.frequency.setValueAtTime(filterFreq || 800, c.currentTime);
+            if (filterQ) filter.Q.setValueAtTime(filterQ, c.currentTime);
+            var gain = c.createGain();
+            gain.gain.setValueAtTime(0, c.currentTime);
+            gain.gain.linearRampToValueAtTime(gainPeak || 0.15, c.currentTime + 0.005);
+            gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(c.destination);
+            src.start(c.currentTime);
+            src.stop(c.currentTime + duration);
+        } catch (e) { /* audio not available */ }
+    }
+
+    // A pitch-sweeping oscillator with an LFO wobbling its frequency - the
+    // basis for farts, quacks, kazoos and other comedic "wah-wah" tones.
+    function wobbleTone(freqStart, freqEnd, duration, type, gainPeak, wobbleRate, wobbleDepth) {
+        try {
+            var c = audioCtx();
+            var osc = c.createOscillator();
+            var lfo = c.createOscillator();
+            var lfoGain = c.createGain();
+            var gain = c.createGain();
+            osc.type = type || "sawtooth";
+            osc.frequency.setValueAtTime(freqStart, c.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), c.currentTime + duration);
+            lfo.frequency.setValueAtTime(wobbleRate || 30, c.currentTime);
+            lfoGain.gain.setValueAtTime(wobbleDepth || 40, c.currentTime);
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            gain.gain.setValueAtTime(0, c.currentTime);
+            gain.gain.linearRampToValueAtTime(gainPeak || 0.15, c.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(c.destination);
+            osc.start(c.currentTime); lfo.start(c.currentTime);
+            osc.stop(c.currentTime + duration); lfo.stop(c.currentTime + duration);
+        } catch (e) { /* audio not available */ }
+    }
+
+    // ~30 different "you got hit" sound flavors, picked at random each time
+    // so repeated damage during a game doesn't turn into the same beep over
+    // and over. Each takes the magnitude tier (duration/gain, already scaled
+    // by how many points were lost) so a small ding and a big shot both keep
+    // the "bigger hit = bigger sound" feel regardless of flavor. A handful
+    // are silly on purpose (fart, quack, boing, kazoo, trombone).
+    var HIT_SOUNDS = [
+        function(t) { tone(720, 90, t.dur, "sawtooth", t.gain); },                                   // classic zap
+        function(t) { tone(600, 40, t.dur, "square", t.gain); },                                     // 8-bit hit
+        function(t) { tone(1400, 200, t.dur * 0.7, "sawtooth", t.gain); },                            // laser
+        function(t) { noiseBurst(t.dur, t.gain, "lowpass", 300, 1); },                                // dull thud
+        function(t) { noiseBurst(t.dur * 0.6, t.gain * 1.1, "bandpass", 1200, 4); },                  // crack
+        function(t) { tone(900, 100, t.dur, "square", t.gain * 0.9); setTimeout(function() { noiseBurst(t.dur * 0.4, t.gain * 0.6, "lowpass", 500); }, t.dur * 300); }, // metallic clank
+        function(t) { tone(2200, 1800, 0.05, "square", t.gain); setTimeout(function() { tone(2200, 1800, 0.05, "square", t.gain); }, 90); }, // alarm blip x2
+        function(t) { tone(300, 900, t.dur * 0.5, "sine", t.gain * 0.8); setTimeout(function() { tone(900, 60, t.dur * 0.6, "sawtooth", t.gain); }, t.dur * 200); }, // sci-fi pew-thud
+        function(t) { noiseBurst(t.dur, t.gain, "highpass", 3000, 2); },                              // glass shatter
+        function(t) { tone(150, 40, t.dur, "square", t.gain); noiseBurst(t.dur, t.gain * 0.7, "lowpass", 200); }, // explosion crackle
+        function(t) { tone(80, 55, t.dur * 1.2, "sine", t.gain * 1.1); },                             // deep gong thump
+        function(t) { tone(500, 480, 0.03, "square", t.gain); setTimeout(function() { tone(500, 480, 0.03, "square", t.gain); }, 60); setTimeout(function() { tone(500, 480, 0.03, "square", t.gain); }, 120); }, // robotic beep-boop-beep
+        function(t) { tone(1000, 20, t.dur, "triangle", t.gain); },                                   // power-down whirr
+        function(t) { noiseBurst(t.dur * 0.5, t.gain, "bandpass", 200, 8); },                         // punch thud
+        function(t) { tone(2500, 400, t.dur * 0.8, "sawtooth", t.gain * 0.8); },                      // whip crack
+        function(t) { tone(60, 60, t.dur, "square", t.gain); },                                       // anvil clang (flat low buzz)
+        function(t) { noiseBurst(t.dur, t.gain * 0.9, "lowpass", 900); tone(400, 100, t.dur * 0.5, "sawtooth", t.gain * 0.6); }, // crash bang
+        function(t) { tone(1600, 1900, 0.05, "sine", t.gain); setTimeout(function() { tone(1900, 1500, 0.05, "sine", t.gain); }, 60); }, // radio static pop
+        // ── funny / comedic ──────────────────────────────────────────────
+        function(t) { wobbleTone(180, 45, t.dur * 1.3, "sawtooth", t.gain, 55, 60); },                // fart
+        function(t) { wobbleTone(150, 35, t.dur * 1.5, "square", t.gain * 1.1, 40, 80); },            // wet raspberry
+        function(t) { tone(1200, 1800, 0.08, "square", t.gain); setTimeout(function() { tone(1800, 900, 0.1, "square", t.gain * 0.8); }, 70); }, // squeaky toy
+        function(t) { tone(200, 600, t.dur * 0.5, "sine", t.gain); setTimeout(function() { tone(600, 200, t.dur * 0.5, "sine", t.gain); }, t.dur * 300); }, // boing/spring
+        function(t) { tone(500, 130, t.dur, "sawtooth", t.gain); setTimeout(function() { tone(400, 100, t.dur, "sawtooth", t.gain * 0.8); }, t.dur * 350); }, // "womp womp" trombone
+        function(t) { tone(1800, 400, t.dur, "triangle", t.gain); },                                  // slide whistle down
+        function(t) { wobbleTone(350, 250, t.dur, "sawtooth", t.gain, 90, 100); },                    // duck quack
+        function(t) { wobbleTone(90, 70, t.dur * 1.4, "sawtooth", t.gain * 1.1, 12, 20); },           // cow moo
+        function(t) { wobbleTone(260, 260, t.dur, "square", t.gain, 25, 15); },                       // kazoo buzz
+        function(t) { noiseBurst(t.dur, t.gain, "lowpass", 600); tone(900, 200, t.dur * 0.4, "sine", t.gain * 0.5); }, // balloon deflate
+        function(t) { tone(150, 400, 0.06, "sawtooth", t.gain); setTimeout(function() { tone(400, 100, t.dur, "sawtooth", t.gain * 0.9); }, 65); }, // cartoon "doh" honk
+        function(t) { wobbleTone(220, 180, t.dur * 1.2, "square", t.gain, 18, 50); },                 // gurgle/burp
+    ];
+
     // Sound + vibration scale with the SIZE of a point change, not just its
     // direction - a 1-point nudge is a joke, a 50-point swing is an event.
-    // Loss (positive=false) uses a falling sawtooth "hit"; gain uses a
-    // rising triangle "heal" - both share the same magnitude tiers so a
-    // -20 and a +20 feel equally significant, just tonally opposite.
+    // Loss (positive=false) picks a random flavor from HIT_SOUNDS so repeated
+    // damage doesn't sound identical every time; gain uses a rising triangle
+    // "heal" - both share the same magnitude tiers so a -20 and a +20 feel
+    // equally significant, just tonally opposite.
     function playImpact(amount, positive) {
         var a = Math.max(1, Math.round(Math.abs(amount)));
 
@@ -57,14 +151,16 @@ window.starrealms = (function() {
             a <= 34 ? { dur: 0.52, gain: 0.30, layers: 3 } :  // much
                       { dur: 0.75, gain: 0.40, layers: 4 };   // LOUD (50+)
 
-        for (var i = 0; i < tier.layers; i++) {
-            (function(i) {
-                setTimeout(function() {
-                    if (positive) tone(380 + i * 60, 950 + i * 120, tier.dur, "triangle", tier.gain);
-                    else tone(720 - i * 50, 90 - i * 8, tier.dur, "sawtooth", tier.gain);
-                }, i * 30);
-            })(i);
+        if (positive) {
+            for (var i = 0; i < tier.layers; i++) {
+                (function(i) {
+                    setTimeout(function() { tone(380 + i * 60, 950 + i * 120, tier.dur, "triangle", tier.gain); }, i * 30);
+                })(i);
+            }
+            return;
         }
+
+        HIT_SOUNDS[Math.floor(Math.random() * HIT_SOUNDS.length)](tier);
     }
 
     function playClick() { tone(900, 1200, 0.045, "square", 0.05); }

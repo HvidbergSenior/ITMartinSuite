@@ -1,0 +1,274 @@
+@page "/g/{Slug}"
+@rendermode InteractiveServer
+@inject RedigerDbContext Db
+@inject RedigerAuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+@inject IConfiguration Configuration
+@inject ITMartin.Documents.Interfaces.IDocxImportService DocxImport
+
+@if (_group is null)
+{
+    <p style="padding:20px">Indlæser...</p>
+}
+else
+{
+    <div class="home-wrap">
+        <header class="home-header">
+            <div>
+                <h1>@_group.Name</h1>
+                <div class="home-sub">Logget ind som @_me?.Name</div>
+                <div class="home-members">👥 @string.Join(", ", _members.Select(m => m.Name))</div>
+            </div>
+        </header>
+
+        <section class="home-section">
+            <div class="section-head">
+                <h2>📄 Dokumenter</h2>
+                <label class="btn-file">
+                    + Upload
+                    <InputFile OnChange="OnFileSelectedAsync" style="display:none" accept=".docx" />
+                </label>
+            </div>
+            @if (_uploadError is not null) { <div class="create-error">@_uploadError</div> }
+            @if (_uploading) { <div class="hint">Importerer dokument...</div> }
+
+            <div class="doc-list">
+                @foreach (var doc in _documents)
+                {
+                    <a class="doc-row" href="/g/@Slug/documents/@doc.Id">
+                        <span class="doc-title">@doc.Title</span>
+                        <span class="doc-meta">uploadet af @doc.UploadedByName</span>
+                    </a>
+                }
+                @if (_documents.Count == 0)
+                {
+                    <div class="hint">Ingen dokumenter endnu.</div>
+                }
+            </div>
+        </section>
+
+        <section class="home-section">
+            <div class="section-head">
+                <h2>✅ Opgaver</h2>
+                <button class="btn-ghost" @onclick="AddColumnAsync">+ Kolonne</button>
+            </div>
+
+            <div class="board">
+                @foreach (var col in _mainTasks)
+                {
+                    <div class="board-col">
+                        <div class="board-col-head">@col.Title</div>
+                        @foreach (var a in _assignments.Where(x => x.MainTaskId == col.Id))
+                        {
+                            <div class="task-card @(a.IsCompleted ? "done" : "")">
+                                <div class="task-card-row">
+                                    <input type="checkbox" checked="@a.IsCompleted" @onchange="e => ToggleAsync(a, (bool)e.Value!)" />
+                                    <span>@a.Title</span>
+                                </div>
+                                <select class="task-owner-select" value="@a.AssignedToName" @onchange="e => SetOwnerAsync(a, (string)e.Value!)">
+                                    <option value="">— ingen ansvarlig —</option>
+                                    @foreach (var m in _members)
+                                    {
+                                        <option value="@m.Name">@m.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        <div class="task-add-row">
+                            <input @bind="_newTaskTitle[col.Id]" placeholder="Ny opgave..." class="task-add-input" @onkeydown="e => OnTaskKeyDown(e, col.Id)" />
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+
+    <style>
+        .home-wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 64px; color: var(--text); }
+        .home-header h1 { margin: 0; font-size: 24px; }
+        .home-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+        .home-members { color: var(--muted); font-size: 13px; margin-top: 2px; }
+        .home-section { margin-top: 28px; }
+        .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .section-head h2 { margin: 0; font-size: 17px; }
+        .btn-file, .btn-ghost { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .hint { color: var(--muted); font-size: 13px; padding: 10px 0; }
+        .doc-list { display: flex; flex-direction: column; gap: 8px; }
+        .doc-row { display: flex; justify-content: space-between; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; text-decoration: none; color: var(--text); }
+        .doc-row:hover { border-color: var(--accent); }
+        .doc-title { font-weight: 600; }
+        .doc-meta { color: var(--muted); font-size: 12px; }
+        .board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+        .board-col { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 220px; flex-shrink: 0; }
+        .board-col-head { font-weight: 700; margin-bottom: 10px; font-size: 14px; }
+        .task-card { background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px; }
+        .task-card-row { display: flex; align-items: center; gap: 8px; }
+        .task-card.done span { text-decoration: line-through; color: var(--muted); }
+        .task-owner-select { width: 100%; margin-top: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-size: 11px; box-sizing: border-box; }
+        .task-add-row { margin-top: 6px; }
+        .task-add-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text); font-size: 12px; box-sizing: border-box; }
+        .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 12px; }
+    </style>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Group? _group;
+    private Member? _me;
+    private List<Document> _documents = [];
+    private List<MainTask> _mainTasks = [];
+    private List<Assignment> _assignments = [];
+    private List<Member> _members = [];
+    private Dictionary<Guid, string> _newTaskTitle = [];
+    private bool _uploading;
+    private string? _uploadError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_group is null) return;
+
+        // JS interop (reading the session id from localStorage) can only run
+        // once the circuit is interactive, not during static prerendering -
+        // that's why this lives here and not in OnInitializedAsync (same
+        // reasoning as Club's ClubAuthService callers).
+        var session = await Auth.ResolveSessionAsync(Js, Db, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _me = session.Member;
+
+        await LoadAsync();
+
+        if (_mainTasks.Count == 0)
+        {
+            Db.MainTasks.Add(new MainTask { GroupId = _group.Id, Title = "Tasks", SortOrder = 0 });
+            await Db.SaveChangesAsync();
+            await LoadAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        _documents = await Db.Documents.Where(d => d.GroupId == _group!.Id).OrderByDescending(d => d.UploadedAt).ToListAsync();
+        _mainTasks = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.SortOrder).ToListAsync();
+        _assignments = await Db.Assignments.Where(a => a.GroupId == _group!.Id).OrderBy(a => a.CreatedAt).ToListAsync();
+        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+        foreach (var col in _mainTasks)
+            _newTaskTitle.TryAdd(col.Id, "");
+    }
+
+    private async Task OnFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _uploadError = null;
+        var file = e.File;
+        if (file is null) return;
+
+        if (!file.Name.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+        {
+            _uploadError = "Kun .docx-filer understøttes.";
+            return;
+        }
+
+        _uploading = true;
+        StateHasChanged();
+
+        try
+        {
+            var docsRoot = Configuration["RedigerSettings:DocsRoot"] ?? "/app/data/documents";
+            var groupDir = Path.Combine(docsRoot, _group!.Id.ToString());
+            Directory.CreateDirectory(groupDir);
+
+            var storedFileName = $"{Guid.NewGuid():N}.docx";
+            var storedPath = Path.Combine(groupDir, storedFileName);
+
+            await using (var outStream = File.Create(storedPath))
+            await using (var inStream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024))
+            {
+                await inStream.CopyToAsync(outStream);
+            }
+
+            var document = new Document
+            {
+                GroupId = _group.Id,
+                Title = Path.GetFileNameWithoutExtension(file.Name),
+                OriginalFileName = file.Name,
+                StoredFileName = storedFileName,
+                UploadedByName = _me!.Name,
+            };
+            Db.Documents.Add(document);
+            await Db.SaveChangesAsync();
+
+            await using (var parseStream = File.OpenRead(storedPath))
+            {
+                var parsed = DocxImport.ParseDocx(parseStream);
+                Db.Sections.AddRange(parsed.Select(p => new DocumentSection
+                {
+                    DocumentId = document.Id,
+                    GroupId = _group.Id,
+                    SortOrder = p.SortOrder,
+                    Heading = p.Heading,
+                    Text = p.Text,
+                }));
+                await Db.SaveChangesAsync();
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _uploadError = $"Import fejlede: {ex.Message}";
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private async Task AddColumnAsync()
+    {
+        var nextSort = _mainTasks.Count == 0 ? 0 : _mainTasks.Max(m => m.SortOrder) + 1;
+        Db.MainTasks.Add(new MainTask { GroupId = _group!.Id, Title = "Ny kolonne", SortOrder = nextSort });
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private async Task ToggleAsync(Assignment a, bool value)
+    {
+        a.IsCompleted = value;
+        a.CompletedAt = value ? DateTime.UtcNow : null;
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task SetOwnerAsync(Assignment a, string name)
+    {
+        a.AssignedToName = name;
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task OnTaskKeyDown(KeyboardEventArgs e, Guid mainTaskId)
+    {
+        if (e.Key != "Enter") return;
+        var title = _newTaskTitle.GetValueOrDefault(mainTaskId, "").Trim();
+        if (title.Length == 0) return;
+
+        Db.Assignments.Add(new Assignment
+        {
+            GroupId = _group!.Id,
+            MainTaskId = mainTaskId,
+            Title = title,
+            CreatedByName = _me!.Name,
+        });
+        await Db.SaveChangesAsync();
+        _newTaskTitle[mainTaskId] = "";
+        await LoadAsync();
+    }
+}
