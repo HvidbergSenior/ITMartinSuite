@@ -50,6 +50,20 @@ public sealed class SmartFoldersService : ISmartFoldersService
     // (rectangular bounding boxes, some neighbour overlap) rather than a paid
     // geocoding API. Good enough for "which country was this roughly in", not
     // meant to be precise at borders.
+    //
+    // KNOWN LIMITATION (confirmed on mie's library 2026-08-26): Tyskland and
+    // Østrig's boxes overlap across the whole Alpine border region (Tyrol/
+    // Salzburg vs Bavaria) - GuessCountryForPoint returns the first box match
+    // in array order, so any point in that overlap zone resolves to whichever
+    // country is listed first (currently Tyskland), regardless of which side
+    // of the real border it's actually on. Real coordinates confirmed
+    // Hallstatt, Austria (47.33N 13.31E) misclassified as "Tyskland" this way.
+    // Reordering doesn't fix it cleanly - Munich (48.14N 11.58E, real Germany)
+    // sits inside Østrig's box too, so checking Austria first would just start
+    // misclassifying real Bavaria trips instead. A real fix needs actual
+    // country-polygon data (point-in-polygon), not another rectangle - flagged
+    // rather than silently patched. Until then, spot-check any Tyskland/Østrig
+    // trip whose GPS points fall roughly south of 48N / between 9.5E-15E.
     private static readonly (string Name, double MinLat, double MaxLat, double MinLng, double MaxLng)[] CountryBoxes =
     [
         ("Danmark", 54.5, 57.8, 8.0, 15.2),
@@ -1239,15 +1253,34 @@ public sealed class SmartFoldersService : ISmartFoldersService
     // nobody actually visited. Per-point majority vote is immune to that.
     private static string? GuessCountry(List<(string Path, DateTime Date, double? Lat, double? Lng)> cluster)
     {
-        var perPointCountries = cluster
+        var allPerPointCountries = cluster
             .Where(c => c.Lat is not null && c.Lng is not null)
             .Select(c => GuessCountryForPoint(c.Lat!.Value, c.Lng!.Value))
             .Where(name => name is not null)
             .ToList();
 
-        if (perPointCountries.Count == 0) return null;
+        if (allPerPointCountries.Count == 0) return null;
 
-        return perPointCountries
+        // Danmark points are excluded from the vote ONLY when at least one
+        // genuinely foreign point exists too - these are home-country points
+        // that are >AwayFromHomeKm from the detected home cluster but still
+        // domestic (e.g. driving to a ferry/border, or a distant Danish
+        // errand caught in the date-window backfill), and counting them
+        // toward "which foreign country was this trip in" dilutes/skews the
+        // real answer for genuinely mixed-route trips. But an all-Danmark
+        // cluster must still resolve to "Danmark" (not null) so the caller's
+        // own "country == Danmark, skip" check correctly filters it out as a
+        // domestic non-trip - excluding Danmark unconditionally here silently
+        // turned every all-Denmark cluster into an unwanted generic
+        // "Rejse {dates}" folder instead of being dropped (found on mie's
+        // library 2026-08-26: a pure-Copenhagen cluster).
+        var foreignPerPointCountries = allPerPointCountries
+            .Where(name => name != "Danmark")
+            .ToList();
+
+        var votes = foreignPerPointCountries.Count > 0 ? foreignPerPointCountries : allPerPointCountries;
+
+        return votes
             .GroupBy(name => name, StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(g => g.Count())
             .First()

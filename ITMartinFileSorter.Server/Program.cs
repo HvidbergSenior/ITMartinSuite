@@ -441,6 +441,32 @@ app.MapGet("/api/debug/sf-gps-stats", (string path, ITMartin.Media.Contracts.Con
     return Results.Ok(new { total = files.Count, withGps, sample });
 });
 
+// Same as sf-gps-stats but without the SmartFolders exclusion - for
+// inspecting real GPS points already inside a generated Trip/Person folder.
+app.MapGet("/api/debug/gps-stats-any", (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IGpsService gps) =>
+{
+    var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
+        .Where(ITMartin.Media.Contracts.Contracts.Runtime.Helpers.MediaTypeHelper.IsImage)
+        .ToList();
+
+    var withGps = 0;
+    var sample = new List<object>();
+    foreach (var f in files)
+    {
+        var coords = gps.GetCoordinates(f);
+        if (coords is not null)
+        {
+            withGps++;
+            if (sample.Count < 20) sample.Add(new { file = f, lat = coords.Value.lat, lng = coords.Value.lng });
+        }
+    }
+
+    return Results.Ok(new { total = files.Count, withGps, sample });
+});
+
+app.MapGet("/api/debug/sf-people", async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+    Results.Ok(await service.GetPeopleAsync()));
+
 app.MapPost("/api/debug/sf-add-person", async (string path, string name, string referencePhotoPath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
 {
     var bytes = await File.ReadAllBytesAsync(referencePhotoPath);
