@@ -232,24 +232,37 @@ public sealed class Package3Service : IPackage3Service
 
         if (isVideo)
         {
-            tempFrame = Path.Combine(Path.GetTempPath(), $"p3-frame-{Guid.NewGuid():N}.jpg");
-            try
+            // Package1 already generated a thumbnail for every video during
+            // sorting ("{dir}/thumbnails/{filename}.jpg") - reuse it instead
+            // of paying for a fresh ffmpeg frame-extraction per file. This is
+            // the difference between an instant DB read and a subprocess
+            // launch at library scale (thousands of loose undated videos).
+            var existingThumb = Path.Combine(Path.GetDirectoryName(file)!, "thumbnails", Path.GetFileNameWithoutExtension(file) + ".jpg");
+            if (File.Exists(existingThumb))
             {
-                await _thumbnailService.GenerateAsync(file, tempFrame, cancellationToken);
-                framePath = tempFrame;
+                framePath = existingThumb;
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogWarning(ex, "Could not extract a frame from {File} for face indexing", file);
-                db.MediaFaces.Add(new MediaFaceEntity
+                tempFrame = Path.Combine(Path.GetTempPath(), $"p3-frame-{Guid.NewGuid():N}.jpg");
+                try
                 {
-                    Id = Guid.NewGuid(),
-                    MediaFilePath = file,
-                    RelativePath = relativePath,
-                    EmbeddingJson = "[]",
-                    CreatedAtUtc = DateTimeOffset.UtcNow
-                });
-                return;
+                    await _thumbnailService.GenerateAsync(file, tempFrame, cancellationToken);
+                    framePath = tempFrame;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not extract a frame from {File} for face indexing", file);
+                    db.MediaFaces.Add(new MediaFaceEntity
+                    {
+                        Id = Guid.NewGuid(),
+                        MediaFilePath = file,
+                        RelativePath = relativePath,
+                        EmbeddingJson = "[]",
+                        CreatedAtUtc = DateTimeOffset.UtcNow
+                    });
+                    return;
+                }
             }
         }
 
@@ -955,6 +968,241 @@ public sealed class Package3Service : IPackage3Service
         }
 
         return new LivePhotoDatingResult { Checked = checkedCount, Moved = moved };
+    }
+
+    // Videoer's loose undated files sit directly at the category root (no
+    // "Undated"/"Ikke i årsmapper" subfolder convention - Package1 already
+    // tried to date these via EXIF/filename and came up empty, they're just
+    // flat in Videoer since the 2026-08-25 flatten). Matches against
+    // Billeder's already-indexed dated reference set (reuses whatever
+    // IndexFacesAsync/EstimateUndatedDatesAsync already built there - no new
+    // reference indexing here) and moves a confident match into
+    // Videoer/{year}/ - year-only, matching the flat policy already applied
+    // to Skærmbilleder/LivePhotoVideoer/Dokumenter. Its matching thumbnail
+    // (Videoer/thumbnails/{name}.jpg) follows the video into
+    // Videoer/{year}/thumbnails/. maxFiles caps how many loose videos get
+    // frame-extracted and face-indexed per run - already-indexed files are
+    // skipped on the next run (IndexFaceForFileAsync's alreadyFaceScanned
+    // check), so a capped run can be repeated to work through the backlog
+    // incrementally instead of one huge all-or-nothing pass.
+    public async Task<VideoDatingResult> DateVideosByFaceMatchAsync(
+        string libraryPath, int maxFiles = 1000, double faceThreshold = 0.5, CancellationToken cancellationToken = default)
+    {
+        var videoerFolder = Path.Combine(libraryPath, "Videoer");
+        if (!Directory.Exists(videoerFolder)) return new VideoDatingResult();
+
+        var billederFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (billederFolder is null) return new VideoDatingResult();
+
+        var undatedVideos = Directory.EnumerateFiles(videoerFolder, "*", SearchOption.TopDirectoryOnly)
+            .Where(MediaTypeHelper.IsVideo)
+            .Take(maxFiles)
+            .ToList();
+
+        var checkedCount = undatedVideos.Count;
+        var moved = 0;
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var recognizer = _faceRecognitionFactory();
+        try
+        {
+            foreach (var video in undatedVideos)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await IndexFaceForFileAsync(db, libraryPath, video, recognizer, cancellationToken);
+            }
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            (recognizer as IDisposable)?.Dispose();
+        }
+
+        var allFaces = await db.MediaFaces
+            .Where(x => x.EmbeddingJson != "[]")
+            .Select(x => new { x.MediaFilePath, x.EmbeddingJson })
+            .ToListAsync(cancellationToken);
+
+        var dated = new List<(float[] Embedding, string YearMonth)>();
+        foreach (var face in allFaces)
+        {
+            if (!face.MediaFilePath.StartsWith(billederFolder, StringComparison.OrdinalIgnoreCase)) continue;
+            if (IsUnderUndatedFolder(face.MediaFilePath)) continue;
+            var ym = ExtractYearMonthFolder(face.MediaFilePath);
+            if (ym is null) continue;
+            float[] vector;
+            try { vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? []; }
+            catch (JsonException) { continue; }
+            if (vector.Length == 0) continue;
+            dated.Add((vector, ym));
+        }
+
+        foreach (var video in undatedVideos)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var videoFaces = await db.MediaFaces
+                .Where(x => x.MediaFilePath == video && x.EmbeddingJson != "[]")
+                .Select(x => x.EmbeddingJson)
+                .ToListAsync(cancellationToken);
+
+            var best = 0.0;
+            string? bestYearMonth = null;
+            foreach (var json in videoFaces)
+            {
+                float[] vector;
+                try { vector = JsonSerializer.Deserialize<float[]>(json) ?? []; }
+                catch (JsonException) { continue; }
+                if (vector.Length == 0) continue;
+
+                foreach (var (refEmbedding, ym) in dated)
+                {
+                    var sim = CosineSimilarity(vector, refEmbedding);
+                    if (sim > best) { best = sim; bestYearMonth = ym; }
+                }
+            }
+
+            if (best < faceThreshold || bestYearMonth is null) continue;
+
+            var year = bestYearMonth.Split('/')[0];
+            var destDir = Path.Combine(videoerFolder, year);
+            var thumbDestDir = Path.Combine(destDir, "thumbnails");
+            var srcThumb = Path.Combine(videoerFolder, "thumbnails", Path.GetFileNameWithoutExtension(video) + ".jpg");
+
+            try
+            {
+                Directory.CreateDirectory(destDir);
+                var dest = ResolveNameCollisionPublic(Path.Combine(destDir, Path.GetFileName(video)));
+                File.Move(video, dest);
+                moved++;
+
+                if (File.Exists(srcThumb))
+                {
+                    Directory.CreateDirectory(thumbDestDir);
+                    var thumbDest = ResolveNameCollisionPublic(Path.Combine(thumbDestDir, Path.GetFileNameWithoutExtension(dest) + ".jpg"));
+                    File.Move(srcThumb, thumbDest);
+                }
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Failed to move matched video {Video}", video);
+            }
+        }
+
+        return new VideoDatingResult { Checked = checkedCount, Moved = moved };
+    }
+
+    // GPS-proximity dating for Videoer's remaining loose files (the small
+    // tail left after face-match dating and the ≤4s "Korte klip" split),
+    // restricted to away-from-home reference points only - home-location
+    // photos share GPS across many different dates (ambiguous: which visit
+    // to the living room was this?), but trip/away photos pin a narrow date
+    // range, so only those make confident reference points. Home is
+    // auto-detected as the densest ~5km GPS cluster in the dated library,
+    // same approach as SmartFoldersService's Trip detection (duplicated
+    // rather than shared - it's a small self-contained helper, not worth a
+    // cross-service dependency for).
+    public Task<VideoDatingResult> DateVideosByGpsAwayFromHomeAsync(
+        string libraryPath, double homeAwayKm = 100, double gpsToleranceMeters = 2000, CancellationToken cancellationToken = default)
+    {
+        var videoerFolder = Path.Combine(libraryPath, "Videoer");
+        if (!Directory.Exists(videoerFolder)) return Task.FromResult(new VideoDatingResult());
+
+        var undatedVideos = Directory.EnumerateFiles(videoerFolder, "*", SearchOption.TopDirectoryOnly)
+            .Where(MediaTypeHelper.IsVideo)
+            .ToList();
+        var checkedCount = undatedVideos.Count;
+        var moved = 0;
+        if (undatedVideos.Count == 0) return Task.FromResult(new VideoDatingResult { Checked = 0, Moved = 0 });
+
+        var allDatedPoints = new List<(double Lat, double Lng, string YearMonth)>();
+        foreach (var file in EnumerateLibraryImages(libraryPath).Where(f => !IsUnderUndatedFolder(f)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var coords = _gpsService.GetCoordinates(file);
+            if (coords is null) continue;
+            var ym = ExtractYearMonthFolder(file);
+            if (ym is null) continue;
+            allDatedPoints.Add((coords.Value.lat, coords.Value.lng, ym));
+        }
+
+        if (allDatedPoints.Count == 0) return Task.FromResult(new VideoDatingResult { Checked = checkedCount, Moved = 0 });
+
+        var home = FindHomeCluster(allDatedPoints.Select(p => (p.Lat, p.Lng)).ToList());
+        var awayPoints = home is null
+            ? allDatedPoints
+            : allDatedPoints.Where(p => HaversineKm(home.Value.lat, home.Value.lng, p.Lat, p.Lng) > homeAwayKm).ToList();
+
+        foreach (var video in undatedVideos)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var coords = _gpsService.GetCoordinates(video);
+            if (coords is null) continue;
+
+            var bestDistanceMeters = double.MaxValue;
+            string? bestYearMonth = null;
+            foreach (var (lat, lng, ym) in awayPoints)
+            {
+                var distMeters = HaversineKm(coords.Value.lat, coords.Value.lng, lat, lng) * 1000;
+                if (distMeters < bestDistanceMeters) { bestDistanceMeters = distMeters; bestYearMonth = ym; }
+            }
+
+            if (bestYearMonth is null || bestDistanceMeters > gpsToleranceMeters) continue;
+
+            var year = bestYearMonth.Split('/')[0];
+            var destDir = Path.Combine(videoerFolder, year);
+            var thumbDestDir = Path.Combine(destDir, "thumbnails");
+            var srcThumb = Path.Combine(videoerFolder, "thumbnails", Path.GetFileNameWithoutExtension(video) + ".jpg");
+
+            try
+            {
+                Directory.CreateDirectory(destDir);
+                var dest = ResolveNameCollisionPublic(Path.Combine(destDir, Path.GetFileName(video)));
+                File.Move(video, dest);
+                moved++;
+
+                if (File.Exists(srcThumb))
+                {
+                    Directory.CreateDirectory(thumbDestDir);
+                    var thumbDest = ResolveNameCollisionPublic(Path.Combine(thumbDestDir, Path.GetFileNameWithoutExtension(dest) + ".jpg"));
+                    File.Move(srcThumb, thumbDest);
+                }
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Failed to move GPS-matched video {Video}", video);
+            }
+        }
+
+        return Task.FromResult(new VideoDatingResult { Checked = checkedCount, Moved = moved });
+    }
+
+    private static (double lat, double lng)? FindHomeCluster(List<(double Lat, double Lng)> points)
+    {
+        if (points.Count == 0) return null;
+        const double bucketDegrees = 0.05;
+
+        var densest = points
+            .GroupBy(p => (Math.Round(p.Lat / bucketDegrees), Math.Round(p.Lng / bucketDegrees)))
+            .OrderByDescending(g => g.Count())
+            .First();
+
+        return (densest.Average(p => p.Lat), densest.Average(p => p.Lng));
+    }
+
+    private static double HaversineKm(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double R = 6371;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return R * c;
     }
 
     private static string ResolveNameCollisionPublic(string path)

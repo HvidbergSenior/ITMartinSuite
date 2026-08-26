@@ -497,6 +497,13 @@ app.MapPost("/api/debug/p3-estimate-undated", async (string path, int? maxDatedR
 app.MapPost("/api/debug/p3-date-livephotos", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
     Results.Ok(await service.DateLivePhotosByFaceMatchAsync(path)));
 
+// see Package3Service.DateVideosByFaceMatchAsync.
+app.MapPost("/api/debug/p3-date-videos", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+    Results.Ok(await service.DateVideosByFaceMatchAsync(path, maxFiles ?? 1000)));
+
+app.MapPost("/api/debug/p3-date-videos-gps", async (string path, double? homeAwayKm, double? gpsToleranceMeters, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+    Results.Ok(await service.DateVideosByGpsAwayFromHomeAsync(path, homeAwayKm ?? 100, gpsToleranceMeters ?? 2000)));
+
 // Groups a folder's files by "how many faces were detected" using the
 // already-computed MediaFaces index (free, no new work) - lets a folder
 // full of undated photos be split into "has people" vs "no people
@@ -714,6 +721,55 @@ app.MapPost("/api/debug/find-nonphoto-clusters", async (string path, ITMartin.Me
 // see LibraryPolishService.ReclassifyWebWatermarksAsync.
 app.MapPost("/api/debug/reclassify-web-watermarks", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.ReclassifyWebWatermarksAsync(path)));
+
+// TEMP DEBUG - one-off merge of Musik/_Genfundet fra Ikke_identificeret
+// (flat pile of recovered audio files, no artist/album structure) back into
+// the real Musik/{Artist}/{Album}/ tree, using ID3/TagLib metadata since
+// most filenames here don't include the artist. Files with no readable
+// Artist tag are left in place - reported, not guessed at.
+app.MapPost("/api/debug/musik-merge-genfundet", (string musikPath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IAudioMetadataService audioMeta) =>
+{
+    var genfundetDir = System.IO.Path.Combine(musikPath, "_Genfundet fra Ikke_identificeret");
+    if (!System.IO.Directory.Exists(genfundetDir)) return Results.Ok(new { checked_ = 0, moved = 0, noArtist = new List<string>() });
+
+    var files = System.IO.Directory.EnumerateFiles(genfundetDir, "*", System.IO.SearchOption.TopDirectoryOnly).ToList();
+    var moved = 0;
+    var noArtist = new List<string>();
+
+    foreach (var file in files)
+    {
+        var artist = audioMeta.GetArtist(file);
+        if (string.IsNullOrWhiteSpace(artist))
+        {
+            noArtist.Add(System.IO.Path.GetFileName(file));
+            continue;
+        }
+
+        var album = audioMeta.GetAlbum(file);
+        var safeArtist = string.Join("_", artist.Split(System.IO.Path.GetInvalidFileNameChars()));
+        var safeAlbum = string.IsNullOrWhiteSpace(album)
+            ? "Diverse"
+            : string.Join("_", album!.Split(System.IO.Path.GetInvalidFileNameChars()));
+
+        var destDir = System.IO.Path.Combine(musikPath, safeArtist, safeAlbum);
+        System.IO.Directory.CreateDirectory(destDir);
+
+        var destPath = System.IO.Path.Combine(destDir, System.IO.Path.GetFileName(file));
+        var i = 1;
+        while (System.IO.File.Exists(destPath))
+        {
+            var n = System.IO.Path.GetFileNameWithoutExtension(file);
+            var e = System.IO.Path.GetExtension(file);
+            destPath = System.IO.Path.Combine(destDir, $"{n} ({i}){e}");
+            i++;
+        }
+
+        System.IO.File.Move(file, destPath);
+        moved++;
+    }
+
+    return Results.Ok(new { checked_ = files.Count, moved, noArtist });
+});
 
 // "Just before delivery" package (2026-08-20) - runs every free/local check
 // together in one call: file integrity, structure/extensions, rotation

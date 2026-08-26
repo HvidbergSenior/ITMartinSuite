@@ -91,6 +91,32 @@ public interface IPackage3Service
         string libraryPath, double faceThreshold = 0.5, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// For videos sitting loose at Videoer root (no reliable date - Package1
+    /// already tried EXIF/filename dating and came up empty), runs face
+    /// detection directly on the video (reuses Package1's existing thumbnail
+    /// when present, only falls back to a fresh ffmpeg frame-extraction
+    /// otherwise) and matches against Billeder's already-indexed dated
+    /// reference set. A confident match moves the video (and its thumbnail)
+    /// into Videoer/{year}/ - year-only, no month subfolder, matching the
+    /// flat policy already applied to Skærmbilleder/LivePhotoVideoer/
+    /// Dokumenter. maxFiles is a hard per-run cap (video face-indexing is
+    /// comparatively expensive) - already-indexed files are skipped on a
+    /// re-run, so repeated capped runs work through the backlog
+    /// incrementally.
+    /// </summary>
+    Task<VideoDatingResult> DateVideosByFaceMatchAsync(
+        string libraryPath, int maxFiles = 1000, double faceThreshold = 0.5, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// GPS-proximity dating for Videoer's remaining loose files, matched only
+    /// against dated reference photos taken away from the auto-detected
+    /// "home" cluster (home-location photos are too date-ambiguous to use as
+    /// reference points).
+    /// </summary>
+    Task<VideoDatingResult> DateVideosByGpsAwayFromHomeAsync(
+        string libraryPath, double homeAwayKm = 100, double gpsToleranceMeters = 2000, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Text-only (filename/path, no image bytes) AI pass over the Unhandled
     /// folder - files FileSorter couldn't recognize by extension. Moves
     /// confident real-content matches into their real category, obvious junk
