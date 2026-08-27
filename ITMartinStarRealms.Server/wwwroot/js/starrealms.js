@@ -185,7 +185,7 @@ window.starrealms = (function() {
 
     function requestWakeLock() {
         wakeLockWanted = true;
-        if (!("wakeLock" in navigator)) return;
+        if (!("wakeLock" in navigator) || wakeLock) return;
         navigator.wakeLock.request("screen").then(function(lock) {
             wakeLock = lock;
             lock.addEventListener("release", function() { wakeLock = null; });
@@ -379,6 +379,10 @@ window.starrealms = (function() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body || {})
         }).then(parseJsonResponse);
+    }
+
+    function apiDelete(url) {
+        return fetch(url, { method: "DELETE" }).then(parseJsonResponse);
     }
 
     function ensureLocalId(key) {
@@ -605,10 +609,17 @@ window.starrealms = (function() {
             if (!state.isRanked) { featuredEl.innerHTML = ""; otherBox.style.display = "none"; return; }
 
             var current = document.getElementById("h-name").value.trim().toLowerCase();
+            // The 👁 view link is a sibling, not nested inside the button -
+            // a button can't validly contain a link, and nesting them would
+            // make both fire on the same tap.
             function chip(p) {
                 var active = p.name.toLowerCase() === current ? " name-chip--active" : "";
-                return '<button type="button" class="name-chip' + active + '" data-name="' + esc(p.name) + '">' +
-                    avatarHtml(p.avatar) + ' ' + esc(p.name) + '</button>';
+                return '<span class="name-chip-row">' +
+                    '<button type="button" class="name-chip' + active + '" data-name="' + esc(p.name) + '">' +
+                        avatarHtml(p.avatar) + ' ' + esc(p.name) +
+                    '</button>' +
+                    '<a class="name-chip-view" href="/stats?profileId=' + encodeURIComponent(p.id) + '" title="Se profil" onclick="event.stopPropagation()">👁</a>' +
+                '</span>';
             }
 
             var featured = state.profiles.filter(function(p) { return p.name === "ITMartin"; });
@@ -840,6 +851,10 @@ window.starrealms = (function() {
             joinColor: joinColorOverride || localStorage.getItem("profile_color") || COLORS[0],
             pollTimer: null,
             winnerShown: false,
+            teamNames: {},
+            teamNamesRequested: {},
+            mySounds: {},
+            mySoundAudio: {},
             shotCombo: [],
             shootTargetId: null,
             shotSign: -1  // -1 = damage an opponent (default), +1 = heal/gain for myself
@@ -854,7 +869,7 @@ window.starrealms = (function() {
         // someone play under that name with no real claim to it.
         (isRanked
             ? apiPost("/api/profile", { deviceToken: deviceToken, name: profileName, avatar: profileAvatar, pin: handoffPin })
-                .then(function(profile) { state.profileId = profile.id; })
+                .then(function(profile) { state.profileId = profile.id; loadMySounds(); })
                 .catch(function(err) {
                     alert(err.message || "Kunne ikke bekræfte profilen.");
                     location.href = "/";
@@ -941,11 +956,14 @@ window.starrealms = (function() {
         function showInviteThenGame() {
             var session = state.session;
             document.getElementById("i-ruleset-name").textContent = session.rulesetName;
-            document.getElementById("i-count").textContent = session.players.length + "/6";
+            document.getElementById("i-count").textContent = session.players.length + "/" + (session.rulesetMaxPlayers || 6);
             document.getElementById("i-players-list").innerHTML = session.players.map(function(p) {
                 return '<div class="invite-player-row"><span class="color-dot" style="background:' + p.color + '"></span>' + avatarHtml(p.avatar) + ' ' + esc(p.name) + '</div>';
             }).join("");
             document.getElementById("g-invite").style.display = "";
+
+            if (session.isTeamMode) renderTeamPicker(session);
+            else document.getElementById("i-teams-section").style.display = "none";
 
             window.copyInviteLink = function() {
                 navigator.clipboard && navigator.clipboard.writeText(location.href).catch(function() {});
@@ -961,6 +979,146 @@ window.starrealms = (function() {
                     alert(err.message || "Kunne ikke starte spillet");
                 });
             };
+        }
+
+        function teamCount(session) {
+            var perTeam = session.rulesetPlayersPerTeam || 2;
+            return Math.max(2, Math.ceil((session.rulesetMaxPlayers || (perTeam * 2)) / perTeam));
+        }
+
+        // Anyone in the lobby can move anyone - this is friends physically in
+        // the same room setting up a game, not something needing real
+        // permissions (same philosophy as team renaming).
+        function renderTeamPicker(session) {
+            document.getElementById("i-teams-section").style.display = "";
+            var numTeams = teamCount(session);
+
+            var list = document.getElementById("i-teams-list");
+            list.innerHTML = session.players.map(function(p) {
+                var chips = [];
+                for (var t = 0; t < numTeams; t++) {
+                    var active = p.team === t;
+                    chips.push('<button type="button" class="target-chip' + (active ? " target-chip--active" : "") + '" data-set-team-player="' + p.id + '" data-set-team-num="' + t + '">Hold ' + (t + 1) + '</button>');
+                }
+                return '<div class="stats-row"><div style="flex:1">' + avatarHtml(p.avatar) + ' ' + esc(p.name) + '</div>' +
+                    '<div class="shoot-target-chips">' + chips.join("") + '</div></div>';
+            }).join("");
+
+            list.querySelectorAll("[data-set-team-player]").forEach(function(btn) {
+                btn.onclick = function() {
+                    var playerId = btn.getAttribute("data-set-team-player");
+                    var team = parseInt(btn.getAttribute("data-set-team-num"), 10);
+                    apiPost("/api/sessions/" + encodeURIComponent(code) + "/team", { playerId: playerId, team: team })
+                        .then(function() { return apiGet("/api/sessions/" + encodeURIComponent(code)); })
+                        .then(function(fresh) { state.session = fresh; renderTeamPicker(fresh); })
+                        .catch(function(err) { alert(err.message || "Kunne ikke flytte spilleren"); });
+                };
+            });
+
+            renderTeamNameEditors(session, numTeams);
+        }
+
+        // A named team (see Team.MemberKey) can be set up the moment 2+
+        // ranked players are grouped in the lobby - it doesn't have to wait
+        // until they've actually finished a game together.
+        function renderTeamNameEditors(session, numTeams) {
+            var namesEl = document.getElementById("i-team-names");
+            if (!namesEl) {
+                namesEl = document.createElement("div");
+                namesEl.id = "i-team-names";
+                namesEl.className = "mt-2";
+                document.getElementById("i-teams-list").insertAdjacentElement("afterend", namesEl);
+            }
+
+            var groups = [];
+            for (var t = 0; t < numTeams; t++) {
+                var members = session.players.filter(function(p) { return p.team === t; });
+                if (members.length >= 2 && members.every(function(p) { return !!p.profileId; })) {
+                    groups.push({ team: t, members: members });
+                }
+            }
+
+            if (!groups.length) { namesEl.innerHTML = ""; return; }
+
+            namesEl.innerHTML = groups.map(function(g) {
+                return '<div class="stats-row"><input class="home-input" data-team-name-input="' + g.team + '" placeholder="Navngiv Hold ' + (g.team + 1) + '…" maxlength="30">' +
+                    '<button type="button" class="btn-ghost" data-team-name-save="' + g.team + '">Gem</button></div>';
+            }).join("");
+
+            groups.forEach(function(g) {
+                var ids = g.members.map(function(p) { return p.profileId; }).join(",");
+                apiGet("/api/teams/for?profileIds=" + encodeURIComponent(ids)).then(function(info) {
+                    var input = namesEl.querySelector('[data-team-name-input="' + g.team + '"]');
+                    if (input) { input.value = info.name || ""; input.dataset.teamId = info.id; }
+                }).catch(function() {});
+            });
+
+            namesEl.querySelectorAll("[data-team-name-save]").forEach(function(btn) {
+                btn.onclick = function() {
+                    var t = btn.getAttribute("data-team-name-save");
+                    var input = namesEl.querySelector('[data-team-name-input="' + t + '"]');
+                    var teamId = input && input.dataset.teamId;
+                    if (!teamId) return;
+                    apiPost("/api/teams/" + teamId + "/name", { deviceToken: deviceToken, name: input.value.trim() })
+                        .catch(function() { alert("Kunne ikke gemme holdnavn"); });
+                };
+            });
+        }
+
+        // Personal recorded sounds (see Stats page "Mine lyde") only ever
+        // play on the device of the profile who recorded them - swaps in for
+        // the synthesized default only for MY OWN point changes/wins, never
+        // for what I see happening to an opponent on my screen.
+        function loadMySounds() {
+            if (!state.profileId) return;
+            apiGet("/api/sounds/" + encodeURIComponent(state.profileId)).then(function(map) {
+                state.mySounds = map || {};
+                // Preload once here rather than `new Audio(url)` on every
+                // trigger - fetching the clip fresh from the network at the
+                // moment of a point change added a noticeable lag/cutoff
+                // instead of playing right when it should.
+                state.mySoundAudio = {};
+                Object.keys(state.mySounds).forEach(function(trigger) {
+                    var audio = new Audio(state.mySounds[trigger]);
+                    audio.preload = "auto";
+                    state.mySoundAudio[trigger] = audio;
+                });
+            }).catch(function() {});
+        }
+
+        function playPersonalSound(trigger, fallbackFn) {
+            var audio = state.mySoundAudio && state.mySoundAudio[trigger];
+            if (!audio) { fallbackFn(); return; }
+            try {
+                audio.currentTime = 0;
+                audio.play().catch(function() { fallbackFn(); });
+            } catch (e) { fallbackFn(); }
+        }
+
+        // Fetches (and lazily creates) the custom name for each team of 2+
+        // ranked players currently grouped together, so "ITMartin & Charlie"
+        // can show up live instead of the generic "Hold 1" - cached per team
+        // index so the 3s poll doesn't refetch it every tick.
+        function loadTeamNamesIfNeeded(session) {
+            if (!session.isTeamMode) return;
+            var byTeam = {};
+            session.players.forEach(function(p) {
+                if (p.team === null || p.team === undefined) return;
+                (byTeam[p.team] = byTeam[p.team] || []).push(p);
+            });
+            Object.keys(byTeam).forEach(function(t) {
+                var members = byTeam[t];
+                if (members.length < 2 || !members.every(function(p) { return !!p.profileId; })) return;
+                if (state.teamNamesRequested[t]) return;
+                state.teamNamesRequested[t] = true;
+                var ids = members.map(function(p) { return p.profileId; }).join(",");
+                apiGet("/api/teams/for?profileIds=" + encodeURIComponent(ids)).then(function(info) {
+                    if (info.name) {
+                        state.teamNames[t] = info.name;
+                        renderOpponents({});
+                    }
+                }).catch(function() { state.teamNamesRequested[t] = false; });
+            });
         }
 
         function otherPlayers() {
@@ -980,10 +1138,43 @@ window.starrealms = (function() {
                 document.getElementById("g-rules-toggle").textContent = (show ? "📜 Skjul regler" : "📜 Se regler for dette spil");
             };
 
+            window.askRulesQuestion = function() {
+                var input = document.getElementById("g-rules-question");
+                var question = input.value.trim();
+                if (!question) return;
+                var btn = document.getElementById("g-rules-ask-btn");
+                var answerEl = document.getElementById("g-rules-answer");
+                btn.disabled = true;
+                btn.textContent = "Spørger…";
+                answerEl.style.display = "none";
+                apiPost("/api/rules-question", {
+                    rulesetName: state.session.rulesetName,
+                    rulesetDescription: state.session.rulesetDescription,
+                    question: question
+                }).then(function(res) {
+                    answerEl.textContent = res.answer;
+                    answerEl.style.display = "";
+                    btn.disabled = false;
+                    btn.textContent = "🤖 Spørg";
+                }).catch(function(err) {
+                    answerEl.textContent = err.message || "Kunne ikke få svar lige nu - prøv igen om lidt.";
+                    answerEl.style.display = "";
+                    btn.disabled = false;
+                    btn.textContent = "🤖 Spørg";
+                });
+            };
+
             window.addToCombo = function(n) {
                 state.shotCombo.push(n);
                 starrealms.playClick();
                 starrealms.vibrate(8);
+                // Re-assert the wake lock on every real tap, not just once at
+                // game start - some browsers silently drop it after a while
+                // without firing "release", and Safari in particular only
+                // grants it within a fresh user-gesture window, which a tap
+                // like this one provides and the async call after "Start
+                // spillet" no longer does by the time it resolves.
+                starrealms.requestWakeLock();
                 renderHero();
             };
 
@@ -1011,10 +1202,11 @@ window.starrealms = (function() {
                 renderOpponents({});
                 if (actualDelta !== 0) {
                     var up = actualDelta > 0;
-                    starrealms.vibrateForAmount(actualDelta);
-                    starrealms.playImpact(actualDelta, up);
-                    if (player.points <= 0) starrealms.playEliminate();
                     var isMe = state.me && player.id === state.me.id;
+                    starrealms.vibrateForAmount(actualDelta);
+                    if (isMe) playPersonalSound(up ? "gain" : "damage", function() { starrealms.playImpact(actualDelta, up); });
+                    else starrealms.playImpact(actualDelta, up);
+                    if (player.points <= 0) starrealms.playEliminate();
                     var targetEl = isMe
                         ? document.getElementById("g-hero-points")
                         : document.querySelector('.opp-card[data-opp-id="' + player.id + '"] .opp-points');
@@ -1080,6 +1272,34 @@ window.starrealms = (function() {
                 document.getElementById("g-winner").style.display = "none";
             };
 
+            // Camera photos of the winning/losing team, taken right at the
+            // victory screen - purely local (like the results-card image
+            // above), never uploaded, just previewed and offered as a
+            // download so whoever's holding the phone can save/share it.
+            ["winner", "loser"].forEach(function(kind) {
+                var input = document.getElementById("g-photo-" + kind);
+                if (!input) return;
+                input.onchange = function() {
+                    var file = input.files && input.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
+                    reader.onload = function() {
+                        var id = "g-photo-" + kind + "-block";
+                        var block = document.getElementById(id);
+                        if (!block) {
+                            block = document.createElement("div");
+                            block.id = id;
+                            block.className = "winner-photo-block";
+                            document.getElementById("g-photo-previews").appendChild(block);
+                        }
+                        var label = kind === "winner" ? "vinderne" : "taberne";
+                        block.innerHTML = '<img src="' + reader.result + '" alt="Billede af ' + label + '">' +
+                            '<a class="btn-ghost" download="star-realms-' + label + '.jpg" href="' + reader.result + '">⬇ Download billede af ' + label + '</a>';
+                    };
+                    reader.readAsDataURL(file);
+                };
+            });
+
             refreshState();
             state.pollTimer = setInterval(refreshState, 3000);
         }
@@ -1093,6 +1313,7 @@ window.starrealms = (function() {
                 state.me = session.players.find(function(p) { return p.token === token; }) || state.me;
 
                 renderHero(prevPoints);
+                loadTeamNamesIfNeeded(session);
                 renderOpponents(prevPoints);
                 renderRules();
                 checkWinner();
@@ -1174,7 +1395,7 @@ window.starrealms = (function() {
                 var up = me.points > prevPoints[me.id];
                 var delta = me.points - prevPoints[me.id];
                 starrealms.vibrateForAmount(delta);
-                starrealms.playImpact(delta, up);
+                playPersonalSound(up ? "gain" : "damage", function() { starrealms.playImpact(delta, up); });
                 if (eliminated) starrealms.playEliminate();
                 starrealms.explodeAt(document.getElementById("g-hero-points"), up, delta);
             }
@@ -1194,7 +1415,8 @@ window.starrealms = (function() {
                 var teamLabel = "";
                 if (s.isTeamMode && p.team !== null && p.team !== undefined) {
                     var mine = state.me && s.players.find(function(x) { return x.id === state.me.id; });
-                    teamLabel = '<span class="opp-team">Hold ' + (p.team + 1) + (mine && mine.team === p.team ? " (dit)" : "") + '</span>';
+                    var teamDisplayName = state.teamNames[p.team] || ("Hold " + (p.team + 1));
+                    teamLabel = '<span class="opp-team">' + esc(teamDisplayName) + (mine && mine.team === p.team ? " (dit)" : "") + '</span>';
                 }
                 var oppProfileLink = p.profileId ? '/stats?profileId=' + encodeURIComponent(p.profileId) : null;
                 var oppAvatarHtml = dead ? "💀" : avatarHtml(p.avatar, "avatar-img avatar-img--opp");
@@ -1236,7 +1458,7 @@ window.starrealms = (function() {
                 if (teams.length !== 1) return;
                 var teamNum = parseInt(teams[0], 10);
                 var teammate = s.players.find(function(p) { return p.team === teamNum; });
-                winnerName = "Hold " + (teamNum + 1);
+                winnerName = state.teamNames[teamNum] || ("Hold " + (teamNum + 1));
                 winnerColor = teammate ? teammate.color : "#fff";
                 winnerIds = s.players.filter(function(p) { return p.team === teamNum; }).map(function(p) { return p.id; });
             } else {
@@ -1253,7 +1475,9 @@ window.starrealms = (function() {
             nameEl.style.color = winnerColor;
             nameEl.textContent = winnerName + " vinder!";
             document.getElementById("g-winner").style.display = "";
-            starrealms.playWinner();
+            var amIWinner = state.me && winnerIds.indexOf(state.me.id) !== -1;
+            if (amIWinner) playPersonalSound("win", function() { starrealms.playWinner(); });
+            else starrealms.playWinner();
             starrealms.confetti();
             renderResultImage(s, winnerIds);
         }
@@ -1500,7 +1724,7 @@ window.starrealms = (function() {
             document.getElementById("s-edit-toggle").style.display = isOwnProfile ? "" : "none";
             paintFilters();
             loadRows();
-            if (isOwnProfile) loadMyTeams();
+            if (isOwnProfile) { loadMyTeams(); initSoundsSection(); }
         }).catch(function() {
             document.getElementById("s-loading").style.display = "none";
             document.getElementById("s-empty").style.display = "";
@@ -1529,6 +1753,84 @@ window.starrealms = (function() {
                     };
                 });
             }).catch(function() {});
+        }
+
+        // Records replace the built-in synthesized tone (see starrealms.js's
+        // "starrealms" audio module) for MY OWN point-up/point-down/win
+        // events, only on this device - one clip per trigger, re-recording
+        // just overwrites it. 5 second cap keeps clips short and the upload cheap.
+        var soundTriggers = [
+            { key: "gain", label: "📈 Point op" },
+            { key: "damage", label: "📉 Point ned" },
+            { key: "win", label: "🏆 Sejr" }
+        ];
+
+        function initSoundsSection() {
+            if (!profile) return;
+            document.getElementById("s-sounds-section").style.display = "";
+            loadSounds();
+        }
+
+        function loadSounds() {
+            apiGet("/api/sounds/" + profile.id).then(renderSounds).catch(function() { renderSounds({}); });
+        }
+
+        function renderSounds(mine) {
+            document.getElementById("s-sounds-rows").innerHTML = soundTriggers.map(function(t) {
+                var has = !!mine[t.key];
+                return '<div class="stats-row"><div style="flex:1">' + t.label +
+                    (has ? ' <span class="stats-record">✓ optaget</span>' : ' <span class="stats-record">standardlyd</span>') + '</div>' +
+                    (has ? '<button type="button" class="btn-ghost" data-play-sound="' + t.key + '" data-url="' + mine[t.key] + '">▶️</button>' : '') +
+                    '<button type="button" class="btn-ghost" data-rec-sound="' + t.key + '">🔴 Optag</button>' +
+                    (has ? '<button type="button" class="btn-ghost" data-del-sound="' + t.key + '">🗑️</button>' : '') +
+                    '</div>';
+            }).join("");
+
+            document.getElementById("s-sounds-rows").querySelectorAll("[data-play-sound]").forEach(function(btn) {
+                btn.onclick = function() {
+                    new Audio(btn.getAttribute("data-url") + "?t=" + Date.now()).play().catch(function() {});
+                };
+            });
+            document.getElementById("s-sounds-rows").querySelectorAll("[data-del-sound]").forEach(function(btn) {
+                btn.onclick = function() {
+                    apiDelete("/api/sounds/" + profile.id + "/" + btn.getAttribute("data-del-sound"))
+                        .then(loadSounds).catch(function() { alert("Kunne ikke slette lyden"); });
+                };
+            });
+            document.getElementById("s-sounds-rows").querySelectorAll("[data-rec-sound]").forEach(function(btn) {
+                btn.onclick = function() { startRecording(btn.getAttribute("data-rec-sound"), btn); };
+            });
+        }
+
+        function startRecording(trigger, btn) {
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                alert("Denne browser understøtter ikke lydoptagelse");
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+                var recorder = new MediaRecorder(stream);
+                var chunks = [];
+                recorder.ondataavailable = function(e) { if (e.data.size) chunks.push(e.data); };
+                recorder.onstop = function() {
+                    stream.getTracks().forEach(function(tr) { tr.stop(); });
+                    var mimeType = recorder.mimeType || "audio/webm";
+                    var blob = new Blob(chunks, { type: mimeType });
+                    if (!blob.size) return;
+                    // Safari/iOS records audio/mp4, not webm - save it under
+                    // its real extension so playback later actually decodes
+                    // (see SoundService.SaveAsync on the server).
+                    var ext = (mimeType.split("/")[1] || "webm").split(";")[0].trim() || "webm";
+                    blob.arrayBuffer().then(function(buf) {
+                        fetch("/api/sounds/" + profile.id + "/" + trigger + "?ext=" + encodeURIComponent(ext), { method: "POST", body: buf })
+                            .then(function(r) { if (!r.ok) throw new Error(); return loadSounds(); })
+                            .catch(function() { alert("Kunne ikke gemme lyden"); });
+                    });
+                };
+                recorder.start();
+                btn.textContent = "⏺️ Optager (5s)…";
+                btn.disabled = true;
+                setTimeout(function() { if (recorder.state !== "inactive") recorder.stop(); }, 5000);
+            }).catch(function() { alert("Kunne ikke få adgang til mikrofonen"); });
         }
     }
 

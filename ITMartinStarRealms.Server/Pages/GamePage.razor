@@ -35,6 +35,12 @@
 
         <div id="i-players-list" class="invite-players-list mt-3"></div>
 
+        <div id="i-teams-section" style="display:none">
+            <div class="home-section-inner-label">Hold</div>
+            <p class="home-sub">Tryk på en spiller for at flytte dem mellem holdene.</p>
+            <div id="i-teams-list" class="mt-2"></div>
+        </div>
+
         <button class="btn-primary mt-3" id="g-invite-start-btn" onclick="hideInvite()">▶️ Start spillet</button>
         <button class="btn-link mt-2" onclick="location.href='/'">← Annuller</button>
     </div>
@@ -57,6 +63,13 @@
     <div id="g-rules-panel" class="rules-panel" style="display:none">
         <div class="rules-title" id="g-rules-title"></div>
         <div class="rules-desc" id="g-rules-desc"></div>
+
+        <div class="rules-qa">
+            <label class="home-label mt-2">🤖 Spørg om reglerne</label>
+            <textarea id="g-rules-question" class="home-input" rows="2" placeholder="F.eks. 'Må man angribe en base direkte?'" maxlength="300"></textarea>
+            <button type="button" class="btn-secondary mt-1" id="g-rules-ask-btn" onclick="askRulesQuestion()">🤖 Spørg</button>
+            <div id="g-rules-answer" class="rules-answer" style="display:none"></div>
+        </div>
     </div>
 
     <div class="opp-label">Modstandere</div>
@@ -69,6 +82,15 @@
         <div class="winner-name" id="g-winner-name"></div>
         <img id="g-winner-preview" class="winner-preview" style="display:none" alt="Resultat" />
         <a id="g-winner-download" class="btn-primary mt-2" download="star-realms-resultat.png">⬇ Download billede</a>
+
+        <div class="winner-photo-row mt-2">
+            <button type="button" class="btn-ghost" onclick="document.getElementById('g-photo-winner').click()">📸 Billede af vinderne</button>
+            <button type="button" class="btn-ghost" onclick="document.getElementById('g-photo-loser').click()">📸 Billede af taberne</button>
+        </div>
+        <input id="g-photo-winner" type="file" accept="image/*" capture="environment" style="display:none" />
+        <input id="g-photo-loser" type="file" accept="image/*" capture="environment" style="display:none" />
+        <div id="g-photo-previews"></div>
+
         <button class="btn-secondary mt-2" onclick="location.href='/'">🚀 Nyt spil</button>
         <button class="btn-ghost mt-2" onclick="hideWinner()">Luk</button>
     </div>

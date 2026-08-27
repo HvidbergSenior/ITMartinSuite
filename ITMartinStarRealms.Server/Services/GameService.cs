@@ -216,6 +216,42 @@ public sealed class GameService(StarRealmsDbContext db)
         return player;
     }
 
+    // Lets players pick who they're teamed with in the lobby, before the
+    // automatic join-order assignment (see GetOrCreatePlayerAsync) becomes
+    // final. Locked once the game has started so a mid-game team swap can't
+    // rewrite who a shared-pool (Hydra) total belongs to.
+    public async Task SetPlayerTeamAsync(string code, Guid playerId, int team)
+    {
+        var session = await db.Sessions
+            .Include(s => s.Players)
+            .FirstOrDefaultAsync(s => s.Code == code.ToUpper())
+            ?? throw new InvalidOperationException("Spil ikke fundet");
+
+        if (session.HasStarted)
+            throw new InvalidOperationException("Spillet er allerede startet");
+        if (!session.IsTeamMode)
+            throw new InvalidOperationException("Dette spil har ikke holdtilstand");
+
+        var player = session.Players.FirstOrDefault(p => p.Id == playerId)
+            ?? throw new InvalidOperationException("Spiller ikke fundet");
+
+        player.Team = team;
+        await db.SaveChangesAsync();
+    }
+
+    // Looks up (or eagerly creates) the recurring Team row for an exact group
+    // of profiles, so a pairing can be named in the lobby the first time they
+    // ever play together, rather than only after their first game finishes
+    // (see FinishGameAsync/GetOrCreateTeamAsync below).
+    public async Task<TeamInfo> GetOrCreateTeamInfoAsync(List<Guid> profileIds)
+    {
+        var teamId = await GetOrCreateTeamAsync(profileIds);
+        var team = await db.Teams.FindAsync(teamId);
+        var profiles = await db.Profiles.Where(p => profileIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => p.Name);
+        var memberNames = profileIds.Select(id => profiles.GetValueOrDefault(id, "?"));
+        return new TeamInfo(team!.Id, team.Name, string.Join(" & ", memberNames));
+    }
+
     public async Task StartAsync(string code)
     {
         var session = await db.Sessions
