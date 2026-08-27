@@ -643,6 +643,60 @@ app.MapPost("/api/debug/fix-orientation-free", async (string path, ITMartin.Medi
 app.MapPost("/api/debug/detect-rotated-images", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.DetectRotatedImagesAsync(path)));
 
+// Free, deterministic rotation fix driven by the file's own EXIF Orientation
+// tag - no face-detection guessing. Fixes the case where a viewer (e.g.
+// Windows Photos) only flipped the EXIF tag instead of re-encoding pixels,
+// so the file looks correct in EXIF-aware viewers but wrong everywhere else.
+app.MapPost("/api/debug/bake-exif-orientation", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.BakeExifOrientationAsync(path)));
+
+// One-off census: which files in a library came from a camera known to
+// write an unreliable EXIF Orientation tag (see
+// IImageConverterService.IsFromOrientationUnreliableCamera). Metadata-only
+// read per file (no decode), so safe to run against a whole library.
+// One-off cleanup for HEIC/HEIF files that survived a Package1 run from
+// before 2026-08-25's Magick.NET fix (see ImageConverterService) - converts
+// in place and swaps the delivered file's extension to .jpg, since the
+// delivered library should never contain HEIC (Package1 always converts).
+app.MapPost("/api/debug/convert-heic-inplace", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Workflows.IImageConverterService converter) =>
+{
+    if (!File.Exists(path))
+        return Results.NotFound();
+
+    var ext = Path.GetExtension(path);
+    if (!ext.Equals(".heic", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".heif", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest("Not a HEIC/HEIF file.");
+
+    var convertedTempPath = await converter.ConvertToJpgAsync(path);
+    if (convertedTempPath is null || string.Equals(convertedTempPath, path, StringComparison.OrdinalIgnoreCase))
+        return Results.Ok(new { Success = false, Reason = "Conversion failed or fell back to original", Path = path });
+
+    var finalJpgPath = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + ".jpg");
+    if (File.Exists(finalJpgPath))
+        return Results.Ok(new { Success = false, Reason = "Target .jpg already exists", Path = path });
+
+    File.Copy(convertedTempPath, finalJpgPath, overwrite: false);
+    File.Delete(path);
+
+    return Results.Ok(new { Success = true, NewPath = finalJpgPath });
+});
+
+app.MapGet("/api/debug/orientation-unreliable-camera-files", (string path, ITMartin.Media.Contracts.Contracts.Runtime.Workflows.IImageConverterService converter) =>
+{
+    if (!Directory.Exists(path))
+        return Results.NotFound();
+
+    var exts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg" };
+    var matches = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
+        .Where(f => exts.Contains(Path.GetExtension(f)) && !f.Contains("\\thumbnails\\", StringComparison.OrdinalIgnoreCase))
+        .Where(converter.IsFromOrientationUnreliableCamera)
+        .Select(f => Path.GetRelativePath(path, f))
+        .OrderBy(f => f)
+        .ToList();
+
+    return Results.Ok(new { Count = matches.Count, Files = matches });
+});
+
 // AI-vision alternative to the free face-detection check - real Claude cost
 // (Haiku, batched 20/call), so maxImages is a REQUIRED hard cap, not just a
 // suggestion - this must never be callable without an explicit ceiling on

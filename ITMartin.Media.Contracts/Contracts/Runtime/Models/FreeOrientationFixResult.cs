@@ -38,3 +38,16 @@ public sealed class NearDuplicateReport
     public int NearGroups { get; init; }
     public List<NearDuplicateGroupInfo> Groups { get; init; } = [];
 }
+
+// Result of BakeExifOrientationAsync - a free, deterministic fix distinct
+// from FixOrientationFreeOnlyAsync/DetectRotatedImagesAsync's face-detection
+// guessing. Only touches files that still carry a non-1 EXIF Orientation tag
+// (a real, known-correct answer, not an inference) and physically applies it
+// to the pixels, so viewers/tools that ignore EXIF (this suite's own
+// pipeline included) see the same correct orientation as EXIF-aware ones.
+public sealed class BakeOrientationResult
+{
+    public int PhotosChecked { get; init; }
+    public List<string> PhotosFixed { get; init; } = [];
+    public List<string> Failed { get; init; } = [];
+}

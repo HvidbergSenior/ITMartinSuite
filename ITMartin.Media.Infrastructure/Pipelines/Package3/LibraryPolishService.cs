@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Threading;
 using Anthropic;
 using Anthropic.Models.Messages;
+using MetadataExtractor.Formats.Exif;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
@@ -909,6 +910,82 @@ public sealed class LibraryPolishService : ILibraryPolishService
             RotatedImages     = rotatedImages.OrderBy(r => r.RelativePath).ToList(),
             NeedsManualReview = needsReview.OrderBy(r => r).ToList(),
         };
+    }
+
+    // See ILibraryPolishService.BakeExifOrientationAsync. No ONNX/Claude call
+    // involved (unlike DetectRotatedImagesAsync/FixOrientationAsync just
+    // above) - the EXIF tag itself is the answer. Checks the tag first via
+    // MetadataExtractor (cheap, no decode - same trick ImageConverterService.
+    // TryReadOrientationTag uses) and only pays for a real ImageSharp
+    // decode/AutoOrient/strip-tag/re-save on the (usually small) subset that
+    // actually needs it. An earlier version called Image.Load on every file
+    // just to peek at the tag - fine at a few hundred files, but timed out
+    // well past two minutes on a 3,400-photo year (2015) before this fix.
+    public Task<BakeOrientationResult> BakeExifOrientationAsync(string path, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(path))
+            return Task.FromResult(new BakeOrientationResult());
+
+        var images = EnumerateImagesForRotationCheck(path, cancellationToken).ToList();
+        var checkedCount = 0;
+        var fixedFiles = new List<string>();
+        var failed = new List<string>();
+
+        foreach (var file in images)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            checkedCount++;
+
+            try
+            {
+                if (!TryReadOrientationTagCheap(file, out var orientation) || orientation <= 1)
+                    continue;
+
+                using var image = Image.Load(file);
+                image.Mutate(x => x.AutoOrient());
+                image.Metadata.ExifProfile?.RemoveValue(ExifTag.Orientation);
+                image.Save(file); // encoder inferred from the existing file extension
+
+                fixedFiles.Add(Path.GetRelativePath(path, file));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not bake EXIF orientation for {Path}", file);
+                failed.Add(Path.GetRelativePath(path, file));
+            }
+        }
+
+        _logger.LogInformation(
+            "BakeExifOrientation complete for {Path}: {Checked} checked, {Fixed} fixed, {Failed} failed",
+            path, checkedCount, fixedFiles.Count, failed.Count);
+
+        return Task.FromResult(new BakeOrientationResult
+        {
+            PhotosChecked = checkedCount,
+            PhotosFixed   = fixedFiles,
+            Failed        = failed,
+        });
+    }
+
+    private static bool TryReadOrientationTagCheap(string path, out ushort orientation)
+    {
+        orientation = 0;
+        try
+        {
+            var exif = MetadataExtractor.ImageMetadataReader.ReadMetadata(path)
+                .OfType<ExifIfd0Directory>()
+                .FirstOrDefault();
+
+            if (exif == null || !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
+                return false;
+
+            orientation = Convert.ToUInt16(exif.GetObject(ExifDirectoryBase.TagOrientation));
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // Runs IDuplicateService's own exact+perceptual-hash logic against

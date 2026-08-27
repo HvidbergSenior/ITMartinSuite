@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Linq;
 using ImageMagick;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using MetadataExtractor;
@@ -58,6 +59,39 @@ public class ImageConverterService : IImageConverterService
 
     public bool TryGetSourceOrientation(string path, out ushort orientation) =>
         TryReadOrientationTag(path, out orientation);
+
+    // Camera Model strings (EXIF tag 0x0110) known to write a meaningless
+    // Orientation tag - matched by substring since some firmwares cram
+    // several marketing names into one field (this Samsung writes "SAMSUNG
+    // ES60 / VLUU ES60 / SAMSUNG SL105 / SAMSUNG ES63" as a single Model
+    // value). Add to this list only once confirmed the same way ES60 was:
+    // a real photo from that camera with Orientation=1 but physically wrong
+    // pixels, cross-checked against an untouched original.
+    private static readonly string[] OrientationUnreliableModelSubstrings =
+    [
+        "ES60", "SL105", "ES63",
+    ];
+
+    public bool IsFromOrientationUnreliableCamera(string path)
+    {
+        try
+        {
+            var exif = ImageMetadataReader.ReadMetadata(path)
+                .OfType<ExifIfd0Directory>()
+                .FirstOrDefault();
+
+            if (exif == null || !exif.ContainsTag(ExifDirectoryBase.TagModel))
+                return false;
+
+            var model = exif.GetString(ExifDirectoryBase.TagModel) ?? string.Empty;
+            return OrientationUnreliableModelSubstrings.Any(m =>
+                model.Contains(m, StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     private static bool TryReadOrientationTag(string path, out ushort orientation)
     {

@@ -76,6 +76,9 @@ public sealed class ImageNormalizationWorkflowStep
                     file.OrientationKnownFromExif =
                         _imageConverterService.TryGetSourceOrientation(file.FullPath, out _);
 
+                    file.OrientationSourceIsUnreliable =
+                        _imageConverterService.IsFromOrientationUnreliableCamera(file.FullPath);
+
                     if (!string.IsNullOrWhiteSpace(
                             file.NormalizedPath))
                     {

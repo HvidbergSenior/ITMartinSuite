@@ -185,4 +185,22 @@ public interface ILibraryPolishService
     // cache pattern. Goes to Billeder/Andet, not Musik/AlbumArt - these
     // aren't music-related, just generic downloaded junk.
     Task<WebWatermarkReclassifyResult> ReclassifyWebWatermarksAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Free, deterministic counterpart to FixOrientationFreeOnlyAsync/
+    // DetectRotatedImagesAsync - those two infer orientation by guessing from
+    // face detection; this one only acts when the file itself already
+    // carries a real answer: a non-1 EXIF Orientation tag. Found necessary
+    // 2026-08-27 - Windows' own Photos app "rotate" button, on some images
+    // (e.g. odd JPEG block dimensions), only flips this tag instead of
+    // re-encoding pixels, so the file looks correctly rotated in EXIF-aware
+    // viewers (Photos, Explorer) while still failing every raw-pixel read
+    // (this suite's own thumbnailing/gallery/face-indexing included, none of
+    // which apply EXIF orientation - same gap ImageConverterService's
+    // ApplyOriginalOrientation exists to close, but only for files going
+    // through that conversion path at Package1 import time). Applies the tag
+    // to the pixels in place (SixLabors AutoOrient, same as
+    // ImageConverterService.BakeInOwnOrientationIfNeeded) and removes it, so
+    // every consumer - EXIF-aware or not - agrees afterward. Safe to re-run:
+    // a file with no tag or Orientation=1 is left untouched.
+    Task<BakeOrientationResult> BakeExifOrientationAsync(string path, CancellationToken cancellationToken = default);
 }

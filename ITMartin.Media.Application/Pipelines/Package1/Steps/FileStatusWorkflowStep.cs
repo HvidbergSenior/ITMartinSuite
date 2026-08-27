@@ -115,9 +115,15 @@ public sealed class FileStatusWorkflowStep : Package1WorkflowStepBase
                 flags[StepFlags.DateIsSet] = new() { Value = file.IsDateReliable, Suggestion = file.IsDateReliable ? null : "No reliable date source (EXIF/GPS/face-match) found" };
             if (isImage)
             {
-                flags[StepFlags.RotationIsCorrect] = file.OrientationKnownFromExif
+                flags[StepFlags.RotationIsCorrect] = file.OrientationKnownFromExif && !file.OrientationSourceIsUnreliable
                     ? new() { Value = true }
-                    : new() { Value = false, Suggestion = "No EXIF orientation tag found - run the rotation-fix pass" };
+                    : new()
+                    {
+                        Value = false,
+                        Suggestion = file.OrientationSourceIsUnreliable
+                            ? "Camera writes an unreliable EXIF orientation tag - run the rotation-fix pass"
+                            : "No EXIF orientation tag found - run the rotation-fix pass",
+                    };
 
                 // ImageQualityWorkflowStep's free local check always runs, so
                 // both are normally set by this point; AiClassificationWorkflowStep

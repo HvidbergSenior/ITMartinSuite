@@ -102,7 +102,8 @@ public sealed class StartPackage1Handler
         // Free add-ons folded into the normal sort pass instead of being
         // separate, easy-to-forget catch-up steps run by hand via debug
         // endpoints - each is either free (no Claude API cost), local-only
-        // ONNX (IndexFacesAsync), or cheap enough to treat as free by policy
+        // ONNX (IndexFacesAsync, FixOrientationFreeOnlyAsync's face-detection
+        // tier), or cheap enough to treat as free by policy
         // (ClassifyUnhandledFilesAsync - text-only Haiku calls, capped at 500
         // files/run, ~$0.05/run). All are already incremental (skip work
         // already done), so a re-run against a mostly-unchanged library only
@@ -113,7 +114,9 @@ public sealed class StartPackage1Handler
         // Everything still excluded here belongs to Package3 - the paid
         // features tier, kept manual/opt-in per CLAUDE.md's cost-discipline
         // rule because each makes real, non-trivial Claude API calls:
-        //   - ILibraryPolishService.FixOrientationAsync (rotation, vision calls)
+        //   - ILibraryPolishService.FixOrientationAsync (the PAID Claude-vision
+        //     fallback tier - its free face-detection tier runs automatically
+        //     below via FixOrientationFreeOnlyAsync instead)
         //   - IImageTaggingService.TagLibraryAsync
         //   - ISmartFoldersService.EstimateUndatedPhotoYearsAsync
         //   - ISmartFoldersService.AddYearbookCaptionsAsync
@@ -122,6 +125,14 @@ public sealed class StartPackage1Handler
         // chosen, which is a curatorial decision, not a mechanical cleanup step.
         await RunAddonStepAsync("IndexFaces", outputPath,
             () => _package3Service.IndexFacesAsync(outputPath, cancellationToken: cancellationToken));
+
+        // Zero-cost sibling of the paid FixOrientationAsync above - same
+        // face-detection tier, never touches Claude, so there's no reason to
+        // leave it manual-only like its paid counterpart. Whatever it can't
+        // confidently resolve gets quarantined for a human/the paid pass to
+        // review, not silently left mis-rotated.
+        await RunAddonStepAsync("FixOrientationFree", outputPath,
+            () => _libraryPolishService.FixOrientationFreeOnlyAsync(outputPath, cancellationToken));
 
         // maxDatedReferenceFiles caps EstimateUndatedDatesAsync's own dated-
         // reference sampling (both the face and GPS passes) - without it, the

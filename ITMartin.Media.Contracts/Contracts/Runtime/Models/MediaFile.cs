@@ -50,6 +50,14 @@
         // all - genuinely unknown, the only case worth the expensive check.
         public bool OrientationKnownFromExif { get; set; }
 
+        // True when this file's camera (EXIF Make/Model) is known to write a
+        // meaningless Orientation tag - see IImageConverterService.
+        // IsFromOrientationUnreliableCamera. FileStatusWorkflowStep must not
+        // trust OrientationKnownFromExif for these even when a tag is
+        // present; they need the face-detection fallback like an untagged
+        // file would.
+        public bool OrientationSourceIsUnreliable { get; set; }
+
         // Null = never examined this run. Set by the free local quality
         // check (every image, no AI cost) and overwritten by the paid AI
         // classification's own verdict when that's also enabled, since the

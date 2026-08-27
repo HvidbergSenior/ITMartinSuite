@@ -12,6 +12,7 @@
 @inject LyricsService Lyrics
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IConfiguration Configuration
 @using Microsoft.EntityFrameworkCore
 
 <PageTitle>@(_song?.Title ?? SongKey) — Studio</PageTitle>
@@ -1059,6 +1060,12 @@ else if (_song is not null)
                     </div>
                 </div>
             }
+            else if (_stems is null && !HeavyFeaturesAllowed)
+            {
+                <p style="font-size:0.85rem;color:#b45309;margin-bottom:0">
+                    ⚠️ Denne funktion bør køres lokalt — den er for CPU-tung til at køre her.
+                </p>
+            }
             else if (_stems is null)
             {
                 <p style="font-size:0.85rem;color:#666;margin-bottom:10px">
@@ -1130,6 +1137,12 @@ else if (_song is not null)
                         <div style="font-size:0.75rem;color:#444;margin-top:2px">Kan tage et par minutter</div>
                     </div>
                 </div>
+            }
+            else if (_noteMidPath is null && !HeavyFeaturesAllowed)
+            {
+                <p style="font-size:0.85rem;color:#b45309;margin-bottom:0">
+                    ⚠️ Denne funktion bør køres lokalt — den er for CPU-tung til at køre her.
+                </p>
             }
             else if (_noteMidPath is null)
             {
@@ -1524,6 +1537,12 @@ else if (_song is not null)
 @code {
     [Parameter] public string SongKey { get; set; } = "";
     [SupplyParameterFromQuery(Name = "file")] public string? FileParam { get; set; }
+
+    // False on the NAS deployment (MusikSettings__HeavyFeaturesAllowed=false)
+    // - stem separation/note transcription run real CPU-heavy torch inference,
+    // and the NAS is small/memory-constrained shared infra. Default true
+    // (local run) since that's where this always ran until 2026-08-26.
+    private bool HeavyFeaturesAllowed => Configuration.GetValue("MusikSettings:HeavyFeaturesAllowed", true);
 
     private StudioSong? _song;
     private bool _loading = true;
