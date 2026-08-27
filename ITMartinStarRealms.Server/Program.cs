@@ -15,6 +15,8 @@ builder.Services.AddScoped<GameService>();
 builder.Services.AddSingleton<ITMartinStarRealms.Server.Services.EmojiSuggestionService>();
 builder.Services.AddHttpClient("fal-profile-picture");
 builder.Services.AddSingleton<ITMartinStarRealms.Server.Services.ProfilePictureService>();
+builder.Services.AddSingleton<ITMartinStarRealms.Server.Services.SoundService>();
+builder.Services.AddSingleton<ITMartinStarRealms.Server.Services.RulesQuestionService>();
 builder.Services.AddHostedService<CleanupService>();
 
 var app = builder.Build();
@@ -70,7 +72,15 @@ using (var scope = app.Services.CreateScope())
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
 
-app.UseStaticFiles();
+// Explicit audio content types for recorded sounds (see SoundService) -
+// the default provider maps .webm to "video/webm" and doesn't know .m4a at
+// all, and Safari in particular refuses to play an <audio> src back if the
+// Content-Type doesn't match an audio type it recognizes.
+var audioContentTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+audioContentTypes.Mappings[".webm"] = "audio/webm";
+audioContentTypes.Mappings[".m4a"] = "audio/mp4";
+audioContentTypes.Mappings[".aac"] = "audio/aac";
+app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = audioContentTypes });
 app.UseAntiforgery();
 
 // ── Rulesets ─────────────────────────────────────────────────────────────────
@@ -114,6 +124,8 @@ app.MapGet("/api/sessions/{code}", async (string code, GameService svc) =>
         session.Code,
         session.RulesetName,
         RulesetDescription = ruleset?.Description ?? "",
+        RulesetMaxPlayers = ruleset?.MaxPlayers ?? GameService.MaxPlayers,
+        RulesetPlayersPerTeam = ruleset?.PlayersPerTeam ?? 0,
         session.IsTeamMode,
         session.SharedTeamPool,
         session.MinPoints,
@@ -123,7 +135,7 @@ app.MapGet("/api/sessions/{code}", async (string code, GameService svc) =>
         session.HasStarted,
         Players = session.Players.OrderBy(p => p.SortOrder).Select(p => new
         {
-            p.Id, p.Name, p.Avatar, p.Color, p.Points, p.Team, p.SortOrder, p.Token
+            p.Id, p.Name, p.Avatar, p.Color, p.Points, p.Team, p.SortOrder, p.Token, p.ProfileId
         })
     });
 });
@@ -147,6 +159,18 @@ app.MapPost("/api/sessions/{code}/adjust", async (string code, GameService svc, 
     try
     {
         await svc.AdjustPointsAsync(code, body.PlayerId, body.Delta);
+        return Results.Ok();
+    }
+    catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+});
+
+app.MapPost("/api/sessions/{code}/team", async (string code, GameService svc, HttpContext ctx) =>
+{
+    var body = await ctx.Request.ReadFromJsonAsync<SetTeamBody>();
+    if (body is null) return Results.BadRequest();
+    try
+    {
+        await svc.SetPlayerTeamAsync(code, body.PlayerId, body.Team);
         return Results.Ok();
     }
     catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
@@ -244,6 +268,15 @@ app.MapGet("/api/leaderboard/teams", async (string ruleset, int? sinceMonths, Ga
     return Results.Ok(await svc.GetTeamLeaderboardAsync(ruleset, since));
 });
 
+app.MapGet("/api/teams/for", async (string profileIds, GameService svc) =>
+{
+    var ids = profileIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .Select(s => Guid.TryParse(s, out var g) ? g : (Guid?)null)
+        .Where(g => g is not null).Select(g => g!.Value).Distinct().ToList();
+    if (ids.Count < 2) return Results.BadRequest("Kræver mindst 2 profiler");
+    return Results.Ok(await svc.GetOrCreateTeamInfoAsync(ids));
+});
+
 app.MapGet("/api/teams/mine", async (string deviceToken, GameService svc) =>
 {
     var profile = await svc.FindProfileAsync(deviceToken);
@@ -264,6 +297,42 @@ app.MapPost("/api/teams/{id:guid}/name", async (Guid id, GameService svc, HttpCo
     catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
 });
 
+// ── In-game rules Q&A (cheap Haiku, one call per explicit question) ─────────
+
+app.MapPost("/api/rules-question", async (ITMartinStarRealms.Server.Services.RulesQuestionService svc, HttpContext ctx) =>
+{
+    var body = await ctx.Request.ReadFromJsonAsync<RulesQuestionBody>();
+    if (body is null || string.IsNullOrWhiteSpace(body.Question)) return Results.BadRequest();
+    var answer = await svc.AskAsync(body.RulesetName ?? "", body.RulesetDescription ?? "", body.Question);
+    return answer is null
+        ? Results.Problem("Kunne ikke få svar lige nu", statusCode: 502)
+        : Results.Ok(new { answer });
+});
+
+// ── Custom recorded sounds (per-profile, one clip per trigger) ──────────────
+
+app.MapGet("/api/sounds/{profileId:guid}", (Guid profileId, ITMartinStarRealms.Server.Services.SoundService svc) =>
+    Results.Ok(svc.GetMine(profileId)));
+
+app.MapPost("/api/sounds/{profileId:guid}/{trigger}", async (Guid profileId, string trigger, string? ext, HttpContext ctx, ITMartinStarRealms.Server.Services.SoundService svc) =>
+{
+    using var ms = new MemoryStream();
+    await ctx.Request.Body.CopyToAsync(ms);
+    if (ms.Length > 2_000_000) return Results.BadRequest("Optagelsen er for stor (maks 2MB)");
+    try
+    {
+        var url = await svc.SaveAsync(profileId, trigger, ms.ToArray(), ext ?? "webm");
+        return Results.Ok(new { url });
+    }
+    catch (InvalidOperationException ex) { return Results.BadRequest(ex.Message); }
+});
+
+app.MapDelete("/api/sounds/{profileId:guid}/{trigger}", (Guid profileId, string trigger, ITMartinStarRealms.Server.Services.SoundService svc) =>
+{
+    svc.Delete(profileId, trigger);
+    return Results.Ok();
+});
+
 // ── Blazor (static SSR only - no interactive render mode anywhere) ──────────
 
 app.MapRazorComponents<ITMartinStarRealms.Server.App>();
@@ -278,3 +347,5 @@ record ProfileBody(string DeviceToken, string? Name, string? Avatar, string? Pin
 record EmojiSuggestionBody(List<string>? Exclude);
 record ProfilePictureBody(string Prompt);
 record TeamNameBody(string DeviceToken, string? Name);
+record SetTeamBody(Guid PlayerId, int Team);
+record RulesQuestionBody(string? RulesetName, string? RulesetDescription, string Question);

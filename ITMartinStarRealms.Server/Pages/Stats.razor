@@ -3,7 +3,7 @@
 <div id="page-data" data-page="stats" style="display:none"></div>
 
 <div class="home-page">
-    <div class="home-card" style="max-width:520px">
+    <div class="home-card" style="max-width:560px">
         <div class="home-logo">📊</div>
         <h1 class="home-title">Mine statistikker</h1>
 
@@ -23,7 +23,7 @@
 
             <label class="home-label mt-2">Eller et AI-genereret profilbillede</label>
             <div class="ai-picture-row">
-                <input id="s-ai-prompt" class="home-input" placeholder="F.eks. 'en rumpirat med solbriller'" maxlength="120" />
+                <textarea id="s-ai-prompt" class="home-input" rows="2" placeholder="F.eks. 'en rumpirat med solbriller'" maxlength="120"></textarea>
                 <button type="button" class="btn-ghost" id="s-ai-generate" onclick="generateProfilePictureStats()">🪄 Generér</button>
             </div>
             <div id="s-ai-picture-preview" class="ai-picture-preview" style="display:none"></div>
@@ -54,6 +54,12 @@
             <div id="s-teams-section" class="mt-3" style="display:none">
                 <div class="home-section-inner-label">Mine hold</div>
                 <div id="s-teams-rows"></div>
+            </div>
+
+            <div id="s-sounds-section" class="mt-3" style="display:none">
+                <div class="home-section-inner-label">🎙️ Mine lyde</div>
+                <p class="home-sub">Optag din egen lyd til point op/ned og sejr - erstatter standardlyden, kun på din egen enhed.</p>
+                <div id="s-sounds-rows"></div>
             </div>
         </div>
 
