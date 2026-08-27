@@ -87,6 +87,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
     private readonly IMediaDateService _dateService;
     private readonly ICollectionStore _collectionStore;
     private readonly IImageAnalysisService _imageAnalysis;
+    private readonly IPerceptualHashService _perceptualHash;
     private readonly AnthropicClient? _anthropicClient;
     private readonly ILogger<SmartFoldersService> _logger;
 
@@ -97,6 +98,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
         IMediaDateService dateService,
         ICollectionStore collectionStore,
         IImageAnalysisService imageAnalysis,
+        IPerceptualHashService perceptualHash,
         IConfiguration configuration,
         ILogger<SmartFoldersService> logger)
     {
@@ -106,6 +108,7 @@ public sealed class SmartFoldersService : ISmartFoldersService
         _dateService = dateService;
         _collectionStore = collectionStore;
         _imageAnalysis = imageAnalysis;
+        _perceptualHash = perceptualHash;
         _logger = logger;
 
         var apiKey = configuration["Claude:ApiKey"];
@@ -1280,6 +1283,67 @@ public sealed class SmartFoldersService : ISmartFoldersService
     // add-on folder would just be empty/broken once it's off the NAS. Clears any
     // previous run's output first so a regenerate reflects the current match set
     // exactly.
+    // Looser than LibraryPolishService's near-duplicate threshold (6) - that one
+    // is tuned to catch the same photo re-saved/recompressed. This is deliberately
+    // wider so several distinct shots against the same backdrop (same room, same
+    // photo session) still cluster together, not just byte-near-identical copies.
+    private const int SimilarSceneHammingThreshold = 14;
+    private const int MinSimilarSceneClusterSize = 3;
+
+    public async Task<List<SimilarSceneResult>> GenerateSimilarSceneFoldersAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var results = new List<SimilarSceneResult>();
+        var files = EnumerateLibraryImages(libraryPath).Where(MediaTypeHelper.IsImage).ToList();
+        var clusterIndex = 0;
+
+        // Bucketed per containing folder (same approach as LibraryPolishService's
+        // near-duplicate pass) - clustering is O(n^2) per bucket, and comparing
+        // every photo in the whole library against every other would be millions
+        // of comparisons on a real library. Photos from the same scene/session are
+        // already sitting in the same Year/Month folder anyway.
+        foreach (var folderGroup in files.GroupBy(f => Path.GetDirectoryName(f) ?? libraryPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var hashed = new List<(string Path, ulong Hash)>();
+            foreach (var file in folderGroup)
+            {
+                var hash = await _perceptualHash.ComputeAsync(file, cancellationToken);
+                if (hash is { } h) hashed.Add((file, h));
+            }
+
+            var used = new bool[hashed.Count];
+            for (var i = 0; i < hashed.Count; i++)
+            {
+                if (used[i]) continue;
+
+                var members = new List<string> { hashed[i].Path };
+                for (var j = i + 1; j < hashed.Count; j++)
+                {
+                    if (used[j]) continue;
+                    if (_perceptualHash.HammingDistance(hashed[i].Hash, hashed[j].Hash) <= SimilarSceneHammingThreshold)
+                    {
+                        members.Add(hashed[j].Path);
+                        used[j] = true;
+                    }
+                }
+
+                if (members.Count < MinSimilarSceneClusterSize) continue;
+                used[i] = true;
+                clusterIndex++;
+
+                var name = $"Gruppe {clusterIndex}";
+                var folderPath = Path.Combine(libraryPath, RootFolderName, "Lignende", SanitizeName(name));
+                CopyFiles(members, folderPath);
+
+                results.Add(new SimilarSceneResult { Name = name, FileCount = members.Count, FolderPath = folderPath });
+            }
+        }
+
+        _logger.LogInformation("Generated {Count} similar-scene folders for {LibraryPath}", results.Count, libraryPath);
+        return results;
+    }
+
     private static Dictionary<string, string> CopyFiles(IEnumerable<string> sourcePaths, string destFolder)
     {
         Directory.CreateDirectory(destFolder);

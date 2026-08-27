@@ -74,6 +74,16 @@ public sealed class SettingsGuideService
         new("Lyd", "HDR Audio / 3D Positional Audio", "🎧"),
         new("Lyd", "Mono Audio", "🔈"),
 
+        // Discord (mikrofon/lyd - ikke R6's egne indstillinger)
+        new("Discord", "Input/Output Device (valg af mikrofon/højttaler)", "🎤"),
+        new("Discord", "Input Sensitivity (Automatisk vs. manuel tærskel)", "📶"),
+        new("Discord", "Automatic Gain Control", "🎚️"),
+        new("Discord", "Echo Cancellation", "🔁"),
+        new("Discord", "Noise Suppression / Krisp", "🧹"),
+        new("Discord", "Advanced Voice Activity", "🌊"),
+        new("Discord", "Audio Subsystem (Standard vs. Legacy)", "🔧"),
+        new("Discord", "Push to Talk - tastebinding og release-delay", "⌨️"),
+
         // System
         new("System", "Renderer (DirectX vs. Vulkan)", "⚙️"),
     ];

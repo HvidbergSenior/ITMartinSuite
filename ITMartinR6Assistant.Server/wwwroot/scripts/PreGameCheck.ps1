@@ -1,9 +1,11 @@
-# PreGameCheck.ps1
+﻿# PreGameCheck.ps1
 # Run this ~2 minutes before an R6 Siege session. Gathers local system state
 # (network, audio/Discord, game/launcher, system) and sends it to
 # r6assistant-web, which asks Claude for a short checklist of what's fine and
 # what to fix before you play. No admin rights required. Safe to share with
 # teammates - it never touches your Claude API key, that lives on the server.
+# Asks for your name the first time (then remembers it locally) so your
+# submission shows up under your name on the team's overview page.
 #
 # Each check is wrapped so one failure doesn't kill the whole script - a
 # missing value just gets skipped, not treated as an error.
@@ -27,6 +29,19 @@ $Endpoint = "https://r6.itmartin.dk/api/pregame/check"
 function Try-Get {
     param([scriptblock]$Block, $Default = $null)
     try { & $Block } catch { $Default }
+}
+
+# Asked once per machine, then remembered locally - so teammates can see
+# whose setup is whose on the team overview page without typing a name every
+# single run. Delete the file to be asked again (e.g. shared/borrowed PC).
+$NameFile = "$env:LOCALAPPDATA\R6Assistant\player.txt"
+$PlayerName = Try-Get { (Get-Content -Path $NameFile -ErrorAction Stop).Trim() }
+if ([string]::IsNullOrWhiteSpace($PlayerName)) {
+    $PlayerName = Read-Host "Dit navn (bruges på team-overblikket)"
+    Try-Get {
+        New-Item -ItemType Directory -Path (Split-Path $NameFile) -Force | Out-Null
+        Set-Content -Path $NameFile -Value $PlayerName
+    }
 }
 
 Write-Host "Indsamler systemtilstand..." -ForegroundColor Cyan
@@ -61,6 +76,29 @@ $discordVersion = Try-Get {
     if ($discordProcess) { $discordProcess.Path | ForEach-Object { (Get-Item $_).VersionInfo.ProductVersion } }
 }
 
+# Headset/audio-enhancement software (SteelSeries GG/Sonar, Logitech G HUB,
+# Razer Synapse, Corsair iCUE, HyperX NGENUITY, EPOS, Turtle Beach, ASTRO) -
+# each of these can quietly grab the mic/output device or add its own noise
+# gate/EQ, which is a common, easy-to-miss cause of "sound breaks up every
+# session" style problems the AI can flag if it knows one is running.
+$headsetSoftwareMap = @{
+    "SteelSeriesGG"          = "SteelSeries GG"
+    "SteelSeriesSonarClient" = "SteelSeries Sonar"
+    "LGHUB"                  = "Logitech G HUB"
+    "RazerCentralService"    = "Razer Synapse"
+    "Razer Synapse Service"  = "Razer Synapse"
+    "iCUE"                   = "Corsair iCUE"
+    "NGENUITY"               = "HyperX NGENUITY"
+    "EPOSGamingSuite"        = "EPOS Gaming Suite"
+    "Audio Hub"              = "Turtle Beach Audio Hub"
+    "AstroCommandCenter"     = "ASTRO Command Center"
+}
+$runningHeadsetSoftware = Try-Get {
+    $headsetSoftwareMap.Keys | ForEach-Object {
+        if (Get-Process -Name $_ -ErrorAction SilentlyContinue) { $headsetSoftwareMap[$_] }
+    }
+} -Default @()
+
 # ── Spil & Launcher ──────────────────────────────────────────────────────
 $r6Path = Try-Get {
     $candidates = @(
@@ -89,6 +127,43 @@ $gpu = Try-Get {
         ForEach-Object { [PSCustomObject]@{ Name = $_.Name; DriverDate = $_.DriverDate; DriverVersion = $_.DriverVersion } }
 }
 
+# Best-effort hardware names - useful for "why does X's mouse feel different"
+# style troubleshooting between teammates, not for anything precise.
+# Win32_PointingDevice/Win32_Keyboard almost always just say "HID-compliant
+# mouse"/"Enhanced (101-102 key)" - generic USB HID names, not the real
+# product - kept as the reliable fallback for the Mus/Tastatur fields below.
+$mouseName = Try-Get { Get-CimInstance -ClassName Win32_PointingDevice | Select-Object -First 1 -ExpandProperty Name }
+$keyboardName = Try-Get { Get-CimInstance -ClassName Win32_Keyboard | Select-Object -First 1 -ExpandProperty Name }
+
+# The real product name (e.g. "PRO WIRELESS" for a Logitech G Pro Wireless)
+# sometimes only shows up elsewhere in the Plug-and-Play device tree - e.g.
+# as a sub-device for RGB lighting - not attributable back to specifically
+# "the mouse" vs "the keyboard" with any confidence, so this is reported
+# alongside the two generic fields above rather than replacing either one.
+$knownPeripheralVendorVids = "046D|1532|1038|1B1C|0951|03F0|0B05|248A"  # Logitech, Razer, SteelSeries, Corsair, HyperX, ASUS, Attack Shark
+$brandedNameExcludePattern = '^(HID-compliant|USB Input Device|USB Composite Device|LIGHTSPEED Receiver|HID Keyboard Device|HID Mouse|Generic|Bluetooth)|Virtual'
+$brandedPeripherals = Try-Get {
+    Get-PnpDevice -Status OK -ErrorAction Stop |
+        Where-Object { $_.InstanceId -match "VID_($knownPeripheralVendorVids)" -and $_.FriendlyName -and $_.FriendlyName -notmatch $brandedNameExcludePattern } |
+        Select-Object -ExpandProperty FriendlyName -Unique
+} -Default @()
+$pcModel = Try-Get {
+    $cs = Get-CimInstance -ClassName Win32_ComputerSystem
+    "$($cs.Manufacturer) $($cs.Model)".Trim()
+}
+$cpuName = Try-Get { Get-CimInstance -ClassName Win32_Processor | Select-Object -First 1 -ExpandProperty Name }
+$ramGB = Try-Get { [math]::Round((Get-CimInstance -ClassName Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 0) }
+$osVersion = Try-Get { (Get-CimInstance -ClassName Win32_OperatingSystem).Caption }
+
+# Resolution + refresh rate straight from the video controller - more
+# reliable than asking the browser (which can't see refresh rate at all,
+# and reports the browser window's monitor, not necessarily "the" monitor
+# on a multi-monitor setup where R6 actually runs).
+$screenInfo = Try-Get {
+    $vc = Get-CimInstance -ClassName Win32_VideoController | Where-Object { $_.CurrentHorizontalResolution } | Select-Object -First 1
+    if ($vc) { "$($vc.CurrentHorizontalResolution)x$($vc.CurrentVerticalResolution) @ $($vc.CurrentRefreshRate)Hz" }
+}
+
 $pendingReboot = Try-Get {
     Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending"
 } -Default $false
@@ -112,18 +187,50 @@ $topProcesses = Try-Get {
     Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 -ExpandProperty ProcessName
 }
 
+function Get-RecentLogEvents {
+    param([string]$LogName, [string]$ProviderPattern, [int]$Max = 10)
+    Try-Get {
+        Get-WinEvent -FilterHashtable @{ LogName = $LogName; Level = 1, 2, 3; StartTime = (Get-Date).AddDays(-3) } -MaxEvents 300 -ErrorAction Stop |
+            Where-Object { $_.ProviderName -match $ProviderPattern -or $_.Message -match $ProviderPattern } |
+            Select-Object -First $Max -Property @(
+                @{ n = 'tid'; e = { $_.TimeCreated.ToString("yyyy-MM-dd HH:mm") } },
+                @{ n = 'kilde'; e = { $_.ProviderName } },
+                @{ n = 'besked'; e = { $m = ($_.Message -replace '\s+', ' '); $m.Substring(0, [Math]::Min(150, $m.Length)) } }
+            )
+    } -Default @()
+}
+
+# WHEA-Logger + GPU driver timeout/recovery events (System log) cover
+# hardware-level causes of a mid-game stutter/freeze (PCIe bus errors, GPU
+# faults, memory ECC issues, "Display driver stopped responding and has
+# recovered"). Application log adds R6 Siege's own crashes/hangs. Capped
+# small and truncated per entry - this is context for the AI, not a log dump.
+$recentSystemErrors = Get-RecentLogEvents -LogName "System" -ProviderPattern "WHEA|nvlddmkm|amdkmdag|igfx|Display"
+$recentAppErrors = Get-RecentLogEvents -LogName "Application" -ProviderPattern "RainbowSix|Application Error|Application Hang"
+
 # ── Byg payload ──────────────────────────────────────────────────────────
 $payload = [PSCustomObject]@{
+    spiller = $PlayerName
     netvaerk = [PSCustomObject]@{
         forbindelsestype = $connectionType
         ping_ms = $ping.AvgLatencyMs
         pakketab_pct = $ping.PacketLossPct
         vpn_aktiv = $vpnActive
     }
-    lyd_discord = [PSCustomObject]@{
-        lydenheder = $audioDevices
-        discord_koerer = $discordRunning
-        discord_version = $discordVersion
+    lyd_discord = & {
+        # headset_software only gets included at all when non-empty - the AI
+        # kept inventing a "not configured" warning when it saw an empty
+        # array, even when explicitly told not to, so the reliable fix is to
+        # just not show it the field rather than fight prompt compliance.
+        $lydDiscord = [ordered]@{
+            lydenheder = $audioDevices
+            discord_koerer = $discordRunning
+            discord_version = $discordVersion
+        }
+        if ($runningHeadsetSoftware -and @($runningHeadsetSoftware).Count -gt 0) {
+            $lydDiscord.headset_software = @($runningHeadsetSoftware)
+        }
+        [PSCustomObject]$lydDiscord
     }
     spil_launcher = [PSCustomObject]@{
         r6_fundet = $null -ne $r6Path
@@ -140,6 +247,16 @@ $payload = [PSCustomObject]@{
         stroemplan = $powerPlan
         ledig_diskplads_gb = $freeDiskGB
         top_processer = $topProcesses
+        pc_model = $pcModel
+        mus_navn = $mouseName
+        tastatur_navn = $keyboardName
+        brandet_udstyr = $brandedPeripherals
+        cpu_navn = $cpuName
+        ram_gb = $ramGB
+        os_version = $osVersion
+        skaerm = $screenInfo
+        nylige_system_fejl = $recentSystemErrors
+        nylige_app_fejl = $recentAppErrors
     }
 }
 

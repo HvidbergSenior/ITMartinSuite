@@ -1,0 +1,137 @@
+@page "/g/{Slug}/admin"
+@rendermode InteractiveServer
+@inject AeroDbContext Db
+@inject AeroAuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+
+@if (_group is null)
+{
+    <p style="padding:20px">Indlæser...</p>
+}
+else if (!_authed)
+{
+    <div class="admin-lock">
+        <div class="admin-lock-card">
+            <div style="font-size:40px;margin-bottom:12px">🔒</div>
+            <h2>Admin — @_group.Name</h2>
+            <input @bind="_pinInput" @bind:event="oninput" type="password" placeholder="Din PIN" class="admin-input" maxlength="20" @onkeydown="OnPinKeyDown" />
+            @if (_pinError) { <div class="admin-error">Forkert PIN.</div> }
+            <button class="admin-btn" @onclick="Unlock">Lås op</button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="home-wrap">
+        <AeroNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="Admin" Active="admin" OnLogout="LeaveAsync" />
+
+        <div class="home-body">
+            <InfoBanners PageKey="admin" Beskrivelse="Her kan I se, hvad der allerede er blevet lavet - hvem der gjorde det, og hvornår." />
+
+            <h2 class="page-title">Udførte opgaver (@_done.Count)</h2>
+
+            @if (_done.Count == 0)
+            {
+                <div class="hint">Ingen udførte opgaver endnu.</div>
+            }
+            @foreach (var a in _done)
+            {
+                <div class="history-row">
+                    <div class="history-title">@a.Title</div>
+                    <div class="history-meta">
+                        <span>@(_mainTaskTitleById.GetValueOrDefault(a.MainTaskId ?? Guid.Empty, "—"))</span>
+                        @if (a.Assignees.Count > 0) { <span>👤 @a.AssigneeLabel</span> }
+                        @if (a.CompletedAt.HasValue) { <span>✓ @a.CompletedAt.Value.ToLocalTime().ToString("dd MMM yyyy")</span> }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .home-wrap { max-width: 900px; margin: 0 auto; color: var(--text); }
+    .home-body { padding: 16px 16px 64px; }
+    .page-title { font-size: 18px; font-weight: 800; margin: 0 0 16px; color: var(--text); }
+    .hint { color: var(--muted); font-size: 13px; padding: 10px 0; }
+    .history-row { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; }
+    .history-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text); text-decoration: line-through; opacity: .8; }
+    .history-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+
+    .admin-lock { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .admin-lock-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 360px; text-align: center; color: var(--text); }
+    .admin-lock-card h2 { margin: 0 0 20px; font-size: 18px; }
+    .admin-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none; box-sizing: border-box; margin-bottom: 12px; }
+    .admin-input:focus { border-color: var(--accent); }
+    .admin-error { color: var(--red); font-size: 13px; margin-bottom: 12px; }
+    .admin-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Group? _group;
+    private Member? _me;
+    private bool _authed, _pinError;
+    private string _pinInput = "";
+    private List<Assignment> _done = [];
+    private Dictionary<Guid, string> _mainTaskTitleById = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_group is null) return;
+
+        var session = await Auth.ResolveSessionAsync(Js, Db, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _me = session.Member;
+
+        StateHasChanged();
+    }
+
+    private void OnPinKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Unlock();
+    }
+
+    private void Unlock()
+    {
+        if (_group is not null && SecretHasher.Verify(_pinInput, _group.AdminPin))
+        {
+            _authed = true;
+            _pinError = false;
+            _ = LoadAsync();
+        }
+        else
+        {
+            _pinError = true;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _mainTaskTitleById = (await Db.MainTasks.Where(m => m.GroupId == _group!.Id).ToListAsync())
+            .ToDictionary(m => m.Id, m => m.Title);
+
+        _done = await Db.Assignments
+            .Where(a => a.GroupId == _group!.Id && a.IsCompleted)
+            .OrderByDescending(a => a.CompletedAt)
+            .Take(100)
+            .ToListAsync();
+
+        StateHasChanged();
+    }
+
+    private async Task LeaveAsync()
+    {
+        await Js.InvokeVoidAsync("aeroJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+    }
+}

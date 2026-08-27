@@ -1,0 +1,95 @@
+@page "/loadouts"
+@layout R6AssistantLayout
+@inject IR6DataService DataService
+@inject SessionStateService Session
+@inject PlayerIdentityService Identity
+@implements IDisposable
+@using ITMartinR6Assistant.Domain
+
+<div class="loadouts-page">
+
+    <div style="max-width:520px;margin:0 auto 18px">
+        <ProblemPurposeBanner Show="Session.ShowBanners"
+            Problem="Uden en fælles standard bruger alle forskellige attachments og gadgets - og det er svært at huske hvad man selv plejer at køre."
+            Formaal="Ét fælles foretrukket loadout pr. operator som alle starter fra. Du kan altid ændre din egen version - og nulstille til det foretrukne igen, når du vil." />
+
+        <HowToUseBanner Show="Session.ShowBanners" Steps='@(new[]
+        {
+            "\"Foretrukket\" er fælles for alle og sættes én gang - alle ser den samme.",
+            "\"Din version\" er din egen og gemmes under dit navn - de andre kan se den, men kun du kan ændre den.",
+            "Klik \"Nulstil til standard\" for at smide din egen version væk igen."
+        })' />
+    </div>
+
+    @if (string.IsNullOrEmpty(Identity.Name))
+    {
+        <div class="quick-panel" style="max-width:420px;margin:0 auto 18px">
+            Sæt dit navn (👤-knappen øverst) for at kunne gemme din egen version - "Foretrukket" kan du stadig se og ændre for alle uden det.
+        </div>
+    }
+
+    @if (_gameData is null)
+    {
+        <div class="admin-loading">Loader data...</div>
+    }
+    else
+    {
+        @foreach (var side in new[] { "Attack", "Defense" })
+        {
+            <div class="admin-section-label">@(side == "Attack" ? "ATK" : "DEF")</div>
+            <div class="loadout-list">
+                @foreach (var op in _gameData.Operators.Where(o => o.Side == side))
+                {
+                    var opName = op.Name;
+                    var def = Session.GetDefaultLoadout(opName);
+                    var mine = Identity.Name is { } player ? Session.GetPlayerLoadout(player, opName) : null;
+
+                    <div class="loadout-card">
+                        <div class="loadout-op">
+                            <img class="loadout-op-img" src="@op.ImageUrl" alt="@op.Name" onerror="this.style.display='none'" />
+                            <div class="loadout-op-name">@op.Name</div>
+                        </div>
+
+                        <OperatorLoadoutEditor Default="def" DefaultChanged="l => SetDefault(opName, l)"
+                                               Mine="mine" MineChanged="l => SetMine(opName, l)" />
+                    </div>
+                }
+            </div>
+        }
+    }
+
+</div>
+
+@code {
+    private R6GameData? _gameData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.OnStateChanged += OnSessionChanged;
+        Identity.OnChanged += OnSessionChanged;
+        _gameData = await DataService.GetData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Identity.EnsureLoadedAsync();
+        StateHasChanged();
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private void SetDefault(string opName, OperatorLoadout loadout) => Session.SetDefaultLoadout(opName, loadout);
+
+    private void SetMine(string opName, OperatorLoadout? loadout)
+    {
+        if (Identity.Name is { } player)
+            Session.SetPlayerLoadout(player, opName, loadout);
+    }
+
+    public void Dispose()
+    {
+        Session.OnStateChanged -= OnSessionChanged;
+        Identity.OnChanged -= OnSessionChanged;
+    }
+}

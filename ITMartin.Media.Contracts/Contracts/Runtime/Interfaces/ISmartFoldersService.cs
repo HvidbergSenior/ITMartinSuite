@@ -87,6 +87,17 @@ public interface ISmartFoldersService
     Task<List<PersonFolderResult>> GenerateUnknownPersonFoldersAsync(string libraryPath, double threshold = 0.5, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Clusters visually-similar photos (same scene/session - a burst, or several
+    /// shots of the same room/backdrop) into "SmartFolders/Lignende" folders. Free,
+    /// local: reuses IPerceptualHashService's dHash, clustered per containing folder
+    /// with a looser Hamming threshold than exact near-duplicate detection, so it
+    /// catches "same background, different moment" rather than just recompressed
+    /// copies of one photo. No Claude calls. Clusters under 3 photos are dropped as
+    /// noise, same floor as the unnamed-person/burst passes elsewhere in this file.
+    /// </summary>
+    Task<List<SimilarSceneResult>> GenerateSimilarSceneFoldersAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Publishes the already-generated SmartFolders (People/Yearbook/Trips) into
     /// the Gallery web app's own "Samlinger" (Collections) feature - so they
     /// show as a grouped row of Danish-labeled cards on the gallery's home page,

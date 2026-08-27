@@ -24,6 +24,12 @@ public sealed class StartPackage1Request
         init;
     }
 
+    public bool EnableBaselineSnapshot
+    {
+        get;
+        init;
+    } = true;
+
     public bool EnableAiClassification
     {
         get;

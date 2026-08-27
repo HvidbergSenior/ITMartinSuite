@@ -16,7 +16,8 @@ public static class MediaTypeHelper
             ".mts",
             ".m2ts",
             ".wmv",
-            ".vob"
+            ".vob",
+            ".m4v"
         ];
 
     private static readonly HashSet<string>
@@ -42,7 +43,15 @@ public static class MediaTypeHelper
             ".flac",
             ".aac",
             ".ogg",
-            ".m4a"
+            ".m4a",
+            // Found 2026-08-25 on mie's real library: these three landed in
+            // Ikke_identificeret (the unrecognized-type bucket) instead of
+            // Musik - .wma alone was 182 real files, easy to mistake for
+            // junk sitting next to genuine iTunes-library cache clutter.
+            ".wma",
+            ".opus",
+            ".m4r",
+            ".m4b"
         ];
 
     private static readonly HashSet<string>

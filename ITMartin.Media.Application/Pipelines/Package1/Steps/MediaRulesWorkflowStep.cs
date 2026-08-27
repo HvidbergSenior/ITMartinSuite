@@ -75,13 +75,40 @@ public sealed class MediaRulesWorkflowStep
     private static readonly string[] ScreenshotKeywords =
         ["screenshot", "screen shot", "screen_shot", "skærmbillede", "bildschirmfoto", "capture_", "captura"];
 
-    // No dedicated Meme category - filename-only heuristics can't reliably tell a
-    // meme from a personal photo shared the same way (both come through as
-    // received_/fb_img_-style names from messaging apps). Unclassified images
-    // fall through to OtherImage -> the regular Images category instead.
+    // Meme/Chat exist as real categories (see MediaSubCategory), but filename
+    // heuristics alone can't reliably tell them apart from a personal photo
+    // shared the same way (both come through as received_/fb_img_-style names
+    // from messaging apps) - that distinction is left to AiClassificationWorkflowStep's
+    // AI tier (is_meme/is_chat). Unclassified images fall through to OtherImage
+    // -> the regular Images category, same as before.
 
     private static readonly string[] ScreenRecordingKeywords =
         ["screenrecord", "screen record", "skærmoptagelse"];
+
+    // Standard filenames media players/taggers use for embedded cover art
+    // (Windows Media Player, iTunes, foobar2000, etc. all follow one of
+    // these conventions). Requires the image to actually sit in a folder
+    // with audio files too - a personal photo that happens to be named
+    // "cover.jpg" (e.g. a scanned book cover) shouldn't get swept into Musik
+    // just because of its name alone. Anything this misses (non-standard
+    // names) is left for Package3's manual triage.
+    private static readonly string[] AlbumArtFileNames =
+        ["cover", "folder", "albumart", "albumartsmall", "albumartlarge", "front", "back"];
+
+    private static readonly string[] AudioExtensions =
+        [".mp3", ".flac", ".wav", ".aac", ".m4a", ".wma", ".ogg"];
+
+    private static bool LooksLikeAlbumArt(MediaFile mediaFile)
+    {
+        var nameLower = Path.GetFileNameWithoutExtension(mediaFile.FileName).ToLowerInvariant();
+        if (!AlbumArtFileNames.Contains(nameLower)) return false;
+
+        var directory = Path.GetDirectoryName(mediaFile.FullPath);
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory)) return false;
+
+        return Directory.EnumerateFiles(directory)
+            .Any(f => AudioExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase));
+    }
 
     // Exact-resolution matching was tried and confirmed broken on real data
     // (2026-07-31, Malene's library): a genuine screenshot exported at
@@ -95,6 +122,12 @@ public sealed class MediaRulesWorkflowStep
     private static void ClassifyImageSubCategory(MediaFile mediaFile)
     {
         if (mediaFile.Type != MediaType.Image) return;
+
+        if (LooksLikeAlbumArt(mediaFile))
+        {
+            mediaFile.SubCategory = MediaSubCategory.AlbumArt;
+            return;
+        }
 
         var nameLower = Path.GetFileNameWithoutExtension(mediaFile.FileName).ToLowerInvariant();
 

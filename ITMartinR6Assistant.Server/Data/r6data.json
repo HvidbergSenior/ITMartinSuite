@@ -61,12 +61,23 @@
     { "name": "Solis",      "side": "Defense", "role": "Intel / Gadget",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/solis.png" },
     { "name": "Fenrir",     "side": "Defense", "role": "Trap / Crowd Control", "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/fenrir.png" },
     { "name": "Tubarão",    "side": "Defense", "role": "Gadget Disable",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/tubarao.png" },
-    { "name": "Skopos",     "side": "Defense", "role": "Roamer / Drone",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/skopos.png" }
+    { "name": "Skopos",     "side": "Defense", "role": "Roamer / Drone",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/skopos.png" },
+    { "name": "Thatcher",   "side": "Attack",  "role": "EMP Specialist",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/thatcher.png" },
+    { "name": "Montagne",   "side": "Attack",  "role": "Shield / Intel",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/montagne.png" },
+    { "name": "Maverick",   "side": "Attack",  "role": "Breach / Entry",       "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/maverick.png" },
+    { "name": "Osa",        "side": "Attack",  "role": "Shield / Utility",     "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/osa.png" },
+    { "name": "Grim",       "side": "Attack",  "role": "Intel / Tracking",     "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/grim.png" },
+    { "name": "Tachanka",   "side": "Defense", "role": "Area Denial",          "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/tachanka.png" },
+    { "name": "Mira",       "side": "Defense", "role": "Intel / Anti-Peek",    "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/mira.png" },
+    { "name": "Kaid",       "side": "Defense", "role": "Gadget Denial",        "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/kaid.png" },
+    { "name": "Wamai",      "side": "Defense", "role": "Anti-Gadget",          "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/wamai.png" },
+    { "name": "Oryx",       "side": "Defense", "role": "Mobility / Anti-CC",   "imageUrl": "https://r6operators.marcopixel.eu/icons/png/256/oryx.png" }
   ],
   "maps": [
     {
       "name": "Clubhouse",
       "imageUrl": "",
+      "isRanked": true,
       "sites": [
         {
           "name": "CCTV / Cash",
@@ -133,6 +144,7 @@
     {
       "name": "Bank",
       "imageUrl": "",
+      "isRanked": true,
       "sites": [
         {
           "name": "Vault / Lockers",
@@ -199,6 +211,7 @@
     {
       "name": "Border",
       "imageUrl": "",
+      "isRanked": true,
       "sites": [
         {
           "name": "Armory / Supply Room",
@@ -265,6 +278,7 @@
     {
       "name": "Chalet",
       "imageUrl": "",
+      "isRanked": true,
       "sites": [
         {
           "name": "Cave / Cave Bar",
@@ -331,6 +345,7 @@
     {
       "name": "Coastline",
       "imageUrl": "",
+      "isRanked": true,
       "sites": [
         {
           "name": "Kitchen / Service Entrance",
@@ -397,6 +412,7 @@
     {
       "name": "Consulate",
       "imageUrl": "",
+      "isRanked": true,
       "sites": [
         {
           "name": "Garage / Cafeteria",
@@ -463,6 +479,7 @@
     {
       "name": "Kafe Dostoyevsky",
       "imageUrl": "",
+      "isRanked": true,
       "sites": [
         {
           "name": "Kitchen / Service Entrance",
@@ -855,6 +872,19 @@
           ]
         }
       ]
-    }
+    },
+    { "name": "House", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Hereford Base", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Favela", "imageUrl": "", "isRanked": true, "sites": [] },
+    { "name": "Fortress", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Plane", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Theme Park", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Skyscraper", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Close Quarters", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Lair", "imageUrl": "", "isRanked": true, "sites": [] },
+    { "name": "Nighthaven Labs", "imageUrl": "", "isRanked": true, "sites": [] },
+    { "name": "Emerald Plains", "imageUrl": "", "isRanked": true, "sites": [] },
+    { "name": "Stadium Bravo", "imageUrl": "", "isRanked": false, "sites": [] },
+    { "name": "Calypso Casino", "imageUrl": "", "isRanked": true, "sites": [] }
   ]
 }

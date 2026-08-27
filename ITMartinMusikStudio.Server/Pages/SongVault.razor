@@ -1,0 +1,242 @@
+@page "/vault"
+@rendermode InteractiveServer
+@inject StudioLibraryService Library
+@inject StemService Stems
+@inject ChordDetectionService ChordDetect
+@inject IJSRuntime JS
+
+<PageTitle>Song Vault</PageTitle>
+
+<style>
+    .vault { display: flex; gap: 20px; padding: 16px; font-family: sans-serif; color: #eee; background: #1a1a1a; min-height: 100vh; }
+    .vault-list { width: 260px; flex-shrink: 0; }
+    .vault-list button { display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 4px; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 6px; color: #eee; cursor: pointer; }
+    .vault-list button.active { background: #3a5a8a; border-color: #5a7aca; }
+    .vault-detail { flex: 1; max-width: 720px; }
+    .vault-card { background: #232323; border: 1px solid #3a3a3a; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+    .vault-card h3 { margin-top: 0; }
+    .vault-card audio { width: 100%; margin-top: 6px; }
+    .vault-card textarea { width: 100%; min-height: 90px; background: #181818; color: #eee; border: 1px solid #3a3a3a; border-radius: 6px; padding: 8px; font-family: monospace; }
+    .vault-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .vault-row input[type=number] { width: 90px; background: #181818; color: #eee; border: 1px solid #3a3a3a; border-radius: 6px; padding: 6px; }
+    .vault-btn { background: #3a5a8a; border: none; border-radius: 6px; color: #fff; padding: 8px 12px; cursor: pointer; }
+    .vault-btn:disabled { opacity: 0.5; cursor: default; }
+    .vault-btn.danger { background: #8a3a3a; }
+    .vault-muted { color: #999; font-size: 0.9em; }
+</style>
+
+<div class="vault">
+    <div class="vault-list">
+        <h3>Sange</h3>
+        @foreach (var s in _songs)
+        {
+            <button class="@(s.RelativePath == _selectedFile ? "active" : "")" @onclick="() => SelectSong(s.RelativePath)">
+                @s.Title
+            </button>
+        }
+    </div>
+
+    @if (_selectedFile is not null)
+    {
+        <div class="vault-detail">
+            <div class="vault-card">
+                <h3>🎧 Original</h3>
+                <audio controls src="/stream?path=@Uri.EscapeDataString(_selectedFile)" preload="metadata" />
+            </div>
+
+            <div class="vault-card">
+                <h3>🎤 Vokal / 🎸 Instrumental</h3>
+                @if (_stems is { Vocals: not null })
+                {
+                    <p class="vault-muted">Vokal</p>
+                    <audio controls src="/stream?path=@Uri.EscapeDataString(RelStem("vocals.wav"))" preload="metadata" />
+                }
+                @if (_stems is { Instrumental: not null })
+                {
+                    <p class="vault-muted">Instrumental (trommer+bas+andet)</p>
+                    <audio controls src="/stream?path=@Uri.EscapeDataString(RelStem("instrumental.wav"))" preload="metadata" />
+                }
+                @if (_stems is null)
+                {
+                    <p class="vault-muted">Spor ikke udtrukket endnu.</p>
+                }
+                <button class="vault-btn" @onclick="ExtractStems" disabled="@(_extracting || !Stems.IsAvailable)">
+                    @(_extracting ? "Udtrækker... (kan tage flere minutter)" : _stems is null ? "🎚 Udtræk spor" : "🎚 Udtræk spor igen")
+                </button>
+                @if (!Stems.IsAvailable)
+                {
+                    <p class="vault-muted">Demucs/Python ikke tilgængelig i denne container.</p>
+                }
+            </div>
+
+            <div class="vault-card">
+                <h3>📝 Tekst</h3>
+                <textarea @bind="_lyricsEdit" @bind:event="oninput" @onblur="SaveLyrics" placeholder="Skriv eller ret teksten mens du lytter til vokalen ovenfor..."></textarea>
+            </div>
+
+            <div class="vault-card">
+                <h3>🎼 Akkorder</h3>
+                <textarea @bind="_chordsEdit" @bind:event="oninput" @onblur="SaveChords"></textarea>
+                <button class="vault-btn" @onclick="DetectChords" disabled="@(_detectingChords || !ChordDetect.IsAvailable)">
+                    @(_detectingChords ? "Genkender..." : "🎼 Genkend akkorder")
+                </button>
+            </div>
+
+            <div class="vault-card">
+                <h3>🥁 Tempo (BPM)</h3>
+                <div class="vault-row">
+                    <input type="number" @bind="_tempoEdit" @bind:event="oninput" @onblur="SaveTempo" />
+                    <button class="vault-btn" @onclick="DetectTempo" disabled="@(_detectingTempo || !ChordDetect.IsAvailable)">
+                        @(_detectingTempo ? "Måler..." : "🥁 Find tempo")
+                    </button>
+                </div>
+            </div>
+
+            <div class="vault-card">
+                <h3>🎙 Optag</h3>
+                <p class="vault-muted">Optager mens instrumentalen (eller originalen) spiller.</p>
+                @if (!_recording)
+                {
+                    <button class="vault-btn" @onclick="StartRecording">🎙 Start optagelse</button>
+                }
+                else
+                {
+                    <button class="vault-btn danger" @onclick="StopRecording">⏹ Stop optagelse</button>
+                }
+                @foreach (var r in _recordings)
+                {
+                    <div style="margin-top:8px">
+                        <p class="vault-muted">@r.CreatedAt.ToLocalTime()</p>
+                        <audio controls src="/stream?path=@Uri.EscapeDataString(r.RelativePath)" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<SourceFile> _songs = [];
+    private string? _selectedFile;
+    private string _songKey = "";
+    private SongMeta _meta = new();
+    private StemResult? _stems;
+    private List<RecordingFile> _recordings = [];
+
+    private string _lyricsEdit = "";
+    private string _chordsEdit = "";
+    private double? _tempoEdit;
+
+    private bool _extracting;
+    private bool _detectingChords;
+    private bool _detectingTempo;
+    private bool _recording;
+
+    protected override void OnInitialized()
+    {
+        _songs = Library.GetSourceFiles();
+    }
+
+    private void SelectSong(string relativePath)
+    {
+        _selectedFile = relativePath;
+        _songKey = Library.SafeKey(relativePath);
+        _meta = Library.LoadMeta(_songKey);
+        _lyricsEdit = _meta.Lyrics;
+        _chordsEdit = _meta.Chords;
+        _tempoEdit = _meta.Tempo;
+        _stems = Library.GetExistingStems(_songKey);
+        _recordings = Library.GetRecordings(_songKey);
+        _recording = false;
+    }
+
+    private string RelStem(string fileName) => $"stems/{_songKey}/{fileName}";
+
+    private string FullSourcePath => Path.Combine(Library.Root, _selectedFile!);
+
+    private async Task ExtractStems()
+    {
+        if (_selectedFile is null) return;
+        _extracting = true;
+        StateHasChanged();
+        try
+        {
+            var dir = Path.Combine(Library.StemsDir, _songKey);
+            await Stems.SeparateAsync(FullSourcePath, dir);
+            _stems = Library.GetExistingStems(_songKey);
+        }
+        finally
+        {
+            _extracting = false;
+        }
+    }
+
+    private async Task DetectChords()
+    {
+        if (_selectedFile is null) return;
+        _detectingChords = true;
+        StateHasChanged();
+        try
+        {
+            var segments = await ChordDetect.DetectAsync(FullSourcePath);
+            _chordsEdit = ChordDetectionService.FormatAsChordChart(segments);
+            SaveChords();
+        }
+        finally
+        {
+            _detectingChords = false;
+        }
+    }
+
+    private async Task DetectTempo()
+    {
+        if (_selectedFile is null) return;
+        _detectingTempo = true;
+        StateHasChanged();
+        try
+        {
+            _tempoEdit = await ChordDetect.DetectTempoAsync(FullSourcePath);
+            SaveTempo();
+        }
+        finally
+        {
+            _detectingTempo = false;
+        }
+    }
+
+    private void SaveLyrics()
+    {
+        _meta = _meta with { Lyrics = _lyricsEdit };
+        Library.SaveMeta(_songKey, _meta);
+    }
+
+    private void SaveChords()
+    {
+        _meta = _meta with { Chords = _chordsEdit };
+        Library.SaveMeta(_songKey, _meta);
+    }
+
+    private void SaveTempo()
+    {
+        _meta = _meta with { Tempo = _tempoEdit };
+        Library.SaveMeta(_songKey, _meta);
+    }
+
+    private async Task StartRecording()
+    {
+        _recording = true;
+        var playUrl = _stems?.Instrumental is not null
+            ? $"/stream?path={Uri.EscapeDataString(RelStem("instrumental.wav"))}"
+            : $"/stream?path={Uri.EscapeDataString(_selectedFile!)}";
+        await JS.InvokeVoidAsync("studio.startOverdub", _songKey, playUrl, false, 0);
+    }
+
+    private async Task StopRecording()
+    {
+        _recording = false;
+        await JS.InvokeVoidAsync("studio.stopRecording");
+        await Task.Delay(800);
+        _recordings = Library.GetRecordings(_songKey);
+        StateHasChanged();
+    }
+}

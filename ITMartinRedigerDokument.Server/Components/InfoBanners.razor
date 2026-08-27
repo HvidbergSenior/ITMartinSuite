@@ -1,0 +1,66 @@
+@inject IJSRuntime Js
+
+@if (_loaded)
+{
+    @if (_show)
+    {
+        <div class="banner-toggle-row">
+            <button class="banner-toggle-btn" @onclick="HideAsync">✕ Skjul</button>
+        </div>
+        <ProblemPurposeBanner Beskrivelse="@Beskrivelse" />
+        <HowToUseBanner Steps='@(new[]
+        {
+            "Upload jeres .docx-dokument under \"Dokumenter\" — det bliver automatisk delt op i redigerbare afsnit.",
+            "Læs og redigér afsnittene direkte i browseren - den oprindelige fil gemmes altid uændret, og hver rettelse gemmer en tidligere version.",
+            "Opret opgaver og sæt en ansvarlig person på hver opgave."
+        })' />
+    }
+    else
+    {
+        <div class="banner-toggle-row">
+            <button class="banner-toggle-btn" @onclick="ShowAsync">ℹ️ Vis info</button>
+        </div>
+    }
+}
+
+<style>
+    .banner-toggle-row { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+    .banner-toggle-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+    .banner-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+</style>
+
+@code {
+    // Per-page personalized "what is this" line for the 📋 Beskrivelse row -
+    // everything else (Problem/Formål/Løsning/steps) is fixed copy shared
+    // across every page, so it's not duplicated 6 times.
+    [Parameter] public string Beskrivelse { get; set; } = "";
+
+    // Show/hide is remembered per tab (e.g. "home", "documents", "history"),
+    // not one global switch - dismissing it on one page shouldn't hide it
+    // everywhere else.
+    [Parameter, EditorRequired] public string PageKey { get; set; } = "";
+
+    private bool _loaded;
+    private bool _show = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try { _show = !await Js.InvokeAsync<bool>("redigerJs.getBannersHidden", PageKey); }
+        catch { _show = true; }
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task HideAsync()
+    {
+        _show = false;
+        await Js.InvokeVoidAsync("redigerJs.setBannersHidden", PageKey, true);
+    }
+
+    private async Task ShowAsync()
+    {
+        _show = true;
+        await Js.InvokeVoidAsync("redigerJs.setBannersHidden", PageKey, false);
+    }
+}

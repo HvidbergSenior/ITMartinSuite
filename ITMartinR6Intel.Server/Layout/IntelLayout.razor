@@ -7,12 +7,19 @@
 
     <header class="intel-header">
         <div class="intel-header-inner">
-            <span class="intel-logo">R6</span>
-            <span class="intel-header-title">INTEL</span>
+            <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;color:inherit">
+                <span class="intel-logo">R6</span>
+                <span class="intel-header-title">INTEL</span>
+            </a>
             @if (Session.SelectedMap is not null)
             {
                 <span class="intel-header-map">— @Session.SelectedMap</span>
             }
+            <nav style="margin-left:auto;display:flex;gap:8px">
+                <a href="/" style="color:#9ca3af;text-decoration:none;font-size:.85rem">👁 Viewer</a>
+                <a href="/intel" style="color:#9ca3af;text-decoration:none;font-size:.85rem">🎯 Intel</a>
+                <a href="/admin" style="color:#9ca3af;text-decoration:none;font-size:.85rem">🛠 Admin</a>
+            </nav>
         </div>
         @if (Session.SelectedMap is not null)
         {

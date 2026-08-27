@@ -1,0 +1,190 @@
+@page "/overblik"
+@layout R6AssistantLayout
+@inject SessionStateService Session
+@inject IR6DataService DataService
+@implements IDisposable
+@using System.Text.Json
+@using ITMartinR6Assistant.Domain
+
+<div class="overview-page">
+
+    <div style="max-width:520px;margin:0 auto 18px">
+        <ProblemPurposeBanner Show="Session.ShowBanners"
+            Problem="Når noget ikke virker for en spiller midt i en session - lyd, forbindelse, en gadget der mangler - er det svært at hjælpe uden at kunne se deres opsætning."
+            Formaal="Ét overblik over alle spilleres seneste pre-game tjek og loadout-valg, så I kan fejlfinde for hinanden." />
+    </div>
+
+    @if (_players.Count == 0)
+    {
+        <p style="text-align:center;color:var(--text-muted)">Ingen spillere endnu - kør <a href="/scripts/PreGameCheck.ps1" download>PreGameCheck.ps1</a> eller sæt en foretrukket loadout for at komme i gang.</p>
+    }
+
+    @foreach (var player in _players)
+    {
+        <div class="overview-card">
+            <div class="overview-card-title">👤 @player</div>
+
+            @if (Session.PlayerSetups.TryGetValue(player, out var setup))
+            {
+                <div class="overview-setup-grid">
+                    @foreach (var (label, value) in ExtractSetupFields(setup.RawJson))
+                    {
+                        <div class="overview-setup-item">
+                            <div class="overview-setup-label">@label</div>
+                            <div class="overview-setup-value">@value</div>
+                        </div>
+                    }
+                </div>
+                <div class="overview-setup-time">Sidst tjekket: @setup.SubmittedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</div>
+
+                var logEntries = ExtractLogEntries(setup.RawJson);
+                @if (logEntries.Count > 0)
+                {
+                    <div class="overview-loadout-title">⚠ Fejl i hændelsesloggen (sidste 3 dage)</div>
+                    <table class="overview-loadout-table">
+                        <thead><tr><th>Tidspunkt</th><th>Kilde</th><th>Besked</th></tr></thead>
+                        <tbody>
+                            @foreach (var (time, source, message) in logEntries)
+                            {
+                                <tr>
+                                    <td>@time</td>
+                                    <td>@source</td>
+                                    <td>@message</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            }
+            else
+            {
+                <div class="overview-setup-time">Har ikke kørt PreGameCheck.ps1 endnu.</div>
+            }
+
+            @{ var loadouts = Session.GetPlayerLoadouts(player); }
+            @if (loadouts.Count > 0)
+            {
+                <div class="overview-loadout-title">Egne loadout-valg</div>
+                <table class="overview-loadout-table">
+                    <thead><tr><th>Operator</th><th>Primær</th><th>Sekundær</th><th>Gadget</th></tr></thead>
+                    <tbody>
+                        @foreach (var (opName, loadout) in loadouts)
+                        {
+                            <tr>
+                                <td>@opName</td>
+                                <td>@loadout.Primary</td>
+                                <td>@loadout.Secondary</td>
+                                <td>@loadout.Gadget</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<string> _players = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.OnStateChanged += OnSessionChanged;
+        await DataService.GetData();
+        RefreshPlayers();
+    }
+
+    private void OnSessionChanged() => InvokeAsync(() =>
+    {
+        RefreshPlayers();
+        StateHasChanged();
+    });
+
+    private void RefreshPlayers() => _players = Session.KnownPlayers.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+
+    // Pulls a curated subset of fields out of the raw PreGameCheck.ps1 JSON -
+    // enough for "why can't X hear anyone" style troubleshooting, without
+    // needing a full C# model matching the script's payload shape 1:1.
+    private static List<(string Label, string Value)> ExtractSetupFields(string rawJson)
+    {
+        var result = new List<(string, string)>();
+        try
+        {
+            using var doc = JsonDocument.Parse(rawJson);
+            var root = doc.RootElement;
+
+            string? Get(params string[] path)
+            {
+                var el = root;
+                foreach (var segment in path)
+                {
+                    if (!el.TryGetProperty(segment, out el)) return null;
+                }
+                return el.ValueKind switch
+                {
+                    JsonValueKind.String => el.GetString(),
+                    JsonValueKind.True or JsonValueKind.False => el.GetBoolean() ? "Ja" : "Nej",
+                    JsonValueKind.Number => el.ToString(),
+                    JsonValueKind.Array => string.Join(", ", el.EnumerateArray().Select(e => e.ToString())),
+                    _ => null,
+                };
+            }
+
+            void Add(string label, params string[] path)
+            {
+                var value = Get(path);
+                if (!string.IsNullOrWhiteSpace(value)) result.Add((label, value));
+            }
+
+            Add("Forbindelse", "netvaerk", "forbindelsestype");
+            Add("Ping", "netvaerk", "ping_ms");
+            Add("VPN", "netvaerk", "vpn_aktiv");
+            Add("Lydenheder", "lyd_discord", "lydenheder");
+            Add("Discord kører", "lyd_discord", "discord_koerer");
+            Add("R6 opdateret for", "spil_launcher", "r6_dage_siden_opdateret");
+            Add("GPU", "system", "gpu_navn");
+            Add("PC", "system", "pc_model");
+            Add("Mus", "system", "mus_navn");
+            Add("Tastatur", "system", "tastatur_navn");
+        }
+        catch (JsonException)
+        {
+            // Malformed/old-format submission - just show nothing rather than crash the page.
+        }
+        return result;
+    }
+
+    // Surfaces the raw WHEA/GPU/App-crash log excerpts the script collected -
+    // the AI's checklist mentions these when relevant, but the actual entries
+    // should be visible too, not just its interpretation of them.
+    private static List<(string Time, string Source, string Message)> ExtractLogEntries(string rawJson)
+    {
+        var result = new List<(string, string, string)>();
+        try
+        {
+            using var doc = JsonDocument.Parse(rawJson);
+            if (!doc.RootElement.TryGetProperty("system", out var system)) return result;
+
+            foreach (var arrayName in new[] { "nylige_system_fejl", "nylige_app_fejl" })
+            {
+                if (!system.TryGetProperty(arrayName, out var arr) || arr.ValueKind != JsonValueKind.Array) continue;
+                foreach (var entry in arr.EnumerateArray())
+                {
+                    var time = entry.TryGetProperty("tid", out var t) ? t.GetString() ?? "" : "";
+                    var source = entry.TryGetProperty("kilde", out var k) ? k.GetString() ?? "" : "";
+                    var message = entry.TryGetProperty("besked", out var m) ? m.GetString() ?? "" : "";
+                    if (!string.IsNullOrWhiteSpace(time) || !string.IsNullOrWhiteSpace(source))
+                        result.Add((time, source, message));
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Malformed/old-format submission - just show nothing rather than crash the page.
+        }
+        return result.OrderByDescending(r => r.Item1).ToList();
+    }
+
+    public void Dispose() => Session.OnStateChanged -= OnSessionChanged;
+}

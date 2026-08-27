@@ -34,6 +34,8 @@
         PhonePhoto,
         Social,
         Meme,
+        Chat,
+        AlbumArt,
         OtherImage,
         UnknownImage,
 

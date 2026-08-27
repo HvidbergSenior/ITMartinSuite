@@ -1,4 +1,13 @@
+using System.Text.Json;
+
 namespace ITMartinMusikStudio.Server.Services;
+
+// Sidecar metadata for SongVault - deliberately not the StudioSong EF entity
+// (no DB row, no migration) since SongVault songs are keyed purely by
+// filesystem SafeKey, same as stems/recordings already are. One JSON file
+// per song, plain and inspectable, matching the "easier to understand"
+// simplification SongVault is for.
+public sealed record SongMeta(string Lyrics = "", string Chords = "", double? Tempo = null);
 
 public sealed class StudioLibraryService
 {
@@ -9,10 +18,25 @@ public sealed class StudioLibraryService
     public string RecordingsDir => Path.Combine(Root, "recordings");
     public string MyVersionsDir => Path.Combine(Root, "myversions");
     public string StemsDir => Path.Combine(Root, "stems");
+    public string MetaDir => Path.Combine(Root, "meta");
 
     public StudioLibraryService(IConfiguration config)
     {
         Root = config["MusicSettings:Root"] ?? "/musik";
+    }
+
+    public SongMeta LoadMeta(string songKey)
+    {
+        var path = Path.Combine(MetaDir, $"{songKey}.json");
+        if (!File.Exists(path)) return new SongMeta();
+        try { return JsonSerializer.Deserialize<SongMeta>(File.ReadAllText(path)) ?? new SongMeta(); }
+        catch { return new SongMeta(); }
+    }
+
+    public void SaveMeta(string songKey, SongMeta meta)
+    {
+        Directory.CreateDirectory(MetaDir);
+        File.WriteAllText(Path.Combine(MetaDir, $"{songKey}.json"), JsonSerializer.Serialize(meta));
     }
 
     public List<SourceFile> GetSourceFiles()
@@ -35,7 +59,7 @@ public sealed class StudioLibraryService
             foreach (var dir in Directory.EnumerateDirectories(Root))
             {
                 var name = Path.GetFileName(dir);
-                if (name is "recordings" or "myversions" or "lyrics" or "originals" or "stems") continue;
+                if (name is "recordings" or "myversions" or "lyrics" or "originals" or "stems" or "meta") continue;
                 if (name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#')) continue;
 
                 try
@@ -150,9 +174,10 @@ public sealed class StudioLibraryService
             ExistsOrNull(dir, "vocals.wav"),
             ExistsOrNull(dir, "drums.wav"),
             ExistsOrNull(dir, "bass.wav"),
-            ExistsOrNull(dir, "other.wav"));
+            ExistsOrNull(dir, "other.wav"),
+            ExistsOrNull(dir, "instrumental.wav"));
 
-        return result is { Vocals: null, Drums: null, Bass: null, Other: null } ? null : result;
+        return result is { Vocals: null, Drums: null, Bass: null, Other: null, Instrumental: null } ? null : result;
     }
 
     private static string? ExistsOrNull(string dir, string file)

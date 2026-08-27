@@ -375,24 +375,6 @@ else
             </div>
 
             <div class="club-section">
-                <div class="club-section-title">
-                    Dokumenter
-                    @if (_unreadCount > 0) { <span class="club-badge">@_unreadCount nyt</span> }
-                </div>
-                @if (!_recentDocs.Any())
-                {
-                    <div class="club-empty">Ingen dokumenter endnu.</div>
-                }
-                @foreach (var d in _recentDocs)
-                {
-                    <div class="club-task-row">
-                        <div class="club-task-title">@d.Title</div>
-                    </div>
-                }
-                <a class="club-see-all" href="/g/@Slug/docs">Se alle →</a>
-            </div>
-
-            <div class="club-section">
                 <div class="club-section-title">Åbne opgaver</div>
                 @if (!_openTasks.Any())
                 {
@@ -523,11 +505,22 @@ else
 @code {
     [Parameter] public string Slug { get; set; } = "";
 
+    // "Today" for the daily-task reopen/scheduling logic must be Danish local
+    // calendar time, not UTC - CompletedAt/ScheduledFor are stored as UTC
+    // instants, and comparing raw UTC .Date values against them rotated the
+    // day boundary to 01:00/02:00 local. That reopened (or hid) tasks hours
+    // early for anything completed/scheduled between local midnight and the
+    // UTC rollover, which looked like "marked done but shows not done".
+    private static readonly TimeZoneInfo CopenhagenTz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+
+    private static DateTime CopenhagenTodayStartUtc(DateTime utcNow) =>
+        TimeZoneInfo.ConvertTimeToUtc(
+            TimeZoneInfo.ConvertTimeFromUtc(utcNow, CopenhagenTz).Date,
+            CopenhagenTz);
+
     private Member? _member;
     private Group? _group;
     private bool _loaded;
-    private int _unreadCount;
-    private List<Document> _recentDocs = [];
     private List<CalendarEvent> _upcomingEvents = [];
     private List<Assignment> _openTasks = [];
     private List<BulletinPost> _recentPosts = [];
@@ -622,16 +615,6 @@ else
     {
         var now = DateTime.UtcNow;
 
-        _unreadCount = await Db.Documents
-            .Where(d => d.GroupId == _group!.Id && !d.Reads.Any(r => r.MemberId == _member!.Id))
-            .CountAsync();
-
-        _recentDocs = await Db.Documents
-            .Where(d => d.GroupId == _group!.Id)
-            .OrderByDescending(d => d.UploadedAt)
-            .Take(3)
-            .ToListAsync();
-
         _upcomingEvents = await Db.Events
             .Where(e => e.GroupId == _group!.Id && e.EventDate >= now)
             .OrderBy(e => e.EventDate)
@@ -655,6 +638,8 @@ else
 
         if (_mainTasks.Any())
         {
+            var localTodayStartUtc = CopenhagenTodayStartUtc(now);
+
             // Daily main tasks are a recurring checklist: a subtask completed on
             // an earlier day reopens automatically so it can be done again today.
             var dailyMainTaskIds = _mainTasks.Where(m => m.IsDaily).Select(m => m.Id).ToList();
@@ -663,7 +648,7 @@ else
                 var staleDaily = await Db.Assignments
                     .Where(a => a.GroupId == _group!.Id && a.IsCompleted && a.MainTaskId != null
                         && dailyMainTaskIds.Contains(a.MainTaskId!.Value)
-                        && a.CompletedAt!.Value.Date < now.Date)
+                        && a.CompletedAt!.Value < localTodayStartUtc)
                     .ToListAsync();
                 if (staleDaily.Count > 0)
                 {
@@ -673,12 +658,12 @@ else
             }
 
             _openTasksFull = await Db.Assignments
-                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && (a.ScheduledFor == null || a.ScheduledFor <= now.Date))
+                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && (a.ScheduledFor == null || a.ScheduledFor <= localTodayStartUtc))
                 .OrderBy(a => a.DueDate)
                 .ToListAsync();
 
             _tomorrowTasks = await Db.Assignments
-                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && a.ScheduledFor != null && a.ScheduledFor > now.Date)
+                .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && a.ScheduledFor != null && a.ScheduledFor > localTodayStartUtc)
                 .OrderBy(a => a.ScheduledFor)
                 .ToListAsync();
 
@@ -804,7 +789,7 @@ else
             t.Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim();
             t.AssignedToNames = string.Join(';', assignedNow);
             t.DueDate = _newDue?.ToUniversalTime();
-            t.ScheduledFor = _newScheduleChoice == "tomorrow" ? DateTime.UtcNow.Date.AddDays(1) : null;
+            t.ScheduledFor = _newScheduleChoice == "tomorrow" ? CopenhagenTodayStartUtc(DateTime.UtcNow).AddDays(1) : null;
             await Db.SaveChangesAsync();
             CancelEditTask();
             await RefreshAsync();
@@ -825,7 +810,7 @@ else
             Description = string.IsNullOrWhiteSpace(_newDesc) ? null : _newDesc.Trim(),
             AssignedToNames = string.Join(';', assignedNow),
             DueDate = _newDue?.ToUniversalTime(),
-            ScheduledFor = _newScheduleChoice == "tomorrow" ? DateTime.UtcNow.Date.AddDays(1) : null,
+            ScheduledFor = _newScheduleChoice == "tomorrow" ? CopenhagenTodayStartUtc(DateTime.UtcNow).AddDays(1) : null,
             CreatedByName = _member!.Name,
         });
         await Db.SaveChangesAsync();

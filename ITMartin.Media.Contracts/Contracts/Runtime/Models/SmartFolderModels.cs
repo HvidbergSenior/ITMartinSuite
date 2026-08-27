@@ -24,6 +24,13 @@ public sealed class YearbookResult
     public required string HtmlPath { get; init; }
 }
 
+public sealed class SimilarSceneResult
+{
+    public required string Name { get; init; }
+    public int FileCount { get; init; }
+    public required string FolderPath { get; init; }
+}
+
 public sealed class UndatedEstimateResult
 {
     public int Processed { get; init; }

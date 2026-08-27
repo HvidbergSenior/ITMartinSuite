@@ -413,9 +413,6 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-var docsRoot = builder.Configuration["ClubSettings:DocsRoot"] ?? "/app/data/documents";
-Directory.CreateDirectory(docsRoot);
-
 var photosRoot = builder.Configuration["ClubSettings:PhotosRoot"] ?? "/app/data/photos";
 Directory.CreateDirectory(photosRoot);
 
@@ -436,15 +433,6 @@ app.MapPost("/api/push/subscribe", async (ClubPushRequest req, ClubDbContext db,
 });
 
 app.MapGet("/api/push/key", (ClubPushService push) => Results.Ok(push.GetPublicKey()));
-
-app.MapGet("/download/{docId:guid}", async (Guid docId, ClubDbContext db) =>
-{
-    var doc = await db.Documents.FindAsync(docId);
-    if (doc is null) return Results.NotFound();
-    var path = Path.Combine(docsRoot, doc.GroupId.ToString(), doc.StoredFileName);
-    if (!File.Exists(path)) return Results.NotFound();
-    return Results.File(path, "application/octet-stream", doc.OriginalFileName);
-});
 
 app.MapGet("/photo/{fileName}", (string fileName) =>
 {

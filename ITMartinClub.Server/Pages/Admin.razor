@@ -321,7 +321,7 @@ else
 
     private async Task RemoveMemberAsync(Guid memberId)
     {
-        var member = await Db.Members.Include(m => m.Sessions).Include(m => m.Posts).Include(m => m.DocumentReads)
+        var member = await Db.Members.Include(m => m.Sessions).Include(m => m.Posts)
             .FirstOrDefaultAsync(m => m.Id == memberId);
         if (member == null) return;
         Db.Members.Remove(member);

@@ -17,6 +17,5 @@ public sealed class Member
 
     public Group Group { get; set; } = null!;
     public List<MemberSession> Sessions { get; set; } = [];
-    public List<DocumentRead> DocumentReads { get; set; } = [];
     public List<BulletinPost> Posts { get; set; } = [];
 }

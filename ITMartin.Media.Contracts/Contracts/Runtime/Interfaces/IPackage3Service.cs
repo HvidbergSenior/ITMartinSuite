@@ -8,8 +8,17 @@ public interface IPackage3Service
     /// Walks every image under libraryPath, extracting face embeddings for any
     /// file not already indexed. 100% local (FaceONNX) - no API cost. Safe to
     /// re-run - already-indexed files are skipped, so an interrupted run just resumes.
+    /// maxDatedReferenceFiles caps how many already-dated photos get indexed as
+    /// the reference set for EstimateUndatedDatesAsync's face-matching pass -
+    /// every undated candidate is still indexed regardless of this cap (that
+    /// side is small and is the whole point of the pass). Sampled evenly
+    /// across every Year/Month bucket (not a flat stride over the whole
+    /// list), so a big year doesn't crowd out a sparse one - every dated
+    /// month contributes at least one reference photo. Null means no cap (index everything -
+    /// the original behavior). Re-running with a higher cap only indexes the
+    /// newly-included files, thanks to the already-indexed skip.
     /// </summary>
-    Task IndexFacesAsync(string libraryPath, CancellationToken cancellationToken = default);
+    Task IndexFacesAsync(string libraryPath, int? maxDatedReferenceFiles = null, CancellationToken cancellationToken = default);
 
     Task<Package3IndexStatus?> GetIndexStatusAsync(string libraryPath, Package3IndexType indexType);
 
@@ -62,7 +71,50 @@ public interface IPackage3Service
         string libraryPath,
         double faceThreshold = 0.5,
         double gpsToleranceMeters = 500,
+        int? maxDatedReferenceFiles = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// For LivePhotos videos sitting loose at LivePhotos root or in a
+    /// "Ukendt måned" subfolder (year known/unknown, no real date), runs face
+    /// detection directly on the video (pulls a representative frame - most
+    /// of these have no real still sibling at all, only an auto-generated
+    /// thumbnails/ preview, so this can't rely on a .jpg existing) and
+    /// matches against Billeder's already-indexed dated reference set. A
+    /// confident match moves the video into LivePhotoVideoer/{year}/ (year-
+    /// only, no month subfolder - not Billeder, videos don't belong mixed
+    /// into the photo category) and moves a real still sibling too, if one
+    /// happens to exist, into Billeder/{year}/{month}/ since that genuinely
+    /// is a photo.
+    /// </summary>
+    Task<LivePhotoDatingResult> DateLivePhotosByFaceMatchAsync(
+        string libraryPath, double faceThreshold = 0.5, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// For videos sitting loose at Videoer root (no reliable date - Package1
+    /// already tried EXIF/filename dating and came up empty), runs face
+    /// detection directly on the video (reuses Package1's existing thumbnail
+    /// when present, only falls back to a fresh ffmpeg frame-extraction
+    /// otherwise) and matches against Billeder's already-indexed dated
+    /// reference set. A confident match moves the video (and its thumbnail)
+    /// into Videoer/{year}/ - year-only, no month subfolder, matching the
+    /// flat policy already applied to Skærmbilleder/LivePhotoVideoer/
+    /// Dokumenter. maxFiles is a hard per-run cap (video face-indexing is
+    /// comparatively expensive) - already-indexed files are skipped on a
+    /// re-run, so repeated capped runs work through the backlog
+    /// incrementally.
+    /// </summary>
+    Task<VideoDatingResult> DateVideosByFaceMatchAsync(
+        string libraryPath, int maxFiles = 1000, double faceThreshold = 0.5, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// GPS-proximity dating for Videoer's remaining loose files, matched only
+    /// against dated reference photos taken away from the auto-detected
+    /// "home" cluster (home-location photos are too date-ambiguous to use as
+    /// reference points).
+    /// </summary>
+    Task<VideoDatingResult> DateVideosByGpsAwayFromHomeAsync(
+        string libraryPath, double homeAwayKm = 100, double gpsToleranceMeters = 2000, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Text-only (filename/path, no image bytes) AI pass over the Unhandled

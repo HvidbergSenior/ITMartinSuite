@@ -1,0 +1,49 @@
+@using ITMartinR6Assistant.Domain
+
+<div class="loadout-row">
+    <div class="loadout-row-label">Foretrukket</div>
+    <input placeholder="Primær" value="@Default.Primary" @onchange="e => OnDefaultChange(primary: e.Value?.ToString())" />
+    <input placeholder="Sekundær" value="@Default.Secondary" @onchange="e => OnDefaultChange(secondary: e.Value?.ToString())" />
+    <input placeholder="Gadget" value="@Default.Gadget" @onchange="e => OnDefaultChange(gadget: e.Value?.ToString())" />
+</div>
+
+<div class="loadout-row">
+    <div class="loadout-row-label">Din version</div>
+    <input placeholder="Primær" value="@(Mine?.Primary ?? Default.Primary)" @onchange="e => OnMineChange(primary: e.Value?.ToString())" />
+    <input placeholder="Sekundær" value="@(Mine?.Secondary ?? Default.Secondary)" @onchange="e => OnMineChange(secondary: e.Value?.ToString())" />
+    <input placeholder="Gadget" value="@(Mine?.Gadget ?? Default.Gadget)" @onchange="e => OnMineChange(gadget: e.Value?.ToString())" />
+    @if (Mine is not null)
+    {
+        <button class="loadout-reset-btn" @onclick="() => MineChanged.InvokeAsync(null)">Nulstil til standard</button>
+    }
+</div>
+
+@code {
+    // Fully controlled: this component owns no state of its own (no JS
+    // interop here) - the parent owns the default (SessionStateService) and
+    // the personal override (localStorage), so multiple instances on one
+    // page (Loadouts.razor's full grid) don't each redo their own load/save.
+    [Parameter, EditorRequired] public OperatorLoadout Default { get; set; } = new();
+    [Parameter] public EventCallback<OperatorLoadout> DefaultChanged { get; set; }
+    [Parameter] public OperatorLoadout? Mine { get; set; }
+    [Parameter] public EventCallback<OperatorLoadout?> MineChanged { get; set; }
+
+    private Task OnDefaultChange(string? primary = null, string? secondary = null, string? gadget = null) =>
+        DefaultChanged.InvokeAsync(new OperatorLoadout
+        {
+            Primary = primary ?? Default.Primary,
+            Secondary = secondary ?? Default.Secondary,
+            Gadget = gadget ?? Default.Gadget,
+        });
+
+    private Task OnMineChange(string? primary = null, string? secondary = null, string? gadget = null)
+    {
+        var baseline = Mine ?? Default;
+        return MineChanged.InvokeAsync(new OperatorLoadout
+        {
+            Primary = primary ?? baseline.Primary,
+            Secondary = secondary ?? baseline.Secondary,
+            Gadget = gadget ?? baseline.Gadget,
+        });
+    }
+}

@@ -1,0 +1,38 @@
+@inject RedigerDbContext Db
+
+<div class="club-header">
+    <div>
+        <div class="club-name">@GroupName</div>
+        <div class="club-member-name">@MemberLabel</div>
+    </div>
+    @if (OnLogout.HasDelegate)
+    {
+        <button class="club-leave-btn" @onclick="OnLogout">Log ud</button>
+    }
+</div>
+
+<div class="club-mode-row">
+    <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
+    <a class="club-mode-item @(Active == "history" ? "active" : "")" href="/g/@Slug/history">📜 Historik</a>
+    <a class="club-mode-item @(Active == "documents" ? "active" : "")" href="/g/@Slug/documents">📄 Dokumenter</a>
+    <a class="club-mode-item @(Active == "members" ? "active" : "")" href="/g/@Slug/members">👥 Medlemmer</a>
+</div>
+
+<style>
+    .club-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+    .club-name { font-size: 20px; font-weight: 900; color: var(--text); }
+    .club-member-name { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .club-leave-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); padding: 6px 12px; font-size: 12px; cursor: pointer; }
+    .club-leave-btn:hover { border-color: var(--accent); color: var(--text); }
+    .club-mode-row { display: flex; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .club-mode-item { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none; background: var(--surface); border: 1px solid var(--border); white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+    .club-mode-item:hover, .club-mode-item.active { color: var(--text); border-color: var(--accent); }
+</style>
+
+@code {
+    [Parameter, EditorRequired] public string Slug { get; set; } = "";
+    [Parameter, EditorRequired] public string GroupName { get; set; } = "";
+    [Parameter, EditorRequired] public string MemberLabel { get; set; } = "";
+    [Parameter, EditorRequired] public string Active { get; set; } = "";
+    [Parameter] public EventCallback OnLogout { get; set; }
+}

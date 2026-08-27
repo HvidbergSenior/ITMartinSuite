@@ -16,6 +16,10 @@ public static class DependencyInjection
             ClaudeMagazineIdentificationService>();
 
         services.AddSingleton<
+            IPhotoOrientationCheckService,
+            ClaudePhotoOrientationCheckService>();
+
+        services.AddSingleton<
             IMagicCardRecognitionService,
             ClaudeMagicCardRecognitionService>();
 
@@ -46,6 +50,10 @@ public static class DependencyInjection
         services.AddSingleton<
             IAuthorSimilarityService,
             ClaudeAuthorSimilarityService>();
+
+        services.AddSingleton<
+            IVideoAssistantService,
+            ClaudeVideoAssistantService>();
 
         services.AddSingleton<
             IFaceRecognitionService,

@@ -77,12 +77,42 @@ public sealed class StemService
 
         try { Directory.Delete(tempOut, recursive: true); } catch { }
 
+        var instrumentalPath = await MixInstrumentalAsync(stemsOutputDir, ct);
+
         return new StemResult(
-            Vocals: ExistsOrNull(stemsOutputDir, "vocals.wav"),
-            Drums:  ExistsOrNull(stemsOutputDir, "drums.wav"),
-            Bass:   ExistsOrNull(stemsOutputDir, "bass.wav"),
-            Other:  ExistsOrNull(stemsOutputDir, "other.wav")
+            Vocals:       ExistsOrNull(stemsOutputDir, "vocals.wav"),
+            Drums:        ExistsOrNull(stemsOutputDir, "drums.wav"),
+            Bass:         ExistsOrNull(stemsOutputDir, "bass.wav"),
+            Other:        ExistsOrNull(stemsOutputDir, "other.wav"),
+            Instrumental: instrumentalPath
         );
+    }
+
+    // Demucs splits into 4 stems, not 2 - drums/bass/other all need mixing
+    // together to get a real "everything except vocals" karaoke track, same
+    // ffmpeg amix approach StudioLibraryService.MixdownAsync already uses
+    // elsewhere for a different purpose (vocal+backing overdub mixdown).
+    private static async Task<string?> MixInstrumentalAsync(string stemsDir, CancellationToken ct)
+    {
+        var parts = new[] { "drums", "bass", "other" }
+            .Select(n => Path.Combine(stemsDir, $"{n}.wav"))
+            .Where(File.Exists)
+            .ToList();
+        if (parts.Count == 0) return null;
+
+        var dest = Path.Combine(stemsDir, "instrumental.wav");
+        var psi = new ProcessStartInfo("ffmpeg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        psi.ArgumentList.Add("-y");
+        foreach (var p in parts) { psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(p); }
+        psi.ArgumentList.Add("-filter_complex");
+        psi.ArgumentList.Add($"{string.Concat(Enumerable.Range(0, parts.Count).Select(i => $"[{i}:a]"))}amix=inputs={parts.Count}:duration=longest:dropout_transition=0[a]");
+        psi.ArgumentList.Add("-map"); psi.ArgumentList.Add("[a]");
+        psi.ArgumentList.Add(dest);
+
+        using var proc = Process.Start(psi);
+        if (proc is null) return null;
+        await proc.WaitForExitAsync(ct);
+        return proc.ExitCode == 0 && File.Exists(dest) ? dest : null;
     }
 
     private static string? ExistsOrNull(string dir, string file)
@@ -117,4 +147,4 @@ public sealed class StemService
     }
 }
 
-public record StemResult(string? Vocals, string? Drums, string? Bass, string? Other);
+public record StemResult(string? Vocals, string? Drums, string? Bass, string? Other, string? Instrumental = null);

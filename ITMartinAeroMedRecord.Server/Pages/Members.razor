@@ -1,0 +1,270 @@
+@page "/g/{Slug}/members"
+@rendermode InteractiveServer
+@inject AeroDbContext Db
+@inject AeroAuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+@inject IConfiguration Configuration
+
+@if (_group is null)
+{
+    <p style="padding:20px">Indlæser...</p>
+}
+else
+{
+    <div class="home-wrap">
+        <AeroNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="@($"Logget ind som {_me?.Name}")" Active="members" OnLogout="LeaveAsync" />
+
+        <div class="home-body">
+            <InfoBanners PageKey="members" Beskrivelse="Her kan I se hvem der er med i teamet, og hvor mange åbne opgaver hver især har." />
+
+            <h2 class="page-title">Medlemmer (@_members.Count)</h2>
+
+            @foreach (var m in _members)
+            {
+                <div class="member-row">
+                    <div class="member-top">
+                        <div class="member-photo-wrap">
+                            @if (m.PhotoFileName is not null)
+                            {
+                                <img class="member-photo" src="/member-photo/@m.Id" alt="@m.Name" />
+                            }
+                            else
+                            {
+                                <div class="member-photo member-photo-placeholder">@(m.Name.Length > 0 ? m.Name[0].ToString().ToUpper() : "?")</div>
+                            }
+                        </div>
+                        <div class="member-top-text">
+                            <div class="member-name">@m.Name</div>
+                            <div class="member-meta">
+                                <span>Tilmeldt @m.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                                @if (_openCountByName.TryGetValue(m.Name, out var count) && count > 0)
+                                {
+                                    <span>📋 @count åbne opgave@(count == 1 ? "" : "r")</span>
+                                }
+                            </div>
+                        </div>
+                        @if (_me?.Id == m.Id && _editingProfileId != m.Id)
+                        {
+                            <button class="icon-btn profile-edit-btn" @onclick="() => StartEditProfile(m)" title="Redigér profil">✏️ Redigér profil</button>
+                        }
+                    </div>
+
+                    @if (_editingProfileId == m.Id)
+                    {
+                        <div class="profile-form">
+                            <div class="profile-field">
+                                <label>Billede</label>
+                                <InputFile OnChange="OnPhotoSelectedAsync" accept="image/*" />
+                            </div>
+                            <div class="profile-field">
+                                <label>Email</label>
+                                <input class="profile-input" @bind="_editEmail" placeholder="fx navn@eksempel.dk" maxlength="120" />
+                            </div>
+                            <div class="profile-field">
+                                <label>Tlf. nummer</label>
+                                <input class="profile-input" @bind="_editPhone" placeholder="fx 12345678" maxlength="40" />
+                            </div>
+                            <div class="profile-field">
+                                <label>Adresse</label>
+                                <input class="profile-input" @bind="_editAddress" placeholder="fx Skovbunden 1, 2000 Frederiksberg" maxlength="200" />
+                            </div>
+                            <div class="profile-field">
+                                <label>Rolle</label>
+                                <input class="profile-input" @bind="_editRole" placeholder="fx projektleder, udvikler..." maxlength="80" />
+                            </div>
+                            <div class="profile-field">
+                                <label>Interesser</label>
+                                <input class="profile-input" @bind="_editInterests" placeholder="fx UX, test, dokumentation..." maxlength="200" />
+                            </div>
+                            <div class="profile-field">
+                                <label>Andet</label>
+                                <input class="profile-input" @bind="_editInfoText" placeholder="andet, du vil dele med teamet..." maxlength="200" />
+                            </div>
+                            @if (_profileError is not null) { <div class="create-error">@_profileError</div> }
+                            <div class="profile-form-actions">
+                                <button class="btn-save" @onclick="SaveProfileAsync">Gem</button>
+                                <button class="btn-cancel" @onclick="() => _editingProfileId = null">Annullér</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="member-details">
+                            @if (!string.IsNullOrWhiteSpace(m.Role))
+                            {
+                                <span class="member-chip">💼 @m.Role</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(m.Email))
+                            {
+                                <span class="member-chip">✉️ @m.Email</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(m.Phone))
+                            {
+                                <span class="member-chip">📞 @m.Phone</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(m.Address))
+                            {
+                                <span class="member-chip">🏠 @m.Address</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(m.Interests))
+                            {
+                                <span class="member-chip">🎯 @m.Interests</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(m.PersonligInfo))
+                            {
+                                <span class="member-chip">ℹ️ @m.PersonligInfo</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <style>
+        .home-wrap { max-width: 900px; margin: 0 auto; color: var(--text); }
+        .home-body { padding: 16px 16px 64px; }
+        .page-title { font-size: 18px; font-weight: 800; margin: 0 0 16px; color: var(--text); }
+        .member-row { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+        .member-top { display: flex; align-items: center; gap: 12px; }
+        .member-photo-wrap { flex-shrink: 0; }
+        .member-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+        .member-photo-placeholder { display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-weight: 700; }
+        .member-top-text { flex: 1; min-width: 0; }
+        .member-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+        .member-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+        .profile-edit-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-size: 12px; white-space: nowrap; }
+        .profile-edit-btn:hover { color: var(--text); border-color: var(--accent); }
+        .member-details { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .member-chip { font-size: 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+        .profile-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .profile-field { display: flex; flex-direction: column; gap: 4px; }
+        .profile-field label { font-size: 11px; font-weight: 600; color: var(--muted); }
+        .profile-input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 13px; box-sizing: border-box; }
+        .profile-input:focus { border-color: var(--accent); outline: none; }
+        .profile-form-actions { display: flex; gap: 8px; }
+        .btn-save { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; }
+        .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .btn-cancel:hover { color: var(--text); }
+        .icon-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 4px; line-height: 1; }
+        .icon-btn:hover { color: var(--text); }
+        .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 8px 12px; font-size: 12px; color: var(--red); }
+    </style>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Group? _group;
+    private Member? _me;
+    private List<Member> _members = [];
+    private Dictionary<string, int> _openCountByName = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_group is null) return;
+
+        var session = await Auth.ResolveSessionAsync(Js, Db, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _me = session.Member;
+
+        _members = await Db.Members.Where(m => m.GroupId == _group.Id).OrderBy(m => m.Name).ToListAsync();
+
+        _openCountByName = (await Db.Assignments
+                .Where(a => a.GroupId == _group.Id && !a.IsCompleted && a.AssignedToNames != "")
+                .ToListAsync())
+            .SelectMany(a => a.Assignees)
+            .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        StateHasChanged();
+    }
+
+    private async Task LeaveAsync()
+    {
+        await Js.InvokeVoidAsync("aeroJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+    }
+
+    private Guid? _editingProfileId;
+    private string _editInfoText = "";
+    private string _editEmail = "";
+    private string _editPhone = "";
+    private string _editAddress = "";
+    private string _editRole = "";
+    private string _editInterests = "";
+    private string? _profileError;
+    private byte[]? _pendingPhotoBytes;
+
+    private void StartEditProfile(Member m)
+    {
+        _editingProfileId = m.Id;
+        _editInfoText = m.PersonligInfo ?? "";
+        _editEmail = m.Email ?? "";
+        _editPhone = m.Phone ?? "";
+        _editAddress = m.Address ?? "";
+        _editRole = m.Role ?? "";
+        _editInterests = m.Interests ?? "";
+        _profileError = null;
+        _pendingPhotoBytes = null;
+    }
+
+    private async Task OnPhotoSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _profileError = null;
+        var file = e.File;
+        if (file is null) return;
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            _profileError = "Kun billeder understøttes.";
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await using (var inStream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024))
+                await inStream.CopyToAsync(ms);
+            _pendingPhotoBytes = ms.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _profileError = $"Billedet kunne ikke læses (maks 5 MB): {ex.Message}";
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        var m = _members.FirstOrDefault(x => x.Id == _editingProfileId);
+        if (m is null) return;
+
+        if (_pendingPhotoBytes is not null)
+        {
+            var photosRoot = Configuration["AeroSettings:MemberPhotosRoot"] ?? "/app/data/member-photos";
+            Directory.CreateDirectory(photosRoot);
+            var storedFileName = $"{m.Id:N}.jpg";
+            await File.WriteAllBytesAsync(Path.Combine(photosRoot, storedFileName), _pendingPhotoBytes);
+            m.PhotoFileName = storedFileName;
+        }
+
+        m.Email = string.IsNullOrWhiteSpace(_editEmail) ? null : _editEmail.Trim();
+        m.Phone = string.IsNullOrWhiteSpace(_editPhone) ? null : _editPhone.Trim();
+        m.Address = string.IsNullOrWhiteSpace(_editAddress) ? null : _editAddress.Trim();
+        m.Role = string.IsNullOrWhiteSpace(_editRole) ? null : _editRole.Trim();
+        m.Interests = string.IsNullOrWhiteSpace(_editInterests) ? null : _editInterests.Trim();
+        m.PersonligInfo = string.IsNullOrWhiteSpace(_editInfoText) ? null : _editInfoText.Trim();
+
+        await Db.SaveChangesAsync();
+        _editingProfileId = null;
+        _pendingPhotoBytes = null;
+    }
+}

@@ -44,13 +44,26 @@
                 }
             </div>
 
-            @if (!_hasName)
+            @if (_locked)
+            {
+                <div class="admin-form" style="padding:0 16px">
+                    <label class="form-label">Adgangskode</label>
+                    <input class="poll-input" type="password" placeholder="Indtast adgangskode"
+                           @bind="_passwordInput" @bind:event="oninput" @onkeydown="OnPasswordKey" />
+                    @if (!string.IsNullOrEmpty(_passwordError))
+                    {
+                        <div class="form-error">@_passwordError</div>
+                    }
+                    <button class="poll-submit-btn" @onclick="CheckPassword" disabled="@string.IsNullOrWhiteSpace(_passwordInput)">Fortsæt</button>
+                </div>
+            }
+            else if (!_hasName)
             {
                 <div class="admin-form" style="padding:0 16px">
                     <label class="form-label">Dit navn</label>
-                    <input class="poll-input" placeholder="Skriv dit navn for at svare"
-                           @bind="_voterName" @bind:event="oninput" @onkeydown="OnNameKey" />
-                    <button class="poll-submit-btn" @onclick="SaveName" disabled="@string.IsNullOrWhiteSpace(_voterName)">Fortsæt</button>
+                    <input class="poll-input" placeholder="Skriv dit navn for at svare - eller flere navne adskilt af komma, hvis du stemmer for andre (fx 'Far, Vibz, Eigil, Bertil, Julius')"
+                           @bind="_voterNamesInput" @bind:event="oninput" @onkeydown="OnNameKey" />
+                    <button class="poll-submit-btn" @onclick="SaveName" disabled="@string.IsNullOrWhiteSpace(_voterNamesInput)">Fortsæt</button>
                 </div>
             }
             else
@@ -58,7 +71,16 @@
                 <a class="poll-back" style="display:block;padding:0 16px;margin-top:8px;cursor:pointer" @onclick='() => JS.InvokeVoidAsync("scrollToId", "chat")'>↓ Gå til chat</a>
 
                 <div class="admin-form" style="padding-top:0">
-                    @{ int? lastMonthKey = null; }
+                    @{
+                        int? lastMonthKey = null;
+                        var dateIndex = 0;
+                        var nextImageIdx = 0;
+                        // Evenly spaced, not clustered at the top - one photo
+                        // roughly every (dates / (images+1)) rows.
+                        var imageEveryNDates = _poll.Images.Count > 0
+                            ? Math.Max(1, (int)Math.Ceiling((double)_poll.Dates.Count / (_poll.Images.Count + 1)))
+                            : 0;
+                    }
                     @foreach (var d in _poll.Dates.OrderBy(x => x.Date))
                     {
                         var dateId = d.Id;
@@ -76,6 +98,11 @@
                                 <button class="admin-btn @(mine?.Status == "Yes" ? "datepoll-active-yes" : "")" @onclick='() => RespondAsync(dateId, "Yes")'>✅ Ja</button>
                                 <button class="admin-btn @(mine?.Status == "Maybe" ? "datepoll-active-maybe" : "")" @onclick='() => RespondAsync(dateId, "Maybe")'>🤔 Måske</button>
                                 <button class="admin-btn @(mine?.Status == "No" ? "datepoll-active-no" : "")" @onclick='() => RespondAsync(dateId, "No")'>❌ Nej</button>
+                                <button class="admin-btn @(mine?.IsPreferred == true ? "datepoll-active-preferred" : "")"
+                                        title="Din foretrukne uge, hvis du kun kunne vælge én - uafhængigt af om du faktisk kan"
+                                        @onclick="() => TogglePreferredAsync(dateId)">
+                                    @(mine?.IsPreferred == true ? "⭐ Foretrukken" : "☆ Foretræk denne")
+                                </button>
                             </div>
 
                             @if (mine is not null)
@@ -86,12 +113,24 @@
                             }
 
                             @{ var counts = d.Responses.GroupBy(r => r.Status).ToDictionary(g => g.Key, g => g.Count()); }
+                            @{ var preferredCount = d.Responses.Count(r => r.IsPreferred); }
                             <div class="poll-card-meta" style="margin-top:8px">
                                 <span>✅ @counts.GetValueOrDefault("Yes")</span>
                                 <span>🤔 @counts.GetValueOrDefault("Maybe")</span>
                                 <span>❌ @counts.GetValueOrDefault("No")</span>
+                                @if (preferredCount > 0)
+                                {
+                                    <span>⭐ @preferredCount foretrækker</span>
+                                }
                             </div>
                         </div>
+
+                        dateIndex++;
+                        if (imageEveryNDates > 0 && dateIndex % imageEveryNDates == 0 && nextImageIdx < _poll.Images.Count)
+                        {
+                            <img class="poll-spread-img" src="/poll-images/@_poll.Images[nextImageIdx].FileName" alt="" />
+                            nextImageIdx++;
+                        }
                     }
 
                     @if (_poll.ChatOpen)
@@ -109,7 +148,7 @@
                 </div>
 
                 <div class="admin-form" style="padding-top:0" id="chat">
-                    <DatePollChatWidget DatePollId="DatePollId" ChatOpen="_poll.ChatOpen" VoterName="_voterName" />
+                    <DatePollChatWidget DatePollId="DatePollId" ChatOpen="_poll.ChatOpen" VoterName="_voterNames.FirstOrDefault() ?? string.Empty" />
                 </div>
             }
 
@@ -121,6 +160,7 @@
     .datepoll-active-yes   { background: #16A34A !important; border-color: #16A34A !important; color: white !important; }
     .datepoll-active-maybe { background: #B45309 !important; border-color: #B45309 !important; color: white !important; }
     .datepoll-active-no    { background: #B91C1C !important; border-color: #B91C1C !important; color: white !important; }
+    .datepoll-active-preferred { background: #CA8A04 !important; border-color: #CA8A04 !important; color: white !important; }
     .month-header { font-size: 15px; font-weight: 800; color: var(--text); padding: 20px 0 4px; border-bottom: 2px solid var(--accent-strong); margin-bottom: 8px; text-transform: capitalize; }
 </style>
 
@@ -129,7 +169,20 @@
 
     private DatePoll? _poll;
     private bool _hasName;
-    private string _voterName = "";
+    private bool _locked;
+    private string _passwordInput = "";
+    private string _passwordError = "";
+
+    // Raw textbox content (what's persisted to localStorage), and the parsed
+    // list every response actually gets written against - lets one person
+    // (a parent, say) submit the same Yes/Maybe/No + comment for everyone
+    // they're voting on behalf of in a single click, rather than needing to
+    // switch "voter" and re-click for each family member. The active-button
+    // highlight and comment box reflect the FIRST name's existing response
+    // as representative - not meant for a household that actually disagrees
+    // with itself date-by-date, just for "count me and my kids the same way".
+    private string _voterNamesInput = "";
+    private List<string> _voterNames = [];
     private Dictionary<int, DatePollResponse> _myResponses = [];
     private string _suggestedDate = "";
     private string _suggestError = "";
@@ -144,12 +197,13 @@
             .Select(p => new DatePoll
             {
                 Id = p.Id, Title = p.Title, Description = p.Description, ImageName = p.ImageName,
-                Deadline = p.Deadline, IsActive = p.IsActive,
+                Deadline = p.Deadline, IsActive = p.IsActive, Password = p.Password,
                 Dates = p.Dates.Select(d => new DatePollDate
                 {
                     Id = d.Id, Date = d.Date, SortOrder = d.SortOrder,
                     Responses = d.Responses.ToList(),
                 }).ToList(),
+                Images = p.Images.OrderBy(i => i.SortOrder).ToList(),
             })
             .FirstOrDefault();
     }
@@ -157,14 +211,49 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || _poll is null) return;
-        _voterName = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
-        _hasName = !string.IsNullOrWhiteSpace(_voterName);
-        if (_hasName) LoadMyResponses();
+
+        if (!string.IsNullOrEmpty(_poll.Password))
+        {
+            var unlocked = await JS.InvokeAsync<string?>("localStorage.getItem", $"datepoll_unlocked_{DatePollId}");
+            _locked = unlocked != "true";
+        }
+
+        if (!_locked)
+        {
+            _voterNamesInput = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+            ParseVoterNames();
+            _hasName = _voterNames.Count > 0;
+            if (_hasName) LoadMyResponses();
+        }
 
         Broadcast.Subscribe(DatePollId, OnBroadcast);
         _subscribed = true;
 
         StateHasChanged();
+    }
+
+    private async Task OnPasswordKey(KeyboardEventArgs e) { if (e.Key == "Enter") await CheckPassword(); }
+
+    private async Task CheckPassword()
+    {
+        _passwordError = "";
+        if (_poll is null) return;
+
+        if (string.Equals(_passwordInput.Trim(), _poll.Password, StringComparison.Ordinal))
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", $"datepoll_unlocked_{DatePollId}", "true");
+            _locked = false;
+            _passwordInput = "";
+
+            _voterNamesInput = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_name") ?? "";
+            ParseVoterNames();
+            _hasName = _voterNames.Count > 0;
+            if (_hasName) LoadMyResponses();
+        }
+        else
+        {
+            _passwordError = "Forkert adgangskode";
+        }
     }
 
     private void OnBroadcast() => InvokeAsync(() =>
@@ -180,10 +269,23 @@
         return ValueTask.CompletedTask;
     }
 
+    private void ParseVoterNames()
+    {
+        _voterNames = _voterNamesInput
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private void LoadMyResponses()
     {
+        // Representative view only - if the names' existing responses ever
+        // disagree (e.g. someone was previously entered on their own), the
+        // first name's answer is what the buttons/comment box show, but a
+        // click still applies to every name in the list.
+        var primary = _voterNames.FirstOrDefault() ?? "";
         _myResponses = _poll!.Dates
-            .SelectMany(d => d.Responses.Where(r => r.VoterName == _voterName))
+            .SelectMany(d => d.Responses.Where(r => r.VoterName == primary))
             .ToDictionary(r => r.DateId, r => r);
     }
 
@@ -191,31 +293,78 @@
 
     private async Task SaveName()
     {
-        if (string.IsNullOrWhiteSpace(_voterName)) return;
-        await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _voterName.Trim());
-        _voterName = _voterName.Trim();
+        ParseVoterNames();
+        if (_voterNames.Count == 0) return;
+        await JS.InvokeVoidAsync("localStorage.setItem", "voter_name", _voterNamesInput.Trim());
         _hasName = true;
         LoadMyResponses();
     }
 
     private async Task RespondAsync(int dateId, string status)
     {
-        if (_poll is null || _poll.HasDeadlinePassed) return;
+        if (_poll is null || _poll.HasDeadlinePassed || _voterNames.Count == 0) return;
 
-        var existing = await Db.DatePollResponses
-            .FirstOrDefaultAsync(r => r.DateId == dateId && r.VoterName == _voterName);
-        if (existing is not null)
+        var existingByName = await Db.DatePollResponses
+            .Where(r => r.DateId == dateId && _voterNames.Contains(r.VoterName))
+            .ToDictionaryAsync(r => r.VoterName);
+
+        foreach (var name in _voterNames)
         {
-            existing.Status = status;
-            existing.RespondedAt = DateTime.UtcNow;
-        }
-        else
-        {
-            Db.DatePollResponses.Add(new DatePollResponse
+            if (existingByName.TryGetValue(name, out var existing))
             {
-                DateId = dateId, VoterName = _voterName, Status = status,
-            });
+                existing.Status = status;
+                existing.RespondedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                Db.DatePollResponses.Add(new DatePollResponse
+                {
+                    DateId = dateId, VoterName = name, Status = status,
+                });
+            }
         }
+        await Db.SaveChangesAsync();
+        LoadPoll();
+        LoadMyResponses();
+        StateHasChanged();
+        Broadcast.Broadcast(DatePollId);
+    }
+
+    // Exclusive across the whole poll, independent of Status - a voter (or
+    // group of names voting together) can prefer a week they've marked
+    // Maybe/No on, since preference is "which would I actually want" not
+    // "which can I attend". Toggling an already-preferred date just clears
+    // it back to no preference, rather than forcing a pick at all times.
+    private async Task TogglePreferredAsync(int dateId)
+    {
+        if (_poll is null || _poll.HasDeadlinePassed || _voterNames.Count == 0) return;
+
+        var alreadyPreferred = _myResponses.TryGetValue(dateId, out var mine) && mine.IsPreferred;
+
+        var allMine = await Db.DatePollResponses
+            .Where(r => r.DateOption.DatePollId == DatePollId && _voterNames.Contains(r.VoterName))
+            .ToListAsync();
+        foreach (var r in allMine) r.IsPreferred = false;
+
+        if (!alreadyPreferred)
+        {
+            var atThisDate = allMine.Where(r => r.DateId == dateId).ToDictionary(r => r.VoterName);
+            foreach (var name in _voterNames)
+            {
+                if (atThisDate.TryGetValue(name, out var existing))
+                {
+                    existing.IsPreferred = true;
+                }
+                else
+                {
+                    Db.DatePollResponses.Add(new DatePollResponse
+                    {
+                        DateId = dateId, VoterName = name, Status = "Maybe", IsPreferred = true,
+                    });
+                }
+            }
+        }
+
         await Db.SaveChangesAsync();
         LoadPoll();
         LoadMyResponses();
@@ -225,12 +374,17 @@
 
     private async Task SaveCommentAsync(int dateId, string comment)
     {
-        if (_poll is null || _poll.HasDeadlinePassed) return;
+        if (_poll is null || _poll.HasDeadlinePassed || _voterNames.Count == 0) return;
 
-        var existing = await Db.DatePollResponses
-            .FirstOrDefaultAsync(r => r.DateId == dateId && r.VoterName == _voterName);
-        if (existing is null) return;
-        existing.Comment = comment.Trim();
+        var trimmed = comment.Trim();
+        var existingByName = await Db.DatePollResponses
+            .Where(r => r.DateId == dateId && _voterNames.Contains(r.VoterName))
+            .ToListAsync();
+        if (existingByName.Count == 0) return;
+
+        foreach (var existing in existingByName)
+            existing.Comment = trimmed;
+
         await Db.SaveChangesAsync();
         LoadPoll();
         LoadMyResponses();

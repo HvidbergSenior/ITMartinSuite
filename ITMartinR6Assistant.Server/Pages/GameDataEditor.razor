@@ -1,0 +1,198 @@
+@page "/rediger"
+@layout R6AssistantLayout
+@inject IR6DataService DataService
+@inject SessionStateService Session
+@implements IDisposable
+@using ITMartinR6Assistant.Domain
+
+<div class="editor-page">
+
+    <div style="max-width:520px;margin:0 auto 18px">
+        <ProblemPurposeBanner Show="Session.ShowBanners"
+            Problem="Maps, operatorer og battle plans lå kun i en statisk fil, der ikke kunne redigeres uden at ændre koden."
+            Formaal="Ret operatorer, maps, sites og battle plans direkte i appen - ændringer gælder for alle med det samme og overlever en genstart." />
+
+        <HowToUseBanner Show="Session.ShowBanners" Steps='@(new[]
+        {
+            "Fold en sektion ud, ret et felt, og tryk Tab eller klik væk - det gemmes automatisk.",
+            "Lister (fx picks eller bans) skrives kommasepareret: \"Ash, Sledge, Thermite\".",
+            "\"+\"-knapperne tilføjer en ny tom række du selv udfylder - \"✕\" sletter."
+        })' />
+    </div>
+
+    @if (_data is null)
+    {
+        <div class="admin-loading">Loader data...</div>
+    }
+    else
+    {
+        <details open class="editor-section">
+            <summary>Operatorer (@_data.Operators.Count)</summary>
+            <table class="editor-table">
+                <thead><tr><th>Navn</th><th>Side</th><th>Rolle</th><th>Billede-URL</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var op in _data.Operators.ToList())
+                    {
+                        <tr>
+                            <td><input @bind="op.Name" @bind:after="Save" /></td>
+                            <td>
+                                <select @bind="op.Side" @bind:after="Save">
+                                    <option value="Attack">Attack</option>
+                                    <option value="Defense">Defense</option>
+                                </select>
+                            </td>
+                            <td><input @bind="op.Role" @bind:after="Save" /></td>
+                            <td><input @bind="op.ImageUrl" @bind:after="Save" /></td>
+                            <td><button class="editor-del-btn" @onclick="() => RemoveOperator(op)">✕</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <button class="editor-add-btn" @onclick="AddOperator">+ Tilføj operator</button>
+        </details>
+
+        <details open class="editor-section">
+            <summary>Maps (@_data.Maps.Count)</summary>
+            @foreach (var map in _data.Maps.ToList())
+            {
+                <details class="editor-map-block">
+                    <summary>@map.Name <span class="editor-summary-sub">(@map.Sites.Count sites@(map.IsRanked ? ", ranked" : ""))</span></summary>
+
+                    <div class="editor-field-row">
+                        <label>Navn <input @bind="map.Name" @bind:after="Save" /></label>
+                        <label>Billede-URL <input @bind="map.ImageUrl" @bind:after="Save" /></label>
+                        <label style="flex-direction:row;align-items:center;gap:6px">
+                            <input type="checkbox" @bind="map.IsRanked" @bind:after="Save" /> Ranked
+                        </label>
+                        <button class="editor-del-btn" @onclick="() => RemoveMap(map)">✕ Slet map</button>
+                    </div>
+
+                    @foreach (var site in map.Sites.ToList())
+                    {
+                        <details class="editor-site-block">
+                            <summary>@site.Name <span class="editor-summary-sub">(@site.Floor)</span></summary>
+
+                            <div class="editor-field-row">
+                                <label>Navn <input @bind="site.Name" @bind:after="Save" /></label>
+                                <label>Etage <input @bind="site.Floor" @bind:after="Save" /></label>
+                                <label>Billede-URL <input @bind="site.ImageUrl" @bind:after="Save" /></label>
+                                <label>ATK winrate % <input type="number" @bind="site.AttackWinRate" @bind:after="Save" /></label>
+                                <button class="editor-del-btn" @onclick="() => RemoveSite(map, site)">✕ Slet site</button>
+                            </div>
+                            <div class="editor-field-row">
+                                <label>ATK picks <input value="@string.Join(", ", site.AttackPicks)" @onchange="async e => { site.AttackPicks = ParseList(e.Value); await Save(); }" /></label>
+                                <label>DEF picks <input value="@string.Join(", ", site.DefensePicks)" @onchange="async e => { site.DefensePicks = ParseList(e.Value); await Save(); }" /></label>
+                                <label>Foreslåede bans <input value="@string.Join(", ", site.SuggestedBans)" @onchange="async e => { site.SuggestedBans = ParseList(e.Value); await Save(); }" /></label>
+                            </div>
+                            <div class="editor-field-row">
+                                <label style="flex:1">Note <input @bind="site.Note" @bind:after="Save" /></label>
+                            </div>
+
+                            <div class="editor-plan-list">
+                                <div class="editor-plan-title">Battle plans</div>
+                                @foreach (var plan in site.BattlePlans.ToList())
+                                {
+                                    <div class="editor-plan-row">
+                                        <input type="number" class="editor-plan-num" @bind="plan.Number" @bind:after="Save" />
+                                        <input placeholder="Label" @bind="plan.Label" @bind:after="Save" />
+                                        <input placeholder="Picks (kommasepareret)" value="@string.Join(", ", plan.Picks)" @onchange="async e => { plan.Picks = ParseList(e.Value); await Save(); }" />
+                                        <input placeholder="Note" @bind="plan.Note" @bind:after="Save" />
+                                        <button class="editor-del-btn" @onclick="() => RemovePlan(site, plan)">✕</button>
+                                    </div>
+                                }
+                                <button class="editor-add-btn" @onclick="() => AddPlan(site)">+ Tilføj plan</button>
+                            </div>
+                        </details>
+                    }
+                    <button class="editor-add-btn" @onclick="() => AddSite(map)">+ Tilføj site</button>
+                </details>
+            }
+            <button class="editor-add-btn" @onclick="AddMap">+ Tilføj map</button>
+        </details>
+    }
+
+</div>
+
+@code {
+    private R6GameData? _data;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataService.OnDataChanged += OnDataChanged;
+        Session.OnStateChanged += OnSessionChanged;
+        _data = await DataService.GetData();
+    }
+
+    private void OnDataChanged() => InvokeAsync(async () =>
+    {
+        _data = await DataService.GetData();
+        StateHasChanged();
+    });
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task Save()
+    {
+        if (_data is not null) await DataService.SaveAsync(_data);
+    }
+
+    private static List<string> ParseList(object? value) =>
+        (value?.ToString() ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+    private void AddOperator()
+    {
+        _data!.Operators.Add(new R6Operator { Name = "Ny operator", Side = "Attack" });
+        _ = Save();
+    }
+
+    private void RemoveOperator(R6Operator op)
+    {
+        _data!.Operators.Remove(op);
+        _ = Save();
+    }
+
+    private void AddMap()
+    {
+        _data!.Maps.Add(new R6Map { Name = "Nyt map" });
+        _ = Save();
+    }
+
+    private void RemoveMap(R6Map map)
+    {
+        _data!.Maps.Remove(map);
+        _ = Save();
+    }
+
+    private void AddSite(R6Map map)
+    {
+        map.Sites.Add(new BombSite { Name = "Nyt site" });
+        _ = Save();
+    }
+
+    private void RemoveSite(R6Map map, BombSite site)
+    {
+        map.Sites.Remove(site);
+        _ = Save();
+    }
+
+    private void AddPlan(BombSite site)
+    {
+        var nextNumber = site.BattlePlans.Count == 0 ? 1 : site.BattlePlans.Max(p => p.Number) + 1;
+        site.BattlePlans.Add(new BattlePlan { Number = nextNumber, Label = "Ny plan" });
+        _ = Save();
+    }
+
+    private void RemovePlan(BombSite site, BattlePlan plan)
+    {
+        site.BattlePlans.Remove(plan);
+        _ = Save();
+    }
+
+    public void Dispose()
+    {
+        DataService.OnDataChanged -= OnDataChanged;
+        Session.OnStateChanged -= OnSessionChanged;
+    }
+}

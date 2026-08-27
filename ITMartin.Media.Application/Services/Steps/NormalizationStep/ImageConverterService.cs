@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
+using ImageMagick;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
+using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.Processing;
@@ -11,6 +13,7 @@ namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 public class ImageConverterService : IImageConverterService
 {
     private readonly string _ffmpegPath;
+    private readonly ILogger<ImageConverterService> _logger;
 
     private static readonly HashSet<string> ConvertibleExtensions =
         new(StringComparer.OrdinalIgnoreCase)
@@ -20,8 +23,10 @@ public class ImageConverterService : IImageConverterService
             ".avif"
         };
 
-    public ImageConverterService()
+    public ImageConverterService(ILogger<ImageConverterService> logger)
     {
+        _logger = logger;
+
         if (OperatingSystem.IsWindows())
         {
             var ffmpegFolder =
@@ -40,8 +45,6 @@ public class ImageConverterService : IImageConverterService
 
             _ffmpegPath = "ffmpeg";
         }
-
-       
     }
 
     public bool NeedsConversion(string path)
@@ -51,6 +54,30 @@ public class ImageConverterService : IImageConverterService
                 .ToLowerInvariant();
 
         return ConvertibleExtensions.Contains(ext);
+    }
+
+    public bool TryGetSourceOrientation(string path, out ushort orientation) =>
+        TryReadOrientationTag(path, out orientation);
+
+    private static bool TryReadOrientationTag(string path, out ushort orientation)
+    {
+        orientation = 0;
+        try
+        {
+            var exif = ImageMetadataReader.ReadMetadata(path)
+                .OfType<ExifIfd0Directory>()
+                .FirstOrDefault();
+
+            if (exif == null || !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
+                return false;
+
+            orientation = (ushort)exif.GetInt32(ExifDirectoryBase.TagOrientation);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public bool ShouldKeepOriginal(string path)
@@ -71,17 +98,11 @@ public class ImageConverterService : IImageConverterService
     public async Task<string?> ConvertToJpgAsync(
         string inputPath)
     {
-        Console.WriteLine(
-            "===== IMAGE DEBUG START =====");
-
-        Console.WriteLine(
-            $"Input path: {inputPath}");
+        _logger.LogDebug("Converting {InputPath}", inputPath);
 
         if (!File.Exists(inputPath))
         {
-            Console.WriteLine(
-                "Input file missing");
-
+            _logger.LogWarning("Cannot convert {InputPath} - file does not exist", inputPath);
             return null;
         }
 
@@ -91,17 +112,11 @@ public class ImageConverterService : IImageConverterService
 
         if (ShouldKeepOriginal(inputPath))
         {
-            Console.WriteLine(
-                "Keeping original");
-
             return BakeInOwnOrientationIfNeeded(inputPath) ?? inputPath;
         }
 
         if (!NeedsConversion(inputPath))
         {
-            Console.WriteLine(
-                "No conversion needed");
-
             return BakeInOwnOrientationIfNeeded(inputPath) ?? inputPath;
         }
 
@@ -131,34 +146,30 @@ public class ImageConverterService : IImageConverterService
                 tempRoot,
                 $"{fileName}.jpg");
 
-        Console.WriteLine(
-            $"Output path: {outputPath}");
-
         try
         {
             // Already normalized
 
             if (File.Exists(outputPath))
             {
-                Console.WriteLine(
-                    "Already normalized");
-
                 return outputPath;
             }
 
             var ext = Path.GetExtension(inputPath).ToLowerInvariant();
 
-            // ffmpeg (from plain apt-get, no --enable-libheif) cannot decode
-            // HEIC/HEIF at all - it mis-detects them as an MP4-family container
-            // and fails with "moov atom not found" every time. heif-convert
-            // (libheif-examples) actually decodes the HEIF box structure.
-            // AVIF is a different codec (AV1) that ffmpeg's libaom build
-            // handles fine, so that one keeps using ffmpeg.
+            // Magick.NET bundles its own native ImageMagick binary per
+            // platform (built with HEIF/AVIF delegate support) as a NuGet
+            // dependency - no external CLI tool to install or be missing.
+            // Replaces the old heif-convert (Linux-only, apt-get
+            // libheif-examples) approach 2026-08-25 after it silently failed
+            // every HEIC conversion on this Windows dev machine - heif-convert
+            // was never installed here, so Process.Start threw, was caught,
+            // and every HEIC file quietly exported unconverted instead of
+            // failing loudly. AVIF still goes through ffmpeg (libaom handles
+            // AV1 fine); only HEIC/HEIF moved to Magick.NET.
             if (ext is ".heic" or ".heif")
             {
-                await ConvertWithHeifConvert(
-                    inputPath,
-                    outputPath);
+                ConvertWithMagick(inputPath, outputPath);
             }
             else
             {
@@ -185,73 +196,25 @@ public class ImageConverterService : IImageConverterService
                 inputPath,
                 outputPath);
 
-            Console.WriteLine(
-                "===== IMAGE DEBUG END =====");
-
             return outputPath;
         }
         catch (Exception ex)
         {
-            Console.WriteLine(
-                $"[IMAGE CONVERT ERROR] {ex}");
+            // This is the "silently exported unconverted" failure mode found
+            // 2026-08-25 - keep this at Warning (not swallowed to Debug), it's
+            // the one thing about this method actually worth knowing when it
+            // happens, since the caller falls back to the original file.
+            _logger.LogWarning(ex, "Could not convert {InputPath} to JPG - keeping original file as-is", inputPath);
 
             return inputPath;
         }
     }
 
-    private static async Task ConvertWithHeifConvert(
-        string inputPath,
-        string outputPath)
+    private static void ConvertWithMagick(string inputPath, string outputPath)
     {
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "heif-convert",
-                Arguments = $"\"{inputPath}\" \"{outputPath}\"",
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            },
-            EnableRaisingEvents = true
-        };
-
-        var tcs = new TaskCompletionSource<int>();
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-            {
-                Console.WriteLine(e.Data);
-            }
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-            {
-                Console.WriteLine(e.Data);
-            }
-        };
-
-        process.Exited += (_, _) =>
-        {
-            tcs.TrySetResult(process.ExitCode);
-        };
-
-        process.Start();
-
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        var exitCode = await tcs.Task;
-
-        if (exitCode != 0)
-        {
-            throw new Exception(
-                $"heif-convert failed: {exitCode}");
-        }
+        using var image = new MagickImage(inputPath);
+        image.Format = MagickFormat.Jpg;
+        image.Write(outputPath);
     }
 
     private async Task ConvertWithFfmpeg(
@@ -287,7 +250,7 @@ public class ImageConverterService : IImageConverterService
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
             {
-                Console.WriteLine(e.Data);
+                _logger.LogDebug("[ffmpeg] {Line}", e.Data);
             }
         };
 
@@ -295,7 +258,7 @@ public class ImageConverterService : IImageConverterService
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
             {
-                Console.WriteLine(e.Data);
+                _logger.LogDebug("[ffmpeg] {Line}", e.Data);
             }
         };
 
@@ -311,7 +274,7 @@ public class ImageConverterService : IImageConverterService
 
         var exitCode =
             await tcs.Task;
-        
+
         if (exitCode != 0)
         {
             throw new Exception(
@@ -326,19 +289,11 @@ public class ImageConverterService : IImageConverterService
     // upright image. Cheap tag-only read first so the common case (already
     // orientation 1, i.e. no camera metadata or already upright) costs
     // nothing - only orientations 2-8 pay for a decode+re-encode.
-    private static string? BakeInOwnOrientationIfNeeded(string inputPath)
+    private string? BakeInOwnOrientationIfNeeded(string inputPath)
     {
         try
         {
-            var exif = ImageMetadataReader.ReadMetadata(inputPath)
-                .OfType<ExifIfd0Directory>()
-                .FirstOrDefault();
-
-            if (exif == null || !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
-                return null;
-
-            var orientation = (ushort)exif.GetInt32(ExifDirectoryBase.TagOrientation);
-            if (orientation <= 1)
+            if (!TryReadOrientationTag(inputPath, out var orientation) || orientation <= 1)
                 return null;
 
             var tempRoot = Path.Combine(Path.GetTempPath(), "ITMartinFileSorter", "images");
@@ -350,47 +305,34 @@ public class ImageConverterService : IImageConverterService
 
             using var image = Image.Load(inputPath);
             image.Mutate(x => x.AutoOrient());
-            image.Metadata.ExifProfile?.RemoveValue(ExifTag.Orientation);
+            image.Metadata.ExifProfile?.RemoveValue(SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifTag.Orientation);
             image.Save(outputPath);
 
             return outputPath;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[AUTO-ROTATE ERROR] {inputPath}: {ex.Message}");
+            _logger.LogWarning(ex, "Could not bake in orientation for {InputPath}", inputPath);
             return null;
         }
     }
 
-    private static void ApplyOriginalOrientation(
+    private void ApplyOriginalOrientation(
         string originalPath,
         string outputJpgPath)
     {
         try
         {
-            var exif = ImageMetadataReader.ReadMetadata(originalPath)
-                .OfType<ExifIfd0Directory>()
-                .FirstOrDefault();
-
-            if (exif == null ||
-                !exif.ContainsTag(ExifDirectoryBase.TagOrientation))
-            {
-                return;
-            }
-
-            var orientation = (ushort)exif.GetInt32(
-                ExifDirectoryBase.TagOrientation);
-
-            if (orientation <= 1)
+            if (!TryReadOrientationTag(originalPath, out var orientation) || orientation <= 1)
             {
                 return;
             }
 
             using var image = Image.Load(outputJpgPath);
 
-            image.Metadata.ExifProfile ??= new ExifProfile();
+            image.Metadata.ExifProfile ??= new SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifProfile();
             image.Metadata.ExifProfile.SetValue(
-                ExifTag.Orientation,
+                SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifTag.Orientation,
                 orientation);
 
             image.Mutate(x => x.AutoOrient());
@@ -400,8 +342,7 @@ public class ImageConverterService : IImageConverterService
         }
         catch (Exception ex)
         {
-            Console.WriteLine(
-                $"[ORIENTATION FIX ERROR] {ex.Message}");
+            _logger.LogWarning(ex, "Could not apply original orientation to {OutputJpgPath}", outputJpgPath);
         }
     }
 

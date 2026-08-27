@@ -24,10 +24,26 @@
     }
     else if (Session.Map is null)
     {
-        @* MAP PICKER *@
-        <div class="admin-section-label">VÆLG MAP</div>
+        @* MAP PICKER - ranked maps first/prioritized, other maps below *@
+        <div class="admin-section-label">RANKEDE MAPS</div>
         <div class="admin-map-grid">
-            @foreach (var map in _gameData.Maps)
+            @foreach (var map in _gameData.Maps.Where(m => m.IsRanked))
+            {
+                var mapName = map.Name;
+                <button class="admin-map-card admin-map-card-ranked" @onclick="() => SelectMap(mapName)">
+                    @if (!string.IsNullOrEmpty(map.ImageUrl))
+                    {
+                        <img class="admin-map-img" src="@map.ImageUrl" alt="@map.Name" />
+                    }
+                    <div class="admin-map-name">@map.Name</div>
+                    <div class="admin-map-sites">@map.Sites.Count sites</div>
+                </button>
+            }
+        </div>
+
+        <div class="admin-section-label">ANDRE MAPS</div>
+        <div class="admin-map-grid">
+            @foreach (var map in _gameData.Maps.Where(m => !m.IsRanked))
             {
                 var mapName = map.Name;
                 <button class="admin-map-card" @onclick="() => SelectMap(mapName)">

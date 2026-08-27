@@ -24,7 +24,13 @@ public abstract class Package1WorkflowStepBase
         var stopwatch =
             Stopwatch.StartNew();
 
-        logger.LogInformation(
+        // Debug, not Information - this fires twice per file per step, which
+        // across tens of thousands of files and 18 steps produced millions
+        // of log lines for a single real run (found 2026-08-25 on mie's
+        // library) without adding anything LogStepProgress's one-line-per-file
+        // percentage log doesn't already say. Still visible with Debug-level
+        // logging enabled for troubleshooting a specific run.
+        logger.LogDebug(
             """
             --------------------------------------------------
             START OPERATION
@@ -41,7 +47,7 @@ public abstract class Package1WorkflowStepBase
 
             stopwatch.Stop();
 
-            logger.LogInformation(
+            logger.LogDebug(
                 """
                 COMPLETE OPERATION
                 Item: {Item}

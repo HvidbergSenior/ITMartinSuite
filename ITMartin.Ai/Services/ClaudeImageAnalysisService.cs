@@ -39,11 +39,13 @@ public sealed class ClaudeImageAnalysisService
                 ["is_solid_color"] = JsonSerializer.SerializeToElement(
                     new { type = "boolean", description = "True if the image is mostly a single solid color, blank, or near-empty" }),
                 ["is_meme"] = JsonSerializer.SerializeToElement(
-                    new { type = "boolean", description = "True if the image is a meme, joke image, or internet humor content" }),
+                    new { type = "boolean", description = "True ONLY if the image's own purpose is a joke/internet-humor format - a meme template, captioned joke image, or similar - where the humor IS the content. False for a real personal/family photo, even if it has a funny caption, sticker, emoji, or was shared through Snapchat/Instagram Story - a photo of a real moment (a baby, a family event, a selfie) stays false here no matter what text is overlaid on it." }),
                 ["is_screenshot"] = JsonSerializer.SerializeToElement(
-                    new { type = "boolean", description = "True if the image is a screenshot of a phone, computer, or app" }),
+                    new { type = "boolean", description = "True if the image is a screenshot of a phone, computer, or app UI (status bar, app chrome, buttons visible)" }),
+                ["is_chat"] = JsonSerializer.SerializeToElement(
+                    new { type = "boolean", description = "True ONLY if this shows an actual text/SMS/iMessage/WhatsApp conversation THREAD - multiple message bubbles going back and forth between people, a contact name, chat UI. False for a single photo with a caption/sticker/username banner (Snapchat, Instagram Story, or similar photo-sharing format) - that is a real photo that was shared, not a chat conversation, even though it came through a messaging app." }),
             },
-            Required = ["description", "confidence", "is_blurry", "is_solid_color", "is_meme", "is_screenshot"],
+            Required = ["description", "confidence", "is_blurry", "is_solid_color", "is_meme", "is_screenshot", "is_chat"],
         },
     };
 
@@ -82,7 +84,7 @@ public sealed class ClaudeImageAnalysisService
                 // memory: AI features must never cost thousands of dollars to run.
                 Model = Model.ClaudeHaiku4_5,
                 MaxTokens = 512,
-                System = "You analyze images for photo library management. Be precise about blur, solid-color/blank images, memes, and screenshots. Always call report_image.",
+                System = "You analyze images for photo library management. Be precise about blur, solid-color/blank images, memes, screenshots, and chat/messenger screenshots specifically (is_chat implies is_screenshot). The most important distinction: a real personal/family photo (even one shared via Snapchat/Instagram with a caption, sticker, or username banner overlaid) is NOT a meme and NOT a chat conversation - it stays a real photo. Only set is_meme for actual joke/humor-format content, and only set is_chat for an actual multi-message conversation thread. When in doubt between 'real photo with social-app decoration' and 'meme/chat', prefer treating it as a real photo. Always call report_image.",
                 Tools = [ReportImageTool],
                 ToolChoice = new ToolChoiceTool { Name = "report_image" },
                 Messages =
@@ -137,6 +139,7 @@ public sealed class ClaudeImageAnalysisService
                 if (root.TryGetProperty("is_solid_color", out var s)) result.IsSolidColor = s.GetBoolean();
                 if (root.TryGetProperty("is_meme", out var m))        result.IsMeme       = m.GetBoolean();
                 if (root.TryGetProperty("is_screenshot", out var sc)) result.IsScreenshot = sc.GetBoolean();
+                if (root.TryGetProperty("is_chat", out var c))        result.IsChat       = c.GetBoolean();
             }
 
             if (result is null)

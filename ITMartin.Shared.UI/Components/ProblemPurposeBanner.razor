@@ -19,23 +19,27 @@
                 <span class="itm-pp-text">@Problem</span>
             }
         </div>
-        <div class="itm-pp-row">
-            <span class="itm-pp-icon">🎯</span>
-            <span class="itm-pp-label">Formål</span>
-            @if (FormaalPoints is { Length: > 0 })
-            {
+        @if (FormaalPoints is { Length: > 0 })
+        {
+            <div class="itm-pp-row">
+                <span class="itm-pp-icon">🎯</span>
+                <span class="itm-pp-label">Formål</span>
                 <ol class="itm-pp-list">
                     @foreach (var point in FormaalPoints)
                     {
                         <li>@point</li>
                     }
                 </ol>
-            }
-            else
-            {
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(Formaal))
+        {
+            <div class="itm-pp-row">
+                <span class="itm-pp-icon">🎯</span>
+                <span class="itm-pp-label">Formål</span>
                 <span class="itm-pp-text">@Formaal</span>
-            }
-        </div>
+            </div>
+        }
         @if (LosningPoints is { Length: > 0 })
         {
             <div class="itm-pp-row">

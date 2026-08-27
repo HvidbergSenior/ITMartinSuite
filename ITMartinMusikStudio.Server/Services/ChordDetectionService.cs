@@ -54,6 +54,46 @@ public sealed class ChordDetectionService
         return raw.Select(r => new ChordSegment(r[0].GetDouble(), r[1].GetDouble(), r[2].GetString() ?? "")).ToList();
     }
 
+    public async Task<double?> DetectTempoAsync(string inputPath, CancellationToken ct = default)
+    {
+        var scriptPath = Path.Combine(Path.GetTempPath(), "musikstudio_tempo_detect.py");
+        if (!File.Exists(scriptPath))
+            await File.WriteAllTextAsync(scriptPath, TempoPythonScript, ct);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName               = _python,
+            Arguments              = $"\"{scriptPath}\" \"{inputPath}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            UseShellExecute        = false,
+        };
+
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Could not start python");
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
+        await proc.WaitForExitAsync(ct);
+        var stdout = (await stdoutTask).Trim();
+
+        return proc.ExitCode == 0 && double.TryParse(stdout, System.Globalization.CultureInfo.InvariantCulture, out var bpm)
+            ? Math.Round(bpm, 1)
+            : null;
+    }
+
+    private const string TempoPythonScript = """
+        import sys
+        import librosa
+
+        def main(path):
+            y, sr = librosa.load(path, sr=22050, mono=True)
+            tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+            # librosa 0.10+ returns tempo as a 1-element ndarray, not a scalar
+            bpm = tempo.item() if hasattr(tempo, 'item') else tempo
+            print(float(bpm))
+
+        if __name__ == '__main__':
+            main(sys.argv[1])
+        """;
+
     // Renders detected segments as a readable, editable chord-chart block
     // (mm:ss timestamp per chord change) - same textarea format the rest of
     // the app already uses for chord charts, so the result drops straight in.

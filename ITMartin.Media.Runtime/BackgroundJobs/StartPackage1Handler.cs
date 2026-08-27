@@ -84,16 +84,19 @@ public sealed class StartPackage1Handler
         // sort, not just the first one. A failure here shouldn't block the
         // add-on chain - the sort itself already succeeded either way, but
         // it does mean no safe rollback point exists for this run.
-        try
+        if (request.EnableBaselineSnapshot)
         {
-            await Package1BaselineHelper.MirrorDirectoryAsync(
-                outputPath,
-                Package1BaselineHelper.GetBaselinePath(outputPath),
-                cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Baseline snapshot failed for {OutputPath}", outputPath);
+            try
+            {
+                await Package1BaselineHelper.MirrorDirectoryAsync(
+                    outputPath,
+                    Package1BaselineHelper.GetBaselinePath(outputPath),
+                    cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Baseline snapshot failed for {OutputPath}", outputPath);
+            }
         }
 
         // Free add-ons folded into the normal sort pass instead of being
@@ -118,10 +121,21 @@ public sealed class StartPackage1Handler
         // GenerateYearbookAsync also stays manual - it needs a specific year
         // chosen, which is a curatorial decision, not a mechanical cleanup step.
         await RunAddonStepAsync("IndexFaces", outputPath,
-            () => _package3Service.IndexFacesAsync(outputPath, cancellationToken));
+            () => _package3Service.IndexFacesAsync(outputPath, cancellationToken: cancellationToken));
 
+        // maxDatedReferenceFiles caps EstimateUndatedDatesAsync's own dated-
+        // reference sampling (both the face and GPS passes) - without it, the
+        // GPS pass reads EXIF/GPS from every single dated file in the library
+        // one at a time with no bound at all (found 2026-08-25 on mie's real
+        // library: ~43,000 files, looked hung for a long stretch - it wasn't,
+        // just an unbounded serial scan). The IndexFaces step just above
+        // already built the full-library reference set with no cap (that one
+        // stays uncapped - it's the comprehensive baseline other Package3
+        // features rely on and isn't the thing that was ever unbounded-slow),
+        // so this call's own internal IndexFacesAsync mostly just skip-fast
+        // confirms that's already done.
         await RunAddonStepAsync("EstimateUndatedDates", outputPath,
-            () => _package3Service.EstimateUndatedDatesAsync(outputPath, cancellationToken: cancellationToken));
+            () => _package3Service.EstimateUndatedDatesAsync(outputPath, maxDatedReferenceFiles: 3000, cancellationToken: cancellationToken));
 
         await RunAddonStepAsync("LibraryPolish", outputPath,
             () => _libraryPolishService.PolishAsync(outputPath, cancellationToken));
@@ -131,6 +145,9 @@ public sealed class StartPackage1Handler
 
         await RunAddonStepAsync("GenerateTraditions", outputPath,
             () => _smartFoldersService.GenerateTraditionsAsync(outputPath, cancellationToken));
+
+        await RunAddonStepAsync("GenerateSimilarSceneFolders", outputPath,
+            () => _smartFoldersService.GenerateSimilarSceneFoldersAsync(outputPath, cancellationToken));
 
         await RunAddonStepAsync("SyncGalleryCollections", outputPath,
             () => _smartFoldersService.SyncGalleryCollectionsAsync(outputPath, cancellationToken));

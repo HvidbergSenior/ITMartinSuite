@@ -239,6 +239,88 @@ public sealed class Package4Service : IPackage4Service
         };
     }
 
+    // Matches the current date-range group label shapes LibraryExportService
+    // produces (see [[project_package1_month_split]]): "dd-dd MonthName"
+    // when a group stays in one calendar month, "Mon-Mon" (3-letter Danish
+    // abbreviations) when it spans two. A Year folder's own subfolders
+    // should always match one of these once that year is busy enough to
+    // need subfolders at all - anything else (a leftover calendar "MM-Month"
+    // folder from the superseded design, a stray "Juni"-style mistake, an
+    // unrelated folder) is a real structure issue.
+    private static readonly System.Text.RegularExpressions.Regex GroupLabelPattern =
+        new(@"^(\d{2}-\d{2} \p{L}+|[A-ZÆØÅ][a-zæøå]{2}-[A-ZÆØÅ][a-zæøå]{2})$");
+
+    private const int GroupFlatThreshold = 50; // must match LibraryExportService.GroupTargetSize
+
+    public Task<DeliveryStructureReport> VerifyDeliveryStructureAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var extensionsByCategory = new Dictionary<string, List<string>>();
+        var issues = new List<DeliveryStructureIssue>();
+        var yearFoldersChecked = 0;
+
+        foreach (var (categoryLabel, names) in ExpectedCategoryFolders)
+        {
+            var categoryDir = names.Select(n => Path.Combine(libraryPath, n)).FirstOrDefault(Directory.Exists);
+            if (categoryDir is null) continue;
+
+            var extensions = Directory.EnumerateFiles(categoryDir, "*", SearchOption.AllDirectories)
+                .Where(f => !Path.GetFileName(Path.GetDirectoryName(f) ?? "").Equals("thumbnails", StringComparison.OrdinalIgnoreCase))
+                .Select(f => Path.GetExtension(f).ToLowerInvariant())
+                .Where(e => e.Length > 0)
+                .Distinct()
+                .OrderBy(e => e)
+                .ToList();
+            extensionsByCategory[categoryLabel] = extensions;
+
+            // Musik is organized by Artist/Album, not Year - the group-label
+            // structure check below doesn't apply to it at all.
+            if (categoryLabel.StartsWith("Musik")) continue;
+
+            foreach (var yearDir in Directory.EnumerateDirectories(categoryDir).Where(d => System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(d), @"^\d{4}$")))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yearFoldersChecked++;
+
+                var totalFiles = Directory.EnumerateFiles(yearDir, "*", SearchOption.AllDirectories)
+                    .Count(f => !Path.GetFileName(Path.GetDirectoryName(f) ?? "").Equals("thumbnails", StringComparison.OrdinalIgnoreCase));
+                var subDirs = Directory.EnumerateDirectories(yearDir)
+                    .Where(d => !Path.GetFileName(d).Equals("thumbnails", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (totalFiles <= GroupFlatThreshold && subDirs.Count > 0)
+                {
+                    issues.Add(new DeliveryStructureIssue
+                    {
+                        RelativePath = Path.GetRelativePath(libraryPath, yearDir),
+                        Reason = $"only {totalFiles} files (≤{GroupFlatThreshold}) but has {subDirs.Count} subfolder(s) - should be flat",
+                    });
+                }
+                else if (totalFiles > GroupFlatThreshold)
+                {
+                    foreach (var subDir in subDirs.Where(d => !GroupLabelPattern.IsMatch(Path.GetFileName(d))))
+                    {
+                        issues.Add(new DeliveryStructureIssue
+                        {
+                            RelativePath = Path.GetRelativePath(libraryPath, subDir),
+                            Reason = "subfolder name doesn't match the current date-range group label pattern - likely leftover from a superseded structure",
+                        });
+                    }
+                }
+            }
+        }
+
+        _logger.LogInformation(
+            "Delivery structure check complete for {LibraryPath}: {Years} year folders checked, {Issues} issues",
+            libraryPath, yearFoldersChecked, issues.Count);
+
+        return Task.FromResult(new DeliveryStructureReport
+        {
+            YearFoldersChecked = yearFoldersChecked,
+            ExtensionsByCategory = extensionsByCategory,
+            Issues = issues,
+        });
+    }
+
     // Finds libraryLeafName as a whole path segment inside absolutePath and
     // returns everything after it - null if the segment never appears at all.
     private static string? TryRecoverRelativePath(string absolutePath, string libraryLeafName)

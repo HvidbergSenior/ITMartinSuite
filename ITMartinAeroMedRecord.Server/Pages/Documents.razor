@@ -1,0 +1,170 @@
+@page "/g/{Slug}/documents"
+@rendermode InteractiveServer
+@inject AeroDbContext Db
+@inject AeroAuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+@inject IConfiguration Configuration
+@inject ITMartin.Documents.Interfaces.IDocxImportService DocxImport
+
+@if (_group is null)
+{
+    <p style="padding:20px">Indlæser...</p>
+}
+else
+{
+    <div class="home-wrap">
+        <AeroNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="@($"Logget ind som {_me?.Name}")" Active="documents" OnLogout="LeaveAsync" />
+
+        <div class="home-body">
+            <InfoBanners PageKey="documents" Beskrivelse="Her uploader I .docx-dokumenter - de bliver automatisk delt op i redigerbare afsnit, og den oprindelige fil kan altid downloades uændret." />
+
+            <div class="section-head">
+                <h2>Dokumenter <span class="section-count">@_documents.Count</span></h2>
+                <label class="btn-file">
+                    + Upload
+                    <InputFile OnChange="OnFileSelectedAsync" style="display:none" accept=".docx" />
+                </label>
+            </div>
+            @if (_uploadError is not null) { <div class="create-error">@_uploadError</div> }
+            @if (_uploading) { <div class="hint">Importerer dokument...</div> }
+
+            <div class="doc-list">
+                @foreach (var doc in _documents)
+                {
+                    <a class="doc-row" href="/g/@Slug/documents/@doc.Id">
+                        <span class="doc-title">@doc.Title</span>
+                        <span class="doc-meta">uploadet af @doc.UploadedByName · @doc.UploadedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                    </a>
+                }
+                @if (_documents.Count == 0)
+                {
+                    <div class="hint">Ingen dokumenter endnu.</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .home-wrap { max-width: 900px; margin: 0 auto; color: var(--text); }
+        .home-body { padding: 16px 16px 64px; }
+        .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .section-head h2 { margin: 0; font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .section-count { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 2px 10px; }
+        .btn-file { background: var(--accent); color: white; border: none; padding: 9px 16px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; }
+        .hint { color: var(--muted); font-size: 13px; padding: 10px 0; }
+        .doc-list { display: flex; flex-direction: column; gap: 8px; }
+        .doc-row { display: flex; justify-content: space-between; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; text-decoration: none; color: var(--text); }
+        .doc-row:hover { border-color: var(--accent); }
+        .doc-title { font-weight: 600; }
+        .doc-meta { color: var(--muted); font-size: 12px; }
+        .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 12px; }
+    </style>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Group? _group;
+    private Member? _me;
+    private List<Document> _documents = [];
+    private bool _uploading;
+    private string? _uploadError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        if (_group is null) return;
+
+        var session = await Auth.ResolveSessionAsync(Js, Db, Slug);
+        if (session is null)
+        {
+            Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+            return;
+        }
+        _me = session.Member;
+
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        _documents = await Db.Documents.Where(d => d.GroupId == _group!.Id).OrderByDescending(d => d.UploadedAt).ToListAsync();
+    }
+
+    private async Task OnFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _uploadError = null;
+        var file = e.File;
+        if (file is null) return;
+
+        if (!file.Name.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+        {
+            _uploadError = "Kun .docx-filer understøttes.";
+            return;
+        }
+
+        _uploading = true;
+        StateHasChanged();
+
+        try
+        {
+            var docsRoot = Configuration["AeroSettings:DocsRoot"] ?? "/app/data/documents";
+            var groupDir = Path.Combine(docsRoot, _group!.Id.ToString());
+            Directory.CreateDirectory(groupDir);
+
+            var storedFileName = $"{Guid.NewGuid():N}.docx";
+            var storedPath = Path.Combine(groupDir, storedFileName);
+
+            await using (var outStream = File.Create(storedPath))
+            await using (var inStream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024))
+            {
+                await inStream.CopyToAsync(outStream);
+            }
+
+            var document = new Document
+            {
+                GroupId = _group.Id,
+                Title = Path.GetFileNameWithoutExtension(file.Name),
+                OriginalFileName = file.Name,
+                StoredFileName = storedFileName,
+                UploadedByName = _me!.Name,
+            };
+            Db.Documents.Add(document);
+            await Db.SaveChangesAsync();
+
+            await using (var parseStream = File.OpenRead(storedPath))
+            {
+                var parsed = DocxImport.ParseDocx(parseStream);
+                Db.Sections.AddRange(parsed.Select(p => new DocumentSection
+                {
+                    DocumentId = document.Id,
+                    GroupId = _group.Id,
+                    SortOrder = p.SortOrder,
+                    Heading = p.Heading,
+                    Text = p.Text,
+                }));
+                await Db.SaveChangesAsync();
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _uploadError = $"Import fejlede: {ex.Message}";
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private async Task LeaveAsync()
+    {
+        await Js.InvokeVoidAsync("aeroJs.clearSession");
+        Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true);
+    }
+}

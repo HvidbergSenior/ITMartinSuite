@@ -54,9 +54,49 @@ public sealed class Package3Service : IPackage3Service
         _logger = logger;
     }
 
-    public async Task IndexFacesAsync(string libraryPath, CancellationToken cancellationToken = default)
+    // Shared by IndexFacesAsync's dated-reference cap and Pass 2's GPS dated-
+    // reference cap (EstimateUndatedDatesAsync) - both need "a bounded but
+    // representative sample of already-dated files", not the whole library.
+    // Stratified by Year/Month, not a flat index-stride over the whole list -
+    // a stride over an unbalanced list (e.g. one year with 5000 photos,
+    // another with 50) would let the big year dominate the sample and could
+    // skip a sparse year/month entirely. An even share per bucket guarantees
+    // every dated month that exists contributes at least one reference file.
+    private static List<string> SampleDatedFiles(List<string> datedFiles, int cap)
     {
-        var files = EnumerateLibraryImages(libraryPath).ToList();
+        if (datedFiles.Count <= cap) return datedFiles;
+
+        var byYearMonth = datedFiles
+            .Select(f => (File: f, YearMonth: ExtractYearMonthFolder(f)))
+            .GroupBy(x => x.YearMonth ?? "")
+            .Select(g => g.Select(x => x.File).ToList())
+            .ToList();
+
+        var perBucket = Math.Max(1, cap / Math.Max(1, byYearMonth.Count));
+        return byYearMonth
+            .SelectMany(bucket => bucket.Count <= perBucket
+                ? bucket
+                : Enumerable.Range(0, perBucket).Select(i => bucket[(int)(i * (double)bucket.Count / perBucket)]))
+            .Take(cap)
+            .ToList();
+    }
+
+    public async Task IndexFacesAsync(string libraryPath, int? maxDatedReferenceFiles = null, CancellationToken cancellationToken = default)
+    {
+        var allFiles = EnumerateLibraryImages(libraryPath).ToList();
+
+        List<string> files;
+        if (maxDatedReferenceFiles is { } cap)
+        {
+            var undatedFiles = allFiles.Where(IsUnderUndatedFolder).ToList();
+            var datedFiles = allFiles.Where(f => !IsUnderUndatedFolder(f)).ToList();
+            files = undatedFiles.Concat(SampleDatedFiles(datedFiles, cap)).ToList();
+        }
+        else
+        {
+            files = allFiles;
+        }
+
         var typeName = Package3IndexType.Faces.ToString();
 
         await using (var db = await _dbFactory.CreateDbContextAsync(cancellationToken))
@@ -99,10 +139,12 @@ public sealed class Package3Service : IPackage3Service
         // SQLite writers safe; status writes are still throttled to keep
         // contention low.
         // Each worker loads its own copy of 3 ONNX models (detector, landmarks,
-        // embedder) - going to ProcessorCount-1 (11 here) OOM-killed the whole
-        // container. Capped at 4 concurrent recognizers as a safer starting
-        // point; revisit upward only while watching real memory usage.
-        var degreeOfParallelism = Math.Min(2, Math.Max(1, Environment.ProcessorCount - 1));
+        // embedder) - the original cap of 2 was tuned for a memory-constrained
+        // Docker container (ProcessorCount-1 OOM-killed it). FileSorter never
+        // runs in a container though (confirmed permanent: always local,
+        // bare-metal) - on real hardware with real RAM, leave 4 threads free
+        // for the OS/everything else and use the rest.
+        var degreeOfParallelism = Math.Min(12, Math.Max(1, Environment.ProcessorCount - 4));
         var recognizerPool = new System.Collections.Concurrent.ConcurrentBag<IFaceRecognitionService>();
         for (var i = 0; i < degreeOfParallelism; i++)
             recognizerPool.Add(_faceRecognitionFactory());
@@ -190,24 +232,37 @@ public sealed class Package3Service : IPackage3Service
 
         if (isVideo)
         {
-            tempFrame = Path.Combine(Path.GetTempPath(), $"p3-frame-{Guid.NewGuid():N}.jpg");
-            try
+            // Package1 already generated a thumbnail for every video during
+            // sorting ("{dir}/thumbnails/{filename}.jpg") - reuse it instead
+            // of paying for a fresh ffmpeg frame-extraction per file. This is
+            // the difference between an instant DB read and a subprocess
+            // launch at library scale (thousands of loose undated videos).
+            var existingThumb = Path.Combine(Path.GetDirectoryName(file)!, "thumbnails", Path.GetFileNameWithoutExtension(file) + ".jpg");
+            if (File.Exists(existingThumb))
             {
-                await _thumbnailService.GenerateAsync(file, tempFrame, cancellationToken);
-                framePath = tempFrame;
+                framePath = existingThumb;
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogWarning(ex, "Could not extract a frame from {File} for face indexing", file);
-                db.MediaFaces.Add(new MediaFaceEntity
+                tempFrame = Path.Combine(Path.GetTempPath(), $"p3-frame-{Guid.NewGuid():N}.jpg");
+                try
                 {
-                    Id = Guid.NewGuid(),
-                    MediaFilePath = file,
-                    RelativePath = relativePath,
-                    EmbeddingJson = "[]",
-                    CreatedAtUtc = DateTimeOffset.UtcNow
-                });
-                return;
+                    await _thumbnailService.GenerateAsync(file, tempFrame, cancellationToken);
+                    framePath = tempFrame;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not extract a frame from {File} for face indexing", file);
+                    db.MediaFaces.Add(new MediaFaceEntity
+                    {
+                        Id = Guid.NewGuid(),
+                        MediaFilePath = file,
+                        RelativePath = relativePath,
+                        EmbeddingJson = "[]",
+                        CreatedAtUtc = DateTimeOffset.UtcNow
+                    });
+                    return;
+                }
             }
         }
 
@@ -558,8 +613,21 @@ public sealed class Package3Service : IPackage3Service
         return personId;
     }
 
+    // LibraryExportService stopped producing fixed "{MM:00}-{MonthName}"
+    // folders (e.g. "08-August") a while back in favor of calendar-bucket
+    // groups labeled "{groupIndex} {MonthName}" or, for a group spanning
+    // more than one month, "{groupIndex} {MonthName}-{MonthName}" (e.g.
+    // "8 August", "3 Marts-April" - see LibraryExportService's
+    // SplitByCalendarBuckets). This regex still expected the old format, so
+    // it matched nothing against any library using the new one - found
+    // 2026-08-25 running EstimateUndatedDatesAsync against mie's real
+    // library, where every dated folder uses the new scheme: the "already
+    // dated" reference set this method needs was silently empty the whole
+    // time, which fully explains the previously observed "0 moved, hard
+    // ceiling" behavior (see feedback_undated_dating_ceiling) - it was never
+    // actually a ceiling, the reference set just never populated.
     private static readonly System.Text.RegularExpressions.Regex YearMonthFolderPattern =
-        new(@"[\\/](\d{4})[\\/](\d{2}-[A-Za-z]+)[\\/]", System.Text.RegularExpressions.RegexOptions.Compiled);
+        new(@"[\\/](\d{4})[\\/](\d+ [A-Za-z]+(?:-[A-Za-z]+)?)[\\/]", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     // Pulls the exact "{year}/{month-folder}" segment straight from an
     // already-dated file's own path (e.g. ".../Images/2025/02-February/x.jpg")
@@ -590,7 +658,15 @@ public sealed class Package3Service : IPackage3Service
     // current name here silently found zero undated files for any pre-rename
     // library - both the folder-existence check and every per-file path match
     // need to recognize either name.
-    private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede"];
+    // "Ikke i årsmapper" replaces the flat Undated/Udaterede convention for
+    // libraries reorganized 2026-08-25 (mie's real library) into pattern-
+    // based subfolders (Kamera (IMG), Facebook, GUID-eksport, etc.) under
+    // Billeder instead of one flat bucket. The substring check below works
+    // for it unchanged (any nesting depth), since it only looks for the
+    // folder name itself appearing as a path segment - only FindUndatedFolder
+    // needed a real fix, since Undated/Udaterede sit at the library root but
+    // this one is nested under Billeder.
+    private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede", "Ikke i årsmapper"];
 
     private static bool IsUnderUndatedFolder(string path) =>
         UndatedFolderNames.Any(name =>
@@ -599,19 +675,20 @@ public sealed class Package3Service : IPackage3Service
 
     private static string? FindUndatedFolder(string libraryPath) =>
         UndatedFolderNames
-            .Select(name => Path.Combine(libraryPath, name))
+            .SelectMany(name => new[] { Path.Combine(libraryPath, name), Path.Combine(libraryPath, "Billeder", name) })
             .FirstOrDefault(Directory.Exists);
 
     public async Task<UndatedEstimationResult> EstimateUndatedDatesAsync(
         string libraryPath,
         double faceThreshold = 0.5,
         double gpsToleranceMeters = 500,
+        int? maxDatedReferenceFiles = null,
         CancellationToken cancellationToken = default)
     {
         // Populate/refresh MediaFaces for the whole library (skip-if-already-
         // indexed, free/local) so both the dated reference set and the
         // Undated candidates have embeddings to compare.
-        await IndexFacesAsync(libraryPath, cancellationToken);
+        await IndexFacesAsync(libraryPath, maxDatedReferenceFiles, cancellationToken);
 
         var movedByFace = 0;
         var movedByGps = 0;
@@ -672,7 +749,13 @@ public sealed class Package3Service : IPackage3Service
         // ===== Pass 2: GPS proximity, for anything not already matched =====
         var undatedFolder = FindUndatedFolder(libraryPath);
         var undatedFiles = undatedFolder is not null
+            // Raw Directory.EnumerateFiles, not EnumerateLibraryImages - the
+            // undated folder never had a thumbnails/ subfolder problem before
+            // (Undated/Udaterede were flat), but Ikke i årsmapper's pattern
+            // subfolders each have their own, and this was walking straight
+            // into them, doubling every count with the thumbnail copy.
             ? Directory.EnumerateFiles(undatedFolder, "*", SearchOption.AllDirectories)
+                .Where(f => !Path.GetDirectoryName(f)!.EndsWith($"{Path.DirectorySeparatorChar}thumbnails", StringComparison.OrdinalIgnoreCase))
                 .Where(f => !handled.Contains(f))
                 .ToList()
             : [];
@@ -682,11 +765,21 @@ public sealed class Package3Service : IPackage3Service
             var gpsService = _gpsService;
             var datedGps = new List<(double Lat, double Lng, string YearMonth)>();
 
-            foreach (var file in EnumerateLibraryImages(libraryPath))
+            // Same cap as IndexFacesAsync's face-reference set - without it
+            // this reads EXIF/GPS from the ENTIRE library serially (found
+            // 2026-08-25 on mie's real library: ~43,000 files, single file at
+            // a time, no cap at all - looked like a hang because it's I/O-
+            // bound, not CPU-bound, but it was really just an unbounded scan
+            // that happened to eventually finish).
+            var gpsReferenceFiles = EnumerateLibraryImages(libraryPath)
+                .Where(f => !IsUnderUndatedFolder(f))
+                .ToList();
+            if (maxDatedReferenceFiles is { } gpsCap)
+                gpsReferenceFiles = SampleDatedFiles(gpsReferenceFiles, gpsCap);
+
+            foreach (var file in gpsReferenceFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (IsUnderUndatedFolder(file))
-                    continue;
 
                 var coords = gpsService.GetCoordinates(file);
                 if (coords is null) continue;
@@ -726,6 +819,406 @@ public sealed class Package3Service : IPackage3Service
             MovedByGpsMatch = movedByGps,
             StillUndated = stillUndated.Count,
         };
+    }
+
+    // LivePhotos entries here are almost always video-only (no real .jpg
+    // still, just an auto-generated thumbnails/ preview) and the folder is
+    // normally excluded from EnumerateLibraryImages entirely (SkippedFolders),
+    // so this indexes the undated videos directly (frame-extraction based
+    // face detection, same as any video) rather than going through the
+    // normal enumeration. Matches against Billeder's already-indexed dated
+    // reference set (no new dated-reference indexing here - reuses whatever
+    // IndexFacesAsync already built for Billeder), but a confident match
+    // moves the video into LivePhotoVideoer/{year}/ - NOT into Billeder
+    // (videos don't belong mixed into the photo category) and NOT split into
+    // month subfolders (LivePhotoVideoer is year-only, matching the flat
+    // policy also applied to Skærmbilleder/Dokumenter). A real still sibling
+    // (rare) still follows the video into Billeder if one exists, since that
+    // genuinely is a photo.
+    public async Task<LivePhotoDatingResult> DateLivePhotosByFaceMatchAsync(
+        string libraryPath, double faceThreshold = 0.5, CancellationToken cancellationToken = default)
+    {
+        var livePhotosFolder = Path.Combine(libraryPath, "LivePhotos");
+        if (!Directory.Exists(livePhotosFolder)) return new LivePhotoDatingResult();
+
+        var billederFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (billederFolder is null) return new LivePhotoDatingResult();
+
+        var livePhotosFullPath = Path.GetFullPath(livePhotosFolder).TrimEnd(Path.DirectorySeparatorChar);
+
+        // The still half of a Live Photo pair usually doesn't exist as a real
+        // file here at all - only the "thumbnails/" auto-generated preview
+        // does (confirmed 2026-08-25 on mie's real library: every loose/
+        // Ukendt-måned entry is video-only). IndexFaceForFileAsync already
+        // knows how to pull a representative frame from a video and run face
+        // detection on that, so this runs directly against the .mp4 instead
+        // of assuming a real .jpg sibling exists.
+        var undatedVideos = Directory.EnumerateFiles(livePhotosFolder, "*", SearchOption.AllDirectories)
+            .Where(MediaTypeHelper.IsVideo)
+            .Where(f =>
+            {
+                var parent = Path.GetDirectoryName(f)!;
+                if (parent.EndsWith($"{Path.DirectorySeparatorChar}thumbnails", StringComparison.OrdinalIgnoreCase)) return false;
+                var isLoose = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar).Equals(livePhotosFullPath, StringComparison.OrdinalIgnoreCase);
+                var isUkendtMaaned = Path.GetFileName(parent).Equals("Ukendt måned", StringComparison.OrdinalIgnoreCase);
+                return isLoose || isUkendtMaaned;
+            })
+            .ToList();
+
+        var checkedCount = undatedVideos.Count;
+        var moved = 0;
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var recognizer = _faceRecognitionFactory();
+        try
+        {
+            foreach (var video in undatedVideos)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await IndexFaceForFileAsync(db, libraryPath, video, recognizer, cancellationToken);
+            }
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            (recognizer as IDisposable)?.Dispose();
+        }
+
+        // Reference set: every already-indexed, already-dated Billeder face -
+        // built earlier by IndexFacesAsync/EstimateUndatedDatesAsync, not
+        // rebuilt here.
+        var allFaces = await db.MediaFaces
+            .Where(x => x.EmbeddingJson != "[]")
+            .Select(x => new { x.MediaFilePath, x.EmbeddingJson })
+            .ToListAsync(cancellationToken);
+
+        var dated = new List<(float[] Embedding, string YearMonth)>();
+        foreach (var face in allFaces)
+        {
+            if (!face.MediaFilePath.StartsWith(billederFolder, StringComparison.OrdinalIgnoreCase)) continue;
+            if (IsUnderUndatedFolder(face.MediaFilePath)) continue;
+            var ym = ExtractYearMonthFolder(face.MediaFilePath);
+            if (ym is null) continue;
+            float[] vector;
+            try { vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? []; }
+            catch (JsonException) { continue; }
+            if (vector.Length == 0) continue;
+            dated.Add((vector, ym));
+        }
+
+        foreach (var video in undatedVideos)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var videoFaces = await db.MediaFaces
+                .Where(x => x.MediaFilePath == video && x.EmbeddingJson != "[]")
+                .Select(x => x.EmbeddingJson)
+                .ToListAsync(cancellationToken);
+
+            var best = 0.0;
+            string? bestYearMonth = null;
+            foreach (var json in videoFaces)
+            {
+                float[] vector;
+                try { vector = JsonSerializer.Deserialize<float[]>(json) ?? []; }
+                catch (JsonException) { continue; }
+                if (vector.Length == 0) continue;
+
+                foreach (var (refEmbedding, ym) in dated)
+                {
+                    var sim = CosineSimilarity(vector, refEmbedding);
+                    if (sim > best) { best = sim; bestYearMonth = ym; }
+                }
+            }
+
+            if (best < faceThreshold || bestYearMonth is null) continue;
+
+            // Video goes to LivePhotoVideoer/{year}/ - not Billeder (it's not
+            // a photo) and year-only, no month subfolder. A real
+            // (non-thumbnail) still sibling is rare here - most of these
+            // videos have no still at all, only an auto-generated
+            // thumbnails/ preview - but if one genuinely exists, it's a real
+            // photo and follows the usual Billeder/{year}/{month} placement.
+            var still = Path.ChangeExtension(video, ".jpg");
+            var year = bestYearMonth.Split('/')[0];
+            var videoDestDir = Path.Combine(libraryPath, "LivePhotoVideoer", year);
+            var stillDestDir = Path.Combine(billederFolder, bestYearMonth.Replace('/', Path.DirectorySeparatorChar));
+
+            try
+            {
+                Directory.CreateDirectory(videoDestDir);
+                var videoDest = ResolveNameCollisionPublic(Path.Combine(videoDestDir, Path.GetFileName(video)));
+                File.Move(video, videoDest);
+                moved++;
+
+                if (File.Exists(still))
+                {
+                    Directory.CreateDirectory(stillDestDir);
+                    var stillDest = ResolveNameCollisionPublic(Path.Combine(stillDestDir, Path.GetFileName(still)));
+                    File.Move(still, stillDest);
+                }
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Failed to move matched LivePhoto video {Video}", video);
+            }
+        }
+
+        return new LivePhotoDatingResult { Checked = checkedCount, Moved = moved };
+    }
+
+    // Videoer's loose undated files sit directly at the category root (no
+    // "Undated"/"Ikke i årsmapper" subfolder convention - Package1 already
+    // tried to date these via EXIF/filename and came up empty, they're just
+    // flat in Videoer since the 2026-08-25 flatten). Matches against
+    // Billeder's already-indexed dated reference set (reuses whatever
+    // IndexFacesAsync/EstimateUndatedDatesAsync already built there - no new
+    // reference indexing here) and moves a confident match into
+    // Videoer/{year}/ - year-only, matching the flat policy already applied
+    // to Skærmbilleder/LivePhotoVideoer/Dokumenter. Its matching thumbnail
+    // (Videoer/thumbnails/{name}.jpg) follows the video into
+    // Videoer/{year}/thumbnails/. maxFiles caps how many loose videos get
+    // frame-extracted and face-indexed per run - already-indexed files are
+    // skipped on the next run (IndexFaceForFileAsync's alreadyFaceScanned
+    // check), so a capped run can be repeated to work through the backlog
+    // incrementally instead of one huge all-or-nothing pass.
+    public async Task<VideoDatingResult> DateVideosByFaceMatchAsync(
+        string libraryPath, int maxFiles = 1000, double faceThreshold = 0.5, CancellationToken cancellationToken = default)
+    {
+        var videoerFolder = Path.Combine(libraryPath, "Videoer");
+        if (!Directory.Exists(videoerFolder)) return new VideoDatingResult();
+
+        var billederFolder = new[] { "Images", "Billeder" }
+            .Select(f => Path.Combine(libraryPath, f))
+            .FirstOrDefault(Directory.Exists);
+        if (billederFolder is null) return new VideoDatingResult();
+
+        var undatedVideos = Directory.EnumerateFiles(videoerFolder, "*", SearchOption.TopDirectoryOnly)
+            .Where(MediaTypeHelper.IsVideo)
+            .Take(maxFiles)
+            .ToList();
+
+        var checkedCount = undatedVideos.Count;
+        var moved = 0;
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var recognizer = _faceRecognitionFactory();
+        try
+        {
+            foreach (var video in undatedVideos)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await IndexFaceForFileAsync(db, libraryPath, video, recognizer, cancellationToken);
+            }
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            (recognizer as IDisposable)?.Dispose();
+        }
+
+        var allFaces = await db.MediaFaces
+            .Where(x => x.EmbeddingJson != "[]")
+            .Select(x => new { x.MediaFilePath, x.EmbeddingJson })
+            .ToListAsync(cancellationToken);
+
+        var dated = new List<(float[] Embedding, string YearMonth)>();
+        foreach (var face in allFaces)
+        {
+            if (!face.MediaFilePath.StartsWith(billederFolder, StringComparison.OrdinalIgnoreCase)) continue;
+            if (IsUnderUndatedFolder(face.MediaFilePath)) continue;
+            var ym = ExtractYearMonthFolder(face.MediaFilePath);
+            if (ym is null) continue;
+            float[] vector;
+            try { vector = JsonSerializer.Deserialize<float[]>(face.EmbeddingJson) ?? []; }
+            catch (JsonException) { continue; }
+            if (vector.Length == 0) continue;
+            dated.Add((vector, ym));
+        }
+
+        foreach (var video in undatedVideos)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var videoFaces = await db.MediaFaces
+                .Where(x => x.MediaFilePath == video && x.EmbeddingJson != "[]")
+                .Select(x => x.EmbeddingJson)
+                .ToListAsync(cancellationToken);
+
+            var best = 0.0;
+            string? bestYearMonth = null;
+            foreach (var json in videoFaces)
+            {
+                float[] vector;
+                try { vector = JsonSerializer.Deserialize<float[]>(json) ?? []; }
+                catch (JsonException) { continue; }
+                if (vector.Length == 0) continue;
+
+                foreach (var (refEmbedding, ym) in dated)
+                {
+                    var sim = CosineSimilarity(vector, refEmbedding);
+                    if (sim > best) { best = sim; bestYearMonth = ym; }
+                }
+            }
+
+            if (best < faceThreshold || bestYearMonth is null) continue;
+
+            var year = bestYearMonth.Split('/')[0];
+            var destDir = Path.Combine(videoerFolder, year);
+            var thumbDestDir = Path.Combine(destDir, "thumbnails");
+            var srcThumb = Path.Combine(videoerFolder, "thumbnails", Path.GetFileNameWithoutExtension(video) + ".jpg");
+
+            try
+            {
+                Directory.CreateDirectory(destDir);
+                var dest = ResolveNameCollisionPublic(Path.Combine(destDir, Path.GetFileName(video)));
+                File.Move(video, dest);
+                moved++;
+
+                if (File.Exists(srcThumb))
+                {
+                    Directory.CreateDirectory(thumbDestDir);
+                    var thumbDest = ResolveNameCollisionPublic(Path.Combine(thumbDestDir, Path.GetFileNameWithoutExtension(dest) + ".jpg"));
+                    File.Move(srcThumb, thumbDest);
+                }
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Failed to move matched video {Video}", video);
+            }
+        }
+
+        return new VideoDatingResult { Checked = checkedCount, Moved = moved };
+    }
+
+    // GPS-proximity dating for Videoer's remaining loose files (the small
+    // tail left after face-match dating and the ≤4s "Korte klip" split),
+    // restricted to away-from-home reference points only - home-location
+    // photos share GPS across many different dates (ambiguous: which visit
+    // to the living room was this?), but trip/away photos pin a narrow date
+    // range, so only those make confident reference points. Home is
+    // auto-detected as the densest ~5km GPS cluster in the dated library,
+    // same approach as SmartFoldersService's Trip detection (duplicated
+    // rather than shared - it's a small self-contained helper, not worth a
+    // cross-service dependency for).
+    public Task<VideoDatingResult> DateVideosByGpsAwayFromHomeAsync(
+        string libraryPath, double homeAwayKm = 100, double gpsToleranceMeters = 2000, CancellationToken cancellationToken = default)
+    {
+        var videoerFolder = Path.Combine(libraryPath, "Videoer");
+        if (!Directory.Exists(videoerFolder)) return Task.FromResult(new VideoDatingResult());
+
+        var undatedVideos = Directory.EnumerateFiles(videoerFolder, "*", SearchOption.TopDirectoryOnly)
+            .Where(MediaTypeHelper.IsVideo)
+            .ToList();
+        var checkedCount = undatedVideos.Count;
+        var moved = 0;
+        if (undatedVideos.Count == 0) return Task.FromResult(new VideoDatingResult { Checked = 0, Moved = 0 });
+
+        var allDatedPoints = new List<(double Lat, double Lng, string YearMonth)>();
+        foreach (var file in EnumerateLibraryImages(libraryPath).Where(f => !IsUnderUndatedFolder(f)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var coords = _gpsService.GetCoordinates(file);
+            if (coords is null) continue;
+            var ym = ExtractYearMonthFolder(file);
+            if (ym is null) continue;
+            allDatedPoints.Add((coords.Value.lat, coords.Value.lng, ym));
+        }
+
+        if (allDatedPoints.Count == 0) return Task.FromResult(new VideoDatingResult { Checked = checkedCount, Moved = 0 });
+
+        var home = FindHomeCluster(allDatedPoints.Select(p => (p.Lat, p.Lng)).ToList());
+        var awayPoints = home is null
+            ? allDatedPoints
+            : allDatedPoints.Where(p => HaversineKm(home.Value.lat, home.Value.lng, p.Lat, p.Lng) > homeAwayKm).ToList();
+
+        foreach (var video in undatedVideos)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var coords = _gpsService.GetCoordinates(video);
+            if (coords is null) continue;
+
+            var bestDistanceMeters = double.MaxValue;
+            string? bestYearMonth = null;
+            foreach (var (lat, lng, ym) in awayPoints)
+            {
+                var distMeters = HaversineKm(coords.Value.lat, coords.Value.lng, lat, lng) * 1000;
+                if (distMeters < bestDistanceMeters) { bestDistanceMeters = distMeters; bestYearMonth = ym; }
+            }
+
+            if (bestYearMonth is null || bestDistanceMeters > gpsToleranceMeters) continue;
+
+            var year = bestYearMonth.Split('/')[0];
+            var destDir = Path.Combine(videoerFolder, year);
+            var thumbDestDir = Path.Combine(destDir, "thumbnails");
+            var srcThumb = Path.Combine(videoerFolder, "thumbnails", Path.GetFileNameWithoutExtension(video) + ".jpg");
+
+            try
+            {
+                Directory.CreateDirectory(destDir);
+                var dest = ResolveNameCollisionPublic(Path.Combine(destDir, Path.GetFileName(video)));
+                File.Move(video, dest);
+                moved++;
+
+                if (File.Exists(srcThumb))
+                {
+                    Directory.CreateDirectory(thumbDestDir);
+                    var thumbDest = ResolveNameCollisionPublic(Path.Combine(thumbDestDir, Path.GetFileNameWithoutExtension(dest) + ".jpg"));
+                    File.Move(srcThumb, thumbDest);
+                }
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Failed to move GPS-matched video {Video}", video);
+            }
+        }
+
+        return Task.FromResult(new VideoDatingResult { Checked = checkedCount, Moved = moved });
+    }
+
+    private static (double lat, double lng)? FindHomeCluster(List<(double Lat, double Lng)> points)
+    {
+        if (points.Count == 0) return null;
+        const double bucketDegrees = 0.05;
+
+        var densest = points
+            .GroupBy(p => (Math.Round(p.Lat / bucketDegrees), Math.Round(p.Lng / bucketDegrees)))
+            .OrderByDescending(g => g.Count())
+            .First();
+
+        return (densest.Average(p => p.Lat), densest.Average(p => p.Lng));
+    }
+
+    private static double HaversineKm(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double R = 6371;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLng = (lng2 - lng1) * Math.PI / 180;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return R * c;
+    }
+
+    private static string ResolveNameCollisionPublic(string path)
+    {
+        if (!File.Exists(path)) return path;
+        var dir = Path.GetDirectoryName(path)!;
+        var name = Path.GetFileNameWithoutExtension(path);
+        var ext = Path.GetExtension(path);
+        var i = 1;
+        string candidate;
+        do
+        {
+            candidate = Path.Combine(dir, $"{name} ({i}){ext}");
+            i++;
+        } while (File.Exists(candidate));
+        return candidate;
     }
 
     // Text-only (filename/path) - no image bytes sent - so a large batch size
@@ -848,9 +1341,28 @@ public sealed class Package3Service : IPackage3Service
     {
         try
         {
-            var category = Path.GetFileName(Path.GetDirectoryName(undatedPath)!); // Undated/{category}/file -> category
-            var undatedRoot = Path.GetDirectoryName(Path.GetDirectoryName(undatedPath)!)!; // .../Undated
-            var libraryRoot = Path.GetDirectoryName(undatedRoot)!;
+            string category, libraryRoot;
+
+            // New convention: .../{category}/Ikke i årsmapper/{pattern-subfolder}/file -
+            // one level deeper than Undated/Udaterede, and the pattern-subfolder name
+            // (e.g. "Kamera (IMG)") is NOT the category, so the old two-parents-up
+            // logic below would both mis-derive the category and land two folders too
+            // shallow. Found 2026-08-25 fixing this method for mie's real library,
+            // where Billeder was reorganized into Ikke i årsmapper/<pattern> subfolders.
+            var marker = $"{Path.DirectorySeparatorChar}Ikke i årsmapper{Path.DirectorySeparatorChar}";
+            var markerIndex = undatedPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (markerIndex >= 0)
+            {
+                var categoryDir = undatedPath[..markerIndex]; // .../{category}
+                category = Path.GetFileName(categoryDir);
+                libraryRoot = Path.GetDirectoryName(categoryDir)!;
+            }
+            else
+            {
+                category = Path.GetFileName(Path.GetDirectoryName(undatedPath)!); // Undated/{category}/file -> category
+                var undatedRoot = Path.GetDirectoryName(Path.GetDirectoryName(undatedPath)!)!; // .../Undated
+                libraryRoot = Path.GetDirectoryName(undatedRoot)!;
+            }
 
             var destDir = Path.Combine(libraryRoot, category, yearMonth.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(destDir);

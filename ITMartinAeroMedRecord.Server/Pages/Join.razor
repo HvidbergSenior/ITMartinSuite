@@ -1,0 +1,94 @@
+@page "/g/join"
+@page "/g/{Slug}/join"
+@rendermode InteractiveServer
+@inject AeroDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime Js
+
+<div class="create-wrap">
+    <div class="create-card">
+        <div style="font-size:48px;margin-bottom:12px">🔑</div>
+        <h1 class="create-title">Deltag i team</h1>
+
+        @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
+
+        @if (Slug is null)
+        {
+            <div class="create-field"><label>Team-navn</label><input @bind="_slugInput" placeholder="fx aeromedrecord" class="create-input" /></div>
+        }
+        <div class="create-field"><label>Adgangskode</label><input @bind="_invite" class="create-input" /></div>
+        <div class="create-field"><label>Dit navn</label><input @bind="_name" class="create-input" maxlength="60" /></div>
+        <div class="create-field">
+            <label>Din personlige PIN</label>
+            <input @bind="_pin" type="password" placeholder="min. 4 cifre" class="create-input" maxlength="20" />
+            <div class="create-hint-text">Første gang: vælg en PIN. Herefter: brug samme PIN for at logge ind som dig igen.</div>
+        </div>
+        <button class="create-btn" @onclick="JoinAsync" disabled="@_joining">@(_joining ? "Deltager..." : "Deltag")</button>
+    </div>
+</div>
+
+<style>
+    .create-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .create-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 480px; text-align: center; color: var(--text); }
+    .create-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; }
+    .create-field { text-align: left; margin-bottom: 14px; }
+    .create-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .create-hint-text { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+    .create-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none; box-sizing: border-box; }
+    .create-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .create-btn:disabled { opacity: .5; cursor: default; }
+    .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; text-align: left; }
+</style>
+
+@code {
+    [Parameter] public string? Slug { get; set; }
+
+    private string _slugInput = "", _invite = "", _name = "", _pin = "";
+    private string? _error;
+    private bool _joining;
+
+    private async Task JoinAsync()
+    {
+        _error = null;
+        var slug = (Slug ?? _slugInput).Trim().ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(slug)) { _error = "Skriv team-navnet."; return; }
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv dit navn."; return; }
+        if (string.IsNullOrWhiteSpace(_pin) || _pin.Trim().Length < 4) { _error = "PIN skal være mindst 4 tegn."; return; }
+
+        _joining = true;
+        StateHasChanged();
+
+        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == slug);
+        if (group is null) { _error = "Team ikke fundet."; _joining = false; return; }
+        if (!string.Equals(group.InviteCode, _invite.Trim(), StringComparison.Ordinal)) { _error = "Forkert adgangskode."; _joining = false; return; }
+
+        var pin = _pin.Trim();
+        var existing = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == group.Id && m.Name == _name.Trim());
+
+        Member member;
+        if (existing is not null)
+        {
+            if (!SecretHasher.Verify(pin, existing.Pin))
+            {
+                _error = "Forkert PIN for dette navn.";
+                _joining = false;
+                return;
+            }
+            member = existing;
+        }
+        else
+        {
+            member = new Member { GroupId = group.Id, Name = _name.Trim(), Pin = SecretHasher.Hash(pin) };
+            Db.Members.Add(member);
+            await Db.SaveChangesAsync();
+        }
+
+        var session = new MemberSession { MemberId = member.Id };
+        Db.Sessions.Add(session);
+        await Db.SaveChangesAsync();
+
+        await Js.InvokeVoidAsync("aeroJs.setSession", session.Id.ToString());
+        Nav.NavigateTo($"/g/{slug}", forceLoad: true);
+    }
+}

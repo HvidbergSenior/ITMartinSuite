@@ -1,157 +1,417 @@
 @page "/"
 @layout R6AssistantLayout
-@inject IR6DataService DataService
 @inject SessionStateService Session
+@inject IR6DataService DataService
+@inject SettingsGuideService Guide
+@inject PlayerIdentityService Identity
+@inject PreGameCheckService PreGameCheck
 @implements IDisposable
+@using System.Text.Json
+@using ITMartinR6Assistant.Domain
+@using ITMartinR6Assistant.Server.Services
 
-<div class="session-page">
+<div class="phase-page">
 
-    @if (Session.Map is null)
+    <div style="max-width:520px;margin:0 auto 18px">
+        <button class="banner-toggle-btn" @onclick="ToggleBanners">@(Session.ShowBanners ? "ℹ️ Skjul info (for alle)" : "ℹ️ Vis info (for alle)")</button>
+
+        <ProblemPurposeBanner Show="Session.ShowBanners"
+            Problem="At holde styr på faser - map-bans, operator-bans, operator-valg, kampen selv, og efter-kampen - og hvor lang tid der er tilbage til hver, er svært at gøre manuelt midt i en session."
+            Formaal="Ét fælles overblik på en second screen, der viser jeres nuværende fase og nedtællingen for den." />
+
+        <HowToUseBanner Show="Session.ShowBanners" Steps='@(new[]
+        {
+            "Åbn siden på en second screen, mens I spiller - ikke på selve kameraskærmen.",
+            "Klik \"Næste fase →\", når I går videre til map-bans, operator-bans, operator-valg, kampen selv, eller efter-kampen.",
+            "Følg den nedtællende (eller forløbne) tid for den aktuelle fase."
+        })' />
+    </div>
+
+    <div class="phase-badge phase-@Session.Phase.ToString().ToLower()">@PhaseLabel(Session.Phase)</div>
+
+    <div class="phase-sub">@PhaseBlurb(Session.Phase)</div>
+
+    @if (Session.PhaseDuration is { } duration)
     {
-        <div class="waiting-screen">
-            <div class="waiting-icon">R6</div>
-            <div class="waiting-title">Venter på session...</div>
-            <div class="waiting-sub">Admin vælger map og site</div>
-            <div style="max-width:520px;margin:18px auto 0">
-                <ProblemPurposeBanner
-                    Problem="At huske strat-detaljer og site-info for Rainbow Six Siege midt i en kamp er svært."
-                    Formaal="Hurtigt opslag af strats og site-info, uden at forlade spillet mentalt." />
-            </div>
-            <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">
-                <a href="/pregame" class="admin-back-btn" style="text-decoration:none">🎧 Pre-game tjek</a>
-                <a href="/indstillinger" class="admin-back-btn" style="text-decoration:none">⚙ Indstillinger</a>
-            </div>
+        <div class="phase-timer @(Remaining <= TimeSpan.Zero ? "phase-timer-expired" : "")">
+            @FormatTime(Remaining)
+        </div>
+        <div class="phase-timer-total">af @FormatTime(duration)</div>
+    }
+    else if (Session.Phase == MatchPhase.InGame)
+    {
+        <div class="phase-timer phase-timer-elapsed">@FormatTime(Elapsed)</div>
+        <div class="phase-timer-total">forløbet</div>
+    }
+
+    <button class="phase-advance-btn" @onclick="Session.AdvancePhase">Næste fase →</button>
+
+    @{ var checklist = PhaseChecklist(Session.Phase); }
+    @if (checklist.Count > 0)
+    {
+        <div class="phase-checklist">
+            <div class="phase-checklist-title">Gør dette nu:</div>
+            <ul>
+                @foreach (var item in checklist)
+                {
+                    <li>@((MarkupString)item)</li>
+                }
+            </ul>
         </div>
     }
-    else
+
+    @if (Session.Phase == MatchPhase.Lobby)
     {
-        @* Status bar *@
-        <div class="session-status-bar">
-            <div class="session-map-name">@Session.Map</div>
-            @if (Session.Site is not null)
+        <div class="specs-card">
+            <div class="specs-title">🖥️ Specifikationer</div>
+
+            @if (string.IsNullOrEmpty(Identity.Name))
             {
-                <div class="session-site-name">@Session.Site</div>
-                <div class="wr-badge @WinRateClass">@WinRatePct% @Session.Side WR</div>
+                <div class="specs-hint">Sæt dit navn (👤-knappen øverst) for at gemme dine specifikationer.</div>
             }
-            <div class="session-side side-@Session.Side.ToLower()">@Session.Side.ToUpper()</div>
+            else
+            {
+                @foreach (var field in SpecFields)
+                {
+                    var value = ResolveSpec(field.Key);
+                    <div class="specs-row">
+                        <div class="specs-label">@field.Label</div>
+                        <input class="specs-input" placeholder="Ikke sat - skriv selv" value="@value"
+                               @onchange="e => SetManualSpec(field.Key, e.Value?.ToString())" />
+                    </div>
+                }
+
+                var missing = SpecFields.Where(f => string.IsNullOrWhiteSpace(ResolveSpec(f.Key))).Select(f => f.Label).ToList();
+                <div class="specs-status @(missing.Count == 0 ? "specs-status-ok" : "specs-status-warn")">
+                    @(missing.Count == 0 ? "✅ Alle specifikationer kendt - klar til at gå videre." : $"⚠ Mangler: {string.Join(", ", missing)}")
+                </div>
+
+                <div class="specs-actions">
+                    <a class="specs-test-btn" href="/scripts/PreGameCheck.ps1" download>⬇ Download PreGameCheck.ps1</a>
+                    <button class="specs-help-btn" @onclick="() => _showHelpForm = !_showHelpForm">🔧 Noget virker ikke?</button>
+                </div>
+
+                @if (_showHelpForm)
+                {
+                    <div class="specs-help-form">
+                        <textarea class="specs-help-input" placeholder="Fx: min lyd virker ikke, eller: spillet stammer hvert par minutter" @bind="_helpProblem"></textarea>
+                        <button class="specs-help-submit-btn" @onclick="AskForHelp" disabled="@_helpLoading">Spørg</button>
+
+                        @if (_helpLoading)
+                        {
+                            <div class="sg-loading"><span class="sg-spinner"></span> Tænker...</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_helpAnswer))
+                        {
+                            <div class="explain-card" style="white-space:pre-wrap">@_helpAnswer</div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+
+    @* Quick-switch: loadout or settings, one panel at a time, available in
+       every phase - not the full /loadouts or /indstillinger pages, just a
+       fast condensed check without leaving this screen. *@
+    <div class="quick-check">
+        <div class="quick-check-tabs">
+            <button class="quick-tab-btn @(_quickTab == "loadout" ? "quick-tab-active" : "")" @onclick='() => SelectTab("loadout")'>🎒 Loadout</button>
+            <button class="quick-tab-btn @(_quickTab == "settings" ? "quick-tab-active" : "")" @onclick='() => SelectTab("settings")'>⚙ Settings</button>
         </div>
 
-        @* Active plan picks *@
-        @if (Session.ActivePlan.HasValue && GetCurrentSite() is BombSite activeSite)
+        @if (_quickTab == "loadout")
         {
-            var plan = activeSite.BattlePlans.FirstOrDefault(p => p.Number == Session.ActivePlan.Value);
-            if (plan is not null)
-            {
-                <div class="plan-banner">
-                    <div class="plan-banner-label">PLAN @plan.Number — @plan.Label.ToUpper()</div>
-                    @if (!string.IsNullOrEmpty(plan.Note))
+            <div class="quick-panel">
+                <select class="quick-op-select" @bind="_selectedOperator">
+                    <option value="">-- vælg operator --</option>
+                    @if (_gameData is not null)
                     {
-                        <div class="plan-banner-note">@plan.Note</div>
-                    }
-                </div>
-                <div class="picks-grid">
-                    @foreach (var pick in plan.Picks.Take(5))
-                    {
-                        var op = GetOperator(pick);
-                        var isBanned = Session.Bans.Contains(pick);
-                        <div class="pick-slot @(isBanned ? "pick-banned" : "")">
-                            @if (op is not null)
+                        <optgroup label="ATK">
+                            @foreach (var op in _gameData.Operators.Where(o => o.Side == "Attack"))
                             {
-                                <img class="pick-img" src="@op.ImageUrl" alt="@pick" onerror="this.style.display='none'" />
+                                <option value="@op.Name">@op.Name</option>
                             }
-                            <div class="pick-name">@pick</div>
-                            @if (isBanned)
+                        </optgroup>
+                        <optgroup label="DEF">
+                            @foreach (var op in _gameData.Operators.Where(o => o.Side == "Defense"))
                             {
-                                <div class="pick-banned-overlay">BANNED</div>
+                                <option value="@op.Name">@op.Name</option>
                             }
-                        </div>
+                        </optgroup>
                     }
-                </div>
-            }
-        }
-        else if (Session.Site is null)
-        {
-            <div class="waiting-site">Venter på site valg...</div>
-        }
+                </select>
 
-        @* Operator ban board (read-only) *@
-        @if (_gameData is not null)
-        {
-            var currentSite = GetCurrentSite();
-            <div class="ban-board-section">
-                <div class="ban-board-title">BAN BOARD</div>
-                <div class="ban-board-label">ATK</div>
-                <div class="ban-board">
-                    @foreach (var op in _gameData.Operators.Where(o => o.Side == "Attack"))
-                    {
-                        var isBanned = Session.Bans.Contains(op.Name);
-                        var isRec = currentSite?.SuggestedBans.Contains(op.Name, StringComparer.OrdinalIgnoreCase) ?? false;
-                        <div class="op-tile @(isBanned ? "op-banned" : "") @(isRec ? "op-rec-ban" : "")">
-                            <img class="op-img" src="@op.ImageUrl" alt="@op.Name" onerror="this.style.display='none'" />
-                            <div class="op-name">@op.Name</div>
-                            @if (isBanned)
-                            {
-                                <div class="op-x">✕</div>
-                            }
-                        </div>
-                    }
-                </div>
-                <div class="ban-board-label">DEF</div>
-                <div class="ban-board">
-                    @foreach (var op in _gameData.Operators.Where(o => o.Side == "Defense"))
-                    {
-                        var isBanned = Session.Bans.Contains(op.Name);
-                        var isRec = currentSite?.SuggestedBans.Contains(op.Name, StringComparer.OrdinalIgnoreCase) ?? false;
-                        <div class="op-tile @(isBanned ? "op-banned" : "") @(isRec ? "op-rec-ban" : "")">
-                            <img class="op-img" src="@op.ImageUrl" alt="@op.Name" onerror="this.style.display='none'" />
-                            <div class="op-name">@op.Name</div>
-                            @if (isBanned)
-                            {
-                                <div class="op-x">✕</div>
-                            }
-                        </div>
-                    }
-                </div>
+                @if (!string.IsNullOrEmpty(_selectedOperator))
+                {
+                    var opName = _selectedOperator;
+                    var def = Session.GetDefaultLoadout(opName);
+                    var mine = Identity.Name is { } player ? Session.GetPlayerLoadout(player, opName) : null;
+
+                    <OperatorLoadoutEditor Default="def" DefaultChanged="l => SetDefault(opName, l)"
+                                           Mine="mine" MineChanged="l => SetMine(opName, l)" />
+                }
             </div>
         }
-    }
+        else if (_quickTab == "settings")
+        {
+            <div class="quick-panel">
+                <select class="quick-op-select" value="@_selectedSetting?.Key" @onchange="OnSettingSelected">
+                    <option value="">-- vælg indstilling --</option>
+                    @foreach (var group in SettingsGuideService.Settings.GroupBy(s => s.Category))
+                    {
+                        <optgroup label="@group.Key">
+                            @foreach (var entry in group)
+                            {
+                                <option value="@entry.Key">@entry.Name</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+
+                @if (_settingLoading)
+                {
+                    <div class="sg-loading"><span class="sg-spinner"></span> Genererer forklaring...</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(_settingExplanation))
+                {
+                    <div class="explain-card" style="white-space:pre-wrap">@_settingExplanation</div>
+                }
+            </div>
+        }
+    </div>
 
 </div>
 
 @code {
+    private System.Threading.Timer? _tickTimer;
+
     private R6GameData? _gameData;
+    private string? _quickTab;
+    private string? _selectedOperator;
+
+    private SettingsGuideService.SettingEntry? _selectedSetting;
+    private string? _settingExplanation;
+    private bool _settingLoading;
+
+    private bool _showHelpForm;
+    private string _helpProblem = "";
+    private bool _helpLoading;
+    private string? _helpAnswer;
+
+    private static readonly (string Key, string Label)[] SpecFields =
+    {
+        ("cpu_navn", "CPU"),
+        ("gpu_navn", "Grafikkort"),
+        ("ram_gb", "RAM"),
+        ("mus_navn", "Mus"),
+        ("tastatur_navn", "Tastatur"),
+        ("skaerm", "Skærm"),
+        ("headset", "Headset"),
+        ("headset_software", "Headset-software"),
+        ("os_version", "Windows"),
+    };
+
+    // Manual override (typed by the player) wins; otherwise pulled from their
+    // latest PreGameCheck.ps1 submission, if any; otherwise empty (shown as
+    // an editable field instead of plain text).
+    private string ResolveSpec(string key)
+    {
+        var manual = GetManualSpec(key);
+        if (!string.IsNullOrWhiteSpace(manual)) return manual;
+        return FromLatestSubmission(key) ?? "";
+    }
+
+    private string GetManualSpec(string key)
+    {
+        if (Identity.Name is not { } player) return "";
+        var specs = Session.GetPlayerSpecs(player);
+        return key switch
+        {
+            "cpu_navn" => specs.Cpu,
+            "gpu_navn" => specs.GraphicsCard,
+            "ram_gb" => specs.Ram,
+            "mus_navn" => specs.Mouse,
+            "tastatur_navn" => specs.Keyboard,
+            "skaerm" => specs.Screen,
+            "headset" => specs.Headset,
+            "headset_software" => specs.HeadsetSoftware,
+            "os_version" => specs.OperatingSystem,
+            _ => "",
+        };
+    }
+
+    private void SetManualSpec(string key, string? value)
+    {
+        if (Identity.Name is not { } player) return;
+        var specs = Session.GetPlayerSpecs(player);
+        switch (key)
+        {
+            case "cpu_navn": specs.Cpu = value ?? ""; break;
+            case "gpu_navn": specs.GraphicsCard = value ?? ""; break;
+            case "ram_gb": specs.Ram = value ?? ""; break;
+            case "mus_navn": specs.Mouse = value ?? ""; break;
+            case "tastatur_navn": specs.Keyboard = value ?? ""; break;
+            case "skaerm": specs.Screen = value ?? ""; break;
+            case "headset": specs.Headset = value ?? ""; break;
+            case "headset_software": specs.HeadsetSoftware = value ?? ""; break;
+            case "os_version": specs.OperatingSystem = value ?? ""; break;
+        }
+        Session.SetPlayerSpecs(player, specs);
+    }
+
+    // Pulls a value out of the player's last raw PreGameCheck.ps1 JSON -
+    // "ram_gb" becomes "32 GB", "headset_software"/audio device list get
+    // joined into a readable string, everything else is a straight lookup.
+    private string? FromLatestSubmission(string key)
+    {
+        if (Identity.Name is not { } player) return null;
+        if (!Session.PlayerSetups.TryGetValue(player, out var setup)) return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(setup.RawJson);
+            var root = doc.RootElement;
+
+            if (key == "headset")
+            {
+                if (root.TryGetProperty("lyd_discord", out var ld) && ld.TryGetProperty("lydenheder", out var devices) && devices.ValueKind == JsonValueKind.Array)
+                    return string.Join(", ", devices.EnumerateArray().Select(d => d.ToString()));
+                return null;
+            }
+            if (key == "headset_software")
+            {
+                if (root.TryGetProperty("lyd_discord", out var ld) && ld.TryGetProperty("headset_software", out var sw) && sw.ValueKind == JsonValueKind.Array)
+                    return string.Join(", ", sw.EnumerateArray().Select(s => s.ToString()));
+                return null;
+            }
+            if (!root.TryGetProperty("system", out var system) || !system.TryGetProperty(key, out var el))
+                return null;
+
+            return el.ValueKind switch
+            {
+                JsonValueKind.String => el.GetString(),
+                JsonValueKind.Number when key == "ram_gb" => $"{el} GB",
+                JsonValueKind.Number => el.ToString(),
+                _ => null,
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task AskForHelp()
+    {
+        if (string.IsNullOrWhiteSpace(_helpProblem)) return;
+
+        _helpLoading = true;
+        _helpAnswer = null;
+        StateHasChanged();
+
+        var context = Identity.Name is { } player && Session.PlayerSetups.TryGetValue(player, out var setup)
+            ? setup.RawJson
+            : "{}";
+
+        _helpAnswer = await PreGameCheck.AskForHelpAsync(_helpProblem, context);
+        _helpLoading = false;
+    }
 
     protected override async Task OnInitializedAsync()
     {
         Session.OnStateChanged += OnSessionChanged;
+        Identity.OnChanged += OnSessionChanged;
+        _tickTimer = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, 1000, 1000);
         _gameData = await DataService.GetData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Identity.EnsureLoadedAsync();
+        StateHasChanged();
     }
 
     private void OnSessionChanged() => InvokeAsync(StateHasChanged);
 
-    private BombSite? GetCurrentSite()
+    private void ToggleBanners() => Session.SetShowBanners(!Session.ShowBanners);
+
+    private void SelectTab(string tab) => _quickTab = _quickTab == tab ? null : tab;
+
+    private void SetDefault(string opName, OperatorLoadout loadout) => Session.SetDefaultLoadout(opName, loadout);
+
+    private void SetMine(string opName, OperatorLoadout? loadout)
     {
-        if (Session.Map is null || Session.Site is null || _gameData is null) return null;
-        return _gameData.Maps
-            .FirstOrDefault(m => m.Name == Session.Map)
-            ?.Sites.FirstOrDefault(s => s.Name == Session.Site);
+        if (Identity.Name is { } player)
+            Session.SetPlayerLoadout(player, opName, loadout);
     }
 
-    private int WinRatePct
+    private async Task OnSettingSelected(ChangeEventArgs e)
+    {
+        var key = e.Value?.ToString();
+        _selectedSetting = SettingsGuideService.Settings.FirstOrDefault(s => s.Key == key);
+        _settingExplanation = null;
+        if (_selectedSetting is null) return;
+
+        _settingLoading = true;
+        StateHasChanged();
+        _settingExplanation = await Guide.ExplainAsync(_selectedSetting.Key);
+        _settingLoading = false;
+    }
+
+    private TimeSpan Elapsed => DateTimeOffset.UtcNow - Session.PhaseStartedAtUtc;
+
+    private TimeSpan Remaining
     {
         get
         {
-            var site = GetCurrentSite();
-            if (site is null) return 50;
-            return Session.Side == "Attack" ? site.AttackWinRate : (100 - site.AttackWinRate);
+            var remaining = (Session.PhaseDuration ?? TimeSpan.Zero) - Elapsed;
+            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         }
     }
 
-    private string WinRateClass => WinRatePct > 52 ? "wr-green" : WinRatePct < 48 ? "wr-red" : "wr-yellow";
+    private static string FormatTime(TimeSpan t) => $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
 
-    private R6Operator? GetOperator(string name) =>
-        _gameData?.Operators.FirstOrDefault(o =>
-            string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
+    private static string PhaseLabel(MatchPhase phase) => phase switch
+    {
+        MatchPhase.Lobby => "LOBBY",
+        MatchPhase.MapBans => "MAP-BANS",
+        MatchPhase.OperatorBans => "OPERATOR-BANS",
+        MatchPhase.OperatorPick => "OPERATOR-VALG",
+        MatchPhase.InGame => "KAMP I GANG",
+        MatchPhase.PostMatch => "EFTER KAMPEN",
+        _ => phase.ToString(),
+    };
 
-    public void Dispose() => Session.OnStateChanged -= OnSessionChanged;
+    private static string PhaseBlurb(MatchPhase phase) => phase switch
+    {
+        MatchPhase.Lobby => "Venter på at sessionen starter.",
+        MatchPhase.MapBans => "Ban maps med modstanderen.",
+        MatchPhase.OperatorBans => "Ban operators før valg.",
+        MatchPhase.OperatorPick => "Vælg jeres loadout.",
+        MatchPhase.InGame => "Følg med i planen på siden her, mens kampen kører.",
+        MatchPhase.PostMatch => "Debrief og klargør til næste runde.",
+        _ => "",
+    };
+
+    // Static suggestions per phase - things everyone should individually check
+    // before moving on. No tracking/checkboxes, just guidance (kept simple by
+    // explicit user choice - not a shared checklist state).
+    private static List<string> PhaseChecklist(MatchPhase phase) => phase switch
+    {
+        MatchPhase.Lobby => new()
+        {
+            "Kør <a href=\"/scripts/PreGameCheck.ps1\" download>PreGameCheck.ps1</a> og ret det den flager.",
+            "Tjek at lyd og Discord virker for alle - kan I høre hinanden?",
+        },
+        _ => new(),
+    };
+
+    public void Dispose()
+    {
+        Session.OnStateChanged -= OnSessionChanged;
+        Identity.OnChanged -= OnSessionChanged;
+        _tickTimer?.Dispose();
+    }
 }

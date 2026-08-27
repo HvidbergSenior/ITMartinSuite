@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('aero_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Formidling</title>
+    <base href="/" />
+    <link rel="stylesheet" href="_content/ITMartin.Shared.UI/css/Shared.css" />
+    <link rel="stylesheet" href="app.css?v=@CacheBuster" />
+    <link rel="stylesheet" href="ITMartinAeroMedRecord.Server.styles.css?v=@CacheBuster" />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script>
+        window.aeroJs = {
+            getSession: function () {
+                var ls = localStorage.getItem('aero_session');
+                if (ls) return ls;
+                var m = document.cookie.match(/(?:^|;\s*)aero_session=([^;]+)/);
+                return m ? m[1] : null;
+            },
+            setSession: function (v) {
+                localStorage.setItem('aero_session', v);
+                document.cookie = 'aero_session=' + v + ';path=/;max-age=2592000;samesite=lax';
+            },
+            clearSession: function () {
+                localStorage.removeItem('aero_session');
+                document.cookie = 'aero_session=;path=/;max-age=0';
+            },
+            scrollToBottom: function (id) {
+                var el = document.getElementById(id);
+                if (el) el.scrollTop = el.scrollHeight;
+            },
+            getBannersHidden: function (pageKey) {
+                return localStorage.getItem('aero_banners_hidden_' + pageKey) === '1';
+            },
+            setBannersHidden: function (pageKey, hidden) {
+                localStorage.setItem('aero_banners_hidden_' + pageKey, hidden ? '1' : '0');
+            },
+
+            registerSW: async function () {
+                if (!('serviceWorker' in navigator)) return;
+                try { await navigator.serviceWorker.register('/sw.js'); } catch (e) {}
+            },
+
+            // Returns a status string so the UI can show what actually happened -
+            // called both silently on page load (works for browsers that don't
+            // require a gesture) and from a real button click (needed for Safari,
+            // which won't show the permission dialog unless requestPermission()
+            // runs inside a click).
+            subscribePush: async function (publicKey, groupId, memberName) {
+                if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
+                try {
+                    if (Notification.permission === 'default') await Notification.requestPermission();
+                    if (Notification.permission === 'denied') return 'denied';
+                    if (Notification.permission !== 'granted') return 'unsupported';
+                    var reg = await navigator.serviceWorker.ready;
+                    var existing = await reg.pushManager.getSubscription();
+                    var sub = existing || await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: aeroJs._toBytes(publicKey)
+                    });
+                    var j = sub.toJSON();
+                    await fetch('/api/push/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ groupId, memberName, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth })
+                    });
+                    return 'granted';
+                } catch (e) { return 'error'; }
+            },
+
+            _toBytes: function (b64url) {
+                var pad = '='.repeat((4 - b64url.length % 4) % 4);
+                var b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+                var raw = atob(b64);
+                var arr = new Uint8Array(raw.length);
+                for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                return arr;
+            }
+        };
+
+        aeroJs.registerSW();
+    </script>
+    <div id="components-reconnect-modal">
+        <span class="reconnect-msg">Forbinder igen...</span>
+        <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+    </div>
+
+    <button id="themeToggleBtn" title="Skift lys/mørk visning"
+            style="position:fixed;bottom:20px;right:20px;z-index:9999;width:52px;height:52px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
+        🌓
+    </button>
+    <script>
+    (function () {
+        var btn = document.getElementById('themeToggleBtn');
+        function sync() {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            btn.textContent = current === 'light' ? '🌙' : '☀️';
+        }
+        btn.addEventListener('click', function () {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            var next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('aero_theme', next);
+            sync();
+        });
+        sync();
+    })();
+    </script>
+
+    <script>
+    (function(){
+        var vid = localStorage.getItem('_mid');
+        if (!vid) { vid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); localStorage.setItem('_mid', vid); }
+        function track(path, title, referrer) {
+            if (location.search.indexOf('claude_test=1') !== -1) return;
+            fetch('https://stats.itmartin.dk/api/hit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path, title: title, referrer: referrer, visitorId: vid, host: location.hostname }),
+                keepalive: true
+            }).catch(function(){});
+        }
+        track(location.pathname + location.search, document.title, document.referrer);
+        document.addEventListener('click', function(e) {
+            var a = e.target.closest('a');
+            if (!a || !a.href || a.href.startsWith('javascript')) return;
+            var href = a.getAttribute('href') || a.href;
+            track('click:' + href, a.textContent.trim().slice(0, 80), location.pathname);
+        }, true);
+    })();
+    </script>
+</body>
+</html>
+
+@code {
+    private static readonly long CacheBuster = DateTime.UtcNow.Ticks;
+}

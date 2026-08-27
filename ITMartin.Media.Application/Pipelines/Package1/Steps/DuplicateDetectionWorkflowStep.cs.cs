@@ -51,6 +51,14 @@ public sealed class DuplicateDetectionWorkflowStep
             return;
         }
 
+        if (!state.EnableDeduplication)
+        {
+            _logger.LogInformation(
+                "Duplicate detection disabled for this run - every file is kept");
+
+            return;
+        }
+
         await ExecuteOperationAsync(
             "DuplicateDetection",
             $"Files={state.MediaFiles.Count}",
