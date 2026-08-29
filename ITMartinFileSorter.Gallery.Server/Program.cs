@@ -88,23 +88,31 @@ var RootFolderDisplayNames = new Dictionary<string, string>(StringComparer.Ordin
 };
 
 // Billeder/Videoer are the primary content and should lead - everything else
-// sorts after, alphabetically among itself.
+// sorts after, alphabetically among itself. Package1 now sorts new libraries
+// straight into Danish-named category folders (see feedback_danish_folder_
+// defaults) rather than the English names this dictionary originally
+// assumed, so both variants are listed - an on-disk folder is one or the
+// other depending on when the tenant's library was first sorted, never both.
 var RootFolderSortPriority = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
 {
-    ["Images"] = 0,
-    ["Videos"] = 1,
+    ["Images"] = 0, ["Billeder"] = 0,
+    ["Videos"] = 1, ["Videoer"] = 1,
+    ["Screenshots"] = 2, ["Skærmbilleder"] = 2,
 };
 
-// Root folders render as separate visual rows, not one flowing grid - all
-// four primary categories share the top row now (Billeder, Videoer,
-// Dokumenter, Musik). Anything unrecognized falls into its own trailing row
-// rather than being silently absorbed into one of these.
+// Root folders render as separate visual rows, not one flowing grid. Photo-
+// like content (Billeder/Videoer/Skærmbilleder) leads in the top row;
+// non-photo content (Dokumenter, LivePhotoVideoer, Musik) trails in the row
+// below it instead of mixing in - same Danish/English duplication reasoning
+// as RootFolderSortPriority above.
 var RootFolderRow = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
 {
-    ["Images"] = 0,
-    ["Videos"] = 0,
-    ["Documents"] = 0,
-    ["Musik"] = 0,
+    ["Images"] = 0, ["Billeder"] = 0,
+    ["Videos"] = 0, ["Videoer"] = 0,
+    ["Screenshots"] = 0, ["Skærmbilleder"] = 0,
+    ["Documents"] = 1, ["Dokumenter"] = 1,
+    ["Musik"] = 1,
+    ["LivePhotoVideoer"] = 1,
 };
 
 // Fallback icon shown when a root category card has no meaningful
@@ -122,10 +130,14 @@ var RootFolderIcon = new Dictionary<string, string>(StringComparer.OrdinalIgnore
     ["Musik"] = "🎵",
 };
 
-// Package1 names month folders "NN-EnglishMonth" (e.g. "05-May") regardless of
-// gallery language - translate just the month word, at any depth (not only the
-// library root, unlike RootFolderDisplayNames), so headers stay Danish once
-// you've navigated into Billeder/2024/etc, not just on the root folder cards.
+// Older Package1 output names month folders "NN-EnglishMonth" (e.g. "05-May")
+// regardless of gallery language - translate just the month word, at any
+// depth (not only the library root, unlike RootFolderDisplayNames), so
+// headers stay Danish once you've navigated into Billeder/2024/etc, not just
+// on the root folder cards. Newer Package1 output (see feedback_danish_
+// folder_defaults) names them "N MonthName" already in Danish, no padding,
+// space instead of a hyphen - MonthFolderPattern/MonthLabelFor below handle
+// both shapes; this table only ever translates the older English form.
 var DanishMonthNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 {
     ["January"] = "Januar", ["February"] = "Februar", ["March"] = "Marts",
@@ -133,11 +145,19 @@ var DanishMonthNames = new Dictionary<string, string>(StringComparer.OrdinalIgno
     ["July"] = "Juli", ["August"] = "August", ["September"] = "September",
     ["October"] = "Oktober", ["November"] = "November", ["December"] = "December",
 };
+var DanishMonthNameValues = new HashSet<string>(DanishMonthNames.Values, StringComparer.OrdinalIgnoreCase);
 // Optional " - 1. halvdel"/" - 2. halvdel" suffix (see LibraryExportService's
 // MonthHalfSplitThreshold) is captured separately so callers can either keep
 // it (DanishFolderName, for display) or strip it (MonthLabelFor, for grouping
 // both halves of a month back under one inline label).
-var MonthFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{2})-([A-Za-z]+)( - [12]\. halvdel)?$");
+// Older Package1 output: "NN-EnglishMonth" (zero-padded, hyphen, English -
+// needs DanishMonthNames translation below). Newer Package1 output: "N
+// MonthName" (unpadded, space, already Danish - see feedback_danish_folder_
+// defaults). Both shapes must match or a month folder silently falls out of
+// chronological grouping entirely and back to a plain alphabetical folder
+// list, where "10 November"/"11 December" sort right after "1 Januar"
+// instead of at the end (found 2026-08-28 on a real tenant's 2013 folder).
+var MonthFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{1,2})[-\s]([A-Za-zÆØÅæøå]+(?:-[A-Za-zÆØÅæøå]+)?)( - [12]\. halvdel)?$");
 
 // LibraryExportService's current date-range grouping (recursive best-gap
 // bisection - see project_package1_month_split memory): either "dd-dd
@@ -150,21 +170,32 @@ var DateRangeFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{2}-
 string DanishFolderName(string rawName)
 {
     var monthMatch = MonthFolderPattern.Match(rawName);
-    if (monthMatch.Success && DanishMonthNames.TryGetValue(monthMatch.Groups[2].Value, out var danishMonth))
+    if (!monthMatch.Success) return rawName;
+    var monthWord = monthMatch.Groups[2].Value;
+    // Already Danish (newer Package1 output) - the raw name is already
+    // display-ready as-is, reformatting it would just introduce a hyphen
+    // where the real folder has a space.
+    if (DanishMonthNameValues.Contains(monthWord)) return rawName;
+    // Older English form - needs translating, and this shape always used a
+    // zero-padded "NN-" prefix so reproducing that here is still correct.
+    if (DanishMonthNames.TryGetValue(monthWord, out var danishMonth))
         return $"{monthMatch.Groups[1].Value}-{danishMonth}{monthMatch.Groups[3].Value}";
     return rawName;
 }
 
-// Just the month part ("07-Juli"), halvdel suffix stripped - both halves of a
-// split month collapse back into one inline label in the flattened view.
-// Also recognizes the newer date-range folder names, returned as-is since
+// Just the month part, halvdel suffix stripped - both halves of a split
+// month collapse back into one inline label in the flattened view. Also
+// recognizes the newer date-range folder names, returned as-is since
 // they're already Danish and already a single (non-halvdel-split) group.
 string? MonthLabelFor(string rawName)
 {
     var m = MonthFolderPattern.Match(rawName);
     if (m.Success)
     {
-        var danish = DanishMonthNames.TryGetValue(m.Groups[2].Value, out var dm) ? dm : m.Groups[2].Value;
+        var monthWord = m.Groups[2].Value;
+        var danish = DanishMonthNameValues.Contains(monthWord)
+            ? monthWord
+            : DanishMonthNames.TryGetValue(monthWord, out var dm) ? dm : monthWord;
         return $"{m.Groups[1].Value}-{danish}";
     }
     return DateRangeFolderPattern.IsMatch(rawName) ? rawName : null;
@@ -448,7 +479,20 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
                 ? CoreCategoryNames.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))
                 : !hiddenFolders.Contains(Path.GetFileName(d)) && !RootFolderSortPriority.ContainsKey(Path.GetFileName(d))))
         .Where(HasAnyMediaFile)
-        .OrderBy(Path.GetFileName)
+        // Plain alphabetical sorting a "1 Februar"/"10 November" shaped name
+        // puts "10 November"/"11 December" right after "1 Februar" instead of
+        // at the end - matches MonthSortKeyFor everywhere else. This only
+        // fires when isFlattenableYear (below) didn't already turn these into
+        // one continuous view - a year that also has a non-month sibling like
+        // "Ukendt måned" fails that all-or-nothing check and falls back to
+        // this folder-card list, so it still needs to sort correctly.
+        // Calendar order (Januar..December), not newest-first - months read
+        // as a sequence within a year, unlike years/dates which read newest-
+        // first. Non-month folders (Ukendt måned) have no real position and
+        // sort after all real months.
+        .OrderByDescending(d => MonthLabelFor(Path.GetFileName(d)) is not null)
+        .ThenBy(d => MonthSortKeyFor(Path.GetFileName(d)))
+        .ThenBy(Path.GetFileName)
         .Select(d => ToEntry(d))
         .ToList();
 
@@ -506,6 +550,19 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         filePaths = gathered;
         folders = []; // flattened - no separate Month folder cards
     }
+    else if (folders.Count > 0)
+    {
+        // A handful of stray files sitting directly in a folder that also has
+        // real subfolders to navigate (e.g. loose photos straight in
+        // "Billeder" alongside its year folders) renders as a confusing
+        // second, unlabelled "Billeder & videoer" grid competing with the
+        // real navigation - and Package1 already has a real home for
+        // deliberately-orphaned files ("Ikke i årsmapper"/Udaterede), so this
+        // is never the only place they'd be findable. Suppress it here;
+        // still shown normally one level deeper where there's nothing else
+        // to navigate to and these ARE the real content.
+        filePaths = [];
+    }
     else
     {
         filePaths = Directory.EnumerateFiles(current).Where(IsMedia);
@@ -522,7 +579,10 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     // a month, LastWriteTimeUtc is still a reasonable enough tiebreaker.
     var files = filePaths
         .Where(f => !inMusikFolder || IsAud(Ext(f)))
-        .OrderByDescending(f => monthSortKeyByPath?.GetValueOrDefault(f) ?? 0)
+        // Calendar order within the year (Januar..December), matching the
+        // folder-card fallback's ordering below - months read as a sequence,
+        // not newest-first.
+        .OrderBy(f => monthSortKeyByPath?.GetValueOrDefault(f) ?? 0)
         .ThenByDescending(f => File.GetLastWriteTimeUtc(f))
         .Select(f =>
         {

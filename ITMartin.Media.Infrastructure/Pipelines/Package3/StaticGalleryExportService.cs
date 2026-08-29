@@ -74,6 +74,38 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
     public async Task<StaticGalleryExportResult> ExportAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
         var files = EnumerateLibraryMedia(libraryPath).ToList();
+
+        // Missing ffmpeg otherwise fails silently, one identical warning per
+        // video file (thousands of them on a real library) with no single
+        // line pointing at the actual cause - found 2026-08-28 only via a
+        // "Filer fundet" count that didn't match the real file count.
+        if (files.Any(MediaTypeHelper.IsVideo) && !_thumbnailService.IsFfmpegAvailable())
+        {
+            _logger.LogError(
+                "ffmpeg not found - every video in {LibraryPath} will be silently skipped from the gallery export. " +
+                "Bundle ffmpeg\\ffmpeg.exe next to this executable (CopyToOutputDirectory in the .csproj) and re-run.",
+                libraryPath);
+        }
+
+        // Sibling binary to ffmpeg.exe, same bundling gap, same silent
+        // failure mode - VideoMetadataService.GetCreationTime just returns
+        // null when ffprobe.exe is missing, so every video falls back to a
+        // year-only date instead of its real one (found 2026-08-28 right
+        // after fixing the ffmpeg.exe gap: 100% of videos in every year
+        // showed "dato ukendt").
+        if (files.Any(MediaTypeHelper.IsVideo) &&
+            !File.Exists(Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffprobe.exe")) &&
+            !(Environment.GetEnvironmentVariable("PATH") ?? "")
+                .Split(Path.PathSeparator)
+                .Where(dir => !string.IsNullOrWhiteSpace(dir))
+                .Any(dir => File.Exists(Path.Combine(dir, OperatingSystem.IsWindows() ? "ffprobe.exe" : "ffprobe"))))
+        {
+            _logger.LogError(
+                "ffprobe not found - every video in {LibraryPath} will get a year-only placeholder date instead of its real one. " +
+                "Bundle ffmpeg\\ffprobe.exe next to this executable (CopyToOutputDirectory in the .csproj) and re-run.",
+                libraryPath);
+        }
+
         var galleryRoot = Path.Combine(libraryPath, RootFolderName);
         var thumbsRoot = Path.Combine(galleryRoot, "thumbs");
         Directory.CreateDirectory(thumbsRoot);
@@ -148,7 +180,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
 
             lock (itemLock)
             {
-                items.Add(new GalleryItem(file, thumbPath, date, MediaTypeHelper.IsVideo(file)));
+                items.Add(new GalleryItem(file, thumbPath, date, MediaTypeHelper.IsVideo(file), dateResult.IsYearOnly));
                 if (items.Count % 500 == 0)
                     _logger.LogInformation("Static gallery export progress: {Done}/{Total}", items.Count, files.Count);
             }
@@ -179,12 +211,21 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         foreach (var yearGroup in byYear)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var ordered = yearGroup.OrderBy(i => i.Date ?? DateTime.MinValue).ToList();
+            // Year-only items (no real month/day signal, just a folder-name
+            // year) all carry the same synthetic Jan-1 Date - sorted last
+            // within their year instead of first, so they don't masquerade
+            // as "the earliest photos of the year" ahead of genuinely-dated
+            // January photos.
+            var ordered = yearGroup
+                .OrderBy(i => i.IsYearOnly)
+                .ThenBy(i => i.Date ?? DateTime.MinValue)
+                .ToList();
             var note = yearGroup.Key == UnknownYearLabel
                 ? "Disse filer har ingen dato i sig selv, og lå heller ikke i en mappe der afslørede årstallet - " +
                   "derfor kunne de ikke sorteres ind under et bestemt år. Skal et billede flyttes til det rigtige år: " +
                   "find filen under \"Udaterede\" (vist i klammer under hvert billede herunder), flyt den til den " +
-                  "rigtige Year/MM-Month-mappe i Billeder eller Videoer, og kør eksporten igen."
+                  "rigtige Year/N Måned-mappe i Billeder eller Videoer, og kør eksporten igen. " +
+                  "Eller nemmere: du kan manuelt notere datoerne på disse billeder og give dem til mig, så lægger jeg dem rigtigt ind for dig."
                 : null;
 
             // Billeder and Videoer are separate folders per year (not one mixed
@@ -237,7 +278,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         };
     }
 
-    private sealed record GalleryItem(string SourcePath, string ThumbPath, DateTime? Date, bool IsVideo);
+    private sealed record GalleryItem(string SourcePath, string ThumbPath, DateTime? Date, bool IsVideo, bool IsYearOnly = false);
 
     private sealed record SmartFolderLink(string Kind, string Label, string Href, string? CoverThumbPath);
 
@@ -372,7 +413,8 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
 
             if (!File.Exists(thumbPath)) continue;
 
-            items.Add(new GalleryItem(real, thumbPath, null, MediaTypeHelper.IsVideo(real)));
+            var dateResult = _dateService.GetBestDate(new MediaDateRequest(real));
+            items.Add(new GalleryItem(real, thumbPath, dateResult.Date, MediaTypeHelper.IsVideo(real), dateResult.IsYearOnly));
         }
 
         return items;
@@ -639,7 +681,15 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         {
             var thumb = ToWebPath(Path.GetRelativePath(galleryRoot, item.ThumbPath));
             var full = ToWebPath(Path.GetRelativePath(galleryRoot, item.SourcePath));
-            var caption = item.Date?.ToString("d. MMMM yyyy") ?? full;
+            // A year-only Date is a synthetic Jan-1 placeholder (see
+            // MediaDateService's ParentFolderYear fallback) - showing it as
+            // "1. January yyyy" claims a specific day that was never actually
+            // known, and silently clusters every undated photo in the year
+            // under a fake New Year's Day. Say plainly that only the year is
+            // known instead.
+            var caption = item.IsYearOnly
+                ? $"{item.Date:yyyy} (dato ukendt)"
+                : item.Date?.ToString("d. MMMM yyyy") ?? full;
             sb.Append("{t:\"").Append(JsEscape(thumb)).Append("\",f:\"").Append(JsEscape(full))
               .Append("\",v:").Append(item.IsVideo ? "true" : "false")
               .Append(",w:").Append(item.IsVideo || IsWebSafeImage(item.SourcePath) ? "true" : "false")
@@ -748,7 +798,12 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             var full = ToWebPath(Path.GetRelativePath(galleryRoot, item.SourcePath));
             // No date to show on the Ukendt dato page - show the file's relative
             // path instead, so it can actually be found and moved to fix it.
-            var caption = item.Date?.ToString("d. MMMM yyyy") ?? full;
+            // A year-only date (SmartFolder/person pages can carry one) is a
+            // synthetic Jan-1 placeholder, not a real day - say so plainly
+            // instead of claiming a specific date that was never known.
+            var caption = item.IsYearOnly
+                ? $"{item.Date:yyyy} (dato ukendt)"
+                : item.Date?.ToString("d. MMMM yyyy") ?? full;
             sb.Append("{t:\"").Append(JsEscape(thumb)).Append("\",f:\"").Append(JsEscape(full))
               .Append("\",v:").Append(item.IsVideo ? "true" : "false")
               .Append(",w:").Append(item.IsVideo || IsWebSafeImage(item.SourcePath) ? "true" : "false")

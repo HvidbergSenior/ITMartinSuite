@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
@@ -147,6 +148,43 @@ public sealed class ThumbnailService
         }
     }
 
+    private static string GetBundledFfmpegPath() =>
+        Path.Combine(
+            AppContext.BaseDirectory,
+            "ffmpeg",
+            "ffmpeg.exe");
+
+    // Bundled path missing is the common failure mode (a console/tool project
+    // that forgot the ffmpeg\**\*.* CopyToOutputDirectory item group some
+    // other host project already has) - checked once up front by callers so
+    // it surfaces as one loud, unmissable log line instead of one identical
+    // Win32Exception warning per video file (found 2026-08-28: 8,776 silent
+    // per-file failures in one run, from GalleryRebuild.Console specifically
+    // missing this).
+    public bool IsFfmpegAvailable()
+    {
+        if (File.Exists(GetBundledFfmpegPath()))
+            return true;
+
+        var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
+        var exeName = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
+
+        return pathVar
+            .Split(Path.PathSeparator)
+            .Where(dir => !string.IsNullOrWhiteSpace(dir))
+            .Any(dir =>
+            {
+                try
+                {
+                    return File.Exists(Path.Combine(dir, exeName));
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+    }
+
     private async Task
         RunFfmpegThumbnailAsync(
             string inputPath,
@@ -154,11 +192,7 @@ public sealed class ThumbnailService
             string seekTo,
             CancellationToken cancellationToken)
     {
-        var bundledPath =
-            Path.Combine(
-                AppContext.BaseDirectory,
-                "ffmpeg",
-                "ffmpeg.exe");
+        var bundledPath = GetBundledFfmpegPath();
 
         var ffmpegPath =
             File.Exists(bundledPath)

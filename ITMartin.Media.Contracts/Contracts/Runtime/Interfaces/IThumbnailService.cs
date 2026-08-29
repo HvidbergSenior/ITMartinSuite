@@ -7,4 +7,5 @@ public interface IThumbnailService
         string outputPath,
         CancellationToken cancellationToken = default);
     bool Supports(string path);
+    bool IsFfmpegAvailable();
 }

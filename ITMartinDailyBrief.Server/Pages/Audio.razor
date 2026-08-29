@@ -1,50 +1,32 @@
-@page "/"
+﻿@page "/audio"
 @rendermode InteractiveServer
-@inject FeedService     FeedSvc
-@inject IJSRuntime      JS
+@inject FeedService FeedSvc
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<PageTitle>DailyBrief</PageTitle>
+<PageTitle>DailyBrief — Go' Morgen P3</PageTitle>
 
 <div class="brief-root">
 
     <header class="brief-header">
-        <div class="brief-header-left">
-            <span class="brief-logo">DailyBrief</span>
+        <button class="brief-back-btn"
+                @onclick='() => Nav.NavigateTo("/", forceLoad: true)'>
+            ← Tilbage
+        </button>
 
-            @if (!_loading && _items.Count > 0)
-            {
-                <span class="brief-summary">
-                    @_items.Count nyheder · @_sourceCount kilder
-                </span>
-            }
-        </div>
-
-        <a href="/settings" class="brief-settings-btn">⚙</a>
+        <span class="brief-logo">Go' Morgen P3</span>
     </header>
-
-    <ProblemPurposeBanner
-        Problem="Doomscrolling - vi kan ikke styre det, og nu er TV2 også begyndt."
-        Formaal="Afgræns nyhedsstrømmen, så den ikke æder dagen." />
 
     @if (_loading)
     {
-        <div class="brief-skeletons">
-            @for (int i = 0; i < 6; i++)
-            {
-                <div class="skeleton-card"></div>
-            }
+        <div class="brief-empty">
+            <p>Henter episoder…</p>
         </div>
     }
     else if (_items.Count == 0)
     {
         <div class="brief-empty">
-            <div class="brief-empty-icon">📰</div>
-            <p>Ingen nyheder</p>
-            <p class="brief-empty-sub">
-                Aktivér mindst én kilde i
-                <a href="/settings">indstillinger</a>
-            </p>
+            <p>Ingen episoder fundet.</p>
         </div>
     }
     else
@@ -53,7 +35,7 @@
 
             @foreach (var item in _items)
             {
-                <a class="brief-card" href="/article/@item.Id">
+                <div class="brief-card">
 
                     <div class="brief-card-text">
 
@@ -65,15 +47,8 @@
                             </span>
 
                             <span class="brief-time">
-                                @item.TimeAgo
+                                @item.Published.ToLocalTime().ToString("d. MMM yyyy")
                             </span>
-
-                            @if (item.HasAudio)
-                            {
-                                <span title="Denne episode har lyd">
-                                    🎧
-                                </span>
-                            }
 
                         </div>
 
@@ -88,27 +63,39 @@
                             </div>
                         }
 
+                        @if (item.HasAudio)
+                        {
+                            <div style="margin-top:12px">
+
+                                <audio controls
+                                       preload="none"
+                                       style="width:100%">
+                                    <source src="@item.AudioUrl" />
+                                    Din browser understøtter ikke lydafspilning.
+                                </audio>
+
+                                <div style="margin-top:8px">
+                                    <a href="@item.AudioUrl"
+                                       target="_blank"
+                                       download
+                                       class="brief-settings-btn">
+                                        ↓ Download lyd
+                                    </a>
+                                </div>
+
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="margin-top:8px;color:#777">
+                                Ingen lydfil fundet
+                            </div>
+                        }
+
                     </div>
 
-                    @if (item.HasImage)
-                    {
-                        <img class="brief-card-img"
-                             src="@item.ImageUrl"
-                             alt=""
-                             loading="lazy" />
-                    }
-
-                </a>
-            }
-
-            <div class="brief-done">
-                <span class="brief-done-check">✓</span>
-                Du er opdateret
-
-                <div class="brief-done-sub">
-                    Træk ned for at opdatere
                 </div>
-            </div>
+            }
 
         </div>
     }
@@ -119,7 +106,6 @@
 
     private List<FeedItem> _items = [];
     private bool _loading = true;
-    private int _sourceCount = 0;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -136,33 +122,26 @@
 
         var sources = await LoadSourcesAsync();
 
-        var rawMax =
-            await JS.InvokeAsync<string?>(
-                "localStorage.getItem",
-                "brief_max_items");
+        var p3 = sources.FirstOrDefault(s =>
+            s.Name.Equals(
+                "Go' Morgen P3",
+                StringComparison.OrdinalIgnoreCase));
 
-        var maxItems =
-            int.TryParse(rawMax, out var n)
-                ? n
-                : 10;
-
-        _sourceCount =
-            sources.Count(s => s.Enabled);
-
-        _items =
-            await FeedSvc.GetItemsAsync(
-                sources,
-                maxItems);
+        if (p3 is not null)
+        {
+            // Hent langt flere end forsiden.
+            _items = await FeedSvc.GetItemsAsync(
+                new[] { p3 },
+                100);
+        }
 
         _loading = false;
-
         StateHasChanged();
     }
 
     private async Task<List<FeedSource>> LoadSourcesAsync()
     {
-        var sources =
-            FeedSource.Presets.ToList();
+        var sources = FeedSource.Presets.ToList();
 
         foreach (var s in sources)
         {
@@ -198,16 +177,15 @@
                                 "localStorage.getItem",
                                 $"brief_source_{c.Id}");
 
-                        sources.Add(
-                            new FeedSource
-                            {
-                                Id = c.Id,
-                                Name = c.Name,
-                                RssUrl = c.Url,
-                                Enabled =
-                                    raw == null ||
-                                    raw == "true"
-                            });
+                        sources.Add(new FeedSource
+                        {
+                            Id = c.Id,
+                            Name = c.Name,
+                            RssUrl = c.Url,
+                            Enabled =
+                                raw == null ||
+                                raw == "true"
+                        });
                     }
                 }
             }
