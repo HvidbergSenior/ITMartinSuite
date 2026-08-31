@@ -6,5 +6,6 @@ public interface IVideoConverterService
         string inputPath,
         string outputDirectory,
         Action<double>? onProgress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        int ffmpegThreads = 0);
 }

@@ -39,15 +39,31 @@ public class VideoBatchService : IVideoBatchService
 
         Directory.CreateDirectory(tempRoot);
 
-        foreach (var file in videos)
-        {
-            cancellationToken
-                .ThrowIfCancellationRequested();
+        // Full ffmpeg transcodes are the heaviest per-item work in the whole
+        // Package1 pipeline (~54 hours projected for 654 videos run one at a
+        // time), but unlike the lighter per-file steps this can't just use
+        // Environment.ProcessorCount as the degree of parallelism: libx264
+        // already spreads each single encode across multiple threads on its
+        // own, so N fully-concurrent processes would each try to grab every
+        // core and thrash instead of speeding anything up. Split the
+        // machine's cores between a handful of concurrent processes instead,
+        // and cap each process's own thread count via -threads so the total
+        // stays near the real core count either way.
+        var degreeOfParallelism = Math.Max(1, Math.Min(4, Environment.ProcessorCount / 4));
+        var ffmpegThreadsPerProcess = Math.Max(1, Environment.ProcessorCount / degreeOfParallelism);
 
-            current++;
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = degreeOfParallelism,
+            CancellationToken = cancellationToken
+        };
+
+        await Parallel.ForEachAsync(videos, parallelOptions, async (file, ct) =>
+        {
+            var itemNumber = Interlocked.Increment(ref current);
 
             progress?.Invoke(
-                current - 1,
+                itemNumber - 1,
                 total,
                 $"Converting {file.FileName}");
 
@@ -70,8 +86,9 @@ public class VideoBatchService : IVideoBatchService
                                     file.FileName,
                                     progressValue);
                             },
-                            cancellationToken);
-                
+                            ct,
+                            ffmpegThreadsPerProcess);
+
                 if (!string.IsNullOrWhiteSpace(output))
                 {
                     file.NormalizedPath = output;
@@ -104,9 +121,9 @@ public class VideoBatchService : IVideoBatchService
             }
 
             progress?.Invoke(
-                current,
+                itemNumber,
                 total,
                 file.FileName);
-        }
+        });
     }
 }

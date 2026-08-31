@@ -7,10 +7,6 @@ public class VideoConverterService : IVideoConverterService
 {
     private readonly string _ffmpegPath;
 
-    private TimeSpan? _totalDuration;
-
-    private DateTime _lastProgressUpdateUtc;
-
     public VideoConverterService()
     {
         if (OperatingSystem.IsWindows())
@@ -35,7 +31,8 @@ public class VideoConverterService : IVideoConverterService
         string inputPath,
         string outputDirectory,
         Action<double>? onProgress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int ffmpegThreads = 0)
     {
         Directory.CreateDirectory(outputDirectory);
 
@@ -44,9 +41,19 @@ public class VideoConverterService : IVideoConverterService
                 outputDirectory,
                 $"{Path.GetFileNameWithoutExtension(inputPath)}.mp4");
 
+        // ffmpegThreads bounds libx264's own internal thread pool - callers
+        // running several conversions concurrently (VideoBatchService) pass
+        // a value sized so total_processes * threads_per_process stays near
+        // the machine's real core count, instead of every process
+        // independently grabbing all cores and thrashing. 0 (the default)
+        // means "let ffmpeg auto-detect", the original single-conversion
+        // behavior.
+        var threadsArg = ffmpegThreads > 0 ? $"-threads {ffmpegThreads} " : "";
+
         var ffmpegArgs =
             $"-hide_banner -y -i \"{inputPath}\" " +
             "-c:v libx264 " +
+            threadsArg +
             "-pix_fmt yuv420p " +
             "-preset veryfast " +
             "-crf 22 " +
@@ -71,6 +78,77 @@ public class VideoConverterService : IVideoConverterService
         Console.WriteLine("========== FFMPEG START ==========");
         Console.WriteLine(args);
 
+        // Per-call local state, not instance fields: VideoBatchService holds
+        // one VideoConverterService instance for an entire Package1 run, so
+        // once conversions run concurrently, instance fields here would be
+        // stomped by whichever video's ffmpeg output line arrived last -
+        // corrupting every in-flight conversion's progress percentage.
+        TimeSpan? totalDuration = null;
+        var lastProgressUpdateUtc = DateTime.MinValue;
+
+        void ParseProgress(string line)
+        {
+            if (line.Contains("Duration:"))
+            {
+                var durationText =
+                    line.Split("Duration:")[1]
+                        .Split(",")[0]
+                        .Trim();
+
+                if (TimeSpan.TryParse(
+                        durationText,
+                        out var duration))
+                {
+                    totalDuration = duration;
+                }
+
+                return;
+            }
+
+            if (!line.Contains("time=") ||
+                !totalDuration.HasValue)
+            {
+                return;
+            }
+
+            var timeText =
+                line.Split("time=")[1]
+                    .Split(" ")[0]
+                    .Trim();
+
+            if (!TimeSpan.TryParse(
+                    timeText,
+                    out var current))
+            {
+                return;
+            }
+
+            var progress =
+                current.TotalSeconds /
+                totalDuration.Value.TotalSeconds;
+
+            progress =
+                Math.Clamp(
+                    progress,
+                    0,
+                    1);
+
+            if (DateTime.UtcNow -
+                lastProgressUpdateUtc <
+                TimeSpan.FromSeconds(1))
+            {
+                return;
+            }
+
+            lastProgressUpdateUtc =
+                DateTime.UtcNow;
+
+            onProgress?.Invoke(progress);
+
+            Console.WriteLine(
+                $"Progress: {progress:P1}");
+        }
+
         using var process = new Process();
 
         process.StartInfo =
@@ -91,9 +169,7 @@ public class VideoConverterService : IVideoConverterService
                 return;
             }
 
-            ParseProgress(
-                e.Data,
-                onProgress);
+            ParseProgress(e.Data);
         };
 
         process.Start();
@@ -125,70 +201,5 @@ public class VideoConverterService : IVideoConverterService
             throw new Exception(
                 $"FFmpeg failed with exit code {process.ExitCode}");
         }
-    }
-
-    private void ParseProgress(
-        string line,
-        Action<double>? onProgress)
-    {
-        if (line.Contains("Duration:"))
-        {
-            var durationText =
-                line.Split("Duration:")[1]
-                    .Split(",")[0]
-                    .Trim();
-
-            if (TimeSpan.TryParse(
-                    durationText,
-                    out var duration))
-            {
-                _totalDuration = duration;
-            }
-
-            return;
-        }
-
-        if (!line.Contains("time=") ||
-            !_totalDuration.HasValue)
-        {
-            return;
-        }
-
-        var timeText =
-            line.Split("time=")[1]
-                .Split(" ")[0]
-                .Trim();
-
-        if (!TimeSpan.TryParse(
-                timeText,
-                out var current))
-        {
-            return;
-        }
-
-        var progress =
-            current.TotalSeconds /
-            _totalDuration.Value.TotalSeconds;
-
-        progress =
-            Math.Clamp(
-                progress,
-                0,
-                1);
-
-        if (DateTime.UtcNow -
-            _lastProgressUpdateUtc <
-            TimeSpan.FromSeconds(1))
-        {
-            return;
-        }
-
-        _lastProgressUpdateUtc =
-            DateTime.UtcNow;
-
-        onProgress?.Invoke(progress);
-
-        Console.WriteLine(
-            $"Progress: {progress:P1}");
     }
 }
