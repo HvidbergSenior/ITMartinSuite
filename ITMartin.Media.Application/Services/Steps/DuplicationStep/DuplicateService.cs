@@ -109,6 +109,12 @@ public sealed class DuplicateService
         // against merging two different but visually-similar photos from
         // unrelated dates.
         var nearDuplicateGroups = 0;
+        var hashDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount);
+        var hashParallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = hashDegreeOfParallelism,
+            CancellationToken = cancellationToken
+        };
 
         foreach (var bucket in files
                      .Where(f => f.IsImage && !grouped.Contains(f))
@@ -116,17 +122,33 @@ public sealed class DuplicateService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // Perceptual hashing decodes + resizes every image, so this was
+            // by far the slowest part of the whole Package1 pipeline running
+            // one file at a time (9+ hours on a 34K-file library). Hashes
+            // are computed in parallel into an index-aligned array so the
+            // O(n^2) grouping loop below still sees the exact same file
+            // order as the old sequential version - only the hashing itself
+            // is parallelized, not the grouping semantics.
+            var bucketFiles = bucket.ToList();
+            var hashes = new ulong?[bucketFiles.Count];
+
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, bucketFiles.Count),
+                hashParallelOptions,
+                async (i, ct) =>
+                {
+                    hashes[i] = await _perceptualHashService.ComputeAsync(
+                        bucketFiles[i].FullPath,
+                        ct);
+                });
+
             var hashed = new List<(MediaFile File, ulong Hash)>();
 
-            foreach (var file in bucket)
+            for (var i = 0; i < bucketFiles.Count; i++)
             {
-                var hash = await _perceptualHashService.ComputeAsync(
-                    file.FullPath,
-                    cancellationToken);
-
-                if (hash is { } h)
+                if (hashes[i] is { } h)
                 {
-                    hashed.Add((file, h));
+                    hashed.Add((bucketFiles[i], h));
                 }
             }
 
