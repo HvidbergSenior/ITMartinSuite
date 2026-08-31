@@ -36,17 +36,26 @@ public sealed class ImageQualityWorkflowStep : Package1WorkflowStepBase
         var total = files.Count;
         var current = 0;
 
-        foreach (var file in files)
+        // Each file is only ever touched by its own task (IsBlurry/IsSolidColor
+        // are per-file, IImageQualityService is stateless), so this is safe to
+        // parallelize the same way DuplicateService's perceptual-hash pass was -
+        // one image at a time took ~50 hours projected on a 12,767-image
+        // library. `current` is the only shared state, hence Interlocked.
+        var parallelOptions = new ParallelOptions
         {
-            current++;
-            cancellationToken.ThrowIfCancellationRequested();
+            MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount),
+            CancellationToken = cancellationToken
+        };
 
-            LogStepProgress(_logger, Name, current, total, file.FileName);
+        await Parallel.ForEachAsync(files, parallelOptions, async (file, ct) =>
+        {
+            var itemNumber = Interlocked.Increment(ref current);
+            LogStepProgress(_logger, Name, itemNumber, total, file.FileName);
 
             var path = file.NormalizedPath ?? file.FullPath;
             if (!File.Exists(path))
             {
-                continue;
+                return;
             }
 
             await ExecuteOperationAsync(
@@ -54,11 +63,11 @@ public sealed class ImageQualityWorkflowStep : Package1WorkflowStepBase
                 file.FileName,
                 async () =>
                 {
-                    var (isBlurry, isSolidColor) = await _imageQuality.AnalyzeAsync(path, cancellationToken);
+                    var (isBlurry, isSolidColor) = await _imageQuality.AnalyzeAsync(path, ct);
                     file.IsBlurry = isBlurry;
                     file.IsSolidColor = isSolidColor;
                 },
                 _logger);
-        }
+        });
     }
 }
