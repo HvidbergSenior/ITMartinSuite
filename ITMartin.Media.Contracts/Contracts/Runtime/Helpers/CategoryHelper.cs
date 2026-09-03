@@ -6,7 +6,7 @@ namespace ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 public static class CategoryHelper
 {
     // Danish folder names as of 2026-08-20 (user preference, code default for
-    // future Package1 sorts only - existing already-sorted libraries are NOT
+    // future QuickSort sorts only - existing already-sorted libraries are NOT
     // renamed, see feedback_danish_folder_names memory). LivePhotos is kept
     // untranslated (Apple's own feature name, not a natural Danish word).
     public static string GetCategory(MediaFile file) =>

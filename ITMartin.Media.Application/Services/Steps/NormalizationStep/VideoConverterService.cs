@@ -79,7 +79,7 @@ public class VideoConverterService : IVideoConverterService
         Console.WriteLine(args);
 
         // Per-call local state, not instance fields: VideoBatchService holds
-        // one VideoConverterService instance for an entire Package1 run, so
+        // one VideoConverterService instance for an entire QuickSort run, so
         // once conversions run concurrently, instance fields here would be
         // stomped by whichever video's ffmpeg output line arrived last -
         // corrupting every in-flight conversion's progress percentage.

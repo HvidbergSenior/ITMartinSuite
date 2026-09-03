@@ -36,7 +36,7 @@ public class GuestExportController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(path)
             || !Directory.Exists(path)
-            || (!IsUnder(path, libraryRoot) && !IsUnder(path, sourceRoot)))
+            || (!PathSecurity.IsUnder(path, libraryRoot) && !PathSecurity.IsUnder(path, sourceRoot)))
         {
             Response.StatusCode = 404;
             return;
@@ -80,11 +80,4 @@ public class GuestExportController : ControllerBase
         }
     }
 
-    private static bool IsUnder(string path, string root)
-    {
-        if (string.IsNullOrWhiteSpace(root)) return false;
-        return Path.GetFullPath(path).StartsWith(
-            Path.GetFullPath(root),
-            StringComparison.OrdinalIgnoreCase);
-    }
 }

@@ -7,6 +7,9 @@ namespace ITMartin.Media.Application.Services.Steps.NormalizationStep;
 
 public class VideoBatchService : IVideoBatchService
 {
+    private static readonly TimeSpan StallTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan StallCheckInterval = TimeSpan.FromMinutes(1);
+
     private readonly IVideoConverterService
         _videoConverterService;
 
@@ -40,7 +43,7 @@ public class VideoBatchService : IVideoBatchService
         Directory.CreateDirectory(tempRoot);
 
         // Full ffmpeg transcodes are the heaviest per-item work in the whole
-        // Package1 pipeline (~54 hours projected for 654 videos run one at a
+        // QuickSort pipeline (~54 hours projected for 654 videos run one at a
         // time), but unlike the lighter per-file steps this can't just use
         // Environment.ProcessorCount as the degree of parallelism: libx264
         // already spreads each single encode across multiple threads on its
@@ -67,6 +70,28 @@ public class VideoBatchService : IVideoBatchService
                 total,
                 $"Converting {file.FileName}");
 
+            // Watchdog: a single hung ffmpeg process (corrupt/truncated source,
+            // ffmpeg waiting on something that never comes) must not stall the
+            // whole batch forever. Track the last time THIS file's progress
+            // moved, and cancel just this file's token - not the outer batch
+            // token - if it stalls for too long. Distinguishing "my own
+            // watchdog fired" from "the whole batch/app is shutting down" is
+            // what lets us skip the hung file and keep going instead of
+            // rethrowing and killing every other in-flight conversion too.
+            using var fileCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var lastProgressUtc = DateTime.UtcNow;
+            using var watchdog = new Timer(
+                _ =>
+                {
+                    if (DateTime.UtcNow - lastProgressUtc > StallTimeout)
+                    {
+                        fileCts.Cancel();
+                    }
+                },
+                null,
+                StallCheckInterval,
+                StallCheckInterval);
+
             try
             {
                 _logger.LogInformation(
@@ -81,12 +106,13 @@ public class VideoBatchService : IVideoBatchService
                             tempRoot,
                             progressValue =>
                             {
+                                lastProgressUtc = DateTime.UtcNow;
                                 _logger.LogInformation(
                                     "Video progress {File}: {Progress:P0}",
                                     file.FileName,
                                     progressValue);
                             },
-                            ct,
+                            fileCts.Token,
                             ffmpegThreadsPerProcess);
 
                 if (!string.IsNullOrWhiteSpace(output))
@@ -101,6 +127,15 @@ public class VideoBatchService : IVideoBatchService
                         "Conversion completed for {File}",
                         file.FileName);
                 }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                _logger.LogError(
+                    "Conversion for {File} appeared hung (no progress for {Timeout}) - killed and skipping, moving on to next file",
+                    file.FileName,
+                    StallTimeout);
+
+                file.Failed = true;
             }
             catch (OperationCanceledException)
             {

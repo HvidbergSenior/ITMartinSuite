@@ -1,9 +1,9 @@
 namespace ITMartin.Media.Contracts.Contracts.Runtime.Models;
 
-// Social/vlog clip enhancement - separate from Package2 (analog tape
+// Social/vlog clip enhancement - separate from AnalogDigitize (analog tape
 // restoration) because the source material, filter intensities, and finishing
 // steps (trim, delivery export) are fundamentally different concerns. Reuses
-// Package2's EnhancedMediaItem/IVideoEnhancementService/IAudioEnhancementService
+// AnalogDigitize's EnhancedMediaItem/IVideoEnhancementService/IAudioEnhancementService
 // infrastructure rather than duplicating it.
 public sealed class Package4WorkflowState
 {
@@ -15,7 +15,7 @@ public sealed class Package4WorkflowState
 
     // Every step below is independently toggleable so a clip can skip
     // whichever isn't relevant (e.g. no wind noise indoors) without touching
-    // the others - same "explicit opt-in per step" shape as Package2.
+    // the others - same "explicit opt-in per step" shape as AnalogDigitize.
 
     // VIDEO / COLOR
     public bool EnableWhiteBalance { get; set; } = true;

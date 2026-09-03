@@ -11,7 +11,7 @@ using ITMartin.Media.Infrastructure.Events;
 using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Persistence.Repositories;
-using ITMartin.Media.Infrastructure.Pipelines.Package3;
+using ITMartin.Media.Infrastructure.Pipelines.FaceIndex;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,8 +68,8 @@ public static class FileSorterDependencyInjection
             FileStatusRegistryService>();
 
         services.AddScoped<
-            IPackage3Service,
-            Package3Service>();
+            IFaceIndexService,
+            FaceIndexService>();
 
         services.AddScoped<
             ISmartFoldersService,
@@ -88,8 +88,8 @@ public static class FileSorterDependencyInjection
             LibraryPolishService>();
 
         services.AddScoped<
-            IPackage4Service,
-            ITMartin.Media.Infrastructure.Pipelines.Package4.Package4Service>();
+            ILibraryVerifyService,
+            ITMartin.Media.Infrastructure.Pipelines.Package4.LibraryVerifyService>();
 
         services.AddScoped<
             IGalleryThumbnailService,

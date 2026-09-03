@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -11,7 +11,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 // warm-highlight balance rather than a full auto-white-balance analysis -
 // ffmpeg has no true AWB filter, so this is a fixed nudge, not per-clip
 // adaptive correction.
-public sealed class WhiteBalanceCorrectionWorkflowStep : Package2WorkflowStepBase
+public sealed class WhiteBalanceCorrectionWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<WhiteBalanceCorrectionWorkflowStep> _logger;
     public override string Name => nameof(WhiteBalanceCorrectionWorkflowStep);

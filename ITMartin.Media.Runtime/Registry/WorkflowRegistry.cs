@@ -1,5 +1,5 @@
-﻿using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
-using ITMartin.Media.Application.Pipelines.Package2.Orchestration;
+﻿using ITMartin.Media.Application.Pipelines.QuickSort.Orchestration;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,13 +17,13 @@ public sealed class WorkflowRegistry(
     {
         return workflowType switch
         {
-            WorkflowType.Package1 =>
+            WorkflowType.QuickSort =>
                 _serviceProvider.GetRequiredService<
-                    Package1WorkflowDefinition>(),
+                    QuickSortWorkflowDefinition>(),
 
-            WorkflowType.Package2 =>
+            WorkflowType.AnalogDigitize =>
                 _serviceProvider.GetRequiredService<
-                    Package2WorkflowDefinition>(),
+                    AnalogDigitizeWorkflowDefinition>(),
 
             _ =>
                 throw new InvalidOperationException(

@@ -11,7 +11,7 @@
         Image = 3,
 
         // Unrecognized file type - still gets a home (Unhandled/{year}/{month})
-        // instead of being silently dropped during discovery, so Package3 has
+        // instead of being silently dropped during discovery, so FaceIndex has
         // something to polish/reclassify later.
         Other = 4
     }

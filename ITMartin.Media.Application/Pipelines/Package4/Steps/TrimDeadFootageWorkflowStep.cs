@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -12,7 +12,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 // opening" apart from "intentionally close framing" needs real content
 // analysis this pipeline doesn't have yet. Manual in/out points now, revisit
 // automatic dead-footage detection later if it's worth the complexity.
-public sealed class TrimDeadFootageWorkflowStep : Package2WorkflowStepBase
+public sealed class TrimDeadFootageWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<TrimDeadFootageWorkflowStep> _logger;
     private readonly string _ffmpegPath;

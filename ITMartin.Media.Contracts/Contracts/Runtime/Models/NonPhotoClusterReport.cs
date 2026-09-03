@@ -11,7 +11,7 @@ public sealed class SuspectFolder
 
 // Report-only, same convention as DetectRotatedImagesAsync - nothing on disk
 // changes. Meant to surface whole folders worth a 5-second human glance
-// (thumbnails render fast in Package3 Studio) instead of either blind
+// (thumbnails render fast in FaceIndex Studio) instead of either blind
 // auto-move or paging through every undated photo one at a time.
 public sealed class NonPhotoClusterReport
 {

@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
@@ -7,11 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 
-// All prior steps only registered filter strings (Package2's proven pattern -
+// All prior steps only registered filter strings (AnalogDigitize's proven pattern -
 // one combined ffmpeg pass beats N separate re-encodes). This is that single
 // render, and its output is the first real checkpoint file: "graded and
 // audio-cleaned, before trim/delivery compression."
-public sealed class VideoAudioRenderWorkflowStep : Package2WorkflowStepBase
+public sealed class VideoAudioRenderWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly IVideoEnhancementService _videoEnhancementService;
     private readonly ILogger<VideoAudioRenderWorkflowStep> _logger;

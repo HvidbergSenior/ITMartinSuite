@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs;
 using ITMartin.Media.Application.Abstractions.BackgroundJobs.Models;
@@ -15,6 +15,12 @@ public sealed class RabbitMqBackgroundJobQueue
     private readonly IConnection _connection;
 
     private readonly IModel _channel;
+
+    // IModel is documented as not safe for concurrent use across threads.
+    // EnqueueAsync can be called concurrently from many request threads while
+    // the consumer acks/nacks on its own dispatch thread - every call that
+    // touches _channel must go through this lock.
+    private readonly object _channelLock = new();
 
     public RabbitMqBackgroundJobQueue(
         IConfiguration configuration)
@@ -38,8 +44,38 @@ public sealed class RabbitMqBackgroundJobQueue
             };
         Console.WriteLine(
             $"RabbitMQ Host: {factory.HostName}");
-        _connection =
-            factory.CreateConnection();
+
+        // The broker may not be ready yet at startup (compose ordering,
+        // container restart race). A bare CreateConnection() with no retry
+        // throws BrokerUnreachableException straight out of the constructor
+        // and takes the whole host down unhandled - this is exactly what
+        // killed filesorter-worker on the NAS for 7 weeks unnoticed (see
+        // CLAUDE.md). Retry with backoff instead of failing on the first try.
+        const int maxAttempts = 10;
+        var delay = TimeSpan.FromSeconds(2);
+        Exception? lastError = null;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                _connection = factory.CreateConnection();
+                lastError = null;
+                break;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+                Console.WriteLine(
+                    $"RabbitMQ connection attempt {attempt}/{maxAttempts} failed: {ex.Message}");
+
+                if (attempt < maxAttempts)
+                    Thread.Sleep(delay);
+            }
+        }
+
+        if (lastError is not null)
+            throw lastError;
 
         _channel =
             _connection.CreateModel();
@@ -67,17 +103,20 @@ public sealed class RabbitMqBackgroundJobQueue
         var body =
             Encoding.UTF8.GetBytes(json);
 
-        var properties =
-            _channel.CreateBasicProperties();
+        lock (_channelLock)
+        {
+            var properties =
+                _channel.CreateBasicProperties();
 
-        properties.Persistent =
-            true;
+            properties.Persistent =
+                true;
 
-        _channel.BasicPublish(
-            exchange: string.Empty,
-            routingKey: job.Queue,
-            basicProperties: properties,
-            body: body);
+            _channel.BasicPublish(
+                exchange: string.Empty,
+                routingKey: job.Queue,
+                basicProperties: properties,
+                body: body);
+        }
 
         return Task.CompletedTask;
     }
@@ -92,55 +131,97 @@ public sealed class RabbitMqBackgroundJobQueue
 
         consumer.Received += async (_, eventArgs) =>
         {
+            BackgroundJob? job;
+
             try
             {
                 var json =
                     Encoding.UTF8.GetString(
                         eventArgs.Body.ToArray());
 
-                var job =
+                job =
                     JsonSerializer.Deserialize<
                         BackgroundJob>(json);
+            }
+            catch (JsonException ex)
+            {
+                // A message that will never become valid JSON is not worth
+                // retrying - requeuing it loops forever and, with
+                // BasicQos prefetch=1, blocks every other queued job behind
+                // it. Drop it instead of looping.
+                Console.WriteLine(
+                    $"Dropping unparseable job message: {ex.Message}");
 
-                if (job is null)
+                lock (_channelLock)
                 {
                     _channel.BasicNack(
                         eventArgs.DeliveryTag,
                         false,
                         false);
-
-                    return;
                 }
 
-                if (job.CreatedAt != default &&
-                    DateTimeOffset.UtcNow - job.CreatedAt > TimeSpan.FromMinutes(10))
+                return;
+            }
+
+            if (job is null)
+            {
+                lock (_channelLock)
+                {
+                    _channel.BasicNack(
+                        eventArgs.DeliveryTag,
+                        false,
+                        false);
+                }
+
+                return;
+            }
+
+            if (job.CreatedAt != default &&
+                DateTimeOffset.UtcNow - job.CreatedAt > TimeSpan.FromMinutes(10))
+            {
+                Console.WriteLine(
+                    $"Dropping expired job {job.Type} (queued {DateTimeOffset.UtcNow - job.CreatedAt} ago)");
+
+                lock (_channelLock)
                 {
                     _channel.BasicAck(
                         eventArgs.DeliveryTag,
                         false);
-
-                    return;
                 }
 
+                return;
+            }
+
+            try
+            {
                 await handler(job);
 
-                _channel.BasicAck(
-                    eventArgs.DeliveryTag,
-                    false);
+                lock (_channelLock)
+                {
+                    _channel.BasicAck(
+                        eventArgs.DeliveryTag,
+                        false);
+                }
             }
             catch
             {
-                _channel.BasicNack(
-                    eventArgs.DeliveryTag,
-                    false,
-                    true);
+                lock (_channelLock)
+                {
+                    _channel.BasicNack(
+                        eventArgs.DeliveryTag,
+                        false,
+                        true);
+                }
             }
         };
 
-        _channel.BasicConsume(
-            queue: queue,
-            autoAck: false,
-            consumer: consumer);
+        lock (_channelLock)
+        {
+            _channel.BasicConsume(
+                queue: queue,
+                autoAck: false,
+                consumer: consumer);
+        }
     }
 
     public void Dispose()

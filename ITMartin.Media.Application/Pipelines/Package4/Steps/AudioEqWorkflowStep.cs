@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -8,7 +8,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 
 // Rumble cut (handling noise, low-frequency wind rumble) + a presence boost
 // around 3kHz where speech intelligibility lives.
-public sealed class AudioEqWorkflowStep : Package2WorkflowStepBase
+public sealed class AudioEqWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<AudioEqWorkflowStep> _logger;
     public override string Name => nameof(AudioEqWorkflowStep);

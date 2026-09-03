@@ -77,6 +77,13 @@ public sealed class WorkflowQueueConsumerHostedService
                     ex,
                     "Failed processing workflow job {Type}",
                     job.Type);
+
+                // Rethrow so RabbitMqBackgroundJobQueue's catch block sees the
+                // failure and NACKs with requeue instead of this swallowing it
+                // and letting the caller's await return normally - that used
+                // to make every failed job get BasicAck'd as if it had
+                // succeeded, silently dropping it for good on the first error.
+                throw;
             }
         });
 

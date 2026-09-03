@@ -7,7 +7,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Services;
 
 public sealed class Package4WorkflowFactory
 {
-    public Package4WorkflowState Create(Package1Manifest manifest, StartPackage4Request request)
+    public Package4WorkflowState Create(QuickSortManifest manifest, StartPackage4Request request)
     {
         var items = manifest.MediaFiles
             .Where(x => x.ExportedPath is not null && MediaTypeHelper.IsVideo(x.ExportedPath))

@@ -1,6 +1,6 @@
 ﻿using ITMartin.Media.Application.Abstractions.Orchestration;
-using ITMartin.Media.Application.Pipelines.Package1.Models;
-using ITMartin.Media.Application.Pipelines.Package1.Orchestration;
+using ITMartin.Media.Application.Pipelines.QuickSort.Models;
+using ITMartin.Media.Application.Pipelines.QuickSort.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -51,7 +51,7 @@ public sealed class WorkflowRecoveryHostedService
             var workflowDefinition =
                 scope.ServiceProvider
                     .GetRequiredService<
-                        Package1WorkflowDefinition>();
+                        QuickSortWorkflowDefinition>();
 
             var workflowIds =
                 await workflowStore
@@ -74,7 +74,7 @@ public sealed class WorkflowRecoveryHostedService
                 var state =
                     await checkpointStore
                         .LoadLatestCheckpointAsync<
-                            Package1WorkflowState>(
+                            QuickSortWorkflowState>(
                                 workflowId,
                                 stoppingToken);
 
@@ -89,7 +89,7 @@ public sealed class WorkflowRecoveryHostedService
 
                 var context =
                     new WorkflowExecutionContext<
-                        Package1WorkflowState>
+                        QuickSortWorkflowState>
                     {
                         WorkflowId = workflowId,
 

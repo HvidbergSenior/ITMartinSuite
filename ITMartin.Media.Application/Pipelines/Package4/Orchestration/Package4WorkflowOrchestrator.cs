@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Services;
 using ITMartin.Media.Application.Pipelines.Package4.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
@@ -11,12 +11,12 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Orchestration;
 public sealed class Package4WorkflowOrchestrator
 {
     private readonly Package4WorkflowFactory _factory;
-    private readonly Package1ManifestLoader _manifestLoader;
+    private readonly QuickSortManifestLoader _manifestLoader;
     private readonly ILogger<Package4WorkflowOrchestrator> _logger;
 
     public Package4WorkflowOrchestrator(
         Package4WorkflowFactory factory,
-        Package1ManifestLoader manifestLoader,
+        QuickSortManifestLoader manifestLoader,
         ILogger<Package4WorkflowOrchestrator> logger)
     {
         _factory = factory;
@@ -27,31 +27,31 @@ public sealed class Package4WorkflowOrchestrator
     public async Task<Package4WorkflowStartResult> StartAsync(StartPackage4Request request, CancellationToken cancellationToken)
     {
         var manifestPath = Path.Combine(request.SourceLibraryPath, "manifest.json");
-        var hasRunThroughPackage1 = File.Exists(manifestPath);
+        var hasRunThroughQuickSort = File.Exists(manifestPath);
 
         // Package4 is meant to run on clips that already went through
-        // Package1 (manifest.json is Package1's own output marker) - the raw
+        // QuickSort (manifest.json is QuickSort's own output marker) - the raw
         // folder scan below exists for the "one-off clip, never sorted"
         // workflow and still works, but is a degraded/unverified path (no
         // real category/date metadata, no dedup, no rotation-fix), so it's
         // worth a loud warning rather than silently doing the same thing as
         // the verified path. Warning-only, not a hard block, so ad-hoc test
         // folders like Package4 Studio's C:\BertilTest keep working.
-        if (!hasRunThroughPackage1)
+        if (!hasRunThroughQuickSort)
         {
             _logger.LogWarning(
-                "Package4 started against {SourceLibraryPath} with no manifest.json present - this source hasn't been through Package1. " +
-                "Falling back to a raw folder scan (no category/date metadata, no dedup, no rotation-fix). Run Package1 first for a verified input.",
+                "Package4 started against {SourceLibraryPath} with no manifest.json present - this source hasn't been through QuickSort. " +
+                "Falling back to a raw folder scan (no category/date metadata, no dedup, no rotation-fix). Run QuickSort first for a verified input.",
                 request.SourceLibraryPath);
         }
 
-        var manifest = hasRunThroughPackage1
+        var manifest = hasRunThroughQuickSort
             ? await _manifestLoader.LoadAsync(request.SourceLibraryPath, cancellationToken)
             : ScanLibraryFolder(request.SourceLibraryPath);
 
         var state = _factory.Create(manifest, request);
 
-        return new Package4WorkflowStartResult(Guid.NewGuid(), state, hasRunThroughPackage1);
+        return new Package4WorkflowStartResult(Guid.NewGuid(), state, hasRunThroughQuickSort);
     }
 
     private static readonly HashSet<string> SkippedFolders =
@@ -62,12 +62,12 @@ public sealed class Package4WorkflowOrchestrator
             "thumbnails", "working", "enhanced", "checkpoints", "delivery", "manifests", "temp", "smartfolders"
         };
 
-    private static Package1Manifest ScanLibraryFolder(string libraryPath)
+    private static QuickSortManifest ScanLibraryFolder(string libraryPath)
     {
         var files = new List<MediaFile>();
         ScanDirectory(libraryPath, files);
 
-        return new Package1Manifest
+        return new QuickSortManifest
         {
             WorkflowId = Guid.NewGuid(),
             RootPath = libraryPath,

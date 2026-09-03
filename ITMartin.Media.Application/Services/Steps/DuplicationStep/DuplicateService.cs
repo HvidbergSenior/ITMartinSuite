@@ -123,7 +123,7 @@ public sealed class DuplicateService
             cancellationToken.ThrowIfCancellationRequested();
 
             // Perceptual hashing decodes + resizes every image, so this was
-            // by far the slowest part of the whole Package1 pipeline running
+            // by far the slowest part of the whole QuickSort pipeline running
             // one file at a time (9+ hours on a 34K-file library). Hashes
             // are computed in parallel into an index-aligned array so the
             // O(n^2) grouping loop below still sees the exact same file

@@ -290,6 +290,39 @@ namespace ITMartin.Media.Infrastructure.Migrations
                     b.ToTable("ScanSessions");
                 });
 
+            modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.WorkflowAlertEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WorkflowId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WorkflowName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WorkflowAlerts");
+                });
+
             modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.WorkflowCheckpointEntity", b =>
                 {
                     b.Property<Guid>("Id")

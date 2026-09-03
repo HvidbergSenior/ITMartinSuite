@@ -77,7 +77,7 @@ public class LibraryExportService
         const int FlatIfAtMost = GroupTargetSize;
 
         // Explicit lookup, not culture-dependent DateTime formatting ("MMMM"/
-        // "MMM") - Package1 historically produced English month names
+        // "MMM") - QuickSort historically produced English month names
         // regardless of the runtime's culture/globalization settings (see
         // Gallery.Server's own DanishMonthNames translation table, which
         // exists specifically because of that), and this needs to be Danish

@@ -1,0 +1,430 @@
+@page "/faceindex-studio"
+@implements IDisposable
+
+@using System.Diagnostics
+@using System.Globalization
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+
+@inject ILibraryPathProvider LibraryPathProvider
+
+<PageTitle>FaceIndex Studio</PageTitle>
+
+<div class="p3-page">
+    <div class="p3-header">
+        <h1>🔧 FaceIndex Studio</h1>
+        <div class="p3-sub">Manuel oprydning — de filer QuickSort's automatik ikke selv kunne løse (forkert/manglende dato, forkert rotation, junk-mapper)</div>
+    </div>
+
+    <div class="p3-card">
+        <label class="p3-label">Mappe (relativ til library root @LibraryPathProvider.LibraryRoot, eller en fuld sti som C:\...)</label>
+        <div class="p3-row">
+            <input class="p3-input" @bind="_browseFolder" placeholder="Billeder\2025\Ukendt måned" />
+            <button type="button" class="p3-btn" @onclick="RefreshFiles">Opdater</button>
+        </div>
+
+        @if (_browseError is not null)
+        {
+            <div class="p3-error">@_browseError</div>
+        }
+
+        @if (_files.Count > 0)
+        {
+            <div class="p3-bulk-row">
+                <span class="p3-sub">@_files.Count fil(er) i denne mappe</span>
+                @if (_pendingBulkDelete)
+                {
+                    <span class="p3-file-confirm">
+                        Slet ALLE @_files.Count filer permanent?
+                        <button type="button" class="p3-btn-tiny p3-btn-danger" @onclick="BulkDeleteAsync">Ja, slet alle</button>
+                        <button type="button" class="p3-btn-tiny" @onclick="() => _pendingBulkDelete = false">Nej</button>
+                    </span>
+                }
+                else
+                {
+                    <button type="button" class="p3-btn-tiny p3-btn-danger" @onclick="() => _pendingBulkDelete = true">🗑 Slet alle i denne mappe</button>
+                }
+            </div>
+        }
+
+        <div class="p3-file-list">
+            @foreach (var f in _files)
+            {
+                <div class="p3-file-row @(f == _selectedFile ? "selected" : "")">
+                    <span class="p3-file-name" @onclick="() => SelectFile(f)">
+                        @(IsVideo(f) ? "🎞" : "🖼") @Path.GetFileName(f)
+                    </span>
+                    <span class="p3-file-size">@FormatSize(new FileInfo(f).Length)</span>
+                    @if (_pendingDelete == f)
+                    {
+                        <span class="p3-file-confirm">
+                            Slet permanent?
+                            <button type="button" class="p3-btn-tiny p3-btn-danger" @onclick="() => DeleteFile(f)">Ja</button>
+                            <button type="button" class="p3-btn-tiny" @onclick="() => _pendingDelete = null">Nej</button>
+                        </span>
+                    }
+                    else
+                    {
+                        <button type="button" class="p3-btn-tiny p3-btn-danger" @onclick="() => _pendingDelete = f">🗑</button>
+                    }
+                </div>
+            }
+            @if (_files.Count == 0)
+            {
+                <div class="p3-empty">Ingen filer fundet endnu — klik "Opdater".</div>
+            }
+        </div>
+        @if (_deleteError is not null)
+        {
+            <div class="p3-error">@_deleteError</div>
+        }
+
+        @if (_selectedFile is not null)
+        {
+            <div class="p3-preview">
+                <div class="p3-label">@Path.GetFileName(_selectedFile)</div>
+                @if (IsVideo(_selectedFile))
+                {
+                    <video controls preload="metadata" class="p3-media" src="@ToLibraryUrl(_selectedFile)"></video>
+                }
+                else
+                {
+                    <img class="p3-media" src="@ToLibraryUrl(_selectedFile)" alt="" />
+                }
+
+                <div class="p3-section-label">📅 Flyt til dato (Ukendt måned / ingen dato)</div>
+                <div class="p3-row">
+                    <div class="p3-field">
+                        <label class="p3-label">År</label>
+                        <input class="p3-input-sm" type="number" @bind="_moveYear" />
+                    </div>
+                    <div class="p3-field">
+                        <label class="p3-label">Måned</label>
+                        <select class="p3-input-sm" @bind="_moveMonth">
+                            @for (var m = 1; m <= 12; m++)
+                            {
+                                <option value="@m">@m</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="button" class="p3-btn-start" @onclick="MoveToDateAsync" disabled="@_moving">
+                        @(_moving ? "Flytter..." : "📅 Flyt hertil")
+                    </button>
+                </div>
+                @if (_moveError is not null)
+                {
+                    <div class="p3-error">@_moveError</div>
+                }
+                @if (_moveResult is not null)
+                {
+                    <div class="p3-success">Flyttet til: @_moveResult</div>
+                }
+
+                @if (!IsVideo(_selectedFile))
+                {
+                    <div class="p3-section-label">🔄 Rotér</div>
+                    <div class="p3-row">
+                        <button type="button" class="p3-btn" @onclick="() => RotateAsync(90)" disabled="@_rotating">90° højre</button>
+                        <button type="button" class="p3-btn" @onclick="() => RotateAsync(180)" disabled="@_rotating">180°</button>
+                        <button type="button" class="p3-btn" @onclick="() => RotateAsync(270)" disabled="@_rotating">90° venstre</button>
+                    </div>
+                    @if (_rotateError is not null)
+                    {
+                        <div class="p3-error">@_rotateError</div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .p3-page { max-width: 900px; margin: 0 auto; padding: 20px 16px 64px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .p3-header h1 { font-size: 24px; margin-bottom: 4px; }
+    .p3-sub { color: #888; font-size: 14px; }
+    .p3-card { background: #161825; border: 1px solid #262a40; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    .p3-label { font-size: 12px; font-weight: 700; letter-spacing: .5px; color: #9CA3AF; margin-top: 6px; }
+    .p3-section-label { font-size: 13px; font-weight: 700; color: #818CF8; margin-top: 14px; border-top: 1px solid #262a40; padding-top: 12px; }
+    .p3-input, .p3-input-sm { background: #0F1117; border: 1px solid #262a40; border-radius: 6px; color: #F0F0F0; padding: 8px 10px; font-size: 14px; }
+    .p3-input { width: 100%; }
+    .p3-input-sm { width: 100px; }
+    .p3-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .p3-field { display: flex; flex-direction: column; gap: 4px; }
+    .p3-btn, .p3-btn-start { background: #262a40; border: 1px solid #3a3f5c; color: #fff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .p3-btn-start { background: #4338CA; border-color: #4338CA; font-weight: 600; }
+    .p3-btn-start:disabled, .p3-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .p3-bulk-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .p3-file-list { max-height: 260px; overflow-y: auto; border: 1px solid #262a40; border-radius: 6px; }
+    .p3-file-row { padding: 8px 10px; border-bottom: 1px solid #1e2030; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+    .p3-file-row:hover { background: #1e2030; }
+    .p3-file-row.selected { background: #1E1B4B; color: #A5B4FC; }
+    .p3-file-name { cursor: pointer; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .p3-file-size { color: #6B7280; font-size: 11px; flex-shrink: 0; }
+    .p3-file-confirm { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #F87171; flex-shrink: 0; }
+    .p3-btn-tiny { background: #262a40; border: 1px solid #3a3f5c; color: #fff; padding: 3px 8px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+    .p3-btn-danger { border-color: #7F1D1D; color: #F87171; }
+    .p3-btn-danger:hover { background: #7F1D1D; color: #fff; }
+    .p3-empty { padding: 16px; text-align: center; color: #6B7280; font-size: 13px; }
+    .p3-preview { margin-top: 12px; }
+    .p3-media { width: 100%; max-height: 480px; background: #000; border-radius: 8px; }
+    .p3-error { color: #F87171; font-size: 13px; margin-top: 6px; }
+    .p3-success { color: #4ADE80; font-size: 13px; margin-top: 6px; }
+</style>
+
+@code {
+    private string _browseFolder = "";
+    private List<string> _files = [];
+    private string? _selectedFile;
+    private string? _browseError;
+    private string? _deleteError;
+    private string? _pendingDelete;
+    private bool _pendingBulkDelete;
+
+    private int _moveYear = DateTime.Now.Year;
+    private int _moveMonth = DateTime.Now.Month;
+    private bool _moving;
+    private string? _moveError;
+    private string? _moveResult;
+
+    private bool _rotating;
+    private string? _rotateError;
+
+    private readonly string _ffmpegPath = OperatingSystem.IsWindows()
+        ? Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe")
+        : "ffmpeg";
+
+    private static readonly string[] KnownCategories =
+        ["Billeder", "Videoer", "Skærmbilleder", "Dokumenter", "Musik", "Chat", "Memes", "LivePhotos", "Duplikater", "Ikke_identificeret"];
+
+    private void RefreshFiles()
+    {
+        _browseError = null;
+        try
+        {
+            var trimmed = _browseFolder?.Trim() ?? string.Empty;
+            var folder = Path.IsPathRooted(trimmed)
+                ? trimmed
+                : Path.Combine(LibraryPathProvider.LibraryRoot, trimmed);
+            if (!Directory.Exists(folder))
+            {
+                _browseError = $"Mappe findes ikke: {folder}";
+                _files = [];
+                return;
+            }
+
+            _files = Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
+                .Where(f => IsVideo(f) || IsImage(f))
+                .OrderBy(f => f)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _browseError = ex.Message;
+        }
+    }
+
+    private void SelectFile(string file)
+    {
+        _selectedFile = file;
+        _moveResult = null;
+        _moveError = null;
+        _rotateError = null;
+    }
+
+    private void DeleteFile(string file)
+    {
+        _deleteError = null;
+        try
+        {
+            File.Delete(file);
+            _files.Remove(file);
+            if (_selectedFile == file) _selectedFile = null;
+        }
+        catch (Exception ex)
+        {
+            _deleteError = ex.Message;
+        }
+        finally
+        {
+            _pendingDelete = null;
+        }
+    }
+
+    private async Task BulkDeleteAsync()
+    {
+        _deleteError = null;
+        try
+        {
+            foreach (var f in _files.ToList())
+            {
+                File.Delete(f);
+                await Task.Yield();
+            }
+            _files.Clear();
+            _selectedFile = null;
+        }
+        catch (Exception ex)
+        {
+            _deleteError = ex.Message;
+        }
+        finally
+        {
+            _pendingBulkDelete = false;
+        }
+    }
+
+    // Finds the nearest known category ancestor (Billeder, Videoer, ...) in
+    // the selected file's path - that's the anchor "Move to date" rebuilds
+    // the Year/MM-Month path under, matching LibraryExportService's own
+    // convention exactly so a manually-moved file looks identical to one
+    // QuickSort would have placed there itself.
+    private static string? FindCategoryRoot(string filePath)
+    {
+        var dir = Path.GetDirectoryName(filePath);
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var name = Path.GetFileName(dir);
+            if (KnownCategories.Contains(name, StringComparer.OrdinalIgnoreCase))
+                return dir;
+            dir = Path.GetDirectoryName(dir);
+        }
+        return null;
+    }
+
+    private async Task MoveToDateAsync()
+    {
+        _moveError = null;
+        _moveResult = null;
+        if (_selectedFile is null) return;
+
+        var categoryRoot = FindCategoryRoot(_selectedFile);
+        if (categoryRoot is null)
+        {
+            _moveError = "Kunne ikke finde en kendt kategori-mappe (Billeder/Videoer/...) i stien - kan ikke udlede hvor filen skal flyttes hen.";
+            return;
+        }
+
+        _moving = true;
+        StateHasChanged();
+
+        try
+        {
+            var safeMonth = Math.Clamp(_moveMonth, 1, 12);
+            var safeYear = Math.Max(_moveYear, 2000);
+
+            // Same "{MM}-{MonthName}" convention LibraryExportService uses,
+            // so a manually-dated file is indistinguishable from one
+            // QuickSort placed itself.
+            var monthFolder = $"{safeMonth:00}-{new DateTime(safeYear, safeMonth, 1).ToString("MMMM", CultureInfo.CurrentCulture)}";
+            var targetDir = Path.Combine(categoryRoot, safeYear.ToString(), monthFolder);
+            Directory.CreateDirectory(targetDir);
+
+            var targetPath = Path.Combine(targetDir, Path.GetFileName(_selectedFile));
+            if (File.Exists(targetPath))
+            {
+                _moveError = $"Der findes allerede en fil med samme navn i målmappen: {targetPath}";
+                return;
+            }
+
+            File.Move(_selectedFile, targetPath);
+            _files.Remove(_selectedFile);
+            _moveResult = targetPath;
+            _selectedFile = null;
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            _moveError = ex.Message;
+        }
+        finally
+        {
+            _moving = false;
+        }
+    }
+
+    private async Task RotateAsync(int degrees)
+    {
+        _rotateError = null;
+        if (_selectedFile is null) return;
+
+        _rotating = true;
+        StateHasChanged();
+
+        try
+        {
+            var transpose = degrees switch
+            {
+                90 => "transpose=1",
+                270 => "transpose=2",
+                180 => "transpose=1,transpose=1",
+                _ => "transpose=1"
+            };
+
+            var tempPath = _selectedFile + ".rotating.jpg";
+            var arguments = $"-y -i \"{_selectedFile}\" -vf \"{transpose}\" \"{tempPath}\"";
+
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = _ffmpegPath,
+                    Arguments = arguments,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            var stderr = await stderrTask;
+
+            if (process.ExitCode != 0 || !File.Exists(tempPath))
+            {
+                _rotateError = $"ffmpeg fejlede: {stderr}";
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+                return;
+            }
+
+            File.Delete(_selectedFile);
+            File.Move(tempPath, _selectedFile);
+        }
+        catch (Exception ex)
+        {
+            _rotateError = ex.Message;
+        }
+        finally
+        {
+            _rotating = false;
+        }
+    }
+
+    private static bool IsVideo(string path) =>
+        path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".mov", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".avi", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".wmv", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsImage(string path) =>
+        path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".heic", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatSize(long bytes) =>
+        bytes > 1_000_000 ? $"{bytes / 1_000_000.0:F1} MB" : $"{bytes / 1024.0:F0} KB";
+
+    private string ToLibraryUrl(string absolutePath)
+    {
+        var relative = Path.GetRelativePath(LibraryPathProvider.LibraryRoot, absolutePath);
+        if (relative.StartsWith("..") || Path.IsPathRooted(relative))
+        {
+            return $"/localfile?path={Uri.EscapeDataString(absolutePath)}";
+        }
+        return $"/libraryfiles/{Uri.EscapeDataString(relative.Replace('\\', '/')).Replace("%2F", "/")}";
+    }
+
+    public void Dispose() { }
+}

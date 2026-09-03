@@ -8,7 +8,7 @@ using SixLabors.ImageSharp.PixelFormats;
 namespace ITMartinFileSorter.Tests.Services.ImageConverterServiceTests;
 
 // Covers the bug found and fixed 2026-08-24: RotationIsCorrect used to be
-// hardcoded false for every image because Package1 never checked whether it
+// hardcoded false for every image because QuickSort never checked whether it
 // already knew the answer. TryGetSourceOrientation is the cheap, decode-free
 // EXIF read that makes "known vs unknown" answerable - these tests verify it
 // against synthetic JPEGs with a real EXIF Orientation tag written in.

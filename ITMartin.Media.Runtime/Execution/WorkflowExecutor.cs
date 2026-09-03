@@ -10,6 +10,7 @@ public sealed class WorkflowExecutor(
     IWorkflowCheckpointStore workflowCheckpointStore,
     IWorkflowStepExecutionStore workflowStepExecutionStore,
     IWorkflowInstanceStore workflowInstanceStore,
+    IWorkflowAlertNotifier workflowAlertNotifier,
     ILogger<WorkflowExecutor> logger)
     : IWorkflowExecutor
 {
@@ -143,6 +144,15 @@ public sealed class WorkflowExecutor(
                         ex.Message,
                         cancellationToken);
 
+                // Alerting must never mask the real failure - CancellationToken.None
+                // so a caller-cancelled token (e.g. app shutdown) doesn't also
+                // swallow this best-effort notification silently mid-throw.
+                await workflowAlertNotifier.NotifyFailedAsync(
+                    workflowId,
+                    workflow.Name,
+                    ex.Message,
+                    CancellationToken.None);
+
                 logger.LogError(
                     ex,
                     """
@@ -165,6 +175,12 @@ public sealed class WorkflowExecutor(
             .MarkCompletedAsync(
                 workflowId,
                 cancellationToken);
+
+        await workflowAlertNotifier.NotifyCompletedAsync(
+            workflowId,
+            workflow.Name,
+            workflowStopwatch.Elapsed,
+            CancellationToken.None);
 
         logger.LogInformation(
             """

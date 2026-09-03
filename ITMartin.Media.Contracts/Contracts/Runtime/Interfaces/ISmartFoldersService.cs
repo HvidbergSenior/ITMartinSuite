@@ -18,7 +18,7 @@ public interface ISmartFoldersService
 
     /// <summary>
     /// Builds a folder of every photo matching an already-defined person (reuses
-    /// IPackage3Service's face matching). Returns null if the person has no
+    /// IFaceIndexService's face matching). Returns null if the person has no
     /// reference photos or no matches were found.
     /// </summary>
     Task<PersonFolderResult?> GeneratePersonFolderAsync(string libraryPath, Guid personId, double threshold = 0.45, CancellationToken cancellationToken = default);
@@ -82,7 +82,7 @@ public interface ISmartFoldersService
     /// person 2", ...) so a customer can browse "these look like the same
     /// person" in their leftover pile even before anyone's tagged a real name.
     /// Groups under 3 photos are dropped as likely noise, same floor as
-    /// IPackage3Service.DiscoverUnnamedPeopleAsync, which this reuses.
+    /// IFaceIndexService.DiscoverUnnamedPeopleAsync, which this reuses.
     /// </summary>
     Task<List<PersonFolderResult>> GenerateUnknownPersonFoldersAsync(string libraryPath, double threshold = 0.5, CancellationToken cancellationToken = default);
 

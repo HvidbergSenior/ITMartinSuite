@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -9,7 +9,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 // Fixes brightness flicker from indoor artificial lighting (fluorescent/LED
 // mains-frequency beat against the phone's rolling shutter) - common in
 // indoor phone footage, rare outdoors.
-public sealed class DeflickerWorkflowStep : Package2WorkflowStepBase
+public sealed class DeflickerWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<DeflickerWorkflowStep> _logger;
     public override string Name => nameof(DeflickerWorkflowStep);

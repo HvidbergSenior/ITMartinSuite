@@ -1,0 +1,326 @@
+@page "/faceindex"
+
+@using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
+@using ITMartin.Media.Contracts.Contracts.Runtime.Models
+
+@implements IDisposable
+
+@inject IFaceIndexService FaceIndexService
+@inject IServiceScopeFactory ScopeFactory
+@inject IConfiguration Configuration
+@inject ILogger<FaceIndex> Logger
+
+<PageLayout Title="🔎 FaceIndex — Søgning &amp; Personer">
+
+    <div class="filesorter-app">
+
+        <ContentCard Title="Biblioteksmappe">
+
+            <div class="p2-field mt-3">
+                <div class="p2-label">Biblioteksmappe</div>
+                <input class="p2-input" @bind="LibraryPath" disabled="@IsFaceIndexing" placeholder="/library/mie" />
+            </div>
+
+        </ContentCard>
+
+        <ContentCard Title="🆓 Ansigtsindeks — gratis, kører lokalt, ingen API-omkostning">
+
+            <p class="hero-text">
+                Udtrækker ansigtsdata med lokale ONNX-modeller — ingen API-kald, ingen omkostning, nogensinde.
+                Driver personsøgningen nedenfor. Allerede indekserede filer springes over ved genkørsel.
+            </p>
+
+            @if (!string.IsNullOrWhiteSpace(FaceIndexError))
+            {
+                <div class="text-danger mt-3">@FaceIndexError</div>
+            }
+
+            <div class="mt-3">
+                <button class="btn btn-primary btn-lg"
+                        @onclick="StartFaceIndexing"
+                        disabled="@(IsFaceIndexing || string.IsNullOrWhiteSpace(LibraryPath))">
+                    🧑 Start ansigtsindeksering
+                </button>
+            </div>
+
+            @if (FaceStatus is not null)
+            {
+                <div class="mt-3">
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Status</span>
+                        <span class="p2-config-val">@FaceStatus.Status</span>
+                    </div>
+                    <div class="p2-config-row">
+                        <span class="p2-config-key">Fremgang</span>
+                        <span class="p2-config-val">@FaceStatus.ProcessedFiles / @FaceStatus.TotalFiles</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(FaceStatus.CurrentFile))
+                    {
+                        <div class="p2-config-row">
+                            <span class="p2-config-key">Nuværende fil</span>
+                            <span class="p2-config-val">@System.IO.Path.GetFileName(FaceStatus.CurrentFile)</span>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(FaceStatus.ErrorMessage))
+                    {
+                        <div class="text-danger mt-2">@FaceStatus.ErrorMessage</div>
+                    }
+                </div>
+            }
+
+        </ContentCard>
+
+        <ContentCard Title="Personer">
+
+            <p class="hero-text">
+                Tilføj en person med ét eller flere referencebilleder af dem, og søg derefter biblioteket for deres ansigt.
+                Flere referencebilleder (forskellige vinkler, aldre, lys) giver bedre match.
+            </p>
+
+            <div class="p2-field mt-3">
+                <div class="p2-label">Navn</div>
+                <input class="p2-input" @bind="NewPersonName" placeholder="Jakob" />
+            </div>
+
+            <div class="p2-field mt-3">
+                <div class="p2-label">Referencebilleder</div>
+                <InputFile OnChange="OnReferencePhotosSelected" multiple accept="image/*" />
+                @if (NewPersonFiles.Count > 0)
+                {
+                    <div class="p2-hint">@NewPersonFiles.Count billede(r) valgt</div>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(PersonError))
+            {
+                <div class="text-danger mt-2">@PersonError</div>
+            }
+
+            <div class="mt-3">
+                <button class="btn btn-primary"
+                        @onclick="AddPerson"
+                        disabled="@(IsAddingPerson || string.IsNullOrWhiteSpace(NewPersonName) || NewPersonFiles.Count == 0)">
+                    ➕ Tilføj person
+                </button>
+            </div>
+
+            <div class="p3-people-list mt-4">
+                @foreach (var person in People)
+                {
+                    <div class="p3-person-row">
+
+                        <div class="p3-person-header">
+                            <span class="p3-person-name">@person.Name</span>
+                            <span class="p2-hint">@person.ReferencePhotoCount referencebillede(r)</span>
+                            <button class="btn btn-secondary" @onclick="() => FindMatches(person)" disabled="@(SearchingPersonId == person.Id)">
+                                🔎 Find match
+                            </button>
+                            <button class="btn btn-danger" @onclick="() => DeletePerson(person)">🗑</button>
+                        </div>
+
+                        @if (ActivePersonId == person.Id)
+                        {
+                            @if (CurrentMatches.Count == 0)
+                            {
+                                <div class="hero-text mt-2">Ingen match fundet endnu.</div>
+                            }
+                            else
+                            {
+                                <div class="p3-results-grid mt-2">
+                                    @foreach (var match in CurrentMatches)
+                                    {
+                                        <div class="p3-result-card">
+                                            <img class="p3-thumb" src="@ToWebPath(match.MediaFilePath)" loading="lazy" />
+                                            <div class="p2-hint">@((int)(match.Confidence * 100))% match</div>
+                                            <label class="p3-confirm-label">
+                                                <input type="checkbox" checked="@SelectedMatches.Contains(match.MediaFilePath)"
+                                                       @onchange="@(e => ToggleMatch(match.MediaFilePath, (bool)e.Value!))" />
+                                                Bekræft
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="mt-3">
+                                    <button class="btn btn-primary" @onclick="() => SaveConfirmed(person)" disabled="@(SelectedMatches.Count == 0)">
+                                        💾 Gem "@person.Name" (@SelectedMatches.Count valgt)
+                                    </button>
+                                </div>
+                            }
+                        }
+
+                    </div>
+                }
+            </div>
+
+        </ContentCard>
+
+    </div>
+
+</PageLayout>
+
+@code {
+
+    private string LibraryPath = "";
+    private bool IsFaceIndexing;
+    private string FaceIndexError = "";
+    private FaceIndexIndexStatus? FaceStatus;
+    private System.Threading.Timer? _pollTimer;
+
+    private string NewPersonName = "";
+    private List<IBrowserFile> NewPersonFiles = [];
+    private bool IsAddingPerson;
+    private string PersonError = "";
+    private List<PersonDto> People = [];
+
+    private Guid? ActivePersonId;
+    private Guid? SearchingPersonId;
+    private List<PersonMatchResult> CurrentMatches = [];
+    private HashSet<string> SelectedMatches = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        LibraryPath = Configuration["MediaSettings:LibraryRoot"] ?? "";
+        await RefreshPeople();
+        await RefreshStatus();
+
+        _pollTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await RefreshStatus();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    public void Dispose()
+    {
+        _pollTimer?.Dispose();
+    }
+
+    private async Task RefreshStatus()
+    {
+        if (string.IsNullOrWhiteSpace(LibraryPath)) return;
+        FaceStatus = await FaceIndexService.GetIndexStatusAsync(LibraryPath, FaceIndexIndexType.Faces);
+        IsFaceIndexing = FaceStatus?.Status == "Running";
+    }
+
+    private async Task RefreshPeople()
+    {
+        People = await FaceIndexService.GetPeopleAsync();
+    }
+
+    private async Task StartFaceIndexing()
+    {
+        FaceIndexError = "";
+
+        if (string.IsNullOrWhiteSpace(LibraryPath) || !Directory.Exists(LibraryPath))
+        {
+            FaceIndexError = "Den mappe findes ikke.";
+            return;
+        }
+
+        IsFaceIndexing = true;
+        var path = LibraryPath;
+
+        // Own DI scope, independent of this Blazor circuit's lifetime - if the
+        // user navigates away or closes the tab, indexing keeps running.
+        _ = Task.Run(async () =>
+        {
+            using var scope = ScopeFactory.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<IFaceIndexService>();
+            try
+            {
+                await service.IndexFacesAsync(path);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "FaceIndex face indexing failed for {Path}", path);
+            }
+        });
+
+        await RefreshStatus();
+    }
+
+    private void OnReferencePhotosSelected(InputFileChangeEventArgs e)
+    {
+        NewPersonFiles = e.GetMultipleFiles(20).ToList();
+    }
+
+    private async Task AddPerson()
+    {
+        PersonError = "";
+        IsAddingPerson = true;
+
+        try
+        {
+            var inputs = new List<ReferencePhotoInput>();
+            foreach (var file in NewPersonFiles)
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                inputs.Add(new ReferencePhotoInput(file.Name, ms.ToArray()));
+            }
+
+            await FaceIndexService.AddPersonAsync(NewPersonName, inputs, LibraryPath);
+
+            NewPersonName = "";
+            NewPersonFiles = [];
+            await RefreshPeople();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to add person");
+            PersonError = ex.Message;
+        }
+        finally
+        {
+            IsAddingPerson = false;
+        }
+    }
+
+    private async Task DeletePerson(PersonDto person)
+    {
+        await FaceIndexService.DeletePersonAsync(person.Id);
+        if (ActivePersonId == person.Id) ActivePersonId = null;
+        await RefreshPeople();
+    }
+
+    private async Task FindMatches(PersonDto person)
+    {
+        SearchingPersonId = person.Id;
+        ActivePersonId = person.Id;
+        SelectedMatches = [];
+
+        try
+        {
+            CurrentMatches = await FaceIndexService.FindMatchesAsync(person.Id);
+            SelectedMatches = CurrentMatches.Where(m => m.UserConfirmed).Select(m => m.MediaFilePath).ToHashSet();
+        }
+        finally
+        {
+            SearchingPersonId = null;
+        }
+    }
+
+    private void ToggleMatch(string path, bool isSelected)
+    {
+        if (isSelected) SelectedMatches.Add(path);
+        else SelectedMatches.Remove(path);
+    }
+
+    private async Task SaveConfirmed(PersonDto person)
+    {
+        await FaceIndexService.ConfirmMatchesAsync(person.Id, SelectedMatches.ToList(), LibraryPath);
+        await FindMatches(person);
+    }
+
+    private string ToWebPath(string absolutePath)
+    {
+        if (string.IsNullOrWhiteSpace(LibraryPath)) return "";
+        var relative = Path.GetRelativePath(LibraryPath, absolutePath).Replace('\\', '/');
+        return $"/libraryfiles/{relative}";
+    }
+}

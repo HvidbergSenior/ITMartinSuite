@@ -44,6 +44,9 @@ public sealed class MediaDbContext
     public DbSet<PushSubscriptionEntity> PushSubscriptions
         => Set<PushSubscriptionEntity>();
 
+    public DbSet<WorkflowAlertEntity> WorkflowAlerts
+        => Set<WorkflowAlertEntity>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {

@@ -1,6 +1,8 @@
 
 using ITMartin.Ai;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure.DependencyInjection;
+using ITMartin.Media.Infrastructure.Persistence.Stores;
 using ITMartinFileSorter.Server;
 using ITMartinFileSorter.Server.Services;
 using Microsoft.AspNetCore.Components;
@@ -60,8 +62,10 @@ builder.Services.AddMediaInfrastructureCore(builder.Configuration);
 builder.Services.AddFileSorterCore();
 builder.Services.AddFileSorterServer();
 builder.Services.AddAi();
-builder.Services.AddSingleton<ToastService>();
+builder.Services.AddScoped<ToastService>();
 builder.Services.AddSingleton<FileSorterPushService>();
+builder.Services.AddScoped<IWorkflowAlertNotifier, DbWorkflowAlertNotifier>();
+builder.Services.AddHostedService<WorkflowAlertPushHostedService>();
 
 // =========================
 // SIGNALR (after Core so SignalR publisher overrides the null default)
@@ -217,7 +221,7 @@ if (!string.IsNullOrWhiteSpace(sourcePath) &&
         });
 }
 
-// Package4 Studio can browse folders outside the library/source roots (e.g. a
+// FaceIndex Studio can browse folders outside the library/source roots (e.g. a
 // standalone test folder like C:\BertilTest) - /libraryfiles and /sourcefiles
 // only cover their own configured roots, so this serves an absolute path directly.
 app.MapGet(
@@ -256,9 +260,9 @@ app.MapPost("/api/push/unsubscribe", async (PushUnsubscribeRequest req, FileSort
 });
 
 // TEMP DEBUG - driving the Google Drive Takeout multi-batch job, removed after
-app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage1Client client, bool enableDeduplication = true, bool enableBaselineSnapshot = true) =>
+app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IQuickSortClient client, bool enableDeduplication = true, bool enableBaselineSnapshot = true) =>
 {
-    var workflowId = await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1.StartPackage1Request
+    var workflowId = await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.QuickSort.StartQuickSortRequest
     {
         SourceLibraryPath = source,
         WorkingDirectory = System.IO.Path.Combine(source, ".package1"),
@@ -267,38 +271,38 @@ app.MapPost("/api/debug/p1-start", async (string source, string output, ITMartin
         EnableBaselineSnapshot = enableBaselineSnapshot,
         EnableAiClassification = false,
         EnableOcr = false,
-        Profile = "Package1"
+        Profile = "QuickSort"
     }, CancellationToken.None);
     return Results.Ok(new { workflowId });
 });
 
-// TEMP DEBUG - reset a library back to right after Package1's own export,
-// before any Package3/add-on step touched it (see Package1BaselineHelper) -
+// TEMP DEBUG - reset a library back to right after QuickSort's own export,
+// before any FaceIndex/add-on step touched it (see QuickSortBaselineHelper) -
 // undoes anything an add-on run has done since, so add-ons can always be
 // experimented with, or re-run cleanly, without re-sorting from source.
 app.MapPost("/api/debug/p1-restore-baseline", async (string path) =>
 {
-    var baselinePath = ITMartin.Media.Contracts.Contracts.Runtime.Helpers.Package1BaselineHelper.GetBaselinePath(path);
+    var baselinePath = ITMartin.Media.Contracts.Contracts.Runtime.Helpers.QuickSortBaselineHelper.GetBaselinePath(path);
     if (!Directory.Exists(baselinePath))
         return Results.NotFound($"No baseline found at {baselinePath} - baseline is created automatically by the first p1-start run against this library.");
 
-    await ITMartin.Media.Contracts.Contracts.Runtime.Helpers.Package1BaselineHelper.MirrorDirectoryAsync(baselinePath, path, CancellationToken.None);
+    await ITMartin.Media.Contracts.Contracts.Runtime.Helpers.QuickSortBaselineHelper.MirrorDirectoryAsync(baselinePath, path, CancellationToken.None);
     return Results.Ok(new { restoredFrom = baselinePath });
 });
 
 // TEMP DEBUG - polling a p1-start run's progress, removed after.
 // Note: p1-start's returned "workflowId" is the background-job queue message
-// id, generated in Package1Client.StartAsync BEFORE the job is even
+// id, generated in QuickSortClient.StartAsync BEFORE the job is even
 // dequeued - it is NOT the same id IScanOrchestrator.StartAsync mints inside
-// StartPackage1Handler for actual WorkflowInstances tracking (Package1WorkflowState
+// StartQuickSortHandler for actual WorkflowInstances tracking (QuickSortWorkflowState
 // carries no id field to connect the two). Rather than plumb an id through the
 // whole queue/orchestrator path just for a debug endpoint, this just returns
-// the most recently started Package1 run - fine for one-at-a-time local/test use.
+// the most recently started QuickSort run - fine for one-at-a-time local/test use.
 app.MapGet("/api/debug/p1-status", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
 {
     await using var db = await dbFactory.CreateDbContextAsync();
     var instance = await db.WorkflowInstances
-        .Where(x => x.WorkflowName == "Package1Workflow")
+        .Where(x => x.WorkflowName == "QuickSortWorkflow")
         .OrderByDescending(x => x.StartedAtUtc)
         .FirstOrDefaultAsync();
     return instance is null
@@ -315,70 +319,41 @@ app.MapGet("/api/debug/p1-status", async (Microsoft.EntityFrameworkCore.IDbConte
         });
 });
 
-// TEMP DEBUG - Package4 (social/vlog clip enhancement). source is scanned
-// directly for video files (no manifest.json needed for a one-off clip
-// folder); workingDirectory holds working/checkpoints/delivery subfolders.
-app.MapPost("/api/debug/p4-start", async (
-    string source,
-    string workingDirectory,
-    ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Client client,
-    bool enableStabilization = false,
-    double trimStartSeconds = 0,
-    double? trimEndSeconds = null) =>
-{
-    var workflowId = await client.StartAsync(new ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package4.StartPackage4Request
-    {
-        SourceLibraryPath = source,
-        WorkingDirectory = workingDirectory,
-        EnableStabilization = enableStabilization,
-        TrimStartSeconds = trimStartSeconds,
-        TrimEndSeconds = trimEndSeconds
-    }, CancellationToken.None);
-    return Results.Ok(new { workflowId });
-});
+// Package4's video-enhancement client (social/vlog clip editing) belongs to
+// ITMartinVlog.Server, which has its own proper service layer around this
+// pipeline (VlogEditorService/VlogFfmpegService) - FileSorter never had a
+// real use for it. The p4-start/p4-status debug endpoints that used to live
+// here were leftover scaffolding from before that separation, removed.
 
-app.MapGet("/api/debug/p4-status", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
-{
-    await using var db = await dbFactory.CreateDbContextAsync();
-    var instance = await db.WorkflowInstances
-        .Where(x => x.WorkflowName == "Package4Workflow")
-        .OrderByDescending(x => x.StartedAtUtc)
-        .FirstOrDefaultAsync();
-    return instance is null
-        ? Results.NotFound()
-        : Results.Ok(new
-        {
-            instance.Status,
-            instance.CurrentStep,
-            instance.ProgressCurrent,
-            instance.ProgressTotal,
-            instance.ProgressItem,
-            instance.FailureReason,
-            instance.CompletedAtUtc
-        });
-});
-
-// TEMP DEBUG - testing Package3 face indexing end-to-end, removed after
+// TEMP DEBUG - testing FaceIndex face indexing end-to-end, removed after
 app.MapPost("/api/debug/p3-index-faces", (string path, IServiceScopeFactory scopeFactory) =>
 {
     // Own DI scope, independent of this HTTP request's lifetime - same pattern
-    // Package3.razor uses, so the scoped DbContext factory survives the request.
+    // FaceIndex.razor uses, so the scoped DbContext factory survives the request.
     _ = Task.Run(async () =>
     {
         using var scope = scopeFactory.CreateScope();
-        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service>();
-        await service.IndexFacesAsync(path);
+        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        try
+        {
+            await service.IndexFacesAsync(path);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Face indexing failed for {Path}", path);
+        }
     });
     return Results.Ok("started");
 });
-app.MapGet("/api/debug/p3-status", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapGet("/api/debug/p3-status", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
-    var status = await service.GetIndexStatusAsync(path, ITMartin.Media.Contracts.Contracts.Runtime.Models.Package3IndexType.Faces);
+    var status = await service.GetIndexStatusAsync(path, ITMartin.Media.Contracts.Contracts.Runtime.Models.FaceIndexIndexType.Faces);
     return Results.Ok(status);
 });
 
 // TEMP DEBUG - onboarding a new tenant's unnamed people, removed after
-app.MapGet("/api/debug/p3-discover-clusters", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+app.MapGet("/api/debug/p3-discover-clusters", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
 {
     var clusters = await service.DiscoverUnnamedPeopleAsync(path);
 
@@ -403,7 +378,7 @@ app.MapGet("/api/debug/p3-discover-clusters", async (string path, ITMartin.Media
     return Results.Ok(result);
 });
 
-app.MapPost("/api/debug/p3-name-cluster", async (string path, string name, List<string> clusterMediaFilePaths, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapPost("/api/debug/p3-name-cluster", async (string path, string name, List<string> clusterMediaFilePaths, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
     var personId = await service.NamePersonFromClusterAsync(name, clusterMediaFilePaths, path);
     return Results.Ok(new { personId });
@@ -464,10 +439,10 @@ app.MapGet("/api/debug/gps-stats-any", (string path, ITMartin.Media.Contracts.Co
     return Results.Ok(new { total = files.Count, withGps, sample });
 });
 
-app.MapGet("/api/debug/sf-people", async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapGet("/api/debug/sf-people", async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.GetPeopleAsync()));
 
-app.MapPost("/api/debug/sf-add-person", async (string path, string name, string referencePhotoPath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapPost("/api/debug/sf-add-person", async (string path, string name, string referencePhotoPath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
     var bytes = await File.ReadAllBytesAsync(referencePhotoPath);
     var personId = await service.AddPersonAsync(name, [new(Path.GetFileName(referencePhotoPath), bytes)], path);
@@ -477,16 +452,16 @@ app.MapPost("/api/debug/sf-add-person", async (string path, string name, string 
 app.MapPost("/api/debug/sf-person", async (string path, Guid personId, double? threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.GeneratePersonFolderAsync(path, personId, threshold ?? 0.45)));
 
-app.MapGet("/api/debug/p3-find-matches-count", async (Guid personId, double threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapGet("/api/debug/p3-find-matches-count", async (Guid personId, double threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
     var matches = await service.FindMatchesAsync(personId, threshold);
     return Results.Ok(new { count = matches.Count });
 });
 
-app.MapPost("/api/debug/p3-classify-unhandled", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapPost("/api/debug/p3-classify-unhandled", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.ClassifyUnhandledFilesAsync(path, maxFiles ?? 5000)));
 
-app.MapPost("/api/debug/sf-delete-person", async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapPost("/api/debug/sf-delete-person", async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
     await service.DeletePersonAsync(personId);
     return Results.Ok("deleted");
@@ -516,18 +491,18 @@ app.MapPost("/api/debug/sf-yearbook-captions", async (string path, int year, ITM
 app.MapPost("/api/debug/tag-images", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IImageTaggingService service) =>
     Results.Ok(await service.TagLibraryAsync(path)));
 
-app.MapPost("/api/debug/p3-estimate-undated", async (string path, int? maxDatedReferenceFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapPost("/api/debug/p3-estimate-undated", async (string path, int? maxDatedReferenceFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.EstimateUndatedDatesAsync(path, maxDatedReferenceFiles: maxDatedReferenceFiles)));
 
-// see Package3Service.DateLivePhotosByFaceMatchAsync.
-app.MapPost("/api/debug/p3-date-livephotos", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+// see FaceIndexService.DateLivePhotosByFaceMatchAsync.
+app.MapPost("/api/debug/p3-date-livephotos", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.DateLivePhotosByFaceMatchAsync(path)));
 
-// see Package3Service.DateVideosByFaceMatchAsync.
-app.MapPost("/api/debug/p3-date-videos", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+// see FaceIndexService.DateVideosByFaceMatchAsync.
+app.MapPost("/api/debug/p3-date-videos", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.DateVideosByFaceMatchAsync(path, maxFiles ?? 1000)));
 
-app.MapPost("/api/debug/p3-date-videos-gps", async (string path, double? homeAwayKm, double? gpsToleranceMeters, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage3Service service) =>
+app.MapPost("/api/debug/p3-date-videos-gps", async (string path, double? homeAwayKm, double? gpsToleranceMeters, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.DateVideosByGpsAwayFromHomeAsync(path, homeAwayKm ?? 100, gpsToleranceMeters ?? 2000)));
 
 // Groups a folder's files by "how many faces were detected" using the
@@ -654,10 +629,10 @@ app.MapPost("/api/debug/bake-exif-orientation", async (string path, ITMartin.Med
 // write an unreliable EXIF Orientation tag (see
 // IImageConverterService.IsFromOrientationUnreliableCamera). Metadata-only
 // read per file (no decode), so safe to run against a whole library.
-// One-off cleanup for HEIC/HEIF files that survived a Package1 run from
+// One-off cleanup for HEIC/HEIF files that survived a QuickSort run from
 // before 2026-08-25's Magick.NET fix (see ImageConverterService) - converts
 // in place and swaps the delivered file's extension to .jpg, since the
-// delivered library should never contain HEIC (Package1 always converts).
+// delivered library should never contain HEIC (QuickSort always converts).
 app.MapPost("/api/debug/convert-heic-inplace", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Workflows.IImageConverterService converter) =>
 {
     if (!File.Exists(path))
@@ -733,13 +708,13 @@ app.MapPost("/api/debug/check-orientation-ai", async (string path, int maxImages
     });
 });
 
-// Runs against whatever's actually on disk right now (not just one Package1
+// Runs against whatever's actually on disk right now (not just one QuickSort
 // run's own file set) - catches duplicates introduced by merging separate
 // folders/runs together after the fact. Free, local, never auto-deletes.
 app.MapPost("/api/debug/find-duplicates", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.FindDuplicatesInLibraryAsync(path)));
 
-app.MapPost("/api/debug/p4-verify-delivery-structure", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+app.MapPost("/api/debug/p4-verify-delivery-structure", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryVerifyService service) =>
     Results.Ok(await service.VerifyDeliveryStructureAsync(path)));
 
 // Runs every applicable step-flag (CategoryIsSet, SubCategoryIsSet, DateIsSet,
@@ -859,7 +834,7 @@ app.MapPost("/api/debug/musik-merge-genfundet", (string musikPath, ITMartin.Medi
 // reports). Meant to run right before a library ships to a customer's HD/USB.
 app.MapPost("/api/debug/pre-delivery-check", async (
     string path,
-    ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service package4,
+    ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryVerifyService package4,
     ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService polish) =>
 {
     var integrity   = await package4.VerifyLibraryAsync(path);
@@ -882,19 +857,19 @@ app.MapPost("/api/debug/pre-delivery-check", async (
 // Package4 - library health check. Actually opens/decodes every file and
 // reports which ones fail, rather than trusting extension/codec metadata.
 // Free, local-only, read-only (never modifies anything).
-app.MapPost("/api/debug/p4-verify", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+app.MapPost("/api/debug/p4-verify", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryVerifyService service) =>
     Results.Ok(await service.VerifyLibraryAsync(path)));
 
 // Structure/path-portability check - metadata-only (no file content read), so
 // this is safe to point straight at a NAS path or an external HD in place,
 // without copying the library back locally first. Catches the collections.json
 // backslash/absolute-path bug class documented in feedback_walk_through_ux.
-app.MapPost("/api/debug/p4-verify-structure", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+app.MapPost("/api/debug/p4-verify-structure", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryVerifyService service) =>
     Results.Ok(await service.VerifyStructureAsync(path)));
 
 // Fixes what p4-verify-structure finds in collections.json in place - never
 // re-sorts, never touches real library content.
-app.MapPost("/api/debug/p4-repair-collections", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IPackage4Service service) =>
+app.MapPost("/api/debug/p4-repair-collections", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryVerifyService service) =>
     Results.Ok(await service.RepairCollectionsPathsAsync(path)));
 
 app.MapPost("/api/debug/group-by-camera", async (string path, string makeContains, string folderName, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>

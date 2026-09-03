@@ -2,8 +2,8 @@
 
 public enum WorkflowType
 {
-    Package1,
-    Package2,
+    QuickSort,
+    AnalogDigitize,
     Package4,
 
     MagicCardScan,

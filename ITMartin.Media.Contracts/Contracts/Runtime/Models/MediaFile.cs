@@ -43,7 +43,7 @@
         public bool IsNormalized { get; set; }
 
         // True when the source file carried a usable EXIF Orientation tag
-        // (any value 1-8) at import time - Package1 already baked it into the
+        // (any value 1-8) at import time - QuickSort already baked it into the
         // pixels correctly (see ImageConverterService), so FileStatusWorkflowStep
         // can trust RotationIsCorrect immediately instead of deferring to the
         // expensive face-detection fallback. False means no tag existed at

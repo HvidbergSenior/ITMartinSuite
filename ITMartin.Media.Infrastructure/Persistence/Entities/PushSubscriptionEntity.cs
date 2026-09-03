@@ -3,7 +3,7 @@ namespace ITMartin.Media.Infrastructure.Persistence.Entities;
 /// <summary>
 /// A browser's Web Push subscription, so FileSorter can notify whoever is
 /// running it (single local install, no per-tenant scoping needed) when a
-/// background job like a Package1 sort finishes.
+/// background job like a QuickSort sort finishes.
 /// </summary>
 public sealed class PushSubscriptionEntity
 {

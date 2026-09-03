@@ -57,8 +57,8 @@ public static class InfrastructureDependencyInjection
             EfScanSessionStore>();
 
         services.AddScoped<
-            IPackage1ManifestStore,
-            EfPackage1ManifestStore>();
+            IQuickSortManifestStore,
+            EfQuickSortManifestStore>();
 
         services.AddScoped<
             IFileSystem,

@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -10,7 +10,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 // ffmpeg's lut3d filter, is the real "one consistent look across every clip"
 // tool) - no LUT file exists yet, so this uses a built-in curves preset as an
 // approximation. Swap in lut3d=file.cube once a real grade is designed.
-public sealed class ColorGradeWorkflowStep : Package2WorkflowStepBase
+public sealed class ColorGradeWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<ColorGradeWorkflowStep> _logger;
     public override string Name => nameof(ColorGradeWorkflowStep);

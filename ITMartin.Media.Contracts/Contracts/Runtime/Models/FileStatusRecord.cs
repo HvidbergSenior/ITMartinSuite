@@ -33,7 +33,7 @@ public static class StepFlags
 
 // Persisted per-file record, keyed by content hash, in a library's
 // filestatus.json - see IFileStatusRegistryService. Written by whichever
-// step resolved something (Package1's FileStatusWorkflowStep on a fresh
+// step resolved something (QuickSort's FileStatusWorkflowStep on a fresh
 // import, or LibraryPolishService.RunAllStepsAsync against an already-sorted
 // library) and read by every step before doing its own work, so a file that
 // reaches IsDone is never touched again by anything, on any future run,

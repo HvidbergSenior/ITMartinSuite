@@ -11,9 +11,9 @@ public static class MediaPlatformDependencyInjection
     {
         services.AddMediaCore(configuration);
 
-        services.AddPackage1Pipeline(configuration);
+        services.AddQuickSortPipeline(configuration);
 
-        services.AddPackage2Pipeline(configuration);
+        services.AddAnalogDigitizePipeline(configuration);
 
         services.AddPackage4Pipeline(configuration);
 

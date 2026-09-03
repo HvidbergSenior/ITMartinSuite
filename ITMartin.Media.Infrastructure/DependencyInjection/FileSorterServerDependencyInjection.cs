@@ -3,11 +3,10 @@ using ITMartin.Media.Application.Abstractions.Events;
 using ITMartin.Media.Application.Abstractions.Runtime;
 using ITMartin.Media.Application.Abstractions.Scanning;
 using ITMartin.Media.Application.Interfaces;
-using ITMartin.Media.Application.Pipelines.Package1.Clients;
-using ITMartin.Media.Application.Pipelines.Package1.Services;
-using ITMartin.Media.Application.Pipelines.Package2.Clients;
-using ITMartin.Media.Application.Pipelines.Package2.Services;
-using ITMartin.Media.Application.Pipelines.Package4.Clients;
+using ITMartin.Media.Application.Pipelines.QuickSort.Clients;
+using ITMartin.Media.Application.Pipelines.QuickSort.Services;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Clients;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Services;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
@@ -45,22 +44,24 @@ public static class FileSorterServerDependencyInjection
             ProgressService>();
 
         services.AddScoped<
-            Package1ManifestSummaryService>();
+            QuickSortManifestSummaryService>();
 
         services.AddScoped<
-            Package2ProfileBuilder>();
+            AnalogDigitizeProfileBuilder>();
 
         services.AddScoped<
-            IPackage1Client,
-            Package1Client>();
+            IQuickSortClient,
+            QuickSortClient>();
 
         services.AddScoped<
-            IPackage2Client,
-            Package2Client>();
+            IAnalogDigitizeClient,
+            AnalogDigitizeClient>();
 
-        services.AddScoped<
-            IPackage4Client,
-            Package4Client>();
+        // Vlog Studio's video-enhancement editor (ColorGrade/Deflicker/
+        // Stabilization/etc.) is a separate app's own pipeline - it used to
+        // be wired up here too (leftover from before that separation) but
+        // FileSorter never had a real use for it. See
+        // ITMartinVlog.Server/Services/VlogEditorService.cs for its real home.
 
         services.AddScoped<
             IImageConverterService,

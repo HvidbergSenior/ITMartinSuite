@@ -20,7 +20,7 @@ public interface ILibraryPolishService
 
     // One-off pass over Udaterede/{Images,Videos} using the current (correct)
     // date-resolution logic - catches files that landed here from an older
-    // Package1 run whose metadata reading has since been fixed, or files
+    // QuickSort run whose metadata reading has since been fixed, or files
     // whose EXIF simply wasn't read correctly the first time. Free (no AI
     // calls) - safe to run as often as needed.
     Task<RedateUndatedResult> RedateUndatedAsync(string libraryPath, CancellationToken cancellationToken = default);
@@ -34,7 +34,7 @@ public interface ILibraryPolishService
     // Re-checks every file already sorted into the Screenshots/Skærmbilleder
     // category against Claude's own is_screenshot judgment (real app/phone UI
     // chrome - status bar, buttons, nav icons - visible in the image), not
-    // just the extension/folder it landed in during Package1. Anything NOT a
+    // just the extension/folder it landed in during QuickSort. Anything NOT a
     // real screenshot moves to Images/Billeder's own Andet subfolder instead
     // of staying miscategorized. Opt-in only, same as FixOrientationAsync -
     // makes real (Haiku-cheap but real) Claude API calls per file.
@@ -55,9 +55,9 @@ public interface ILibraryPolishService
     // bulk fix.
     Task<RotationDetectionResult> DetectRotatedImagesAsync(string libraryPath, CancellationToken cancellationToken = default);
 
-    // Runs against an already-sorted/delivered library (not a fresh Package1
+    // Runs against an already-sorted/delivered library (not a fresh QuickSort
     // import) - IDuplicateService's exact-hash + perceptual-hash passes only
-    // ever compare files within one Package1 run, so duplicates introduced
+    // ever compare files within one QuickSort run, so duplicates introduced
     // by merging separate folders/runs together after the fact (see
     // feedback_hd_delivery_verification) are never caught by it. Free, local,
     // never auto-deletes: exact byte-identical matches are unambiguous but
@@ -85,7 +85,7 @@ public interface ILibraryPolishService
     Task<DeduplicateResult> DeduplicateFolderAsync(string folderPath, CancellationToken cancellationToken = default);
 
     // Standalone counterpart to FileStatusWorkflowStep, for a library that's
-    // already sorted (not a fresh Package1 import) - e.g. re-running against
+    // already sorted (not a fresh QuickSort import) - e.g. re-running against
     // D:\mie after the fact. Shares the same filestatus.json registry, so a
     // file resolved by either path is recognized by the other. Runs every
     // applicable step-flag (CategoryIsSet, SubCategoryIsSet, DateIsSet,
@@ -144,11 +144,11 @@ public interface ILibraryPolishService
     // named "Burst" followed by digits.
     Task<BurstFlattenResult> FlattenBurstFoldersAsync(string libraryPath, CancellationToken cancellationToken = default);
 
-    // Post-hoc counterpart to MediaRulesWorkflowStep's Package1-time album-art
+    // Post-hoc counterpart to MediaRulesWorkflowStep's QuickSort-time album-art
     // detection: catches art that was already sitting in Billeder BEFORE that
     // fix existed (an already-sorted library, not a fresh import), where the
     // original audio-sibling-in-same-folder signal no longer applies since
-    // Package1 already split images and audio into separate category trees.
+    // QuickSort already split images and audio into separate category trees.
     // Only the unambiguous "AlbumArt <GUID> Large" cache-file pattern (Windows
     // Media Player/Zune's own naming, never a real photo) is moved
     // automatically; everything else that merely matches a cover/front/back-
@@ -197,7 +197,7 @@ public interface ILibraryPolishService
     // (this suite's own thumbnailing/gallery/face-indexing included, none of
     // which apply EXIF orientation - same gap ImageConverterService's
     // ApplyOriginalOrientation exists to close, but only for files going
-    // through that conversion path at Package1 import time). Applies the tag
+    // through that conversion path at QuickSort import time). Applies the tag
     // to the pixels in place (SixLabors AutoOrient, same as
     // ImageConverterService.BakeInOwnOrientationIfNeeded) and removes it, so
     // every consumer - EXIF-aware or not - agrees afterward. Safe to re-run:

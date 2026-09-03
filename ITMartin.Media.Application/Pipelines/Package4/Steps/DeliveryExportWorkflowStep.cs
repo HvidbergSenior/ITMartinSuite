@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -12,7 +12,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 // an already-uploaded video, not a creative target - see the DaVinci
 // reference-clip analysis this pipeline was designed against). Writes the
 // deliverable checkpoint and sets EnhancedOutputPath to it.
-public sealed class DeliveryExportWorkflowStep : Package2WorkflowStepBase
+public sealed class DeliveryExportWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<DeliveryExportWorkflowStep> _logger;
     private readonly string _ffmpegPath;

@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -16,7 +16,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 // relative working directory to dodge ffmpeg's "C:/..." colon-in-filter-arg
 // parsing bug) so it can be re-enabled per-run once that root cause is fixed
 // - do not just flip the flag on without re-validating on real footage first.
-public sealed class StabilizationWorkflowStep : Package2WorkflowStepBase
+public sealed class StabilizationWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<StabilizationWorkflowStep> _logger;
     private readonly string _ffmpegPath;

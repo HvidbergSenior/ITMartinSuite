@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -9,7 +9,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 // Trims the shaky black edges vidstabtransform's "crop=black" leaves behind
 // by cropping in slightly and rescaling to the original frame size. Only
 // meaningful when stabilization actually ran - skipped entirely otherwise.
-public sealed class StabilizedCropWorkflowStep : Package2WorkflowStepBase
+public sealed class StabilizedCropWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<StabilizedCropWorkflowStep> _logger;
     public override string Name => nameof(StabilizedCropWorkflowStep);

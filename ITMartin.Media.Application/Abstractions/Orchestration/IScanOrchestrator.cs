@@ -4,7 +4,7 @@ namespace ITMartin.Media.Application.Abstractions.Orchestration;
 
 public interface IScanOrchestrator
 {
-    Task<Guid> StartAsync(Package1WorkflowState request, CancellationToken cancellationToken);
+    Task<Guid> StartAsync(QuickSortWorkflowState request, CancellationToken cancellationToken);
 
     Task ResumeAsync(Guid sessionId, CancellationToken cancellationToken);
 

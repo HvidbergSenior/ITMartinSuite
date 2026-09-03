@@ -1,5 +1,5 @@
 using System.Text.Json;
-using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
 using Microsoft.AspNetCore.StaticFiles;
@@ -31,7 +31,7 @@ mime.Mappings[".m4a"]  = "audio/mp4";
 mime.Mappings[".aac"]  = "audio/aac";
 mime.Mappings[".wav"]  = "audio/wav";
 
-// Root-level category folders Package1/2/3 create that hold implementation
+// Root-level category folders QuickSort/2/3 create that hold implementation
 // detail, redundant companion content, or content already surfaced through
 // the "Samlinger" (Collections) row - not something a non-technical viewer
 // should browse directly. Hidden only at the library root, never inside a
@@ -88,7 +88,7 @@ var RootFolderDisplayNames = new Dictionary<string, string>(StringComparer.Ordin
 };
 
 // Billeder/Videoer are the primary content and should lead - everything else
-// sorts after, alphabetically among itself. Package1 now sorts new libraries
+// sorts after, alphabetically among itself. QuickSort now sorts new libraries
 // straight into Danish-named category folders (see feedback_danish_folder_
 // defaults) rather than the English names this dictionary originally
 // assumed, so both variants are listed - an on-disk folder is one or the
@@ -130,11 +130,11 @@ var RootFolderIcon = new Dictionary<string, string>(StringComparer.OrdinalIgnore
     ["Musik"] = "🎵",
 };
 
-// Older Package1 output names month folders "NN-EnglishMonth" (e.g. "05-May")
+// Older QuickSort output names month folders "NN-EnglishMonth" (e.g. "05-May")
 // regardless of gallery language - translate just the month word, at any
 // depth (not only the library root, unlike RootFolderDisplayNames), so
 // headers stay Danish once you've navigated into Billeder/2024/etc, not just
-// on the root folder cards. Newer Package1 output (see feedback_danish_
+// on the root folder cards. Newer QuickSort output (see feedback_danish_
 // folder_defaults) names them "N MonthName" already in Danish, no padding,
 // space instead of a hyphen - MonthFolderPattern/MonthLabelFor below handle
 // both shapes; this table only ever translates the older English form.
@@ -150,8 +150,8 @@ var DanishMonthNameValues = new HashSet<string>(DanishMonthNames.Values, StringC
 // MonthHalfSplitThreshold) is captured separately so callers can either keep
 // it (DanishFolderName, for display) or strip it (MonthLabelFor, for grouping
 // both halves of a month back under one inline label).
-// Older Package1 output: "NN-EnglishMonth" (zero-padded, hyphen, English -
-// needs DanishMonthNames translation below). Newer Package1 output: "N
+// Older QuickSort output: "NN-EnglishMonth" (zero-padded, hyphen, English -
+// needs DanishMonthNames translation below). Newer QuickSort output: "N
 // MonthName" (unpadded, space, already Danish - see feedback_danish_folder_
 // defaults). Both shapes must match or a month folder silently falls out of
 // chronological grouping entirely and back to a plain alphabetical folder
@@ -162,7 +162,7 @@ var MonthFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{1,2})[-
 // LibraryExportService's current date-range grouping (recursive best-gap
 // bisection - see project_package1_month_split memory): either "dd-dd
 // MonthNameDanish" for a same-month range, or "Abbr-Abbr" for a cross-month
-// range. Same shape as Package4Service's GroupLabelPattern. Already Danish
+// range. Same shape as LibraryVerifyService's GroupLabelPattern. Already Danish
 // and already a display-ready label as-is, unlike MonthFolderPattern above
 // (which names things in English and needs DanishMonthNames translation).
 var DateRangeFolderPattern = new System.Text.RegularExpressions.Regex(@"^(\d{2}-\d{2} \p{L}+|[A-ZÆØÅ][a-zæøå]{2}-[A-ZÆØÅ][a-zæøå]{2})$");
@@ -172,7 +172,7 @@ string DanishFolderName(string rawName)
     var monthMatch = MonthFolderPattern.Match(rawName);
     if (!monthMatch.Success) return rawName;
     var monthWord = monthMatch.Groups[2].Value;
-    // Already Danish (newer Package1 output) - the raw name is already
+    // Already Danish (newer QuickSort output) - the raw name is already
     // display-ready as-is, reformatting it would just introduce a hyphen
     // where the real folder has a space.
     if (DanishMonthNameValues.Contains(monthWord)) return rawName;
@@ -254,12 +254,12 @@ var galleries = app.Configuration
 // freshly-delivered library still shows up without a container restart.
 var browseCache = new System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Expires, object Payload)>();
 
-// manifest.json is Package1's full per-file record (~tens of thousands of
+// manifest.json is QuickSort's full per-file record (~tens of thousands of
 // entries for a real library) - too big to re-parse on every "På denne dag"
 // homepage load. Long TTL because it only changes when Martin re-runs the
 // pipeline for that customer, which doesn't happen mid-session.
-var manifestCache = new System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Expires, Package1Manifest? Manifest)>();
-var manifestLoader = new Package1ManifestLoader();
+var manifestCache = new System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Expires, QuickSortManifest? Manifest)>();
+var manifestLoader = new QuickSortManifestLoader();
 
 // Guard static library files with cookie auth
 app.Use(async (ctx, next) =>
@@ -556,7 +556,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         // real subfolders to navigate (e.g. loose photos straight in
         // "Billeder" alongside its year folders) renders as a confusing
         // second, unlabelled "Billeder & videoer" grid competing with the
-        // real navigation - and Package1 already has a real home for
+        // real navigation - and QuickSort already has a real home for
         // deliberately-orphaned files ("Ikke i årsmapper"/Udaterede), so this
         // is never the only place they'd be findable. Suppress it here;
         // still shown normally one level deeper where there's nothing else
@@ -826,7 +826,7 @@ app.MapGet("/api/on-this-day", async (string gallery, HttpContext ctx) =>
 
     if (!manifestCache.TryGetValue(g.Slug, out var cached) || cached.Expires <= DateTime.UtcNow)
     {
-        Package1Manifest? manifest = null;
+        QuickSortManifest? manifest = null;
         try { manifest = await manifestLoader.LoadAsync(g.Path, ctx.RequestAborted); }
         catch { /* no manifest yet for this gallery - treat as empty */ }
         cached = (DateTime.UtcNow.AddHours(6), manifest);
@@ -881,7 +881,7 @@ app.MapGet("/api/search", async (string gallery, string q, HttpContext ctx) =>
 
     if (!manifestCache.TryGetValue(g.Slug, out var cached) || cached.Expires <= DateTime.UtcNow)
     {
-        Package1Manifest? manifest = null;
+        QuickSortManifest? manifest = null;
         try { manifest = await manifestLoader.LoadAsync(g.Path, ctx.RequestAborted); }
         catch { /* no manifest yet for this gallery - treat as empty */ }
         cached = (DateTime.UtcNow.AddHours(6), manifest);
@@ -940,9 +940,9 @@ static string? Thumb(string f, string r, string slug)
 }
 
 // The still and its Live Photo motion clip are exported into separate
-// top-level folders (Images/ vs LivePhotos/) by Package1, connected only by
+// top-level folders (Images/ vs LivePhotos/) by QuickSort, connected only by
 // matching Year/Month/filename - there's no explicit link stored anywhere.
-// This reconstructs that link at read time, same idea as Package1's own
+// This reconstructs that link at read time, same idea as QuickSort's own
 // LivePhotoDetectionWorkflowStep pairing logic, just applied on already-organized output.
 static string? FindLivePhotoVideo(string imagePath, string r, string slug)
 {

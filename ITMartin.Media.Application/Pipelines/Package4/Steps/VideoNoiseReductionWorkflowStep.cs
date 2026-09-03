@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -6,10 +6,10 @@ using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 
-// Light touch compared to Package2's VHS/Hi8 denoise strengths - this is for
+// Light touch compared to AnalogDigitize's VHS/Hi8 denoise strengths - this is for
 // clean modern phone sensor grain (mainly visible in low-light shots), not
 // analog tape noise, so a much gentler hqdn3d setting is enough.
-public sealed class VideoNoiseReductionWorkflowStep : Package2WorkflowStepBase
+public sealed class VideoNoiseReductionWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<VideoNoiseReductionWorkflowStep> _logger;
     public override string Name => nameof(VideoNoiseReductionWorkflowStep);

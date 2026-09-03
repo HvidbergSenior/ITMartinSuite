@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 
-public sealed class SaturationVibranceWorkflowStep : Package2WorkflowStepBase
+public sealed class SaturationVibranceWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<SaturationVibranceWorkflowStep> _logger;
     public override string Name => nameof(SaturationVibranceWorkflowStep);

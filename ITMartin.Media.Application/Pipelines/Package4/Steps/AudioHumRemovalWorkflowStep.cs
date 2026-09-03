@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -8,7 +8,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 
 // 50Hz mains hum (EU) - rarely triggers on phone-mic audio, but cheap to
 // include unconditionally rather than trying to detect the source's region.
-public sealed class AudioHumRemovalWorkflowStep : Package2WorkflowStepBase
+public sealed class AudioHumRemovalWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<AudioHumRemovalWorkflowStep> _logger;
     public override string Name => nameof(AudioHumRemovalWorkflowStep);

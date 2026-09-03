@@ -1,7 +1,9 @@
 using ITMartin.Ai;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure.DependencyInjection;
 using ITMartin.Media.Infrastructure.Persistence;
+using ITMartin.Media.Infrastructure.Persistence.Stores;
 using ITMartin.Media.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +31,7 @@ using Microsoft.EntityFrameworkCore;
     builder.Services.AddAi();
     builder.Services.AddFileSorterCore();
     builder.Services.AddFileSorterWorker();
+    builder.Services.AddScoped<IWorkflowAlertNotifier, DbWorkflowAlertNotifier>();
   
     var libraryRoot =
         builder.Configuration[

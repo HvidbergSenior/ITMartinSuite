@@ -21,6 +21,7 @@ public sealed class FileSorterPushService(
 {
     private readonly string _vapidFile = ResolveVapidFilePath();
     private (string Public, string Private)? _keys;
+    private readonly object _keysLock = new();
 
     private static string ResolveVapidFilePath()
     {
@@ -33,18 +34,25 @@ public sealed class FileSorterPushService(
 
     private (string Public, string Private) Keys()
     {
-        if (_keys.HasValue) return _keys.Value;
-
-        if (File.Exists(_vapidFile))
+        // Concurrent first-time callers must not each generate and write their
+        // own key pair - only the file's final contents matter (last write
+        // wins), so a caller that got a since-overwritten key pair back would
+        // be stuck subscribed with a key the server can no longer sign with.
+        lock (_keysLock)
         {
-            var stored = JsonSerializer.Deserialize<StoredKeys>(File.ReadAllText(_vapidFile));
-            if (stored?.Pub is { Length: > 0 } && stored.Prv is { Length: > 0 })
-                return (_keys = (stored.Pub, stored.Prv)).Value;
-        }
+            if (_keys.HasValue) return _keys.Value;
 
-        var generated = VapidHelper.GenerateVapidKeys();
-        File.WriteAllText(_vapidFile, JsonSerializer.Serialize(new StoredKeys(generated.PublicKey, generated.PrivateKey)));
-        return (_keys = (generated.PublicKey, generated.PrivateKey)).Value;
+            if (File.Exists(_vapidFile))
+            {
+                var stored = JsonSerializer.Deserialize<StoredKeys>(File.ReadAllText(_vapidFile));
+                if (stored?.Pub is { Length: > 0 } && stored.Prv is { Length: > 0 })
+                    return (_keys = (stored.Pub, stored.Prv)).Value;
+            }
+
+            var generated = VapidHelper.GenerateVapidKeys();
+            File.WriteAllText(_vapidFile, JsonSerializer.Serialize(new StoredKeys(generated.PublicKey, generated.PrivateKey)));
+            return (_keys = (generated.PublicKey, generated.PrivateKey)).Value;
+        }
     }
 
     public async Task SubscribeAsync(string endpoint, string p256dh, string auth)

@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Services;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Services;
 using ITMartin.Media.Application.Pipelines.Package4.Orchestration;
 using ITMartin.Media.Application.Pipelines.Package4.Services;
 using ITMartin.Media.Application.Pipelines.Package4.Steps;
@@ -24,8 +24,8 @@ public static class Package4DependencyInjection
         services.AddScoped<Package4WorkflowOrchestrator>();
         services.AddScoped<Package4WorkflowRunner>();
 
-        // Shared with Package2 - not duplicated here.
-        services.AddScoped<Package1ManifestLoader>();
+        // Shared with AnalogDigitize - not duplicated here.
+        services.AddScoped<QuickSortManifestLoader>();
 
         // =========================
         // STEPS

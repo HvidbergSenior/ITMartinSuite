@@ -1,4 +1,4 @@
-using ITMartin.Media.Application.Pipelines.Package2.Steps;
+using ITMartin.Media.Application.Pipelines.AnalogDigitize.Steps;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
@@ -8,7 +8,7 @@ namespace ITMartin.Media.Application.Pipelines.Package4.Steps;
 
 // -14 LUFS matches Instagram/TikTok/YouTube's own normalization target, so
 // the platform doesn't re-adjust (and potentially clip) it again on upload.
-public sealed class LoudnessNormalizationWorkflowStep : Package2WorkflowStepBase
+public sealed class LoudnessNormalizationWorkflowStep : AnalogDigitizeWorkflowStepBase
 {
     private readonly ILogger<LoudnessNormalizationWorkflowStep> _logger;
     public override string Name => nameof(LoudnessNormalizationWorkflowStep);

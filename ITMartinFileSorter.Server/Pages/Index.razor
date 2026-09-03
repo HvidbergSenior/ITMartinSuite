@@ -1,15 +1,15 @@
 ﻿@page "/filesorter"
 
-@using ITMartin.Media.Application.Pipelines.Package1.Models
-@using ITMartin.Media.Application.Pipelines.Package1.Services
+@using ITMartin.Media.Application.Pipelines.QuickSort.Models
+@using ITMartin.Media.Application.Pipelines.QuickSort.Services
 @using ITMartin.Media.Contracts.Contracts.Runtime.Helpers
 @using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces
 @using ITMartin.Media.Contracts.Contracts.Runtime.Models
 @using ITMartin.Media.Contracts.Contracts.Runtime.Services
 @using ITMartin.Media.Contracts.Entities
 @using ITMartin.Media.Contracts.Contracts.Runtime.Requests
-@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package1
-@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.Package2
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.QuickSort
+@using ITMartin.Media.Contracts.Contracts.Runtime.Requests.AnalogDigitize
 @using ITMartinFileSorter.Server.Services
 @using Microsoft.JSInterop
 @implements IDisposable
@@ -18,25 +18,25 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject ILogger<Index> Logger
-@inject IPackage1Client Package1Client
-@inject IPackage2Client Package2Client
-@inject Package1ManifestSummaryService ManifestSummaryService
+@inject IQuickSortClient QuickSortClient
+@inject IAnalogDigitizeClient AnalogDigitizeClient
+@inject QuickSortManifestSummaryService ManifestSummaryService
 @inject ILibraryPolishService LibraryPolishService
 @inject IStaticGalleryExportService GalleryExportService
 @inject IGalleryThumbnailService GalleryThumbnailService
 @inject ISmartFoldersService SmartFoldersService
-@inject IPackage3Service Package3Service
+@inject IFaceIndexService FaceIndexService
 @inject IImageTaggingService ImageTaggingService
 @inject IJSRuntime JS
 @inject FileSorterPushService PushService
 
-<PageLayout Title="📦 Package 1 — Oprydning & Struktur">
+<PageLayout Title="📦 QuickSort — Oprydning & Struktur">
 
     <div class="filesorter-app">
 
         <div class="info-toggle-row">
             <button class="info-toggle-btn" @onclick="TogglePush" disabled="@_pushBusy">
-                @(_pushSubscribed ? "🔕 Slå notifikationer fra" : "🔔 Få besked når Package 1 er færdig")
+                @(_pushSubscribed ? "🔕 Slå notifikationer fra" : "🔔 Få besked når QuickSort er færdig")
             </button>
             <button class="info-toggle-btn" @onclick="ToggleInfo">
                 @(_showInfo ? "🙈 Skjul info" : "ℹ️ Vis info")
@@ -48,7 +48,7 @@
             <ProblemPurposeBanner
                 Problem="Billeder og videoer fra telefoner og gamle harddiske ender tit som en stor, rodet bunke uden dato eller struktur — svært at finde noget i, og svært at vide hvad der egentlig er gemt og sikkert."
                 Formaal="FileSorter scanner mappen, fjerner dubletter og organiserer automatisk alt efter dato i et rent, gennemsøgeligt bibliotek du kan bladre i."
-                Beskrivelse="Peg på kildemappen og tryk 'Start Cleanup' for at køre Package 1 (sortering + oprydning). Kør derefter eventuelt AI-forbedring (Package 2) og Temamapper-tilkøbene nedenfor (Rejser, Årbog, Find personer m.fl.), når biblioteket er klar." />
+                Beskrivelse="Peg på kildemappen og tryk 'Start Cleanup' for at køre QuickSort (sortering + oprydning). Kør derefter eventuelt AI-forbedring (AnalogDigitize) og Temamapper-tilkøbene nedenfor (Rejser, Årbog, Find personer m.fl.), når biblioteket er klar." />
         }
 
         <ContentCard CssClass="scan-hero-card">
@@ -421,7 +421,7 @@
 
     private int _waitingSeconds;
 
-    private Package1ScanResult? ScanResult;
+    private QuickSortScanResult? ScanResult;
 
     private int ProgressPercent =>
         Progress.Info.TotalWork == 0
@@ -567,7 +567,7 @@
                 StateHasChanged);
 
             Logger.LogInformation(
-                "Starting Package 1 scan");
+                "Starting QuickSort scan");
 
             var paths =
                 Directory
@@ -584,8 +584,8 @@
 
         var scanStartedAt = DateTime.UtcNow;
 
-        await Package1Client.StartAsync(
-        new StartPackage1Request
+        await QuickSortClient.StartAsync(
+        new StartQuickSortRequest
         {
         SourceLibraryPath =
         FolderPath,
@@ -593,7 +593,7 @@
         WorkingDirectory =
         Path.Combine(
         FolderPath,
-        ".package1"),
+        ".quicksort"),
 
         EnableDeduplication =
         true,
@@ -605,7 +605,7 @@
         false,
 
         Profile =
-        "Package1"
+        "QuickSort"
         },
         CancellationToken.None);
             Logger.LogInformation(
@@ -641,11 +641,11 @@
                     await InvokeAsync(
                         StateHasChanged);
 
-                    // Package1 sort itself just finished (manifest.json written) -
+                    // QuickSort sort itself just finished (manifest.json written) -
                     // fire-and-forget so a slow/offline push send never blocks the
                     // UI from moving on to the default pipeline below.
                     _ = PushService.SendToAllAsync(
-                        "📦 Package 1 færdig",
+                        "📦 QuickSort færdig",
                         $"{ScanResult.TotalFiles} filer sorteret, {ScanResult.DuplicateGroups} dublet-grupper fundet.");
 
                     await RunDefaultPipelineAsync(exportRoot!);
@@ -660,7 +660,7 @@
         {
             Logger.LogError(
                 ex,
-                "Package 1 failed");
+                "QuickSort failed");
 
             ErrorMessage =
                 ex.Message;
@@ -680,9 +680,9 @@
 
     private int _yearbookYear = DateTime.UtcNow.Year;
 
-    // Default one-click pipeline - Package1 already scans+dedupes+classifies+
-    // exports in one workflow (see Package1WorkflowDefinition), so everything
-    // here runs automatically once that's done. Package2 (AI enhancement) and
+    // Default one-click pipeline - QuickSort already scans+dedupes+classifies+
+    // exports in one workflow (see QuickSortWorkflowDefinition), so everything
+    // here runs automatically once that's done. AnalogDigitize (AI enhancement) and
     // every Temamapper add-on (Rejser/Årbog/Efter person) stay
     // explicitly opt-in, not part of the default run.
     private async Task RunDefaultPipelineAsync(string libraryPath)
@@ -828,11 +828,11 @@
     private Task RunFindPeopleAsync() =>
         RunAddonAsync("Efter person", async () =>
         {
-            // Face indexing is skip-if-already-done (see IPackage3Service docs),
+            // Face indexing is skip-if-already-done (see IFaceIndexService docs),
             // so re-running "Find personer" after new photos are added is safe
             // and only processes what's new.
-            await Package3Service.IndexFacesAsync(LibraryPath);
-            _discoveredClusters = await Package3Service.DiscoverUnnamedPeopleAsync(LibraryPath);
+            await FaceIndexService.IndexFacesAsync(LibraryPath);
+            _discoveredClusters = await FaceIndexService.DiscoverUnnamedPeopleAsync(LibraryPath);
         });
 
     private async Task NameClusterAsync(UnnamedPersonCluster cluster)
@@ -842,7 +842,7 @@
 
         await RunAddonAsync("Efter person", async () =>
         {
-            var personId = await Package3Service.NamePersonFromClusterAsync(name, cluster.MediaFilePaths, LibraryPath);
+            var personId = await FaceIndexService.NamePersonFromClusterAsync(name, cluster.MediaFilePaths, LibraryPath);
             await SmartFoldersService.GeneratePersonFolderAsync(LibraryPath, personId);
 
             _discoveredClusters?.Remove(cluster);
@@ -921,8 +921,8 @@
                 Configuration[
                     "MediaSettings:LibraryRoot"];
 
-            await Package2Client.StartAsync(
-                new StartPackage2Request
+            await AnalogDigitizeClient.StartAsync(
+                new StartAnalogDigitizeRequest
                 {
                     SourceLibraryPath =
                         exportPath!,
@@ -930,7 +930,7 @@
                     WorkingDirectory =
                         Path.Combine(
                             exportPath!,
-                            ".package2"),
+                            ".analogdigitize"),
 
                     EnableAiEnhancement =
                         true,
@@ -953,13 +953,13 @@
                 CancellationToken.None);
 
             Logger.LogInformation(
-                "Package2 enqueued");
+                "AnalogDigitize enqueued");
         }
         catch (Exception ex)
         {
             Logger.LogError(
                 ex,
-                "Failed to start Package2");
+                "Failed to start AnalogDigitize");
 
             ErrorMessage =
                 ex.Message;
