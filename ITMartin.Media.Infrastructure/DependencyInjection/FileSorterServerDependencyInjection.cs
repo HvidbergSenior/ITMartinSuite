@@ -67,13 +67,6 @@ public static class FileSorterServerDependencyInjection
             IImageConverterService,
             ImageConverterService>();
 
-        // Otherwise only registered via AddAnalogDigitizePipeline (the
-        // Worker's DI graph) - LargeVideoConvertService needs it here too,
-        // since its debug endpoint runs in Server.
-        services.AddScoped<
-            IVideoConverterService,
-            VideoConverterService>();
-
         return services;
     }
 }

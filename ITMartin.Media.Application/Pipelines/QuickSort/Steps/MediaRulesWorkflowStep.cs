@@ -16,16 +16,23 @@ public sealed class MediaRulesWorkflowStep
     private readonly ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IVideoMetadataService
         _videoMetadataService;
 
+    private readonly ITMartin.Media.Contracts.Contracts.Runtime.Workflows.IConcurrentVideoDispatcher
+        _videoDispatcher;
+
     private readonly ILogger<
             MediaRulesWorkflowStep>
         _logger;
 
     public MediaRulesWorkflowStep(
         ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IVideoMetadataService videoMetadataService,
+        ITMartin.Media.Contracts.Contracts.Runtime.Workflows.IConcurrentVideoDispatcher videoDispatcher,
         ILogger<MediaRulesWorkflowStep> logger)
     {
         _videoMetadataService =
             videoMetadataService;
+
+        _videoDispatcher =
+            videoDispatcher;
 
         _logger =
             logger;
@@ -65,6 +72,17 @@ public sealed class MediaRulesWorkflowStep
                 async () =>
                 {
                     ApplyRules(mediaFile);
+
+                    // Dispatch the conversion the moment we know it needs
+                    // one, instead of QuickSort waiting for a dedicated
+                    // normalization step later - it now races concurrently
+                    // against everything below (hash, dedup, metadata,
+                    // export...). See IConcurrentVideoDispatcher and
+                    // VideoConvertFinalizeWorkflowStep.
+                    if (mediaFile.IsVideo && mediaFile.RequiresNormalization)
+                    {
+                        _videoDispatcher.Dispatch(mediaFile, cancellationToken);
+                    }
 
                     await Task.CompletedTask;
                 },

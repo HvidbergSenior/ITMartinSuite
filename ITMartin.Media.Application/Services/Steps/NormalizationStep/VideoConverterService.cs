@@ -42,7 +42,7 @@ public class VideoConverterService : IVideoConverterService
                 $"{Path.GetFileNameWithoutExtension(inputPath)}.mp4");
 
         // ffmpegThreads bounds libx264's own internal thread pool - callers
-        // running several conversions concurrently (VideoBatchService) pass
+        // running several conversions concurrently (ConcurrentVideoDispatcher) pass
         // a value sized so total_processes * threads_per_process stays near
         // the machine's real core count, instead of every process
         // independently grabbing all cores and thrashing. 0 (the default)
@@ -78,7 +78,7 @@ public class VideoConverterService : IVideoConverterService
         Console.WriteLine("========== FFMPEG START ==========");
         Console.WriteLine(args);
 
-        // Per-call local state, not instance fields: VideoBatchService holds
+        // Per-call local state, not instance fields: ConcurrentVideoDispatcher holds
         // one VideoConverterService instance for an entire QuickSort run, so
         // once conversions run concurrently, instance fields here would be
         // stomped by whichever video's ffmpeg output line arrived last -

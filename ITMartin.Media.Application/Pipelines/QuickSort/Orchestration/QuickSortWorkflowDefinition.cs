@@ -25,11 +25,11 @@ public sealed class QuickSortWorkflowDefinition
         AudioDuplicateDetectionWorkflowStep audioDuplicateDetectionWorkflowStep,
         ImageNormalizationWorkflowStep imageNormalizationWorkflowStep,
         ImageQualityWorkflowStep imageQualityWorkflowStep,
-        VideoNormalizationWorkflowStep videoNormalizationWorkflowStep,
         CleanupEvaluationWorkflowStep cleanupEvaluationWorkflowStep,
         AiClassificationWorkflowStep aiClassificationWorkflowStep,
         Manifest1BuildWorkflowStep manifest1BuildWorkflowStep,
         ExportWorkflowExecutionStep exportWorkflowExecutionStep,
+        VideoConvertFinalizeWorkflowStep videoConvertFinalizeWorkflowStep,
         GalleryThumbnailWorkflowStep galleryThumbnailWorkflowStep,
         FileStatusWorkflowStep fileStatusWorkflowStep)
     {
@@ -61,8 +61,6 @@ public sealed class QuickSortWorkflowDefinition
             // whichever file the export will actually use.
             imageQualityWorkflowStep,
 
-            videoNormalizationWorkflowStep,
-
             cleanupEvaluationWorkflowStep,
 
             aiClassificationWorkflowStep,
@@ -70,6 +68,13 @@ public sealed class QuickSortWorkflowDefinition
             manifest1BuildWorkflowStep,
 
             exportWorkflowExecutionStep,
+
+            // Videos were dispatched for conversion back in
+            // MediaRulesWorkflowStep (step 4) - by now some have already
+            // finished and got exported pre-converted, this catches the
+            // rest and swaps them in once each one's conversion completes
+            // (fire-and-forget, doesn't block QuickSort's own completion).
+            videoConvertFinalizeWorkflowStep,
 
             // Runs against the final exported library, post-export (the
             // pre-export ThumbnailWorkflowStep this superseded was removed

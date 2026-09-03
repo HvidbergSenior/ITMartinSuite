@@ -51,11 +51,11 @@ public class QuickSortStepOrderTests
         "AudioDuplicateDetectionWorkflowStep", // 9.  Same idea, scoped to audio tracks.
         "ImageNormalizationWorkflowStep",   // 10. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (now on every image).
         "ImageQualityWorkflowStep",         // 11. Free local blur/solid-color check on every image.
-        "VideoNormalizationWorkflowStep",   // 12. Container/codec normalization for web-safe playback.
-        "CleanupEvaluationWorkflowStep",    // 13. Decides Keep/Delete/Review per file (junk, near-duplicates).
-        "AiClassificationWorkflowStep",     // 14. Optional Claude-based classification (EnableAiClassification).
-        "Manifest1BuildWorkflowStep",       // 15. Builds the in-memory QuickSort manifest from everything above.
-        "ExportWorkflowExecutionStep",      // 16. Physically copies files into the final category/Year/group layout.
+        "CleanupEvaluationWorkflowStep",    // 12. Decides Keep/Delete/Review per file (junk, near-duplicates).
+        "AiClassificationWorkflowStep",     // 13. Optional Claude-based classification (EnableAiClassification).
+        "Manifest1BuildWorkflowStep",       // 14. Builds the in-memory QuickSort manifest from everything above.
+        "ExportWorkflowExecutionStep",      // 15. Physically copies files into the final category/Year/group layout.
+        "VideoConvertFinalizeWorkflowStep", // 16. Swaps in any video conversions (dispatched back in step 4, MediaRulesWorkflowStep) that finished after Export ran - fire-and-forget, doesn't block QuickSort's own completion.
         "GalleryThumbnailWorkflowStep",     // 17. Generates the gallery's own per-file thumbnails, post-export.
         "FileStatusWorkflowStep",           // 18. Writes filestatus.json - needs ExportedPath/category already settled.
         // NOTE: VideoSegmentationWorkflowStep, SegmentThumbnailWorkflowStep, and
@@ -64,6 +64,15 @@ public class QuickSortStepOrderTests
         // to true, so segmentation and its thumbnail step could never run;
         // ThumbnailWorkflowStep was already commented out of the real Steps
         // array, superseded by GalleryThumbnailWorkflowStep).
+        //
+        // VideoNormalizationWorkflowStep was removed 2026-09-03 - QuickSort no
+        // longer waits for a dedicated video-conversion step at all.
+        // MediaRulesWorkflowStep (step 4) now dispatches each video's
+        // conversion via IConcurrentVideoDispatcher the instant it's
+        // classified, so conversion runs concurrently with every step below
+        // instead of blocking the pipeline. VideoConvertFinalizeWorkflowStep
+        // (step 16) is what's left of it - not a conversion step itself, just
+        // the swap-in for whatever hadn't finished by the time Export ran.
     ];
 
     [Test]

@@ -41,7 +41,7 @@ public class MediaRulesWorkflowStepTests
 
         var file = new MediaFile(path, DateTime.UtcNow, MediaType.Image, 3);
         var state = new QuickSortWorkflowState { MediaFiles = [file] };
-        var step = new MediaRulesWorkflowStep(Mock.Of<IVideoMetadataService>(), NullLogger<MediaRulesWorkflowStep>.Instance);
+        var step = new MediaRulesWorkflowStep(Mock.Of<IVideoMetadataService>(), Mock.Of<IConcurrentVideoDispatcher>(), NullLogger<MediaRulesWorkflowStep>.Instance);
         var context = new WorkflowExecutionContext<QuickSortWorkflowState> { WorkflowName = "QuickSortWorkflow", State = state };
 
         await step.ExecuteAsync(context);

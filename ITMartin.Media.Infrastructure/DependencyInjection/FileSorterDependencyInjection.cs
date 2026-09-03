@@ -12,7 +12,6 @@ using ITMartin.Media.Infrastructure.Images;
 using ITMartin.Media.Infrastructure.Media;
 using ITMartin.Media.Infrastructure.Persistence.Repositories;
 using ITMartin.Media.Infrastructure.Pipelines.FaceIndex;
-using ITMartin.Media.Infrastructure.Pipelines.LargeVideoConvert;
 using ITMartin.Media.Infrastructure.Services;
 using ITMartin.Media.Infrastructure.SignalR.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -91,10 +90,6 @@ public static class FileSorterDependencyInjection
         services.AddScoped<
             ILibraryVerifyService,
             ITMartin.Media.Infrastructure.Pipelines.LibraryVerify.LibraryVerifyService>();
-
-        services.AddScoped<
-            ILargeVideoConvertService,
-            LargeVideoConvertService>();
 
         services.AddScoped<
             IGalleryThumbnailService,

@@ -181,8 +181,8 @@ public static class AnalogDigitizeDependencyInjection
             IVideoSegmentThumbnailService,
             VideoSegmentThumbnailService>();
         services.AddScoped<
-            IVideoBatchService,
-            VideoBatchService>();
+            IConcurrentVideoDispatcher,
+            ConcurrentVideoDispatcher>();
         services.AddScoped<
             IVideoConverterService,
             VideoConverterService>();

@@ -69,7 +69,7 @@ public static class QuickSortDependencyInjection
             LivePhotoDetectionWorkflowStep>();
 
         services.AddScoped<
-            VideoNormalizationWorkflowStep>();
+            VideoConvertFinalizeWorkflowStep>();
 
         services.AddScoped<
             DuplicateDetectionWorkflowStep>();

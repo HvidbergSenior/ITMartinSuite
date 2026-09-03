@@ -88,7 +88,7 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
             var isDateOrganized = DateOrganizedCategories.Contains(category);
 
             // IsNormalized only ever gets set true by ImageNormalizationWorkflowStep/
-            // VideoNormalizationWorkflowStep, both of which skip everything but
+            // IConcurrentVideoDispatcher, both of which skip everything but
             // Image/Video by design (audio/documents are just copied, never
             // "normalized" to begin with) - so it must only be applicable for
             // those two types, or every audio/document file would sit at
