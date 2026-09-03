@@ -56,6 +56,10 @@ public static class DependencyInjection
             ClaudeVideoAssistantService>();
 
         services.AddSingleton<
+            IEmailRelevanceService,
+            ClaudeEmailRelevanceService>();
+
+        services.AddSingleton<
             IFaceRecognitionService,
             FaceOnnxRecognitionService>();
 

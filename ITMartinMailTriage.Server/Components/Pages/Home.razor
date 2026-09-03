@@ -1,0 +1,132 @@
+@page "/"
+@rendermode InteractiveServer
+@using ITMartinMailTriage.Server.Data
+@using ITMartinMailTriage.Server.Services
+@using Microsoft.EntityFrameworkCore
+@inject MailTriageDbContext Db
+@inject MailTriageOrchestrator Orchestrator
+
+<PageTitle>Mail Triage</PageTitle>
+
+<h1>Mail Triage</h1>
+
+<div class="profile-box">
+    <label>What matters to you:</label>
+    <input @bind="_profileText" @bind:event="oninput" style="width:100%" />
+    <button @onclick="SaveProfile">Save</button>
+</div>
+
+<p>
+    <button @onclick="RunAsync" disabled="@_running">@(_running ? "Running..." : "Sync & Score")</button>
+    @if (_lastResult is not null)
+    {
+        <span>
+            &nbsp;Synced @_lastResult.NewEmailsSynced new, scored @_lastResult.EmailsScored
+            (@_lastResult.ClaudeCallsUsed Claude calls)
+            @if (_lastResult.HitCap)
+            {
+                <strong> - hit the per-run cap, run again for more</strong>
+            }
+        </span>
+    }
+</p>
+
+@if (_emails is null)
+{
+    <p>Loading...</p>
+}
+else if (_emails.Count == 0)
+{
+    <p>No emails yet - click "Sync & Score" to fetch and triage your inbox.</p>
+}
+else
+{
+    <table class="triage-table">
+        <thead>
+            <tr>
+                <th>Needs Response</th>
+                <th>Relevance</th>
+                <th>Account</th>
+                <th>From</th>
+                <th>Subject</th>
+                <th>Received</th>
+                <th>Reasoning</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var email in _emails)
+            {
+                <tr class="@(email.NeedsResponse == true ? "needs-response" : "")">
+                    <td>@(email.NeedsResponse == true ? "✔" : "")</td>
+                    <td>@(email.RelevanceScore?.ToString() ?? "-")</td>
+                    <td>@email.Account</td>
+                    <td>@email.From</td>
+                    <td>@email.Subject</td>
+                    <td>@email.ReceivedAtUtc.ToLocalTime().ToString("g")</td>
+                    <td>@email.Reasoning</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<style>
+    .profile-box { margin-bottom: 1rem; }
+    .triage-table { width: 100%; border-collapse: collapse; }
+    .triage-table th, .triage-table td { border-bottom: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 0.9em; }
+    .triage-table tr.needs-response { background: #fff8e1; font-weight: 600; }
+</style>
+
+@code {
+    private List<TriagedEmail>? _emails;
+    private string _profileText = "";
+    private bool _running;
+    private TriageRunResult? _lastResult;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var profile = await Db.Profile.FirstOrDefaultAsync();
+        _profileText = profile?.UserProfileText ?? "";
+        await LoadEmailsAsync();
+    }
+
+    private async Task LoadEmailsAsync()
+    {
+        // SQLite/EF Core can't translate ORDER BY on a DateTimeOffset column,
+        // so the final sort has to happen client-side after materializing.
+        var rows = await Db.Emails
+            .Where(e => !e.Dismissed)
+            .OrderByDescending(e => e.NeedsResponse == true)
+            .ThenByDescending(e => e.RelevanceScore)
+            .Take(200)
+            .ToListAsync();
+
+        _emails = rows
+            .OrderByDescending(e => e.NeedsResponse == true)
+            .ThenByDescending(e => e.RelevanceScore)
+            .ThenByDescending(e => e.ReceivedAtUtc)
+            .ToList();
+    }
+
+    private async Task SaveProfile()
+    {
+        var profile = await Db.Profile.FirstOrDefaultAsync();
+        if (profile is null) return;
+        profile.UserProfileText = _profileText;
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        try
+        {
+            _lastResult = await Orchestrator.RunAsync();
+            await LoadEmailsAsync();
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+}
