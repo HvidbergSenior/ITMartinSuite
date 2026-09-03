@@ -319,6 +319,48 @@ app.MapGet("/api/debug/p1-status", async (Microsoft.EntityFrameworkCore.IDbConte
         });
 });
 
+// Follow-up pass for whatever QuickSort deferred (files >150MB or under a
+// Film/Movies/TV/Series folder - see VideoBatchService.ShouldDefer). Same
+// fire-and-forget + own-DI-scope pattern as p3-index-faces below.
+app.MapPost("/api/debug/largevideoconvert-start", (string path, IServiceScopeFactory scopeFactory) =>
+{
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILargeVideoConvertService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        try
+        {
+            await service.ConvertDeferredVideosAsync(path);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "LargeVideoConvert failed for {Path}", path);
+        }
+    });
+    return Results.Ok("started");
+});
+app.MapGet("/api/debug/largevideoconvert-status", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var instance = await db.WorkflowInstances
+        .Where(x => x.WorkflowName == "LargeVideoConvertWorkflow")
+        .OrderByDescending(x => x.StartedAtUtc)
+        .FirstOrDefaultAsync();
+    return instance is null
+        ? Results.NotFound()
+        : Results.Ok(new
+        {
+            instance.Status,
+            instance.CurrentStep,
+            instance.ProgressCurrent,
+            instance.ProgressTotal,
+            instance.ProgressItem,
+            instance.FailureReason,
+            instance.CompletedAtUtc
+        });
+});
+
 // Package4's video-enhancement client (social/vlog clip editing) belongs to
 // ITMartinVlog.Server, which has its own proper service layer around this
 // pipeline (VlogEditorService/VlogFfmpegService) - FileSorter never had a

@@ -10,6 +10,18 @@ public class VideoBatchService : IVideoBatchService
     private static readonly TimeSpan StallTimeout = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan StallCheckInterval = TimeSpan.FromMinutes(1);
 
+    // QuickSort is meant to stay fast - a full ffmpeg transcode of a large
+    // file (a home movie transferred as-is, or a ripped film/TV episode
+    // sitting in the source tree) doesn't belong in the same pass as sorting
+    // thousands of small personal clips. Anything over this size, or under a
+    // source folder that looks like commercial video, gets exported
+    // untouched (LibraryExportService falls back to FullPath) and picked up
+    // later by LargeVideoConvertService instead.
+    private const long DeferSizeThresholdBytes = 150L * 1024 * 1024;
+
+    private static readonly string[] DeferFolderNames =
+        ["film", "movies", "movie", "tv", "series"];
+
     private readonly IVideoConverterService
         _videoConverterService;
 
@@ -69,6 +81,23 @@ public class VideoBatchService : IVideoBatchService
                 itemNumber - 1,
                 total,
                 $"Converting {file.FileName}");
+
+            if (ShouldDefer(file))
+            {
+                file.IsDeferredLargeVideo = true;
+
+                _logger.LogInformation(
+                    "Deferring {File} ({SizeMb} MB) to LargeVideoConvert - QuickSort exports it as-is",
+                    file.FileName,
+                    file.SizeBytes / (1024 * 1024));
+
+                progress?.Invoke(
+                    itemNumber,
+                    total,
+                    file.FileName);
+
+                return;
+            }
 
             // Watchdog: a single hung ffmpeg process (corrupt/truncated source,
             // ffmpeg waiting on something that never comes) must not stall the
@@ -160,5 +189,22 @@ public class VideoBatchService : IVideoBatchService
                 total,
                 file.FileName);
         });
+    }
+
+    private static bool ShouldDefer(MediaFile file)
+    {
+        if (file.SizeBytes > DeferSizeThresholdBytes)
+        {
+            return true;
+        }
+
+        var segments = file.FullPath.Split(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar);
+
+        return segments.Any(
+            segment => DeferFolderNames.Contains(
+                segment,
+                StringComparer.OrdinalIgnoreCase));
     }
 }

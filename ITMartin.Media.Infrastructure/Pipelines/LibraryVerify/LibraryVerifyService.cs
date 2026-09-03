@@ -5,7 +5,7 @@ using ITMartin.Media.Infrastructure.Media;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 
-namespace ITMartin.Media.Infrastructure.Pipelines.Package4;
+namespace ITMartin.Media.Infrastructure.Pipelines.LibraryVerify;
 
 // Actually opens/decodes every file rather than trusting extension or
 // container metadata - catches the real "can this be played/viewed" failure
@@ -17,7 +17,7 @@ public sealed class LibraryVerifyService : ILibraryVerifyService
     // already treats as off-limits.
     private static readonly HashSet<string> ProtectedFolders = new(StringComparer.OrdinalIgnoreCase)
     {
-        "_Galleri", "SmartFolders", ".package1", ".package2", ".package3", ".package4", ".ReferencePhotos",
+        "_Galleri", "SmartFolders", ".quicksort", ".analogdigitize", ".faceindex", ".libraryverify", ".ReferencePhotos",
     };
 
     // Same Windows/OS system folders FileScanner learned to skip - never real
@@ -81,7 +81,7 @@ public sealed class LibraryVerifyService : ILibraryVerifyService
         }
 
         _logger.LogInformation(
-            "Package4 verification complete for {LibraryPath}: {Total} files checked, {Failed} failed",
+            "LibraryVerify verification complete for {LibraryPath}: {Total} files checked, {Failed} failed",
             libraryPath, total, failures.Count);
 
         return Task.FromResult(new LibraryIntegrityReport
@@ -140,7 +140,7 @@ public sealed class LibraryVerifyService : ILibraryVerifyService
         }
 
         _logger.LogInformation(
-            "Package4 structure check complete for {LibraryPath}: {Found}/{Total} expected category folders present, {Collections} collections, {Paths} paths checked, {Issues} issues",
+            "LibraryVerify structure check complete for {LibraryPath}: {Found}/{Total} expected category folders present, {Collections} collections, {Paths} paths checked, {Issues} issues",
             libraryPath, found.Count, ExpectedCategoryFolders.Length, collections.Count, pathsChecked, issues.Count);
 
         return new LibraryStructureReport
@@ -227,7 +227,7 @@ public sealed class LibraryVerifyService : ILibraryVerifyService
         await _collectionStore.SaveAsync(libraryPath, collections);
 
         _logger.LogInformation(
-            "Package4 collections.json repair complete for {LibraryPath}: {Normalized} paths normalized, {Recovered} absolute paths recovered, {Removed} unresolvable paths dropped",
+            "LibraryVerify collections.json repair complete for {LibraryPath}: {Normalized} paths normalized, {Recovered} absolute paths recovered, {Removed} unresolvable paths dropped",
             libraryPath, normalized, recovered, removed);
 
         return new StructureRepairResult

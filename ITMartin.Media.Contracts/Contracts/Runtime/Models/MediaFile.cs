@@ -42,6 +42,14 @@
 
         public bool IsNormalized { get; set; }
 
+        // Set by VideoBatchService instead of attempting the ffmpeg transcode
+        // when a video is large (>150MB) or under a Film/Movies/TV/Series
+        // source folder - QuickSort stays fast by exporting these as-is
+        // (LibraryExportService falls back to FullPath whenever NormalizedPath
+        // is null) and LargeVideoConvertService re-encodes them in place as a
+        // separate follow-up pass, found via this flag in QuickSort's manifest.
+        public bool IsDeferredLargeVideo { get; set; }
+
         // True when the source file carried a usable EXIF Orientation tag
         // (any value 1-8) at import time - QuickSort already baked it into the
         // pixels correctly (see ImageConverterService), so FileStatusWorkflowStep
