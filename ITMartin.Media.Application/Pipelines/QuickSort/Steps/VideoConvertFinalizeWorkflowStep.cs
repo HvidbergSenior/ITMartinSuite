@@ -1,5 +1,6 @@
 using ITMartin.Media.Application.Pipelines.QuickSort.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
+using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
 
@@ -15,15 +16,26 @@ namespace ITMartin.Media.Application.Pipelines.QuickSort.Steps;
 /// swap the converted file in at its final ExportedPath if Export ended up
 /// using the original. Fire-and-forget on purpose - QuickSort's own
 /// completion must not wait on conversions that can take hours.
+///
+/// Also tracks a separate "QuickSortVideoConvertWorkflow" pseudo-workflow
+/// instance via IWorkflowInstanceStore, marked Completed only once every
+/// dispatched conversion has actually finished - a two-wave delivery script
+/// (everything-but-videos as soon as QuickSort itself completes, videos once
+/// this one does) needs a real signal for "all videos are done", which
+/// nothing tracked before this.
 /// </summary>
 public sealed class VideoConvertFinalizeWorkflowStep(
     IConcurrentVideoDispatcher dispatcher,
+    IWorkflowInstanceStore workflowInstanceStore,
+    IWorkflowAlertNotifier workflowAlertNotifier,
     ILogger<VideoConvertFinalizeWorkflowStep> logger)
     : QuickSortWorkflowStepBase
 {
+    public const string VideoConvertWorkflowName = "QuickSortVideoConvertWorkflow";
+
     public override string Name => "VideoConvertFinalize";
 
-    public override Task ExecuteAsync<TState>(
+    public override async Task ExecuteAsync<TState>(
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
         where TState : class
@@ -34,12 +46,47 @@ public sealed class VideoConvertFinalizeWorkflowStep(
             "VideoConvertFinalize: {Total} videos dispatched during this run - swapping each in once its conversion finishes",
             pending.Count);
 
+        var videoConvertWorkflowId = Guid.NewGuid();
+        await workflowInstanceStore.CreateAsync(videoConvertWorkflowId, VideoConvertWorkflowName, CancellationToken.None);
+        await workflowInstanceStore.SetProgressAsync(videoConvertWorkflowId, 0, pending.Count, cancellationToken: CancellationToken.None);
+
         foreach (var (file, task) in pending)
         {
             _ = FinalizeOnceReadyAsync(file, task);
         }
 
-        return Task.CompletedTask;
+        // Not awaited - QuickSort's own completion must not wait on
+        // conversions that can take hours. This just watches in the
+        // background and flips the pseudo-workflow to Completed once every
+        // dispatched conversion is done, however long that takes.
+        _ = WatchForAllDoneAsync(videoConvertWorkflowId, pending);
+    }
+
+    private async Task WatchForAllDoneAsync(
+        Guid videoConvertWorkflowId,
+        IReadOnlyList<(MediaFile File, Task ConversionTask)> pending)
+    {
+        try
+        {
+            await Task.WhenAll(pending.Select(p => p.ConversionTask));
+        }
+        catch
+        {
+            // Individual failures are already logged by the dispatcher -
+            // this still needs to reach Completed either way, so a two-wave
+            // delivery script polling for "all videos done" isn't left
+            // waiting forever on a run where one video genuinely failed.
+        }
+
+        await workflowInstanceStore.MarkCompletedAsync(videoConvertWorkflowId, CancellationToken.None);
+
+        await workflowAlertNotifier.NotifyCompletedAsync(
+            videoConvertWorkflowId,
+            VideoConvertWorkflowName,
+            TimeSpan.Zero,
+            CancellationToken.None);
+
+        logger.LogInformation("All {Total} dispatched video conversions for this run are now finished", pending.Count);
     }
 
     private async Task FinalizeOnceReadyAsync(MediaFile file, Task conversionTask)

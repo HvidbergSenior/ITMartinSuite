@@ -319,6 +319,29 @@ app.MapGet("/api/debug/p1-status", async (Microsoft.EntityFrameworkCore.IDbConte
         });
 });
 
+// "All videos actually converted" for this run - separate from p1-status,
+// which reports Completed as soon as QuickSort's own fast pass finishes
+// (videos may still be converting in the background for hours after that).
+// A two-wave delivery script polls this one for when it's safe to pull the
+// Videoer folder - see VideoConvertFinalizeWorkflowStep.
+app.MapGet("/api/debug/quicksort-video-status", async (Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var instance = await db.WorkflowInstances
+        .Where(x => x.WorkflowName == ITMartin.Media.Application.Pipelines.QuickSort.Steps.VideoConvertFinalizeWorkflowStep.VideoConvertWorkflowName)
+        .OrderByDescending(x => x.StartedAtUtc)
+        .FirstOrDefaultAsync();
+    return instance is null
+        ? Results.NotFound()
+        : Results.Ok(new
+        {
+            instance.Status,
+            instance.ProgressTotal,
+            instance.FailureReason,
+            instance.CompletedAtUtc
+        });
+});
+
 // LargeVideoConvert (manifest-based follow-up pass) was superseded by
 // IConcurrentVideoDispatcher - videos now get dispatched for conversion the
 // moment MediaRulesWorkflowStep classifies them, racing concurrently against
