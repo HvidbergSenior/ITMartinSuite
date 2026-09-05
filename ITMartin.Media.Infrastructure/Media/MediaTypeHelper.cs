@@ -17,7 +17,13 @@ public static class MediaTypeHelper
             ".m2ts",
             ".wmv",
             ".vob",
-            ".m4v"
+            ".m4v",
+            // Found 2026-09-03 on Rico/AC's whole-drive backup archive: real
+            // mobile-phone videos in the older 3GPP container landed in
+            // Ikke_identificeret instead of Videoer, same failure shape as
+            // the .wma gap found on mie's library below.
+            ".3gp",
+            ".3g2"
         ];
 
     private static readonly HashSet<string>
@@ -29,6 +35,7 @@ public static class MediaTypeHelper
             ".webp",
             ".bmp",
             ".gif",
+            ".tif",
             ".tiff",
             ".heic",
             ".heif",
@@ -51,7 +58,11 @@ public static class MediaTypeHelper
             ".wma",
             ".opus",
             ".m4r",
-            ".m4b"
+            ".m4b",
+            // Found 2026-09-03 alongside the .3gp/.tif gaps on the same
+            // archive - real MIDI music files landed in Ikke_identificeret.
+            ".mid",
+            ".midi"
         ];
 
     private static readonly HashSet<string>

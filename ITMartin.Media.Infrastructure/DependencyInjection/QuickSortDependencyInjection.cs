@@ -44,6 +44,14 @@ public static class QuickSortDependencyInjection
         services.AddScoped<
             CleanStartWorkflowStep>();
 
+        // Missing entirely - confirmed 2026-09-06: QuickSortWorkflowDefinition
+        // references this step (it's second in the 19-step order, right after
+        // CleanStart), but it was never registered here, so any fresh p1-start
+        // run crashed the worker outright with a DI resolution error before a
+        // single file was processed.
+        services.AddScoped<
+            LibraryRootReconcileWorkflowStep>();
+
         services.AddScoped<
             DvdJoinWorkflowStep>();
 

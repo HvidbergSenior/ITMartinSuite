@@ -239,16 +239,23 @@ public sealed class LibraryVerifyService : ILibraryVerifyService
         };
     }
 
-    // Matches the current date-range group label shapes LibraryExportService
-    // produces (see [[project_package1_month_split]]): "dd-dd MonthName"
-    // when a group stays in one calendar month, "Mon-Mon" (3-letter Danish
-    // abbreviations) when it spans two. A Year folder's own subfolders
-    // should always match one of these once that year is busy enough to
-    // need subfolders at all - anything else (a leftover calendar "MM-Month"
-    // folder from the superseded design, a stray "Juni"-style mistake, an
-    // unrelated folder) is a real structure issue.
+    // Matches the actual date-range group label shape LibraryExportService
+    // produces (see LibraryExportService.SplitByCalendarBuckets): a 1-based
+    // running index, a space, then the full Danish month name the group
+    // starts in, and - only when the group spans more than one calendar
+    // month - a hyphen and the full Danish month name it ends in (e.g.
+    // "1 Januar", "2 Maj-August", "9 December"). This regex previously
+    // checked for a completely different, never-actually-produced shape
+    // ("dd-dd MonthName" / 3-letter "Mon-Mon" abbreviations) - stale from an
+    // earlier design - which meant every real, correctly-named group folder
+    // in the library failed this check. Found 2026-09-04 auditing RicoAC's
+    // pre-delivery-check output: ~140 false-positive "issues", all of them
+    // legitimately-named folders. "Ukendt måned" is a second, separate
+    // label LibraryExportService still produces on purpose (see its own
+    // "Ukendt måned" branch) for a dated-year/unreliable-month file - not
+    // part of the indexed-group numbering, so it needs its own allowance.
     private static readonly System.Text.RegularExpressions.Regex GroupLabelPattern =
-        new(@"^(\d{2}-\d{2} \p{L}+|[A-ZÆØÅ][a-zæøå]{2}-[A-ZÆØÅ][a-zæøå]{2})$");
+        new(@"^(\d+ \p{Lu}\p{Ll}+(-\p{Lu}\p{Ll}+)?|Ukendt måned)$");
 
     private const int GroupFlatThreshold = 50; // must match LibraryExportService.GroupTargetSize
 

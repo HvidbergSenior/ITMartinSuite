@@ -165,6 +165,24 @@ public sealed class MetadataWorkflowStep
                         }
                     }
 
+                    if (MediaTypeHelper.IsVideo(file.FullPath))
+                    {
+                        // _videoMetadataService was injected here but never
+                        // actually called - confirmed 2026-09-06, needed now
+                        // so CleanupEvaluationWorkflowStep can tell a
+                        // downloaded film/episode (typically 20+ min) from a
+                        // personal clip (typically a few minutes) regardless
+                        // of file size, which large personal videos on this
+                        // library already share with commercial content.
+                        // Already timeout-protected (30s) against a
+                        // malformed/hanging file - see VideoMetadataService.
+                        // ??= : MediaRulesWorkflowStep already fetched this
+                        // for its own unplayable-video check and set it on
+                        // the file - don't pay for a second ffprobe call.
+                        file.Duration ??=
+                            _videoMetadataService.GetDuration(file.FullPath);
+                    }
+
                     if (MediaTypeHelper.IsAudio(file.FullPath))
                     {
                         file.Artist =

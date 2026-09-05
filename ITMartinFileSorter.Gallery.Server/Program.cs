@@ -54,6 +54,10 @@ var RootFoldersAlwaysHidden = new HashSet<string>(StringComparer.OrdinalIgnoreCa
     // directly. Musik (Audio) is real, wanted content though - shown as its
     // own category, just secondary to Billeder/Videoer.
     "Undated", "Duplicates",
+    // Danish-named equivalents (LibraryExportService's actual output names)
+    // plus "Review", the single consolidated folder new sorts use in place
+    // of separate SlettesKandidater/Duplikater/Undated folders (2026-09-06).
+    "SlettesKandidater", "Duplikater", "Review",
 };
 
 // Screenshots was previously hidden globally for every tenant based on one

@@ -5,7 +5,9 @@ using ITMartin.Media.Application.Interfaces;
 using ITMartin.Media.Application.Services;
 using ITMartin.Media.Application.Services.Steps.DuplicationStep;
 using ITMartin.Media.Application.Services.Steps.ExportStep;
+using ITMartin.Media.Application.Services.Steps.NormalizationStep;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Infrastructure.Collections;
 using ITMartin.Media.Infrastructure.Events;
 using ITMartin.Media.Infrastructure.Images;
@@ -82,6 +84,10 @@ public static class FileSorterDependencyInjection
         services.AddScoped<
             IStaticGalleryExportService,
             StaticGalleryExportService>();
+
+        services.AddScoped<
+            IAudioConverterService,
+            AudioConverterService>();
 
         services.AddScoped<
             ILibraryPolishService,

@@ -187,6 +187,9 @@ public static class AnalogDigitizeDependencyInjection
             IVideoConverterService,
             VideoConverterService>();
         services.AddScoped<
+            IAudioConverterService,
+            AudioConverterService>();
+        services.AddScoped<
             IVideoSegmentationService,
             VideoSegmentationService>();
         services.AddScoped<

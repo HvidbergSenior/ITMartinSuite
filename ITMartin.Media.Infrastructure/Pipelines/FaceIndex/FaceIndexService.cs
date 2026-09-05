@@ -663,20 +663,30 @@ public sealed class FaceIndexService : IFaceIndexService
     // based subfolders (Kamera (IMG), Facebook, GUID-eksport, etc.) under
     // Billeder instead of one flat bucket. The substring check below works
     // for it unchanged (any nesting depth), since it only looks for the
-    // folder name itself appearing as a path segment - only FindUndatedFolder
-    // needed a real fix, since Undated/Udaterede sit at the library root but
-    // this one is nested under Billeder.
+    // folder name itself appearing as a path segment.
     private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede", "Ikke i årsmapper"];
+
+    // LibraryExportService deliberately has no "Udaterede" catch-all folder
+    // (see feedback_no_catchall_folders) - a genuinely dateless real photo
+    // sits directly at its category root (e.g. "Billeder/IMG_1234.jpg") with
+    // no year folder at all, not inside a named Undated-style subfolder.
+    // Confirmed 2026-09-03 on Rico/AC's archive: this method's UndatedFolderNames
+    // check alone found zero candidates for exactly that reason (884 loose
+    // files sitting at Billeder's root, none of them under any of the three
+    // named folders below) even though real undated files existed - the two
+    // conventions had silently diverged. A file with no {year} folder
+    // anywhere in its path at all is the other real "undated" shape; a file
+    // already under a known year (even with an "Ukendt måned" placeholder
+    // month) is a different, narrower gap and is intentionally NOT matched
+    // here.
+    private static readonly System.Text.RegularExpressions.Regex AnyYearFolderPattern =
+        new(@"[\\/](19|20)\d{2}[\\/]", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static bool IsUnderUndatedFolder(string path) =>
         UndatedFolderNames.Any(name =>
             path.Contains($"{Path.DirectorySeparatorChar}{name}{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
-            || path.Contains($"/{name}/", StringComparison.OrdinalIgnoreCase));
-
-    private static string? FindUndatedFolder(string libraryPath) =>
-        UndatedFolderNames
-            .SelectMany(name => new[] { Path.Combine(libraryPath, name), Path.Combine(libraryPath, "Billeder", name) })
-            .FirstOrDefault(Directory.Exists);
+            || path.Contains($"/{name}/", StringComparison.OrdinalIgnoreCase))
+        || !AnyYearFolderPattern.IsMatch(path);
 
     public async Task<UndatedEstimationResult> EstimateUndatedDatesAsync(
         string libraryPath,
@@ -747,18 +757,16 @@ public sealed class FaceIndexService : IFaceIndexService
         }
 
         // ===== Pass 2: GPS proximity, for anything not already matched =====
-        var undatedFolder = FindUndatedFolder(libraryPath);
-        var undatedFiles = undatedFolder is not null
-            // Raw Directory.EnumerateFiles, not EnumerateLibraryImages - the
-            // undated folder never had a thumbnails/ subfolder problem before
-            // (Undated/Udaterede were flat), but Ikke i årsmapper's pattern
-            // subfolders each have their own, and this was walking straight
-            // into them, doubling every count with the thumbnail copy.
-            ? Directory.EnumerateFiles(undatedFolder, "*", SearchOption.AllDirectories)
-                .Where(f => !Path.GetDirectoryName(f)!.EndsWith($"{Path.DirectorySeparatorChar}thumbnails", StringComparison.OrdinalIgnoreCase))
-                .Where(f => !handled.Contains(f))
-                .ToList()
-            : [];
+        // Was physical-folder-based (FindUndatedFolder + raw
+        // Directory.EnumerateFiles), which - like Pass 1 before its own fix -
+        // only ever found files under a named Undated/Udaterede/Ikke i
+        // årsmapper folder. Reusing IsUnderUndatedFolder here instead keeps
+        // both passes consistent with the same (now-corrected) definition of
+        // "undated", including files with no year folder at all.
+        var undatedFiles = EnumerateLibraryImages(libraryPath)
+            .Where(IsUnderUndatedFolder)
+            .Where(f => !handled.Contains(f))
+            .ToList();
 
         if (undatedFiles.Count > 0)
         {

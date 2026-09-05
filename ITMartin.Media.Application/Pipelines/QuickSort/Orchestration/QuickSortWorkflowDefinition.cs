@@ -15,6 +15,7 @@ public sealed class QuickSortWorkflowDefinition
 
     public QuickSortWorkflowDefinition(
         CleanStartWorkflowStep cleanStartWorkflowStep,
+        LibraryRootReconcileWorkflowStep libraryRootReconcileWorkflowStep,
         DvdJoinWorkflowStep dvdJoinWorkflowStep,
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
         MediaRulesWorkflowStep mediaRulesWorkflowStep,
@@ -38,6 +39,12 @@ public sealed class QuickSortWorkflowDefinition
             // Must run before anything else scans/reads the source folder -
             // see CleanStartWorkflowStep for why.
             cleanStartWorkflowStep,
+
+            // Also early - reconciles the shared library root before this
+            // run adds anything new to it. Independent of the source scan
+            // above (this looks at the destination, not RootPath), so order
+            // relative to CleanStart doesn't matter beyond "both early."
+            libraryRootReconcileWorkflowStep,
 
             dvdJoinWorkflowStep,
 

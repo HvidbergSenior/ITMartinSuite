@@ -1,5 +1,6 @@
 using System.Linq;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -10,12 +11,26 @@ namespace ITMartin.Media.Application.Pipelines.QuickSort.Steps;
 // with no metadata linking them beyond a shared filename. The rest of the pipeline
 // has no concept of the pair, so this runs once after per-file rules to flag the
 // video half before export routing decides which folder it lands in.
+//
+// A same-name image+video pair alone isn't proof of an actual Apple Live Photo -
+// confirmed 2026-09-03 on Rico's archive, where old camcorder clips (e.g. a
+// 20-second .AVI) that happened to share a filename with an unrelated still got
+// misclassified this way, including files from 2011 (Live Photos didn't exist
+// before the iPhone 6s, September 2015). A real Live Photo's motion clip is
+// always ~1.5-3 seconds, so anything longer than LivePhotoMaxDuration is real
+// video content, not a Live Photo companion, regardless of filename match.
 public sealed class LivePhotoDetectionWorkflowStep : QuickSortWorkflowStepBase
 {
+    private static readonly TimeSpan LivePhotoMaxDuration = TimeSpan.FromSeconds(5);
+
+    private readonly IVideoMetadataService _videoMetadataService;
     private readonly ILogger<LivePhotoDetectionWorkflowStep> _logger;
 
-    public LivePhotoDetectionWorkflowStep(ILogger<LivePhotoDetectionWorkflowStep> logger)
+    public LivePhotoDetectionWorkflowStep(
+        IVideoMetadataService videoMetadataService,
+        ILogger<LivePhotoDetectionWorkflowStep> logger)
     {
+        _videoMetadataService = videoMetadataService;
         _logger = logger;
     }
 
@@ -46,6 +61,15 @@ public sealed class LivePhotoDetectionWorkflowStep : QuickSortWorkflowStepBase
 
                     if (images.Count == 1 && videos.Count == 1)
                     {
+                        var duration = _videoMetadataService.GetDuration(videos[0].FullPath);
+                        if (duration is not null && duration.Value > LivePhotoMaxDuration)
+                        {
+                            _logger.LogInformation(
+                                "Skipping Live Photo pairing for {File}: video is {Duration}, longer than a real Live Photo clip",
+                                videos[0].FileName, duration.Value);
+                            continue;
+                        }
+
                         videos[0].SubCategory = MediaSubCategory.LivePhotoVideo;
                         pairCount++;
                     }

@@ -61,6 +61,14 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
 
         var registryDict = await _registry.LoadAsync(exportRoot, cancellationToken);
 
+        // Duplicates/DeleteCandidates still skip this record entirely - their
+        // hash by definition matches the kept canonical file's, and this
+        // dictionary is keyed by ContentHash, so recording them here would
+        // overwrite (or race with) the real file's status. LargeFilm/
+        // SmallArtist/Unplayable don't have that problem (they're not
+        // hash-duplicates of anything kept), so they get a real record with
+        // NotFiltered=false instead of vanishing from filestatus.json with no
+        // trace.
         var eligible = state.MediaFiles
             .Where(f => f.ExportSubFolder is not ("Duplicates" or "DeleteCandidates"))
             .Where(f => !string.IsNullOrWhiteSpace(f.Hash))
@@ -94,7 +102,7 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
             // those two types, or every audio/document file would sit at
             // IsDone=false forever and FaceIndex's convergence loop would keep
             // re-touching them on every single run.
-            var applicable = new List<string> { StepFlags.CategoryIsSet, StepFlags.SubCategoryIsSet, StepFlags.NotDuplicate, StepFlags.FileIsReadable };
+            var applicable = new List<string> { StepFlags.CategoryIsSet, StepFlags.SubCategoryIsSet, StepFlags.NotDuplicate, StepFlags.FileIsReadable, StepFlags.NotFiltered };
             if (isImage || file.Type == MediaType.Video) applicable.Add(StepFlags.IsNormalized);
             if (isDateOrganized) applicable.Add(StepFlags.DateIsSet);
             if (isImage)
@@ -111,6 +119,15 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
                 [StepFlags.IsNormalized] = new() { Value = file.IsNormalized, Suggestion = file.IsNormalized ? null : "Not yet converted to this type's canonical format" },
                 [StepFlags.FileIsReadable] = new() { Value = !state.FailedFiles.Any(f => f.FilePath == file.FullPath) },
             };
+
+            var filterReason = file.ExportSubFolder switch
+            {
+                "LargeFilm" => $"Routed to Review/LargeFilm - {file.Duration?.TotalMinutes:F0} min video exceeds the 20 min personal-video threshold",
+                "SmallArtist" => $"Routed to Review/SmallArtist - too few tracks found for artist '{file.Artist}' (6 or fewer across the whole library)",
+                "Unplayable" => "Routed to Review/Unplayable - could not be read or decoded, likely corrupt or truncated",
+                _ => null,
+            };
+            flags[StepFlags.NotFiltered] = new() { Value = filterReason is null, Suggestion = filterReason };
             if (isDateOrganized)
                 flags[StepFlags.DateIsSet] = new() { Value = file.IsDateReliable, Suggestion = file.IsDateReliable ? null : "No reliable date source (EXIF/GPS/face-match) found" };
             if (isImage)

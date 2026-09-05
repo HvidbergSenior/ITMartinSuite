@@ -29,6 +29,13 @@ public static class StepFlags
     public const string FileIsReadable = "FileIsReadable";
     public const string FaceIndexed = "FaceIndexed";
     public const string LivePhotoChecked = "LivePhotoChecked";
+
+    // False for anything routed to the Review folder for a reason short of
+    // Duplicates/DeleteCandidates (which skip this record entirely - see
+    // FileStatusWorkflowStep) - e.g. LargeFilm, SmallArtist. Suggestion
+    // carries the specific reason so it's visible in filestatus.json, not
+    // just implied by which Review subfolder the file landed in.
+    public const string NotFiltered = "NotFiltered";
 }
 
 // Persisted per-file record, keyed by content hash, in a library's

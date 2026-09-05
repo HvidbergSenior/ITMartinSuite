@@ -34,6 +34,7 @@
         PhonePhoto,
         Social,
         Meme,
+        Gif,
         Chat,
         AlbumArt,
         OtherImage,

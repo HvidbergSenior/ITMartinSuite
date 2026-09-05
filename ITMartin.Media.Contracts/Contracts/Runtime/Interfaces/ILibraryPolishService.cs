@@ -84,6 +84,34 @@ public interface ILibraryPolishService
     // have confirmed with the user first.
     Task<DeduplicateResult> DeduplicateFolderAsync(string folderPath, CancellationToken cancellationToken = default);
 
+    // Confirmed 2026-09-03 on Rico/AC's whole-drive backup: an iTunes-style
+    // library harvested from an old PC produces hundreds of single-track
+    // "albums" (radio rips, one-off downloads, samples) alongside real
+    // albums - 1,091 of 1,295 album folders had fewer than 6 tracks on that
+    // archive. Removes any Musik/{Artist}/{Album} folder with fewer than
+    // minTracks audio files, then any artist folder left empty as a result.
+    // Real, irreversible deletion - caller's responsibility to have
+    // confirmed with the user first.
+    Task<AlbumPruneResult> PruneSmallAlbumsAsync(string libraryPath, int minTracks = 6, CancellationToken cancellationToken = default);
+
+    // Re-applies the export step's own year/month calendar-bucket grouping
+    // (see LibraryExportService.SplitByCalendarBuckets) to a category that's
+    // already been delivered, for when files were added into it afterward
+    // by some path other than a real QuickSort export - a manual recovery
+    // merge, a SmartFolders copy, etc. - and never went through that
+    // grouping logic in the first place. Confirmed 2026-09-03 on Rico/AC's
+    // archive: several days of manual merge/recovery work into Billeder left
+    // some month folders over 300 files (target is 50) and duplicate/
+    // colliding folder numbering (both "1 Januar" and "1 Januar-April"
+    // existing for the same year), because each merge just matched an
+    // existing folder by year/month instead of re-running the real
+    // splitting algorithm. Re-dates every file with the same
+    // IMediaDateService the original export used, then re-buckets each year
+    // from scratch and moves files (and their thumbnails) into the
+    // corrected folders. Real, irreversible file moves - caller's
+    // responsibility to have confirmed with the user first.
+    Task<RebalanceResult> RebalanceMonthFoldersAsync(string libraryPath, string category, int targetSize = 50, CancellationToken cancellationToken = default);
+
     // Standalone counterpart to FileStatusWorkflowStep, for a library that's
     // already sorted (not a fresh QuickSort import) - e.g. re-running against
     // D:\mie after the fact. Shares the same filestatus.json registry, so a

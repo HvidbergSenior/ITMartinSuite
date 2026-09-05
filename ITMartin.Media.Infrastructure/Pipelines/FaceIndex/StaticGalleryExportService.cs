@@ -35,7 +35,10 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
             // Flagged-as-duplicate copies staged for review/deletion, not real
             // library content - walking this folder shows every kept photo a
             // second time (found on Rico's library: 17,260 files in here alone).
-            "DeleteCandidates",
+            // "DeleteCandidates"/"SlettesKandidater"/"Duplikater" are the
+            // pre-2026-09-06 names, still present on already-sorted libraries;
+            // "Review" is the single consolidated folder new sorts use instead.
+            "DeleteCandidates", "SlettesKandidater", "Duplikater", "Review",
         };
 
     private const string ScreenshotFolderName = "Skærmbilleder";

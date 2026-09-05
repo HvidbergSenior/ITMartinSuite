@@ -11,6 +11,20 @@ namespace ITMartin.Media.Application.Pipelines.QuickSort.Steps;
 public sealed class CleanupEvaluationWorkflowStep
     : QuickSortWorkflowStepBase
 {
+    // Duration, not size - confirmed 2026-09-06 against Rico/AC's archive
+    // that size alone can't separate the two: real "Batman Brave and the
+    // Bold" episode rips are ~230-244MB each, while several genuinely
+    // personal camera clips in the same library run 462MB-1GB (long
+    // continuous recordings, just high-bitrate). A downloaded episode/movie
+    // is essentially always 20+ minutes; a personal clip is almost always a
+    // few minutes regardless of file size.
+    private static readonly TimeSpan LargeFilmDurationThreshold = TimeSpan.FromMinutes(20);
+
+    // Matches LibraryPolishService.PruneSmallAlbumsAsync's existing default,
+    // but counts across an artist's ENTIRE catalog (all albums), not per
+    // album - confirmed 2026-09-06.
+    private const int MinSongsPerArtist = 6;
+
     private readonly QuickSortCleanupResultBuilder
         _cleanupResultBuilder;
 
@@ -112,6 +126,48 @@ public sealed class CleanupEvaluationWorkflowStep
                 {
                     if (IsDeleteCandidate(mediaFile))
                         mediaFile.ExportSubFolder = "DeleteCandidates";
+                }
+
+                // Downloaded movies/TV rips confirmed 2026-09-06 on Rico/AC's
+                // archive (a full "Batman Brave and the Bold" episode set) -
+                // ClassifyVideoSubCategory's filename heuristics (SxxExx,
+                // rip-source keywords) miss these because the files aren't
+                // named like a rip. Duration catches them regardless of name
+                // or file size (see LargeFilmDurationThreshold above for why
+                // size alone doesn't work here). Files whose duration
+                // couldn't be read (HasValue false - corrupt/unsupported)
+                // are left alone rather than guessed at.
+                foreach (var mediaFile in state.MediaFiles
+                             .Where(f => f.ExportSubFolder is not ("Duplicates" or "DeleteCandidates" or "Unplayable")))
+                {
+                    if (mediaFile.Type == MediaType.Video &&
+                        mediaFile.Duration is { } duration &&
+                        duration > LargeFilmDurationThreshold)
+                        mediaFile.ExportSubFolder = "LargeFilm";
+                }
+
+                // An artist with only a handful of tracks scattered across the
+                // library (a single downloaded song, a stray sample) isn't a
+                // real album worth keeping in Musik proper - confirmed
+                // 2026-09-06. Counts across ALL of that artist's albums, not
+                // per-album, since a real artist can have several small
+                // albums that individually look sparse. Files with no Artist
+                // tag are left alone entirely - they can't be reliably
+                // attributed to "one artist with too few songs" (Metadata's
+                // Artist read failed for each independently, not because they
+                // share an artist).
+                var audioByArtist = state.MediaFiles
+                    .Where(f => f.MainCategory == MediaMainCategory.Audio &&
+                                f.ExportSubFolder is not ("Duplicates" or "DeleteCandidates" or "LargeFilm") &&
+                                !string.IsNullOrWhiteSpace(f.Artist))
+                    .GroupBy(f => f.Artist!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+                foreach (var group in audioByArtist)
+                {
+                    if (group.Count() > MinSongsPerArtist) continue;
+
+                    foreach (var mediaFile in group)
+                        mediaFile.ExportSubFolder = "SmallArtist";
                 }
 
                 var result =

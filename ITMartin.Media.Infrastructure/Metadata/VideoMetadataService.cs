@@ -8,7 +8,15 @@ namespace ITMartin.Media.Infrastructure.Metadata;
 
 public class VideoMetadataService : IVideoMetadataService
 {
-    
+    // Some malformed/edge-case video files (bad atom structure, truncated
+    // streams, etc.) send ffprobe into what is effectively an infinite loop
+    // internally - confirmed 2026-09-05 on a RicoAC .mp4 that read back fine
+    // byte-for-byte (md5sum completed instantly) yet hung ffprobe for over an
+    // hour with zero progress. WaitForExit() with no timeout has no way to
+    // recover from that, so a single bad file among tens of thousands can
+    // stall an entire library scan forever.
+    private static readonly TimeSpan FfprobeTimeout = TimeSpan.FromSeconds(30);
+
     private readonly ILogger<VideoMetadataService> _logger;
     public VideoMetadataService(
         ILogger<VideoMetadataService> logger)
@@ -54,9 +62,9 @@ public class VideoMetadataService : IVideoMetadataService
                 StandardErrorEncoding = Encoding.UTF8
             };
 
-            using var process = Process.Start(psi);
+            var result = RunFfprobeWithTimeout(psi, path, _logger);
 
-            if (process == null)
+            if (result is null)
             {
                 _logger.LogWarning(
                     "ffprobe returned empty output for {Path}",
@@ -64,12 +72,9 @@ public class VideoMetadataService : IVideoMetadataService
                 return null;
             }
 
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
+            var (exitCode, output, error) = result.Value;
 
-            process.WaitForExit();
-
-            Console.WriteLine($"[EXIT CODE] {process.ExitCode}");
+            Console.WriteLine($"[EXIT CODE] {exitCode}");
 
             Console.WriteLine("----- STDOUT -----");
             Console.WriteLine(output);
@@ -77,7 +82,7 @@ public class VideoMetadataService : IVideoMetadataService
             Console.WriteLine("----- STDERR -----");
             Console.WriteLine(error);
 
-            if (process.ExitCode != 0)
+            if (exitCode != 0)
             {
                 Console.WriteLine("[FFPROBE ERROR] Non-zero exit code");
                 return null;
@@ -115,6 +120,28 @@ public class VideoMetadataService : IVideoMetadataService
         }
 
         return null;
+    }
+
+    // Starts both stream reads before waiting on the process, so there's no
+    // risk of the classic ReadToEnd-then-WaitForExit deadlock (a process that
+    // fills the unread stderr/stdout OS pipe buffer while nothing is draining
+    // it) on top of the timeout/kill protection against a genuinely hung probe.
+    private static (int ExitCode, string StdOut, string StdErr)? RunFfprobeWithTimeout(ProcessStartInfo psi, string path, ILogger logger)
+    {
+        using var process = Process.Start(psi);
+        if (process is null) return null;
+
+        var stdOutTask = process.StandardOutput.ReadToEndAsync();
+        var stdErrTask = process.StandardError.ReadToEndAsync();
+
+        if (!process.WaitForExit((int)FfprobeTimeout.TotalMilliseconds))
+        {
+            logger.LogWarning("ffprobe timed out after {Timeout} on {Path} - killing and treating as unreadable", FfprobeTimeout, path);
+            try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            return null;
+        }
+
+        return (process.ExitCode, stdOutTask.GetAwaiter().GetResult(), stdErrTask.GetAwaiter().GetResult());
     }
 
     public string GetModelFromFileName(string path)
@@ -156,19 +183,14 @@ public class VideoMetadataService : IVideoMetadataService
                 StandardErrorEncoding = Encoding.UTF8
             };
 
-            using var process =
-                Process.Start(psi);
+            var result = RunFfprobeWithTimeout(psi, path, _logger);
 
-            if (process is null)
+            if (result is null)
             {
                 return null;
             }
 
-            var output =
-                process.StandardOutput
-                    .ReadToEnd();
-
-            process.WaitForExit();
+            var output = result.Value.StdOut;
 
             if (double.TryParse(
                     output.Trim(),
@@ -225,13 +247,11 @@ public class VideoMetadataService : IVideoMetadataService
                 StandardErrorEncoding = Encoding.UTF8
             };
 
-            using var process = Process.Start(psi);
-            if (process is null) return null;
+            var result = RunFfprobeWithTimeout(psi, path, _logger);
+            if (result is null) return null;
 
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-
-            if (process.ExitCode != 0) return null;
+            var (exitCode, output, _) = result.Value;
+            if (exitCode != 0) return null;
 
             var codec = output.Trim();
             return string.IsNullOrWhiteSpace(codec) ? null : codec;
@@ -240,6 +260,65 @@ public class VideoMetadataService : IVideoMetadataService
         {
             _logger.LogWarning(ex, "GetVideoCodec failed for {Path}", path);
             return null;
+        }
+    }
+
+    // Moved here from LibraryPolishService's late, post-export
+    // QuarantineUnplayableVideos pass (2026-09-06) - confirmed on Rico/AC's
+    // archive that a corrupt file was going through hashing, metadata,
+    // export, conversion AND thumbnail generation before finally landing in
+    // Review at the very end, wasting the most expensive steps in the whole
+    // pipeline on a file that gets thrown out anyway. Called from
+    // MediaRulesWorkflowStep instead, before any of that runs.
+    //
+    // `-t 3` caps ffmpeg's own decode work to 3 seconds regardless of file
+    // length, but a malformed file can still hang on OPEN rather than decode
+    // - same failure class as the ffprobe hang this class already guards
+    // against elsewhere, so this goes through the same timeout helper.
+    //
+    // One retry after a short delay: confirmed 2026-09-03 that 94% of
+    // quarantines from a single attempt were false positives caused by
+    // resource contention (many ffmpeg processes running concurrently for
+    // conversion/thumbnails at the same time as this check) rather than real
+    // corruption. Calling this earlier, before that concurrent work starts,
+    // should make the retry matter less than it used to - kept anyway since
+    // it's nearly free insurance.
+    public bool CanDecodeStart(string path)
+    {
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            if (TryDecodeStart(path)) return true;
+            if (attempt < 2) Thread.Sleep(500);
+        }
+
+        return false;
+    }
+
+    private bool TryDecodeStart(string path)
+    {
+        try
+        {
+            var ffmpegPath = OperatingSystem.IsWindows()
+                ? Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe")
+                : "ffmpeg";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffmpegPath,
+                ArgumentList = { "-v", "error", "-xerror", "-t", "3", "-i", path, "-f", "null", "-" },
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            var result = RunFfprobeWithTimeout(psi, path, _logger);
+            return result is not null && result.Value.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "CanDecodeStart failed for {Path}", path);
+            return false;
         }
     }
 }

@@ -13,6 +13,8 @@ public static class CategoryHelper
         file.SubCategory == MediaSubCategory.Screenshot ? "Skærmbilleder" :
         file.SubCategory == MediaSubCategory.LivePhotoVideo ? "LivePhotos" :
         file.SubCategory == MediaSubCategory.Meme ? "Memes" :
+        file.SubCategory == MediaSubCategory.Gif ? "Gifs" :
+        file.SubCategory == MediaSubCategory.Movie ? "Film" :
         file.SubCategory == MediaSubCategory.Chat ? "Chat" :
         file.SubCategory == MediaSubCategory.AlbumArt ? "Musik" :
         file.MainCategory switch

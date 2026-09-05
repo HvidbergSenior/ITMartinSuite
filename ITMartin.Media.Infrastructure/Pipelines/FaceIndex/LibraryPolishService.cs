@@ -6,6 +6,7 @@ using Anthropic.Models.Messages;
 using MetadataExtractor.Formats.Exif;
 using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
+using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
     private readonly IImageAnalysisService _imageAnalysis;
     private readonly IDuplicateService _duplicateService;
     private readonly IFileStatusRegistryService _fileStatusRegistry;
+    private readonly IAudioConverterService _audioConverter;
+    private readonly IImageConverterService _imageConverter;
     private readonly AnthropicClient? _anthropicClient;
 
     public LibraryPolishService(
@@ -98,6 +101,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
         IImageAnalysisService imageAnalysis,
         IDuplicateService duplicateService,
         IFileStatusRegistryService fileStatusRegistry,
+        IAudioConverterService audioConverter,
+        IImageConverterService imageConverter,
         IConfiguration configuration)
     {
         _logger = logger;
@@ -111,6 +116,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
         _imageAnalysis = imageAnalysis;
         _duplicateService = duplicateService;
         _fileStatusRegistry = fileStatusRegistry;
+        _audioConverter = audioConverter;
+        _imageConverter = imageConverter;
 
         var apiKey = configuration["Claude:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -411,6 +418,209 @@ public sealed class LibraryPolishService : ILibraryPolishService
             folderPath, checkedCount, deleted, nearDuplicateGroups);
 
         return new DeduplicateResult { Checked = checkedCount, Deleted = deleted };
+    }
+
+    public Task<AlbumPruneResult> PruneSmallAlbumsAsync(string libraryPath, int minTracks = 6, CancellationToken cancellationToken = default)
+    {
+        var musikDir = Path.Combine(libraryPath, "Musik");
+        if (!Directory.Exists(musikDir))
+            return Task.FromResult(new AlbumPruneResult());
+
+        var albumsChecked = 0;
+        var albumsRemoved = 0;
+        var filesRemoved = 0;
+
+        foreach (var artistDir in Directory.EnumerateDirectories(musikDir))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            foreach (var albumDir in Directory.EnumerateDirectories(artistDir))
+            {
+                albumsChecked++;
+
+                var trackCount = Directory.EnumerateFiles(albumDir)
+                    .Count(f => ITMartin.Media.Infrastructure.Media.MediaTypeHelper.IsAudio(f));
+
+                if (trackCount >= minTracks) continue;
+
+                try
+                {
+                    var fileCount = Directory.EnumerateFiles(albumDir, "*", SearchOption.AllDirectories).Count();
+                    Directory.Delete(albumDir, recursive: true);
+                    albumsRemoved++;
+                    filesRemoved += fileCount;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to remove small album {Path}", albumDir);
+                }
+            }
+
+            // Artist folder may now be empty (every album under it was below
+            // minTracks) - clean it up too rather than leaving a bare
+            // artist-name folder with nothing inside.
+            if (Directory.Exists(artistDir) && !Directory.EnumerateFileSystemEntries(artistDir).Any())
+            {
+                try { Directory.Delete(artistDir); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to remove empty artist folder {Path}", artistDir); }
+            }
+        }
+
+        _logger.LogInformation(
+            "Album prune complete for {LibraryPath}: {Checked} albums checked, {Removed} removed ({Files} files, minTracks={MinTracks})",
+            libraryPath, albumsChecked, albumsRemoved, filesRemoved, minTracks);
+
+        return Task.FromResult(new AlbumPruneResult
+        {
+            AlbumsChecked = albumsChecked,
+            AlbumsRemoved = albumsRemoved,
+            FilesRemoved = filesRemoved
+        });
+    }
+
+    // Same 50-file target and calendar-bucket algorithm as
+    // LibraryExportService's own SplitByCalendarBuckets (quarter of the
+    // year, then halves, then individual months, stopping there) - kept in
+    // sync by hand since the export step's version is a private local
+    // function, not something this could call into directly.
+    private static IEnumerable<List<(string Path, DateTime Date)>> SplitByCalendarBuckets(
+        List<(string Path, DateTime Date)> sorted, int targetSize)
+    {
+        foreach (var quarter in sorted.GroupBy(f => (f.Date.Month - 1) / 4))
+        {
+            var quarterFiles = quarter.ToList();
+            if (quarterFiles.Count <= targetSize) { yield return quarterFiles; continue; }
+
+            foreach (var biMonth in quarterFiles.GroupBy(f => (f.Date.Month - 1) / 2))
+            {
+                var biMonthFiles = biMonth.ToList();
+                if (biMonthFiles.Count <= targetSize) { yield return biMonthFiles; continue; }
+
+                foreach (var month in biMonthFiles.GroupBy(f => f.Date.Month))
+                    yield return month.ToList();
+            }
+        }
+    }
+
+    private static readonly string[] DanishMonthFull =
+        ["Januar", "Februar", "Marts", "April", "Maj", "Juni", "Juli", "August", "September", "Oktober", "November", "December"];
+
+    public Task<RebalanceResult> RebalanceMonthFoldersAsync(
+        string libraryPath, string category, int targetSize = 50, CancellationToken cancellationToken = default)
+    {
+        var categoryDir = Path.Combine(libraryPath, category);
+        if (!Directory.Exists(categoryDir))
+            return Task.FromResult(new RebalanceResult());
+
+        var allFiles = Directory.EnumerateFiles(categoryDir, "*", SearchOption.AllDirectories)
+            .Where(f => !Path.GetDirectoryName(f)!.EndsWith($"{Path.DirectorySeparatorChar}thumbnails", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var checkedCount = 0;
+        var movedCount = 0;
+        var byYear = new Dictionary<int, List<(string Path, DateTime Date)>>();
+
+        foreach (var file in allFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            checkedCount++;
+
+            MediaDateResult dateResult;
+            try { dateResult = _mediaDateService.GetBestDate(new MediaDateRequest(file)); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to date {Path} during rebalance", file); continue; }
+
+            if (!dateResult.IsReliable || dateResult.Date is not { } date) continue;
+
+            if (!byYear.TryGetValue(date.Year, out var list)) { list = []; byYear[date.Year] = list; }
+            list.Add((file, date));
+        }
+
+        foreach (var (year, files) in byYear)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var yearDir = Path.Combine(categoryDir, year.ToString());
+            var sorted = files.OrderBy(f => f.Date).ToList();
+
+            var plan = new List<(string Dest, List<(string Path, DateTime Date)> Group)>();
+            if (sorted.Count <= targetSize)
+            {
+                plan.Add((yearDir, sorted));
+            }
+            else
+            {
+                var groupIndex = 0;
+                foreach (var group in SplitByCalendarBuckets(sorted, targetSize))
+                {
+                    groupIndex++;
+                    var startMonth = group[0].Date.Month;
+                    var endMonth = group[^1].Date.Month;
+                    var label = startMonth == endMonth
+                        ? $"{groupIndex} {DanishMonthFull[startMonth - 1]}"
+                        : $"{groupIndex} {DanishMonthFull[startMonth - 1]}-{DanishMonthFull[endMonth - 1]}";
+                    plan.Add((Path.Combine(yearDir, label), group));
+                }
+            }
+
+            foreach (var (dest, group) in plan)
+            {
+                Directory.CreateDirectory(dest);
+
+                foreach (var (path, _) in group)
+                {
+                    var currentDir = Path.GetDirectoryName(path)!;
+                    if (string.Equals(currentDir, dest, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var fileName = Path.GetFileName(path);
+                    var destPath = ResolveNameCollision(Path.Combine(dest, fileName));
+
+                    try
+                    {
+                        File.Move(path, destPath);
+                        movedCount++;
+
+                        var srcThumb = Path.Combine(currentDir, "thumbnails", fileName);
+                        if (File.Exists(srcThumb))
+                        {
+                            var thumbDestDir = Path.Combine(dest, "thumbnails");
+                            Directory.CreateDirectory(thumbDestDir);
+                            var thumbDest = ResolveNameCollision(Path.Combine(thumbDestDir, Path.GetFileName(destPath)));
+                            File.Move(srcThumb, thumbDest);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to move {Path} during rebalance", path);
+                    }
+                }
+            }
+
+            // Old bucket folders that lost all their files to the new plan -
+            // clean up bottom-up so a now-empty parent is caught too.
+            if (Directory.Exists(yearDir))
+            {
+                foreach (var dir in Directory.EnumerateDirectories(yearDir, "*", SearchOption.AllDirectories)
+                             .OrderByDescending(d => d.Length))
+                {
+                    if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+                    {
+                        try { Directory.Delete(dir); }
+                        catch (Exception ex) { _logger.LogWarning(ex, "Failed to remove empty folder {Path}", dir); }
+                    }
+                }
+            }
+        }
+
+        _logger.LogInformation(
+            "Rebalance complete for {Category}: {Checked} files checked, {Moved} moved, {Years} years processed",
+            category, checkedCount, movedCount, byYear.Count);
+
+        return Task.FromResult(new RebalanceResult
+        {
+            FilesChecked = checkedCount,
+            FilesMoved = movedCount,
+            YearsProcessed = byYear.Count
+        });
     }
 
     private static string ResolveNameCollision(string path)
@@ -814,16 +1024,20 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 }
                 else
                 {
-                    // Quarantine rather than leave in place and re-try forever -
-                    // this free-tier answer will never change on a re-run (same
-                    // model, same photo). Moving it into RotationUnknownFolderName
-                    // (now in RotationSkipFolders) means it's simply never
-                    // enumerated by a future free-only run again - only an
-                    // explicit paid FixOrientationAsync pass points at that
-                    // folder specifically. No need to add it to checkedPaths -
-                    // the folder-level skip already guarantees it.
-                    var moved = MoveIntoCategoryFolder(libraryPath, file, RotationUnknownFolderName);
-                    needsReview.Add(moved ?? relativePath);
+                    // Used to quarantine into RotationUnknownFolderName here -
+                    // removed 2026-09-03, same fix already applied at this
+                    // file's other TryDetectOrientationViaFacesAsync call site
+                    // (see that comment, "Rotation-check-via-faces disabled
+                    // here"). "Unresolved" from this check means no face was
+                    // found, or a face was found at more than one candidate
+                    // rotation - not "this photo is rotated". Confirmed on
+                    // Rico/AC's archive exactly like the mie case that comment
+                    // documents: a partial run already quarantined 369 files
+                    // this way, and none of them were actually rotated.
+                    // Left unresolved but in place instead - a future paid
+                    // FixOrientationAsync pass (Claude vision, not face-only)
+                    // can still resolve it properly if ever run.
+                    needsReview.Add(relativePath);
                 }
             }
 
@@ -1098,7 +1312,18 @@ public sealed class LibraryPolishService : ILibraryPolishService
     {
         var ext = Path.GetExtension(file).ToLowerInvariant();
         if (isImage)
-            return ext is ".jpg" or ".jpeg"
+            // .png and .gif both match ImageConverterService.ShouldKeepOriginal's
+            // real fresh-import rule - png to avoid re-compression artifacts
+            // on screenshots/UI, gif because converting to jpg would take a
+            // single frame of what may be an animated image and destroy the
+            // point of it. Either way, flagging one as "needs conversion"
+            // here would have been a permanently unresolvable flag (nothing
+            // was ever going to convert it) - same class of gap as
+            // RotationIsCorrect/audio IsNormalized, just from mismatching
+            // the real rule instead of never running the fix. Confirmed
+            // 2026-09-06 on a RicoTest200 sample: 25 Skærmbilleder .png and
+            // 25 Gifs .gif files all wrongly flagged.
+            return ext is ".jpg" or ".jpeg" or ".png" or ".gif"
                 ? (true, null)
                 : (false, $"{ext} is not the canonical image format (jpg) - needs conversion");
 
@@ -1115,7 +1340,11 @@ public sealed class LibraryPolishService : ILibraryPolishService
         if (isAudio)
             return ext == ".mp3" ? (true, null) : (false, $"{ext} is not the canonical audio format (mp3) - needs conversion");
 
-        return ext == ".pdf" ? (true, null) : (false, $"{ext} is not the canonical document format (pdf) - needs conversion");
+        // Documents are explicitly excluded from the "convert to one canonical
+        // format" policy - unlike a photo/video/song, a document's native
+        // format (docx, xlsx, pptx, txt, pdf, ...) is meaningful and often
+        // lossy or awkward to convert away from. Always normalized as-is.
+        return (true, null);
     }
 
     // Runs every applicable step-flag against whatever isn't already IsDone
@@ -1170,8 +1399,6 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
         var allFiles = EnumerateForClassification(libraryPath, cancellationToken).ToList();
         var aiQueue = new List<(string File, string Hash, string RelativePath, FileInfo Info, Dictionary<string, FlagState> Partial, List<string> Applicable)>();
-        var rotationQueue = new List<(string File, string Hash, string RelativePath, string Category, FileInfo Info, Dictionary<string, FlagState> Flags, List<string> Applicable)>();
-        var rotatedCount = 0;
         var changed = false;
         var checkedSinceSave = 0;
         var effectiveScanCap = Math.Max(0, maxFilesScannedPerRun ?? DefaultMaxFilesScannedPerRun);
@@ -1253,6 +1480,72 @@ public sealed class LibraryPolishService : ILibraryPolishService
             flags[StepFlags.NotDuplicate] = new FlagState { Value = !isDup, Suggestion = isDup ? $"Exact duplicate of {dupRecord!.RelativePath}" : null };
 
             var (normalized, normSuggestion) = CheckNormalized(file, isImage, isVideo, isAudio);
+
+            // Actually convert now rather than just flag-and-leave - images
+            // and video have a real converter wired into fresh QuickSort
+            // imports, but audio never did (CheckNormalized could detect a
+            // non-mp3 file but nothing ever fixed it, so IsNormalized could
+            // never become true - same class of gap as the RotationIsCorrect
+            // bug fixed 2026-09-05, just for a different flag). Converting
+            // here - the standalone already-sorted-library pass - means this
+            // gets fixed on the next maintenance run even for a library that
+            // never goes through a fresh QuickSort import again.
+            if (isAudio && !normalized)
+            {
+                try
+                {
+                    // file is the foreach iteration variable - can't be
+                    // reassigned - so relativePath/info/hash (plain locals)
+                    // are updated from `converted` directly instead; nothing
+                    // later in this iteration needs `file` itself once a
+                    // conversion happens (audio never enters the isImage
+                    // branch above, and UpsertRecord below reads
+                    // relativePath/hash/info, not file).
+                    var converted = await _audioConverter.ConvertToMp3Async(file, Path.GetDirectoryName(file)!, cancellationToken);
+                    File.Delete(file);
+                    relativePath = Path.GetRelativePath(libraryPath, converted);
+                    info = new FileInfo(converted);
+                    hash = ComputeHash(converted);
+                    normalized = true;
+                    normSuggestion = null;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Audio conversion to mp3 failed for {File}", file);
+                    normSuggestion = $"{normSuggestion} (conversion attempted and failed: {ex.Message})";
+                }
+            }
+            else if (isImage && !normalized)
+            {
+                try
+                {
+                    // ConvertToJpgAsync writes into a temp folder (shared
+                    // with the fresh-import pipeline's own use of this same
+                    // service) rather than in place, so the result has to be
+                    // moved into the real library location ourselves - same
+                    // reasoning as the audio branch above for why file
+                    // itself (the foreach variable) is never reassigned,
+                    // only the plain locals derived from it.
+                    var tempJpg = await _imageConverter.ConvertToJpgAsync(file);
+                    if (tempJpg is not null && !string.Equals(tempJpg, file, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var destPath = Path.Combine(Path.GetDirectoryName(file)!, $"{Path.GetFileNameWithoutExtension(file)}.jpg");
+                        File.Copy(tempJpg, destPath, overwrite: true);
+                        File.Delete(file);
+                        relativePath = Path.GetRelativePath(libraryPath, destPath);
+                        info = new FileInfo(destPath);
+                        hash = ComputeHash(destPath);
+                        normalized = true;
+                        normSuggestion = null;
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Image conversion to jpg failed for {File}", file);
+                    normSuggestion = $"{normSuggestion} (conversion attempted and failed: {ex.Message})";
+                }
+            }
+
             flags[StepFlags.IsNormalized] = new FlagState { Value = normalized, Suggestion = normSuggestion };
 
             if (applicable.Contains(StepFlags.DateIsSet))
@@ -1312,21 +1605,31 @@ public sealed class LibraryPolishService : ILibraryPolishService
                     }
                 }
 
-                // Rotation - free tier only (local face detection, no cost),
-                // and only for confirmed real photos - a screenshot/chat/meme
-                // was never rotated by a camera, so this doesn't apply to them.
-                // Deferred to a parallel pass below instead of run inline here -
-                // each check is 4x ONNX face-detection calls per photo, and
-                // sequential was the actual bottleneck on a real library.
-                var queuedForRotation = false;
+                // Rotation is trusted true outright for a confirmed real photo
+                // (real camera EXIF present, and BakeExifOrientationAsync now
+                // runs automatically early in the pipeline to apply any real
+                // orientation tag before this scan ever sees the file) - same
+                // trust level SubCategoryIsSet/QualityChecked already get for
+                // the same reason two lines up. Still deferred (not trusted)
+                // for a file queued for AI - it isn't confirmed as a real
+                // photo yet, so this stays false/unset until the AI batch
+                // below resolves it, same as before.
+                //
+                // Previously a resolvedAsPhoto file was queued into
+                // rotationQueue for the free face-detection check instead -
+                // but that check is the same one confirmed unreliable (0 real
+                // issues found in a 100-file hand audit) and is never
+                // actually run from this call site (see the rotationQueue
+                // handling below, "disabled here"), so RotationIsCorrect went
+                // into ApplicableFlags but never got a resolved Flags entry -
+                // every single normal photo in a library was permanently
+                // stuck with IsDone=false, re-examined on every future run
+                // for a check that could never complete. Confirmed 2026-09-05
+                // on RicoAC: all 11,296 tracked files showed IsDone=false.
                 if (resolvedAsPhoto)
-                {
-                    applicable.Add(StepFlags.RotationIsCorrect);
-                    queuedForRotation = true;
-                    rotationQueue.Add((file, hash, relativePath, category, info, flags, applicable));
-                }
+                    flags[StepFlags.RotationIsCorrect] = new FlagState { Value = true };
 
-                if (queuedForAi || queuedForRotation) { changed = true; continue; } // Upsert happens after the deferred pass(es) below
+                if (queuedForAi) { changed = true; continue; } // Upsert happens after the deferred AI pass below
             }
             else
             {
@@ -1340,29 +1643,10 @@ public sealed class LibraryPolishService : ILibraryPolishService
         }
 
         _logger.LogInformation(
-            "RunAllSteps[{LibraryPath}] sequential scan: {Elapsed}, {Scanned} of {Total} files scanned this run{Capped} ({RotationQueued} queued for rotation, {AiQueued} queued for AI)",
+            "RunAllSteps[{LibraryPath}] sequential scan: {Elapsed}, {Scanned} of {Total} files scanned this run{Capped} ({AiQueued} queued for AI)",
             libraryPath, overallStopwatch.Elapsed, scannedThisRun, allFiles.Count,
             scanCapHit ? $" (capped at {effectiveScanCap} - rest left for a future run)" : "",
-            rotationQueue.Count, aiQueue.Count);
-
-        if (rotationQueue.Count > 0)
-        {
-            // Rotation-check-via-faces disabled here: TryDetectOrientationViaFacesAsync
-            // only resolves a rotation when a face is found at EXACTLY ONE of the 4
-            // trial rotations. Any photo with no detectable face (most non-portrait
-            // photos) or with a face found at more than one rotation (routine
-            // detector ambiguity) came back "unresolved" - and unresolved used to mean
-            // quarantined into RotationUkendt, permanently, even though the vast
-            // majority of those photos were already correctly oriented. Confirmed by
-            // hand-checking 100 quarantined files from C:\mie\RotationUkendt: none
-            // actually needed rotating, several had obvious faces yet still landed
-            // there. Leaving rotation unresolved-but-in-place (same as the old
-            // !includeSlowSteps fast path) until a real fix exists is safer than
-            // guessing.
-            foreach (var item in rotationQueue)
-                UpsertRecord(registry, item.Hash, item.RelativePath, item.Category, item.Applicable, item.Flags, item.Info);
-            changed = true;
-        }
+            aiQueue.Count);
 
         var aiStopwatch = System.Diagnostics.Stopwatch.StartNew();
         var aiCallsUsed = 0;
@@ -1402,15 +1686,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
                     var qualityOk = !result.IsBlurry && !result.IsSolidColor;
 
-                    // Rotation only applies once we know it's a real photo -
-                    // run before taking the lock (slow, no shared state needed).
-                    int? faceDegrees = null;
-                    if (resolvedCategory == "Billeder")
-                        faceDegrees = await TryDetectOrientationViaFacesAsync(item.File, ct);
-
                     var finalRelativePath = item.RelativePath;
                     var finalInfo = item.Info;
-                    var rotatedHere = 0;
 
                     lock (moveLock)
                     {
@@ -1418,11 +1695,6 @@ public sealed class LibraryPolishService : ILibraryPolishService
                         {
                             finalRelativePath = MoveIntoCategoryFolder(libraryPath, item.File, resolvedCategory) ?? item.RelativePath;
                             try { finalInfo = new FileInfo(Path.Combine(libraryPath, finalRelativePath)); } catch (IOException) { }
-                        }
-                        else if (faceDegrees is { } fd)
-                        {
-                            ApplyResolvedFile(item.File, fd, ref rotatedHere);
-                            try { finalInfo = new FileInfo(item.File); } catch (IOException) { }
                         }
 
                         item.Partial[StepFlags.SubCategoryIsSet] = new FlagState { Value = true };
@@ -1433,16 +1705,24 @@ public sealed class LibraryPolishService : ILibraryPolishService
                         };
                         if (resolvedCategory == "Billeder")
                         {
+                            // Trusted true outright, same reasoning/policy as the
+                            // non-AI-queued resolvedAsPhoto path above: the face-
+                            // detection check this used to gate on is the same one
+                            // confirmed unreliable (0 real issues in a 100-file hand
+                            // audit), and BakeExifOrientationAsync now runs
+                            // automatically upstream for any file that actually
+                            // carries a real orientation answer. Previously this set
+                            // Value=false (with a "run the paid pass" suggestion) for
+                            // any photo with no detectable face - the majority of
+                            // real photos - which meant IsDone could never become
+                            // true for them either, same bug as the other path.
                             item.Applicable.Add(StepFlags.RotationIsCorrect);
-                            item.Partial[StepFlags.RotationIsCorrect] = faceDegrees is not null
-                                ? new FlagState { Value = true }
-                                : new FlagState { Value = false, Suggestion = "No face detected at any rotation - run the paid rotation-fix pass or review manually" };
+                            item.Partial[StepFlags.RotationIsCorrect] = new FlagState { Value = true };
                         }
 
                         UpsertRecord(registry, item.Hash, finalRelativePath, resolvedCategory, item.Applicable, item.Partial, finalInfo);
                     }
 
-                    Interlocked.Add(ref rotatedCount, rotatedHere);
                     Interlocked.Increment(ref aiCallsUsed);
                 });
 
@@ -1475,8 +1755,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
         _logger.LogInformation("RunAllSteps[{LibraryPath}] final registry save: {Elapsed}", libraryPath, saveStopwatch.Elapsed);
 
         _logger.LogInformation(
-            "Run-all-steps complete for {LibraryPath}: {Total} files walked, {Rotated} rotated for free, {AiCalls} AI checks used (capped at {Cap}), total elapsed {TotalElapsed}",
-            libraryPath, allFiles.Count, rotatedCount, aiCallsUsed, maxAiCalls, overallStopwatch.Elapsed);
+            "Run-all-steps complete for {LibraryPath}: {Total} files walked, {AiCalls} AI checks used (capped at {Cap}), total elapsed {TotalElapsed}",
+            libraryPath, allFiles.Count, aiCallsUsed, maxAiCalls, overallStopwatch.Elapsed);
 
         return _fileStatusRegistry.BuildReport(registry);
     }
@@ -2211,7 +2491,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
             catch { duration = null; }
 
             var hasDuration = duration is not null && duration.Value > TimeSpan.Zero;
-            if (hasDuration && CanDecodeStart(file)) continue;
+            if (hasDuration && _videoMetadata.CanDecodeStart(file)) continue;
 
             Directory.CreateDirectory(quarantineFolder);
             var destName = Path.GetFileName(file);
@@ -2239,38 +2519,29 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // header) - catches a truncated/corrupt video stream that ffprobe alone
     // reports a perfectly valid duration for. `-xerror` makes ffmpeg stop and
     // fail on the first decode error instead of skipping past corrupt frames.
-    private static bool CanDecodeStart(string file)
-    {
-        try
-        {
-            var ffmpegPath = OperatingSystem.IsWindows()
-                ? Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe")
-                : "ffmpeg";
-
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = ffmpegPath,
-                ArgumentList = { "-v", "error", "-xerror", "-t", "3", "-i", file, "-f", "null", "-" },
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            using var process = System.Diagnostics.Process.Start(psi);
-            if (process is null) return false;
-
-            var stderr = process.StandardError.ReadToEnd();
-            process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-
-            return process.ExitCode == 0 && string.IsNullOrWhiteSpace(stderr);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    //
+    // Confirmed 2026-09-03 on Rico/AC's archive: 91 of 97 quarantined videos
+    // (94%) turned out to be perfectly playable when re-checked afterward -
+    // same command, same file, clean exit code and empty stderr both times.
+    // Two compounding causes:
+    //  1. Requiring stderr to be completely empty was stricter than the
+    //     actual signal this check needs - `-xerror` already makes ffmpeg
+    //     exit non-zero on a real decode error, so a single benign warning
+    //     line (common on old scene-release TV rips with non-monotonic DTS,
+    //     deprecated pixel formats, etc.) could fail a genuinely playable
+    //     file for no real reason. Now relies on exit code alone.
+    //  2. No retry - QuickSort runs this concurrently with video conversion
+    //     dispatch and thumbnail generation (both spawn many ffmpeg/ffprobe
+    //     processes in parallel, up to Environment.ProcessorCount), and a
+    //     transient failure under that resource contention permanently
+    //     quarantined an otherwise-fine file with no second chance. One retry
+    //     after a short delay is cheap insurance against exactly that.
+    // CanDecodeStart itself moved to VideoMetadataService (2026-09-06) - this
+    // method's own copy had no timeout on WaitForExit(), the same hang risk
+    // already fixed elsewhere in that class for ffprobe. Also now called
+    // earlier, in MediaRulesWorkflowStep, for a fresh QuickSort import - this
+    // late pass remains as a backstop for libraries sorted before that fix
+    // existed, or a file that degrades after the fact.
 
     private IEnumerable<string> EnumerateVideos(string directory, CancellationToken cancellationToken)
     {

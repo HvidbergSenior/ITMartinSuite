@@ -114,8 +114,48 @@ public class LibraryExportService
 
         var groupLabelByFileId = new Dictionary<Guid, string>();
 
+        // Folders under this size get folded into a neighboring group
+        // instead of standing alone - a lone September with 2 photos next to
+        // a proper 50-photo summer group reads as noise, not signal. This
+        // used to be a manual pass run by hand against an already-exported
+        // library; doing it here instead means it happens on the very first
+        // run, for free - pure in-memory list merging on data already
+        // sorted by date, no extra file I/O or cost.
+        const int MinGroupSize = 5;
+
+        // (Category, Year) pairs that ended up with at least one real,
+        // dated subfolder - consulted below when placing IsYearOnly files,
+        // so a lone "Ukendt måned" folder can flatten away too when it would
+        // otherwise be the only subfolder that year.
+        var yearsWithGroupFolders = new HashSet<(string Category, int Year)>();
+
+        static List<List<MediaFile>> MergeUndersizedGroups(List<List<MediaFile>> groups, int minSize)
+        {
+            var result = new List<List<MediaFile>>(groups);
+            while (result.Count > 1)
+            {
+                var idx = result.FindIndex(g => g.Count < minSize);
+                if (idx == -1) break;
+
+                // Groups are already chronologically contiguous - the
+                // nearest neighbor is always whichever one is physically
+                // adjacent, no date-distance comparison needed.
+                if (idx > 0)
+                {
+                    result[idx - 1].AddRange(result[idx]);
+                    result.RemoveAt(idx);
+                }
+                else
+                {
+                    result[1].InsertRange(0, result[0]);
+                    result.RemoveAt(0);
+                }
+            }
+            return result;
+        }
+
         foreach (var yearGroup in list
-            .Where(f => f.ExportSubFolder is not ("Duplicates" or "DeleteCandidates"))
+            .Where(f => f.ExportSubFolder is not ("Duplicates" or "DeleteCandidates" or "LargeFilm" or "SmallArtist" or "Unplayable"))
             .Where(f => CategoryHelper.GetCategory(f) != "Musik")
             .Where(f => !f.IsYearOnly && f.IsDateReliable && f.CreatedAt.HasValue)
             .GroupBy(f => (Category: CategoryHelper.GetCategory(f), Year: Math.Max(f.Year, 2000))))
@@ -123,13 +163,25 @@ public class LibraryExportService
             var sorted = yearGroup.OrderBy(f => f.CreatedAt!.Value).ToList();
             if (sorted.Count <= FlatIfAtMost) continue; // stays flat - no label assigned
 
+            var groups = MergeUndersizedGroups(
+                SplitByCalendarBuckets(sorted, GroupTargetSize).ToList(),
+                MinGroupSize);
+
+            // Merging can collapse a whole year back down to a single group
+            // (e.g. everything but a couple of stragglers already lived in
+            // one bucket) - same as the <=50 fast path above: flat, no
+            // label, no subfolder at all.
+            if (groups.Count <= 1) continue;
+
+            yearsWithGroupFolders.Add(yearGroup.Key);
+
             // SplitByCalendarBuckets yields groups in chronological order
             // (source is pre-sorted by date), so a plain 1-based counter
             // sorts correctly in Explorer without looking like a day number -
             // just a running index of "which group is this, within the
             // year," not tied to any calendar value.
             var groupIndex = 0;
-            foreach (var group in SplitByCalendarBuckets(sorted, GroupTargetSize))
+            foreach (var group in groups)
             {
                 groupIndex++;
 
@@ -166,6 +218,18 @@ public class LibraryExportService
                 var isMusic =
                     category == "Musik";
 
+                // Confirmed 2026-09-03 on Rico/AC's archive: screenshots,
+                // GIFs, and downloaded movie/TV content all sit flat with no
+                // year/month breakdown - unlike a real photo/video, "when was
+                // this captured" isn't a meaningful question for any of
+                // these, and a deep year/month tree just makes a small,
+                // browsable set of ~50-200 files harder to skim through.
+                var isFlatCategory =
+                    file.SubCategory is
+                        ITMartin.Media.Contracts.Contracts.Runtime.Enums.MediaSubCategory.Screenshot or
+                        ITMartin.Media.Contracts.Contracts.Runtime.Enums.MediaSubCategory.Gif or
+                        ITMartin.Media.Contracts.Contracts.Runtime.Enums.MediaSubCategory.Movie;
+
                 var musicSubPath =
                     isMusic
                         ? Path.Combine(
@@ -194,32 +258,52 @@ public class LibraryExportService
                         safeMonth,
                         1).ToString("MMMM")}";
 
+                // Everything filtered out of the real collection - exact
+                // duplicates, delete candidates, large downloaded films, and
+                // sparse-artist music - lands in one "Review" root instead of
+                // several scattered special-purpose folders, confirmed
+                // 2026-09-06: a clean top-level output with a single place to
+                // check, structured by reason underneath.
                 var targetDir =
                     file.ExportSubFolder == "Duplicates"
                         ? musicSubPath is not null
-                            ? Path.Combine(root, "Duplikater", category, musicSubPath)
+                            ? Path.Combine(root, "Review", "Duplicates", category, musicSubPath)
                             : Path.Combine(
                                 root,
-                                "Duplikater",
+                                "Review",
+                                "Duplicates",
                                 category,
                                 safeYear.ToString(),
                                 monthFolder)
-                        : file.ExportSubFolder == "DeleteCandidates"
+                        : file.ExportSubFolder is "DeleteCandidates" or "LargeFilm" or "SmallArtist" or "Unplayable"
                             ? Path.Combine(
                                 root,
-                                "SlettesKandidater",
+                                "Review",
+                                file.ExportSubFolder,
                                 category)
                             : musicSubPath is not null
                                 ? Path.Combine(root, category, musicSubPath)
-                                : file.IsYearOnly
+                                : isFlatCategory
+                                    ? Path.Combine(root, category)
+                                    : file.IsYearOnly
                                     // Year came from an ancestor folder name, not a
                                     // real date - sort by it, but never claim a
-                                    // specific month we don't actually know.
-                                    ? Path.Combine(
-                                        root,
-                                        category,
-                                        safeYear.ToString(),
-                                        "Ukendt måned")
+                                    // specific month we don't actually know. If this
+                                    // (category, year) has no other dated subfolder,
+                                    // "Ukendt måned" would be the only subfolder that
+                                    // year anyway - flatten it away to the year root
+                                    // instead, same "only one month -> flat" rule the
+                                    // merge pass above applies to dated buckets.
+                                    ? (yearsWithGroupFolders.Contains((category, safeYear))
+                                        ? Path.Combine(
+                                            root,
+                                            category,
+                                            safeYear.ToString(),
+                                            "Ukendt måned")
+                                        : Path.Combine(
+                                            root,
+                                            category,
+                                            safeYear.ToString()))
                                     : !file.IsDateReliable
                                         // No "Udaterede" catch-all - a genuinely
                                         // dateless real photo still belongs to its
@@ -295,7 +379,7 @@ public class LibraryExportService
                 // One cover.jpg per album folder, pulled from whichever track
                 // happens to carry embedded artwork - not every track in an
                 // album has it, so this isn't limited to the first file copied.
-                if (isMusic && file.ExportSubFolder is not ("Duplicates" or "DeleteCandidates"))
+                if (isMusic && file.ExportSubFolder is not ("Duplicates" or "DeleteCandidates" or "SmallArtist"))
                 {
                     var coverPath =
                         Path.Combine(targetDir, "cover.jpg");
@@ -380,11 +464,12 @@ public class LibraryExportService
                 "Dokumenter",
                 "Musik",
                 "Memes",
+                "Gifs",
+                "Film",
                 "Chat",
                 "Skærmbilleder",
                 "LivePhotos",
-                "SlettesKandidater",
-                "Duplikater",
+                "Review",
                 "Ikke_identificeret"
             };
 

@@ -16,14 +16,20 @@ public sealed class AiClassificationWorkflowStep : QuickSortWorkflowStepBase
     // exists to prevent.
     private const int MaxAiClassificationChecksPerRun = 2000;
 
-    // Independent Claude calls in flight at once - same reasoning/value as
-    // LibraryPolishService's ClassifyAiConcurrency and
-    // ScreenshotReclassifyConcurrency (this call isn't batchable into one
-    // prompt today - it returns a richer per-image verdict than the
-    // rotation-fix's simple degrees-per-image - so concurrency is the lever
-    // available here; batching would need a schema change to the underlying
-    // Claude tool call, a separate piece of work).
-    private const int AiClassificationConcurrency = 8;
+    // Images per Claude call - was one call per image with 8-way concurrency
+    // (concurrency, not batching); per CLAUDE.md "AI/Claude API cost
+    // discipline", concurrency alone burns through budget faster, it doesn't
+    // reduce it - batching multiple images into one call is the actual fix,
+    // via IImageAnalysisService.AnalyzeImagesBatchAsync's array-of-results
+    // tool schema. 8 keeps a single call's image-token payload reasonable
+    // while cutting per-call fixed overhead (system prompt, tool schema) by
+    // ~8x versus one-call-per-image.
+    private const int ImagesPerBatch = 8;
+
+    // Batches in flight at once - bounds total concurrent image-token
+    // payload in flight (BatchConcurrency * ImagesPerBatch images), not
+    // per-image concurrency.
+    private const int BatchConcurrency = 3;
 
     private readonly IImageAnalysisService _imageAnalysis;
     private readonly ILogger<AiClassificationWorkflowStep> _logger;
@@ -76,22 +82,47 @@ public sealed class AiClassificationWorkflowStep : QuickSortWorkflowStepBase
             $"Images={total}",
             async () =>
             {
-                await Parallel.ForEachAsync(
-                    images,
-                    new ParallelOptions { MaxDegreeOfParallelism = AiClassificationConcurrency, CancellationToken = cancellationToken },
-                    async (file, ct) =>
-                    {
-                        var path = file.NormalizedPath ?? file.FullPath;
+                var batches = images
+                    .Select((file, i) => (file, i))
+                    .GroupBy(x => x.i / ImagesPerBatch)
+                    .Select(g => g.Select(x => x.file).ToList())
+                    .ToList();
 
-                        if (!File.Exists(path))
+                await Parallel.ForEachAsync(
+                    batches,
+                    new ParallelOptions { MaxDegreeOfParallelism = BatchConcurrency, CancellationToken = cancellationToken },
+                    async (batch, ct) =>
+                    {
+                        var existing = batch
+                            .Select(file => file.NormalizedPath ?? file.FullPath)
+                            .ToList();
+                        var validPairs = batch.Zip(existing, (file, path) => (file, path))
+                            .Where(p => File.Exists(p.path))
+                            .ToList();
+
+                        if (validPairs.Count == 0)
                         {
-                            Interlocked.Increment(ref done);
+                            Interlocked.Add(ref done, batch.Count);
                             return;
                         }
 
+                        IReadOnlyList<AiAnalysisResult> results;
                         try
                         {
-                            var result = await _imageAnalysis.AnalyzeImageAsync(path);
+                            results = await _imageAnalysis.AnalyzeImagesBatchAsync(
+                                validPairs.Select(p => p.path).ToList());
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "AI classification batch of {Count} failed", validPairs.Count);
+                            Interlocked.Add(ref done, batch.Count);
+                            return;
+                        }
+
+                        for (var i = 0; i < validPairs.Count; i++)
+                        {
+                            var file = validPairs[i].file;
+                            var result = results[i];
 
                             file.AiDescription = result.Description;
                             file.IsBlurry = result.IsBlurry;
@@ -118,13 +149,9 @@ public sealed class AiClassificationWorkflowStep : QuickSortWorkflowStepBase
                                 file.SubCategory = MediaSubCategory.Screenshot;
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "AI classification failed for {File}", file.FileName);
-                        }
 
-                        var current = Interlocked.Increment(ref done);
-                        LogStepProgress(_logger, Name, current, total, file.FileName);
+                        var current = Interlocked.Add(ref done, batch.Count);
+                        LogStepProgress(_logger, Name, current, total, $"batch of {validPairs.Count}");
                     });
             },
             _logger);

@@ -21,7 +21,17 @@ public class ImageConverterService : IImageConverterService
         {
             ".heic",
             ".heif",
-            ".avif"
+            ".avif",
+            // Confirmed 2026-09-03: MediaRulesWorkflowStep already flags
+            // these as RequiresNormalization (non-canonical image formats),
+            // but this allowlist never actually included them, so they were
+            // exported to Billeder untouched instead of converted to .jpg.
+            // MagickImage's constructor is format-agnostic - the same
+            // ConvertWithMagick call used for HEIC handles TIFF/BMP natively.
+            ".tif",
+            ".tiff",
+            ".bmp"
+            // .gif deliberately NOT here - see ShouldKeepOriginal below.
         };
 
     public ImageConverterService(ILogger<ImageConverterService> logger)
@@ -124,7 +134,11 @@ public class ImageConverterService : IImageConverterService
             Path.GetExtension(path)
                 .ToLowerInvariant();
 
-        return ext is ".png" or ".jpg" or ".jpeg"
+        return ext is ".png" or ".jpg" or ".jpeg" or ".gif"
+               // .gif specifically: converting to jpg would take a single
+               // frame of what may be an animated image, destroying the
+               // entire point of it - confirmed 2026-09-06, corrected after
+               // briefly adding .gif to ConvertibleExtensions above instead.
                || name.Contains("screenshot")
                || name.Contains("meme");
     }
@@ -201,7 +215,7 @@ public class ImageConverterService : IImageConverterService
             // and every HEIC file quietly exported unconverted instead of
             // failing loudly. AVIF still goes through ffmpeg (libaom handles
             // AV1 fine); only HEIC/HEIF moved to Magick.NET.
-            if (ext is ".heic" or ".heif")
+            if (ext is ".heic" or ".heif" or ".tif" or ".tiff" or ".bmp")
             {
                 ConvertWithMagick(inputPath, outputPath);
             }

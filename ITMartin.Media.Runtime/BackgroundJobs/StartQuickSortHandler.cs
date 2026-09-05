@@ -102,8 +102,7 @@ public sealed class StartQuickSortHandler
         // Free add-ons folded into the normal sort pass instead of being
         // separate, easy-to-forget catch-up steps run by hand via debug
         // endpoints - each is either free (no Claude API cost), local-only
-        // ONNX (IndexFacesAsync, FixOrientationFreeOnlyAsync's face-detection
-        // tier), or cheap enough to treat as free by policy
+        // ONNX (IndexFacesAsync), or cheap enough to treat as free by policy
         // (ClassifyUnhandledFilesAsync - text-only Haiku calls, capped at 500
         // files/run, ~$0.05/run). All are already incremental (skip work
         // already done), so a re-run against a mostly-unchanged library only
@@ -111,28 +110,44 @@ public sealed class StartQuickSortHandler
         // try/caught so one failing step doesn't hide or block the others -
         // the sorted files are already safely in place regardless.
         //
+        // FixOrientationFreeOnlyAsync used to run automatically here too -
+        // removed 2026-09-03. Its face-detection heuristic only resolves a
+        // rotation when a face is found at exactly one of 4 trial rotations;
+        // any other photo (no face, or an ambiguous multi-rotation match -
+        // most of a real library) came back unresolved and got quarantined
+        // into RotationUkendt. Confirmed on Rico/AC's archive exactly like
+        // the mie case documented at TryDetectOrientationViaFacesAsync's
+        // other call site: hand-checked several hundred quarantined files,
+        // none were actually rotated. Running a slow per-image face-detection
+        // scan on every QuickSort pass for a signal this unreliable isn't
+        // worth the cost - see ILibraryPolishService.FixOrientationFreeOnlyAsync
+        // for the quarantine fix (kept for anyone still calling it directly),
+        // but it's no longer part of the automatic pipeline.
+        //
         // Everything still excluded here belongs to FaceIndex - the paid
         // features tier, kept manual/opt-in per CLAUDE.md's cost-discipline
         // rule because each makes real, non-trivial Claude API calls:
-        //   - ILibraryPolishService.FixOrientationAsync (the PAID Claude-vision
-        //     fallback tier - its free face-detection tier runs automatically
-        //     below via FixOrientationFreeOnlyAsync instead)
+        //   - ILibraryPolishService.FixOrientationAsync (the paid Claude-vision
+        //     fallback tier)
         //   - IImageTaggingService.TagLibraryAsync
         //   - ISmartFoldersService.EstimateUndatedPhotoYearsAsync
         //   - ISmartFoldersService.AddYearbookCaptionsAsync
         //   - ISmartFoldersService.PickBestShotsAsync
         // GenerateYearbookAsync also stays manual - it needs a specific year
         // chosen, which is a curatorial decision, not a mechanical cleanup step.
+        // Runs first, before anything else reads pixels (IndexFaces' face
+        // detection included) - free and deterministic, only acts when a
+        // file already carries a real, non-ambiguous answer (a non-1 EXIF
+        // Orientation tag), so there's no reason to make every downstream
+        // pass work from a still-sideways image when this can resolve it
+        // immediately. Previously only reachable via a manual debug
+        // endpoint - the "easy, certain" cases were never actually applied
+        // automatically despite costing nothing and risking nothing.
+        await RunAddonStepAsync("BakeExifOrientation", outputPath,
+            () => _libraryPolishService.BakeExifOrientationAsync(outputPath, cancellationToken));
+
         await RunAddonStepAsync("IndexFaces", outputPath,
             () => _package3Service.IndexFacesAsync(outputPath, cancellationToken: cancellationToken));
-
-        // Zero-cost sibling of the paid FixOrientationAsync above - same
-        // face-detection tier, never touches Claude, so there's no reason to
-        // leave it manual-only like its paid counterpart. Whatever it can't
-        // confidently resolve gets quarantined for a human/the paid pass to
-        // review, not silently left mis-rotated.
-        await RunAddonStepAsync("FixOrientationFree", outputPath,
-            () => _libraryPolishService.FixOrientationFreeOnlyAsync(outputPath, cancellationToken));
 
         // maxDatedReferenceFiles caps EstimateUndatedDatesAsync's own dated-
         // reference sampling (both the face and GPS passes) - without it, the

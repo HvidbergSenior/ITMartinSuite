@@ -481,10 +481,32 @@ app.MapPost("/api/debug/sf-add-person", async (string path, string name, string 
 app.MapPost("/api/debug/sf-person", async (string path, Guid personId, double? threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ISmartFoldersService service) =>
     Results.Ok(await service.GeneratePersonFolderAsync(path, personId, threshold ?? 0.45)));
 
+// Adds another reference photo to an already-registered person - useful when
+// one photo alone doesn't discriminate well (e.g. an unusual angle/selfie),
+// so a second, different-angle photo can pull the embedding average toward a
+// more representative match instead of deleting and re-registering from
+// scratch.
+app.MapPost("/api/debug/sf-add-reference-photo", async (string path, Guid personId, string referencePhotoPath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+{
+    var bytes = await File.ReadAllBytesAsync(referencePhotoPath);
+    await service.AddReferencePhotosAsync(personId, [new(System.IO.Path.GetFileName(referencePhotoPath), bytes)], path);
+    return Results.Ok("added");
+});
+
 app.MapGet("/api/debug/p3-find-matches-count", async (Guid personId, double threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
     var matches = await service.FindMatchesAsync(personId, threshold);
     return Results.Ok(new { count = matches.Count });
+});
+
+// Full match list (not just count) - needed to intersect two people's
+// matches by actual source path rather than by copied-folder filename,
+// since camera-generated names like "IMG_0373.jpg" repeat across different
+// years/photo sessions and aren't unique across the library.
+app.MapGet("/api/debug/p3-find-matches", async (Guid personId, double threshold, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+{
+    var matches = await service.FindMatchesAsync(personId, threshold);
+    return Results.Ok(matches);
 });
 
 app.MapPost("/api/debug/p3-classify-unhandled", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
@@ -636,13 +658,16 @@ app.MapPost("/api/debug/find-screenshots-in-images", async (string sourcePath, s
     return Results.Ok(await service.FindScreenshotsInImagesAsync(sourcePath, destPath, maxFiles));
 });
 
-// Free-only rotation fix - never touches the paid Claude fallback FixOrientationAsync
-// has. Auto-fixes what the local face-detection tier is confident about, reports
-// the rest for manual review instead of guessing or skipping silently.
-app.MapPost("/api/debug/fix-orientation-free", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
-    Results.Ok(await service.FixOrientationFreeOnlyAsync(path)));
+// Endpoint removed 2026-09-03 (see StartQuickSortHandler.cs's own comment on
+// why FixOrientationFreeOnlyAsync came out of the automatic pipeline) - the
+// face-detection tier this called almost always comes back "unresolved" on a
+// real library, and quarantining every unresolved photo moved hundreds of
+// genuinely fine photos out of place for nothing. The service method itself
+// is unchanged (still fixes what it can confidently resolve, just no longer
+// quarantines the rest) in case a caller wants it directly, but nothing in
+// this file calls it anymore.
 
-// Same free face-detection check as fix-orientation-free, but report-only -
+// Same free face-detection check, but report-only -
 // never writes anything, for reviewing what's rotated before committing to a fix.
 app.MapPost("/api/debug/detect-rotated-images", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.DetectRotatedImagesAsync(path)));
@@ -670,6 +695,35 @@ app.MapPost("/api/debug/convert-heic-inplace", async (string path, ITMartin.Medi
     var ext = Path.GetExtension(path);
     if (!ext.Equals(".heic", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".heif", StringComparison.OrdinalIgnoreCase))
         return Results.BadRequest("Not a HEIC/HEIF file.");
+
+    var convertedTempPath = await converter.ConvertToJpgAsync(path);
+    if (convertedTempPath is null || string.Equals(convertedTempPath, path, StringComparison.OrdinalIgnoreCase))
+        return Results.Ok(new { Success = false, Reason = "Conversion failed or fell back to original", Path = path });
+
+    var finalJpgPath = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + ".jpg");
+    if (File.Exists(finalJpgPath))
+        return Results.Ok(new { Success = false, Reason = "Target .jpg already exists", Path = path });
+
+    File.Copy(convertedTempPath, finalJpgPath, overwrite: false);
+    File.Delete(path);
+
+    return Results.Ok(new { Success = true, NewPath = finalJpgPath });
+});
+
+// Same one-off in-place-conversion idea as convert-heic-inplace, for .tif
+// files that landed in Ikke_identificeret instead of Billeder because
+// MediaTypeHelper only recognized ".tiff", not the equally-common ".tif"
+// short form (fixed 2026-09-03 - see MediaTypeHelper). Converts a straggler
+// found before that fix and swaps its extension to .jpg, matching the
+// delivered library's canonical-image-format rule.
+app.MapPost("/api/debug/convert-tif-inplace", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Workflows.IImageConverterService converter) =>
+{
+    if (!File.Exists(path))
+        return Results.NotFound();
+
+    var ext = Path.GetExtension(path);
+    if (!ext.Equals(".tif", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".tiff", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest("Not a TIF/TIFF file.");
 
     var convertedTempPath = await converter.ConvertToJpgAsync(path);
     if (convertedTempPath is null || string.Equals(convertedTempPath, path, StringComparison.OrdinalIgnoreCase))
@@ -856,11 +910,11 @@ app.MapPost("/api/debug/musik-merge-genfundet", (string musikPath, ITMartin.Medi
 });
 
 // "Just before delivery" package (2026-08-20) - runs every free/local check
-// together in one call: file integrity, structure/extensions, rotation
-// (free tier only), duplicates (exact + near). Nothing here costs anything
-// or auto-deletes/auto-moves beyond what each individual check already does
-// on its own (orientation fixes confident rotations; everything else only
-// reports). Meant to run right before a library ships to a customer's HD/USB.
+// together in one call: file integrity, structure/extensions, duplicates
+// (exact + near). Read-only - nothing here auto-deletes/auto-moves anything.
+// (Used to include the free-tier rotation check too - removed 2026-09-03,
+// see StartQuickSortHandler.cs's comment on why.) Meant to run right before
+// a library ships to a customer's HD/USB.
 app.MapPost("/api/debug/pre-delivery-check", async (
     string path,
     ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryVerifyService package4,
@@ -869,7 +923,6 @@ app.MapPost("/api/debug/pre-delivery-check", async (
     var integrity   = await package4.VerifyLibraryAsync(path);
     var structure   = await package4.VerifyStructureAsync(path);
     var delivery    = await package4.VerifyDeliveryStructureAsync(path);
-    var orientation = await polish.FixOrientationFreeOnlyAsync(path);
     var duplicates  = await polish.FindDuplicatesInLibraryAsync(path);
 
     return Results.Ok(new
@@ -877,7 +930,6 @@ app.MapPost("/api/debug/pre-delivery-check", async (
         integrity,
         structure,
         delivery,
-        orientation,
         duplicates,
         checkedAtUtc = DateTime.UtcNow,
     });
@@ -906,6 +958,12 @@ app.MapPost("/api/debug/group-by-camera", async (string path, string makeContain
 
 app.MapPost("/api/debug/deduplicate-folder", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.DeduplicateFolderAsync(path)));
+
+app.MapPost("/api/debug/prune-small-albums", async (string path, int? minTracks, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.PruneSmallAlbumsAsync(path, minTracks ?? 6)));
+
+app.MapPost("/api/debug/rebalance-month-folders", async (string path, string category, int? targetSize, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.RebalanceMonthFoldersAsync(path, category, targetSize ?? 50)));
 
 app.MapGet("/api/debug/camera-survey", (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IExifService exif) =>
 {
