@@ -107,6 +107,60 @@ public sealed class InvestigationService : IInvestigationService
         is fine if nothing clearly groups).
         """;
 
+    // Batched replacement for the per-pattern loop the "Undersøg alle
+    // resterende" button used to drive (one Claude call per remaining
+    // cluster - exactly the anti-pattern CLAUDE.md's "AI/Claude API cost
+    // discipline" rule exists to prevent, found live 2026-09-07 on a
+    // 242-cluster real ledger). Patterns per call is generous (text-only,
+    // no image tokens) compared to FileSorter's image batches; the hard cap
+    // and per-batch concurrency limit follow the same convention.
+    private const int MaxInvestigationsPerRun = 300;
+    private const int PatternsPerBatch = 20;
+    private const int BatchConcurrency = 3;
+
+    private static readonly Tool InvestigateBatchTool = new()
+    {
+        Name = "investigate_transactions",
+        Description = "Report findings about each of several ambiguous Danish bank transaction patterns, identified by index",
+        InputSchema = new()
+        {
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["results"] = JsonSerializer.SerializeToElement(new
+                {
+                    type = "array",
+                    items = new
+                    {
+                        type = "object",
+                        properties = new Dictionary<string, object>
+                        {
+                            ["index"] = new { type = "integer", description = "The [N] index of the pattern this result is for, exactly as given in the input list." },
+                            ["reasoning"] = new { type = "string", description = "1-2 short sentences in Danish explaining what this merchant/pattern most likely is." },
+                            ["suggestedScope"] = new { type = "string", @enum = new[] { "Business", "Private", "Unsure" } },
+                            ["confidence"] = new { type = "string", @enum = new[] { "High", "Medium", "Low" } },
+                        },
+                        required = new[] { "index", "reasoning", "suggestedScope", "confidence" }
+                    }
+                })
+            },
+            Required = ["results"]
+        }
+    };
+
+    private const string BatchSystemPrompt = """
+        You help a Danish small-business owner (a bookshop) figure out what a
+        list of unclear recurring bank transactions actually are, on an
+        account that mixes business and private spending. Each numbered
+        pattern gives a merchant/pattern label, optional raw bank reference
+        text, how many times it occurs, and the total amount (negative =
+        money out, positive = money in).
+        Reason from the merchant name and any reference text - if you
+        recognize the company/service, say what it does. Be honest about
+        uncertainty; don't force a confident answer when the evidence is thin.
+        Return exactly one result per pattern given, referencing it by its
+        [N] index. Always call the investigate_transactions tool, in Danish.
+        """;
+
     private readonly AnthropicClient _client;
 
     public InvestigationService(IConfiguration configuration)
@@ -205,6 +259,97 @@ public sealed class InvestigationService : IInvestigationService
             .Where(s => s.SourceNames.Count >= 2 && s.SourceNames.All(validNames.Contains))
             .Select(s => new MergeSuggestion(s.SourceNames, s.SuggestedTargetName, s.Reasoning))
             .ToList();
+    }
+
+    public async Task<List<InvestigationResult>> InvestigateBatchAsync(
+        IReadOnlyList<(string Pattern, string Label, string SampleRawDetails, int Count, decimal TotalAmount)> items,
+        CancellationToken cancellationToken = default)
+    {
+        var capped = items.Take(MaxInvestigationsPerRun).ToList();
+        var results = new InvestigationResult?[capped.Count];
+
+        var batches = capped
+            .Select((item, i) => (item, i))
+            .GroupBy(x => x.i / PatternsPerBatch)
+            .Select(g => g.ToList())
+            .ToList();
+
+        await Parallel.ForEachAsync(
+            batches,
+            new ParallelOptions { MaxDegreeOfParallelism = BatchConcurrency, CancellationToken = cancellationToken },
+            async (batch, ct) =>
+            {
+                var listText = string.Join("\n", batch.Select(x =>
+                {
+                    var (item, globalIndex) = x;
+                    var raw = string.IsNullOrWhiteSpace(item.SampleRawDetails) ? "" : $" | Raw: \"{item.SampleRawDetails}\"";
+                    return $"[{globalIndex}] \"{item.Label}\"{raw} | Occurs {item.Count}x, total {item.TotalAmount:F2} DKK";
+                }));
+
+                var request = new MessageCreateParams
+                {
+                    Model = Model.ClaudeHaiku4_5,
+                    MaxTokens = 4096,
+                    System = BatchSystemPrompt,
+                    Tools = [InvestigateBatchTool],
+                    ToolChoice = new ToolChoiceTool { Name = "investigate_transactions" },
+                    Messages = [new() { Role = Role.User, Content = $"Patterns:\n{listText}" }]
+                };
+
+                try
+                {
+                    var response = await _client.Messages.Create(request, ct);
+
+                    ToolUseBlock? toolUse = null;
+                    foreach (var block in response.Content)
+                    {
+                        if (block.TryPickToolUse(out var tu))
+                        {
+                            toolUse = tu;
+                            break;
+                        }
+                    }
+                    if (toolUse is null) throw new InvalidOperationException("Claude did not call the investigate_transactions tool.");
+
+                    var json = JsonSerializer.Serialize(toolUse.Input);
+                    var raw = JsonSerializer.Deserialize<InvestigateBatchRaw>(json, JsonOptions)
+                        ?? throw new InvalidOperationException("Failed to deserialize batch investigation results.");
+
+                    foreach (var r in raw.Results)
+                    {
+                        if (r.Index >= 0 && r.Index < capped.Count)
+                        {
+                            results[r.Index] = new InvestigationResult(r.Reasoning, r.SuggestedScope, r.Confidence);
+                        }
+                    }
+                }
+                catch
+                {
+                    // This batch's slots stay null and get the safe fallback
+                    // below - one failed batch (rate limit, malformed tool
+                    // call) must not lose results the other batches got right.
+                }
+            });
+
+        for (var i = 0; i < results.Length; i++)
+        {
+            results[i] ??= new InvestigationResult("Kunne ikke undersøges automatisk - prøv manuelt.", "Unsure", "Low");
+        }
+
+        return results.Select(r => r!).ToList();
+    }
+
+    private sealed class InvestigateBatchRaw
+    {
+        public List<BatchResultRaw> Results { get; set; } = new();
+    }
+
+    private sealed class BatchResultRaw
+    {
+        public int Index { get; set; } = -1;
+        public string Reasoning { get; set; } = string.Empty;
+        public string SuggestedScope { get; set; } = "Unsure";
+        public string Confidence { get; set; } = "Low";
     }
 
     private sealed class InvestigationRaw

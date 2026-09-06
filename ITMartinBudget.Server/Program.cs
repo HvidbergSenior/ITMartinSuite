@@ -297,10 +297,8 @@ app.MapGet("/api/shop/{ledgerId}/transactions-by-category", async (string ledger
     return Results.Ok(transactions);
 });
 
-// "🔍 Undersøg" button on /shop-categorize - explicitly user-triggered (one
-// cluster at a time, or via "Undersøg alle resterende" for everything not
-// yet investigated), never automatic on page load, so the AI cost stays
-// visible and bounded. Result is cached in TransactionInvestigations so it's
+// "🔍 Undersøg" button on /shop-categorize - explicitly user-triggered, one
+// cluster at a time. Result is cached in TransactionInvestigations so it's
 // shown automatically on every later page load without calling Claude again.
 app.MapPost("/api/shop/{ledgerId}/investigate", async (
     string ledgerId,
@@ -322,6 +320,85 @@ app.MapPost("/api/shop/{ledgerId}/investigate", async (
     await db.SaveChangesAsync();
 
     return Results.Ok(result);
+});
+
+// Batched, capped replacement for what used to be a client-side loop
+// calling /investigate once per remaining cluster (found live 2026-09-07 on
+// a 242-cluster real ledger - exactly the per-item AI-call-in-a-loop
+// CLAUDE.md's cost-discipline rule exists to prevent). Also auto-run once
+// by /shop-categorize the first time a ledger has uninvestigated,
+// uncategorized clusters, so a freshly-uploaded ledger starts pre-populated
+// instead of blank - each pattern defaults to its own label as the category
+// name, which the client then runs through /suggest-merges to catch
+// near-duplicate names (e.g. "Bertil" / "Bertil Hvidberg" / "Bertil Hv")
+// that should really be one category.
+app.MapPost("/api/shop/{ledgerId}/investigate-remaining", async (
+    string ledgerId,
+    ITMartinBudget.Application.Interfaces.ICategoryRuleService rules,
+    ITMartinBudget.Application.Interfaces.IInvestigationService investigator,
+    ITMartinBudget.Infrastructure.BudgetDbContext db) =>
+{
+    var clusters = await rules.GetClustersAsync(ledgerId);
+    var uncategorized = clusters.Where(c => string.IsNullOrWhiteSpace(c.CurrentCategoryName)).ToList();
+
+    // Split by how confidently the scope is already known, so AI only ever
+    // gets called for the genuinely ambiguous remainder:
+    //  - Scope already resolved at import time (e.g. every "mobilepay"
+    //    transaction is auto-Private - see TransactionScopeClassifier) -
+    //    assign directly, no AI call, no re-guessing a scope that's already
+    //    known and could otherwise get silently overridden by a wrong AI guess.
+    //  - Scope still Unknown but a past manual "Undersøg" already answered
+    //    it - reuse that cached answer, no new AI call.
+    //  - Scope still Unknown and never investigated - this is the only
+    //    group that actually needs a fresh AI call.
+    var alreadyKnownScope = uncategorized.Where(c => c.Scope != ITMartinBudget.Domain.Enums.TransactionScope.Unknown).ToList();
+    var previouslyInvestigated = uncategorized
+        .Where(c => c.Scope == ITMartinBudget.Domain.Enums.TransactionScope.Unknown && c.InvestigationSuggestedScope is not null)
+        .ToList();
+    var needsAi = uncategorized
+        .Where(c => c.Scope == ITMartinBudget.Domain.Enums.TransactionScope.Unknown && c.InvestigationSuggestedScope is null)
+        .ToList();
+
+    static ITMartinBudget.Domain.Enums.TransactionScope MapScope(string? suggested) => suggested switch
+    {
+        "Business" => ITMartinBudget.Domain.Enums.TransactionScope.Business,
+        "Private" => ITMartinBudget.Domain.Enums.TransactionScope.Private,
+        _ => ITMartinBudget.Domain.Enums.TransactionScope.Unknown,
+    };
+
+    foreach (var cluster in alreadyKnownScope)
+        await rules.AssignAsync(ledgerId, cluster.Pattern, cluster.Label, cluster.Scope);
+
+    foreach (var cluster in previouslyInvestigated)
+        await rules.AssignAsync(ledgerId, cluster.Pattern, cluster.Label, MapScope(cluster.InvestigationSuggestedScope));
+
+    var aiResults = needsAi.Count == 0
+        ? []
+        : await investigator.InvestigateBatchAsync(
+            needsAi.Select(c => (c.Pattern, c.Label, c.SampleRawDetails ?? "", c.Count, c.Sum)).ToList());
+
+    for (var i = 0; i < aiResults.Count; i++)
+    {
+        var cluster = needsAi[i];
+        var result = aiResults[i];
+
+        var existing = await db.TransactionInvestigations.FindAsync(ledgerId, cluster.Pattern);
+        if (existing is null)
+        {
+            existing = new ITMartinBudget.Domain.Entities.TransactionInvestigation { LedgerId = ledgerId, Pattern = cluster.Pattern };
+            db.TransactionInvestigations.Add(existing);
+        }
+        existing.Reasoning = result.Reasoning;
+        existing.SuggestedScope = result.SuggestedScope;
+        existing.Confidence = result.Confidence;
+
+        await rules.AssignAsync(ledgerId, cluster.Pattern, cluster.Label, MapScope(result.SuggestedScope));
+    }
+
+    await db.SaveChangesAsync();
+
+    var totalAssigned = alreadyKnownScope.Count + previouslyInvestigated.Count + aiResults.Count;
+    return Results.Ok(new { investigated = aiResults.Count, assigned = totalAssigned, cappedAt = aiResults.Count < needsAi.Count });
 });
 
 // "❓ Spørg" box on /shop-overview - free-form questions ("Hvad er

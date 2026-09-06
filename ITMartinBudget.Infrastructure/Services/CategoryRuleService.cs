@@ -52,12 +52,19 @@ public sealed class CategoryRuleService : ICategoryRuleService
 
     public async Task<List<string>> GetExistingCategoryNamesAsync(string ledgerId, CancellationToken cancellationToken = default)
     {
-        return await _db.CategoryRules
+        var used = await _db.CategoryRules
             .Where(x => x.LedgerId == ledgerId)
             .Select(x => x.CategoryName)
             .Distinct()
-            .OrderBy(x => x)
             .ToListAsync(cancellationToken);
+
+        // Union with the standard starter list (see StandardCategoryNames) so
+        // a brand-new ledger's category picker isn't empty - these are pure
+        // suggestions, a name only actually exists once a CategoryRule uses it.
+        return used
+            .Union(ITMartinBudget.Application.Helpers.StandardCategoryNames.Names, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task AssignAsync(string ledgerId, string pattern, string categoryName, TransactionScope scope, CancellationToken cancellationToken = default)
