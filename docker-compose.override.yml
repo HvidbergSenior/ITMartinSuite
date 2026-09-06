@@ -1,0 +1,18 @@
+services:
+  musik-studio-web:
+    volumes:
+      - C:\MartinMusikLocal:/musik
+      - C:\MusikStudioLocalData:/app/data
+
+  budget-web:
+    volumes:
+      - C:\BudgetLocalData:/app/data
+
+  filesorter-web:
+    volumes:
+      - C:\FileSorterTests\DropboxSource:/data
+      - D:\RicoAC:/library
+
+  rabbitmq:
+    ports:
+      - "5672:5672"
