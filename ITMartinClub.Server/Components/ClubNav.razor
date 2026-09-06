@@ -1,16 +1,9 @@
-@inject ClubDbContext Db
-@inject ClubSessionStatusService SessionStatus
-
 <div class="club-header">
     <div>
         <div class="club-name">@GroupName</div>
         <div class="club-member-name">@MemberLabel</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-        @if (_status is not null)
-        {
-            <a class="phase-badge @_status.CssClass" href="/g/@Slug/ready" title="Se spilaftenens status">@_status.Label</a>
-        }
         @if (OnLogout.HasDelegate)
         {
             <button class="club-leave-btn" @onclick="OnLogout">Log ud</button>
@@ -20,8 +13,11 @@
 
 <!-- No persistent tab bar - the everyday screen (Overblik) is the only
      destination common members need. These are deliberate mode switches, not
-     a content tab list: Bruger = live/everyday, Historik = look back
-     (dokumenter/gameplans + modstander-tags), Admin = planning (PIN-gated). -->
+     a content tab list: Bruger = live/everyday, Historik = look back at
+     finished tasks, Admin = planning (PIN-gated). The gaming-club nav variant
+     (Ready/Opponents/spilaften status badge) moved to ITMartinR6Club.Server
+     with the rest of the gaming features - this app is Bogshoppen/hvidberg
+     (task-board groups) only now. -->
 @if (Slug == "demo")
 {
     <!-- Public demo tier - only the two tabs a first-time visitor actually
@@ -48,30 +44,15 @@ else if (Slug == "hvidberg")
 }
 else
 {
-    <!-- Bogshoppen wants to lean the same direction as hvidberg - drop
-         Påminder/Find det from the tab bar. Unlike hvidberg it keeps
-         Historik/Medlemmer/Admin, so it's its own condition, not the
-         hvidberg branch above. -->
+    <!-- Bogshoppen (and any future task-board group besides hvidberg) - drop
+         Påminder/Find det from the tab bar. Historik points at the tasks
+         page (which already lists completed tasks under "Udførte opgaver"),
+         since /docs (session recaps) moved to the gaming app. -->
     <div class="club-mode-row">
         <a class="club-mode-item @(Active == "home" ? "active" : "")" href="/g/@Slug">🏠 Bruger</a>
-        @if (Slug != "bogshoppen")
-        {
-            <a class="club-mode-item @(Active == "reminders" ? "active" : "")" href="/g/@Slug/reminders">⏰ Påminder</a>
-            <a class="club-mode-item @(Active == "find" ? "active" : "")" href="/g/@Slug/find">🔍 Find det</a>
-        }
-        @if (Slug == "bogshoppen")
-        {
-            <!-- Bogshoppen's "history" is its finished chores, not uploaded
-                 documents - points at the tasks page (which already lists
-                 completed tasks under "Udførte opgaver") instead of /docs. -->
-            <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
-            <a class="club-mode-item @(Active == "storage" ? "active" : "")" href="/g/@Slug/storage">🏬 Lager</a>
-            <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
-        }
-        else
-        {
-            <a class="club-mode-item @(Active == "history" ? "active" : "")" href="/g/@Slug/docs">📜 Historik</a>
-        }
+        <a class="club-mode-item @(Active == "tasks" ? "active" : "")" href="/g/@Slug/tasks">📜 Historik</a>
+        <a class="club-mode-item @(Active == "storage" ? "active" : "")" href="/g/@Slug/storage">🏬 Lager</a>
+        <a class="club-mode-item @(Active == "calendar" ? "active" : "")" href="/g/@Slug/calendar">📅 Kalender</a>
         <a class="club-mode-item @(Active == "users" ? "active" : "")" href="/g/@Slug/users">👥 Medlemmer</a>
         <a class="club-mode-item @(Active == "admin" ? "active" : "")" href="/g/@Slug/admin">⚙ Admin</a>
     </div>
@@ -88,13 +69,4 @@ else
     [Parameter, EditorRequired] public string MemberLabel { get; set; } = "";
     [Parameter, EditorRequired] public string Active { get; set; } = "";
     [Parameter] public EventCallback OnLogout { get; set; }
-
-    private SessionStatus? _status;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
-        if (group is null) return;
-        _status = await SessionStatus.GetActiveSessionAsync(group.Id);
-    }
 }

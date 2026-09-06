@@ -15,11 +15,9 @@ builder.Services.AddDbContext<ClubDbContext>(o => o.UseSqlite(dbPath));
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ClubBroadcastService>();
 builder.Services.AddSingleton<ClubPushService>();
-builder.Services.AddSingleton<ClubAiService>();
-builder.Services.AddSingleton<MatchOcrService>();
-builder.Services.AddSingleton<ClubDiscordService>();
 builder.Services.AddScoped<ClubAuthService>();
-builder.Services.AddScoped<ClubSessionStatusService>();
+builder.Services.AddScoped<AssignmentTaskService>();
+builder.Services.AddSingleton<AdminPinRateLimiterService>();
 
 var app = builder.Build();
 
@@ -72,90 +70,6 @@ using (var scope = app.Services.CreateScope())
         )
         """);
 
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "ReadyChecks" (
-            "Id"             TEXT NOT NULL PRIMARY KEY,
-            "GroupId"        TEXT NOT NULL,
-            "CreatedByName"  TEXT NOT NULL,
-            "CreatedAt"      TEXT NOT NULL,
-            "ExpiresAt"      TEXT NOT NULL
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "ReadyCheckResponses" (
-            "Id"             TEXT NOT NULL PRIMARY KEY,
-            "ReadyCheckId"   TEXT NOT NULL,
-            "MemberName"     TEXT NOT NULL,
-            "Status"         TEXT NOT NULL,
-            "RespondedAt"    TEXT NOT NULL
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "SessionNotes" (
-            "Id"             TEXT NOT NULL PRIMARY KEY,
-            "GroupId"        TEXT NOT NULL,
-            "MemberName"     TEXT NOT NULL,
-            "Text"           TEXT NOT NULL,
-            "CreatedAt"      TEXT NOT NULL,
-            "UsedInRecap"    INTEGER NOT NULL DEFAULT 0
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "SessionRecaps" (
-            "Id"                TEXT NOT NULL PRIMARY KEY,
-            "GroupId"           TEXT NOT NULL,
-            "Text"              TEXT NOT NULL,
-            "GeneratedByName"   TEXT NOT NULL,
-            "CreatedAt"         TEXT NOT NULL
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "Matches" (
-            "Id"             TEXT NOT NULL PRIMARY KEY,
-            "GroupId"        TEXT NOT NULL,
-            "Label"          TEXT NOT NULL DEFAULT '',
-            "BombAttempts"   INTEGER NOT NULL DEFAULT 0,
-            "BombSuccesses"  INTEGER NOT NULL DEFAULT 0,
-            "CreatedByName"  TEXT NOT NULL DEFAULT '',
-            "CreatedAt"      TEXT NOT NULL
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "MatchPlayerStats" (
-            "Id"            TEXT NOT NULL PRIMARY KEY,
-            "MatchId"       TEXT NOT NULL,
-            "MemberName"    TEXT NOT NULL,
-            "Kills"         INTEGER NOT NULL DEFAULT 0,
-            "Deaths"        INTEGER NOT NULL DEFAULT 0,
-            "LoneSurvivor"  INTEGER NOT NULL DEFAULT 0
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "Opponents" (
-            "Id"         TEXT NOT NULL PRIMARY KEY,
-            "GroupId"    TEXT NOT NULL,
-            "Name"       TEXT NOT NULL,
-            "CreatedAt"  TEXT NOT NULL
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "OpponentTags" (
-            "Id"            TEXT NOT NULL PRIMARY KEY,
-            "OpponentId"    TEXT NOT NULL,
-            "Preset"        TEXT NOT NULL DEFAULT '',
-            "Note"          TEXT NULL,
-            "AddedByName"   TEXT NOT NULL DEFAULT '',
-            "AddedAt"       TEXT NOT NULL
-        )
-        """);
-
     // BulletinPost gained ImageFileName/Tag after initial release - EnsureCreated
     // won't add columns to an existing table, so check+add manually (same lesson
     // as karaoke-web/dreamreader-web earlier tonight).
@@ -193,49 +107,6 @@ using (var scope = app.Services.CreateScope())
         "SELECT COUNT(*) AS Value FROM pragma_table_info('Members') WHERE name = 'Role'").AsEnumerable().First() > 0;
     if (!hasRoleColumn)
         db.Database.ExecuteSqlRaw("ALTER TABLE Members ADD COLUMN Role TEXT NULL");
-
-    var hasMinutesColumn = db.Database.SqlQueryRaw<int>(
-        "SELECT COUNT(*) AS Value FROM pragma_table_info('ReadyChecks') WHERE name = 'Minutes'").AsEnumerable().First() > 0;
-    if (!hasMinutesColumn)
-        db.Database.ExecuteSqlRaw("ALTER TABLE ReadyChecks ADD COLUMN Minutes INTEGER NOT NULL DEFAULT 10");
-
-    var hasPhraseColumn = db.Database.SqlQueryRaw<int>(
-        "SELECT COUNT(*) AS Value FROM pragma_table_info('ReadyChecks') WHERE name = 'Phrase'").AsEnumerable().First() > 0;
-    if (!hasPhraseColumn)
-        db.Database.ExecuteSqlRaw("ALTER TABLE ReadyChecks ADD COLUMN Phrase TEXT NULL");
-
-    var hasKindColumn = db.Database.SqlQueryRaw<int>(
-        "SELECT COUNT(*) AS Value FROM pragma_table_info('SessionRecaps') WHERE name = 'Kind'").AsEnumerable().First() > 0;
-    if (!hasKindColumn)
-        db.Database.ExecuteSqlRaw("ALTER TABLE SessionRecaps ADD COLUMN Kind TEXT NOT NULL DEFAULT 'Funny'");
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "PlaySessions" (
-            "Id"                TEXT NOT NULL PRIMARY KEY,
-            "GroupId"           TEXT NOT NULL,
-            "Phase"             TEXT NOT NULL DEFAULT 'Invitations',
-            "CreatedByName"     TEXT NOT NULL DEFAULT '',
-            "CreatedAt"         TEXT NOT NULL,
-            "PlayingStartedAt"  TEXT NULL,
-            "RecapStartedAt"    TEXT NULL,
-            "EndedAt"           TEXT NULL
-        )
-        """);
-
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "LiveUpdates" (
-            "Id"              TEXT NOT NULL PRIMARY KEY,
-            "PlaySessionId"   TEXT NOT NULL,
-            "Text"            TEXT NOT NULL DEFAULT '',
-            "CreatedByName"   TEXT NOT NULL DEFAULT '',
-            "CreatedAt"       TEXT NOT NULL
-        )
-        """);
-
-    var hasMediaColumn = db.Database.SqlQueryRaw<int>(
-        "SELECT COUNT(*) AS Value FROM pragma_table_info('LiveUpdates') WHERE name = 'MediaFileName'").AsEnumerable().First() > 0;
-    if (!hasMediaColumn)
-        db.Database.ExecuteSqlRaw("ALTER TABLE LiveUpdates ADD COLUMN MediaFileName TEXT NULL");
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "EventTimeSuggestions" (

@@ -232,7 +232,7 @@ else
 
         if (_editingLocationId is { } id)
         {
-            var loc = await Db.StorageLocations.FindAsync(id);
+            var loc = await Db.StorageLocations.FirstOrDefaultAsync(l => l.Id == id && l.GroupId == _group!.Id);
             if (loc is null) return;
             loc.Name = _newLocationName.Trim();
             loc.Address = string.IsNullOrWhiteSpace(_newLocationAddress) ? null : _newLocationAddress.Trim();
@@ -285,7 +285,7 @@ else
 
         if (_editingVehicleId is { } id)
         {
-            var v = await Db.Vehicles.FindAsync(id);
+            var v = await Db.Vehicles.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == _group!.Id);
             if (v is null) return;
             v.Name = _newVehicleName.Trim();
             v.Availability = string.IsNullOrWhiteSpace(_newVehicleAvailability) ? null : _newVehicleAvailability.Trim();

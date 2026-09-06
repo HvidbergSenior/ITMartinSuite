@@ -157,7 +157,7 @@ else
 
     private async Task DeleteAsync(Guid id)
     {
-        var item = await Db.FoundItems.FindAsync(id);
+        var item = await Db.FoundItems.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == _group!.Id);
         if (item != null) { Db.FoundItems.Remove(item); await Db.SaveChangesAsync(); await RefreshAsync(); }
     }
 }

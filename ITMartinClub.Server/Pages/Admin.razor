@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ClubPushService PushService
+@inject AdminPinRateLimiterService PinLimiter
 
 @if (!_loaded) { <div class="club-loading">Indlæser...</div> }
 else if (_group == null) { <div class="club-loading">Gruppen findes ikke.</div> }
@@ -13,9 +14,16 @@ else if (!_authed)
         <div class="admin-lock-card">
             <div style="font-size:40px;margin-bottom:12px">🔒</div>
             <h2>Admin — @_group.Name</h2>
-            <input @bind="_pinInput" type="password" placeholder="Admin PIN" class="admin-input" maxlength="20" />
-            @if (_pinError) { <div class="admin-error">Forkert PIN.</div> }
-            <button class="admin-btn" @onclick="Unlock">Unlock</button>
+            @if (_lockedOut)
+            {
+                <div class="admin-error">For mange forkerte forsøg. Prøv igen om lidt.</div>
+            }
+            else
+            {
+                <input @bind="_pinInput" type="password" placeholder="Admin PIN" class="admin-input" maxlength="20" />
+                @if (_pinError) { <div class="admin-error">Forkert PIN.</div> }
+                <button class="admin-btn" @onclick="Unlock">Unlock</button>
+            }
         </div>
     </div>
 }
@@ -25,14 +33,6 @@ else
         <ClubNav Slug="@Slug" GroupName="@_group.Name" MemberLabel="Admin" Active="admin" />
 
         <div class="admin-body">
-
-            @if (_activeSession is not null)
-            {
-                <div class="admin-section">
-                    <div class="admin-section-title">🎮 Aktiv spilaften</div>
-                    <div class="club-empty">Der er allerede en aktiv spilaften (@_activeSession.Phase) - alle medlemmer kan starte/svare på invitationer fra deres egen side.</div>
-                </div>
-            }
 
             <div class="admin-section">
                 <div class="admin-section-title-row">
@@ -113,8 +113,40 @@ else
 
             <div class="admin-section admin-danger">
                 <div class="admin-section-title">Ryd data</div>
-                <button class="admin-danger-btn" @onclick="ClearPostsAsync">Ryd alle opslag</button>
-                <button class="admin-danger-btn" @onclick="ClearCompletedTasksAsync">Ryd udførte opgaver</button>
+
+                @if (_postsCleared)
+                {
+                    <div class="admin-reset-confirm">✔ Alle opslag er ryddet.</div>
+                }
+                else if (!_confirmClearPosts)
+                {
+                    <button class="admin-danger-btn" @onclick="() => _confirmClearPosts = true">Ryd alle opslag</button>
+                }
+                else
+                {
+                    <div class="admin-confirm-row">
+                        <span>Slet alle opslag permanent?</span>
+                        <button class="admin-danger-btn" @onclick="ClearPostsAsync">Ja, ryd</button>
+                        <button class="admin-btn" @onclick="() => _confirmClearPosts = false">Fortryd</button>
+                    </div>
+                }
+
+                @if (_tasksCleared)
+                {
+                    <div class="admin-reset-confirm">✔ Alle udførte opgaver er ryddet.</div>
+                }
+                else if (!_confirmClearTasks)
+                {
+                    <button class="admin-danger-btn" @onclick="() => _confirmClearTasks = true">Ryd udførte opgaver</button>
+                }
+                else
+                {
+                    <div class="admin-confirm-row">
+                        <span>Slet alle udførte opgaver permanent?</span>
+                        <button class="admin-danger-btn" @onclick="ClearCompletedTasksAsync">Ja, ryd</button>
+                        <button class="admin-btn" @onclick="() => _confirmClearTasks = false">Fortryd</button>
+                    </div>
+                }
             </div>
 
         </div>
@@ -149,6 +181,7 @@ else
     .admin-danger { border-color: rgba(248,113,113,.2); }
     .admin-danger-btn { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; color: var(--red); padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 10px; margin-top: 4px; }
     .admin-danger-btn:hover { background: rgba(248,113,113,.2); }
+    .admin-confirm-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--text); margin: 4px 0; }
 
     .club-empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
     .ready-hint { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
@@ -177,7 +210,7 @@ else
 @code {
     [Parameter] public string Slug { get; set; } = "";
     private Group? _group;
-    private bool _loaded, _authed, _pinError;
+    private bool _loaded, _authed, _pinError, _lockedOut;
     private string _pinInput = "";
     private List<Member> _members = [];
     private string? _pinResetName;
@@ -187,13 +220,27 @@ else
         if (!firstRender) return;
         _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
         _loaded = true;
+        if (_group is not null) _lockedOut = PinLimiter.IsLockedOut(_group.Id);
         StateHasChanged();
     }
 
     private void Unlock()
     {
-        if (SecretHasher.Verify(_pinInput, _group!.AdminPin)) { _authed = true; _ = LoadMembersAsync(); _ = LoadSessionAsync(); _ = LoadEventsAsync(); }
-        else _pinError = true;
+        if (PinLimiter.IsLockedOut(_group!.Id)) { _lockedOut = true; return; }
+
+        if (SecretHasher.Verify(_pinInput, _group.AdminPin))
+        {
+            PinLimiter.RegisterSuccess(_group.Id);
+            _authed = true;
+            _ = LoadMembersAsync();
+            _ = LoadEventsAsync();
+        }
+        else
+        {
+            PinLimiter.RegisterFailure(_group.Id);
+            _pinError = true;
+            _lockedOut = PinLimiter.IsLockedOut(_group.Id);
+        }
     }
 
     private async Task LoadMembersAsync()
@@ -206,7 +253,6 @@ else
     // Moved here from the everyday pages - starting/scheduling is a deliberate
     // admin action, not something that should clutter the common member view.
 
-    private PlaySession? _activeSession;
     private bool _showEventHint;
 
     private string _newEventTitle = "";
@@ -217,15 +263,6 @@ else
     private List<CalendarEvent> _upcomingEvents = [];
     private Dictionary<Guid, EventTimeSuggestion> _pendingSuggestions = [];
     private Dictionary<Guid, List<EventTimeVote>> _votesBySuggestion = [];
-
-    private async Task LoadSessionAsync()
-    {
-        _activeSession = await Db.PlaySessions
-            .Where(p => p.GroupId == _group!.Id && p.EndedAt == null)
-            .OrderByDescending(p => p.CreatedAt)
-            .FirstOrDefaultAsync();
-        StateHasChanged();
-    }
 
     private async Task LoadEventsAsync()
     {
@@ -273,7 +310,7 @@ else
 
         if (_editingEventId is { } id)
         {
-            var ev = await Db.Events.FindAsync(id);
+            var ev = await Db.Events.FirstOrDefaultAsync(e => e.Id == id && e.GroupId == _group!.Id);
             if (ev is null) return;
             ev.Title = title;
             ev.EventDate = _newEventDate.ToUniversalTime();
@@ -303,7 +340,7 @@ else
 
     private async Task ApplySuggestionAsync(Guid eventId, EventTimeSuggestion suggestion)
     {
-        var ev = await Db.Events.FindAsync(eventId);
+        var ev = await Db.Events.FirstOrDefaultAsync(e => e.Id == eventId && e.GroupId == _group!.Id);
         if (ev is null) return;
         ev.EventDate = suggestion.SuggestedDate;
         suggestion.Resolved = true;
@@ -322,7 +359,7 @@ else
     private async Task RemoveMemberAsync(Guid memberId)
     {
         var member = await Db.Members.Include(m => m.Sessions).Include(m => m.Posts)
-            .FirstOrDefaultAsync(m => m.Id == memberId);
+            .FirstOrDefaultAsync(m => m.Id == memberId && m.GroupId == _group!.Id);
         if (member == null) return;
         Db.Members.Remove(member);
         await Db.SaveChangesAsync();
@@ -331,7 +368,7 @@ else
 
     private async Task ResetPinAsync(Guid memberId)
     {
-        var member = await Db.Members.FindAsync(memberId);
+        var member = await Db.Members.FirstOrDefaultAsync(m => m.Id == memberId && m.GroupId == _group!.Id);
         if (member == null) return;
         member.Pin = "";
         await Db.SaveChangesAsync();
@@ -341,17 +378,24 @@ else
 
     private async Task SaveRoleAsync(Guid memberId, string role)
     {
-        var member = await Db.Members.FindAsync(memberId);
+        var member = await Db.Members.FirstOrDefaultAsync(m => m.Id == memberId && m.GroupId == _group!.Id);
         if (member == null) return;
         member.Role = string.IsNullOrWhiteSpace(role) ? null : role.Trim();
         await Db.SaveChangesAsync();
     }
+
+    private bool _confirmClearPosts;
+    private bool _confirmClearTasks;
+    private bool _postsCleared;
+    private bool _tasksCleared;
 
     private async Task ClearPostsAsync()
     {
         var posts = await Db.Posts.Where(p => p.GroupId == _group!.Id).ToListAsync();
         Db.Posts.RemoveRange(posts);
         await Db.SaveChangesAsync();
+        _confirmClearPosts = false;
+        _postsCleared = true;
     }
 
     private async Task ClearCompletedTasksAsync()
@@ -359,5 +403,7 @@ else
         var done = await Db.Assignments.Where(a => a.GroupId == _group!.Id && a.IsCompleted).ToListAsync();
         Db.Assignments.RemoveRange(done);
         await Db.SaveChangesAsync();
+        _confirmClearTasks = false;
+        _tasksCleared = true;
     }
 }

@@ -177,7 +177,7 @@ else
 
     private async Task ToggleDoneAsync(Guid id)
     {
-        var r = await Db.PersonalReminders.FindAsync(id);
+        var r = await Db.PersonalReminders.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == _group!.Id);
         if (r == null) return;
         r.Done = true;
         await Db.SaveChangesAsync();
@@ -186,7 +186,7 @@ else
 
     private async Task DeleteAsync(Guid id)
     {
-        var r = await Db.PersonalReminders.FindAsync(id);
+        var r = await Db.PersonalReminders.FirstOrDefaultAsync(x => x.Id == id && x.GroupId == _group!.Id);
         if (r != null) { Db.PersonalReminders.Remove(r); await Db.SaveChangesAsync(); await RefreshAsync(); }
     }
 }

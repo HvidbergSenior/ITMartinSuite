@@ -16,8 +16,6 @@ WORKDIR /app
 
 COPY --from=build /app/publish .
 
-RUN mkdir -p /app/data/documents
-
 EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "ITMartinClub.Server.dll"]

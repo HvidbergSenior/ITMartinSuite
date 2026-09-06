@@ -1,0 +1,59 @@
+@* Single task-row rendering, shared by every place GroupHome.razor lists an
+   Assignment - previously duplicated with a stripped-down copy for
+   "uncategorized" tasks that silently had no complete/join/delete buttons at
+   all. Extracted 2026-09-06 so a task never loses its actions just because
+   it lacks a MainTask. *@
+
+<div class="task-row-item @(IsMine ? "task-row-mine" : "")">
+    <div class="task-info">
+        <div class="task-item-title">@Task.Title</div>
+        @if (!string.IsNullOrEmpty(Task.Description))
+        {
+            <div class="task-item-desc">@Task.Description</div>
+        }
+        @if (Task.Assignees.Count == 0)
+        {
+            <div class="task-badge task-badge-open">⚡ Ingen har taget den</div>
+        }
+        else
+        {
+            <div class="task-badge task-badge-claimed">✋ @Task.AssigneeLabel klarer det</div>
+        }
+        <div class="task-meta">
+            @if (Task.DueDate.HasValue)
+            {
+                <span class="@(Task.DueDate.Value < DateTime.UtcNow ? "task-overdue" : "")">📅 @Task.DueDate.Value.ToString("dd MMM yyyy")</span>
+            }
+            <span>Oprettet af @Task.CreatedByName</span>
+        </div>
+        <div class="task-row-actions">
+            @if (IsMine)
+            {
+                <button class="task-complete-btn" @onclick="OnComplete">Markér som færdig ✓</button>
+            }
+            else
+            {
+                <button class="task-take-btn" @onclick="OnJoin">@(Task.Assignees.Count == 0 ? "Jeg tager den 👋" : "Deltag også 🙋")</button>
+            }
+        </div>
+        @ChildContent
+    </div>
+    <div class="task-row-buttons">
+        <button class="task-del-btn" @onclick="OnEdit">✏️</button>
+        <button class="task-del-btn" @onclick="OnDelete">✕</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Assignment Task { get; set; } = null!;
+    [Parameter] public bool IsMine { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnComplete { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnJoin { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnEdit { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnDelete { get; set; }
+
+    // Lets a caller append extra controls below the standard action row -
+    // used by the "uncategorized" list to add its "assign a main task"
+    // dropdown without needing a second copy of this whole component.
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}
