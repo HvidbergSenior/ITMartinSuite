@@ -14,6 +14,12 @@ public static class KnownBrandCategoryGrouper
     [
         ("Benzin", ["shell", "q8", "uno-x", "unox", "ingo", "f24", "goeasy", "go easy", "circle k", "circlek", "ok benzin", "ok plus"]),
         ("Dagligvarer", ["rema", "netto", "føtex", "foetex", "lidl", "kvickly", "meny", "fakta", "spar", "superbrugsen", "brugsen", "aldi", "irma", "bilka"]),
+        // "leas" - a genuine shared substring (proleasing.nu, leasingaftale,
+        // leasing bil), not a prefix, so CategoryDuplicateFinder misses it.
+        ("Leasing", ["leas"]),
+        ("Abonnementer", ["telenor", "telia", "tdc", "hiper", "3 mobil", "cbb mobil", "oister", "callme", "yousee"]),
+        ("Bøder", ["bøde", "p-bøde", "parkeringsbøde", "fartbøde", "afgift for manglende"]),
+        ("Parkering", ["parkering", "p-afgift", "apcoa", "easypark", "parkster"]),
     ];
 
     public static List<CategoryDuplicateGroup> FindGroups(
