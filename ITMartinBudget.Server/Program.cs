@@ -623,6 +623,22 @@ app.MapPost("/api/shop/{ledgerId}/suggest-merges", async (
     return Results.Ok(suggestions);
 });
 
+// Zero-AI-cost companion to suggest-merges above - see
+// CategoryDuplicateFinder's own comment for why: asking AI to spot every
+// near-duplicate in one pass over ~240 unsorted category names missed
+// obvious ones (the same person/merchant spread across bank-export channel
+// prefixes and field-length truncation), which a plain deterministic
+// string match catches reliably and for free.
+app.MapGet("/api/shop/{ledgerId}/find-duplicate-categories", async (
+    string ledgerId,
+    ITMartinBudget.Application.Interfaces.ICategoryRuleService rules) =>
+{
+    var categories = await rules.GetCategorySummaryAsync(ledgerId);
+    var groups = ITMartinBudget.Application.Helpers.CategoryDuplicateFinder.FindGroups(
+        categories.Select(c => c.Name).ToList());
+    return Results.Ok(groups.Select(g => new { sourceNames = g.Names, suggestedTargetName = g.SuggestedTargetName }));
+});
+
 app.MapPost("/api/shop/{ledgerId}/assign-batch", async (
     string ledgerId,
     List<ShopAssignRequest> body,

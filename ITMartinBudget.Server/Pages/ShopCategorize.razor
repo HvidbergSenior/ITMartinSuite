@@ -162,15 +162,33 @@ setTimeout(function () {
             const summary = await categoriesRes.json();
             if (summary.length < 2) return;
 
-            const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/suggest-merges`, { method: 'POST' });
-            if (!res.ok) throw new Error();
-            const suggestions = await res.json();
+            // Two sources, combined: a free deterministic pass (same
+            // merchant/person spread across bank-export channel prefixes and
+            // field-length truncation - "Fie Tandrup" across 4 differently
+            // formatted names, "IMUSIC.DK" across 4 order numbers) plus the
+            // AI pass for merges that need real judgment (different gas
+            // station brands into "Benzin"). The deterministic one alone
+            // catches real cases AI missed scanning ~240 unsorted names in
+            // one shot - see CategoryDuplicateFinder's own comment.
+            const [dupRes, aiRes] = await Promise.all([
+                fetch(`/api/shop/${encodeURIComponent(ledgerId)}/find-duplicate-categories`),
+                fetch(`/api/shop/${encodeURIComponent(ledgerId)}/suggest-merges`, { method: 'POST' }),
+            ]);
+            const dupGroups = dupRes.ok ? await dupRes.json() : [];
+            const aiSuggestions = aiRes.ok ? await aiRes.json() : [];
+
+            // Dedupe: skip an AI suggestion if the deterministic pass already
+            // found the same source set (exact same names, order-independent).
+            const dupKey = g => [...g.sourceNames].sort().join(' ');
+            const dupKeys = new Set(dupGroups.map(dupKey));
+            const suggestions = [...dupGroups, ...aiSuggestions.filter(s => !dupKeys.has(dupKey(s)))];
+
             if (suggestions.length === 0) { banner.style.display = 'none'; return; }
 
             banner.style.display = '';
             banner.innerHTML = `
                 <div class="alert" style="background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3)">
-                    <strong>💡 AI fandt ${suggestions.length} mulige sammenlægning(er)</strong>
+                    <strong>💡 Fandt ${suggestions.length} mulige sammenlægning(er)</strong>
                     <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
                         ${suggestions.map(s => `<div class="meta">${s.sourceNames.map(esc).join(' + ')} → <strong>${esc(s.suggestedTargetName)}</strong></div>`).join('')}
                     </div>
