@@ -1,0 +1,169 @@
+@page "/g/{slug}/join"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="join-wrap">
+    <div class="join-card">
+        <div class="join-logo">🤝</div>
+        <h1 class="join-title">@(_group?.Name ?? "Club")</h1>
+        <p class="join-sub">@(_group?.Description ?? "")</p>
+
+        @if (_error != null)
+        {
+            <div class="join-error">@_error</div>
+        }
+
+        @if (!_loaded)
+        {
+            <div class="join-loading">Indlæser...</div>
+        }
+        else if (_group == null)
+        {
+            <div class="join-error">Gruppen findes ikke.</div>
+        }
+        else
+        {
+            <div class="join-field">
+                <label>Dit navn</label>
+                <input @bind="_name" placeholder="Fornavn Efternavn" class="join-input" maxlength="60" />
+            </div>
+            <div class="join-field">
+                <label>Invitationskode</label>
+                <input @bind="_code" placeholder="Kun nødvendig første gang" class="join-input" type="password" />
+                <div class="join-hint">Kendte navne med korrekt PIN behøver den ikke igen.</div>
+            </div>
+            <div class="join-field">
+                <label>Din PIN</label>
+                <input @bind="_pin" placeholder="min. 4 cifre" class="join-input" type="password" maxlength="20" @onkeydown="OnPinKey" />
+                <div class="join-hint">Første gang: vælg selv en PIN. Kendte navne: brug din tidligere PIN - det er hvad der forhindrer andre i at logge ind som dig.</div>
+            </div>
+            <div class="join-field">
+                <label>Kontaktinfo (telefon/email, valgfrit)</label>
+                <input @bind="_contactInfo" placeholder="fx 12345678 eller navn@mail.dk" class="join-input" maxlength="100" />
+                <div class="join-hint">Vises for de andre medlemmer under Medlemmer. Skriv igen her for at opdatere.</div>
+            </div>
+            <button class="join-btn" @onclick="JoinAsync" disabled="@_joining">
+                @(_joining ? "Tilmelder..." : "Tilmeld")
+            </button>
+        }
+    </div>
+</div>
+
+<style>
+    .join-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .join-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 420px; text-align: center; color: var(--text); }
+    .join-logo { font-size: 48px; margin-bottom: 12px; }
+    .join-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; }
+    .join-sub { font-size: 14px; color: var(--muted); margin: 0 0 28px; }
+    .join-field { text-align: left; margin-bottom: 16px; }
+    .join-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    .join-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 15px; outline: none; }
+    .join-input:focus { border-color: var(--accent); }
+    .join-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .join-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .join-btn:disabled { opacity: .5; cursor: default; }
+    .join-error { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; }
+    .join-loading { color: var(--muted); padding: 20px 0; }
+    .join-hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    [Inject] private ClubAuthService ClubAuth { get; set; } = null!;
+
+    private Group? _group;
+    private string _name = "";
+    private string _code = "";
+    private string _pin = "";
+    private string _contactInfo = "";
+    private string? _error;
+    private bool _joining;
+    private bool _loaded;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        if (await ClubAuth.ResolveSessionAsync(JS, Db, Slug) is not null)
+        {
+            Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
+            return;
+        }
+
+        _group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == Slug);
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task OnPinKey(KeyboardEventArgs e) { if (e.Key == "Enter") await JoinAsync(); }
+
+    private async Task JoinAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv dit navn."; return; }
+        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din PIN."; return; }
+        if (_group == null) return;
+
+        _joining = true;
+        StateHasChanged();
+
+        try
+        {
+            var member = await Db.Members.FirstOrDefaultAsync(m => m.GroupId == _group.Id && m.Name == _name.Trim());
+
+            // A correct PIN for a known name already proves who they are - the
+            // invite code only exists to gate strangers who don't know a name/PIN
+            // yet, so returning members shouldn't have to keep re-typing it.
+            var isReturningMember = member is not null
+                && !string.IsNullOrEmpty(member.Pin)
+                && SecretHasher.Verify(_pin.Trim(), member.Pin);
+
+            if (!isReturningMember && _code.Trim() != _group.InviteCode)
+            {
+                _error = "Forkert invitationskode.";
+                _joining = false;
+                return;
+            }
+
+            if (member == null)
+            {
+                // New name - this PIN becomes theirs going forward.
+                member = new Member { GroupId = _group.Id, Name = _name.Trim(), Pin = SecretHasher.Hash(_pin.Trim()) };
+                Db.Members.Add(member);
+            }
+            else if (string.IsNullOrEmpty(member.Pin))
+            {
+                // An admin reset this member's PIN (they forgot it) - claim a
+                // fresh one now, same as a brand new name.
+                member.Pin = SecretHasher.Hash(_pin.Trim());
+            }
+            else if (!isReturningMember)
+            {
+                _error = "Forkert PIN for dette navn. Bed en admin om at nulstille den, hvis du har glemt den.";
+                _joining = false;
+                return;
+            }
+
+            // Contact info is re-entered (not required) on every login rather than
+            // set-once - leaving it blank keeps whatever was there before, typing
+            // something new overwrites it, so a member can update their number/email
+            // just by logging in again with the new value filled in.
+            if (!string.IsNullOrWhiteSpace(_contactInfo))
+                member.ContactInfo = _contactInfo.Trim();
+
+            var session = new MemberSession { MemberId = member.Id };
+            Db.Sessions.Add(session);
+            await Db.SaveChangesAsync();
+
+            await JS.InvokeVoidAsync("clubJs.setSession", session.Id.ToString());
+            Nav.NavigateTo($"/g/{Slug}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Noget gik galt: {ex.Message}";
+            _joining = false;
+        }
+    }
+}

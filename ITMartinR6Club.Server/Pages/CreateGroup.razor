@@ -1,0 +1,123 @@
+@page "/"
+@page "/create"
+@rendermode InteractiveServer
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IConfiguration Configuration
+
+<div class="create-wrap">
+    <div class="create-card">
+        <div style="font-size:48px;margin-bottom:12px">🤝</div>
+        <h1 class="create-title">Opret gruppe</h1>
+        <p class="create-sub">Én gruppe · Alle samlet ét sted</p>
+
+        @if (!string.IsNullOrEmpty(_error)) { <div class="create-error">@_error</div> }
+
+        <div class="create-field"><label>Gruppenavn</label><input @bind="_name" placeholder="fx Fredagsklubben" class="create-input" maxlength="100" /></div>
+        <div class="create-field"><label>Beskrivelse (valgfrit)</label><input @bind="_desc" class="create-input" maxlength="200" /></div>
+        <div class="create-field">
+            <label>Adgangskode til gruppen</label>
+            <input @bind="_invite" placeholder="f.eks. sommer2026" class="create-input" maxlength="40" />
+            <div class="create-hint-text">Den kode som nye medlemmer skal bruge for at tilmelde sig gruppen.</div>
+        </div>
+        <div class="create-field">
+            <label>Din personlige PIN</label>
+            <input @bind="_pin" type="password" placeholder="min. 4 cifre" class="create-input" maxlength="20" />
+            <div class="create-hint-text">Kun du kender den — bruges til at ændre gruppeindstillinger og redigere indhold.</div>
+        </div>
+        <button class="create-btn" @onclick="CreateAsync" disabled="@_creating">@(_creating ? "Opretter..." : "Opret gruppe")</button>
+    </div>
+</div>
+
+<style>
+    .create-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .create-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 480px; text-align: center; color: var(--text); }
+    .create-title { font-size: 26px; font-weight: 900; margin: 0 0 8px; }
+    .create-sub { font-size: 14px; color: var(--muted); margin: 0 0 28px; }
+    .create-field { text-align: left; margin-bottom: 14px; }
+    .create-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .create-hint-text { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+    .create-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .create-input:focus { border-color: var(--accent); }
+    .create-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .create-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .create-btn:disabled { opacity: .5; cursor: default; }
+    .create-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 16px; text-align: left; }
+</style>
+
+@code {
+    private string _name = "", _desc = "", _invite = "", _pin = "";
+    private string? _error;
+    private bool _creating;
+    private string _slug = "";
+
+    // Legacy domains from the standalone ADHD/Family apps, retired in favor of
+    // a Club group - land here on the real group instead of offering to create
+    // a new, empty one that looks confusingly similar.
+    private static readonly Dictionary<string, string> RetiredDomainAliases = new()
+    {
+        ["adhd"] = "hvidberg",
+        ["idag"] = "hvidberg",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Demo tier: the seeded demo group's slug ("demo") never matches a
+        // real subdomain, since the demo hostname (e.g. idag-demo.itmartin.dk)
+        // splits to "idag-demo" - walk straight into it instead of showing
+        // the create-group screen to every visitor.
+        if (Configuration.GetValue<bool>("Club:SeedDemoData"))
+        {
+            Nav.NavigateTo($"/g/{ITMartinR6Club.Server.Services.DemoSeeder.DemoSlug}", forceLoad: true);
+            return;
+        }
+
+        var host = new Uri(Nav.Uri).Host;
+        _slug = host.Split('.')[0];
+
+        if (RetiredDomainAliases.TryGetValue(_slug, out var realSlug))
+        {
+            Nav.NavigateTo($"/g/{realSlug}", forceLoad: true);
+            return;
+        }
+
+        var group = await Db.Groups.FirstOrDefaultAsync(g => g.Slug == _slug);
+        if (group is not null)
+            Nav.NavigateTo($"/g/{group.Slug}", forceLoad: true);
+    }
+
+    private async Task CreateAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Skriv et gruppenavn."; return; }
+        if (string.IsNullOrWhiteSpace(_invite)) { _error = "Skriv en adgangskode til gruppen."; return; }
+        if (string.IsNullOrWhiteSpace(_pin)) { _error = "Skriv din personlige PIN."; return; }
+
+        _creating = true;
+        StateHasChanged();
+
+        try
+        {
+            Db.Groups.Add(new Group
+            {
+                Slug = _slug,
+                Name = _name.Trim(),
+                Description = _desc.Trim(),
+                // InviteCode stays in plaintext - by design it's meant to be shown to
+                // the admin and shared with people who should join (a room code, not
+                // a password); rate-limiting join attempts is the right defense for
+                // it, not hashing something that has to stay displayable. AdminPin
+                // gates real destructive actions, so it's hashed like a real secret.
+                InviteCode = _invite.Trim(),
+                AdminPin = SecretHasher.Hash(_pin.Trim()),
+            });
+            await Db.SaveChangesAsync();
+            Nav.NavigateTo($"/g/{_slug}/join", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Noget gik galt: {ex.Message}";
+            _creating = false;
+        }
+    }
+}
