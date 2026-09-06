@@ -240,7 +240,13 @@ app.MapPost("/api/shop/upload", async (
     ITMartinBudget.Infrastructure.BudgetDbContext db) =>
 {
     var form = await request.ReadFormAsync();
-    var ledgerId = form["ledgerId"].ToString();
+    // Lowercased here, at the one place a brand-new ledger can be created -
+    // LedgerId is compared case-sensitively everywhere downstream (plain
+    // string equality, no COLLATE NOCASE), so a browser that auto-capitalizes
+    // a text input (several do, by default, on a fresh page load) used to
+    // silently fork a second, disconnected "Bogshoppen" ledger next to the
+    // real "bogshoppen" one instead of adding to it.
+    var ledgerId = form["ledgerId"].ToString().Trim().ToLowerInvariant();
     var file = form.Files["file"];
     if (string.IsNullOrWhiteSpace(ledgerId)) return Results.BadRequest("Angiv et konto-id");
     if (file is null) return Results.BadRequest("Ingen fil valgt");

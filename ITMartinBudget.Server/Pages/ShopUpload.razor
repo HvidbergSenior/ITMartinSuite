@@ -25,7 +25,8 @@
 
             <div>
                 <label class="meta" for="ledgerId">Konto-id (bruges i overbliks-linket)</label>
-                <input id="ledgerId" class="input" value="@_defaultLedgerId" placeholder="fx bogshoppen" />
+                <input id="ledgerId" class="input" value="@_defaultLedgerId" placeholder="fx bogshoppen"
+                       autocapitalize="off" autocorrect="off" spellcheck="false" />
             </div>
 
             <div id="scopeModePicker">
@@ -70,7 +71,11 @@ setTimeout(function () {
 
     fileInput.addEventListener('change', async () => {
         const file = fileInput.files[0];
-        const ledgerId = ledgerInput.value.trim();
+        // Lowercased client-side too (server does the same) - LedgerId is
+        // matched with plain case-sensitive equality everywhere downstream,
+        // so "Bogshoppen" and "bogshoppen" would otherwise silently become
+        // two disconnected ledgers instead of one.
+        const ledgerId = ledgerInput.value.trim().toLowerCase();
 
         if (!file) return;
         if (!ledgerId) {
