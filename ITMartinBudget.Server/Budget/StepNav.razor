@@ -1,0 +1,37 @@
+@* Progress indicator for the 3-step ledger workflow (Upload -> Kategoriser ->
+   Flet) that every Bogshoppen-style account goes through. Not a route of its
+   own - just cross-links the three step pages for one ledger so they read as
+   one guided flow instead of independent, unrelated pages. *@
+
+<nav class="step-nav" aria-label="Fremgang">
+    @for (var i = 1; i <= Steps.Length; i++)
+    {
+        var index = i;
+        var step = Steps[index - 1];
+        var isCurrent = index == CurrentStep;
+        var isDone = index < CurrentStep;
+        <a class="step-nav-item @(isCurrent ? "current" : "") @(isDone ? "done" : "")"
+           href="@step.Href(LedgerId)" data-enhance-nav="false">
+            <span class="step-nav-num">@(isDone ? "✓" : index.ToString())</span>
+            <span class="step-nav-label">@step.Label</span>
+        </a>
+        if (index < Steps.Length)
+        {
+            <span class="step-nav-arrow">→</span>
+        }
+    }
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public string LedgerId { get; set; } = "";
+    [Parameter, EditorRequired] public int CurrentStep { get; set; }
+
+    private sealed record Step(string Label, Func<string, string> Href);
+
+    private static readonly Step[] Steps =
+    [
+        new("Upload", id => $"/shop-upload/{Uri.EscapeDataString(id)}"),
+        new("Kategoriser", id => $"/shop-categorize/{Uri.EscapeDataString(id)}"),
+        new("Flet", id => $"/shop-categories/{Uri.EscapeDataString(id)}"),
+    ];
+}

@@ -11,6 +11,7 @@
 @using System.Globalization
 
 @inject BudgetDbContext Db
+@inject NavigationManager Nav
 
 <PageTitle>Overblik - @LedgerId</PageTitle>
 
@@ -20,9 +21,12 @@
 }
 else if (_all.Count == 0)
 {
+    <!-- Reachable only when the ledger has data overall but the current
+         date/focus filter matches none of it - a truly empty ledger never
+         gets here, it's redirected to /shop-upload in OnInitializedAsync. -->
     <div class="stack">
         <div class="alert warning">
-            Ingen transaktioner fundet for '@LedgerId'. Upload en CSV på <a href="/shop-upload" data-enhance-nav="false">/shop-upload</a> først.
+            Ingen transaktioner i den valgte periode for '@LedgerId'. <a href="/shop-overview/@LedgerId" data-enhance-nav="false">Ryd filter</a>.
         </div>
     </div>
 }
@@ -482,6 +486,19 @@ setTimeout(function () {
             .OrderBy(x => x.Date)
             .ToListAsync();
         _totalAllTime = all.Count;
+
+        // A brand-new ledger (Bogshoppen right now, before its first real
+        // import) used to land here and show a dead-end "no transactions,
+        // go upload one" message with a manual link. Send it straight there
+        // instead - upload is genuinely step one, not a message about step
+        // one. Checked against the ledger's real total, not the
+        // period-filtered _all below, so a normal date-range filter that
+        // happens to match zero rows never triggers this.
+        if (_totalAllTime == 0)
+        {
+            Nav.NavigateTo($"/shop-upload/{Uri.EscapeDataString(LedgerId)}");
+            return;
+        }
 
         IEnumerable<BankTransaction> filtered = all;
         if (_periodFrom.HasValue) filtered = filtered.Where(x => x.Date >= _periodFrom.Value);

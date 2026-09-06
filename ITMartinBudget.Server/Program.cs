@@ -165,22 +165,6 @@ app.Use(async (ctx, next) =>
     ctx.Response.Redirect("/login");
 });
 
-// Plain multipart form upload (not Blazor InputFile) for the family budget
-// page - same Cloudflare Tunnel/SignalR reasoning as the shop upload above.
-app.MapPost("/api/budget/upload", async (HttpRequest request, BankTransactionCsvService csvService) =>
-{
-    var form = await request.ReadFormAsync();
-    var file = form.Files["file"];
-    if (file is null) return Results.BadRequest("Ingen fil valgt");
-
-    await using var stream = file.OpenReadStream();
-    var imported = await csvService.ImportAsync(stream);
-    return Results.Ok(new { imported = imported.Count });
-}).DisableAntiforgery();
-
-app.MapGet("/api/budget/has-data", async (BudgetDbContext db) =>
-    Results.Ok(await db.Transactions.AnyAsync(x => x.LedgerId == "family")));
-
 // TEMP DEBUG - month-by-month income/expense breakdown, for comparing a
 // ledger's finances before/after some point in time (e.g. a salary change).
 app.MapGet("/api/debug/monthly-summary", async (string ledgerId, BudgetDbContext db) =>
@@ -206,16 +190,6 @@ app.MapGet("/api/debug/monthly-summary", async (string ledgerId, BudgetDbContext
         });
 
     return Results.Ok(byMonth);
-});
-
-// Scoped to the family ledger only - a client ledger like "bogshoppen" must
-// never be touched by the family page's "delete all data" button.
-app.MapPost("/api/budget/reset", async (BudgetDbContext db) =>
-{
-    var familyTransactions = db.Transactions.Where(x => x.LedgerId == "family");
-    db.Transactions.RemoveRange(familyTransactions);
-    await db.SaveChangesAsync();
-    return Results.Ok();
 });
 
 app.MapPost("/api/auth/login", (HttpContext ctx, [Microsoft.AspNetCore.Mvc.FromForm] string pin) =>
@@ -463,17 +437,23 @@ app.MapGet("/api/shop/{ledgerId}/category-summary", async (string ledgerId, ITMa
 // and lines up income/expenses/net plus a per-category breakdown side by
 // side, so a period with a salary change (or any other shift) can be
 // compared directly against another instead of eyeballing two dashboards.
+// For a Both-mode ledger (a mixed business/private account like Bogshoppen's),
+// this used to sum business revenue and private income into one "income"
+// figure - exactly the conflation the rest of the app's Scope classifier
+// exists to prevent. Now split into a business summary and a private summary,
+// same as /shop-overview already does, so a shop's real period-over-period
+// result isn't blended with the owner's personal money.
 app.MapGet("/api/shop/{ledgerId}/compare-periods", async (
     string ledgerId,
     DateTime start1, DateTime end1, DateTime start2, DateTime end2,
     ITMartinBudget.Infrastructure.BudgetDbContext db) =>
 {
-    async Task<object> PeriodSummary(DateTime start, DateTime end)
+    async Task<object> ScopedSummary(DateTime start, DateTime end, ITMartinBudget.Domain.Enums.TransactionScope? scope)
     {
-        var rows = await db.Transactions
-            .Where(x => x.LedgerId == ledgerId && x.Date >= start && x.Date < end)
-            .Select(x => new { x.UserCategoryName, x.Amount })
-            .ToListAsync();
+        var query = db.Transactions.Where(x => x.LedgerId == ledgerId && x.Date >= start && x.Date < end);
+        if (scope is { } s) query = query.Where(x => x.Scope == s);
+
+        var rows = await query.Select(x => new { x.UserCategoryName, x.Amount }).ToListAsync();
 
         var income = rows.Where(x => x.Amount > 0).Sum(x => x.Amount);
         var expenses = rows.Where(x => x.Amount < 0).Sum(x => x.Amount);
@@ -486,8 +466,24 @@ app.MapGet("/api/shop/{ledgerId}/compare-periods", async (
         return new { income, expenses, net = income + expenses, count = rows.Count, categories = byCategory };
     }
 
+    var config = await db.LedgerConfigs.FindAsync(ledgerId);
+    var scopeMode = config?.ScopeMode ?? ITMartinBudget.Domain.Enums.LedgerScopeMode.Both;
+
+    async Task<object> PeriodSummary(DateTime start, DateTime end)
+    {
+        if (scopeMode != ITMartinBudget.Domain.Enums.LedgerScopeMode.Both)
+            return await ScopedSummary(start, end, null);
+
+        return new
+        {
+            business = await ScopedSummary(start, end, ITMartinBudget.Domain.Enums.TransactionScope.Business),
+            @private = await ScopedSummary(start, end, ITMartinBudget.Domain.Enums.TransactionScope.Private),
+        };
+    }
+
     return Results.Ok(new
     {
+        scopeMode = scopeMode.ToString(),
         period1 = await PeriodSummary(start1, end1),
         period2 = await PeriodSummary(start2, end2),
     });

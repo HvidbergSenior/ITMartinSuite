@@ -1,5 +1,6 @@
 @page "/"
 @page "/shop-categorize/{LedgerId}"
+@using ITMartinBudget.Server.Budget
 @* No @rendermode: plain REST + vanilla JS below instead of Blazor interactivity -
    Blazor Server needs a persistent SignalR circuit, which has previously gotten
    stuck reconnecting ("Forbinder...") through this app's Cloudflare Tunnel
@@ -9,6 +10,7 @@
 <PageTitle>Kategoriser - @LedgerId</PageTitle>
 
 <div class="budget-container">
+    <StepNav LedgerId="@LedgerId" CurrentStep="2" />
     <ContentCard>
         <div class="stack">
 
@@ -29,6 +31,7 @@
                 </div>
             </div>
 
+            <datalist id="categoryOptions"></datalist>
             <div id="clusters" style="display:flex;flex-direction:column;gap:10px"></div>
 
         </div>
@@ -116,6 +119,9 @@ setTimeout(function () {
         scopeMode = (await scopeModeRes.json()).scopeMode;
         const fixedScope = scopeMode === 'PrivateOnly' ? 'Private' : scopeMode === 'BusinessOnly' ? 'Business' : null;
 
+        document.getElementById('categoryOptions').innerHTML =
+            categories.map(name => `<option value="${esc(name)}"></option>`).join('');
+
         const done = clusters.filter(c => c.currentCategoryName).length;
         document.getElementById('clusterCount').innerHTML =
             `${done} / ${clusters.length} kategoriseret · <a href="/shop-categories/${esc(ledgerId)}" data-enhance-nav="false">Flet kategorier</a> · <a href="/shop-overview/${esc(ledgerId)}">Se overblik</a>`;
@@ -136,7 +142,11 @@ setTimeout(function () {
                         <option value="Business" ${c.scope === 'Business' ? 'selected' : ''}>Forretning</option>
                         <option value="Private" ${c.scope === 'Private' ? 'selected' : ''}>Privat</option>
                     </select>`;
-            const needsReview = !fixedScope && c.scope === 'Unknown' && !c.currentCategoryName;
+            // Flags anything not actually saved yet, regardless of whether the
+            // classifier managed to guess a scope - the category input below
+            // pre-fills with the raw label text either way, which looks
+            // deceptively "done" at a glance unless this highlight fires too.
+            const needsReview = !c.currentCategoryName;
             // Only worth an expand-to-inspect affordance when there's more
             // than one transaction behind the pattern - a single-transaction
             // cluster already shows everything relevant in the row itself.
@@ -161,17 +171,23 @@ setTimeout(function () {
                 </div>
                 ${detail}
                 <div data-role="investigateResult">${c.investigationReasoning ? investigateResultHtml({ reasoning: c.investigationReasoning, suggestedScope: c.investigationSuggestedScope, confidence: c.investigationConfidence }) : ''}</div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
-                    ${scopeField}
-                    <input class="input" style="width:auto" data-role="category"
-                           value="${esc(defaultCategory)}" placeholder="Kategori..." />
-                    <select class="input" style="width:auto" data-role="categoryPicker">
-                        <option value="">Vælg eksisterende...</option>
-                        ${categories.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}
-                    </select>
-                    <button class="btn" data-role="save">Gem</button>
-                    <button class="btn" data-role="investigate" title="Spørg AI hvad dette sandsynligvis er">${c.investigationReasoning ? '🔄 Undersøg igen' : '🔍 Undersøg'}</button>
-                    <span class="meta" data-role="savedMark">${c.currentCategoryName ? '✔ gemt' : ''}</span>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;align-items:flex-end;justify-content:space-between">
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+                        <label style="display:flex;flex-direction:column;gap:3px">
+                            <span class="meta">Type</span>
+                            ${scopeField}
+                        </label>
+                        <label style="display:flex;flex-direction:column;gap:3px">
+                            <span class="meta">Kategori</span>
+                            <input class="input" style="width:auto" data-role="category" list="categoryOptions"
+                                   value="${esc(defaultCategory)}" placeholder="Skriv ny eller vælg en eksisterende..." />
+                        </label>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <span class="meta" data-role="savedMark">${c.currentCategoryName ? '✔ gemt' : ''}</span>
+                        <button class="btn" data-role="investigate" title="Spørg AI hvad dette sandsynligvis er">${c.investigationReasoning ? '🔄 Undersøg igen' : '🔍 Undersøg'}</button>
+                        <button class="btn btn-primary" data-role="save">Gem</button>
+                    </div>
                 </div>
             </div>
         `; }).join('');
@@ -201,15 +217,6 @@ setTimeout(function () {
             btn.addEventListener('click', () => save(btn.closest('.category-summary-card')));
         });
 
-        container.querySelectorAll('[data-role="categoryPicker"]').forEach(picker => {
-            picker.addEventListener('change', () => {
-                if (!picker.value) return;
-                const card = picker.closest('.category-summary-card');
-                card.querySelector('[data-role="category"]').value = picker.value;
-                picker.value = '';
-            });
-        });
-
         container.querySelectorAll('[data-role="investigate"]').forEach(btn => {
             btn.addEventListener('click', () => investigate(btn.closest('.category-summary-card')));
         });
@@ -232,7 +239,10 @@ setTimeout(function () {
         });
 
         if (res.ok) {
-            if (!categories.includes(categoryName)) categories.push(categoryName);
+            if (!categories.includes(categoryName)) {
+                categories.push(categoryName);
+                document.getElementById('categoryOptions').insertAdjacentHTML('beforeend', `<option value="${esc(categoryName)}"></option>`);
+            }
             card.querySelector('[data-role="savedMark"]').textContent = '✔ gemt';
             card.classList.remove('category-summary-card--unknown');
             return true;

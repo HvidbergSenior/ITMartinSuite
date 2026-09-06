@@ -1,4 +1,5 @@
 @page "/shop-categories/{LedgerId}"
+@using ITMartinBudget.Server.Budget
 @* No @rendermode: plain REST + vanilla JS, same reasoning as /shop-categorize -
    Blazor Server needs a persistent SignalR circuit, which has previously
    gotten stuck reconnecting ("Forbinder...") through this app's Cloudflare
@@ -7,6 +8,7 @@
 <PageTitle>Kategorier - @LedgerId</PageTitle>
 
 <div class="budget-container">
+    <StepNav LedgerId="@LedgerId" CurrentStep="3" />
     <ContentCard>
         <div class="stack">
 

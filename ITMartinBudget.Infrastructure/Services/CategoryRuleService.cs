@@ -112,9 +112,13 @@ public sealed class CategoryRuleService : ICategoryRuleService
                     distinctScopes.Count > 1,
                     isPeople);
             })
-            // Biggest/most-recurring categories first - easier to spot
-            // consolidation candidates than a flat alphabetical list.
-            .OrderByDescending(c => c.Count)
+            // Biggest money first, not most-frequent - a rent payment posted
+            // once a month belongs above two dozen small grocery runs if the
+            // goal is "where can I actually cut spending" (this list used to
+            // sort by transaction count, which answered a different question -
+            // "which categories look like duplicates to merge" - and buried
+            // the categories that matter most for spotting overspend).
+            .OrderByDescending(c => Math.Abs(c.Sum))
             .ToList();
     }
 

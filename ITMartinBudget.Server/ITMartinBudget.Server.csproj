@@ -26,8 +26,8 @@
     <ItemGroup>
       <AdditionalFiles Include="Budget\BudgetCategoryCard.razor" />
       <AdditionalFiles Include="Budget\BudgetHeader.razor" />
-      <AdditionalFiles Include="Budget\BudgetMainLayout.razor" />
       <AdditionalFiles Include="Budget\KpiCard.razor" />
+      <AdditionalFiles Include="Budget\StepNav.razor" />
     </ItemGroup>
 
 </Project>

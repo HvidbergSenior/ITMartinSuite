@@ -1,34 +1,31 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager Nav
 
 <div class="budget-container">
 
     <nav class="budget-nav">
 
-        <NavLink href="/dashboard" Match="NavLinkMatch.All">
+        <NavLink class="budget-nav-link" href="/shop-overview/family" data-enhance-nav="false">
             📊 Familie
         </NavLink>
 
-        <NavLink href="/budget-upload" data-enhance-nav="false">
-            📁 Upload
-        </NavLink>
-
-        <NavLink href="/budget-compare" data-enhance-nav="false">
-            ⚖ Sammenlign
-        </NavLink>
-
-        <NavLink href="/shop-overview/bogshoppen" data-enhance-nav="false">
+        <NavLink class="budget-nav-link" href="/shop-overview/bogshoppen" data-enhance-nav="false">
             🏪 Bogshoppen
         </NavLink>
 
-        <NavLink href="/shop-overview/hvidberg" data-enhance-nav="false">
+        <NavLink class="budget-nav-link" href="/shop-overview/hvidberg" data-enhance-nav="false">
             🏠 Hvidberg
         </NavLink>
 
-        <NavLink href="/shop-overview/itmartin" data-enhance-nav="false">
+        <NavLink class="budget-nav-link" href="/shop-overview/itmartin" data-enhance-nav="false">
             💼 ITMartin
         </NavLink>
 
-        <NavLink href="/shop-upload" data-enhance-nav="false">
+        <NavLink class="budget-nav-link" href="@($"/budget-compare/{CurrentLedgerId}")" data-enhance-nav="false">
+            ⚖ Sammenlign (@CurrentLedgerId)
+        </NavLink>
+
+        <NavLink class="budget-nav-link" href="/shop-upload" data-enhance-nav="false">
             ➕ Ny konto
         </NavLink>
 
@@ -39,3 +36,23 @@
     <footer style="text-align:center;padding:.6rem 1rem;font-size:.72rem;color:#64748b;border-top:1px solid rgba(255,255,255,.06)"><a href="https://all-apps.itmartin.dk/vilkaar" target="_blank" style="color:#64748b;text-decoration:underline">Vilkår &amp; Privatlivspolitik</a> · &copy; @DateTime.Now.Year ITMartin - Den digitale kolibri</footer>
 
 </div>
+
+@code {
+    // This nav bar is shared by every Budget/Shop page regardless of which
+    // ledger they're showing (no per-page @layout parameter carries that
+    // context down), so "Sammenlign" used to be hardcoded to the family
+    // ledger no matter which ledger's Overview you were actually looking at
+    // - silently showing the wrong numbers with no indication anything had
+    // switched. Deriving it from the current URL instead means clicking
+    // Sammenlign from /shop-overview/bogshoppen actually compares Bogshoppen.
+    private string CurrentLedgerId
+    {
+        get
+        {
+            var segments = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/');
+            return segments.Length >= 2 && segments[0] is "shop-overview" or "shop-categorize" or "shop-categories" or "budget-compare"
+                ? segments[1]
+                : "family";
+        }
+    }
+}

@@ -1,11 +1,16 @@
 @page "/shop-upload"
-@layout BudgetMainLayout
+@page "/shop-upload/{LedgerId}"
 @using ITMartinBudget.Server.Budget
 @* No @rendermode: plain HTML form + fetch() below instead of Blazor InputFile,
    which needs a live SignalR circuit - has previously gotten stuck reconnecting
-   ("Forbinder...") through this app's Cloudflare Tunnel domain. *@
+   ("Forbinder...") through this app's Cloudflare Tunnel domain.
+   No @layout override either - this used to sit under BudgetMainLayout while
+   the other two steps used the default BudgetLayout, so the nav bar itself
+   changed shape mid-flow. All three step pages now share one layout. *@
 
 <div class="budget-container">
+
+    <StepNav LedgerId="@_defaultLedgerId" CurrentStep="1" />
 
     <ContentCard>
 
@@ -20,7 +25,7 @@
 
             <div>
                 <label class="meta" for="ledgerId">Konto-id (bruges i overbliks-linket)</label>
-                <input id="ledgerId" class="input" value="bogshoppen" placeholder="fx bogshoppen" />
+                <input id="ledgerId" class="input" value="@_defaultLedgerId" placeholder="fx bogshoppen" />
             </div>
 
             <div id="scopeModePicker">
@@ -107,3 +112,15 @@ setTimeout(function () {
     });
 }, 0);
 </script>
+
+@code {
+    // "bogshoppen" was previously hardcoded here regardless of context - the
+    // right default for Bogshoppen's own first-upload redirect, but wrong
+    // for anyone reaching /shop-upload directly for a different ledger.
+    // {LedgerId} now carries the real context (e.g. from ShopOverview's
+    // empty-ledger redirect); the bare /shop-upload route with no segment
+    // keeps the old default so existing links/bookmarks still land somewhere
+    // sensible.
+    [Parameter] public string? LedgerId { get; set; }
+    private string _defaultLedgerId => string.IsNullOrWhiteSpace(LedgerId) ? "bogshoppen" : LedgerId;
+}

@@ -1,4 +1,5 @@
 @page "/budget-compare"
+@page "/budget-compare/{LedgerId}"
 @* No @rendermode: plain REST + vanilla JS, same reasoning as /shop-categorize -
    Blazor Server needs a persistent SignalR circuit, which has previously
    gotten stuck reconnecting ("Forbinder...") through this app's Cloudflare
@@ -16,7 +17,7 @@
 
             <div>
                 <h1 class="page-title">Sammenlign perioder</h1>
-                <div class="meta">Familieøkonomi</div>
+                <div class="meta">@(_ledgerId == "family" ? "Familieøkonomi" : _ledgerId)</div>
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
@@ -48,7 +49,7 @@
 
 <script>
 setTimeout(function () {
-    const ledgerId = 'family';
+    const ledgerId = '@_ledgerId';
 
     function esc(s) {
         if (s == null) return '';
@@ -100,6 +101,20 @@ setTimeout(function () {
             </div>`).join('');
     }
 
+    function sectionHtml(title, p1, p2) {
+        return `
+            ${title ? `<h2 style="font-size:1.1rem;font-weight:800;margin:20px 0 4px">${title}</h2>` : ''}
+            ${summaryRowHtml({ name: 'Indkomst', key: 'income' }, p1, p2)}
+            ${summaryRowHtml({ name: 'Udgifter', key: 'expenses' }, p1, p2)}
+            ${summaryRowHtml({ name: 'Netto', key: 'net' }, p1, p2)}
+            <div style="margin-top:14px">
+                <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px">Pr. kategori</h3>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    ${categoryRowsHtml(p1, p2)}
+                </div>
+            </div>`;
+    }
+
     async function compare() {
         const start1 = document.getElementById('start1').value;
         const end1 = document.getElementById('end1').value;
@@ -117,24 +132,33 @@ setTimeout(function () {
         const data = await res.json();
         const p1 = data.period1, p2 = data.period2;
 
-        result.innerHTML = `
+        const header = `
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 0 6px 0" class="meta">
                 <div></div>
                 <div>${start1} → ${end1}</div>
                 <div>${start2} → ${end2}</div>
-            </div>
-            ${summaryRowHtml({ name: 'Indkomst', key: 'income' }, p1, p2)}
-            ${summaryRowHtml({ name: 'Udgifter', key: 'expenses' }, p1, p2)}
-            ${summaryRowHtml({ name: 'Netto', key: 'net' }, p1, p2)}
-            <div style="margin-top:20px">
-                <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:10px">Pr. kategori</h2>
-                <div style="display:flex;flex-direction:column;gap:8px">
-                    ${categoryRowsHtml(p1, p2)}
-                </div>
             </div>`;
+
+        // A mixed business/private ledger (Bogshoppen-style) gets business
+        // and private results shown separately - blending them into one
+        // "income"/"expenses" figure would misstate the shop's real result
+        // by folding in the owner's personal money.
+        result.innerHTML = data.scopeMode === 'Both'
+            ? header + sectionHtml('🏪 Forretning', p1.business, p2.business) + sectionHtml('🏠 Privat', p1.private, p2.private)
+            : header + sectionHtml(null, p1, p2);
     }
 
     document.getElementById('compareBtn').addEventListener('click', compare);
     compare();
 }, 0);
 </script>
+
+@code {
+    // Used to silently default to the family ledger when reached via the
+    // route with no {LedgerId} segment (the original /budget-compare, still
+    // linked from the family dashboard) - never used to guess which ledger a
+    // Bogshoppen/hvidberg/itmartin visitor meant, since BudgetLayout always
+    // passes an explicit ledger id in now.
+    [Parameter] public string? LedgerId { get; set; }
+    private string _ledgerId => string.IsNullOrWhiteSpace(LedgerId) ? "family" : LedgerId;
+}
