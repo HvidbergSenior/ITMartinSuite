@@ -623,19 +623,23 @@ app.MapPost("/api/shop/{ledgerId}/suggest-merges", async (
     return Results.Ok(suggestions);
 });
 
-// Zero-AI-cost companion to suggest-merges above - see
-// CategoryDuplicateFinder's own comment for why: asking AI to spot every
-// near-duplicate in one pass over ~240 unsorted category names missed
-// obvious ones (the same person/merchant spread across bank-export channel
-// prefixes and field-length truncation), which a plain deterministic
-// string match catches reliably and for free.
+// Zero-AI-cost companion to suggest-merges above - two different
+// deterministic passes combined:
+//  - CategoryDuplicateFinder: the *same* merchant/person spread across
+//    bank-export channel prefixes and field-length truncation (own comment
+//    has the full story).
+//  - KnownBrandCategoryGrouper: *different* brands of the same broad
+//    spending kind ("All gasstations in one cat" - Shell/Q8/Ingo share no
+//    substring, only real-world knowledge that they're all gas stations).
 app.MapGet("/api/shop/{ledgerId}/find-duplicate-categories", async (
     string ledgerId,
     ITMartinBudget.Application.Interfaces.ICategoryRuleService rules) =>
 {
     var categories = await rules.GetCategorySummaryAsync(ledgerId);
-    var groups = ITMartinBudget.Application.Helpers.CategoryDuplicateFinder.FindGroups(
-        categories.Select(c => c.Name).ToList());
+    var names = categories.Select(c => c.Name).ToList();
+    var groups = ITMartinBudget.Application.Helpers.CategoryDuplicateFinder.FindGroups(names)
+        .Concat(ITMartinBudget.Application.Helpers.KnownBrandCategoryGrouper.FindGroups(names))
+        .ToList();
     return Results.Ok(groups.Select(g => new { sourceNames = g.Names, suggestedTargetName = g.SuggestedTargetName }));
 });
 
