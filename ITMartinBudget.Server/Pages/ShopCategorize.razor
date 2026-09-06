@@ -62,6 +62,29 @@ setTimeout(function () {
     const scopeLabelDa = { Business: 'Forretning', Private: 'Privat', Unsure: 'Usikker' };
     let scopeMode = 'Both';
 
+    // Same idea as GroupHome.razor's MainTaskColors in the Club app: subtle
+    // tinted backgrounds cycled by list position (not stored per-category),
+    // so a category's color stays stable within one render without needing
+    // any data migration when categories are renamed/merged/added.
+    const categoryColors = [
+        'rgba(99,102,241,.10)',  // indigo
+        'rgba(16,185,129,.10)',  // green
+        'rgba(245,158,11,.10)',  // amber
+        'rgba(236,72,153,.10)',  // pink
+        'rgba(56,189,248,.10)',  // sky
+        'rgba(248,113,113,.10)', // red
+        'rgba(168,85,247,.10)',  // purple
+        'rgba(163,163,163,.10)', // gray
+    ];
+    let categoryColorByName = new Map();
+    function colorForCategory(name) {
+        if (!name) return '';
+        if (!categoryColorByName.has(name)) {
+            categoryColorByName.set(name, categoryColors[categoryColorByName.size % categoryColors.length]);
+        }
+        return categoryColorByName.get(name);
+    }
+
     function investigateResultHtml(result) {
         return `
             <details style="margin-top:8px">
@@ -228,8 +251,13 @@ setTimeout(function () {
                         </div>
                     </details>`
                 : '';
+            // No color for a still-uncategorized card - the orange
+            // needs-review border is the signal there, a category tint
+            // would just muddy it (there's no real category to color yet).
+            const cardColor = needsReview ? '' : colorForCategory(c.currentCategoryName);
             return `
             <div class="category-summary-card category-summary-card--compact ${needsReview ? 'category-summary-card--unknown' : ''}"
+                 ${cardColor ? `style="background:${cardColor}"` : ''}
                  data-pattern="${esc(c.pattern)}" data-label="${esc(c.label)}" data-raw="${esc(c.sampleRawDetails || '')}"
                  data-count="${c.count}" data-sum="${c.sum}">
                 <div class="category-summary-top">
