@@ -308,8 +308,8 @@ a {
     background:
             linear-gradient(
                     180deg,
-                    var(--card-grad-2),
-                    #0c0c0c);
+                    var(--card-grad-1),
+                    var(--card-grad-2));
 
     border:
             1px solid var(--card-border);
@@ -787,6 +787,19 @@ h3 {
                     #171210);
 }
 
+/* The dark-mode warning tint above was never given a light-theme
+   counterpart, so it stayed the same near-black regardless of theme - with
+   .category-summary-title inheriting var(--text) (dark in light mode), that
+   made every "needs review" card's title invisible in light mode. */
+html[data-theme="light"] .category-summary-card--unknown
+{
+    background:
+            linear-gradient(
+                    180deg,
+                    #fff4e6,
+                    #fdecd6);
+}
+
 .category-summary-top
 {
     display: flex;
@@ -990,9 +1003,9 @@ h3 {
 
     border-radius: 24px;
 
-    background: #111111;
+    background: var(--card-light);
 
-    border: 1px solid #232323;
+    border: 1px solid var(--card-border);
 
     transition:
             transform .15s ease,
@@ -1004,7 +1017,7 @@ h3 {
 
     transform: translateY(-2px);
 
-    background: #151515;
+    background: var(--card);
 
     border-color: var(--card-border-hover);
 }

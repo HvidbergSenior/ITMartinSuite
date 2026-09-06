@@ -181,6 +181,33 @@ app.MapPost("/api/budget/upload", async (HttpRequest request, BankTransactionCsv
 app.MapGet("/api/budget/has-data", async (BudgetDbContext db) =>
     Results.Ok(await db.Transactions.AnyAsync(x => x.LedgerId == "family")));
 
+// TEMP DEBUG - month-by-month income/expense breakdown, for comparing a
+// ledger's finances before/after some point in time (e.g. a salary change).
+app.MapGet("/api/debug/monthly-summary", async (string ledgerId, BudgetDbContext db) =>
+{
+    var rows = await db.Transactions
+        .Where(x => x.LedgerId == ledgerId)
+        .ToListAsync();
+
+    var byMonth = rows
+        .GroupBy(x => new { x.Date.Year, x.Date.Month })
+        .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+        .Select(g => new
+        {
+            Month = $"{g.Key.Year:0000}-{g.Key.Month:00}",
+            Income = g.Where(x => x.Amount > 0).Sum(x => x.Amount),
+            Expenses = g.Where(x => x.Amount < 0).Sum(x => x.Amount),
+            Net = g.Sum(x => x.Amount),
+            TransactionCount = g.Count(),
+            TopIncomeLines = g.Where(x => x.Amount > 0)
+                .OrderByDescending(x => x.Amount)
+                .Take(5)
+                .Select(x => new { x.Date, x.Description, x.Amount })
+        });
+
+    return Results.Ok(byMonth);
+});
+
 // Scoped to the family ledger only - a client ledger like "bogshoppen" must
 // never be touched by the family page's "delete all data" button.
 app.MapPost("/api/budget/reset", async (BudgetDbContext db) =>
@@ -431,6 +458,40 @@ app.MapPost("/api/shop/{ledgerId}/carve-out", async (
 // (Shell, Q8, Uno-X) into one broader one (Benzin).
 app.MapGet("/api/shop/{ledgerId}/category-summary", async (string ledgerId, ITMartinBudget.Application.Interfaces.ICategoryRuleService rules) =>
     Results.Ok(await rules.GetCategorySummaryAsync(ledgerId)));
+
+// Backs /budget-compare - splits the ledger into two arbitrary date ranges
+// and lines up income/expenses/net plus a per-category breakdown side by
+// side, so a period with a salary change (or any other shift) can be
+// compared directly against another instead of eyeballing two dashboards.
+app.MapGet("/api/shop/{ledgerId}/compare-periods", async (
+    string ledgerId,
+    DateTime start1, DateTime end1, DateTime start2, DateTime end2,
+    ITMartinBudget.Infrastructure.BudgetDbContext db) =>
+{
+    async Task<object> PeriodSummary(DateTime start, DateTime end)
+    {
+        var rows = await db.Transactions
+            .Where(x => x.LedgerId == ledgerId && x.Date >= start && x.Date < end)
+            .Select(x => new { x.UserCategoryName, x.Amount })
+            .ToListAsync();
+
+        var income = rows.Where(x => x.Amount > 0).Sum(x => x.Amount);
+        var expenses = rows.Where(x => x.Amount < 0).Sum(x => x.Amount);
+        var byCategory = rows
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.UserCategoryName) ? "(ukategoriseret)" : x.UserCategoryName)
+            .Select(g => new { name = g.Key, sum = g.Sum(x => x.Amount), count = g.Count() })
+            .OrderBy(g => g.sum)
+            .ToList();
+
+        return new { income, expenses, net = income + expenses, count = rows.Count, categories = byCategory };
+    }
+
+    return Results.Ok(new
+    {
+        period1 = await PeriodSummary(start1, end1),
+        period2 = await PeriodSummary(start2, end2),
+    });
+});
 
 app.MapPost("/api/shop/{ledgerId}/merge-categories", async (
     string ledgerId,

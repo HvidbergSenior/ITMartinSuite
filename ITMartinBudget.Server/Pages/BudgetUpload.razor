@@ -81,7 +81,7 @@ setTimeout(function () {
                 ? `✔ Imported ${body.imported} transactions`
                 : 'No new transactions (duplicates skipped)';
             status.innerHTML = `<div class="alert success">${msg}</div>`;
-            setTimeout(() => { location.href = '/'; }, 1500);
+            setTimeout(() => { location.href = '/shop-categorize/family'; }, 1500);
         } catch (e) {
             status.innerHTML = '<div class="alert error">Upload failed - try again</div>';
         } finally {

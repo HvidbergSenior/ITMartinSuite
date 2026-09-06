@@ -1,3 +1,4 @@
+@page "/"
 @page "/shop-categorize/{LedgerId}"
 @* No @rendermode: plain REST + vanilla JS below instead of Blazor interactivity -
    Blazor Server needs a persistent SignalR circuit, which has previously gotten
@@ -42,7 +43,11 @@ setTimeout(function () {
     // Read straight from the URL rather than interpolating server-side -
     // this page renders with no live circuit (see the note above), so
     // there's no Blazor state to pull LedgerId from client-side anyway.
-    const ledgerId = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop());
+    // This page also serves as "/" (the app home page) - pathname there has
+    // no segments at all, so .pop() would return undefined instead of
+    // falling through to any sensible default.
+    const pathSegments = location.pathname.split('/').filter(Boolean);
+    const ledgerId = pathSegments.length > 0 ? decodeURIComponent(pathSegments.pop()) : 'family';
     let categories = [];
 
     function esc(s) {
@@ -61,12 +66,15 @@ setTimeout(function () {
 
     function investigateResultHtml(result) {
         return `
-            <div class="alert" style="margin-top:8px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3)">
-                <div style="font-size:13px">${esc(result.reasoning)}</div>
-                <div class="meta" style="margin-top:4px">
-                    Gæt: <strong>${scopeLabelDa[result.suggestedScope] || result.suggestedScope}</strong> · Sikkerhed: ${result.confidence}
+            <details style="margin-top:8px">
+                <summary style="cursor:pointer;list-style:none;color:var(--blue);font-size:13px">🤖 AI-vurdering</summary>
+                <div class="alert" style="margin-top:6px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3)">
+                    <div style="font-size:13px">${esc(result.reasoning)}</div>
+                    <div class="meta" style="margin-top:4px">
+                        Gæt: <strong>${scopeLabelDa[result.suggestedScope] || result.suggestedScope}</strong> · Sikkerhed: ${result.confidence}
+                    </div>
                 </div>
-            </div>`;
+            </details>`;
     }
 
     async function investigate(card) {
@@ -274,5 +282,21 @@ setTimeout(function () {
     // Still needed even with no @rendermode - the {LedgerId} route token has
     // to bind to a component parameter for server-side prerendering (used in
     // the PageTitle/link above) regardless of whether the page is interactive.
-    [Parameter] public string LedgerId { get; set; } = "";
+    // Defaults to "family" so this page also serves as "/" (the app's home
+    // page) - the {LedgerId} route token is only present when reached via
+    // /shop-categorize/{ledger}, so routing never sets this property when
+    // landing on "/" directly.
+    [Parameter] public string LedgerId { get; set; } = "family";
+
+    // The property initializer above isn't reliably honored across the two
+    // route templates in practice ("/" was rendering an empty LedgerId
+    // rather than falling back to "family") - enforce the fallback
+    // explicitly instead of trusting routing to leave the C# default alone.
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(LedgerId))
+        {
+            LedgerId = "family";
+        }
+    }
 }

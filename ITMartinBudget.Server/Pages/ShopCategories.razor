@@ -51,6 +51,26 @@ setTimeout(function () {
     const scopeLabelDa = { Business: 'Forretning', Private: 'Privat', Unknown: 'Ukendt' };
     let selectedScope = null; // Business/Private - locks the other scope's checkboxes while set
 
+    // categoryName -> investigation results from every underlying pattern
+    // that has one (a category can span several patterns, e.g. after a
+    // merge) - populated in load() from /clusters, which is where the AI
+    // "Undersøg" results actually live (per-pattern, not per-category).
+    let investigationsByCategory = new Map();
+
+    function investigationHtml(entries) {
+        if (!entries || entries.length === 0) return '';
+        return `<details style="margin-top:8px">
+            <summary style="cursor:pointer;list-style:none;color:var(--blue);font-size:13px">🤖 AI-vurdering (${entries.length})</summary>
+            <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">` +
+            entries.map(e => `
+                <div style="padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.25);font-size:12px">
+                    ${esc(e.reasoning)}<br/>
+                    <span style="color:var(--muted)">Gæt: <strong>${scopeLabelDa[e.suggestedScope] || esc(e.suggestedScope)}</strong> · Sikkerhed: ${esc(e.confidence)}</span>
+                </div>`).join('') +
+            `</div>
+        </details>`;
+    }
+
     let cardIdCounter = 0;
     function categoryCardHtml(c) {
         const cbId = `catpick-${cardIdCounter++}`;
@@ -75,6 +95,7 @@ setTimeout(function () {
                     </div>
                     ${flipBtn}
                 </div>
+                ${investigationHtml(investigationsByCategory.get(c.name))}
                 <details data-role="detail" style="margin-top:8px">
                     <summary style="cursor:pointer;list-style:none;color:var(--blue);font-size:13px">📋 Se ${c.count} transaktioner</summary>
                     <div data-role="txList" style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
@@ -137,12 +158,26 @@ setTimeout(function () {
         selected.clear();
         selectedScope = null;
 
-        const [summaryRes, categoriesRes] = await Promise.all([
+        const [summaryRes, categoriesRes, clustersRes] = await Promise.all([
             fetch(`/api/shop/${encodeURIComponent(ledgerId)}/category-summary`),
             fetch(`/api/shop/${encodeURIComponent(ledgerId)}/categories`),
+            fetch(`/api/shop/${encodeURIComponent(ledgerId)}/clusters`),
         ]);
         const summary = await summaryRes.json();
         const categories = await categoriesRes.json();
+        const clusters = await clustersRes.json();
+
+        investigationsByCategory = new Map();
+        for (const cl of clusters) {
+            if (!cl.investigationReasoning || !cl.currentCategoryName) continue;
+            const list = investigationsByCategory.get(cl.currentCategoryName) || [];
+            list.push({
+                reasoning: cl.investigationReasoning,
+                suggestedScope: cl.investigationSuggestedScope,
+                confidence: cl.investigationConfidence,
+            });
+            investigationsByCategory.set(cl.currentCategoryName, list);
+        }
 
         document.getElementById('summaryCount').innerHTML =
             `${summary.length} kategorier · <a href="/shop-categorize/${esc(ledgerId)}" data-enhance-nav="false">Kategoriser poster</a> · <a href="/shop-overview/${esc(ledgerId)}" data-enhance-nav="false">Se overblik</a>`;

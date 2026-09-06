@@ -6,7 +6,7 @@
         // must run this early (top of <head>), not deferred like the rest of
         // the app's inline scripts.
         (function () {
-            var theme = localStorage.getItem('budget_theme') || 'light';
+            var theme = localStorage.getItem('budget_theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -50,11 +50,11 @@
 (function () {
     var btn = document.getElementById('themeToggleBtn');
     function sync() {
-        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
         btn.textContent = current === 'light' ? '🌙' : '☀️';
     }
     btn.addEventListener('click', function () {
-        var current = document.documentElement.getAttribute('data-theme') || 'light';
+        var current = document.documentElement.getAttribute('data-theme') || 'dark';
         var next = current === 'light' ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('budget_theme', next);

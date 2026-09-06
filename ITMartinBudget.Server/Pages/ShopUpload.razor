@@ -98,7 +98,7 @@ setTimeout(function () {
             const msg = body.imported > 0
                 ? `✔ Importerede ${body.imported} transaktioner til '${ledgerId}'`
                 : 'Ingen nye transaktioner (dubletter sprunget over)';
-            status.innerHTML = `<div class="alert success">${msg}<div style="margin-top:10px"><a class="btn" href="/shop-overview/${encodeURIComponent(ledgerId)}">Åbn overblik</a></div></div>`;
+            status.innerHTML = `<div class="alert success">${msg}<div style="margin-top:10px"><a class="btn" href="/shop-categorize/${encodeURIComponent(ledgerId)}">Kategoriser</a></div></div>`;
         } catch (e) {
             status.innerHTML = '<div class="alert error">Upload fejlede - prøv igen</div>';
         } finally {

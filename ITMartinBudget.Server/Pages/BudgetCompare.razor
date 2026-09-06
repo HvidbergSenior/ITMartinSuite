@@ -1,0 +1,140 @@
+@page "/budget-compare"
+@* No @rendermode: plain REST + vanilla JS, same reasoning as /shop-categorize -
+   Blazor Server needs a persistent SignalR circuit, which has previously
+   gotten stuck reconnecting ("Forbinder...") through this app's Cloudflare
+   Tunnel domain. *@
+
+<PageTitle>Sammenlign perioder</PageTitle>
+
+<div class="budget-container">
+    <ContentCard>
+        <div class="stack">
+
+            <ProblemPurposeBanner
+                Problem="Det er svært at se om et halvår er bedre eller værre end det forrige uden at sammenligne to overblik manuelt."
+                Formaal="Vælg to perioder og se indkomst, udgifter og hver enkelt kategori side om side, med forskellen fremhævet." />
+
+            <div>
+                <h1 class="page-title">Sammenlign perioder</h1>
+                <div class="meta">Familieøkonomi</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+                <div style="padding:14px 18px;border-radius:16px;background:var(--card-light);border:1px solid var(--card-border)">
+                    <div class="meta" style="margin-bottom:8px;font-weight:700">Periode 1</div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <input class="input" type="date" id="start1" style="flex:1;min-width:130px" />
+                        <span class="meta">til</span>
+                        <input class="input" type="date" id="end1" style="flex:1;min-width:130px" />
+                    </div>
+                </div>
+                <div style="padding:14px 18px;border-radius:16px;background:var(--card-light);border:1px solid var(--card-border)">
+                    <div class="meta" style="margin-bottom:8px;font-weight:700">Periode 2</div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <input class="input" type="date" id="start2" style="flex:1;min-width:130px" />
+                        <span class="meta">til</span>
+                        <input class="input" type="date" id="end2" style="flex:1;min-width:130px" />
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="compareBtn" style="align-self:flex-start">Sammenlign</button>
+
+            <div id="resultSection"></div>
+
+        </div>
+    </ContentCard>
+</div>
+
+<script>
+setTimeout(function () {
+    const ledgerId = 'family';
+
+    function esc(s) {
+        if (s == null) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtKr(n) {
+        const sign = n < 0 ? '−' : '+';
+        return `${sign}${Math.round(Math.abs(n)).toLocaleString('da-DK')} kr.`;
+    }
+
+    // Default: Jan-Apr vs May-Aug of the current year, matching the
+    // "4 months each" comparison this page was originally built for.
+    const year = new Date().getFullYear();
+    document.getElementById('start1').value = `${year}-01-01`;
+    document.getElementById('end1').value = `${year}-05-01`;
+    document.getElementById('start2').value = `${year}-05-01`;
+    document.getElementById('end2').value = `${year}-09-01`;
+
+    function summaryRowHtml(label, p1, p2) {
+        const diff = p2[label.key] - p1[label.key];
+        return `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--card-border)">
+                <div class="meta" style="font-weight:700;color:var(--text)">${label.name}</div>
+                <div class="${p1[label.key] < 0 ? 'amount-negative' : 'amount-positive'}">${fmtKr(p1[label.key])}</div>
+                <div class="${p2[label.key] < 0 ? 'amount-negative' : 'amount-positive'}">${fmtKr(p2[label.key])}</div>
+            </div>
+            <div style="text-align:right;margin-bottom:6px" class="meta">Forskel: ${fmtKr(diff)}</div>`;
+    }
+
+    function categoryRowsHtml(p1, p2) {
+        const names = new Set([...p1.categories.map(c => c.name), ...p2.categories.map(c => c.name)]);
+        const rows = [...names].map(name => {
+            const c1 = p1.categories.find(c => c.name === name);
+            const c2 = p2.categories.find(c => c.name === name);
+            const s1 = c1 ? c1.sum : 0;
+            const s2 = c2 ? c2.sum : 0;
+            return { name, s1, s2, diff: s2 - s1 };
+        }).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+        return rows.map(r => `
+            <div class="category-summary-card category-summary-card--compact" style="margin-bottom:0">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:140px" class="category-summary-title">${esc(r.name)}</div>
+                    <div class="${r.s1 < 0 ? 'amount-negative' : 'amount-positive'}" style="min-width:110px;text-align:right">${fmtKr(r.s1)}</div>
+                    <div class="${r.s2 < 0 ? 'amount-negative' : 'amount-positive'}" style="min-width:110px;text-align:right">${fmtKr(r.s2)}</div>
+                    <div class="meta" style="min-width:110px;text-align:right;font-weight:700">${r.diff === 0 ? '—' : fmtKr(r.diff)}</div>
+                </div>
+            </div>`).join('');
+    }
+
+    async function compare() {
+        const start1 = document.getElementById('start1').value;
+        const end1 = document.getElementById('end1').value;
+        const start2 = document.getElementById('start2').value;
+        const end2 = document.getElementById('end2').value;
+
+        const result = document.getElementById('resultSection');
+        result.innerHTML = '<div class="meta">Indlæser...</div>';
+
+        const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/compare-periods?start1=${start1}&end1=${end1}&start2=${start2}&end2=${end2}`);
+        if (!res.ok) {
+            result.innerHTML = '<div class="meta">Kunne ikke hente sammenligning.</div>';
+            return;
+        }
+        const data = await res.json();
+        const p1 = data.period1, p2 = data.period2;
+
+        result.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 0 6px 0" class="meta">
+                <div></div>
+                <div>${start1} → ${end1}</div>
+                <div>${start2} → ${end2}</div>
+            </div>
+            ${summaryRowHtml({ name: 'Indkomst', key: 'income' }, p1, p2)}
+            ${summaryRowHtml({ name: 'Udgifter', key: 'expenses' }, p1, p2)}
+            ${summaryRowHtml({ name: 'Netto', key: 'net' }, p1, p2)}
+            <div style="margin-top:20px">
+                <h2 style="font-size:1.2rem;font-weight:800;margin-bottom:10px">Pr. kategori</h2>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    ${categoryRowsHtml(p1, p2)}
+                </div>
+            </div>`;
+    }
+
+    document.getElementById('compareBtn').addEventListener('click', compare);
+    compare();
+}, 0);
+</script>
