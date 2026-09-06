@@ -403,6 +403,18 @@ a {
     font-size: 14px;
 }
 
+/* The shared ProblemPurposeBanner component has no width of its own - it
+   just fills whatever container it's dropped into. Auction shows it inside
+   a narrow 420px card, where it reads as a tight, focused note; Budget's
+   own container is wide (1400px, sized for the categorize page's
+   multi-column cluster grid), which stretched the same banner out sparse
+   and hard to read. Capped here, in Budget's own CSS, not the shared
+   component - other apps that want it full-width stay untouched. */
+.itm-pp-banner {
+
+    max-width: 700px;
+}
+
 /* =========================================
    CONTENT CARD
 ========================================= */
