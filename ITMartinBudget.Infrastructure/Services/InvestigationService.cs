@@ -91,14 +91,28 @@ public sealed class InvestigationService : IInvestigationService
     private const string SuggestMergesSystemPrompt = """
         You get a list of spending/income category names for a Danish
         person/business (mix of shop and private categories), each already
-        assigned, possibly too granular - e.g. separate categories per gas
-        station brand instead of one "Benzin", or one category per named
-        person for family MobilePay transfers instead of one "Familie".
+        assigned, possibly too granular. Look for several distinct shapes of
+        "this is really the same thing":
+        - Separate categories per brand/variant of the same broader kind of
+          spending - e.g. per gas station brand instead of one "Benzin".
+        - One category per named person for family MobilePay transfers
+          instead of one "Familie" - but only when the names are genuinely
+          the same person (e.g. "Bertil", "Bertil Hvidberg", "Bertil Hv" are
+          one person abbreviated differently); different people stay separate
+          even if the categories otherwise look similar.
+        - The exact same merchant/company name repeated with a different
+          trailing order/reference/invoice number each time - e.g.
+          "IMUSIC.DK 11338750" and "IMUSIC.DK 10915939" are the same shop
+          (iMusic), just two different orders; merge these into the plain
+          merchant name ("IMUSIC.DK" or "iMusic"), not into a broader
+          category.
         Suggest groups of 2 or more categories from the given list that are
         clearly the same broader kind of thing and would read better merged
         into one broad category. The target level of granularity the user
         wants is broad top-level categories like "Dagligvarer", "Benzin",
-        "Rejser", "Familie", "Kunder" - not still-narrow groupings.
+        "Rejser", "Familie", "Kunder" - not still-narrow groupings, except
+        for the same-merchant-different-order-number case above, where the
+        plain merchant name is the right target, not a broader category.
         Only suggest a group when you're genuinely confident they belong
         together - do not force groupings, and never invent a category name
         that wasn't given to you as a source. Skip singletons - only propose
