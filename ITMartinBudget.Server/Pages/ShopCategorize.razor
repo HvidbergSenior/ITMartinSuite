@@ -246,22 +246,24 @@ setTimeout(function () {
                 </div>
                 ${detail}
                 <div data-role="investigateResult">${c.investigationReasoning ? investigateResultHtml({ reasoning: c.investigationReasoning, suggestedScope: c.investigationSuggestedScope, confidence: c.investigationConfidence }) : ''}</div>
-                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;align-items:flex-end;justify-content:space-between">
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-                        <label style="display:flex;flex-direction:column;gap:3px">
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+                    <div style="display:flex;gap:10px;align-items:flex-end">
+                        <label style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
                             <span class="meta">Type</span>
                             ${scopeField}
                         </label>
-                        <label style="display:flex;flex-direction:column;gap:3px">
+                        <label style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0">
                             <span class="meta">Kategori</span>
-                            <input class="input" style="width:auto" data-role="category" list="categoryOptions"
+                            <input class="input" style="width:100%" data-role="category" list="categoryOptions"
                                    value="${esc(defaultCategory)}" placeholder="Skriv ny eller vælg en eksisterende..." />
                         </label>
                     </div>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between">
                         <span class="meta" data-role="savedMark">${c.currentCategoryName ? '✔ gemt' : ''}</span>
-                        <button class="btn" data-role="investigate" title="Spørg AI hvad dette sandsynligvis er">${c.investigationReasoning ? '🔄 Undersøg igen' : '🔍 Undersøg'}</button>
-                        <button class="btn btn-primary" data-role="save">Gem</button>
+                        <div style="display:flex;gap:10px">
+                            <button class="btn" data-role="investigate" title="Spørg AI hvad dette sandsynligvis er">${c.investigationReasoning ? '🔄 Undersøg igen' : '🔍 Undersøg'}</button>
+                            <button class="btn btn-primary" data-role="save">Gem</button>
+                        </div>
                     </div>
                 </div>
             </div>
