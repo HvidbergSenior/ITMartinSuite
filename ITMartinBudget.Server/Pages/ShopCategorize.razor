@@ -27,7 +27,7 @@
             <div id="mergeSuggestionBanner" style="display:none"></div>
 
             <datalist id="categoryOptions"></datalist>
-            <div id="clusters" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(420px, 1fr));gap:10px;align-items:start"></div>
+            <div id="clusters" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(420px, 1fr));gap:10px"></div>
 
         </div>
     </ContentCard>
@@ -96,34 +96,6 @@ setTimeout(function () {
                     </div>
                 </div>
             </details>`;
-    }
-
-    async function investigate(card) {
-        const resultBox = card.querySelector('[data-role="investigateResult"]');
-        const btn = card.querySelector('[data-role="investigate"]');
-        if (btn) { btn.disabled = true; btn.textContent = '🔍 Undersøger...'; }
-        try {
-            const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/investigate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pattern: card.dataset.pattern,
-                    label: card.dataset.label,
-                    sampleRawDetails: card.dataset.raw,
-                    count: parseInt(card.dataset.count, 10),
-                    totalAmount: parseFloat(card.dataset.sum),
-                }),
-            });
-            if (!res.ok) throw new Error();
-            const result = await res.json();
-            resultBox.innerHTML = investigateResultHtml(result);
-            return true;
-        } catch {
-            resultBox.innerHTML = '<div class="alert error" style="margin-top:8px">Kunne ikke undersøge - prøv igen</div>';
-            return false;
-        } finally {
-            if (btn) { btn.disabled = false; btn.textContent = '🔍 Undersøg'; }
-        }
     }
 
     // Batched, capped - one call handles every remaining uninvestigated,
@@ -299,13 +271,6 @@ setTimeout(function () {
                                    value="${esc(defaultCategory)}" placeholder="Skriv ny eller vælg en eksisterende..." />
                         </label>
                     </div>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between">
-                        <span class="meta" data-role="savedMark">${c.currentCategoryName ? '✔ gemt' : ''}</span>
-                        <div style="display:flex;gap:10px">
-                            <button class="btn" data-role="investigate" title="Spørg AI hvad dette sandsynligvis er">${c.investigationReasoning ? '🔄 Undersøg igen' : '🔍 Undersøg'}</button>
-                            <button class="btn btn-primary" data-role="save">Gem</button>
-                        </div>
-                    </div>
                 </div>
             </div>
         `; }).join('');
@@ -331,12 +296,16 @@ setTimeout(function () {
             });
         });
 
-        container.querySelectorAll('[data-role="save"]').forEach(btn => {
-            btn.addEventListener('click', () => save(btn.closest('.category-summary-card')));
+        // No more Gem/Undersøg buttons - editing Type or Kategori saves
+        // immediately (blur for the text field, so it doesn't fire on every
+        // keystroke; change for the dropdown). Auto-categorize on load
+        // already gives every cluster a real answer - this is purely for
+        // the cases a human wants to correct by hand.
+        container.querySelectorAll('[data-role="category"]').forEach(input => {
+            input.addEventListener('blur', () => save(input.closest('.category-summary-card')));
         });
-
-        container.querySelectorAll('[data-role="investigate"]').forEach(btn => {
-            btn.addEventListener('click', () => investigate(btn.closest('.category-summary-card')));
+        container.querySelectorAll('[data-role="scope"]').forEach(select => {
+            select.addEventListener('change', () => save(select.closest('.category-summary-card')));
         });
     }
 
@@ -345,10 +314,7 @@ setTimeout(function () {
         const scope = card.querySelector('[data-role="scope"]').value;
         const categoryName = card.querySelector('[data-role="category"]').value.trim();
 
-        if (!categoryName) {
-            alert('Angiv en kategori først');
-            return false;
-        }
+        if (!categoryName) return false;
 
         const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/assign`, {
             method: 'POST',
@@ -361,13 +327,10 @@ setTimeout(function () {
                 categories.push(categoryName);
                 document.getElementById('categoryOptions').insertAdjacentHTML('beforeend', `<option value="${esc(categoryName)}"></option>`);
             }
-            card.querySelector('[data-role="savedMark"]').textContent = '✔ gemt';
             card.classList.remove('category-summary-card--unknown');
             return true;
-        } else {
-            alert('Kunne ikke gemme - prøv igen');
-            return false;
         }
+        return false;
     }
 
     load();

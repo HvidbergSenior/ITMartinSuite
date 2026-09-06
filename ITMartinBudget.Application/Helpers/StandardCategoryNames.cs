@@ -16,5 +16,8 @@ public static class StandardCategoryNames
         "Dagligvarer",
         "Forsikring",
         "Benzin",
+        "Bøder",
+        "Parkering",
+        "MobilePay",
     ];
 }
