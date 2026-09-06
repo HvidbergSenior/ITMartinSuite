@@ -18,7 +18,7 @@
 
             <div>
                 <h1 class="page-title">Kategorier - @LedgerId</h1>
-                <div class="meta" id="summaryCount">Indlæser... · <a href="/shop-categorize/@LedgerId" data-enhance-nav="false">Kategoriser poster</a> · <a href="/shop-overview/@LedgerId" data-enhance-nav="false">Se overblik</a></div>
+                <div class="meta" id="summaryCount">Indlæser... · <a href="/shop-categorize/@LedgerId" data-enhance-nav="false">Kategoriser poster</a></div>
             </div>
 
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 18px;border-radius:16px;background:var(--card-light);border:1px solid var(--card-border)">
@@ -182,7 +182,7 @@ setTimeout(function () {
         }
 
         document.getElementById('summaryCount').innerHTML =
-            `${summary.length} kategorier · <a href="/shop-categorize/${esc(ledgerId)}" data-enhance-nav="false">Kategoriser poster</a> · <a href="/shop-overview/${esc(ledgerId)}" data-enhance-nav="false">Se overblik</a>`;
+            `${summary.length} kategorier · <a href="/shop-categorize/${esc(ledgerId)}" data-enhance-nav="false">Kategoriser poster</a>`;
 
         document.getElementById('existingCategories').innerHTML =
             categories.map(name => `<option value="${esc(name)}"></option>`).join('');

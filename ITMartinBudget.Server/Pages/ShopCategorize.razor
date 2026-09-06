@@ -20,7 +20,7 @@
 
             <div>
                 <h1 class="page-title">Kategoriser - @LedgerId</h1>
-                <div class="meta" id="clusterCount">Indlæser... · <a href="/shop-overview/@LedgerId">Se overblik</a></div>
+                <div class="meta" id="clusterCount">Indlæser...</div>
                 <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                     <button class="btn btn-primary" id="saveAllBtn">💾 Gem alle synlige</button>
                     <span class="meta">Gemmer det der allerede står i felterne for hvert kort - kategorien er forudfyldt, ret den du vil ændre først.</span>
@@ -124,7 +124,7 @@ setTimeout(function () {
 
         const done = clusters.filter(c => c.currentCategoryName).length;
         document.getElementById('clusterCount').innerHTML =
-            `${done} / ${clusters.length} kategoriseret · <a href="/shop-categories/${esc(ledgerId)}" data-enhance-nav="false">Flet kategorier</a> · <a href="/shop-overview/${esc(ledgerId)}">Se overblik</a>`;
+            `${done} / ${clusters.length} kategoriseret · <a href="/shop-categories/${esc(ledgerId)}" data-enhance-nav="false">Flet kategorier</a>`;
 
         const container = document.getElementById('clusters');
         container.innerHTML = clusters.map((c, i) => {
