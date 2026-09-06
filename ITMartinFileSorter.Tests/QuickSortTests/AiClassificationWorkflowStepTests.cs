@@ -57,9 +57,13 @@ public class AiClassificationWorkflowStepTests
         var callCount = 0;
         var analysis = new Mock<IImageAnalysisService>();
         analysis
-            .Setup(a => a.AnalyzeImageAsync(It.IsAny<string>()))
-            .ReturnsAsync(new AiAnalysisResult())
-            .Callback(() => Interlocked.Increment(ref callCount));
+            .Setup(a => a.AnalyzeImagesBatchAsync(It.IsAny<IReadOnlyList<string>>()))
+            .Returns<IReadOnlyList<string>>(paths =>
+            {
+                Interlocked.Add(ref callCount, paths.Count);
+                return Task.FromResult<IReadOnlyList<AiAnalysisResult>>(
+                    paths.Select(_ => new AiAnalysisResult()).ToList());
+            });
 
         var state = new QuickSortWorkflowState
         {
@@ -105,6 +109,6 @@ public class AiClassificationWorkflowStepTests
 
         await step.ExecuteAsync(context);
 
-        analysis.Verify(a => a.AnalyzeImageAsync(It.IsAny<string>()), Times.Never);
+        analysis.Verify(a => a.AnalyzeImagesBatchAsync(It.IsAny<IReadOnlyList<string>>()), Times.Never);
     }
 }
