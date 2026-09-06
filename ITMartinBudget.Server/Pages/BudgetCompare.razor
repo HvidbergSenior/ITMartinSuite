@@ -160,8 +160,6 @@ setTimeout(function () {
     // Bogshoppen/hvidberg/itmartin visitor meant, since BudgetLayout always
     // passes an explicit ledger id in now.
     [Parameter] public string? LedgerId { get; set; }
-    // Lowercased - LedgerId is matched with plain case-sensitive equality
-    // everywhere downstream, so a mistyped-case URL would otherwise silently
-    // look like a brand-new, empty ledger instead of the real one.
-    private string _ledgerId => string.IsNullOrWhiteSpace(LedgerId) ? "family" : LedgerId.Trim().ToLowerInvariant();
+    // Normalized - see LedgerIdNormalizer for why.
+    private string _ledgerId => string.IsNullOrWhiteSpace(LedgerId) ? "family" : ITMartinBudget.Application.Helpers.LedgerIdNormalizer.Normalize(LedgerId);
 }
