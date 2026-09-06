@@ -21,14 +21,7 @@
             <div>
                 <h1 class="page-title">Kategoriser - @LedgerId</h1>
                 <div class="meta" id="clusterCount">Indlæser...</div>
-                <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                    <button class="btn btn-primary" id="saveAllBtn">💾 Gem alle synlige</button>
-                    <span class="meta">Gemmer det der allerede står i felterne for hvert kort - kategorien er forudfyldt, ret den du vil ændre først.</span>
-                </div>
-                <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                    <button class="btn" id="investigateAllBtn">🔍 Undersøg alle resterende</button>
-                    <span class="meta" id="investigateAllStatus">Spørger AI om hver ikke-undersøgt, ukategoriseret post - gemmes, så det kun sker én gang pr. post.</span>
-                </div>
+                <div class="meta" id="investigateAllStatus" style="margin-top:6px"></div>
             </div>
 
             <div id="mergeSuggestionBanner" style="display:none"></div>
@@ -168,13 +161,15 @@ setTimeout(function () {
         }
     }
 
-    // Fires once, the first time this ledger has anything to categorize at
-    // all (0 done) and at least one cluster hasn't been investigated yet -
-    // module-level so a second load() call (after the auto-run finishes)
-    // never re-triggers it. See /api/shop/{ledgerId}/investigate-remaining
-    // for why this is safe to run automatically (batched + capped) where the
-    // old per-card loop was not.
-    let autoInvestigateRan = false;
+    // Fires once per page load, unconditionally (no more manual "Gem alle
+    // synlige"/"Undersøg alle resterende" buttons - both used to be
+    // separate clicks, now both just happen automatically every time this
+    // page opens). module-level so the second load() call (after the
+    // auto-run finishes) never re-triggers it. See
+    // /api/shop/{ledgerId}/investigate-remaining for why this is safe to run
+    // automatically (batched + capped, and a no-op fast round-trip when
+    // nothing actually needs fixing) where the old per-card loop was not.
+    let autoRanOnce = false;
 
     async function load() {
         const [clustersRes, categoriesRes, scopeModeRes] = await Promise.all([
@@ -194,9 +189,9 @@ setTimeout(function () {
         document.getElementById('clusterCount').innerHTML =
             `${done} / ${clusters.length} kategoriseret · <a href="/shop-categories/${esc(ledgerId)}" data-enhance-nav="false" style="text-decoration:none">Flet kategorier</a>`;
 
-        if (!autoInvestigateRan && done === 0 && clusters.some(c => !c.investigationReasoning)) {
-            autoInvestigateRan = true;
-            await runInvestigateRemaining('Kategoriserer automatisk med AI (kun første gang)...');
+        if (!autoRanOnce) {
+            autoRanOnce = true;
+            await runInvestigateRemaining('Sikrer at alt er kategoriseret...');
             await runSuggestMerges();
             return load();
         }
@@ -328,28 +323,6 @@ setTimeout(function () {
             return false;
         }
     }
-
-    document.getElementById('saveAllBtn').addEventListener('click', async () => {
-        const cards = Array.from(document.querySelectorAll('.category-summary-card'));
-        let saved = 0;
-        for (const card of cards) {
-            const categoryName = card.querySelector('[data-role="category"]').value.trim();
-            if (!categoryName) continue;
-            const ok = await save(card);
-            if (ok) saved++;
-        }
-        document.getElementById('clusterCount').innerHTML = `Gemte ${saved} · genindlæser...`;
-        await load();
-    });
-
-    document.getElementById('investigateAllBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('investigateAllBtn');
-        btn.disabled = true;
-        await runInvestigateRemaining('Undersøger...');
-        await runSuggestMerges();
-        btn.disabled = false;
-        await load();
-    });
 
     load();
 }, 0);

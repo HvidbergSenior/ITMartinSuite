@@ -35,8 +35,8 @@ public sealed class InvestigationService : IInvestigationService
                 ["suggestedScope"] = JsonSerializer.SerializeToElement(new
                 {
                     type = "string",
-                    @enum = new[] { "Business", "Private", "Unsure" },
-                    description = "Best guess: Business (shop expense/revenue), Private (personal spending), or Unsure if genuinely ambiguous."
+                    @enum = new[] { "Business", "Private" },
+                    description = "Your best guess, always one or the other - Business (shop expense/revenue) or Private (personal spending). Never refuse to pick; use confidence below to signal how sure you are instead."
                 }),
                 ["confidence"] = JsonSerializer.SerializeToElement(new
                 {
@@ -55,8 +55,11 @@ public sealed class InvestigationService : IInvestigationService
         optional raw bank reference text, how many times it occurs, and the
         total amount (negative = money out, positive = money in).
         Reason from the merchant name and any reference text - if you
-        recognize the company/service, say what it does. Be honest about
-        uncertainty; don't force a confident answer when the evidence is thin.
+        recognize the company/service, say what it does. Always commit to
+        Business or Private, even on thin evidence - a human reviews every
+        answer and can correct it, so a genuine best guess is more useful than
+        refusing to choose. Use confidence (Low/Medium/High) to signal how
+        sure you actually are, rather than declining to pick.
         Always call the investigate_transaction tool with your answer, in Danish.
         """;
 
@@ -150,7 +153,7 @@ public sealed class InvestigationService : IInvestigationService
                         {
                             ["index"] = new { type = "integer", description = "The [N] index of the pattern this result is for, exactly as given in the input list." },
                             ["reasoning"] = new { type = "string", description = "1-2 short sentences in Danish explaining what this merchant/pattern most likely is." },
-                            ["suggestedScope"] = new { type = "string", @enum = new[] { "Business", "Private", "Unsure" } },
+                            ["suggestedScope"] = new { type = "string", @enum = new[] { "Business", "Private" }, description = "Your best guess, always one or the other - never refuse to pick, use confidence to signal how sure you are instead." },
                             ["confidence"] = new { type = "string", @enum = new[] { "High", "Medium", "Low" } },
                         },
                         required = new[] { "index", "reasoning", "suggestedScope", "confidence" }
@@ -169,8 +172,12 @@ public sealed class InvestigationService : IInvestigationService
         text, how many times it occurs, and the total amount (negative =
         money out, positive = money in).
         Reason from the merchant name and any reference text - if you
-        recognize the company/service, say what it does. Be honest about
-        uncertainty; don't force a confident answer when the evidence is thin.
+        recognize the company/service, say what it does. Always commit to
+        Business or Private for every pattern, even on thin evidence - a
+        human reviews every answer and can correct it, so a genuine best
+        guess is more useful than refusing to choose. Use confidence
+        (Low/Medium/High) to signal how sure you actually are, rather than
+        declining to pick.
         Return exactly one result per pattern given, referencing it by its
         [N] index. Always call the investigate_transactions tool, in Danish.
         """;

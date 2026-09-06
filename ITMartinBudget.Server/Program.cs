@@ -340,6 +340,16 @@ app.MapPost("/api/shop/{ledgerId}/investigate-remaining", async (
 {
     var clusters = await rules.GetClustersAsync(ledgerId);
     var uncategorized = clusters.Where(c => string.IsNullOrWhiteSpace(c.CurrentCategoryName)).ToList();
+    // Every transaction should end up Business or Private, never stuck at
+    // Ukendt - so a cluster that's already categorized but still Unknown-
+    // scope (e.g. from before AI was required to always commit to one) also
+    // needs fixing, keeping its existing category name rather than
+    // resetting it back to the raw label.
+    var uncategorizedPatterns = uncategorized.Select(c => c.Pattern).ToHashSet();
+    var stillUnknownScope = clusters
+        .Where(c => c.Scope == ITMartinBudget.Domain.Enums.TransactionScope.Unknown && !uncategorizedPatterns.Contains(c.Pattern))
+        .ToList();
+    var toFix = uncategorized.Concat(stillUnknownScope).ToList();
 
     // Split by how confidently the scope is already known, so AI only ever
     // gets called for the genuinely ambiguous remainder:
@@ -347,16 +357,20 @@ app.MapPost("/api/shop/{ledgerId}/investigate-remaining", async (
     //    transaction is auto-Private - see TransactionScopeClassifier) -
     //    assign directly, no AI call, no re-guessing a scope that's already
     //    known and could otherwise get silently overridden by a wrong AI guess.
-    //  - Scope still Unknown but a past manual "Undersøg" already answered
-    //    it - reuse that cached answer, no new AI call.
-    //  - Scope still Unknown and never investigated - this is the only
-    //    group that actually needs a fresh AI call.
-    var alreadyKnownScope = uncategorized.Where(c => c.Scope != ITMartinBudget.Domain.Enums.TransactionScope.Unknown).ToList();
-    var previouslyInvestigated = uncategorized
-        .Where(c => c.Scope == ITMartinBudget.Domain.Enums.TransactionScope.Unknown && c.InvestigationSuggestedScope is not null)
+    //  - Scope still Unknown but a past investigation already gave a real
+    //    Business/Private answer - reuse that cached answer, no new AI call.
+    //    A stale "Unsure" from before AI was required to always commit
+    //    counts as never-investigated, since that answer is no longer valid.
+    //  - Scope still Unknown and never (validly) investigated - this is the
+    //    only group that actually needs a fresh AI call.
+    var alreadyKnownScope = toFix.Where(c => c.Scope != ITMartinBudget.Domain.Enums.TransactionScope.Unknown).ToList();
+    var previouslyInvestigated = toFix
+        .Where(c => c.Scope == ITMartinBudget.Domain.Enums.TransactionScope.Unknown
+                 && c.InvestigationSuggestedScope is "Business" or "Private")
         .ToList();
-    var needsAi = uncategorized
-        .Where(c => c.Scope == ITMartinBudget.Domain.Enums.TransactionScope.Unknown && c.InvestigationSuggestedScope is null)
+    var needsAi = toFix
+        .Where(c => c.Scope == ITMartinBudget.Domain.Enums.TransactionScope.Unknown
+                 && c.InvestigationSuggestedScope is not ("Business" or "Private"))
         .ToList();
 
     static ITMartinBudget.Domain.Enums.TransactionScope MapScope(string? suggested) => suggested switch
@@ -366,11 +380,14 @@ app.MapPost("/api/shop/{ledgerId}/investigate-remaining", async (
         _ => ITMartinBudget.Domain.Enums.TransactionScope.Unknown,
     };
 
+    string CategoryNameFor(ITMartinBudget.Application.Interfaces.TransactionCluster c) =>
+        string.IsNullOrWhiteSpace(c.CurrentCategoryName) ? c.Label : c.CurrentCategoryName;
+
     foreach (var cluster in alreadyKnownScope)
-        await rules.AssignAsync(ledgerId, cluster.Pattern, cluster.Label, cluster.Scope);
+        await rules.AssignAsync(ledgerId, cluster.Pattern, CategoryNameFor(cluster), cluster.Scope);
 
     foreach (var cluster in previouslyInvestigated)
-        await rules.AssignAsync(ledgerId, cluster.Pattern, cluster.Label, MapScope(cluster.InvestigationSuggestedScope));
+        await rules.AssignAsync(ledgerId, cluster.Pattern, CategoryNameFor(cluster), MapScope(cluster.InvestigationSuggestedScope));
 
     var aiResults = needsAi.Count == 0
         ? []
@@ -392,7 +409,7 @@ app.MapPost("/api/shop/{ledgerId}/investigate-remaining", async (
         existing.SuggestedScope = result.SuggestedScope;
         existing.Confidence = result.Confidence;
 
-        await rules.AssignAsync(ledgerId, cluster.Pattern, cluster.Label, MapScope(result.SuggestedScope));
+        await rules.AssignAsync(ledgerId, cluster.Pattern, CategoryNameFor(cluster), MapScope(result.SuggestedScope));
     }
 
     await db.SaveChangesAsync();
