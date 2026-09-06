@@ -59,12 +59,22 @@ body {
     color: #fff;
 }
 
-/* ── Panels ── */
-.panel-card {
+/* ── Panels ──
+   Each tool panel now renders through the shared ContentCard component
+   (ITMartin.Shared.UI) instead of a hand-rolled div, matching how
+   Budget/Auction structure their own panels. Shared.css's own .content-card
+   is a hardcoded dark gradient with no light-theme variant, so - same as
+   Budget.css does for its own palette - this re-skins the shared shell with
+   this app's own theme tokens rather than relying on Shared.css's styling
+   directly, keeping the light/dark toggle working the same as it did with
+   the old .panel-card class this replaces. */
+.content-card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 20px;
+}
+.content-card .card-body {
     display: flex; flex-direction: column; gap: 12px;
 }
 .panel-hint { font-size: 13px; color: var(--muted); line-height: 1.5; }

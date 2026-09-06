@@ -31,7 +31,7 @@
 
         <!-- ═══ CREATE ═══ -->
         <section class="mode-panel" id="mode-create">
-            <div class="panel-card">
+            <ContentCard>
                 <label class="field-label">Dine noter</label>
                 <textarea id="c-notes" class="field-textarea" rows="6" placeholder="Skriv løst — punkter, stikord, en hel tekst. Lad AI'en rydde op, eller skriv direkte i felterne nedenfor."></textarea>
                 <button class="btn btn-ghost" onclick="pdfApp.draftWithAi()" id="c-draft-btn">🤖 Forbedre med AI</button>
@@ -42,12 +42,12 @@
                 <textarea id="c-body" class="field-textarea" rows="10" placeholder="Brødtekst — brug en tom linje mellem afsnit"></textarea>
 
                 <button class="btn btn-primary" onclick="pdfApp.createPdf()" id="c-create-btn">📄 Generér PDF</button>
-            </div>
+            </ContentCard>
         </section>
 
         <!-- ═══ IMAGES -> PDF ═══ -->
         <section class="mode-panel" id="mode-images" style="display:none">
-            <div class="panel-card">
+            <ContentCard>
                 <div class="sub-tabs" data-group="images">
                     <button class="sub-tab active" data-sub="files" onclick="pdfApp.showSub('images', 'files')">Vælg billeder</button>
                     <button class="sub-tab" data-sub="zip" onclick="pdfApp.showSub('images', 'zip')">Fra ZIP-fil</button>
@@ -94,12 +94,12 @@
 
                     <button class="btn btn-primary" onclick="pdfApp.zipToPdf()" disabled id="zip-run-btn">📄 Lav PDF af ZIP</button>
                 </div>
-            </div>
+            </ContentCard>
         </section>
 
         <!-- ═══ ORGANIZE (merge/split/rotate) ═══ -->
         <section class="mode-panel" id="mode-organize" style="display:none">
-            <div class="panel-card">
+            <ContentCard>
                 <div class="sub-tabs" data-group="organize">
                     <button class="sub-tab active" data-sub="merge" onclick="pdfApp.showSub('organize', 'merge')">Flet filer</button>
                     <button class="sub-tab" data-sub="split" onclick="pdfApp.showSub('organize', 'split')">Del fil</button>
@@ -157,12 +157,12 @@
                     </div>
                     <button class="btn btn-primary" onclick="pdfApp.rotatePdf()" disabled id="rotate-run-btn">🔄 Rotér</button>
                 </div>
-            </div>
+            </ContentCard>
         </section>
 
         <!-- ═══ FILL & SIGN ═══ -->
         <section class="mode-panel" id="mode-sign" style="display:none">
-            <div class="panel-card">
+            <ContentCard>
                 <p class="panel-hint">Vælg en PDF, klik hvor du vil skrive eller sætte din signatur, tilføj så mange du vil, download til sidst.</p>
                 <label class="btn-file">
                     📄 Vælg PDF
@@ -198,12 +198,12 @@
                     <div id="sign-placed-list" class="file-chip-list"></div>
                     <button class="btn btn-primary" onclick="pdfApp.saveSignedPdf()" id="sign-run-btn" disabled>💾 Gem PDF</button>
                 </div>
-            </div>
+            </ContentCard>
         </section>
 
         <!-- ═══ FILL FORM ═══ -->
         <section class="mode-panel" id="mode-form" style="display:none">
-            <div class="panel-card">
+            <ContentCard>
                 <p class="panel-hint">Til PDF'er med rigtige udfyldelige formularfelter (fra det offentlige, banker, osv.).</p>
                 <label class="btn-file">
                     📋 Vælg PDF med formular
@@ -215,7 +215,7 @@
                     <label for="form-flatten">Lås felterne efter udfyldning (kan ikke redigeres bagefter)</label>
                 </div>
                 <button class="btn btn-primary" onclick="pdfApp.fillForm()" id="form-run-btn" style="display:none">💾 Gem udfyldt PDF</button>
-            </div>
+            </ContentCard>
         </section>
 
     </main>
