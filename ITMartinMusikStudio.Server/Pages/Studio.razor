@@ -1282,6 +1282,19 @@ else if (_song is not null)
     <!-- RIGHT: Spilleguide while recording ─────────────── -->
     <div class="optag-lyrics">
 
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button class="btn-ghost-sm @(_recShowChordDiagram ? "active" : "")"
+                    @onclick="() => _recShowChordDiagram = !_recShowChordDiagram"
+                    title="Vis/skjul akkord-greb under Indspil">
+                🖼️ @(_recShowChordDiagram ? "Skjul greb" : "Vis greb")
+            </button>
+            <button class="btn-ghost-sm @(_recShowFingerpick ? "active" : "")"
+                    @onclick="() => _recShowFingerpick = !_recShowFingerpick"
+                    title="Vis/skjul fingerpicking-diagram under Indspil">
+                🎸 @(_recShowFingerpick ? "Skjul fingerpicking" : "Vis fingerpicking")
+            </button>
+        </div>
+
         <!-- Chord detail panel (same shared state as Spilleguide) -->
         @if (_selectedChord is not null)
         {
@@ -1291,7 +1304,7 @@ else if (_song is not null)
                     <span class="chord-detail-name">@_selectedChord</span>
                     <button class="chord-detail-close" @onclick="DismissChord">✕</button>
                 </div>
-                @if (detail is not null)
+                @if (detail is not null && _recShowChordDiagram)
                 {
                     <div class="chord-detail-body">
                         <div>@((MarkupString)detail.Svg)</div>
@@ -1316,10 +1329,10 @@ else if (_song is not null)
         }
 
         <!-- Pattern bar -->
-        @if (!string.IsNullOrWhiteSpace(_strumEdit) || !string.IsNullOrWhiteSpace(_fingerpickEdit))
+        @if ((_recShowFingerpick && !string.IsNullOrWhiteSpace(_fingerpickEdit)) || !string.IsNullOrWhiteSpace(_strumEdit))
         {
             <div class="perform-pattern-bar">
-                @if (!string.IsNullOrWhiteSpace(_fingerpickEdit))
+                @if (_recShowFingerpick && !string.IsNullOrWhiteSpace(_fingerpickEdit))
                 {
                     <div>
                         <span class="pattern-label">Fingerpicking</span>
@@ -1569,6 +1582,8 @@ else if (_song is not null)
     private string? _vocalError;
     private bool _twoColLyrics;
     private bool _showAllChordDiagrams = true;
+    private bool _recShowChordDiagram = true;
+    private bool _recShowFingerpick = true;
 
     private bool _patternsLoading;
     private string? _saveStatus;
@@ -2348,10 +2363,21 @@ else if (_song is not null)
         _recTimer_t = new System.Timers.Timer(1000) { AutoReset = true };
         _recTimer_t.Elapsed += async (_, _) =>
         {
-            _recTimer++;
-            await InvokeAsync(StateHasChanged);
-            if (_recTimer >= 600)
-                await InvokeAsync(StopRecording);
+            // Runs on a raw ThreadPool thread, outside Blazor's circuit dispatch -
+            // an unhandled exception here (e.g. JSDisconnectedException after the
+            // browser tab closes mid-recording) crashes the whole server process,
+            // not just this circuit. Must not let anything escape this handler.
+            try
+            {
+                _recTimer++;
+                await InvokeAsync(StateHasChanged);
+                if (_recTimer >= 600)
+                    await InvokeAsync(StopRecording);
+            }
+            catch (Exception)
+            {
+                _recTimer_t?.Stop();
+            }
         };
         _recTimer_t.Start();
     }
@@ -2451,7 +2477,11 @@ else if (_song is not null)
         _recording = false;
         _recTimer = 0;
         if (!_beatManual) StopBeatTimer();
-        await JS.InvokeVoidAsync("studio.stopRecording");
+        try
+        {
+            await JS.InvokeVoidAsync("studio.stopRecording");
+        }
+        catch (JSDisconnectedException) { }
         await Task.Delay(800);
         _recordings = Library.GetRecordings(SongKey);
     }
