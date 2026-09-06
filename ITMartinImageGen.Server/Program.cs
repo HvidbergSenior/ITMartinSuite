@@ -4,10 +4,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSingleton<FalAiService>();
 builder.Services.AddSingleton<ClaudePromptService>();
 builder.Services.AddSingleton<ImageStorageService>();
+builder.Services.AddSingleton<UsageLimiterService>();
 
 var app = builder.Build();
 

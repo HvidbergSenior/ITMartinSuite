@@ -3,6 +3,10 @@
 
 @inject FalAiService FalAi
 @inject ClaudePromptService Claude
+@inject UsageLimiterService UsageLimiter
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime Js
+@using System.Text.Json
 
 <PageTitle>Billedgenerator</PageTitle>
 
@@ -18,14 +22,20 @@
 
     <ProblemPurposeBanner
         Problem="AI-billeder kræver dyre, komplicerede værktøjer"
-        Formaal="Ét simpelt sted at generere billeder" />
+        Formaal="Ét simpelt sted at generere billeder"
+        Beskrivelse="Hvert billede koster rigtige penge at generere, og jeg betaler selv regningen — brug værktøjet med omtanke. Se den cirka-pris, der står under hver fane." />
+
+    @if (!_ready)
+    {
+        <div class="loading-banner">Klargør værktøjet...</div>
+    }
 
     <!-- Feature tabs -->
     <div class="mode-tabs">
         @foreach (var m in Modes)
         {
-            <button class="mode-tab @(_mode == m.Id ? "active" : "")"
-                    @onclick="() => { _mode = m.Id; _error = null; }">
+            <button class="mode-tab @(_mode == m.Id ? "active" : "")" disabled="@(!_ready)"
+                    @onclick="() => SwitchMode(m.Id)">
                 <span class="mode-tab-icon">@m.Icon</span>
                 <span class="mode-tab-label">@m.Name</span>
             </button>
@@ -44,11 +54,18 @@
             {
                 <div class="ctrl-section">
                     <div class="ctrl-label">Beskriv billedet</div>
-                    <textarea class="ctrl-textarea" @bind="_genDescription"
+                    <div class="template-row">
+                        @foreach (var t in StyleTemplates)
+                        {
+                            <button type="button" class="template-btn" disabled="@(!_ready || _busy)"
+                                    @onclick="() => ApplyTemplate(t.Suffix)">@t.Icon @t.Name</button>
+                        }
+                    </div>
+                    <textarea class="ctrl-textarea" @bind="_genDescription" @bind:after="PersistStateAsync"
                               placeholder="F.eks.: En mand der jonglerer med 3 bolde – rød, blå og grøn – hvid baggrund"
-                              rows="4" disabled="@_busy"></textarea>
+                              rows="4" disabled="@(!_ready || _busy)"></textarea>
                     <button class="btn btn-primary" @onclick="GenerateAsync"
-                            disabled="@(_busy || string.IsNullOrWhiteSpace(_genDescription))">
+                            disabled="@(!_ready || _busy || string.IsNullOrWhiteSpace(_genDescription))">
                         @Spinner(Phase.Generate) Generér billede
                     </button>
                 </div>
@@ -59,9 +76,9 @@
                         <div class="ctrl-label">Hvad skal ændres?</div>
                         <textarea class="ctrl-textarea" @bind="_genFeedback"
                                   placeholder="F.eks.: Boldene skal alle være gule i stedet"
-                                  rows="3" disabled="@_busy"></textarea>
+                                  rows="3" disabled="@(!_ready || _busy)"></textarea>
                         <button class="btn btn-secondary" @onclick="RefineAsync"
-                                disabled="@(_busy || string.IsNullOrWhiteSpace(_genFeedback))">
+                                disabled="@(!_ready || _busy || string.IsNullOrWhiteSpace(_genFeedback))">
                             @Spinner(Phase.Refine) Opdatér billede
                         </button>
                     </div>
@@ -78,12 +95,12 @@
                 <div class="ctrl-section">
                     @InputImageSection()
                     <div class="ctrl-label" style="margin-top:14px">Hvad skal ændres?</div>
-                    <textarea class="ctrl-textarea" @bind="_redigerPrompt"
+                    <textarea class="ctrl-textarea" @bind="_redigerPrompt" @bind:after="PersistStateAsync"
                               placeholder="F.eks.: Skift skjortens farve til blå. Fjern brillerne. Tilføj sol i baggrunden."
-                              rows="3" disabled="@_busy"></textarea>
+                              rows="3" disabled="@(!_ready || _busy)"></textarea>
                     <p class="ctrl-hint">Præcis lokal redigering – resten af billedet bevares</p>
                     <button class="btn btn-primary" @onclick="KontextEditAsync"
-                            disabled="@(_busy || _currentImageUrl is null || string.IsNullOrWhiteSpace(_redigerPrompt))">
+                            disabled="@(!_ready || _busy || _currentImageUrl is null || string.IsNullOrWhiteSpace(_redigerPrompt))">
                         @Spinner(Phase.Rediger) Rediger billede
                     </button>
                 </div>
@@ -94,9 +111,9 @@
                 <div class="ctrl-section">
                     @InputImageSection()
                     <div class="ctrl-label" style="margin-top:14px">Hvad skal ske med billedet?</div>
-                    <textarea class="ctrl-textarea" @bind="_transformPrompt"
+                    <textarea class="ctrl-textarea" @bind="_transformPrompt" @bind:after="PersistStateAsync"
                               placeholder="F.eks.: Gør det til et oliemaleri. Skift baggrunden til strand. Tilføj sne."
-                              rows="3" disabled="@_busy"></textarea>
+                              rows="3" disabled="@(!_ready || _busy)"></textarea>
                     <div class="slider-row">
                         <label class="slider-label">Styrke: @(_transformStrength.ToString("0.0"))</label>
                         <input type="range" min="0.1" max="1.0" step="0.05"
@@ -104,7 +121,7 @@
                     </div>
                     <div class="slider-hint">Lav = behold originalen · Høj = stor forandring</div>
                     <button class="btn btn-primary" @onclick="TransformAsync"
-                            disabled="@(_busy || _currentImageUrl is null || string.IsNullOrWhiteSpace(_transformPrompt))">
+                            disabled="@(!_ready || _busy || _currentImageUrl is null || string.IsNullOrWhiteSpace(_transformPrompt))">
                         @Spinner(Phase.Transform) Forvandl billede
                     </button>
                 </div>
@@ -129,7 +146,7 @@
                         }
                     </div>
                     <button class="btn btn-primary" @onclick="StyleAsync"
-                            disabled="@(_busy || _currentImageUrl is null || _styleBytes is null)">
+                            disabled="@(!_ready || _busy || _currentImageUrl is null || _styleBytes is null)">
                         @Spinner(Phase.Stil) Overfør stil
                     </button>
                 </div>
@@ -153,7 +170,7 @@
                         }
                     </div>
                     <button class="btn btn-accent" @onclick="FaceSwapAsync"
-                            disabled="@(_busy || _currentImageUrl is null || _faceBytes is null)">
+                            disabled="@(!_ready || _busy || _currentImageUrl is null || _faceBytes is null)">
                         @Spinner(Phase.FaceSwap) Sæt ansigtet ind
                     </button>
                 </div>
@@ -164,7 +181,7 @@
                 <div class="ctrl-section">
                     @InputImageSection()
                     <button class="btn btn-primary" @onclick="RemoveBgAsync"
-                            disabled="@(_busy || _currentImageUrl is null)">
+                            disabled="@(!_ready || _busy || _currentImageUrl is null)">
                         @Spinner(Phase.Background) Fjern baggrund
                     </button>
                     <p class="ctrl-hint" style="margin-top:8px">Resultatet er et PNG med gennemsigtig baggrund</p>
@@ -198,7 +215,7 @@
                     </select>
 
                     <button class="btn btn-accent" @onclick="TryOnAsync"
-                            disabled="@(_busy || _currentImageUrl is null || _garmentBytes is null)">
+                            disabled="@(!_ready || _busy || _currentImageUrl is null || _garmentBytes is null)">
                         @Spinner(Phase.TryOn) Prøv tøjet
                     </button>
                 </div>
@@ -209,7 +226,7 @@
                 <div class="ctrl-section">
                     @InputImageSection()
                     <button class="btn btn-primary" @onclick="UpscaleAsync"
-                            disabled="@(_busy || _currentImageUrl is null)">
+                            disabled="@(!_ready || _busy || _currentImageUrl is null)">
                         @Spinner(Phase.Upscale) Forstør 4×
                     </button>
                     <p class="ctrl-hint" style="margin-top:8px">Øger opløsningen og skærper ansigter automatisk</p>
@@ -301,43 +318,6 @@
     </div>
 </div>
 
-<style>
-    .mode-tabs { display:flex; gap:4px; padding:0 20px; overflow-x:auto; border-bottom:1px solid rgba(255,255,255,.08); }
-    .mode-tab { display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 14px; background:transparent; border:none; border-bottom:2px solid transparent; color:#64748b; cursor:pointer; font-size:12px; font-weight:600; white-space:nowrap; margin-bottom:-1px; transition:color .15s; }
-    .mode-tab:hover { color:#cbd5e1; }
-    .mode-tab.active { color:#f0f0f0; border-bottom-color:#3b82f6; }
-    .mode-tab-icon { font-size:20px; }
-    .mode-tab-label { font-size:11px; }
-    .mode-desc { padding:10px 20px; font-size:13px; color:#64748b; border-bottom:1px solid rgba(255,255,255,.05); background:rgba(255,255,255,.02); }
-    .ctrl-hint { font-size:12px; color:#6b7280; margin:4px 0 8px; }
-    .slider-row { display:flex; align-items:center; gap:10px; margin:10px 0 2px; }
-    .slider-label { font-size:12px; color:#94a3b8; min-width:90px; }
-    .slider { flex:1; accent-color:#3b82f6; }
-    .slider-hint { font-size:11px; color:#4b5563; margin-bottom:10px; }
-    .ctrl-select { width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 14px; color:white; font-size:14px; outline:none; margin-bottom:14px; }
-    .ctrl-select option { background:#1e2530; }
-    .input-thumb-wrap { position:relative; border-radius:10px; overflow:hidden; margin-bottom:12px; border:1px solid rgba(255,255,255,.1); }
-    .input-thumb { width:100%; max-height:160px; object-fit:cover; display:block; }
-    .input-thumb-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.55); color:#94a3b8; font-size:11px; padding:4px 8px; }
-    .input-thumb-clear { position:absolute; top:6px; right:6px; background:rgba(0,0,0,.6); border:none; border-radius:50%; width:24px; height:24px; color:white; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; }
-    .input-thumb-clear:hover { background:rgba(239,68,68,.8); }
-    .upload-row { display:flex; gap:6px; align-items:stretch; margin-bottom:10px; }
-    .upload-row .upload-btn { margin-bottom:0; }
-    .flex1 { flex:1; }
-    .clear-btn { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); border-radius:8px; color:#94a3b8; font-size:16px; cursor:pointer; padding:0 10px; flex-shrink:0; }
-    .clear-btn:hover { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.4); color:#f87171; }
-    .upload-btn { display:block; width:100%; padding:11px 14px; border-radius:10px; border:1px dashed rgba(255,255,255,.2); color:#9ca3af; font-size:13px; cursor:pointer; text-align:center; background:rgba(255,255,255,.03); margin-bottom:10px; }
-    .upload-btn:hover, .upload-btn.has-file { border-color:#3b82f6; color:#93c5fd; }
-    .btn-cancel { width:100%; margin-top:10px; background:transparent; border:1px solid rgba(239,68,68,.35); border-radius:10px; color:#f87171; font-size:13px; font-weight:600; padding:10px; cursor:pointer; }
-    .btn-cancel:hover { background:rgba(239,68,68,.1); }
-    .btn-accent { background:#7c3aed; }
-    .btn-accent:hover:not(:disabled) { background:#6d28d9; }
-    .busy-hint { font-size:12px; color:#64748b; margin-top:8px; }
-    .history-thumb-video { width:56px; height:56px; border-radius:8px; cursor:pointer; border:2px solid transparent; display:flex; align-items:center; justify-content:center; font-size:24px; background:rgba(255,255,255,.06); flex-shrink:0; transition:.15s; }
-    .history-thumb-video:hover { border-color:rgba(255,255,255,.3); }
-    .history-thumb-video.active { border-color:#3b82f6; }
-</style>
-
 @code {
     private enum Mode { Generate, Rediger, Transform, Stil, FaceSwap, Background, TryOn, Upscale }
     private enum Phase { None, Generate, Refine, Rediger, Transform, Stil, FaceSwap, Background, TryOn, Upscale }
@@ -346,20 +326,104 @@
 
     private static readonly ModeInfo[] Modes =
     [
-        new(Mode.Generate,         "🖊️",  "Generér",          "Beskriv et billede med ord og AI genererer det. Du kan efterfølgende justere med feedback."),
-        new(Mode.Rediger,          "✏️",  "Rediger",           "Præcis lokal redigering med tekst – skift en detalje uden at ændre resten. (Flux Kontext)"),
-        new(Mode.Transform,        "🔄",  "Forvandl",          "Transformer hele billedet med en tekstvejledning – skift stil, baggrund eller indhold."),
-        new(Mode.Stil,             "🖌️",  "Stil",              "Overfør stilen fra et referencebillede til dit billede – tegnefilm, maleri, fotorealistisk m.m."),
-        new(Mode.FaceSwap,        "👤",  "Ansigt",            "Sæt dit eget eller et andet ansigt ind i et eksisterende billede."),
-        new(Mode.Background,       "✂️",  "Baggrund",          "Fjern baggrunden fra et billede og få et gennemsigtigt PNG."),
-        new(Mode.TryOn,            "👕",  "Tøjprøve",          "Prøv tøj virtuelt på en person. Upload et personfotat og et billede af det tøj du vil prøve."),
-        new(Mode.Upscale,          "🔍",  "Forstør",           "Forstør billedets opløsning 4× og skærp ansigter automatisk."),
+        new(Mode.Generate,         "🖊️",  "Generér",          "Beskriv et billede med ord og AI genererer det. Du kan efterfølgende justere med feedback. Koster ca. 20 øre pr. billede."),
+        new(Mode.Rediger,          "✏️",  "Rediger",           "Præcis lokal redigering med tekst – skift en detalje uden at ændre resten. (Flux Kontext) Koster ca. 30 øre pr. billede."),
+        new(Mode.Transform,        "🔄",  "Forvandl",          "Transformer hele billedet med en tekstvejledning – skift stil, baggrund eller indhold. Koster ca. 30 øre pr. billede."),
+        new(Mode.Stil,             "🖌️",  "Stil",              "Overfør stilen fra et referencebillede til dit billede – tegnefilm, maleri, fotorealistisk m.m. Koster ca. 15 øre pr. billede (anslået)."),
+        new(Mode.FaceSwap,        "👤",  "Ansigt",            "Sæt dit eget eller et andet ansigt ind i et eksisterende billede. Koster ca. 15 øre pr. billede (anslået)."),
+        new(Mode.Background,       "✂️",  "Baggrund",          "Fjern baggrunden fra et billede og få et gennemsigtigt PNG. Koster ca. 10 øre pr. billede."),
+        new(Mode.TryOn,            "👕",  "Tøjprøve",          "Prøv tøj virtuelt på en person. Upload et personfotat og et billede af det tøj du vil prøve. Koster ca. 5 øre pr. billede."),
+        new(Mode.Upscale,          "🔍",  "Forstør",           "Forstør billedets opløsning 4× og skærp ansigter automatisk. Koster ca. 3 øre pr. billede."),
     ];
 
     private ModeInfo CurrentMode => Modes.First(m => m.Id == _mode);
 
+    private record StyleTemplate(string Icon, string Name, string Suffix);
+
+    private static readonly StyleTemplate[] StyleTemplates =
+    [
+        new("⬜", "Hvid baggrund",  ", ren hvid baggrund, produktfoto, professionel studiobelysning"),
+        new("⚫", "Sort/hvid",      ", sort/hvid foto, dramatisk kontrast, ingen farver"),
+        new("🏞️", "Livsstil",      ", livsstilsfoto, naturligt miljø, naturligt dagslys"),
+        new("🌳", "Udendørs",      ", udendørs, naturligt dagslys, blødt skyggespil"),
+    ];
+
+    private void ApplyTemplate(string suffix)
+    {
+        _genDescription = string.IsNullOrWhiteSpace(_genDescription)
+            ? suffix.TrimStart(',', ' ')
+            : _genDescription.TrimEnd() + suffix;
+    }
+
     private Mode _mode = Mode.Generate;
     private Phase _phase = Phase.None;
+
+    // The Blazor Server circuit isn't guaranteed live the instant the page paints — a click
+    // fired before the SignalR connection finishes is silently dropped (no error). Gate
+    // interactivity on the first confirmed server round-trip instead of assuming it's ready.
+    private bool _ready;
+    private string _visitorKey = "unknown";
+
+    protected override void OnInitialized()
+    {
+        // Must capture this now — HttpContext is only reliably available during the initial
+        // request, not once the circuit is running as a pure SignalR connection.
+        _visitorKey = HttpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await RestoreStateAsync();
+        _ready = true;
+        StateHasChanged();
+    }
+
+    // ── Work-in-progress persistence ────────────────────────────────────────
+    // The Blazor Server circuit can silently drop and reconnect fresh (idle timeout on the
+    // proxy in front of this app) — when that happens all in-memory state is gone with no
+    // error shown. Stashing the parts a user would actually be upset to lose (current image,
+    // whatever they were typing, which tab they were on) in localStorage means a silent
+    // reconnect restores their work instead of just wiping it.
+    private const string StateKey = "imagegen_wip_state";
+
+    private record PersistedState(
+        Mode Mode, string? GenDescription, string? RedigerPrompt, string? TransformPrompt,
+        string? CurrentImageUrl, bool CurrentIsVideo);
+
+    private async Task PersistStateAsync()
+    {
+        var state = new PersistedState(_mode, _genDescription, _redigerPrompt, _transformPrompt,
+            _currentImageUrl, _currentIsVideo);
+        try { await Js.InvokeVoidAsync("localStorage.setItem", StateKey, JsonSerializer.Serialize(state)); }
+        catch { /* JS interop can fail during teardown/reconnect — losing the save isn't fatal */ }
+    }
+
+    private async Task RestoreStateAsync()
+    {
+        try
+        {
+            var json = await Js.InvokeAsync<string?>("localStorage.getItem", StateKey);
+            if (string.IsNullOrWhiteSpace(json)) return;
+            var state = JsonSerializer.Deserialize<PersistedState>(json);
+            if (state is null) return;
+
+            _mode             = state.Mode;
+            _genDescription   = state.GenDescription;
+            _redigerPrompt    = state.RedigerPrompt;
+            _transformPrompt  = state.TransformPrompt;
+            _currentImageUrl  = state.CurrentImageUrl;
+            _currentIsVideo   = state.CurrentIsVideo;
+        }
+        catch { /* corrupt/unavailable storage — just start fresh */ }
+    }
+
+    private async Task SwitchMode(Mode m)
+    {
+        _mode = m;
+        _error = null;
+        await PersistStateAsync();
+    }
 
     private string? _currentImageUrl;
     private bool _currentIsVideo;
@@ -523,6 +587,14 @@
 
     private async Task RunAsync(Phase phase, Func<Task> action, string? hint = null)
     {
+        var (allowed, denyReason) = UsageLimiter.TryConsume(_visitorKey);
+        if (!allowed)
+        {
+            _error = denyReason;
+            StateHasChanged();
+            return;
+        }
+
         _cts = new CancellationTokenSource();
         _busy = true; _phase = phase; _error = null; _busyHint = hint;
         StateHasChanged();
@@ -530,6 +602,7 @@
         catch (OperationCanceledException) { _error = "Annulleret."; }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; _phase = Phase.None; _busyHint = null; _cts?.Dispose(); _cts = null; StateHasChanged(); }
+        await PersistStateAsync();
     }
 
     // ── File handling ─────────────────────────────────────────────────────────
