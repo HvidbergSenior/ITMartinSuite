@@ -51,9 +51,9 @@ public class QuickSortStepOrderTests
         "MetadataWorkflowStep",             // 9.  Reads EXIF/video metadata - date, GPS, camera model, etc.
         "DuplicateDetectionWorkflowStep",   // 10. Exact-hash + perceptual-hash image duplicate grouping.
         "AudioDuplicateDetectionWorkflowStep", // 11. Same idea, scoped to audio tracks.
-        "ImageNormalizationWorkflowStep",   // 12. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (now on every image).
-        "ImageQualityWorkflowStep",         // 13. Free local blur/solid-color check on every image.
-        "CleanupEvaluationWorkflowStep",    // 14. Decides Keep/Delete/Review per file (junk, near-duplicates).
+        "CleanupEvaluationWorkflowStep",    // 12. Decides Keep/Delete/Review per file (junk, near-duplicates). Moved here 2026-09-07 (was after ImageQuality) - every decision it makes only needs data already available by this point (DuplicateGroups from the two steps just above, Width/Height/Duration/Artist from Metadata), so a known duplicate/delete-candidate is now skipped by the two expensive per-image steps below instead of being processed and thrown away.
+        "ImageNormalizationWorkflowStep",   // 13. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (every image not already marked Duplicates/DeleteCandidates).
+        "ImageQualityWorkflowStep",         // 14. Free local blur/solid-color check (same exclusion).
         "AiClassificationWorkflowStep",     // 15. Optional Claude-based classification (EnableAiClassification), batched since 2026-09-06.
         "Manifest1BuildWorkflowStep",       // 16. Builds the in-memory QuickSort manifest from everything above.
         "ExportWorkflowExecutionStep",      // 17. Physically copies files into the final category/Year/group layout.

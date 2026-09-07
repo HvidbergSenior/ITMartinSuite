@@ -32,7 +32,16 @@ public sealed class ImageQualityWorkflowStep : QuickSortWorkflowStepBase
         var state = context.State as QuickSortWorkflowState
             ?? throw new InvalidOperationException("Invalid workflow state");
 
-        var files = state.MediaFiles.Where(x => x.IsImage).ToList();
+        // Excludes Duplicates/DeleteCandidates - CleanupEvaluationWorkflowStep
+        // now runs before this step (moved 2026-09-07), so a known
+        // duplicate/delete-candidate never gets a free blur/solid-color
+        // check either, matching ImageNormalizationWorkflowStep's own
+        // exclusion right above it in the pipeline.
+        var files = state.MediaFiles
+            .Where(x => x.IsImage &&
+                        x.ExportSubFolder != "Duplicates" &&
+                        x.ExportSubFolder != "DeleteCandidates")
+            .ToList();
         var total = files.Count;
         var current = 0;
 

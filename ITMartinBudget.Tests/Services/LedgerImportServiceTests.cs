@@ -251,6 +251,31 @@ public class LedgerImportServiceTests
         _db.CategoryRules.Should().BeEmpty();
     }
 
+    // ── Malformed/unrecognized input ────────────────────────────────────
+
+    [Test]
+    public async Task An_unrecognized_csv_shape_throws_a_clear_error_instead_of_the_raw_parser_exception()
+    {
+        // Reproduces a real production bug (2026-09-07): uploading a
+        // pre-cleaned "Date,Description,Amount,Balance,RawDetails" export
+        // (comma-delimited, has a header) fell through to
+        // RawBankStatementParser - which matches anything - and threw an
+        // unhandled CsvHelper.TypeConversion.TypeConverterException trying
+        // to read the header row itself as a data row. That leaked as a 500
+        // with no useful message; this asserts it now surfaces as one clear,
+        // catchable exception instead.
+        var sut = CreateSut();
+        var garbage = new MemoryStream(Encoding.UTF8.GetBytes(
+            "Date,Description,Amount,Balance,RawDetails\r\n" +
+            "\"2026-01-02 00:00:00\",\"BS MODSTRØM DANMARK A/S\",-1109.88,69776.28,\"\"\r\n"));
+
+        var act = async () => await sut.ImportAsync(garbage, LedgerId);
+
+        (await act.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*ikke*genkendt format*");
+        _db.Transactions.Should().BeEmpty("a failed parse must not leave partial rows behind");
+    }
+
     // ── Return value ─────────────────────────────────────────────────────
 
     [Test]

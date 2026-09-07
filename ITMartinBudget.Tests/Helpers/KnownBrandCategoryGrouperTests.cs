@@ -47,6 +47,29 @@ public class KnownBrandCategoryGrouperTests
     }
 
     [Test]
+    public void Groups_Coop365_and_7_Eleven_into_Dagligvarer_too()
+    {
+        // Real gap found live 2026-09-07 on Rico's ledger: "Coop365
+        // Troejborg", "Coop365 Roende" and "7-Eleven 034" were sitting as
+        // their own separate cards next to an already-merged "Dagligvarer"
+        // group, because neither chain was in the original keyword list.
+        var names = new List<string>
+        {
+            "Coop365 Troejborg",
+            "Coop365 Roende",
+            "7-Eleven 034",
+            "Husleje",
+        };
+
+        var groups = KnownBrandCategoryGrouper.FindGroups(names);
+
+        groups.Should().ContainSingle(g => g.SuggestedTargetName == "Dagligvarer");
+        var dagligvarer = groups.Single(g => g.SuggestedTargetName == "Dagligvarer");
+        dagligvarer.Names.Should().Contain(["Coop365 Troejborg", "Coop365 Roende", "7-Eleven 034"]);
+        dagligvarer.Names.Should().NotContain("Husleje");
+    }
+
+    [Test]
     public void A_single_matching_category_is_not_reported_as_a_group()
     {
         var names = new List<string> { "Debetkort    Shell Service - 92", "Husleje" };

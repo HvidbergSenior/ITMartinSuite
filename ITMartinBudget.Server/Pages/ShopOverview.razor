@@ -7,6 +7,7 @@
 @using ITMartinBudget.Domain.Entities
 @using ITMartinBudget.Domain.Enums
 @using ITMartinBudget.Infrastructure
+@using ITMartinBudget.Server.Budget
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
 
@@ -33,6 +34,8 @@ else if (_all.Count == 0)
 else
 {
     <div class="stack">
+
+        <StepNav LedgerId="@LedgerId" CurrentStep="4" />
 
         @if (_scopeMode == LedgerScopeMode.Both)
         {
@@ -67,54 +70,21 @@ else
                     <text>&nbsp;·&nbsp; saldo @_startBalance.Value.ToString("N0") → @_endBalance.Value.ToString("N0") kr.</text>
                 }
             </div>
-            <div style="margin-top:10px">
-                <a class="btn" href="/shop-categorize/@LedgerId" data-enhance-nav="false">Kategoriser transaktioner</a>
-            </div>
         </div>
 
-        @* ============ Period filter - plain GET links/form, no JS/rendermode needed. Old halves of a long-running account (e.g. first half of 2025) stop being relevant day-to-day, but stay one click away for comparison. ============ *@
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-radius:16px;background:var(--card-light);border:1px solid var(--card-border)">
-            <span class="meta" style="font-weight:700">Periode:</span>
-            <a class="btn" href="/shop-overview/@LedgerId" data-enhance-nav="false">Hele perioden</a>
-            <a class="btn" href="/shop-overview/@LedgerId?from=@DateTime.Today.AddMonths(-6).ToString("yyyy-MM-dd")" data-enhance-nav="false">Sidste 6 mdr.</a>
-            <a class="btn" href="/shop-overview/@LedgerId?from=@(new DateTime(DateTime.Today.Year, 1, 1).ToString("yyyy-MM-dd"))" data-enhance-nav="false">@DateTime.Today.Year</a>
-            <a class="btn" href="/shop-overview/@LedgerId?from=@(new DateTime(DateTime.Today.Year - 1, 1, 1).ToString("yyyy-MM-dd"))&to=@(new DateTime(DateTime.Today.Year - 1, 12, 31).ToString("yyyy-MM-dd"))" data-enhance-nav="false">@(DateTime.Today.Year - 1)</a>
-            <form method="get" style="display:flex;gap:6px;align-items:center;margin-left:auto">
-                @if (!string.IsNullOrWhiteSpace(FocusParam))
-                {
-                    <input type="hidden" name="focus" value="@FocusParam" />
-                }
-                <input class="input" type="date" name="from" value="@(_periodFrom?.ToString("yyyy-MM-dd"))" style="padding:6px 10px" />
-                <span class="meta">–</span>
-                <input class="input" type="date" name="to" value="@(_periodTo?.ToString("yyyy-MM-dd"))" style="padding:6px 10px" />
-                <button class="btn btn-primary" type="submit">Vis</button>
-            </form>
-        </div>
-
-        @* ============ Scope focus - only meaningful when business and private share the same account (Both mode); a single-scope ledger like Hvidberg/ITMartin has nothing to toggle ============ *@
+        @* ============ Forretning/Privat tabs - the only fixed control on this page. "Fjern alt og start med to tabs Forretning og Privat" (2026-09-07) - period filter, custom date range, and the 3-way Alt/Business/Private toggle all removed as too many choices at once. Only meaningful when business and private share the same account (Both mode); a single-scope ledger like Hvidberg/ITMartin has nothing to switch between. ============ *@
         @if (_scopeMode == LedgerScopeMode.Both)
         {
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                <span class="meta" style="font-weight:700">Fokus:</span>
-                <a class="btn @(_focus == Focus.All ? "btn-primary" : "")" href="@FocusLink(null)" data-enhance-nav="false">Alt</a>
-                <a class="btn @(_focus == Focus.Business ? "btn-primary" : "")" href="@FocusLink("business")" data-enhance-nav="false">🏪 Kun forretning</a>
-                <a class="btn @(_focus == Focus.Private ? "btn-primary" : "")" href="@FocusLink("private")" data-enhance-nav="false">🏠 Kun privat</a>
+                <a class="btn @(_focus == Focus.Business ? "btn-primary" : "")" href="@FocusLink("business")" data-enhance-nav="false">🏪 Forretning</a>
+                <a class="btn @(_focus == Focus.Private ? "btn-primary" : "")" href="@FocusLink("private")" data-enhance-nav="false">🏠 Privat</a>
             </div>
         }
 
-        @* ============ Excluded categories - lets you ask "what does the result look like without Husleje" etc. Toggled per-category from the cards below. ============ *@
-        @if (_excludedCategories.Count > 0)
-        {
-            <div class="alert warning" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-                <span>🚫 Ekskluderet fra tallene nedenfor: @string.Join(", ", _excludedCategories.OrderBy(e => e, StringComparer.Ordinal))</span>
-                <a class="btn" href="@ClearExcludeLink()" data-enhance-nav="false">Nulstil</a>
-            </div>
-        }
-
-        @* ============ AI Q&A - free-form questions answered from a monthly/category digest, same "user-triggered, one call, shown inline" pattern as the Investigate button on /shop-categorize ============ *@
+        @* ============ AI Q&A - re-added 2026-09-07 ("Just a interesting facts. An Ai prombt where I can write for instance this. Compare jan-Jun with july-august") after being removed as part of the earlier simplification pass - free-form questions answered from the full transaction set, same "user-triggered, one call, shown inline" pattern as the Investigate button on /shop-categorize. ============ *@
         <div class="category-summary-card" style="display:flex;flex-direction:column;gap:10px;margin-bottom:0">
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <input class="input" id="askInput" style="flex:1;min-width:220px" placeholder='Fx: "Hvad er gennemsnitsindtægten i 2025?"' />
+                <input class="input" id="askInput" style="flex:1;min-width:220px" placeholder='Fx: "Sammenlign jan-jun med juli-august"' />
                 <button class="btn btn-primary" id="askBtn">❓ Spørg</button>
             </div>
             <div id="askAnswer" style="display:none;white-space:pre-wrap;font-size:14px"></div>
@@ -139,16 +109,10 @@ else
                         <div class="financial-value">@_businessNet.ToString("N0") kr.</div>
                     </div>
                 </div>
-                @if (_scopeMode == LedgerScopeMode.Both)
-                {
-                    <div class="meta" style="margin-top:8px">
-                        Kun transaktioner tagget "Forretning" tæller med her - se nedenfor hvordan tagging virker og hvad der endnu ikke er kategoriseret.
-                    </div>
-                }
             </div>
         }
 
-        @* ============ PRIVATE breakdown - visible, actionable on its own - skipped entirely for a business-only ledger like ITMartin, or when the user has focused the view on business only ============ *@
+        @* ============ PRIVATE breakdown - visible, actionable on its own - skipped entirely for a business-only ledger like ITMartin, or when the user has focused the view on business only. Category lists in an open/close box, matching the Forretning section's own treatment - "samme info under privat" (2026-09-07). ============ *@
         @if (_scopeMode != LedgerScopeMode.BusinessOnly && _focus != Focus.Business)
         {
             <div>
@@ -171,37 +135,31 @@ else
                     }
                 </div>
 
-                @if (_topPrivate.Count > 0)
+                @if (_topPrivate.Count > 0 || _privateIncomeByCategory.Count > 0)
                 {
-                    <div style="margin-top:16px" class="meta">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Forbrug" : "Privat forbrug") - klik en kategori for at se de faktiske posteringer</div>
-                    @foreach (var g in _topPrivate)
-                    {
-                        @CategoryCard(g, negative: true)
-                    }
-                }
-                @if (_privateIncomeByCategory.Count > 0)
-                {
-                    <div style="margin-top:16px" class="meta">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Indbetalt" : "Privat indbetalt")</div>
-                    @foreach (var g in _privateIncomeByCategory)
-                    {
-                        @CategoryCard(g, negative: false)
-                    }
+                    <details style="margin-top:16px">
+                        <summary style="cursor:pointer;list-style:none" class="meta">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Forbrug og indbetalt" : "Privat forbrug og indbetalt") - klik for at se kategorier, klik en kategori for at se de faktiske posteringer</summary>
+
+                        @if (_topPrivate.Count > 0)
+                        {
+                            <div style="margin-top:12px" class="meta">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Forbrug" : "Privat forbrug")</div>
+                            @foreach (var g in _topPrivate)
+                            {
+                                @CategoryCard(g, negative: true)
+                            }
+                        }
+                        @if (_privateIncomeByCategory.Count > 0)
+                        {
+                            <div style="margin-top:16px" class="meta">@(_scopeMode == LedgerScopeMode.PrivateOnly ? "Indbetalt" : "Privat indbetalt")</div>
+                            @foreach (var g in _privateIncomeByCategory)
+                            {
+                                @CategoryCard(g, negative: false)
+                            }
+                        }
+                    </details>
                 }
             </div>
         }
-
-        @* ============ Critical flags: helper view - what's wrong AND what's fine ============ *@
-        <div>
-            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:16px">Status</h2>
-            <div style="display:flex;flex-direction:column;gap:10px">
-                @foreach (var flag in _flags)
-                {
-                    <div class="alert @(flag.Critical ? "error" : "success")">
-                        @(flag.Critical ? "⚠" : "✔") @flag.Text
-                    </div>
-                }
-            </div>
-        </div>
 
         @* ============ Monthly trend - income/expense overview for the owner ============ *@
         <div>
@@ -212,8 +170,8 @@ else
                         <tr style="text-align:left;color:var(--muted);font-size:13px">
                             <th style="padding:8px">Måned</th>
                             <th style="padding:8px">Omsætning</th>
-                            <th style="padding:8px">Udgifter (butik)</th>
-                            <th style="padding:8px">Butiksresultat</th>
+                            <th style="padding:8px">Udgifter, snit/md (faktisk)</th>
+                            <th style="padding:8px">Butiksresultat, snit/md (faktisk)</th>
                             <th style="padding:8px">Privat hævet</th>
                             <th style="padding:8px">Saldo v. mdr. slut</th>
                         </tr>
@@ -224,8 +182,8 @@ else
                             <tr style="border-top:1px solid var(--border)">
                                 <td style="padding:8px">@m.Label</td>
                                 <td style="padding:8px;color:var(--green)">@m.Revenue.ToString("N0")</td>
-                                <td style="padding:8px;color:var(--red)">@Math.Abs(m.Expenses).ToString("N0")</td>
-                                <td style="padding:8px;color:@(m.Net >= 0 ? "var(--green)" : "var(--red)")">@m.Net.ToString("N0")</td>
+                                <td style="padding:8px;color:var(--red)">@Math.Abs(_avgMonthlyExpenses).ToString("N0") <span class="meta">(@Math.Abs(m.Expenses).ToString("N0"))</span></td>
+                                <td style="padding:8px;color:@(m.Revenue + _avgMonthlyExpenses >= 0 ? "var(--green)" : "var(--red)")">@((m.Revenue + _avgMonthlyExpenses).ToString("N0")) <span class="meta">(@m.Net.ToString("N0"))</span></td>
                                 <td style="padding:8px;color:var(--orange)">@Math.Abs(m.PrivateOut).ToString("N0")</td>
                                 <td style="padding:8px">@(m.EndBalance?.ToString("N0") ?? "-")</td>
                             </tr>
@@ -235,12 +193,14 @@ else
             </div>
         </div>
 
-        @* ============ Business revenue and expenses, by category - each expandable to the actual transactions - not relevant for a private-only ledger like Hvidberg, or when focused on private only ============ *@
+        @* ============ Business revenue and expenses, by category - each expandable to the actual transactions - not relevant for a private-only ledger like Hvidberg, or when focused on private only. Open/close box - "Forretningens omsætning og udgifter also open/close" (2026-09-07). ============ *@
         @if (_scopeMode != LedgerScopeMode.PrivateOnly && _focus != Focus.Private)
         {
-            <div>
-                <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:4px">@(_scopeMode == LedgerScopeMode.BusinessOnly ? "Omsætning og udgifter" : "Forretningens omsætning og udgifter")</h2>
-                <div class="meta" style="margin-bottom:16px">Klik en kategori for hurtigt at se de faktiske posteringer bag tallet.</div>
+            <details>
+                <summary style="cursor:pointer;list-style:none">
+                    <h2 style="display:inline;font-size:1.4rem;font-weight:800">@(_scopeMode == LedgerScopeMode.BusinessOnly ? "Omsætning og udgifter" : "Forretningens omsætning og udgifter")</h2>
+                </summary>
+                <div class="meta" style="margin:8px 0 16px">Klik en kategori for hurtigt at se de faktiske posteringer bag tallet.</div>
 
                 @if (_businessRevenueByCategory.Count > 0)
                 {
@@ -259,13 +219,15 @@ else
                         @CategoryCard(g, negative: true)
                     }
                 }
-            </div>
+            </details>
         }
 
-        @* ============ Full transaction list - everything, including Unknown ============ *@
-        <div>
-            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:4px">Alle transaktioner (@_all.Count)</h2>
-            <div class="meta" style="margin-bottom:16px">
+        @* ============ Full transaction list - everything, including Unknown. Open/close box, not always-open - "fjern status og lad transaktionerne være åbn/luk boks" (2026-09-07). ============ *@
+        <details>
+            <summary style="cursor:pointer;list-style:none">
+                <h2 style="display:inline;font-size:1.4rem;font-weight:800">Alle transaktioner (@_all.Count)</h2>
+            </summary>
+            <div class="meta" style="margin:8px 0 16px">
                 @if (_scopeMode == LedgerScopeMode.Both)
                 {
                     <text>Inkl. @_unknownCount ukategoriserede - de tæller ikke med i butik eller privat ovenfor, indtil de er tagget.</text>
@@ -302,7 +264,7 @@ else
                     </tbody>
                 </table>
             </div>
-        </div>
+        </details>
 
     </div>
 }
@@ -448,12 +410,10 @@ setTimeout(function () {
     private decimal? _startBalance, _endBalance;
 
     private decimal _businessRevenue, _businessExpenses, _businessNet;
+    private decimal _avgMonthlyExpenses;
     private decimal _privateOut, _privateIn;
     private double _privateShareOfRevenuePct;
     private int _unknownCount;
-
-    private sealed record Flag(bool Critical, string Text);
-    private List<Flag> _flags = new();
 
     private sealed record GroupedAmount(string Description, string Category, decimal Sum, int Count, List<BankTransaction> Transactions);
     private List<GroupedAmount> _topBusinessExpenses = new();
@@ -469,14 +429,27 @@ setTimeout(function () {
         var config = await Db.LedgerConfigs.FindAsync(LedgerId);
         _scopeMode = config?.ScopeMode ?? LedgerScopeMode.Both;
 
-        _periodFrom = DateTime.TryParse(FromParam, out var f) ? f.Date : null;
+        // "no i dont want 2025 data shown just in db" + "Only 2026 is
+        // interesting now" (2026-09-07) - defaults the visible page to the
+        // current calendar year. The data itself (2025 included) stays in
+        // the database and fully reachable by the AI question box above
+        // (a separate call, not filtered by this page's period at all) -
+        // this default only controls what's shown here without being asked.
+        _periodFrom = DateTime.TryParse(FromParam, out var f) ? f.Date : new DateTime(DateTime.Today.Year, 1, 1);
         _periodTo = DateTime.TryParse(ToParam, out var t) ? t.Date : null;
-        _focus = FocusParam?.ToLowerInvariant() switch
-        {
-            "business" => Focus.Business,
-            "private" => Focus.Private,
-            _ => Focus.All,
-        };
+        // Business is the default tab on a Both-mode ledger, not the old
+        // combined "Alt" view - see "Fjern alt og start med to tabs"
+        // (2026-09-07). A single-scope ledger (Hvidberg=PrivateOnly,
+        // ITMartin=BusinessOnly) has no tabs to begin with - it must stay
+        // Focus.All there, or the _scopeMode/_focus visibility checks below
+        // would hide its one and only section entirely.
+        _focus = _scopeMode != LedgerScopeMode.Both
+            ? Focus.All
+            : FocusParam?.ToLowerInvariant() switch
+            {
+                "private" => Focus.Private,
+                _ => Focus.Business,
+            };
         _excludedCategories = string.IsNullOrWhiteSpace(ExcludeParam)
             ? new HashSet<string>(StringComparer.Ordinal)
             : new HashSet<string>(ExcludeParam.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), StringComparer.Ordinal);
@@ -610,57 +583,13 @@ setTimeout(function () {
             })
             .ToList();
 
-        BuildFlags();
-    }
-
-    private void BuildFlags()
-    {
-        var flags = new List<Flag>();
-
-        if (_businessNet < 0)
-            flags.Add(new Flag(true, $"Butikken har underskud på eget regnskab: {_businessNet:N0} kr. i den viste periode (omsætning {_businessRevenue:N0} kr. minus forretningsudgifter {Math.Abs(_businessExpenses):N0} kr.)."));
-        else
-            flags.Add(new Flag(false, $"Butikken har overskud på eget regnskab, før private hævninger: {_businessNet:N0} kr."));
-
-        if (_endBalance is < 0)
-            flags.Add(new Flag(true, $"Kontoen er i minus lige nu: {_endBalance:N0} kr."));
-
-        if (_startBalance.HasValue && _endBalance.HasValue && _endBalance < _startBalance)
-            flags.Add(new Flag(true, $"Saldoen er faldet med {(_startBalance - _endBalance):N0} kr. over hele perioden."));
-
-        if (_privateShareOfRevenuePct > 40)
-            flags.Add(new Flag(true, $"Private hævninger ({Math.Abs(_privateOut):N0} kr.) udgør {_privateShareOfRevenuePct:N0}% af butikkens omsætning - en stor del af det, butikken tjener, går til privatforbrug."));
-        else if (_privateShareOfRevenuePct > 0)
-            flags.Add(new Flag(false, $"Private hævninger udgør {_privateShareOfRevenuePct:N0}% af omsætningen - ikke urimeligt højt."));
-
-        if (_monthly.Count >= 4)
-        {
-            var half = _monthly.Count / 2;
-            var firstHalfAvg = _monthly.Take(half).Average(m => m.Revenue);
-            var secondHalfAvg = _monthly.Skip(_monthly.Count - half).Average(m => m.Revenue);
-            if (firstHalfAvg > 0)
-            {
-                var changePct = (double)((secondHalfAvg - firstHalfAvg) / firstHalfAvg * 100m);
-                if (changePct <= -15)
-                    flags.Add(new Flag(true, $"Omsætningen er faldet markant: {changePct:N0}% fra første til seneste halvdel af perioden ({firstHalfAvg:N0} → {secondHalfAvg:N0} kr./md i snit)."));
-                else if (changePct >= 15)
-                    flags.Add(new Flag(false, $"Omsætningen er steget {changePct:N0}% fra første til seneste halvdel af perioden."));
-                else
-                    flags.Add(new Flag(false, "Omsætningen er nogenlunde stabil hen over perioden."));
-            }
-        }
-
-        var feeMarkers = new[] { "overtræk", "rykker", "inkasso" };
-        var feeHits = _all.Count(x => feeMarkers.Any(m => x.Description.Contains(m, StringComparison.OrdinalIgnoreCase) || x.RawDetails.Contains(m, StringComparison.OrdinalIgnoreCase)));
-        if (feeHits > 0)
-            flags.Add(new Flag(true, $"{feeHits} transaktion(er) ligner overtræks-/rykkergebyrer - tjek dem i listen nedenfor."));
-        else
-            flags.Add(new Flag(false, "Ingen tegn på overtræks- eller rykkergebyrer i teksterne."));
-
-        if (_unknownCount > 0)
-            flags.Add(new Flag(false, $"{_unknownCount} transaktion(er) er endnu ikke kategoriseret som forretning/privat - de er stadig synlige i den fulde liste nedenfor, men tæller ikke med i tallene ovenfor."));
-
-        _flags = flags;
+        // "udgifter er et gennemsnit. månedligt" (2026-09-07) - a raw
+        // per-month expense figure makes the table look erratic when a real
+        // cost (Husleje) only lands every 3rd month instead of every month -
+        // one quarter looks like a huge spike, the other two look free. The
+        // average smooths that out into one steady "typical month" figure,
+        // which is what the table shows instead of each month's real total.
+        _avgMonthlyExpenses = _monthly.Count > 0 ? _monthly.Average(m => m.Expenses) : 0m;
     }
 
     private static string ScopeLabel(TransactionScope s) => s switch

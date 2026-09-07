@@ -19,6 +19,7 @@ public class LedgerWorkflowStepsTests
         ("Upload", "/shop-upload"),           // 1. Get a bank CSV into the ledger.
         ("Kategoriser", "/shop-categorize"),  // 2. Tag each recurring transaction pattern Business/Private + a category name.
         ("Flet", "/shop-categories"),         // 3. Merge near-duplicate categories (Shell/Q8/Uno-X -> Benzin) into one.
+        ("Overblik", "/shop-overview"),       // 4. See the result - income/spend, Business vs Private (added 2026-09-07).
     ];
 
     [Test]
@@ -32,11 +33,14 @@ public class LedgerWorkflowStepsTests
     }
 
     [Test]
-    public void There_are_exactly_three_steps()
+    public void There_are_exactly_four_steps()
     {
-        LedgerWorkflowSteps.Steps.Should().HaveCount(3,
-            "the guided flow is Upload -> Kategoriser -> Flet - a 4th step here would need " +
-            "StepNav's rendering (arrows, done/current styling) reconsidered too");
+        // Was 3 (Upload -> Kategoriser -> Flet) - Overblik added 2026-09-07
+        // as the "see the result" step, once everything's categorized and
+        // merged. StepNav.razor's rendering (arrows, done/current styling)
+        // is already generic over LedgerWorkflowSteps.Steps.Count, so this
+        // needed no template change, just the new entry above.
+        LedgerWorkflowSteps.Steps.Should().HaveCount(4);
     }
 
     [TestCase("bogshoppen", "/shop-upload/bogshoppen")]

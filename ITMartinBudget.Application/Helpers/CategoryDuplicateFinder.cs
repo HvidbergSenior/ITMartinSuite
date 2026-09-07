@@ -30,10 +30,14 @@ public static class CategoryDuplicateFinder
         {
             s = s.Replace(noise, " ");
         }
-        // "BS " (Betalingsservice, a direct-debit prefix) only means
-        // anything as a leading marker - stripping it anywhere in the
-        // string would wrongly eat the "bs" in unrelated words.
+        // "BS " (Betalingsservice, a direct-debit prefix) and "fra "
+        // (Danish "from", on incoming-transfer descriptions like "fra
+        // Nikolaj" vs that same person's own full-name pattern "Nikolaj
+        // Lillelund Høj") only mean anything as a leading marker - stripping
+        // either anywhere else in the string would wrongly eat it out of an
+        // unrelated word/name.
         s = Regex.Replace(s, @"^bs\s+", " ");
+        s = Regex.Replace(s, @"^fra\s+", " ");
         // Trailing order/reference numbers (4+ digits) - "imusic.dk 11338750"
         // and "imusic.dk 10915939" should normalize to the same key.
         s = Regex.Replace(s, @"\d{4,}", " ");
@@ -89,8 +93,11 @@ public static class CategoryDuplicateFinder
     }
 
     // Shortest name in the group reads as the "cleanest" one most of the
-    // time (least bank-export noise still attached) - not perfect, but a
-    // reasonable default the user can always retype on the Flet page.
+    // time (least bank-export noise still attached) - then run it through
+    // CategoryNameCleaner too, since "shortest" doesn't guarantee "noise-
+    // free" (e.g. "BS Skat" is shorter than some noise-free alternatives).
+    // Not perfect, but a reasonable default the user can always retype on
+    // the Flet page.
     private static string PickTargetName(List<string> group) =>
-        group.OrderBy(n => n.Length).First();
+        CategoryNameCleaner.Clean(group.OrderBy(n => n.Length).First());
 }

@@ -14,6 +14,12 @@ public static class LedgerWorkflowSteps
         new("Upload", "/shop-upload"),
         new("Kategoriser", "/shop-categorize"),
         new("Flet", "/shop-categories"),
+        // "så nyt step... Efter flet. Nu er All cards i en kategri" +
+        // "I hevrt fald en Privat og froretning mulighed" (2026-09-07) -
+        // ShopOverview.razor already exists and already gives a Both/
+        // PrivateOnly/BusinessOnly-aware breakdown, it just wasn't wired
+        // into the guided flow as a real step yet.
+        new("Overblik", "/shop-overview"),
     ];
 
     public static string BuildHref(

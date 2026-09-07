@@ -70,13 +70,26 @@ public sealed class QuickSortWorkflowDefinition
 
             audioDuplicateDetectionWorkflowStep,
 
+            // Moved here 2026-09-07 ("get all not relevant files off as fast
+            // as possible... so that this does not happen" - live on a real
+            // 84,535-file/77,061-image run, ImageNormalization was
+            // normalizing exact duplicates that get thrown away two steps
+            // later anyway). Every decision this step makes only needs data
+            // already available by here: DuplicateGroups (from
+            // DuplicateDetection/AudioDuplicateDetection, just above),
+            // Width/Height/Duration/Artist (from MetadataWorkflowStep, step
+            // 8 - confirmed 2026-09-07, nothing it reads comes from
+            // ImageNormalization/ImageQuality). Files it marks
+            // Duplicates/DeleteCandidates are now skipped by both of those
+            // expensive per-image steps instead of being processed and
+            // thrown away.
+            cleanupEvaluationWorkflowStep,
+
             imageNormalizationWorkflowStep,
 
             // Needs NormalizedPath (image side) already resolved - reads
             // whichever file the export will actually use.
             imageQualityWorkflowStep,
-
-            cleanupEvaluationWorkflowStep,
 
             aiClassificationWorkflowStep,
 

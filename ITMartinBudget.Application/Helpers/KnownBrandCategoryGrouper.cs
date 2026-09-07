@@ -13,7 +13,7 @@ public static class KnownBrandCategoryGrouper
     private static readonly (string TargetName, string[] Keywords)[] Groups =
     [
         ("Benzin", ["shell", "q8", "uno-x", "unox", "ingo", "f24", "goeasy", "go easy", "circle k", "circlek", "ok benzin", "ok plus"]),
-        ("Dagligvarer", ["rema", "netto", "føtex", "foetex", "lidl", "kvickly", "meny", "fakta", "spar", "superbrugsen", "brugsen", "aldi", "irma", "bilka"]),
+        ("Dagligvarer", ["rema", "netto", "føtex", "foetex", "lidl", "kvickly", "meny", "fakta", "spar", "superbrugsen", "brugsen", "aldi", "irma", "bilka", "coop365", "coop 365", "7-eleven"]),
         // "leas" - a genuine shared substring (proleasing.nu, leasingaftale,
         // leasing bil), not a prefix, so CategoryDuplicateFinder misses it.
         ("Leasing", ["leas"]),

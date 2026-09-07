@@ -260,8 +260,15 @@ app.MapPost("/api/shop/upload", async (
     }
 
     await using var stream = file.OpenReadStream();
-    var imported = await csvService.ImportAsync(stream, ledgerId);
-    return Results.Ok(new { imported = imported.Count, ledgerId });
+    try
+    {
+        var imported = await csvService.ImportAsync(stream, ledgerId);
+        return Results.Ok(new { imported = imported.Count, ledgerId });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
 }).DisableAntiforgery();
 
 app.MapGet("/api/shop/{ledgerId}/scope-mode", async (string ledgerId, ITMartinBudget.Infrastructure.BudgetDbContext db) =>
@@ -381,7 +388,9 @@ app.MapPost("/api/shop/{ledgerId}/investigate-remaining", async (
     };
 
     string CategoryNameFor(ITMartinBudget.Application.Interfaces.TransactionCluster c) =>
-        string.IsNullOrWhiteSpace(c.CurrentCategoryName) ? c.Label : c.CurrentCategoryName;
+        string.IsNullOrWhiteSpace(c.CurrentCategoryName)
+            ? ITMartinBudget.Application.Helpers.CategoryNameCleaner.Clean(c.Label)
+            : c.CurrentCategoryName;
 
     foreach (var cluster in alreadyKnownScope)
         await rules.AssignAsync(ledgerId, cluster.Pattern, CategoryNameFor(cluster), cluster.Scope);
@@ -594,6 +603,37 @@ app.MapPost("/api/shop/{ledgerId}/merge-categories", async (
     if (string.IsNullOrWhiteSpace(body.TargetName)) return Results.BadRequest("Angiv navnet på den samlede kategori");
     await rules.MergeCategoriesAsync(ledgerId, body.SourceNames, body.TargetName.Trim());
     return Results.Ok();
+});
+
+// Retroactive cousin of CategoryNameCleaner's use in CategoryNameFor/
+// CategoryDuplicateFinder (both only clean a name at the moment it's first
+// assigned) - a ledger whose categories were auto-assigned before that
+// cleaning existed still has noisy names like "BS CODAN FORSIKRING" sitting
+// in the database. Reuses the exact same MergeCategoriesAsync a manual Flet
+// merge uses, just with the cleaned name as the target - so this only ever
+// renames names the app itself generated toward what it would generate
+// today, never touches a name a human deliberately typed by hand differently
+// from what auto-cleaning would produce (that's just... a different name,
+// not something this can tell apart from "the user meant it that way").
+app.MapPost("/api/shop/{ledgerId}/clean-category-names", async (
+    string ledgerId,
+    ITMartinBudget.Application.Interfaces.ICategoryRuleService rules) =>
+{
+    var existingNames = await rules.GetExistingCategoryNamesAsync(ledgerId);
+
+    var byCleanedTarget = existingNames
+        .Select(name => (Name: name, Cleaned: ITMartinBudget.Application.Helpers.CategoryNameCleaner.Clean(name)))
+        .Where(x => x.Cleaned != x.Name)
+        .GroupBy(x => x.Cleaned);
+
+    var renamed = 0;
+    foreach (var group in byCleanedTarget)
+    {
+        await rules.MergeCategoriesAsync(ledgerId, group.Select(x => x.Name).ToList(), group.Key);
+        renamed += group.Count();
+    }
+
+    return Results.Ok(new { renamed });
 });
 
 // "Skift til Forretning/Privat" button on /shop-categories - lets a whole

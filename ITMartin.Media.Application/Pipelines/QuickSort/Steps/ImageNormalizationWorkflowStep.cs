@@ -47,9 +47,17 @@ public sealed class ImageNormalizationWorkflowStep
         // majority of real camera/phone photos) gets its orientation baked
         // and known at all - previously this step's RequiresNormalization
         // filter meant that never happened for them.
+        //
+        // Excludes Duplicates/DeleteCandidates - CleanupEvaluationWorkflowStep
+        // now runs right before this step (moved 2026-09-07), so a known
+        // exact-duplicate or delete-candidate image never gets normalized in
+        // the first place, only to be thrown away a couple of steps later.
+        // Same exclusion AiClassificationWorkflowStep already used.
         var files =
             state.MediaFiles
-                .Where(x => x.IsImage)
+                .Where(x => x.IsImage &&
+                            x.ExportSubFolder != "Duplicates" &&
+                            x.ExportSubFolder != "DeleteCandidates")
                 .ToList();
 
         var total =

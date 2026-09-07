@@ -223,37 +223,105 @@ setTimeout(function () {
         if (!autoRanOnce) {
             autoRanOnce = true;
             await runInvestigateRemaining('Sikrer at alt er kategoriseret...');
+            // Retroactively cleans any category name the app itself
+            // generated before CategoryNameCleaner existed (e.g. "BS CODAN
+            // FORSIKRING") - before the dup/merge pass below, so that pass
+            // groups on already-clean names instead of noise.
+            await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/clean-category-names`, { method: 'POST' }).catch(() => {});
             await runSuggestMerges();
             return load();
         }
 
         const container = document.getElementById('clusters');
-        container.innerHTML = clusters.map((c, i) => {
-            const dateRange = c.firstDate && c.lastDate
-                ? (fmtDate(c.firstDate) === fmtDate(c.lastDate) ? fmtDate(c.firstDate) : `${fmtDate(c.firstDate)} - ${fmtDate(c.lastDate)}`)
-                : '';
-            const defaultCategory = c.currentCategoryName || c.label;
+
+        function dateRangeStr(first, last) {
+            if (!first || !last) return '';
+            return fmtDate(first) === fmtDate(last) ? fmtDate(first) : `${fmtDate(first)} - ${fmtDate(last)}`;
+        }
+
+        // Still-uncategorized patterns render one card each, same as before -
+        // each genuinely needs its own look. Already-categorized patterns
+        // get grouped into ONE card per category name, however many
+        // patterns share it ("They should be shown as One category. For
+        // instance Dagligvarer or Fie Tandrup", 2026-09-07) - a merge
+        // already made them the same thing, the page should say so.
+        const uncategorized = clusters.filter(c => !c.currentCategoryName);
+        const categorized = clusters.filter(c => c.currentCategoryName);
+
+        const byCategory = new Map();
+        for (const c of categorized) {
+            const key = c.currentCategoryName;
+            if (!byCategory.has(key)) byCategory.set(key, []);
+            byCategory.get(key).push(c);
+        }
+
+        const cards = [
+            ...uncategorized.map(c => ({
+                needsReview: true,
+                title: c.label,
+                meta: `${dateRangeStr(c.firstDate, c.lastDate)}${c.sampleRawDetails ? ` · fx: ${esc(c.sampleRawDetails.trim().slice(0, 60))}` : ''}`,
+                count: c.count,
+                sum: c.sum,
+                patterns: [c.pattern],
+                category: null,
+                defaultCategory: c.label,
+                scope: c.scope,
+                investigateHtml: c.investigationReasoning
+                    ? investigateResultHtml({ reasoning: c.investigationReasoning, suggestedScope: c.investigationSuggestedScope, confidence: c.investigationConfidence })
+                    : '',
+            })),
+            ...[...byCategory.entries()].map(([categoryName, items]) => {
+                const dates = items.flatMap(c => [c.firstDate, c.lastDate]).filter(Boolean);
+                const firstDate = dates.length ? dates.reduce((a, b) => a < b ? a : b) : null;
+                const lastDate = dates.length ? dates.reduce((a, b) => a > b ? a : b) : null;
+                const sampleRawDetails = items.find(c => c.sampleRawDetails)?.sampleRawDetails || '';
+                // Majority scope across the group - every pattern in it was
+                // almost always assigned the same way, but a group is still
+                // shown/edited as one field, so pick the most common rather
+                // than assuming.
+                const scopeCounts = {};
+                for (const c of items) scopeCounts[c.scope] = (scopeCounts[c.scope] || 0) + 1;
+                const scope = Object.entries(scopeCounts).sort((a, b) => b[1] - a[1])[0][0];
+                return {
+                    needsReview: false,
+                    title: categoryName,
+                    meta: `${items.length > 1 ? `${items.length} typer · ` : ''}${dateRangeStr(firstDate, lastDate)}${sampleRawDetails ? ` · fx: ${esc(sampleRawDetails.trim().slice(0, 60))}` : ''}`,
+                    count: items.reduce((s, c) => s + c.count, 0),
+                    sum: items.reduce((s, c) => s + c.sum, 0),
+                    patterns: items.map(c => c.pattern),
+                    category: categoryName,
+                    defaultCategory: categoryName,
+                    scope,
+                    // A merged group's own investigation guess stops being
+                    // meaningful once it's aggregating several patterns -
+                    // only show it for a still-single-pattern category.
+                    investigateHtml: items.length === 1 && items[0].investigationReasoning
+                        ? investigateResultHtml({ reasoning: items[0].investigationReasoning, suggestedScope: items[0].investigationSuggestedScope, confidence: items[0].investigationConfidence })
+                        : '',
+                };
+            }),
+        // "order on cards should be in Amount of Transactions and exact
+        // money amount" (2026-09-07) - most transactions first, ties broken
+        // by total money moved (biggest first either direction).
+        ].sort((a, b) => b.count - a.count || Math.abs(b.sum) - Math.abs(a.sum));
+
+        container.innerHTML = cards.map(card => {
             // A single-scope ledger (Hvidberg=private-only, ITMartin=business-only)
             // has nothing to choose - skip the dropdown and needs-review flag,
             // since there's no ambiguity a human has to resolve.
             const scopeField = fixedScope
                 ? `<input type="hidden" data-role="scope" value="${fixedScope}" />`
                 : `<select class="input" style="width:auto" data-role="scope">
-                        <option value="Unknown" ${c.scope === 'Unknown' ? 'selected' : ''}>Ukendt</option>
-                        <option value="Business" ${c.scope === 'Business' ? 'selected' : ''}>Forretning</option>
-                        <option value="Private" ${c.scope === 'Private' ? 'selected' : ''}>Privat</option>
+                        <option value="Unknown" ${card.scope === 'Unknown' ? 'selected' : ''}>Ukendt</option>
+                        <option value="Business" ${card.scope === 'Business' ? 'selected' : ''}>Forretning</option>
+                        <option value="Private" ${card.scope === 'Private' ? 'selected' : ''}>Privat</option>
                     </select>`;
-            // Flags anything not actually saved yet, regardless of whether the
-            // classifier managed to guess a scope - the category input below
-            // pre-fills with the raw label text either way, which looks
-            // deceptively "done" at a glance unless this highlight fires too.
-            const needsReview = !c.currentCategoryName;
             // Only worth an expand-to-inspect affordance when there's more
-            // than one transaction behind the pattern - a single-transaction
-            // cluster already shows everything relevant in the row itself.
-            const detail = c.count > 1
+            // than one underlying transaction - a single-transaction card
+            // already shows everything relevant in the row itself.
+            const detail = card.count > 1
                 ? `<details data-role="detail">
-                        <summary style="cursor:pointer;list-style:none;color:var(--blue);font-size:13px;margin-top:8px">📋 Se ${c.count} transaktioner</summary>
+                        <summary style="cursor:pointer;list-style:none;color:var(--blue);font-size:13px;margin-top:8px">📋 Se ${card.count} transaktioner${card.patterns.length > 1 ? ` (${card.patterns.length} typer)` : ''}</summary>
                         <div data-role="txList" style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
                             <div class="meta">Indlæser...</div>
                         </div>
@@ -262,21 +330,21 @@ setTimeout(function () {
             // No color for a still-uncategorized card - the orange
             // needs-review border is the signal there, a category tint
             // would just muddy it (there's no real category to color yet).
-            const cardColor = needsReview ? '' : colorForCategory(c.currentCategoryName);
+            const cardColor = card.needsReview ? '' : colorForCategory(card.title);
             return `
-            <div class="category-summary-card category-summary-card--compact ${needsReview ? 'category-summary-card--unknown' : ''}"
+            <div class="category-summary-card category-summary-card--compact ${card.needsReview ? 'category-summary-card--unknown' : ''}"
                  ${cardColor ? `style="background:${cardColor}"` : ''}
-                 data-pattern="${esc(c.pattern)}" data-label="${esc(c.label)}" data-raw="${esc(c.sampleRawDetails || '')}"
-                 data-count="${c.count}" data-sum="${c.sum}">
+                 data-patterns="${esc(JSON.stringify(card.patterns))}" ${card.category ? `data-category="${esc(card.category)}"` : ''}
+                 data-count="${card.count}" data-sum="${card.sum}">
                 <div class="category-summary-top">
                     <div>
-                        <div class="category-summary-title">${esc(c.label)}</div>
-                        <div class="meta">${dateRange}${c.sampleRawDetails ? ` · fx: ${esc(c.sampleRawDetails.trim().slice(0, 60))}` : ''}</div>
+                        <div class="category-summary-title">${esc(card.title)}</div>
+                        <div class="meta">${card.meta}</div>
                     </div>
-                    <div class="meta ${c.sum < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">${c.count} stk. · ${c.sum < 0 ? '−' : '+'}${Math.round(Math.abs(c.sum)).toLocaleString('da-DK')} kr. i alt</div>
+                    <div class="meta ${card.sum < 0 ? 'amount-negative' : 'amount-positive'}" style="white-space:nowrap">${card.count} stk. · ${card.sum < 0 ? '−' : '+'}${Math.round(Math.abs(card.sum)).toLocaleString('da-DK')} kr. i alt</div>
                 </div>
                 ${detail}
-                <div data-role="investigateResult">${c.investigationReasoning ? investigateResultHtml({ reasoning: c.investigationReasoning, suggestedScope: c.investigationSuggestedScope, confidence: c.investigationConfidence }) : ''}</div>
+                <div data-role="investigateResult">${card.investigateHtml}</div>
                 <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
                     <div style="display:flex;gap:10px;align-items:flex-end">
                         <label style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
@@ -286,7 +354,7 @@ setTimeout(function () {
                         <label style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0">
                             <span class="meta">Kategori</span>
                             <input class="input" style="width:100%" data-role="category" list="categoryOptions"
-                                   value="${esc(defaultCategory)}" placeholder="Skriv ny eller vælg en eksisterende..." />
+                                   value="${esc(card.defaultCategory)}" placeholder="Skriv ny eller vælg en eksisterende..." />
                         </label>
                     </div>
                 </div>
@@ -298,9 +366,16 @@ setTimeout(function () {
             details.addEventListener('toggle', async () => {
                 if (!details.open || loaded) return;
                 loaded = true;
-                const pattern = details.closest('.category-summary-card').dataset.pattern;
+                const cardEl = details.closest('.category-summary-card');
+                const category = cardEl.dataset.category;
                 const txList = details.querySelector('[data-role="txList"]');
-                const res = await fetch(`/api/shop/${encodeURIComponent(ledgerId)}/transactions?pattern=${encodeURIComponent(pattern)}`);
+                // A grouped card fetches by category (spans every pattern in
+                // it); a still-uncategorized card has no category yet, so
+                // it fetches by its one pattern instead.
+                const url = category
+                    ? `/api/shop/${encodeURIComponent(ledgerId)}/transactions-by-category?category=${encodeURIComponent(category)}`
+                    : `/api/shop/${encodeURIComponent(ledgerId)}/transactions?pattern=${encodeURIComponent(JSON.parse(cardEl.dataset.patterns)[0])}`;
+                const res = await fetch(url);
                 const txs = await res.json();
                 txList.innerHTML = txs.map(tx => `
                     <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;border-top:1px solid var(--border)">

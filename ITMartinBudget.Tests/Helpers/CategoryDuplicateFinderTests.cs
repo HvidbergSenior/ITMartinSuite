@@ -72,6 +72,36 @@ public class CategoryDuplicateFinderTests
     }
 
     [Test]
+    public void A_from_X_transfer_groups_with_that_persons_full_name_pattern()
+    {
+        // Real case found live 2026-09-07 on Rico's ledger: "fra Nikolaj"
+        // (an incoming MobilePay-style transfer description) and "Nikolaj
+        // Lillelund Høj" (that same person's full-name pattern) sat as two
+        // separate cards - neither the old prefix-only matching nor
+        // KnownBrandCategoryGrouper caught it, since "fra " needs stripping
+        // as a leading noise token first, the same way "BS " already is.
+        var names = new List<string> { "fra Nikolaj", "Nikolaj Lillelund Høj" };
+
+        var groups = CategoryDuplicateFinder.FindGroups(names);
+
+        groups.Should().ContainSingle();
+        groups[0].Names.Should().BeEquivalentTo(names);
+    }
+
+    [Test]
+    public void Fra_is_never_stripped_out_of_a_word_it_only_starts_not_a_real_leading_token()
+    {
+        // "Fradrag..." literally starts with the three letters "fra", but
+        // with no whitespace after them - the anchored "^fra\s+" pattern
+        // must require real word-boundary whitespace, same as "^bs\s+"
+        // already does, or this would wrongly eat the start of an unrelated
+        // word like "Fradragsberettiget".
+        var names = new List<string> { "Fradragsberettiget udgift", "Franskbrød indkøb" };
+
+        CategoryDuplicateFinder.FindGroups(names).Should().BeEmpty();
+    }
+
+    [Test]
     public void Telenor_variants_group_together()
     {
         var names = new List<string> { "telenor", "Debetkort    telenor.dk", "BS TELENOR" };

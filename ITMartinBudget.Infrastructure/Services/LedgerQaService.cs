@@ -25,6 +25,14 @@ public sealed class LedgerQaService : ILedgerQaService
         range), say so plainly instead of guessing. Be concise - a couple of
         sentences or a short list, with exact kr. amounts. Always answer in
         Danish.
+
+        Every category line is tagged [Business] or [Private] - NEVER add or
+        compare a [Business] figure together with a [Private] one as if they
+        were the same thing, even when the category names look similar or
+        identical. Keeping business and private money separate is the entire
+        purpose of this ledger; if a question is ambiguous about which scope
+        it means, ask which one instead of guessing or silently combining
+        both.
         """;
 
     private readonly BudgetDbContext _db;
@@ -69,7 +77,11 @@ public sealed class LedgerQaService : ILedgerQaService
         return text ?? "Kunne ikke generere et svar.";
     }
 
-    private static string BuildDigest(List<Domain.Entities.BankTransaction> transactions)
+    // Public static (not private) so the digest content is directly
+    // unit-testable without needing a real/mocked AnthropicClient - matches
+    // this codebase's convention for other pure-logic helpers
+    // (CategoryNameCleaner, CategoryDuplicateFinder, ...).
+    public static string BuildDigest(List<Domain.Entities.BankTransaction> transactions)
     {
         var lines = new List<string>
         {
@@ -94,22 +106,89 @@ public sealed class LedgerQaService : ILedgerQaService
         }
 
         lines.Add("");
-        lines.Add("Kategorier (navn: antal poster, samlet beløb DKK, scope):");
+        lines.Add("Kategorier (navn [scope]: antal poster, samlet beløb DKK):");
 
+        // Grouped by (name, scope) TOGETHER, never name alone - "man skal
+        // ikke bruge transaktioner fra forretning i Privat og omvendt"
+        // (2026-09-07). A category name is occasionally reused across both
+        // scopes (or a merge can leave one "Blandet") - summing those
+        // together under one line would silently blend business and private
+        // money, exactly what this whole ledger feature exists to keep
+        // apart (see ProblemPurposeBanner on /shop-overview). Every section
+        // below keys on this same (name, scope) pair.
         var byCategory = transactions
             .Where(x => x.UserCategoryName != null)
-            .GroupBy(x => x.UserCategoryName!)
+            .GroupBy(x => (Name: x.UserCategoryName!, x.Scope))
             .Select(g => new
             {
-                Name = g.Key,
+                g.Key.Name,
+                g.Key.Scope,
                 Count = g.Count(),
                 Sum = g.Sum(x => x.Amount),
-                Scope = g.Select(x => x.Scope).Distinct().Count() > 1 ? "Blandet" : g.First().Scope.ToString()
             })
-            .OrderByDescending(c => Math.Abs(c.Sum));
+            .OrderByDescending(c => Math.Abs(c.Sum))
+            .ToList();
 
         foreach (var c in byCategory)
-            lines.Add($"- {c.Name}: {c.Count} stk., {c.Sum:F0} kr., {c.Scope}");
+            lines.Add($"- {c.Name} [{c.Scope}]: {c.Count} stk., {c.Sum:F0} kr.");
+
+        // Neither view above crosses category × year - "check Husleje for
+        // 2025 vs 2026, what was the increase" (2026-09-07) genuinely
+        // couldn't be answered from monthly-totals-across-all-categories
+        // plus category-totals-across-the-whole-period alone. Per-year, not
+        // per-month, to keep this compact - a category only needs a row per
+        // year it actually has activity in, not one per calendar month.
+        var yearsPresent = transactions.Select(x => x.Date.Year).Distinct().OrderBy(y => y).ToList();
+        if (yearsPresent.Count > 1)
+        {
+            lines.Add("");
+            lines.Add("Kategorier pr. år (navn [scope]: år: beløb DKK, kun år hvor kategorien har posteringer):");
+
+            var byCategoryAndYear = transactions
+                .Where(x => x.UserCategoryName != null)
+                .GroupBy(x => (Name: x.UserCategoryName!, x.Scope))
+                .OrderByDescending(g => Math.Abs(g.Sum(x => x.Amount)));
+
+            foreach (var cat in byCategoryAndYear)
+            {
+                var perYear = cat
+                    .GroupBy(x => x.Date.Year)
+                    .OrderBy(g => g.Key)
+                    .Select(g => $"{g.Key}: {g.Sum(x => x.Amount):F0} kr.");
+                lines.Add($"- {cat.Key.Name} [{cat.Key.Scope}]: {string.Join(", ", perYear)}");
+            }
+        }
+
+        // "Hvad har stigningen været månedlig" (2026-09-07) - a category's
+        // per-year total still can't answer "which months", and dumping
+        // every category's full month-by-month history would blow up the
+        // digest (70+ categories x up to 20 months). Bounded to the top 15
+        // (name, scope) pairs by absolute total - the ones actually
+        // big/recurring enough (Husleje, Abonnementer, ...) to plausibly be
+        // asked about month-by-month; a small one-off category was never
+        // going to get a "how has this trended monthly" question anyway.
+        const int MaxCategoriesForMonthlyDetail = 15;
+        var topCategoriesByMonth = transactions
+            .Where(x => x.UserCategoryName != null)
+            .GroupBy(x => (Name: x.UserCategoryName!, x.Scope))
+            .OrderByDescending(g => Math.Abs(g.Sum(x => x.Amount)))
+            .Take(MaxCategoriesForMonthlyDetail)
+            .ToList();
+
+        if (topCategoriesByMonth.Any(cat => cat.Select(x => new DateTime(x.Date.Year, x.Date.Month, 1)).Distinct().Count() > 1))
+        {
+            lines.Add("");
+            lines.Add($"De {MaxCategoriesForMonthlyDetail} største kategorier, pr. måned (navn [scope]: yyyy-MM: beløb DKK, kun måneder med posteringer):");
+
+            foreach (var cat in topCategoriesByMonth)
+            {
+                var perMonth = cat
+                    .GroupBy(x => new DateTime(x.Date.Year, x.Date.Month, 1))
+                    .OrderBy(g => g.Key)
+                    .Select(g => $"{g.Key:yyyy-MM}: {g.Sum(x => x.Amount):F0} kr.");
+                lines.Add($"- {cat.Key.Name} [{cat.Key.Scope}]: {string.Join(", ", perMonth)}");
+            }
+        }
 
         return string.Join('\n', lines);
     }

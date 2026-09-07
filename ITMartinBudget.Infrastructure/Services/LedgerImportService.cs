@@ -52,7 +52,25 @@ public class LedgerImportService
         buffer.Position = 0;
 
         var parser = _parsers.First(p => p.CanParse(firstLine));
-        var rows = await parser.ParseAsync(buffer, cancellationToken);
+
+        List<NormalizedImportRow> rows;
+        try
+        {
+            rows = await parser.ParseAsync(buffer, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Confirmed 2026-09-07: uploading a differently-shaped CSV (a
+            // pre-cleaned Date,Description,Amount,Balance,RawDetails export,
+            // not a real bank statement) fell through to
+            // RawBankStatementParser (CanParse always true, no header
+            // signature to reject on) and threw a raw CsvHelper
+            // TypeConverterException trying to read the header row as data -
+            // an unhandled 500 with no useful message. Every parser failure
+            // now surfaces as one clear, catchable exception instead.
+            throw new InvalidOperationException(
+                "Kunne ikke læse kontoudtoget - filen ser ikke ud til at have et genkendt format.", ex);
+        }
 
         // Rules the user already saved for this ledger (see CategoryRuleService)
         // - applied automatically so a recurring bill only needs categorizing
