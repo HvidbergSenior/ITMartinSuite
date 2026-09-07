@@ -48,9 +48,12 @@ public sealed class WorkflowAlertPushHostedService(
 
         foreach (var alert in pending)
         {
-            var title = alert.Kind == "Failed"
-                ? $"FileSorter: {alert.WorkflowName} failed"
-                : $"FileSorter: {alert.WorkflowName} completed";
+            var title = alert.Kind switch
+            {
+                "Failed" => $"FileSorter: {alert.WorkflowName} failed",
+                "Stalled" => $"FileSorter: {alert.WorkflowName} looks stuck",
+                _ => $"FileSorter: {alert.WorkflowName} completed"
+            };
 
             await pushService.SendToAllAsync(title, alert.Message);
             alert.SentAtUtc = DateTime.UtcNow;

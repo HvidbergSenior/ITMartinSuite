@@ -21,4 +21,14 @@ public sealed class NullWorkflowAlertNotifier : IWorkflowAlertNotifier
     {
         return Task.CompletedTask;
     }
+
+    public Task NotifyStalledAsync(
+        Guid workflowId,
+        string workflowName,
+        string currentStep,
+        TimeSpan idleFor,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
 }
