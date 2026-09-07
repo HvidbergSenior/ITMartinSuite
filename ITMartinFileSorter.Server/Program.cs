@@ -956,6 +956,32 @@ app.MapPost("/api/debug/p4-repair-collections", async (string path, ITMartin.Med
 app.MapPost("/api/debug/group-by-camera", async (string path, string makeContains, string folderName, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.GroupByCameraMakeAsync(path, makeContains, folderName)));
 
+// Runs every free/automatic phase beyond QuickSort's own 19 steps, in the
+// dependency-correct order (reorganize -> index converge -> dedup ->
+// SmartFolders add-ons -> gallery export -> delivery verify), then writes a
+// human-readable Kørselsrapport.md into the library. See
+// LibraryFinishingService's own comment for exactly what's included and why
+// paid-AI/human-input steps are deliberately excluded. Safe to call once
+// against an already-sorted library and walk away (e.g. an overnight run).
+app.MapPost("/api/debug/finish-library", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryFinishingService service) =>
+    Results.Ok(await service.RunAsync(path)));
+
+// Automates the old manual "tar -> scp -O -> ssh extract/merge" runbook
+// step (§4 step 8) - additive only, writes a new
+// /volume1/docker/filesorter/library/<slug>/ folder on the NAS, never
+// touches an existing one outside that folder. See NasDeliveryService's own
+// comment for the full risk containment this relies on.
+app.MapPost("/api/debug/push-to-nas", async (string path, string slug, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.INasDeliveryService service) =>
+    Results.Ok(await service.PushToNasAsync(path, slug)));
+
+// Automates the old manual "edit docker-compose.yaml, docker compose up -d
+// --force-recreate gallery-web" runbook step (§4 step 9) - idempotent
+// (no-op if this slug is already wired), and only pushes/restarts if the
+// compose file actually changed. password is required - the one genuinely
+// user-specific decision, never defaulted.
+app.MapPost("/api/debug/wire-gallery", async (string slug, string name, string password, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.INasDeliveryService service) =>
+    Results.Ok(await service.WireGalleryAsync(slug, name, password)));
+
 app.MapPost("/api/debug/deduplicate-folder", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.DeduplicateFolderAsync(path)));
 

@@ -56,6 +56,9 @@ public static class QuickSortDependencyInjection
             DvdJoinWorkflowStep>();
 
         services.AddScoped<
+            ZipExtractionWorkflowStep>();
+
+        services.AddScoped<
             FileDiscoveryWorkflowStep>();
 
         services.AddScoped<

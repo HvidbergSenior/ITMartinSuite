@@ -17,6 +17,7 @@ public sealed class QuickSortWorkflowDefinition
         CleanStartWorkflowStep cleanStartWorkflowStep,
         LibraryRootReconcileWorkflowStep libraryRootReconcileWorkflowStep,
         DvdJoinWorkflowStep dvdJoinWorkflowStep,
+        ZipExtractionWorkflowStep zipExtractionWorkflowStep,
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
         MediaRulesWorkflowStep mediaRulesWorkflowStep,
         LivePhotoDetectionWorkflowStep livePhotoDetectionWorkflowStep,
@@ -47,6 +48,13 @@ public sealed class QuickSortWorkflowDefinition
             libraryRootReconcileWorkflowStep,
 
             dvdJoinWorkflowStep,
+
+            // Also before FileDiscovery - extracts any .zip archives sitting
+            // in the raw source (common in whole-drive backup dumps: iCloud/
+            // Dropbox export zips) so their contents get scanned as real
+            // files instead of the zip itself being carried through as one
+            // opaque "Other" file. See ZipExtractionWorkflowStep.
+            zipExtractionWorkflowStep,
 
             fileDiscoveryWorkflowStep,
 

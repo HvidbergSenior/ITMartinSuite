@@ -98,6 +98,14 @@ public static class FileSorterDependencyInjection
             ITMartin.Media.Infrastructure.Pipelines.LibraryVerify.LibraryVerifyService>();
 
         services.AddScoped<
+            ILibraryFinishingService,
+            LibraryFinishingService>();
+
+        services.AddScoped<
+            INasDeliveryService,
+            NasDeliveryService>();
+
+        services.AddScoped<
             IGalleryThumbnailService,
             GalleryThumbnailService>();
 

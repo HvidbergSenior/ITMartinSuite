@@ -146,6 +146,20 @@ public sealed class FileDiscoveryWorkflowStep
                             continue;
                         }
 
+                        // A 0-byte file (interrupted copy, failed download,
+                        // truncated backup) carries no content under any
+                        // extension - nothing downstream (hash, metadata,
+                        // export) can do anything useful with it, so it's
+                        // dropped here rather than flowing through as a real
+                        // MediaFile. Confirmed 2026-09-07: no zero-byte check
+                        // existed anywhere in the pipeline before this.
+                        var fileInfo = new FileInfo(path);
+                        if (fileInfo.Length == 0)
+                        {
+                            _logger.LogInformation("Skipping zero-byte file: {Path}", path);
+                            continue;
+                        }
+
                         var mediaType = _mediaTypeResolver.Resolve(path);
 
                         // Not a recognized media/document type (DB table files,
@@ -187,7 +201,7 @@ public sealed class FileDiscoveryWorkflowStep
                             path,
                             dateResult.Date,
                             mediaType,
-                            new FileInfo(path).Length,
+                            fileInfo.Length,
                             dateResult.IsReliable));
                     }
                     catch (Exception ex)

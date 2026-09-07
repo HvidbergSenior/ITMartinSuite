@@ -39,6 +39,18 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // demand, instead of a whole-library rescan.
     public const string RotationUnknownFolderName = "RotationUkendt";
 
+    // Same quarantine pattern again, for anything DeduplicateFolderAsync
+    // would otherwise permanently delete (exact and near-duplicate matches).
+    // Requested 2026-09-07: a caller confirming "yes, dedup this" is
+    // confirming "yes, stop showing me two copies of this photo" - not
+    // "yes, permanently destroy the loser copy with no way back." Moved
+    // here instead, preserving the relative path it came from so it's easy
+    // to find and restore by hand if a dedup pass ever guesses wrong.
+    public const string DuplicatesRemovedFolderName = "Dubletter";
+
+    // Same idea, for PruneSmallAlbumsAsync's removed albums.
+    public const string SmallAlbumsRemovedFolderName = "SmåAlbummer";
+
     // OS-generated cache files that sometimes leak in from the original
     // source folder (e.g. a Windows Explorer thumbnail cache) - never real
     // photo content, safe to remove outright.
@@ -59,6 +71,7 @@ public sealed class LibraryPolishService : ILibraryPolishService
         {
             "_Galleri", "SmartFolders", ".package1", ".package2", ".package3", ".ReferencePhotos",
             UnplayableFolderName, RotationUnknownFolderName,
+            DuplicatesRemovedFolderName, SmallAlbumsRemovedFolderName,
         };
 
     // Same threshold and reasoning as DuplicateService's QuickSort pass -
@@ -278,10 +291,38 @@ public sealed class LibraryPolishService : ILibraryPolishService
         return Task.FromResult(new CameraGroupResult { Checked = checkedCount, Moved = moved });
     }
 
+    // Files this moves out of the real collection go here instead of
+    // File.Delete/Directory.Delete - see DuplicatesRemovedFolderName's own
+    // comment. relativeTo is normally the library root (folderPath's parent,
+    // for the category-folder call pattern DeduplicateFolderAsync is
+    // documented to be called with) so two categories' files never collide
+    // in the quarantine folder and the original location stays obvious.
+    private static void MoveToQuarantine(string filePath, string relativeTo, string quarantineFolderName)
+    {
+        var relative = Path.GetRelativePath(relativeTo, filePath);
+        var destination = Path.Combine(relativeTo, quarantineFolderName, relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+
+        if (File.Exists(destination))
+        {
+            destination = Path.Combine(
+                Path.GetDirectoryName(destination)!,
+                $"{Path.GetFileNameWithoutExtension(destination)}_{Guid.NewGuid():N}{Path.GetExtension(destination)}");
+        }
+
+        File.Move(filePath, destination);
+    }
+
     public async Task<DeduplicateResult> DeduplicateFolderAsync(string folderPath, CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(folderPath))
             return new DeduplicateResult();
+
+        // folderPath is documented/called as one real category folder
+        // directly under the library root (e.g. <lib>/Billeder) - its parent
+        // is the library root the Dubletter/ quarantine folder should live
+        // in, a sibling of every category folder, not buried inside one.
+        var libraryRoot = Path.GetDirectoryName(folderPath.TrimEnd(Path.DirectorySeparatorChar, '/')) ?? folderPath;
 
         var byHash = new Dictionary<string, List<string>>();
         var allFiles = new List<string>();
@@ -326,12 +367,12 @@ public sealed class LibraryPolishService : ILibraryPolishService
             {
                 try
                 {
-                    File.Delete(duplicate);
+                    MoveToQuarantine(duplicate, libraryRoot, DuplicatesRemovedFolderName);
                     deleted++;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete duplicate {Path}", duplicate);
+                    _logger.LogWarning(ex, "Failed to move duplicate {Path} to {Folder}", duplicate, DuplicatesRemovedFolderName);
                 }
             }
         }
@@ -402,20 +443,20 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 {
                     try
                     {
-                        File.Delete(loser.Path);
+                        MoveToQuarantine(loser.Path, libraryRoot, DuplicatesRemovedFolderName);
                         deleted++;
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to delete near-duplicate {Path}", loser.Path);
+                        _logger.LogWarning(ex, "Failed to move near-duplicate {Path} to {Folder}", loser.Path, DuplicatesRemovedFolderName);
                     }
                 }
             }
         }
 
         _logger.LogInformation(
-            "Deduplicate pass complete for {FolderPath}: {Checked} checked, {Deleted} duplicates removed ({NearDuplicateGroups} were near-duplicate/recompressed matches)",
-            folderPath, checkedCount, deleted, nearDuplicateGroups);
+            "Deduplicate pass complete for {FolderPath}: {Checked} checked, {Deleted} duplicates moved to {Folder}/ ({NearDuplicateGroups} were near-duplicate/recompressed matches)",
+            folderPath, checkedCount, deleted, DuplicatesRemovedFolderName, nearDuplicateGroups);
 
         return new DeduplicateResult { Checked = checkedCount, Deleted = deleted };
     }
@@ -446,13 +487,17 @@ public sealed class LibraryPolishService : ILibraryPolishService
                 try
                 {
                     var fileCount = Directory.EnumerateFiles(albumDir, "*", SearchOption.AllDirectories).Count();
-                    Directory.Delete(albumDir, recursive: true);
+                    var relative = Path.GetRelativePath(libraryPath, albumDir);
+                    var destination = Path.Combine(libraryPath, SmallAlbumsRemovedFolderName, relative);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true);
+                    Directory.Move(albumDir, destination);
                     albumsRemoved++;
                     filesRemoved += fileCount;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to remove small album {Path}", albumDir);
+                    _logger.LogWarning(ex, "Failed to move small album {Path} to {Folder}", albumDir, SmallAlbumsRemovedFolderName);
                 }
             }
 

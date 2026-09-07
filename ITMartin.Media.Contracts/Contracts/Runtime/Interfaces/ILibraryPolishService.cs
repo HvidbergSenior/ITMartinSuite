@@ -79,19 +79,22 @@ public interface ILibraryPolishService
     // subtree - never compares across folder boundaries, since a SmartFolders
     // copy being byte-identical to its Billeder original is by design, not a
     // bug (see SmartFoldersService - real copies, not symlinks). Keeps the
-    // first file (ordinal filename order) in each duplicate group, deletes
-    // the rest. Real, irreversible deletion - caller's responsibility to
-    // have confirmed with the user first.
+    // first file (ordinal filename order) in each duplicate group. The rest
+    // are MOVED (not deleted) into a "Dubletter" folder at the library root,
+    // preserving their original relative path - recoverable by hand, never a
+    // silent permanent loss (confirmed 2026-09-07: a real customer photo
+    // library, no acceptable margin for a wrong guess here).
     Task<DeduplicateResult> DeduplicateFolderAsync(string folderPath, CancellationToken cancellationToken = default);
 
     // Confirmed 2026-09-03 on Rico/AC's whole-drive backup: an iTunes-style
     // library harvested from an old PC produces hundreds of single-track
     // "albums" (radio rips, one-off downloads, samples) alongside real
     // albums - 1,091 of 1,295 album folders had fewer than 6 tracks on that
-    // archive. Removes any Musik/{Artist}/{Album} folder with fewer than
-    // minTracks audio files, then any artist folder left empty as a result.
-    // Real, irreversible deletion - caller's responsibility to have
-    // confirmed with the user first.
+    // archive. Moves any Musik/{Artist}/{Album} folder with fewer than
+    // minTracks audio files into a "SmåAlbummer" folder at the library root
+    // (not deleted - same recoverable-quarantine convention as
+    // DeduplicateFolderAsync's "Dubletter", added 2026-09-07), then removes
+    // any artist folder left empty as a result (nothing left to recover).
     Task<AlbumPruneResult> PruneSmallAlbumsAsync(string libraryPath, int minTracks = 6, CancellationToken cancellationToken = default);
 
     // Re-applies the export step's own year/month calendar-bucket grouping

@@ -43,22 +43,23 @@ public class QuickSortStepOrderTests
         "CleanStartWorkflowStep",           // 1.  Strips a prior run's generated artifacts (_Galleri, SmartFolders, .packageN, manifest/collections/filestatus.json) so a re-copied already-sorted library scans as clean raw input.
         "LibraryRootReconcileWorkflowStep", // 2.  Reconciles the shared library root before this run adds anything new to it (added 2026-09-06 - its missing DI registration was crashing every fresh QuickSort import before this fix).
         "DvdJoinWorkflowStep",              // 3.  Joins split DVD-rip video segments back into whole files, if any.
-        "FileDiscoveryWorkflowStep",        // 4.  Walks the source tree, builds the initial MediaFile list.
-        "MediaRulesWorkflowStep",           // 5.  Extension/codec-based type classification (incl. real .mp4 codec check), plus corrupt-video detection and exclusion filtering as of 2026-09-06.
-        "LivePhotoDetectionWorkflowStep",   // 6.  Pairs iPhone Live Photo stills with their motion-clip video.
-        "HashWorkflowStep",                 // 7.  Computes each file's content hash.
-        "MetadataWorkflowStep",             // 8.  Reads EXIF/video metadata - date, GPS, camera model, etc.
-        "DuplicateDetectionWorkflowStep",   // 9.  Exact-hash + perceptual-hash image duplicate grouping.
-        "AudioDuplicateDetectionWorkflowStep", // 10. Same idea, scoped to audio tracks.
-        "ImageNormalizationWorkflowStep",   // 11. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (now on every image).
-        "ImageQualityWorkflowStep",         // 12. Free local blur/solid-color check on every image.
-        "CleanupEvaluationWorkflowStep",    // 13. Decides Keep/Delete/Review per file (junk, near-duplicates).
-        "AiClassificationWorkflowStep",     // 14. Optional Claude-based classification (EnableAiClassification), batched since 2026-09-06.
-        "Manifest1BuildWorkflowStep",       // 15. Builds the in-memory QuickSort manifest from everything above.
-        "ExportWorkflowExecutionStep",      // 16. Physically copies files into the final category/Year/group layout.
-        "VideoConvertFinalizeWorkflowStep", // 17. Swaps in any video conversions (dispatched back in step 5, MediaRulesWorkflowStep) that finished after Export ran - fire-and-forget, doesn't block QuickSort's own completion.
-        "GalleryThumbnailWorkflowStep",     // 18. Generates the gallery's own per-file thumbnails, post-export.
-        "FileStatusWorkflowStep",           // 19. Writes filestatus.json - needs ExportedPath/category already settled.
+        "ZipExtractionWorkflowStep",        // 4.  Extracts .zip archives found in the raw source (added 2026-09-07 - previously a zip's contents were never seen at all, carried through as one opaque "Other" file).
+        "FileDiscoveryWorkflowStep",        // 5.  Walks the source tree, builds the initial MediaFile list. Also skips zero-byte files as of 2026-09-07 (no such check existed before).
+        "MediaRulesWorkflowStep",           // 6.  Extension/codec-based type classification (incl. real .mp4 codec check), plus corrupt-video detection and exclusion filtering as of 2026-09-06.
+        "LivePhotoDetectionWorkflowStep",   // 7.  Pairs iPhone Live Photo stills with their motion-clip video.
+        "HashWorkflowStep",                 // 8.  Computes each file's content hash.
+        "MetadataWorkflowStep",             // 9.  Reads EXIF/video metadata - date, GPS, camera model, etc.
+        "DuplicateDetectionWorkflowStep",   // 10. Exact-hash + perceptual-hash image duplicate grouping.
+        "AudioDuplicateDetectionWorkflowStep", // 11. Same idea, scoped to audio tracks.
+        "ImageNormalizationWorkflowStep",   // 12. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (now on every image).
+        "ImageQualityWorkflowStep",         // 13. Free local blur/solid-color check on every image.
+        "CleanupEvaluationWorkflowStep",    // 14. Decides Keep/Delete/Review per file (junk, near-duplicates).
+        "AiClassificationWorkflowStep",     // 15. Optional Claude-based classification (EnableAiClassification), batched since 2026-09-06.
+        "Manifest1BuildWorkflowStep",       // 16. Builds the in-memory QuickSort manifest from everything above.
+        "ExportWorkflowExecutionStep",      // 17. Physically copies files into the final category/Year/group layout.
+        "VideoConvertFinalizeWorkflowStep", // 18. Swaps in any video conversions (dispatched back in step 6, MediaRulesWorkflowStep) that finished after Export ran - fire-and-forget, doesn't block QuickSort's own completion.
+        "GalleryThumbnailWorkflowStep",     // 19. Generates the gallery's own per-file thumbnails, post-export.
+        "FileStatusWorkflowStep",           // 20. Writes filestatus.json - needs ExportedPath/category already settled.
         // NOTE: VideoSegmentationWorkflowStep, SegmentThumbnailWorkflowStep, and
         // ThumbnailWorkflowStep were removed 2026-08-24 - all three were
         // permanently dead code (no UI/request field ever set EnableSegmentation
