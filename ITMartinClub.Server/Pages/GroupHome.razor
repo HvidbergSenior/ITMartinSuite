@@ -106,6 +106,41 @@ else
                     </div>
                 }
 
+                @if (_addingMainTask)
+                {
+                    <div class="task-form">
+                        <div class="task-field"><label>Nyt hovedopgave-emne</label><input @bind="_newMainTaskTitle" class="task-input" maxlength="100" placeholder="fx Salg" /></div>
+                        <div class="task-field">
+                            <label>Gentagelse</label>
+                            <select @bind="_newMainTaskRecurrence" class="task-input">
+                                <option value="none">Ingen (almindeligt emne)</option>
+                                <option value="daily">Dagligt</option>
+                                <option value="weekly">Ugentligt — vælg dag(e) nedenfor</option>
+                            </select>
+                        </div>
+                        @if (_newMainTaskRecurrence == "weekly")
+                        {
+                            <div class="task-field">
+                                <label>Hvilke dage</label>
+                                <div class="task-assignee-list">
+                                    @foreach (var day in WeekdaysInOrder)
+                                    {
+                                        <label class="task-assignee-chip">
+                                            <input type="checkbox" checked="@_newMainTaskDays.Contains(day)" @onchange="e => ToggleNewMainTaskDay(day, (bool)e.Value!)" />
+                                            @WeekdayDanish(day)
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        <button class="task-save-btn" @onclick="AddMainTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newMainTaskTitle))">Tilføj hovedopgave</button>
+                    </div>
+                }
+                else
+                {
+                    <button class="task-take-btn" @onclick="() => _addingMainTask = true">+ Nyt hovedopgave-emne</button>
+                }
+
                 @if (_tomorrowTasks.Any())
                 {
                     <div class="tomorrow-section">
@@ -163,41 +198,6 @@ else
                         }
                         </div>
                     </div>
-                }
-
-                @if (_addingMainTask)
-                {
-                    <div class="task-form">
-                        <div class="task-field"><label>Nyt hovedopgave-emne</label><input @bind="_newMainTaskTitle" class="task-input" maxlength="100" placeholder="fx Salg" /></div>
-                        <div class="task-field">
-                            <label>Gentagelse</label>
-                            <select @bind="_newMainTaskRecurrence" class="task-input">
-                                <option value="none">Ingen (almindeligt emne)</option>
-                                <option value="daily">Dagligt</option>
-                                <option value="weekly">Ugentligt — vælg dag(e) nedenfor</option>
-                            </select>
-                        </div>
-                        @if (_newMainTaskRecurrence == "weekly")
-                        {
-                            <div class="task-field">
-                                <label>Hvilke dage</label>
-                                <div class="task-assignee-list">
-                                    @foreach (var day in WeekdaysInOrder)
-                                    {
-                                        <label class="task-assignee-chip">
-                                            <input type="checkbox" checked="@_newMainTaskDays.Contains(day)" @onchange="e => ToggleNewMainTaskDay(day, (bool)e.Value!)" />
-                                            @WeekdayDanish(day)
-                                        </label>
-                                    }
-                                </div>
-                            </div>
-                        }
-                        <button class="task-save-btn" @onclick="AddMainTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newMainTaskTitle))">Tilføj hovedopgave</button>
-                    </div>
-                }
-                else
-                {
-                    <button class="task-take-btn" @onclick="() => _addingMainTask = true">+ Nyt hovedopgave-emne</button>
                 }
 
                 <div class="maintask-grid">
