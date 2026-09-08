@@ -85,7 +85,6 @@ else
                                 }
                             </div>
                         </div>
-                        <div class="task-field"><label>Deadline (valgfrit)</label><input @bind="_newDue" type="date" class="task-input" /></div>
                         @if (_locations.Any())
                         {
                             <div class="task-field">
@@ -97,13 +96,6 @@ else
                             </div>
                         }
                         <div class="task-field"><label>Beskrivelse (valgfrit)</label><textarea @bind="_newDesc" rows="2" class="task-input task-textarea" /></div>
-                        <div class="task-field">
-                            <label>Hvornår skal den vises</label>
-                            <select @bind="_newScheduleChoice" class="task-input">
-                                <option value="today">I dag</option>
-                                <option value="tomorrow">I morgen</option>
-                            </select>
-                        </div>
                         <div class="prep-form-actions">
                             <button class="task-save-btn" @onclick="AddTaskAsync" disabled="@string.IsNullOrWhiteSpace(_newTitle)">@(_editingTaskId is null ? "Gem opgave" : "Opdater opgave")</button>
                             @if (_editingTaskId is not null)
