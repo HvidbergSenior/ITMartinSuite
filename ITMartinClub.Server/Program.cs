@@ -265,29 +265,6 @@ using (var scope = app.Services.CreateScope())
     if (!hasScheduledForColumn)
         db.Database.ExecuteSqlRaw("ALTER TABLE Assignments ADD COLUMN ScheduledFor TEXT NULL");
 
-    // Familien Hvidberg: the time-slot booking system for vehicles/bathroom
-    // (BookableResource/ResourceBooking, retired) moved back to two ordinary
-    // main tasks - people sign up for a subtask under "Køretøj"/"Bad" the
-    // same way they claim any other chore, instead of picking a start/end
-    // time. Seed once; leave alone afterwards so renames/reordering stick
-    // (same pattern as the Bogshoppen seed above).
-    var hvidbergGroup = db.Groups.FirstOrDefault(g => g.Slug == "hvidberg");
-    if (hvidbergGroup is not null)
-    {
-        var nextSort = db.MainTasks.Where(m => m.GroupId == hvidbergGroup.Id)
-            .Select(m => (int?)m.SortOrder).Max() ?? -1;
-
-        if (!db.MainTasks.Any(m => m.GroupId == hvidbergGroup.Id && m.Title == "Køretøj"))
-            db.MainTasks.Add(new ITMartinClub.Server.Data.Entities.MainTask
-                { GroupId = hvidbergGroup.Id, Title = "Køretøj", SortOrder = ++nextSort });
-
-        if (!db.MainTasks.Any(m => m.GroupId == hvidbergGroup.Id && m.Title == "Bad"))
-            db.MainTasks.Add(new ITMartinClub.Server.Data.Entities.MainTask
-                { GroupId = hvidbergGroup.Id, Title = "Bad", SortOrder = ++nextSort });
-
-        db.SaveChanges();
-    }
-
     // Demo tier only — set on the demo compose service, never on the real
     // club-web pointed at production data. Idempotent (see DemoSeeder).
     if (app.Configuration.GetValue<bool>("Club:SeedDemoData"))
