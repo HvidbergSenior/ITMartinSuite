@@ -52,6 +52,7 @@ builder.Services.AddAi();
 // would be pure overhead (and previously caused a BrokerUnreachableException
 // on FileSorter.Server's own /package4-studio debug page). Registered
 // standalone here instead of calling AddMediaRuntime.
+builder.Services.AddSingleton<ActiveWorkflowRegistry>();
 builder.Services.AddScoped<IWorkflowExecutor, WorkflowExecutor>();
 
 builder.Services.AddScoped<VlogEditorService>();

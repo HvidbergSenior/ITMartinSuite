@@ -35,6 +35,9 @@ public static class DependencyInjection
             IWorkflowExecutor,
             WorkflowExecutor>();
 
+        services.AddSingleton<
+            ActiveWorkflowRegistry>();
+
         services.AddScoped<
             IWorkflowCheckpointStore,
             NullWorkflowCheckpointStore>();

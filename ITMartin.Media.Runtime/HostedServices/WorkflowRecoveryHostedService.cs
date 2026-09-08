@@ -4,6 +4,7 @@ using ITMartin.Media.Application.Pipelines.QuickSort.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Runtime.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,15 +16,20 @@ public sealed class WorkflowRecoveryHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
 
+    private readonly ActiveWorkflowRegistry
+        _activeWorkflowRegistry;
+
     private readonly ILogger<
             WorkflowRecoveryHostedService>
         _logger;
 
     public WorkflowRecoveryHostedService(
         IServiceScopeFactory scopeFactory,
+        ActiveWorkflowRegistry activeWorkflowRegistry,
         ILogger<WorkflowRecoveryHostedService> logger)
     {
         _scopeFactory = scopeFactory;
+        _activeWorkflowRegistry = activeWorkflowRegistry;
         _logger = logger;
     }
 
@@ -62,6 +68,15 @@ public sealed class WorkflowRecoveryHostedService
                 Environment.CurrentDirectory);
             foreach (var workflowId in workflowIds)
             {
+                // "Running" in the DB includes workflows executing right
+                // now, not just ones orphaned by a previous process - so
+                // recovering on that alone duplicates a live run. See
+                // ActiveWorkflowRegistry.
+                if (_activeWorkflowRegistry.IsActive(workflowId))
+                {
+                    continue;
+                }
+
                 _logger.LogInformation(
                     "Recovering workflow {WorkflowId}",
                     workflowId);

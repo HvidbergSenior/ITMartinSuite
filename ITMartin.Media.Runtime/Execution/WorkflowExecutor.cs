@@ -11,6 +11,7 @@ public sealed class WorkflowExecutor(
     IWorkflowStepExecutionStore workflowStepExecutionStore,
     IWorkflowInstanceStore workflowInstanceStore,
     IWorkflowAlertNotifier workflowAlertNotifier,
+    ActiveWorkflowRegistry activeWorkflowRegistry,
     ILogger<WorkflowExecutor> logger)
     : IWorkflowExecutor
 {
@@ -18,6 +19,40 @@ public sealed class WorkflowExecutor(
         IWorkflowDefinition workflow,
         WorkflowExecutionContext<TState> context,
         CancellationToken cancellationToken = default)
+        where TState : class
+    {
+        var workflowId =
+            context.WorkflowId;
+
+        // The single chokepoint every start path goes through (queue
+        // consumer and recovery service alike) - see ActiveWorkflowRegistry
+        // for the duplicate-execution incident this prevents.
+        if (!activeWorkflowRegistry.TryEnter(workflowId))
+        {
+            logger.LogWarning(
+                "Workflow {WorkflowId} is already executing in this process - ignoring duplicate start request",
+                workflowId);
+
+            return;
+        }
+
+        try
+        {
+            await ExecuteCoreAsync(
+                workflow,
+                context,
+                cancellationToken);
+        }
+        finally
+        {
+            activeWorkflowRegistry.Exit(workflowId);
+        }
+    }
+
+    private async Task ExecuteCoreAsync<TState>(
+        IWorkflowDefinition workflow,
+        WorkflowExecutionContext<TState> context,
+        CancellationToken cancellationToken)
         where TState : class
     {
         var workflowId =

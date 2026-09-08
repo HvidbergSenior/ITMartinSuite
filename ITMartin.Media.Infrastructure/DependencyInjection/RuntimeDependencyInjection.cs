@@ -20,6 +20,11 @@ public static class RuntimeDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Singleton - it is the process-wide record of what is executing,
+        // so a scoped instance would defeat its whole purpose.
+        services.AddSingleton<
+            ActiveWorkflowRegistry>();
+
         services.AddScoped<
             IWorkflowExecutor,
             WorkflowExecutor>();
