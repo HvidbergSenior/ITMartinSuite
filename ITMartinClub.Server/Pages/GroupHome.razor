@@ -165,18 +165,17 @@ else
 
                 <div class="maintask-grid">
                 @{
-                    // A category with nothing open (after the assignee filter) is
-                    // hidden entirely, daily ones included - "Hovedopgaver skal ikke
-                    // ses hvis ingen opgaver på" (2026-09-08). A daily category that's
-                    // fully done for today simply disappears until its next occurrence
-                    // reopens something in it, same as a one-off backlog category
-                    // emptying out.
+                    // Categories with open tasks (after the assignee filter) sort to
+                    // the top; empty ones stay visible but sink to the bottom instead
+                    // of being hidden (2026-09-08 - tried hiding them outright, but the
+                    // ask was actually "keep them, just lower"). OrderBy is stable, so
+                    // ties keep their original SortOrder within each group.
                     var orderedMainTasks = _mainTasks
                         .Where(mt => mt.RecurrenceDayOfWeek is null)
                         .Select(mt => (MainTask: mt, Tasks: _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                             .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                             .ToList()))
-                        .Where(x => x.Tasks.Count > 0)
+                        .OrderBy(x => x.Tasks.Count == 0)
                         .ToList();
                 }
                 @foreach (var (mt, tasksForMain) in orderedMainTasks)
