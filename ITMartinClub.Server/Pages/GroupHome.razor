@@ -138,7 +138,7 @@ else
                 }
                 else
                 {
-                    <button class="task-take-btn" @onclick="() => _addingMainTask = true">+ Nyt hovedopgave-emne</button>
+                    <button class="task-add-maintask-btn" @onclick="() => _addingMainTask = true">+ Nyt hovedopgave-emne</button>
                 }
 
                 @if (_tomorrowTasks.Any())
@@ -279,6 +279,8 @@ else
     .task-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
     .task-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-add-maintask-btn { background: var(--accent); color: white; border: none; border-radius: 12px; padding: 14px 20px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-bottom: 20px; }
+    .task-add-maintask-btn:hover { opacity: .9; }
     .task-filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
     .task-filter-row label { font-size: 12px; font-weight: 600; color: var(--muted); }
     .task-filter-row .task-input { width: auto; min-width: 180px; }
