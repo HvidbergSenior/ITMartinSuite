@@ -13,13 +13,26 @@ public sealed class MainTask
     // "done" means all of today's subtasks are complete, not a fixed text.
     public bool IsDaily { get; set; }
 
-    // Mutually exclusive with IsDaily - a weekly checklist (e.g. "every
-    // Thursday: clean the bathroom") reopens once a new occurrence of this
-    // weekday starts, rather than every day. Null = not a recurring task
-    // (or IsDaily covers it instead).
-    public DayOfWeek? RecurrenceDayOfWeek { get; set; }
+    // Comma-separated DayOfWeek names ("Monday,Thursday"), same delimited-
+    // string pattern as Assignment.AssignedToNames - a weekly checklist can
+    // recur on more than one day ("every Monday and Thursday: bins out"), not
+    // just a single one. Mutually exclusive with IsDaily. Empty/null = not a
+    // recurring weekly task (or IsDaily covers it instead). Superseded the
+    // single-day RecurrenceDayOfWeek column (2026-09-08, before any real
+    // weekly task existed yet) - that column is still physically in the DB,
+    // just unmapped and unused.
+    public string RecurrenceDaysRaw { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Group Group { get; set; } = null!;
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public List<DayOfWeek> RecurrenceDays =>
+        RecurrenceDaysRaw.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Enum.Parse<DayOfWeek>)
+            .ToList();
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool IsWeekly => RecurrenceDaysRaw.Length > 0;
 }

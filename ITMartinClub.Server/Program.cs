@@ -177,6 +177,14 @@ using (var scope = app.Services.CreateScope())
     if (!hasRecurrenceDayColumn)
         db.Database.ExecuteSqlRaw("ALTER TABLE MainTasks ADD COLUMN RecurrenceDayOfWeek INTEGER NULL");
 
+    // Superseded RecurrenceDayOfWeek (single day) before any real weekly task
+    // existed yet - see MainTask.RecurrenceDaysRaw. The old column stays in
+    // the DB, just unused/unmapped now.
+    var hasRecurrenceDaysRawColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('MainTasks') WHERE name = 'RecurrenceDaysRaw'").AsEnumerable().First() > 0;
+    if (!hasRecurrenceDaysRawColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE MainTasks ADD COLUMN RecurrenceDaysRaw TEXT NOT NULL DEFAULT ''");
+
     // Bogshoppen is the pilot group for the task-board-first front page - once
     // a group has any MainTasks, GroupHome switches from the general dashboard
     // to showing only the open-task board grouped by these. Seed once; leave

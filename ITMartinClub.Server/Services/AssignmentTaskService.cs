@@ -135,31 +135,37 @@ public sealed class AssignmentTaskService(ClubDbContext db, ClubPushService push
     // Daily main tasks are a recurring checklist: a subtask completed on an
     // earlier day reopens automatically so it can be done again today. Weekly
     // main tasks work the same way but only reopen once a new occurrence of
-    // their specific weekday arrives (e.g. "every Thursday: clean the
-    // bathroom" stays done from Thursday through next Wednesday).
+    // one of their recurrence days arrives (e.g. "every Monday and Thursday:
+    // bins out" stays done from whichever of those days it was completed on
+    // through the day before its next occurrence).
     // Extracted from GroupHome.razor's RefreshAsync 2026-09-06 - previously
     // untestable page-private logic, now a plain data operation. Generalized
-    // 2026-09-08 to cover weekly recurrence alongside daily.
+    // 2026-09-08 to cover weekly recurrence alongside daily, then again the
+    // same day to allow more than one recurrence day per weekly task.
     public async Task ReopenStaleTasksAsync(
         Guid groupId,
         IReadOnlyList<Guid> dailyMainTaskIds,
-        IReadOnlyDictionary<Guid, DayOfWeek> weeklyMainTasks,
+        IReadOnlyDictionary<Guid, IReadOnlyList<DayOfWeek>> weeklyMainTasks,
         DateTime localTodayStartUtc)
     {
         if (dailyMainTaskIds.Count == 0 && weeklyMainTasks.Count == 0) return;
 
         // Per-mainTask staleness threshold: daily tasks use today's local
-        // midnight; weekly tasks use the most recent local midnight that fell
-        // on their recurrence weekday (today counts if it matches). Whole-day
-        // offsets off an already-correct local midnight, so this can be off
-        // by an hour across a DST transition within the lookback week - an
-        // acceptable edge case for a household chore reopening a day early.
+        // midnight; weekly tasks use the MOST RECENT local midnight that fell
+        // on any of their recurrence weekdays (today counts if it matches) -
+        // the highest (latest) of each configured day's own most-recent-
+        // occurrence date. Whole-day offsets off an already-correct local
+        // midnight, so this can be off by an hour across a DST transition
+        // within the lookback week - an acceptable edge case for a household
+        // chore reopening a day early.
         var thresholds = new Dictionary<Guid, DateTime>();
         foreach (var id in dailyMainTaskIds) thresholds[id] = localTodayStartUtc;
-        foreach (var (id, day) in weeklyMainTasks)
+        foreach (var (id, days) in weeklyMainTasks)
         {
-            var daysSinceLastOccurrence = ((int)localTodayStartUtc.DayOfWeek - (int)day + 7) % 7;
-            thresholds[id] = localTodayStartUtc.AddDays(-daysSinceLastOccurrence);
+            if (days.Count == 0) continue;
+            thresholds[id] = days
+                .Select(day => localTodayStartUtc.AddDays(-(((int)localTodayStartUtc.DayOfWeek - (int)day + 7) % 7)))
+                .Max();
         }
         if (thresholds.Count == 0) return;
 

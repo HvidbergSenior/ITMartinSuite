@@ -144,7 +144,7 @@ else
                                     <div class="maintask-count">@tasksForMain.Count</div>
                                 </div>
                                 <div class="maintask-daily-badge @(tasksForMain.Count == 0 ? "daily-done" : "")">
-                                    @(WeekdayDanish(mt.RecurrenceDayOfWeek!.Value)) @(tasksForMain.Count == 0 ? "— ✅ gjort denne uge" : $"— {tasksForMain.Count} tilbage")
+                                    @(string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish))) @(tasksForMain.Count == 0 ? "— ✅ gjort denne uge" : $"— {tasksForMain.Count} tilbage")
                                 </div>
 
                                 @if (!tasksForMain.Any())
@@ -174,7 +174,7 @@ else
                     // ask was actually "keep them, just lower"). OrderBy is stable, so
                     // ties keep their original SortOrder within each group.
                     var orderedMainTasks = _mainTasks
-                        .Where(mt => mt.RecurrenceDayOfWeek is null)
+                        .Where(mt => !mt.IsWeekly)
                         .Select(mt => (MainTask: mt, Tasks: _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                             .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                             .ToList()))
@@ -245,15 +245,24 @@ else
                             <select @bind="_newMainTaskRecurrence" class="task-input">
                                 <option value="none">Ingen (almindeligt emne)</option>
                                 <option value="daily">Dagligt</option>
-                                <option value="Monday">Ugentligt — mandag</option>
-                                <option value="Tuesday">Ugentligt — tirsdag</option>
-                                <option value="Wednesday">Ugentligt — onsdag</option>
-                                <option value="Thursday">Ugentligt — torsdag</option>
-                                <option value="Friday">Ugentligt — fredag</option>
-                                <option value="Saturday">Ugentligt — lørdag</option>
-                                <option value="Sunday">Ugentligt — søndag</option>
+                                <option value="weekly">Ugentligt — vælg dag(e) nedenfor</option>
                             </select>
                         </div>
+                        @if (_newMainTaskRecurrence == "weekly")
+                        {
+                            <div class="task-field">
+                                <label>Hvilke dage</label>
+                                <div class="task-assignee-list">
+                                    @foreach (var day in WeekdaysInOrder)
+                                    {
+                                        <label class="task-assignee-chip">
+                                            <input type="checkbox" checked="@_newMainTaskDays.Contains(day)" @onchange="e => ToggleNewMainTaskDay(day, (bool)e.Value!)" />
+                                            @WeekdayDanish(day)
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        }
                         <button class="task-save-btn" @onclick="AddMainTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newMainTaskTitle))">Tilføj hovedopgave</button>
                     </div>
                 }
@@ -367,6 +376,9 @@ else
     private Guid? _editingTaskId;
     private string _newTitle = "", _newMainTaskId = "", _newDesc = "", _newMainTaskTitle = "", _newStorageLocationId = "";
     private string _newMainTaskRecurrence = "none";
+    private HashSet<DayOfWeek> _newMainTaskDays = [];
+    private static readonly DayOfWeek[] WeekdaysInOrder =
+        [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
     private HashSet<string> _newAssignedTo = [];
     private List<StorageLocation> _locations = [];
     private string _filterAssignedTo = "";
@@ -455,8 +467,8 @@ else
             var localTodayStartUtc = CopenhagenTodayStartUtc(now);
 
             var dailyMainTaskIds = _mainTasks.Where(m => m.IsDaily).Select(m => m.Id).ToList();
-            _weeklyMainTasks = _mainTasks.Where(m => m.RecurrenceDayOfWeek is not null).ToList();
-            var weeklyMainTasks = _weeklyMainTasks.ToDictionary(m => m.Id, m => m.RecurrenceDayOfWeek!.Value);
+            _weeklyMainTasks = _mainTasks.Where(m => m.IsWeekly).ToList();
+            var weeklyMainTasks = _weeklyMainTasks.ToDictionary(m => m.Id, IReadOnlyList<DayOfWeek> (m) => m.RecurrenceDays);
             await TaskService.ReopenStaleTasksAsync(_group!.Id, dailyMainTaskIds, weeklyMainTasks, localTodayStartUtc);
 
             _openTasksFull = await Db.Assignments
@@ -607,11 +619,19 @@ else
             Title = _newMainTaskTitle.Trim(),
             SortOrder = _mainTasks.Count,
             IsDaily = _newMainTaskRecurrence == "daily",
-            RecurrenceDayOfWeek = Enum.TryParse<DayOfWeek>(_newMainTaskRecurrence, out var day) ? day : null,
+            RecurrenceDaysRaw = _newMainTaskRecurrence == "weekly"
+                ? string.Join(',', WeekdaysInOrder.Where(_newMainTaskDays.Contains))
+                : "",
         });
         await Db.SaveChangesAsync();
-        _newMainTaskTitle = ""; _addingMainTask = false; _newMainTaskRecurrence = "none";
+        _newMainTaskTitle = ""; _addingMainTask = false; _newMainTaskRecurrence = "none"; _newMainTaskDays = [];
         await RefreshAsync();
+    }
+
+    private void ToggleNewMainTaskDay(DayOfWeek day, bool isChecked)
+    {
+        if (isChecked) _newMainTaskDays.Add(day);
+        else _newMainTaskDays.Remove(day);
     }
 
     private static string WeekdayDanish(DayOfWeek day) => day switch
