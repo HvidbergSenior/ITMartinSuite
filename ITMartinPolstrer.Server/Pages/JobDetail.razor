@@ -1,0 +1,105 @@
+@page "/job/{JobId:guid}"
+@inject PolstrerDbContext Db
+@inject NasPhotoService NasPhoto
+@inject NavigationManager Nav
+
+<div class="page">
+    <a class="back-link" href="/">← Alle opgaver</a>
+
+    @if (_job is null)
+    {
+        <p class="empty">Indlæser...</p>
+    }
+    else
+    {
+        <h1>
+            @_job.Title
+            @if (_job.IsDone) { <span class="badge-done">Færdig</span> }
+        </h1>
+
+        <div class="field">
+            <label>Instrukser</label>
+            <textarea @bind="_job.Instructions" @bind:event="oninput" @onblur="SaveInstructionsAsync"></textarea>
+        </div>
+
+        <div class="upload-row">
+            <InputFile OnChange="OnFilesSelected" multiple accept="image/*,video/*" disabled="@_uploading" />
+            @if (_uploading)
+            {
+                <span class="upload-status">Sender til NAS...</span>
+            }
+        </div>
+        @if (_uploadMessage is not null)
+        {
+            <div class="upload-status @(_uploadOk ? "ok" : "error")">@_uploadMessage</div>
+        }
+
+        <a class="gallery-link" href="https://gallery.itmartin.dk" target="_blank">
+            📷 Se billeder/videoer på gallery.itmartin.dk<br />
+            <span style="font-weight:400;font-size:13px">Vælg "Møbelpolstrer" — kodeord: @GalleryPassword</span>
+        </a>
+
+        <button class="btn @(_job.IsDone ? "btn-secondary" : "")" @onclick="ToggleDoneAsync">
+            @(_job.IsDone ? "Marker som ikke færdig" : "Marker som færdig")
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid JobId { get; set; }
+
+    private Job? _job;
+    private bool _uploading;
+    private string? _uploadMessage;
+    private bool _uploadOk;
+
+    // Mirrors NasPhotoService's own convention - shown so she knows what to
+    // type without needing to ask.
+    private static string GalleryPassword => $"polstrer{DateTime.UtcNow.Year}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _job = await Db.Jobs.FirstOrDefaultAsync(j => j.Id == JobId);
+    }
+
+    private async Task SaveInstructionsAsync()
+    {
+        if (_job is null) return;
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task ToggleDoneAsync()
+    {
+        if (_job is null) return;
+        _job.IsDone = !_job.IsDone;
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        if (_job is null) return;
+        _uploading = true;
+        _uploadMessage = null;
+        StateHasChanged();
+
+        var selected = e.GetMultipleFiles(maximumFileCount: 20);
+        var streams = selected.Select(f => f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024)).ToList();
+        try
+        {
+            var pending = selected.Zip(streams, (f, s) => new NasPhotoService.PendingFile(f.Name, s)).ToList();
+            var error = await NasPhoto.UploadAsync(_job.Slug, pending);
+
+            _uploadOk = error is null;
+            _uploadMessage = error is null
+                ? $"{selected.Count} fil(er) sendt til NAS ✓"
+                : $"Upload fejlede: {error}";
+        }
+        finally
+        {
+            foreach (var s in streams) await s.DisposeAsync();
+        }
+
+        _uploading = false;
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,86 @@
+@page "/"
+@inject PolstrerDbContext Db
+@inject NavigationManager Nav
+
+<div class="page">
+    <h1>🪑 Møbelpolstrer</h1>
+
+    @if (_adding)
+    {
+        <div class="field">
+            <label>Hvad er det for en stol/møbel?</label>
+            <input type="text" @bind="_newTitle" @bind:event="oninput" placeholder="fx Lænestol - Marianne" />
+        </div>
+        <div class="field">
+            <label>Instrukser (skriv dem ned med det samme, så du ikke glemmer dem)</label>
+            <textarea @bind="_newInstructions" @bind:event="oninput" placeholder="Hvad fik du at vide? Stof, farve, reparationer, deadline..."></textarea>
+        </div>
+        <button class="btn" disabled="@string.IsNullOrWhiteSpace(_newTitle)" @onclick="CreateJob">Opret opgave</button>
+        <button class="btn btn-secondary" @onclick="() => _adding = false" style="margin-left:8px">Annuller</button>
+    }
+    else
+    {
+        <button class="btn" @onclick="() => _adding = true">+ Ny opgave</button>
+    }
+
+    <div style="margin-top:24px">
+        @if (_jobs is null)
+        {
+            <p class="empty">Indlæser...</p>
+        }
+        else if (_jobs.Count == 0)
+        {
+            <p class="empty">Ingen opgaver endnu.</p>
+        }
+        else
+        {
+            @foreach (var job in _jobs)
+            {
+                <a class="job-card @(job.IsDone ? "job-done" : "")" href="@($"/job/{job.Id}")">
+                    <div class="job-title">
+                        @job.Title
+                        @if (job.IsDone) { <span class="badge-done">Færdig</span> }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(job.Instructions))
+                    {
+                        <div class="job-preview">@job.Instructions</div>
+                    }
+                    <div class="job-meta">@job.CreatedAt.ToLocalTime().ToString("d. MMM yyyy")</div>
+                </a>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<Job>? _jobs;
+    private bool _adding;
+    private string _newTitle = "";
+    private string _newInstructions = "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _jobs = await Db.Jobs
+            .OrderBy(j => j.IsDone)
+            .ThenByDescending(j => j.CreatedAt)
+            .ToListAsync();
+    }
+
+    private async Task CreateJob()
+    {
+        if (string.IsNullOrWhiteSpace(_newTitle)) return;
+
+        var job = new Job
+        {
+            Title = _newTitle.Trim(),
+            Instructions = _newInstructions.Trim(),
+            Slug = JobSlug.From(_newTitle),
+        };
+        Db.Jobs.Add(job);
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo($"/job/{job.Id}");
+    }
+}
