@@ -172,8 +172,8 @@ else
                                 .ToList();
                             var doneThisPeriod = _dailyDoneCounts.GetValueOrDefault(mt.Id);
                             var totalThisPeriod = doneThisPeriod + tasksForMain.Count;
-                            <div class="maintask-group" style="background:@_mainTaskColors[mt.Id]">
-                                <div class="maintask-header maintask-header-clickable" title="Tilføj opgave til @mt.Title" @onclick="() => StartAddTaskForMainTask(mt.Id)">
+                            <div class="maintask-group maintask-group-clickable" style="background:@_mainTaskColors[mt.Id]" title="Tilføj opgave til @mt.Title" @onclick="() => StartAddTaskForMainTask(mt.Id)">
+                                <div class="maintask-header">
                                     <div class="maintask-title">@mt.Title</div>
                                     <div class="maintask-count">@tasksForMain.Count</div>
                                     <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => DeleteMainTaskAsync(mt.Id)" @onclick:stopPropagation="true">✕</button>
@@ -183,6 +183,7 @@ else
                                     @(totalThisPeriod == 0 ? "— ingen opgaver endnu" : tasksForMain.Count == 0 ? "— ✅ gjort" : $"— {tasksForMain.Count} tilbage")
                                 </div>
 
+                                <div @onclick:stopPropagation="true">
                                 @if (!tasksForMain.Any())
                                 {
                                     <div class="club-empty">Ingen åbne opgaver.</div>
@@ -196,6 +197,7 @@ else
                                                        OnEdit="() => StartEditTask(t)" OnDelete="() => DeleteTaskAsync(t.Id)" />
                                     }
                                 }
+                                </div>
                             </div>
                         }
                         </div>
@@ -219,8 +221,8 @@ else
                 }
                 @foreach (var (mt, tasksForMain) in orderedMainTasks)
                 {
-                    <div class="maintask-group" style="background:@_mainTaskColors[mt.Id]">
-                        <div class="maintask-header maintask-header-clickable" title="Tilføj opgave til @mt.Title" @onclick="() => StartAddTaskForMainTask(mt.Id)">
+                    <div class="maintask-group maintask-group-clickable" style="background:@_mainTaskColors[mt.Id]" title="Tilføj opgave til @mt.Title" @onclick="() => StartAddTaskForMainTask(mt.Id)">
+                        <div class="maintask-header">
                             <div class="maintask-title">@mt.Title</div>
                             <div class="maintask-count">@tasksForMain.Count</div>
                             <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => DeleteMainTaskAsync(mt.Id)" @onclick:stopPropagation="true">✕</button>
@@ -235,6 +237,7 @@ else
                             </div>
                         }
 
+                        <div @onclick:stopPropagation="true">
                         @if (!tasksForMain.Any())
                         {
                             <div class="club-empty">Ingen åbne opgaver.</div>
@@ -248,6 +251,7 @@ else
                                                OnEdit="() => StartEditTask(t)" OnDelete="() => DeleteTaskAsync(t.Id)" />
                             }
                         }
+                        </div>
                     </div>
                 }
 
@@ -325,8 +329,8 @@ else
     @@media (max-width: 640px) { .maintask-grid { grid-template-columns: 1fr; } }
     .maintask-group { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 0; }
     .maintask-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .maintask-header-clickable { cursor: pointer; border-radius: 8px; margin: -6px -6px 2px; padding: 6px; }
-    .maintask-header-clickable:hover { background: rgba(255,255,255,.06); }
+    .maintask-group-clickable { cursor: pointer; }
+    .maintask-group-clickable:hover { outline: 2px solid rgba(255,255,255,.15); outline-offset: -1px; }
     .maintask-title { font-size: 16px; font-weight: 800; color: var(--text); }
     .maintask-count { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 2px 10px; }
     .maintask-daily-badge { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
