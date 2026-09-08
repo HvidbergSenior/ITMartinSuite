@@ -138,14 +138,17 @@ else
                             var tasksForMain = _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                                 .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                                 .ToList();
+                            var doneThisWeek = _dailyDoneCounts.GetValueOrDefault(mt.Id);
+                            var totalThisWeek = doneThisWeek + tasksForMain.Count;
                             <div class="maintask-group" style="background:@_mainTaskColors[mt.Id]">
                                 <div class="maintask-header">
                                     <div class="maintask-title">@mt.Title</div>
                                     <div class="maintask-count">@tasksForMain.Count</div>
                                     <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => DeleteMainTaskAsync(mt.Id)">✕</button>
                                 </div>
-                                <div class="maintask-daily-badge @(tasksForMain.Count == 0 ? "daily-done" : "")">
-                                    @(string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish))) @(tasksForMain.Count == 0 ? "— ✅ gjort denne uge" : $"— {tasksForMain.Count} tilbage")
+                                <div class="maintask-daily-badge @(totalThisWeek > 0 && tasksForMain.Count == 0 ? "daily-done" : "")">
+                                    @(string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish)))
+                                    @(totalThisWeek == 0 ? "— ingen opgaver endnu" : tasksForMain.Count == 0 ? "— ✅ gjort denne uge" : $"— {tasksForMain.Count} tilbage")
                                 </div>
 
                                 @if (!tasksForMain.Any())
