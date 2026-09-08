@@ -1,0 +1,54 @@
+@* One category card - title, open-task count, delete, a recurrence/status
+   badge (daily/weekly/monthly/biweekly, or nothing for a plain backlog
+   category), and its open AssignmentRows. Extracted 2026-09-08 once this
+   markup was about to be duplicated a 5th time (one column per recurrence
+   kind) - same reasoning as AssignmentRow's own extraction. Clicking
+   anywhere on the card opens "+ Ny opgave" pre-filled with this category;
+   the task list beneath stops that click from also firing so completing/
+   joining/declining/editing/deleting an existing task doesn't trigger it. *@
+
+<div class="maintask-group maintask-group-clickable" style="background:@Color" title="Tilføj opgave til @MainTask.Title" @onclick="() => OnAddTask.InvokeAsync(MainTask.Id)">
+    <div class="maintask-header">
+        <div class="maintask-title">@MainTask.Title</div>
+        <div class="maintask-count">@Tasks.Count</div>
+        <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => OnDeleteMainTask.InvokeAsync(MainTask.Id)" @onclick:stopPropagation="true">✕</button>
+    </div>
+
+    @if (BadgeText is not null)
+    {
+        <div class="maintask-daily-badge @(DoneCount > 0 && Tasks.Count == 0 ? "daily-done" : "")">@BadgeText</div>
+    }
+
+    <div @onclick:stopPropagation="true">
+    @if (!Tasks.Any())
+    {
+        <div class="club-empty">Ingen åbne opgaver.</div>
+    }
+    else
+    {
+        @foreach (var t in Tasks)
+        {
+            <AssignmentRow @key="t.Id" Task="t" IsMine="t.IsAssignedTo(CurrentMemberName)"
+                           OnComplete="() => OnComplete.InvokeAsync(t.Id)" OnDecline="() => OnDecline.InvokeAsync(t.Id)" OnJoin="() => OnJoin.InvokeAsync(t.Id)"
+                           OnEdit="() => OnEditTask.InvokeAsync(t)" OnDelete="() => OnDeleteTask.InvokeAsync(t.Id)" />
+        }
+    }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public MainTask MainTask { get; set; } = null!;
+    [Parameter, EditorRequired] public List<Assignment> Tasks { get; set; } = [];
+    [Parameter, EditorRequired] public string Color { get; set; } = "";
+    [Parameter] public string? BadgeText { get; set; }
+    [Parameter] public int DoneCount { get; set; }
+    [Parameter, EditorRequired] public string CurrentMemberName { get; set; } = "";
+
+    [Parameter, EditorRequired] public EventCallback<Guid> OnAddTask { get; set; }
+    [Parameter, EditorRequired] public EventCallback<Guid> OnDeleteMainTask { get; set; }
+    [Parameter, EditorRequired] public EventCallback<Guid> OnComplete { get; set; }
+    [Parameter, EditorRequired] public EventCallback<Guid> OnDecline { get; set; }
+    [Parameter, EditorRequired] public EventCallback<Guid> OnJoin { get; set; }
+    [Parameter, EditorRequired] public EventCallback<Assignment> OnEditTask { get; set; }
+    [Parameter, EditorRequired] public EventCallback<Guid> OnDeleteTask { get; set; }
+}
