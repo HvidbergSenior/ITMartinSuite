@@ -39,11 +39,14 @@ else
             <button class="push-enable-btn" @onclick="EnablePushAsync">🔔 Slå notifikationer til på denne enhed</button>
         }
 
-        @if (_mainTasks.Any())
-        {
-            <div class="task-body">
-                <div class="task-toolbar">
-                    <h2 class="task-title">Åbne opgaver</h2>
+        @* This used to be gated on "has any MainTasks" as a proxy for "is a
+           task-board group" - broke the moment a group's categories were
+           ever fully cleared (2026-09-08), hiding task creation itself along
+           with the empty board. Every real group here is task-board style
+           regardless of how many categories it currently has. *@
+        <div class="task-body">
+            <div class="task-toolbar">
+                <h2 class="task-title">Åbne opgaver</h2>
                     <button class="task-add-btn" @onclick="ToggleAdding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
                 </div>
 
@@ -99,7 +102,7 @@ else
                             </select>
                         </div>
                         <div class="prep-form-actions">
-                            <button class="task-save-btn" @onclick="AddTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle) || string.IsNullOrEmpty(_newMainTaskId))">@(_editingTaskId is null ? "Gem opgave" : "Opdater opgave")</button>
+                            <button class="task-save-btn" @onclick="AddTaskAsync" disabled="@string.IsNullOrWhiteSpace(_newTitle)">@(_editingTaskId is null ? "Gem opgave" : "Opdater opgave")</button>
                             @if (_editingTaskId is not null)
                             {
                                 <button class="task-cancel-btn" @onclick="CancelEditTask">Annuller</button>
@@ -259,22 +262,6 @@ else
                     <button class="task-take-btn" @onclick="() => _addingMainTask = true">+ Nyt hovedopgave-emne</button>
                 }
             </div>
-        }
-        else
-        {
-            <!-- No MainTasks yet for this group (e.g. lions-club, currently
-                 unused) - the gaming-club dashboard that used to render here
-                 (live session/ready-check, event/board/task previews) moved
-                 to ITMartinR6Club.Server with the rest of the gaming
-                 features. Every real group in this app (Bogshoppen,
-                 hvidberg) always has MainTasks, so this is just a minimal
-                 fallback rather than a maintained second front page. -->
-            <div class="club-sections">
-                <div class="club-section">
-                    <div class="club-empty">Ingen opgaver oprettet endnu for denne gruppe.</div>
-                </div>
-            </div>
-        }
     </div>
 }
 
@@ -538,10 +525,14 @@ else
 
     private async Task AddTaskAsync()
     {
-        if (string.IsNullOrWhiteSpace(_newTitle) || string.IsNullOrEmpty(_newMainTaskId)) return;
+        if (string.IsNullOrWhiteSpace(_newTitle)) return;
 
-        var mainTaskId = Guid.Parse(_newMainTaskId);
-        var mainTaskTitle = _mainTasks.First(mt => mt.Id == mainTaskId).Title;
+        // A main task is a nice-to-have grouping, not a requirement - a group
+        // with none set up yet (or one that's had them all cleared, 2026-09-08)
+        // must still be able to create tasks; they just land in "Ikke
+        // kategoriseret" until assigned a category.
+        Guid? mainTaskId = string.IsNullOrEmpty(_newMainTaskId) ? null : Guid.Parse(_newMainTaskId);
+        var mainTaskTitle = mainTaskId is { } id ? _mainTasks.First(mt => mt.Id == id).Title : null;
         var locationId = string.IsNullOrEmpty(_newStorageLocationId) ? null : (Guid?)Guid.Parse(_newStorageLocationId);
         var scheduledFor = _newScheduleChoice == "tomorrow" ? CopenhagenTodayStartUtc(DateTime.UtcNow).AddDays(1) : (DateTime?)null;
 
