@@ -39,8 +39,8 @@ public static class RuntimeDependencyInjection
         services.AddSingleton<
             IBackgroundJobQueue,
             RabbitMqBackgroundJobQueue>();
-        //services.AddHostedService<
-          //WorkflowRecoveryHostedService>();
+        services.AddHostedService<
+            WorkflowRecoveryHostedService>();
 
         services.Configure<HostOptions>(
             options =>

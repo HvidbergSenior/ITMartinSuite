@@ -331,9 +331,18 @@ public class LibraryExportService
                 // SOURCE FILE
                 // =========================
 
+                // NormalizedPath is a checkpointed DB value pointing at a /tmp
+                // file written by an earlier ImageNormalization run - /tmp
+                // doesn't survive a container restart, so a resumed workflow
+                // can have a non-null NormalizedPath that no longer exists on
+                // disk. Falling back to the original file in that case (2026-
+                // 09-08) beats silently dropping the file entirely, which is
+                // what happened to 4,409 files in the ToshibaTest run when a
+                // nightly host suspend killed the worker mid-run.
                 var sourcePath =
-                    file.NormalizedPath ??
-                    file.FullPath;
+                    file.NormalizedPath is { Length: > 0 } normalized && File.Exists(normalized)
+                        ? normalized
+                        : file.FullPath;
                 _logger.LogInformation(
                     """
                     Export:
