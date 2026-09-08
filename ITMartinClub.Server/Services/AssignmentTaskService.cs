@@ -137,27 +137,35 @@ public sealed class AssignmentTaskService(ClubDbContext db, ClubPushService push
     // main tasks work the same way but only reopen once a new occurrence of
     // one of their recurrence days arrives (e.g. "every Monday and Thursday:
     // bins out" stays done from whichever of those days it was completed on
-    // through the day before its next occurrence).
+    // through the day before its next occurrence). Monthly reopens once a
+    // new calendar month starts. Biweekly is not calendar-aligned - it's a
+    // rolling 14 days from whenever it was actually completed, not from a
+    // fixed period boundary.
     // Extracted from GroupHome.razor's RefreshAsync 2026-09-06 - previously
     // untestable page-private logic, now a plain data operation. Generalized
-    // 2026-09-08 to cover weekly recurrence alongside daily, then again the
-    // same day to allow more than one recurrence day per weekly task.
+    // 2026-09-08 to cover weekly recurrence alongside daily, then multi-day
+    // weekly, then monthly/biweekly, all the same day.
     public async Task ReopenStaleTasksAsync(
         Guid groupId,
         IReadOnlyList<Guid> dailyMainTaskIds,
         IReadOnlyDictionary<Guid, IReadOnlyList<DayOfWeek>> weeklyMainTasks,
+        IReadOnlyList<Guid> monthlyMainTaskIds,
+        IReadOnlyList<Guid> biweeklyMainTaskIds,
         DateTime localTodayStartUtc)
     {
-        if (dailyMainTaskIds.Count == 0 && weeklyMainTasks.Count == 0) return;
+        if (dailyMainTaskIds.Count == 0 && weeklyMainTasks.Count == 0
+            && monthlyMainTaskIds.Count == 0 && biweeklyMainTaskIds.Count == 0) return;
 
         // Per-mainTask staleness threshold: daily tasks use today's local
         // midnight; weekly tasks use the MOST RECENT local midnight that fell
         // on any of their recurrence weekdays (today counts if it matches) -
         // the highest (latest) of each configured day's own most-recent-
-        // occurrence date. Whole-day offsets off an already-correct local
-        // midnight, so this can be off by an hour across a DST transition
-        // within the lookback week - an acceptable edge case for a household
-        // chore reopening a day early.
+        // occurrence date; monthly uses local midnight on the 1st of the
+        // current month; biweekly uses "now minus 14 days" (a rolling window,
+        // not a calendar boundary - see doc comment above). Whole-day offsets
+        // off an already-correct local midnight, so this can be off by an
+        // hour across a DST transition within the lookback window - an
+        // acceptable edge case for a household chore reopening a bit early.
         var thresholds = new Dictionary<Guid, DateTime>();
         foreach (var id in dailyMainTaskIds) thresholds[id] = localTodayStartUtc;
         foreach (var (id, days) in weeklyMainTasks)
@@ -167,6 +175,10 @@ public sealed class AssignmentTaskService(ClubDbContext db, ClubPushService push
                 .Select(day => localTodayStartUtc.AddDays(-(((int)localTodayStartUtc.DayOfWeek - (int)day + 7) % 7)))
                 .Max();
         }
+        var startOfMonthUtc = localTodayStartUtc.AddDays(1 - localTodayStartUtc.Day);
+        foreach (var id in monthlyMainTaskIds) thresholds[id] = startOfMonthUtc;
+        var fourteenDaysAgoUtc = localTodayStartUtc.AddDays(-14);
+        foreach (var id in biweeklyMainTaskIds) thresholds[id] = fourteenDaysAgoUtc;
         if (thresholds.Count == 0) return;
 
         var recurringIds = thresholds.Keys.ToList();

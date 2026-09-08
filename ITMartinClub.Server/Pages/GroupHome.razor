@@ -116,6 +116,8 @@ else
                                 <option value="none">Ingen (almindeligt emne)</option>
                                 <option value="daily">Dagligt</option>
                                 <option value="weekly">Ugentligt — vælg dag(e) nedenfor</option>
+                                <option value="biweekly">Hver 14. dag</option>
+                                <option value="monthly">Månedligt</option>
                             </select>
                         </div>
                         @if (_newMainTaskRecurrence == "weekly")
@@ -158,27 +160,27 @@ else
                     </div>
                 }
 
-                @if (_weeklyMainTasks.Any())
+                @if (_recurringMainTasks.Any())
                 {
                     <div class="weekly-column">
-                        <div class="task-section-label">🔁 Ugentlige opgaver</div>
+                        <div class="task-section-label">🔁 Tilbagevendende opgaver</div>
                         <div class="maintask-grid">
-                        @foreach (var mt in _weeklyMainTasks)
+                        @foreach (var mt in _recurringMainTasks)
                         {
                             var tasksForMain = _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                                 .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                                 .ToList();
-                            var doneThisWeek = _dailyDoneCounts.GetValueOrDefault(mt.Id);
-                            var totalThisWeek = doneThisWeek + tasksForMain.Count;
+                            var doneThisPeriod = _dailyDoneCounts.GetValueOrDefault(mt.Id);
+                            var totalThisPeriod = doneThisPeriod + tasksForMain.Count;
                             <div class="maintask-group" style="background:@_mainTaskColors[mt.Id]">
                                 <div class="maintask-header maintask-header-clickable" title="Tilføj opgave til @mt.Title" @onclick="() => StartAddTaskForMainTask(mt.Id)">
                                     <div class="maintask-title">@mt.Title</div>
                                     <div class="maintask-count">@tasksForMain.Count</div>
                                     <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => DeleteMainTaskAsync(mt.Id)" @onclick:stopPropagation="true">✕</button>
                                 </div>
-                                <div class="maintask-daily-badge @(totalThisWeek > 0 && tasksForMain.Count == 0 ? "daily-done" : "")">
-                                    @(string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish)))
-                                    @(totalThisWeek == 0 ? "— ingen opgaver endnu" : tasksForMain.Count == 0 ? "— ✅ gjort denne uge" : $"— {tasksForMain.Count} tilbage")
+                                <div class="maintask-daily-badge @(totalThisPeriod > 0 && tasksForMain.Count == 0 ? "daily-done" : "")">
+                                    @(RecurrenceLabel(mt))
+                                    @(totalThisPeriod == 0 ? "— ingen opgaver endnu" : tasksForMain.Count == 0 ? "— ✅ gjort" : $"— {tasksForMain.Count} tilbage")
                                 </div>
 
                                 @if (!tasksForMain.Any())
@@ -208,7 +210,7 @@ else
                     // ask was actually "keep them, just lower"). OrderBy is stable, so
                     // ties keep their original SortOrder within each group.
                     var orderedMainTasks = _mainTasks
-                        .Where(mt => !mt.IsWeekly)
+                        .Where(mt => !mt.IsRecurringCard)
                         .Select(mt => (MainTask: mt, Tasks: _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                             .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                             .ToList()))
@@ -375,7 +377,7 @@ else
     private Dictionary<Guid, List<Assignment>> _tasksByMainTaskId = [];
     private Dictionary<Guid, string> _mainTaskColors = [];
     private List<Assignment> _uncategorizedTasks = [];
-    private List<MainTask> _weeklyMainTasks = [];
+    private List<MainTask> _recurringMainTasks = [];
     private bool _adding, _addingMainTask;
     private Guid? _editingTaskId;
     private string _newTitle = "", _newMainTaskId = "", _newDesc = "", _newMainTaskTitle = "", _newStorageLocationId = "";
@@ -471,9 +473,11 @@ else
             var localTodayStartUtc = CopenhagenTodayStartUtc(now);
 
             var dailyMainTaskIds = _mainTasks.Where(m => m.IsDaily).Select(m => m.Id).ToList();
-            _weeklyMainTasks = _mainTasks.Where(m => m.IsWeekly).ToList();
-            var weeklyMainTasks = _weeklyMainTasks.ToDictionary(m => m.Id, IReadOnlyList<DayOfWeek> (m) => m.RecurrenceDays);
-            await TaskService.ReopenStaleTasksAsync(_group!.Id, dailyMainTaskIds, weeklyMainTasks, localTodayStartUtc);
+            _recurringMainTasks = _mainTasks.Where(m => m.IsRecurringCard).ToList();
+            var weeklyMainTasks = _recurringMainTasks.Where(m => m.IsWeekly).ToDictionary(m => m.Id, IReadOnlyList<DayOfWeek> (m) => m.RecurrenceDays);
+            var monthlyMainTaskIds = _recurringMainTasks.Where(m => m.IsMonthly).Select(m => m.Id).ToList();
+            var biweeklyMainTaskIds = _recurringMainTasks.Where(m => m.IsBiweekly).Select(m => m.Id).ToList();
+            await TaskService.ReopenStaleTasksAsync(_group!.Id, dailyMainTaskIds, weeklyMainTasks, monthlyMainTaskIds, biweeklyMainTaskIds, localTodayStartUtc);
 
             _openTasksFull = await Db.Assignments
                 .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && (a.ScheduledFor == null || a.ScheduledFor <= localTodayStartUtc))
@@ -494,7 +498,8 @@ else
                 .OrderBy(a => a.ScheduledFor)
                 .ToListAsync();
 
-            _dailyDoneCounts = await TaskService.GetDailyDoneCountsAsync(_group!.Id, dailyMainTaskIds.Concat(weeklyMainTasks.Keys).ToList());
+            _dailyDoneCounts = await TaskService.GetDailyDoneCountsAsync(_group!.Id,
+                dailyMainTaskIds.Concat(weeklyMainTasks.Keys).Concat(monthlyMainTaskIds).Concat(biweeklyMainTaskIds).ToList());
 
             _members = await Db.Members
                 .Where(m => m.GroupId == _group!.Id)
@@ -633,6 +638,8 @@ else
             Title = _newMainTaskTitle.Trim(),
             SortOrder = _mainTasks.Count,
             IsDaily = _newMainTaskRecurrence == "daily",
+            IsMonthly = _newMainTaskRecurrence == "monthly",
+            IsBiweekly = _newMainTaskRecurrence == "biweekly",
             RecurrenceDaysRaw = _newMainTaskRecurrence == "weekly"
                 ? string.Join(',', WeekdaysInOrder.Where(_newMainTaskDays.Contains))
                 : "",
@@ -673,6 +680,11 @@ else
         DayOfWeek.Saturday => "Lørdag",
         _ => "Søndag",
     };
+
+    private static string RecurrenceLabel(MainTask mt) =>
+        mt.IsMonthly ? "Månedligt"
+        : mt.IsBiweekly ? "Hver 14. dag"
+        : string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish));
 
     private void OnBroadcast() => InvokeAsync(async () =>
     {

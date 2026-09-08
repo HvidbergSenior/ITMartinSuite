@@ -185,6 +185,16 @@ using (var scope = app.Services.CreateScope())
     if (!hasRecurrenceDaysRawColumn)
         db.Database.ExecuteSqlRaw("ALTER TABLE MainTasks ADD COLUMN RecurrenceDaysRaw TEXT NOT NULL DEFAULT ''");
 
+    var hasIsMonthlyColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('MainTasks') WHERE name = 'IsMonthly'").AsEnumerable().First() > 0;
+    if (!hasIsMonthlyColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE MainTasks ADD COLUMN IsMonthly INTEGER NOT NULL DEFAULT 0");
+
+    var hasIsBiweeklyColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('MainTasks') WHERE name = 'IsBiweekly'").AsEnumerable().First() > 0;
+    if (!hasIsBiweeklyColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE MainTasks ADD COLUMN IsBiweekly INTEGER NOT NULL DEFAULT 0");
+
     // Bogshoppen is the pilot group for the task-board-first front page - once
     // a group has any MainTasks, GroupHome switches from the general dashboard
     // to showing only the open-task board grouped by these. Seed once; leave

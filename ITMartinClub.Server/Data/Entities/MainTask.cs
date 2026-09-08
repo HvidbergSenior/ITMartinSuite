@@ -23,6 +23,16 @@ public sealed class MainTask
     // just unmapped and unused.
     public string RecurrenceDaysRaw { get; set; } = string.Empty;
 
+    // Reopens once a new calendar month starts (local time) - like IsDaily
+    // but monthly, not tied to a specific day-of-month.
+    public bool IsMonthly { get; set; }
+
+    // Reopens 14 days after it was last completed - a rolling window from
+    // completion, not aligned to a calendar boundary the way the others are
+    // (there's no natural "start of a 14-day period" the way there is for a
+    // day/week/month).
+    public bool IsBiweekly { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Group Group { get; set; } = null!;
@@ -35,4 +45,7 @@ public sealed class MainTask
 
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public bool IsWeekly => RecurrenceDaysRaw.Length > 0;
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool IsRecurringCard => IsWeekly || IsMonthly || IsBiweekly;
 }
