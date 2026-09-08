@@ -22,7 +22,14 @@ public sealed class SqliteWalInterceptor : DbConnectionInterceptor
     private static void ApplyPragmas(DbConnection connection)
     {
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+        // 5s wasn't enough under heavy concurrent write load (ToshibaTest
+        // run, 2026-09-08 - dozens of parallel video conversions plus
+        // per-file classification/progress writes hitting this same file
+        // at once); a "database is locked" mid-checkpoint-save is what
+        // triggered the un-transacted-write bug fixed in
+        // EfWorkflowCheckpointStore. 30s is still bounded, just gives
+        // contention a real chance to clear on a busy run.
+        cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=30000;";
         cmd.ExecuteNonQuery();
     }
 }

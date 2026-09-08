@@ -138,6 +138,20 @@ public sealed class WorkflowExecutor(
             {
                 stepStopwatch.Stop();
 
+                // Log before attempting to persist - if MarkFailedAsync
+                // itself throws (e.g. the DB is locked from the same
+                // contention that caused the original failure), the real
+                // error must not be lost entirely. Confirmed this exact
+                // scenario during the ToshibaTest run 2026-09-08: a step
+                // failure's DB write hit 'database is locked', the
+                // original exception was never logged anywhere, and
+                // FailureReason stayed empty.
+                logger.LogError(
+                    ex,
+                    "Step {StepName} failed for workflow {WorkflowId}",
+                    step.Name,
+                    workflowId);
+
                 await workflowInstanceStore
                     .MarkFailedAsync(
                         workflowId,
