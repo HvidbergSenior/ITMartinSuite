@@ -160,40 +160,76 @@ else
                     </div>
                 }
 
-                @* Split into one column per recurrence kind instead of one
-                   combined "recurring" column plus daily mixed into the plain
-                   grid (2026-09-08 - "skal på en eller anden måde være mere
-                   overskuelige... måske en kolonne hver"). Every card in a
-                   given column is the same kind, so there's no "needs
-                   attention" open-first ordering question here the way there
-                   is for the mixed regular grid below - categories just list
-                   in their own SortOrder. *@
-                @foreach (var (label, cssClass, tasks) in new (string, string, List<MainTask>)[]
-                {
-                    ("☀️ Daglige opgaver", "daily-column", _mainTasks.Where(m => m.IsDaily).ToList()),
-                    ("🔁 Ugentlige opgaver", "weekly-column", _recurringMainTasks.Where(m => m.IsWeekly).ToList()),
-                    ("🔁 Hver 14. dag", "weekly-column", _recurringMainTasks.Where(m => m.IsBiweekly).ToList()),
-                    ("🔁 Månedlige opgaver", "weekly-column", _recurringMainTasks.Where(m => m.IsMonthly).ToList()),
-                })
-                {
-                    if (tasks.Count == 0) continue;
-                    <div class="@cssClass">
-                        <div class="task-section-label">@label</div>
-                        <div class="maintask-grid">
-                        @foreach (var mt in tasks)
-                        {
+                @{
+                    // Daily is today's actual work - the most important thing
+                    // to see, so it leads on its own. Weekly/biweekly/monthly
+                    // are lower-urgency by nature (none of them is "due
+                    // today"), so they're grouped together to the right
+                    // instead of each getting an equally-prominent full-width
+                    // row, and collapsible since they don't need to be
+                    // re-scanned every visit the way daily does (2026-09-08 -
+                    // "tasks today is the most important... others should be
+                    // to the right... user should be able to show and hide").
+                    var dailyMainTasks = _mainTasks.Where(m => m.IsDaily).ToList();
+                    var otherRecurring = _recurringMainTasks; // weekly + biweekly + monthly
+
+                    RenderFragment<MainTask> RenderMainTaskCard = mt =>
+                    @<text>
+                        @{
                             var tasksForMain = _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                                 .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                                 .ToList();
                             var doneThisPeriod = _dailyDoneCounts.GetValueOrDefault(mt.Id);
                             var totalThisPeriod = doneThisPeriod + tasksForMain.Count;
-                            <MainTaskCard MainTask="mt" Tasks="tasksForMain" Color="@_mainTaskColors[mt.Id]" CurrentMemberName="@_member!.Name"
-                                          BadgeText="@BadgeText(mt, tasksForMain.Count, doneThisPeriod, totalThisPeriod)" DoneCount="doneThisPeriod"
-                                          OnAddTask="StartAddTaskForMainTask" OnDeleteMainTask="DeleteMainTaskAsync"
-                                          OnComplete="CompleteTaskAsync" OnDecline="DeclineTaskAsync" OnJoin="JoinTaskAsync"
-                                          OnEditTask="StartEditTask" OnDeleteTask="DeleteTaskAsync" />
                         }
-                        </div>
+                        <MainTaskCard MainTask="mt" Tasks="tasksForMain" Color="@_mainTaskColors[mt.Id]" CurrentMemberName="@_member!.Name"
+                                      BadgeText="@BadgeText(mt, tasksForMain.Count, doneThisPeriod, totalThisPeriod)" DoneCount="doneThisPeriod"
+                                      OnAddTask="StartAddTaskForMainTask" OnDeleteMainTask="DeleteMainTaskAsync"
+                                      OnComplete="CompleteTaskAsync" OnDecline="DeclineTaskAsync" OnJoin="JoinTaskAsync"
+                                      OnEditTask="StartEditTask" OnDeleteTask="DeleteTaskAsync" />
+                    </text>;
+                }
+                @if (dailyMainTasks.Count > 0 || otherRecurring.Count > 0)
+                {
+                    <div class="recurring-row">
+                        @if (dailyMainTasks.Count > 0)
+                        {
+                            <div class="daily-column">
+                                <div class="task-section-label">☀️ Daglige opgaver</div>
+                                <div class="maintask-grid">
+                                @foreach (var mt in dailyMainTasks)
+                                {
+                                    @RenderMainTaskCard(mt)
+                                }
+                                </div>
+                            </div>
+                        }
+                        @if (otherRecurring.Count > 0)
+                        {
+                            <div class="weekly-column">
+                                <div class="task-section-label-row">
+                                    <div class="task-section-label">🔁 Andre tilbagevendende</div>
+                                    <button class="task-take-btn" @onclick="() => _showOtherRecurring = !_showOtherRecurring">@(_showOtherRecurring ? "Skjul" : "Vis")</button>
+                                </div>
+                                @if (_showOtherRecurring)
+                                {
+                                    <div class="maintask-grid">
+                                    @foreach (var mt in otherRecurring.Where(m => m.IsWeekly))
+                                    {
+                                        @RenderMainTaskCard(mt)
+                                    }
+                                    @foreach (var mt in otherRecurring.Where(m => m.IsBiweekly))
+                                    {
+                                        @RenderMainTaskCard(mt)
+                                    }
+                                    @foreach (var mt in otherRecurring.Where(m => m.IsMonthly))
+                                    {
+                                        @RenderMainTaskCard(mt)
+                                    }
+                                    </div>
+                                }
+                            </div>
+                        }
                     </div>
                 }
 
@@ -303,6 +339,12 @@ else
     .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
     .tomorrow-section { margin-bottom: 20px; }
     .weekly-column, .daily-column { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .recurring-row { display: flex; gap: 24px; align-items: flex-start; }
+    .recurring-row .daily-column, .recurring-row .weekly-column { flex: 1; min-width: 0; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .recurring-row .weekly-column { border-left: 1px solid var(--border); padding-left: 24px; }
+    @@media (max-width: 900px) { .recurring-row { flex-direction: column; } .recurring-row .weekly-column { border-left: none; padding-left: 0; } }
+    .task-section-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .task-section-label-row .task-section-label { margin-bottom: 0; }
     .task-row-actions { display: flex; gap: 8px; }
     .task-row-buttons { display: flex; flex-direction: column; gap: 4px; }
     .task-uncategorized-select { margin-top: 8px; }
@@ -347,6 +389,7 @@ else
     private Dictionary<Guid, string> _mainTaskColors = [];
     private List<Assignment> _uncategorizedTasks = [];
     private List<MainTask> _recurringMainTasks = [];
+    private bool _showOtherRecurring = true;
     private bool _adding, _addingMainTask;
     private Guid? _editingTaskId;
     private string _newTitle = "", _newMainTaskId = "", _newDesc = "", _newMainTaskTitle = "", _newStorageLocationId = "";
