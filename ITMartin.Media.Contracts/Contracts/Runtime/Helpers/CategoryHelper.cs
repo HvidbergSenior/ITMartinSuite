@@ -5,6 +5,25 @@ namespace ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 
 public static class CategoryHelper
 {
+    // Categories LibraryExportService never copies (2026-09-08 - "only the
+    // necessary files"). Known as of MediaRulesWorkflowStep (the step that
+    // sets SubCategory, the earliest point GetCategory can be evaluated) -
+    // every expensive per-file step after that (Hashing, Duplicates,
+    // AudioDuplicateDetection, ImageNormalization, ImageQuality,
+    // AiClassification) should skip a file in one of these categories
+    // rather than doing real work - hashing, perceptual-hash dedup,
+    // decoding/converting, or a paid Claude call - on something that will
+    // never be exported anyway.
+    private static readonly HashSet<string> NeverNecessaryCategories =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Skærmbilleder", "Memes", "Gifs", "Chat", "Film", "Ikke_identificeret"
+        };
+
+    public static bool IsNeverNecessary(MediaFile file) =>
+        NeverNecessaryCategories.Contains(GetCategory(file));
+
+
     // Danish folder names as of 2026-08-20 (user preference, code default for
     // future QuickSort sorts only - existing already-sorted libraries are NOT
     // renamed, see feedback_danish_folder_names memory). LivePhotos is kept

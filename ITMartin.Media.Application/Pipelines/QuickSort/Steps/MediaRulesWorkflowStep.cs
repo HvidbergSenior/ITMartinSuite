@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using ITMartin.Media.Application.Pipelines.QuickSort.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Enums;
+using ITMartin.Media.Contracts.Contracts.Runtime.Helpers;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
 using Microsoft.Extensions.Logging;
@@ -100,6 +101,19 @@ public sealed class MediaRulesWorkflowStep
         // anywhere, including SlettesKandidater - it's never real content,
         // so there's nothing worth keeping a review copy of.
         state.MediaFiles.RemoveAll(f => f.SubCategory == MediaSubCategory.AlbumArt);
+
+        // Skærmbilleder/Memes/Gifs/Chat/Film/Ikke_identificeret are never
+        // exported (2026-09-08 - "only the necessary files" / "nothing
+        // should be run on them"). Removed from MediaFiles entirely here,
+        // the earliest point their category is known, rather than filtered
+        // out piecemeal in each later step - hashing, dedup, normalization,
+        // quality checks, AI classification, and export all just never see
+        // them. Deciding what (if anything) to do with these files is a
+        // separate decision for later, made once every necessary file has
+        // been exported - originals are never touched or deleted from their
+        // real source location, so nothing here is lost, just not acted on
+        // by this run.
+        state.MediaFiles.RemoveAll(CategoryHelper.IsNeverNecessary);
     }
 
     private static readonly string[] ScreenshotKeywords =

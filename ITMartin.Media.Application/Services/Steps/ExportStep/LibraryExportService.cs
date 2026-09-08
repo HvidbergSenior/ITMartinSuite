@@ -31,8 +31,20 @@ public class LibraryExportService
         string root,
         Func<int, int, string, string, Task>? progress)
     {
+        // Duplicates, delete-candidates, oversized downloaded films, sparse-
+        // artist music, unplayable files, and never-necessary categories
+        // (see CategoryHelper.IsNeverNecessary) never get copied at all -
+        // there used to be a "Review" folder that copied them anyway just to
+        // a different subfolder, but that's redundant now that originals are
+        // guaranteed to never be touched or deleted from their real source
+        // location (2026-09-08 rule): if anyone ever needs to double-check
+        // what got filtered out, it's still sitting in the untouched source,
+        // not worth a second copy's disk I/O and export time.
         var list =
-            files?.ToList() ?? [];
+            (files ?? [])
+                .Where(f => f.ExportSubFolder is not ("Duplicates" or "DeleteCandidates" or "LargeFilm" or "SmallArtist" or "Unplayable"))
+                .Where(f => !CategoryHelper.IsNeverNecessary(f))
+                .ToList();
 
         if (!list.Any())
             return;
@@ -155,7 +167,6 @@ public class LibraryExportService
         }
 
         foreach (var yearGroup in list
-            .Where(f => f.ExportSubFolder is not ("Duplicates" or "DeleteCandidates" or "LargeFilm" or "SmallArtist" or "Unplayable"))
             .Where(f => CategoryHelper.GetCategory(f) != "Musik")
             .Where(f => !f.IsYearOnly && f.IsDateReliable && f.CreatedAt.HasValue)
             .GroupBy(f => (Category: CategoryHelper.GetCategory(f), Year: Math.Max(f.Year, 2000))))
@@ -252,40 +263,12 @@ public class LibraryExportService
                         file.Year,
                         2000);
 
-                var monthFolder =
-                    $"{safeMonth:00}-{new DateTime(
-                        safeYear,
-                        safeMonth,
-                        1).ToString("MMMM")}";
-
-                // Everything filtered out of the real collection - exact
-                // duplicates, delete candidates, large downloaded films, and
-                // sparse-artist music - lands in one "Review" root instead of
-                // several scattered special-purpose folders, confirmed
-                // 2026-09-06: a clean top-level output with a single place to
-                // check, structured by reason underneath.
                 var targetDir =
-                    file.ExportSubFolder == "Duplicates"
-                        ? musicSubPath is not null
-                            ? Path.Combine(root, "Review", "Duplicates", category, musicSubPath)
-                            : Path.Combine(
-                                root,
-                                "Review",
-                                "Duplicates",
-                                category,
-                                safeYear.ToString(),
-                                monthFolder)
-                        : file.ExportSubFolder is "DeleteCandidates" or "LargeFilm" or "SmallArtist" or "Unplayable"
-                            ? Path.Combine(
-                                root,
-                                "Review",
-                                file.ExportSubFolder,
-                                category)
-                            : musicSubPath is not null
-                                ? Path.Combine(root, category, musicSubPath)
-                                : isFlatCategory
-                                    ? Path.Combine(root, category)
-                                    : file.IsYearOnly
+                    musicSubPath is not null
+                        ? Path.Combine(root, category, musicSubPath)
+                        : isFlatCategory
+                            ? Path.Combine(root, category)
+                            : file.IsYearOnly
                                     // Year came from an ancestor folder name, not a
                                     // real date - sort by it, but never claim a
                                     // specific month we don't actually know. If this
@@ -388,7 +371,7 @@ public class LibraryExportService
                 // One cover.jpg per album folder, pulled from whichever track
                 // happens to carry embedded artwork - not every track in an
                 // album has it, so this isn't limited to the first file copied.
-                if (isMusic && file.ExportSubFolder is not ("Duplicates" or "DeleteCandidates" or "SmallArtist"))
+                if (isMusic)
                 {
                     var coverPath =
                         Path.Combine(targetDir, "cover.jpg");
@@ -465,6 +448,9 @@ public class LibraryExportService
     private static void EnsureBaseFolders(
         string exportRoot)
     {
+        // Only categories that can actually receive a file now that
+        // Skærmbilleder/Memes/Gifs/Chat/Film/Ikke_identificeret are excluded
+        // from export entirely (2026-09-08 - "only the necessary files").
         var baseFolders =
             new[]
             {
@@ -472,14 +458,7 @@ public class LibraryExportService
                 "Videoer",
                 "Dokumenter",
                 "Musik",
-                "Memes",
-                "Gifs",
-                "Film",
-                "Chat",
-                "Skærmbilleder",
                 "LivePhotos",
-                "Review",
-                "Ikke_identificeret"
             };
 
         foreach (var folder in baseFolders)
