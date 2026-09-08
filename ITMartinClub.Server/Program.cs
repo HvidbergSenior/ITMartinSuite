@@ -172,6 +172,11 @@ using (var scope = app.Services.CreateScope())
             """);
     }
 
+    var hasRecurrenceDayColumn = db.Database.SqlQueryRaw<int>(
+        "SELECT COUNT(*) AS Value FROM pragma_table_info('MainTasks') WHERE name = 'RecurrenceDayOfWeek'").AsEnumerable().First() > 0;
+    if (!hasRecurrenceDayColumn)
+        db.Database.ExecuteSqlRaw("ALTER TABLE MainTasks ADD COLUMN RecurrenceDayOfWeek INTEGER NULL");
+
     // Bogshoppen is the pilot group for the task-board-first front page - once
     // a group has any MainTasks, GroupHome switches from the general dashboard
     // to showing only the open-task board grouped by these. Seed once; leave
@@ -231,6 +236,17 @@ using (var scope = app.Services.CreateScope())
             "Availability"   TEXT NULL,
             "CreatedByName"  TEXT NOT NULL DEFAULT '',
             "CreatedAt"      TEXT NOT NULL
+        )
+        """);
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Ideas" (
+            "Id"              TEXT NOT NULL PRIMARY KEY,
+            "GroupId"         TEXT NOT NULL,
+            "Title"           TEXT NOT NULL,
+            "Description"     TEXT NULL,
+            "ProposedByName"  TEXT NOT NULL DEFAULT '',
+            "CreatedAt"       TEXT NOT NULL
         )
         """);
 

@@ -125,16 +125,57 @@ else
                     </div>
                 }
 
+                @if (_weeklyMainTasks.Any())
+                {
+                    <div class="weekly-column">
+                        <div class="task-section-label">🔁 Ugentlige opgaver</div>
+                        <div class="maintask-grid">
+                        @foreach (var mt in _weeklyMainTasks)
+                        {
+                            var tasksForMain = _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
+                                .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
+                                .ToList();
+                            <div class="maintask-group" style="background:@_mainTaskColors[mt.Id]">
+                                <div class="maintask-header">
+                                    <div class="maintask-title">@mt.Title</div>
+                                    <div class="maintask-count">@tasksForMain.Count</div>
+                                </div>
+                                <div class="maintask-daily-badge @(tasksForMain.Count == 0 ? "daily-done" : "")">
+                                    @(WeekdayDanish(mt.RecurrenceDayOfWeek!.Value)) @(tasksForMain.Count == 0 ? "— ✅ gjort denne uge" : $"— {tasksForMain.Count} tilbage")
+                                </div>
+
+                                @if (!tasksForMain.Any())
+                                {
+                                    <div class="club-empty">Ingen åbne opgaver.</div>
+                                }
+                                else
+                                {
+                                    @foreach (var t in tasksForMain)
+                                    {
+                                        <AssignmentRow @key="t.Id" Task="t" IsMine="t.IsAssignedTo(_member!.Name)"
+                                                       OnComplete="() => CompleteTaskAsync(t.Id)" OnDecline="() => DeclineTaskAsync(t.Id)" OnJoin="() => JoinTaskAsync(t.Id)"
+                                                       OnEdit="() => StartEditTask(t)" OnDelete="() => DeleteTaskAsync(t.Id)" />
+                                    }
+                                }
+                            </div>
+                        }
+                        </div>
+                    </div>
+                }
+
                 <div class="maintask-grid">
                 @{
                     // Categories with open tasks (after the assignee filter) sort to the
-                    // top; empty ones sink to the bottom instead of taking up a slot
-                    // among the ones that actually need attention. OrderBy is stable, so
-                    // ties keep their original SortOrder within each group.
+                    // top. A plain backlog category with nothing open is hidden entirely
+                    // rather than taking up a slot - a daily one stays visible even at
+                    // zero so its "done today" badge is still there to see. OrderBy is
+                    // stable, so ties keep their original SortOrder within each group.
                     var orderedMainTasks = _mainTasks
+                        .Where(mt => mt.RecurrenceDayOfWeek is null)
                         .Select(mt => (MainTask: mt, Tasks: _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                             .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                             .ToList()))
+                        .Where(x => x.MainTask.IsDaily || x.Tasks.Count > 0)
                         .OrderBy(x => x.Tasks.Count == 0)
                         .ToList();
                 }
@@ -164,7 +205,7 @@ else
                             @foreach (var t in tasksForMain)
                             {
                                 <AssignmentRow @key="t.Id" Task="t" IsMine="t.IsAssignedTo(_member!.Name)"
-                                               OnComplete="() => CompleteTaskAsync(t.Id)" OnJoin="() => JoinTaskAsync(t.Id)"
+                                               OnComplete="() => CompleteTaskAsync(t.Id)" OnDecline="() => DeclineTaskAsync(t.Id)" OnJoin="() => JoinTaskAsync(t.Id)"
                                                OnEdit="() => StartEditTask(t)" OnDelete="() => DeleteTaskAsync(t.Id)" />
                             }
                         }
@@ -181,7 +222,7 @@ else
                         @foreach (var t in uncategorized)
                         {
                             <AssignmentRow @key="t.Id" Task="t" IsMine="t.IsAssignedTo(_member!.Name)"
-                                           OnComplete="() => CompleteTaskAsync(t.Id)" OnJoin="() => JoinTaskAsync(t.Id)"
+                                           OnComplete="() => CompleteTaskAsync(t.Id)" OnDecline="() => DeclineTaskAsync(t.Id)" OnJoin="() => JoinTaskAsync(t.Id)"
                                            OnEdit="() => StartEditTask(t)" OnDelete="() => DeleteTaskAsync(t.Id)">
                                 <select class="task-input task-uncategorized-select" value="" @onchange="e => AssignMainTaskAsync(t.Id, (string)e.Value!)">
                                     <option value="">— vælg hovedopgave —</option>
@@ -197,6 +238,20 @@ else
                 {
                     <div class="task-form">
                         <div class="task-field"><label>Nyt hovedopgave-emne</label><input @bind="_newMainTaskTitle" class="task-input" maxlength="100" placeholder="fx Salg" /></div>
+                        <div class="task-field">
+                            <label>Gentagelse</label>
+                            <select @bind="_newMainTaskRecurrence" class="task-input">
+                                <option value="none">Ingen (almindeligt emne)</option>
+                                <option value="daily">Dagligt</option>
+                                <option value="Monday">Ugentligt — mandag</option>
+                                <option value="Tuesday">Ugentligt — tirsdag</option>
+                                <option value="Wednesday">Ugentligt — onsdag</option>
+                                <option value="Thursday">Ugentligt — torsdag</option>
+                                <option value="Friday">Ugentligt — fredag</option>
+                                <option value="Saturday">Ugentligt — lørdag</option>
+                                <option value="Sunday">Ugentligt — søndag</option>
+                            </select>
+                        </div>
                         <button class="task-save-btn" @onclick="AddMainTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newMainTaskTitle))">Tilføj hovedopgave</button>
                     </div>
                 }
@@ -248,6 +303,8 @@ else
     .task-badge-claimed { background: #d97706;       color: white; }
     .task-badge-done    { background: var(--green);  color: white; }
     .task-complete-btn  { width: auto; padding: 8px 16px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-decline-btn { width: auto; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .task-decline-btn:hover { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.4); color: #f87171; }
     .task-info { flex: 1; }
     .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
     .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
@@ -275,6 +332,7 @@ else
     .maintask-daily-badge.daily-done { color: var(--green); background: rgba(34,197,94,.12); }
     .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
     .tomorrow-section { margin-bottom: 20px; }
+    .weekly-column { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
     .task-row-actions { display: flex; gap: 8px; }
     .task-row-buttons { display: flex; flex-direction: column; gap: 4px; }
     .task-uncategorized-select { margin-top: 8px; }
@@ -318,9 +376,11 @@ else
     private Dictionary<Guid, List<Assignment>> _tasksByMainTaskId = [];
     private Dictionary<Guid, string> _mainTaskColors = [];
     private List<Assignment> _uncategorizedTasks = [];
+    private List<MainTask> _weeklyMainTasks = [];
     private bool _adding, _addingMainTask;
     private Guid? _editingTaskId;
     private string _newTitle = "", _newMainTaskId = "", _newDesc = "", _newMainTaskTitle = "", _newStorageLocationId = "";
+    private string _newMainTaskRecurrence = "none";
     private HashSet<string> _newAssignedTo = [];
     private List<StorageLocation> _locations = [];
     private string _filterAssignedTo = "";
@@ -409,7 +469,9 @@ else
             var localTodayStartUtc = CopenhagenTodayStartUtc(now);
 
             var dailyMainTaskIds = _mainTasks.Where(m => m.IsDaily).Select(m => m.Id).ToList();
-            await TaskService.ReopenStaleDailyTasksAsync(_group!.Id, dailyMainTaskIds, localTodayStartUtc);
+            _weeklyMainTasks = _mainTasks.Where(m => m.RecurrenceDayOfWeek is not null).ToList();
+            var weeklyMainTasks = _weeklyMainTasks.ToDictionary(m => m.Id, m => m.RecurrenceDayOfWeek!.Value);
+            await TaskService.ReopenStaleTasksAsync(_group!.Id, dailyMainTaskIds, weeklyMainTasks, localTodayStartUtc);
 
             _openTasksFull = await Db.Assignments
                 .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && (a.ScheduledFor == null || a.ScheduledFor <= localTodayStartUtc))
@@ -430,7 +492,7 @@ else
                 .OrderBy(a => a.ScheduledFor)
                 .ToListAsync();
 
-            _dailyDoneCounts = await TaskService.GetDailyDoneCountsAsync(_group!.Id, dailyMainTaskIds);
+            _dailyDoneCounts = await TaskService.GetDailyDoneCountsAsync(_group!.Id, dailyMainTaskIds.Concat(weeklyMainTasks.Keys).ToList());
 
             _members = await Db.Members
                 .Where(m => m.GroupId == _group!.Id)
@@ -527,6 +589,12 @@ else
         await RefreshAsync();
     }
 
+    private async Task DeclineTaskAsync(Guid id)
+    {
+        await TaskService.DeclineAsync(id, _group!.Id, _member!.Name);
+        await RefreshAsync();
+    }
+
     private async Task DeleteTaskAsync(Guid id)
     {
         await TaskService.DeleteAsync(id, _group!.Id);
@@ -548,11 +616,24 @@ else
             GroupId = _group!.Id,
             Title = _newMainTaskTitle.Trim(),
             SortOrder = _mainTasks.Count,
+            IsDaily = _newMainTaskRecurrence == "daily",
+            RecurrenceDayOfWeek = Enum.TryParse<DayOfWeek>(_newMainTaskRecurrence, out var day) ? day : null,
         });
         await Db.SaveChangesAsync();
-        _newMainTaskTitle = ""; _addingMainTask = false;
+        _newMainTaskTitle = ""; _addingMainTask = false; _newMainTaskRecurrence = "none";
         await RefreshAsync();
     }
+
+    private static string WeekdayDanish(DayOfWeek day) => day switch
+    {
+        DayOfWeek.Monday => "Mandag",
+        DayOfWeek.Tuesday => "Tirsdag",
+        DayOfWeek.Wednesday => "Onsdag",
+        DayOfWeek.Thursday => "Torsdag",
+        DayOfWeek.Friday => "Fredag",
+        DayOfWeek.Saturday => "Lørdag",
+        _ => "Søndag",
+    };
 
     private void OnBroadcast() => InvokeAsync(async () =>
     {

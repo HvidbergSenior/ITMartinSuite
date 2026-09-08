@@ -46,4 +46,10 @@ public sealed class Assignment
         if (IsAssignedTo(name)) return;
         AssignedToNames = AssignedToNames.Length == 0 ? name : $"{AssignedToNames};{name}";
     }
+
+    public void RemoveAssignee(string name)
+    {
+        if (!IsAssignedTo(name)) return;
+        AssignedToNames = string.Join(';', Assignees.Where(a => !a.Equals(name, StringComparison.OrdinalIgnoreCase)));
+    }
 }

@@ -1,0 +1,137 @@
+@page "/g/{slug}/ideas"
+@rendermode InteractiveServer
+@using ITMartinClub.Server.Data.Entities
+@inject ClubDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ClubAuthService ClubAuth
+
+@if (!_loaded) { <div class="club-loading">Indlæser...</div> }
+else if (_member == null) { <div class="club-loading">Omdirigerer...</div> }
+else
+{
+    <div class="club-page">
+        <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@_member.Name" Active="ideas" />
+
+        <div class="task-body">
+            <div class="task-toolbar">
+                <h2 class="task-title">💡 Idéer</h2>
+                <button class="task-add-btn" @onclick="() => _adding = !_adding">@(_adding ? "✕ Annuller" : "+ Ny idé")</button>
+            </div>
+
+            @if (_adding)
+            {
+                <div class="task-form">
+                    <div class="task-field"><label>Idé</label><input @bind="_newTitle" class="task-input" maxlength="200" placeholder="Hvad kunne gøre appen bedre?" /></div>
+                    <div class="task-field"><label>Uddyb (valgfrit)</label><textarea @bind="_newDescription" rows="3" class="task-input task-textarea"></textarea></div>
+                    <div class="task-field">
+                        <label>Foreslået af</label>
+                        <select @bind="_newProposedBy" class="task-input">
+                            @foreach (var m in _members) { <option value="@m.Name">@m.Name</option> }
+                        </select>
+                    </div>
+                    <button class="task-save-btn" @onclick="SaveAsync" disabled="@(string.IsNullOrWhiteSpace(_newTitle))">Gem idé</button>
+                </div>
+            }
+
+            @if (_ideas.Any())
+            {
+                @foreach (var idea in _ideas)
+                {
+                    <div class="task-row-item">
+                        <div class="task-info">
+                            <div class="task-item-title">@idea.Title</div>
+                            @if (!string.IsNullOrEmpty(idea.Description))
+                            {
+                                <div class="task-item-desc">@idea.Description</div>
+                            }
+                            <div class="task-meta">
+                                <span>💡 @idea.ProposedByName</span>
+                                <span>@idea.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                            </div>
+                        </div>
+                        <button class="task-del-btn" @onclick="() => DeleteAsync(idea.Id)">✕</button>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="task-empty">Ingen idéer endnu - vær den første 💡</div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .task-body { padding: 16px; }
+    .task-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .task-title { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+    .task-add-btn { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .task-form { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    .task-field { margin-bottom: 12px; }
+    .task-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .task-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .task-input:focus { border-color: var(--accent); }
+    .task-textarea { resize: vertical; font-family: inherit; }
+    .task-save-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #16a34a; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .task-save-btn:disabled { opacity: .4; cursor: default; }
+    .task-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
+    .task-row-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; background: var(--card); }
+    .task-info { flex: 1; }
+    .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .task-del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
+    .task-del-btn:hover { color: var(--red); }
+</style>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Member? _member;
+    private Group? _group;
+    private bool _loaded, _adding;
+    private string _newTitle = "", _newDescription = "", _newProposedBy = "";
+    private List<Idea> _ideas = [];
+    private List<Member> _members = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var session = await ClubAuth.ResolveSessionAsync(JS, Db, Slug);
+        if (session is null) { Nav.NavigateTo($"/g/{Slug}/join", forceLoad: true); return; }
+        _member = session.Member;
+        _group = session.Member.Group;
+        _newProposedBy = _member.Name;
+        await RefreshAsync();
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _ideas = await Db.Ideas.Where(i => i.GroupId == _group!.Id).OrderByDescending(i => i.CreatedAt).ToListAsync();
+        _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newTitle)) return;
+
+        Db.Ideas.Add(new Idea
+        {
+            GroupId = _group!.Id,
+            Title = _newTitle.Trim(),
+            Description = string.IsNullOrWhiteSpace(_newDescription) ? null : _newDescription.Trim(),
+            ProposedByName = string.IsNullOrWhiteSpace(_newProposedBy) ? _member!.Name : _newProposedBy,
+        });
+        await Db.SaveChangesAsync();
+        _newTitle = ""; _newDescription = ""; _newProposedBy = _member!.Name; _adding = false;
+        await RefreshAsync();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        var idea = await Db.Ideas.FirstOrDefaultAsync(i => i.Id == id && i.GroupId == _group!.Id);
+        if (idea != null) { Db.Ideas.Remove(idea); await Db.SaveChangesAsync(); await RefreshAsync(); }
+    }
+}

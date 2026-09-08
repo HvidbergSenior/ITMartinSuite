@@ -30,6 +30,7 @@
             @if (IsMine)
             {
                 <button class="task-complete-btn" @onclick="OnComplete">Markér som færdig ✓</button>
+                <button class="task-decline-btn" @onclick="OnDecline">Jeg kan ikke 🙅</button>
             }
             else
             {
@@ -48,6 +49,7 @@
     [Parameter, EditorRequired] public Assignment Task { get; set; } = null!;
     [Parameter] public bool IsMine { get; set; }
     [Parameter, EditorRequired] public EventCallback OnComplete { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnDecline { get; set; }
     [Parameter, EditorRequired] public EventCallback OnJoin { get; set; }
     [Parameter, EditorRequired] public EventCallback OnEdit { get; set; }
     [Parameter, EditorRequired] public EventCallback OnDelete { get; set; }

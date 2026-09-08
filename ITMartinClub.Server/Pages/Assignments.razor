@@ -93,7 +93,7 @@ else
                 @foreach (var t in _open)
                 {
                     <AssignmentRow @key="t.Id" Task="t" IsMine="t.IsAssignedTo(_member!.Name)"
-                                   OnComplete="() => CompleteAsync(t.Id)" OnJoin="() => JoinAsync(t.Id)"
+                                   OnComplete="() => CompleteAsync(t.Id)" OnDecline="() => DeclineAsync(t.Id)" OnJoin="() => JoinAsync(t.Id)"
                                    OnEdit="() => StartEditTask(t)" OnDelete="() => DeleteAsync(t.Id)" />
                 }
             }
@@ -244,6 +244,12 @@ else
     private async Task CompleteAsync(Guid id)
     {
         await TaskService.CompleteAsync(id, _group!.Id, _member!.Name);
+        await RefreshAsync();
+    }
+
+    private async Task DeclineAsync(Guid id)
+    {
+        await TaskService.DeclineAsync(id, _group!.Id, _member!.Name);
         await RefreshAsync();
     }
 

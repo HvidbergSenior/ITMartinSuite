@@ -22,6 +22,7 @@ public sealed class ClubDbContext(DbContextOptions<ClubDbContext> options) : DbC
     public DbSet<EventTimeVote> EventTimeVotes => Set<EventTimeVote>();
     public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<Idea> Ideas => Set<Idea>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

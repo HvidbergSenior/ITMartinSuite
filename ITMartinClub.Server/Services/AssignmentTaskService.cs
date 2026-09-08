@@ -91,6 +91,20 @@ public sealed class AssignmentTaskService(ClubDbContext db, ClubPushService push
             _ = pushService.SendToMembersAsync(db, groupId, recipients, "👋 Opgave taget", $"{memberName} tager: {t.Title}");
     }
 
+    // "Jeg kan ikke" - the opposite of JoinAsync. Doesn't delete or complete
+    // the task, just drops this member back to the unclaimed pool so someone
+    // else can pick it up.
+    public async Task DeclineAsync(Guid id, Guid groupId, string memberName)
+    {
+        var t = await db.Assignments.FirstOrDefaultAsync(a => a.Id == id && a.GroupId == groupId);
+        if (t is null) return;
+        t.RemoveAssignee(memberName);
+        await db.SaveChangesAsync();
+
+        if (t.CreatedByName != memberName)
+            _ = pushService.SendToMembersAsync(db, groupId, [t.CreatedByName], "🙅 Opgave afvist", $"{memberName} kan ikke: {t.Title}");
+    }
+
     public async Task CompleteAsync(Guid id, Guid groupId, string memberName)
     {
         var t = await db.Assignments.FirstOrDefaultAsync(a => a.Id == id && a.GroupId == groupId);
@@ -119,34 +133,59 @@ public sealed class AssignmentTaskService(ClubDbContext db, ClubPushService push
     }
 
     // Daily main tasks are a recurring checklist: a subtask completed on an
-    // earlier day reopens automatically so it can be done again today.
+    // earlier day reopens automatically so it can be done again today. Weekly
+    // main tasks work the same way but only reopen once a new occurrence of
+    // their specific weekday arrives (e.g. "every Thursday: clean the
+    // bathroom" stays done from Thursday through next Wednesday).
     // Extracted from GroupHome.razor's RefreshAsync 2026-09-06 - previously
-    // untestable page-private logic, now a plain data operation.
-    public async Task ReopenStaleDailyTasksAsync(Guid groupId, IReadOnlyList<Guid> dailyMainTaskIds, DateTime localTodayStartUtc)
+    // untestable page-private logic, now a plain data operation. Generalized
+    // 2026-09-08 to cover weekly recurrence alongside daily.
+    public async Task ReopenStaleTasksAsync(
+        Guid groupId,
+        IReadOnlyList<Guid> dailyMainTaskIds,
+        IReadOnlyDictionary<Guid, DayOfWeek> weeklyMainTasks,
+        DateTime localTodayStartUtc)
     {
-        if (dailyMainTaskIds.Count == 0) return;
+        if (dailyMainTaskIds.Count == 0 && weeklyMainTasks.Count == 0) return;
 
-        var staleDaily = await db.Assignments
+        // Per-mainTask staleness threshold: daily tasks use today's local
+        // midnight; weekly tasks use the most recent local midnight that fell
+        // on their recurrence weekday (today counts if it matches). Whole-day
+        // offsets off an already-correct local midnight, so this can be off
+        // by an hour across a DST transition within the lookback week - an
+        // acceptable edge case for a household chore reopening a day early.
+        var thresholds = new Dictionary<Guid, DateTime>();
+        foreach (var id in dailyMainTaskIds) thresholds[id] = localTodayStartUtc;
+        foreach (var (id, day) in weeklyMainTasks)
+        {
+            var daysSinceLastOccurrence = ((int)localTodayStartUtc.DayOfWeek - (int)day + 7) % 7;
+            thresholds[id] = localTodayStartUtc.AddDays(-daysSinceLastOccurrence);
+        }
+        if (thresholds.Count == 0) return;
+
+        var recurringIds = thresholds.Keys.ToList();
+        var candidates = await db.Assignments
             .Where(a => a.GroupId == groupId && a.IsCompleted && a.MainTaskId != null
-                && dailyMainTaskIds.Contains(a.MainTaskId!.Value)
-                && a.CompletedAt!.Value < localTodayStartUtc)
+                && recurringIds.Contains(a.MainTaskId!.Value))
             .ToListAsync();
-        if (staleDaily.Count == 0) return;
 
-        foreach (var a in staleDaily) { a.IsCompleted = false; a.CompletedAt = null; a.CompletedByName = ""; }
+        var stale = candidates.Where(a => a.CompletedAt!.Value < thresholds[a.MainTaskId!.Value]).ToList();
+        if (stale.Count == 0) return;
+
+        foreach (var a in stale) { a.IsCompleted = false; a.CompletedAt = null; a.CompletedByName = ""; }
         await db.SaveChangesAsync();
     }
 
-    // "Done" for a daily main task means all of today's subtasks are complete -
-    // the open-task count alone can't show that, so the caller needs today's
-    // completed count alongside it.
-    public async Task<Dictionary<Guid, int>> GetDailyDoneCountsAsync(Guid groupId, IReadOnlyList<Guid> dailyMainTaskIds)
+    // "Done" for a daily/weekly main task means all of its current cycle's
+    // subtasks are complete - the open-task count alone can't show that, so
+    // the caller needs the cycle's completed count alongside it.
+    public async Task<Dictionary<Guid, int>> GetDailyDoneCountsAsync(Guid groupId, IReadOnlyList<Guid> recurringMainTaskIds)
     {
-        if (dailyMainTaskIds.Count == 0) return [];
+        if (recurringMainTaskIds.Count == 0) return [];
 
         var counts = await db.Assignments
             .Where(a => a.GroupId == groupId && a.IsCompleted && a.MainTaskId != null
-                && dailyMainTaskIds.Contains(a.MainTaskId!.Value))
+                && recurringMainTaskIds.Contains(a.MainTaskId!.Value))
             .GroupBy(a => a.MainTaskId!.Value)
             .Select(g => new { MainTaskId = g.Key, Count = g.Count() })
             .ToListAsync();
