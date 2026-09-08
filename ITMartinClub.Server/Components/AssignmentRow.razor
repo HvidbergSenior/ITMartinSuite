@@ -30,12 +30,12 @@
             @if (IsMine)
             {
                 <button class="task-complete-btn" @onclick="OnComplete">Markér som færdig ✓</button>
-                <button class="task-decline-btn" @onclick="OnDecline">Jeg kan ikke 🙅</button>
             }
             else
             {
                 <button class="task-take-btn" @onclick="OnJoin">@(Task.Assignees.Count == 0 ? "Jeg tager den 👋" : "Deltag også 🙋")</button>
             }
+            <button class="task-decline-btn" @onclick="OnDecline">Jeg kan ikke 🙅</button>
         </div>
         @ChildContent
     </div>

@@ -165,18 +165,18 @@ else
 
                 <div class="maintask-grid">
                 @{
-                    // Categories with open tasks (after the assignee filter) sort to the
-                    // top. A plain backlog category with nothing open is hidden entirely
-                    // rather than taking up a slot - a daily one stays visible even at
-                    // zero so its "done today" badge is still there to see. OrderBy is
-                    // stable, so ties keep their original SortOrder within each group.
+                    // A category with nothing open (after the assignee filter) is
+                    // hidden entirely, daily ones included - "Hovedopgaver skal ikke
+                    // ses hvis ingen opgaver på" (2026-09-08). A daily category that's
+                    // fully done for today simply disappears until its next occurrence
+                    // reopens something in it, same as a one-off backlog category
+                    // emptying out.
                     var orderedMainTasks = _mainTasks
                         .Where(mt => mt.RecurrenceDayOfWeek is null)
                         .Select(mt => (MainTask: mt, Tasks: _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                             .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                             .ToList()))
-                        .Where(x => x.MainTask.IsDaily || x.Tasks.Count > 0)
-                        .OrderBy(x => x.Tasks.Count == 0)
+                        .Where(x => x.Tasks.Count > 0)
                         .ToList();
                 }
                 @foreach (var (mt, tasksForMain) in orderedMainTasks)
@@ -303,8 +303,8 @@ else
     .task-badge-claimed { background: #d97706;       color: white; }
     .task-badge-done    { background: var(--green);  color: white; }
     .task-complete-btn  { width: auto; padding: 8px 16px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .task-decline-btn { width: auto; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
-    .task-decline-btn:hover { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.4); color: #f87171; }
+    .task-decline-btn { width: auto; padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(245,158,11,.4); background: rgba(245,158,11,.1); color: #f59e0b; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .task-decline-btn:hover { background: rgba(245,158,11,.18); border-color: rgba(245,158,11,.6); }
     .task-info { flex: 1; }
     .task-item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
     .task-item-desc { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
