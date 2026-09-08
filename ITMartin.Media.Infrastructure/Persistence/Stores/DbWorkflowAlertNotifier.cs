@@ -40,6 +40,13 @@ public sealed class DbWorkflowAlertNotifier(
         CancellationToken cancellationToken = default)
         => WriteAsync(workflowId, workflowName, "Stalled", $"{workflowName} looks stuck at '{currentStep}' - no progress for {idleFor.TotalMinutes:F0} min", cancellationToken);
 
+    public Task NotifyDeliveredAsync(
+        Guid workflowId,
+        string workflowName,
+        string gallerySlug,
+        CancellationToken cancellationToken = default)
+        => WriteAsync(workflowId, workflowName, "Delivered", $"{workflowName} finished, pushed to NAS, and gallery '{gallerySlug}' is live", cancellationToken);
+
     private async Task WriteAsync(
         Guid workflowId,
         string workflowName,

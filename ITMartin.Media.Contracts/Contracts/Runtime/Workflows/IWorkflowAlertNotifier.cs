@@ -32,4 +32,15 @@ public interface IWorkflowAlertNotifier
         string currentStep,
         TimeSpan idleFor,
         CancellationToken cancellationToken = default);
+
+    // Fired by QuickSortAutoFinishHostedService once the FULL chain - sort,
+    // then finish-library, push-to-nas, wire-gallery - has actually
+    // delivered a browsable gallery, not just when the sort itself
+    // completes (NotifyCompletedAsync fires for that, hours earlier). This
+    // is the "it's actually done and ready to look at" signal.
+    Task NotifyDeliveredAsync(
+        Guid workflowId,
+        string workflowName,
+        string gallerySlug,
+        CancellationToken cancellationToken = default);
 }

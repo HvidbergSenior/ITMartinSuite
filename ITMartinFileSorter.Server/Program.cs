@@ -67,6 +67,7 @@ builder.Services.AddSingleton<FileSorterPushService>();
 builder.Services.AddScoped<IWorkflowAlertNotifier, DbWorkflowAlertNotifier>();
 builder.Services.AddHostedService<WorkflowAlertPushHostedService>();
 builder.Services.AddHostedService<ITMartin.Media.Infrastructure.Persistence.Stores.WorkflowStallWatchdogHostedService>();
+builder.Services.AddHostedService<ITMartin.Media.Infrastructure.Persistence.Stores.QuickSortAutoFinishHostedService>();
 
 // =========================
 // SIGNALR (after Core so SignalR publisher overrides the null default)

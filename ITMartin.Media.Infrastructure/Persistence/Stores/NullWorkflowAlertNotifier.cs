@@ -31,4 +31,13 @@ public sealed class NullWorkflowAlertNotifier : IWorkflowAlertNotifier
     {
         return Task.CompletedTask;
     }
+
+    public Task NotifyDeliveredAsync(
+        Guid workflowId,
+        string workflowName,
+        string gallerySlug,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
 }

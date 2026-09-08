@@ -52,6 +52,7 @@ public sealed class WorkflowAlertPushHostedService(
             {
                 "Failed" => $"FileSorter: {alert.WorkflowName} failed",
                 "Stalled" => $"FileSorter: {alert.WorkflowName} looks stuck",
+                "Delivered" => $"FileSorter: {alert.WorkflowName} delivered",
                 _ => $"FileSorter: {alert.WorkflowName} completed"
             };
 
