@@ -20,6 +20,7 @@ RUN apt-get update && \
         libgl1 \
         libglib2.0-0 \
         libheif-examples \
+        openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
