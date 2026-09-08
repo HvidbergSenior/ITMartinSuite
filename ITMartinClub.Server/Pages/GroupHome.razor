@@ -47,7 +47,10 @@ else
         <div class="task-body">
             <div class="task-toolbar">
                 <h2 class="task-title">Åbne opgaver</h2>
-                    <button class="task-add-btn" @onclick="ToggleAdding">@(_adding ? "✕ Annuller" : "+ Ny opgave")</button>
+                @if (_adding)
+                {
+                    <button class="task-add-btn" @onclick="ToggleAdding">✕ Annuller</button>
+                }
                 </div>
 
                 <div class="task-filter-row">
