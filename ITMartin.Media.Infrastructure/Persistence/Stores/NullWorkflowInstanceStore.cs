@@ -36,6 +36,13 @@ public sealed class NullWorkflowInstanceStore
         return Task.CompletedTask;
     }
 
+    public Task MarkRunningAsync(
+        Guid workflowId,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
     public Task<bool> ExistsAsync(
         Guid workflowId,
         CancellationToken cancellationToken = default)

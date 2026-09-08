@@ -286,6 +286,78 @@ public class QuickSortAutoFinishHostedServiceTests
         File.Exists(Path.Combine(_libraryRoot, ".autofinished")).Should().BeFalse();
     }
 
+    // A failed chain deliberately writes no marker file, so nothing else stops
+    // the next tick from trying again - and every attempt re-runs a full
+    // tar+scp of the entire library to the NAS. Before the attempt cap, a
+    // persistent failure re-pushed the whole library every 2 minutes for as
+    // long as the process lived.
+    [Test]
+    public async Task Stops_retrying_the_chain_after_repeated_failures()
+    {
+        var db = CreateDbFactory(out var seed);
+        await using var seedDisposable = seed;
+        seed.WorkflowInstances.Add(new WorkflowInstanceEntity
+        {
+            WorkflowId = Guid.NewGuid(),
+            WorkflowName = "QuickSortWorkflow",
+            Status = "Completed",
+            StartedAtUtc = DateTime.UtcNow - TimeSpan.FromHours(4),
+            UpdatedAtUtc = DateTime.UtcNow,
+            CompletedAtUtc = DateTime.UtcNow,
+        });
+        await seed.SaveChangesAsync();
+
+        var (finishing, nasDelivery, alertNotifier) = CreateHappyPathMocks();
+        nasDelivery
+            .Setup(n => n.WireGalleryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GalleryWireResult { Success = false, Error = "gallery container unreachable" });
+
+        var service = CreateService(db, CreateConfig(), finishing, nasDelivery, alertNotifier);
+
+        for (var i = 0; i < 10; i++)
+        {
+            await service.CheckOnceAsync(CancellationToken.None);
+        }
+
+        nasDelivery.Verify(
+            n => n.PushToNasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(3));
+        File.Exists(Path.Combine(_libraryRoot, ".autofinished")).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task A_recovered_run_that_succeeds_still_delivers_after_earlier_failures()
+    {
+        var db = CreateDbFactory(out var seed);
+        await using var seedDisposable = seed;
+        seed.WorkflowInstances.Add(new WorkflowInstanceEntity
+        {
+            WorkflowId = Guid.NewGuid(),
+            WorkflowName = "QuickSortWorkflow",
+            Status = "Completed",
+            StartedAtUtc = DateTime.UtcNow - TimeSpan.FromHours(4),
+            UpdatedAtUtc = DateTime.UtcNow,
+            CompletedAtUtc = DateTime.UtcNow,
+        });
+        await seed.SaveChangesAsync();
+
+        var (finishing, nasDelivery, alertNotifier) = CreateHappyPathMocks();
+        nasDelivery
+            .Setup(n => n.WireGalleryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GalleryWireResult { Success = false, Error = "transient" });
+
+        var service = CreateService(db, CreateConfig(), finishing, nasDelivery, alertNotifier);
+        await service.CheckOnceAsync(CancellationToken.None);
+
+        nasDelivery
+            .Setup(n => n.WireGalleryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GalleryWireResult { Success = true, AssignedIndex = 1 });
+
+        await service.CheckOnceAsync(CancellationToken.None);
+
+        File.Exists(Path.Combine(_libraryRoot, ".autofinished")).Should().BeTrue();
+    }
+
     private sealed class TestDbContextFactory(DbContextOptions<MediaDbContext> options)
         : IDbContextFactory<MediaDbContext>
     {

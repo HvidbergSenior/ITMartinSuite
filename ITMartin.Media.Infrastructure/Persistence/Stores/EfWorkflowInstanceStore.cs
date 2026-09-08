@@ -91,6 +91,28 @@ public sealed class EfWorkflowInstanceStore(
         await dbContext.SaveChangesAsync(
             cancellationToken);
     }
+    public async Task MarkRunningAsync(
+        Guid workflowId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity =
+            await dbContext.WorkflowInstances
+                .FirstOrDefaultAsync(
+                    x => x.WorkflowId == workflowId,
+                    cancellationToken);
+
+        if (entity is null) return;
+
+        entity.Status = "Running";
+
+        entity.FailureReason = null;
+
+        entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(
+            cancellationToken);
+    }
+
     public async Task SetProgressAsync(
         Guid workflowId,
         int current,

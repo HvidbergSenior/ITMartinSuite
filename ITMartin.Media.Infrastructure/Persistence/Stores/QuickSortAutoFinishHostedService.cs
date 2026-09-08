@@ -29,6 +29,18 @@ public sealed class QuickSortAutoFinishHostedService(
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(2);
 
+    // A failed chain writes no marker, so without this the next poll simply
+    // tries again - and each attempt re-runs a full tar+scp of the whole
+    // library to the NAS. A persistent failure (bad credentials, gallery
+    // container down, disk full) would push hundreds of GB every 2 minutes
+    // for as long as the process lives. Give up after this many consecutive
+    // failures for one workflow and wait for a human instead; delivery is
+    // never so urgent that it is worth saturating the network unattended.
+    private const int MaxDeliveryAttempts = 3;
+
+    private Guid _failingWorkflowId;
+    private int _consecutiveFailures;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(PollInterval);
@@ -85,6 +97,12 @@ public sealed class QuickSortAutoFinishHostedService(
             }
         }
 
+        if (_failingWorkflowId == latest.WorkflowId &&
+            _consecutiveFailures >= MaxDeliveryAttempts)
+        {
+            return;
+        }
+
         logger.LogInformation(
             "QuickSort run {WorkflowId} completed - auto-finishing {LibraryRoot}",
             latest.WorkflowId,
@@ -120,15 +138,36 @@ public sealed class QuickSortAutoFinishHostedService(
 
             await File.WriteAllTextAsync(markerPath, latest.WorkflowId.ToString(), cancellationToken);
 
+            _consecutiveFailures = 0;
+
             await alertNotifier.NotifyDeliveredAsync(latest.WorkflowId, latest.WorkflowName, slug, cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Auto-finish chain failed for {WorkflowId}", latest.WorkflowId);
+            if (_failingWorkflowId != latest.WorkflowId)
+            {
+                _failingWorkflowId = latest.WorkflowId;
+                _consecutiveFailures = 0;
+            }
+
+            _consecutiveFailures++;
+
+            var givingUp = _consecutiveFailures >= MaxDeliveryAttempts;
+
+            logger.LogError(
+                ex,
+                "Auto-finish chain failed for {WorkflowId} (attempt {Attempt} of {MaxAttempts}){Suffix}",
+                latest.WorkflowId,
+                _consecutiveFailures,
+                MaxDeliveryAttempts,
+                givingUp
+                    ? " - giving up, will not retry until this process restarts"
+                    : string.Empty);
+
             await alertNotifier.NotifyFailedAsync(
                 latest.WorkflowId,
                 latest.WorkflowName,
-                $"Auto-finish (finish-library/push-to-nas/wire-gallery) failed: {ex.Message}",
+                $"Auto-finish (finish-library/push-to-nas/wire-gallery) failed on attempt {_consecutiveFailures}/{MaxDeliveryAttempts}: {ex.Message}",
                 cancellationToken);
         }
     }

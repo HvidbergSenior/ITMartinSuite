@@ -73,6 +73,16 @@ public sealed class WorkflowExecutor(
                 workflow.Name,
                 cancellationToken);
         }
+        else
+        {
+            // Re-entering an existing instance means recovery picked it up,
+            // so its row still says Running-but-dead or Failed. Clear that
+            // now: otherwise the whole re-run reports the stale status and a
+            // live workflow looks like a failed one to every consumer.
+            await workflowInstanceStore.MarkRunningAsync(
+                workflowId,
+                cancellationToken);
+        }
 
         var steps =
             workflow.Steps.ToList();

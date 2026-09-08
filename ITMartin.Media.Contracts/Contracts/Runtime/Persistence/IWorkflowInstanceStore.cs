@@ -20,6 +20,15 @@ public interface IWorkflowInstanceStore
         Guid workflowId,
         string reason,
         CancellationToken cancellationToken = default);
+
+    // Puts an existing instance back into "Running" - needed when recovery
+    // re-executes a workflow that was left Running or Failed. Without it the
+    // row keeps its stale status for the whole re-run, so every status
+    // consumer (the p1-status endpoint, the stall watchdog, auto-finish)
+    // reports a live workflow as failed.
+    Task MarkRunningAsync(
+        Guid workflowId,
+        CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(
         Guid workflowId,
         CancellationToken cancellationToken = default);
