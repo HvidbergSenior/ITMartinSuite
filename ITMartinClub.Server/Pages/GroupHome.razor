@@ -116,11 +116,11 @@ else
                                 <option value="none">Ingen (almindeligt emne)</option>
                                 <option value="daily">Dagligt</option>
                                 <option value="weekly">Ugentligt — vælg dag(e) nedenfor</option>
-                                <option value="biweekly">Hver 14. dag</option>
-                                <option value="monthly">Månedligt</option>
+                                <option value="biweekly">Hver 14. dag — vælg dag(e) nedenfor (valgfrit)</option>
+                                <option value="monthly">Månedligt — vælg dag(e) nedenfor (valgfrit)</option>
                             </select>
                         </div>
-                        @if (_newMainTaskRecurrence == "weekly")
+                        @if (_newMainTaskRecurrence is "weekly" or "biweekly" or "monthly")
                         {
                             <div class="task-field">
                                 <label>Hvilke dage</label>
@@ -189,45 +189,40 @@ else
                                       OnEditTask="StartEditTask" OnDeleteTask="DeleteTaskAsync" />
                     </text>;
                 }
-                @if (dailyMainTasks.Count > 0 || otherRecurring.Count > 0)
+                @if (dailyMainTasks.Count > 0)
                 {
-                    <div class="recurring-row">
-                        @if (dailyMainTasks.Count > 0)
+                    <div class="daily-column">
+                        <div class="task-section-label">☀️ Daglige opgaver</div>
+                        <div class="maintask-grid">
+                        @foreach (var mt in dailyMainTasks)
                         {
-                            <div class="daily-column">
-                                <div class="task-section-label">☀️ Daglige opgaver</div>
-                                <div class="maintask-grid">
-                                @foreach (var mt in dailyMainTasks)
-                                {
-                                    @RenderMainTaskCard(mt)
-                                }
-                                </div>
-                            </div>
+                            @RenderMainTaskCard(mt)
                         }
-                        @if (otherRecurring.Count > 0)
+                        </div>
+                    </div>
+                }
+                @if (otherRecurring.Count > 0)
+                {
+                    <div class="weekly-column">
+                        <div class="task-section-label-row">
+                            <div class="task-section-label">🔁 Andre tilbagevendende</div>
+                            <button class="task-take-btn" @onclick="() => _showOtherRecurring = !_showOtherRecurring">@(_showOtherRecurring ? "Skjul" : "Vis")</button>
+                        </div>
+                        @if (_showOtherRecurring)
                         {
-                            <div class="weekly-column">
-                                <div class="task-section-label-row">
-                                    <div class="task-section-label">🔁 Andre tilbagevendende</div>
-                                    <button class="task-take-btn" @onclick="() => _showOtherRecurring = !_showOtherRecurring">@(_showOtherRecurring ? "Skjul" : "Vis")</button>
-                                </div>
-                                @if (_showOtherRecurring)
-                                {
-                                    <div class="maintask-grid">
-                                    @foreach (var mt in otherRecurring.Where(m => m.IsWeekly))
-                                    {
-                                        @RenderMainTaskCard(mt)
-                                    }
-                                    @foreach (var mt in otherRecurring.Where(m => m.IsBiweekly))
-                                    {
-                                        @RenderMainTaskCard(mt)
-                                    }
-                                    @foreach (var mt in otherRecurring.Where(m => m.IsMonthly))
-                                    {
-                                        @RenderMainTaskCard(mt)
-                                    }
-                                    </div>
-                                }
+                            <div class="maintask-grid">
+                            @foreach (var mt in otherRecurring.Where(m => m.IsWeekly))
+                            {
+                                @RenderMainTaskCard(mt)
+                            }
+                            @foreach (var mt in otherRecurring.Where(m => m.IsBiweekly))
+                            {
+                                @RenderMainTaskCard(mt)
+                            }
+                            @foreach (var mt in otherRecurring.Where(m => m.IsMonthly))
+                            {
+                                @RenderMainTaskCard(mt)
+                            }
                             </div>
                         }
                     </div>
@@ -339,10 +334,6 @@ else
     .task-section-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
     .tomorrow-section { margin-bottom: 20px; }
     .weekly-column, .daily-column { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-    .recurring-row { display: flex; gap: 24px; align-items: flex-start; }
-    .recurring-row .daily-column, .recurring-row .weekly-column { flex: 1; min-width: 0; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-    .recurring-row .weekly-column { border-left: 1px solid var(--border); padding-left: 24px; }
-    @@media (max-width: 900px) { .recurring-row { flex-direction: column; } .recurring-row .weekly-column { border-left: none; padding-left: 0; } }
     .task-section-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .task-section-label-row .task-section-label { margin-bottom: 0; }
     .task-row-actions { display: flex; gap: 8px; }
@@ -486,10 +477,8 @@ else
 
             var dailyMainTaskIds = _mainTasks.Where(m => m.IsDaily).Select(m => m.Id).ToList();
             _recurringMainTasks = _mainTasks.Where(m => m.IsRecurringCard).ToList();
-            var weeklyMainTasks = _recurringMainTasks.Where(m => m.IsWeekly).ToDictionary(m => m.Id, IReadOnlyList<DayOfWeek> (m) => m.RecurrenceDays);
-            var monthlyMainTaskIds = _recurringMainTasks.Where(m => m.IsMonthly).Select(m => m.Id).ToList();
-            var biweeklyMainTaskIds = _recurringMainTasks.Where(m => m.IsBiweekly).Select(m => m.Id).ToList();
-            await TaskService.ReopenStaleTasksAsync(_group!.Id, dailyMainTaskIds, weeklyMainTasks, monthlyMainTaskIds, biweeklyMainTaskIds, localTodayStartUtc);
+            var allRecurringForReopen = _mainTasks.Where(m => m.IsDaily || m.IsRecurringCard).ToList();
+            await TaskService.ReopenStaleTasksAsync(_group!.Id, allRecurringForReopen, localTodayStartUtc);
 
             _openTasksFull = await Db.Assignments
                 .Where(a => a.GroupId == _group!.Id && !a.IsCompleted && (a.ScheduledFor == null || a.ScheduledFor <= localTodayStartUtc))
@@ -510,8 +499,7 @@ else
                 .OrderBy(a => a.ScheduledFor)
                 .ToListAsync();
 
-            _dailyDoneCounts = await TaskService.GetDailyDoneCountsAsync(_group!.Id,
-                dailyMainTaskIds.Concat(weeklyMainTasks.Keys).Concat(monthlyMainTaskIds).Concat(biweeklyMainTaskIds).ToList());
+            _dailyDoneCounts = await TaskService.GetDailyDoneCountsAsync(_group!.Id, allRecurringForReopen.Select(m => m.Id).ToList());
 
             _members = await Db.Members
                 .Where(m => m.GroupId == _group!.Id)
@@ -652,7 +640,7 @@ else
             IsDaily = _newMainTaskRecurrence == "daily",
             IsMonthly = _newMainTaskRecurrence == "monthly",
             IsBiweekly = _newMainTaskRecurrence == "biweekly",
-            RecurrenceDaysRaw = _newMainTaskRecurrence == "weekly"
+            RecurrenceDaysRaw = _newMainTaskRecurrence is "weekly" or "biweekly" or "monthly"
                 ? string.Join(',', WeekdaysInOrder.Where(_newMainTaskDays.Contains))
                 : "",
         });
@@ -693,10 +681,13 @@ else
         _ => "Søndag",
     };
 
-    private static string RecurrenceLabel(MainTask mt) =>
-        mt.IsMonthly ? "Månedligt"
-        : mt.IsBiweekly ? "Hver 14. dag"
-        : string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish));
+    private static string RecurrenceLabel(MainTask mt)
+    {
+        var days = mt.RecurrenceDays.Count > 0 ? string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish)) : null;
+        if (mt.IsMonthly) return days is null ? "Månedligt" : $"Månedligt ({days})";
+        if (mt.IsBiweekly) return days is null ? "Hver 14. dag" : $"Hver 14. dag ({days})";
+        return days ?? "";
+    }
 
     // Daily phrases its badge around "i dag"/today specifically; the other
     // three recurring kinds share one generic "done for this cycle" phrasing

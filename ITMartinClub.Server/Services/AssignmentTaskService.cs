@@ -132,53 +132,72 @@ public sealed class AssignmentTaskService(ClubDbContext db, ClubPushService push
         await db.SaveChangesAsync();
     }
 
+    // A fixed Monday used only to number calendar weeks consecutively so
+    // biweekly-with-days can tell "this week" from "the other week" the same
+    // way for every task in the group, instead of each task having its own
+    // independent 14-day clock from whenever it happened to be created.
+    private static readonly DateTime BiweeklyEpochMonday = new(2024, 1, 1);
+
     // Daily main tasks are a recurring checklist: a subtask completed on an
     // earlier day reopens automatically so it can be done again today. Weekly
     // main tasks work the same way but only reopen once a new occurrence of
     // one of their recurrence days arrives (e.g. "every Monday and Thursday:
     // bins out" stays done from whichever of those days it was completed on
     // through the day before its next occurrence). Monthly reopens once a
-    // new calendar month starts. Biweekly is not calendar-aligned - it's a
-    // rolling 14 days from whenever it was actually completed, not from a
-    // fixed period boundary.
+    // new calendar month starts, or - if specific days are set - on the
+    // first occurrence of one of those weekdays on/after the 1st. Biweekly
+    // with no days set is not calendar-aligned - it's a rolling 14 days from
+    // whenever it was actually completed; with days set, it reopens on the
+    // given weekday(s) but only every OTHER calendar week (see
+    // BiweeklyEpochMonday), same across every task rather than each task
+    // keeping its own clock from its own completion time.
     // Extracted from GroupHome.razor's RefreshAsync 2026-09-06 - previously
     // untestable page-private logic, now a plain data operation. Generalized
     // 2026-09-08 to cover weekly recurrence alongside daily, then multi-day
-    // weekly, then monthly/biweekly, all the same day.
+    // weekly, then monthly/biweekly, then day-pickers for monthly/biweekly
+    // too, all the same day. Takes the MainTask rows themselves (rather than
+    // separate id lists/dictionaries per kind) so a future recurrence
+    // variation doesn't mean another parameter.
     public async Task ReopenStaleTasksAsync(
         Guid groupId,
-        IReadOnlyList<Guid> dailyMainTaskIds,
-        IReadOnlyDictionary<Guid, IReadOnlyList<DayOfWeek>> weeklyMainTasks,
-        IReadOnlyList<Guid> monthlyMainTaskIds,
-        IReadOnlyList<Guid> biweeklyMainTaskIds,
+        IReadOnlyList<MainTask> recurringMainTasks,
         DateTime localTodayStartUtc)
     {
-        if (dailyMainTaskIds.Count == 0 && weeklyMainTasks.Count == 0
-            && monthlyMainTaskIds.Count == 0 && biweeklyMainTaskIds.Count == 0) return;
+        if (recurringMainTasks.Count == 0) return;
 
-        // Per-mainTask staleness threshold: daily tasks use today's local
-        // midnight; weekly tasks use the MOST RECENT local midnight that fell
-        // on any of their recurrence weekdays (today counts if it matches) -
-        // the highest (latest) of each configured day's own most-recent-
-        // occurrence date; monthly uses local midnight on the 1st of the
-        // current month; biweekly uses "now minus 14 days" (a rolling window,
-        // not a calendar boundary - see doc comment above). Whole-day offsets
-        // off an already-correct local midnight, so this can be off by an
-        // hour across a DST transition within the lookback window - an
-        // acceptable edge case for a household chore reopening a bit early.
-        var thresholds = new Dictionary<Guid, DateTime>();
-        foreach (var id in dailyMainTaskIds) thresholds[id] = localTodayStartUtc;
-        foreach (var (id, days) in weeklyMainTasks)
-        {
-            if (days.Count == 0) continue;
-            thresholds[id] = days
-                .Select(day => localTodayStartUtc.AddDays(-(((int)localTodayStartUtc.DayOfWeek - (int)day + 7) % 7)))
-                .Max();
-        }
+        // Per-mainTask staleness threshold - see the kind-by-kind rules in
+        // the doc comment above. Whole-day offsets off an already-correct
+        // local midnight, so this can be off by an hour across a DST
+        // transition within the lookback window - an acceptable edge case
+        // for a household chore reopening a bit early.
         var startOfMonthUtc = localTodayStartUtc.AddDays(1 - localTodayStartUtc.Day);
-        foreach (var id in monthlyMainTaskIds) thresholds[id] = startOfMonthUtc;
-        var fourteenDaysAgoUtc = localTodayStartUtc.AddDays(-14);
-        foreach (var id in biweeklyMainTaskIds) thresholds[id] = fourteenDaysAgoUtc;
+        var thresholds = new Dictionary<Guid, DateTime>();
+        foreach (var mt in recurringMainTasks)
+        {
+            var days = mt.RecurrenceDays;
+            if (mt.IsDaily)
+            {
+                thresholds[mt.Id] = localTodayStartUtc;
+            }
+            else if (mt.IsMonthly)
+            {
+                thresholds[mt.Id] = days.Count == 0
+                    ? startOfMonthUtc
+                    : days.Select(day => MonthlyDayThreshold(startOfMonthUtc, localTodayStartUtc, day)).Max();
+            }
+            else if (mt.IsBiweekly)
+            {
+                thresholds[mt.Id] = days.Count == 0
+                    ? localTodayStartUtc.AddDays(-14)
+                    : days.Select(day => MostRecentActiveBiweeklyOccurrence(localTodayStartUtc, day)).Max();
+            }
+            else if (mt.IsWeekly && days.Count > 0)
+            {
+                thresholds[mt.Id] = days
+                    .Select(day => localTodayStartUtc.AddDays(-(((int)localTodayStartUtc.DayOfWeek - (int)day + 7) % 7)))
+                    .Max();
+            }
+        }
         if (thresholds.Count == 0) return;
 
         var recurringIds = thresholds.Keys.ToList();
@@ -192,6 +211,33 @@ public sealed class AssignmentTaskService(ClubDbContext db, ClubPushService push
 
         foreach (var a in stale) { a.IsCompleted = false; a.CompletedAt = null; a.CompletedByName = ""; }
         await db.SaveChangesAsync();
+    }
+
+    // "First occurrence of `day` on/after the 1st of the month" - but only
+    // once that occurrence has actually arrived. Before it arrives (e.g.
+    // checking on the 1st itself, when the first Wednesday is still two days
+    // off), the relevant boundary is still last month's occurrence of that
+    // day, so whatever was completed against that stays valid a little
+    // longer instead of getting reopened before its own day has even come
+    // around this month.
+    private static DateTime MonthlyDayThreshold(DateTime startOfMonthUtc, DateTime localTodayStartUtc, DayOfWeek day)
+    {
+        var firstOccurrenceThisMonth = startOfMonthUtc.AddDays(((int)day - (int)startOfMonthUtc.DayOfWeek + 7) % 7);
+        if (firstOccurrenceThisMonth <= localTodayStartUtc) return firstOccurrenceThisMonth;
+
+        var startOfPrevMonth = startOfMonthUtc.AddMonths(-1);
+        return startOfPrevMonth.AddDays(((int)day - (int)startOfPrevMonth.DayOfWeek + 7) % 7);
+    }
+
+    // Most recent occurrence of `day` on/before `localTodayStartUtc` that
+    // falls in an "active" (every-other) calendar week per BiweeklyEpochMonday
+    // - if the plain most-recent occurrence landed in the other week, the
+    // real most-recent active one was 7 days earlier still.
+    private static DateTime MostRecentActiveBiweeklyOccurrence(DateTime localTodayStartUtc, DayOfWeek day)
+    {
+        var mostRecent = localTodayStartUtc.AddDays(-(((int)localTodayStartUtc.DayOfWeek - (int)day + 7) % 7));
+        var weekIndex = (int)Math.Floor((mostRecent.Date - BiweeklyEpochMonday.Date).TotalDays / 7);
+        return weekIndex % 2 == 0 ? mostRecent : mostRecent.AddDays(-7);
     }
 
     // "Done" for a daily/weekly main task means all of its current cycle's

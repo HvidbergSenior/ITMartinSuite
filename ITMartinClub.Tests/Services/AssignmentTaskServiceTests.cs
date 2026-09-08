@@ -124,7 +124,16 @@ public class AssignmentTaskServiceTests
 
     // ── ReopenStaleTasksAsync (daily) ────────────────────────────────────
 
-    private static readonly IReadOnlyDictionary<Guid, IReadOnlyList<DayOfWeek>> NoWeekly = new Dictionary<Guid, IReadOnlyList<DayOfWeek>>();
+    private static MainTask Daily(Guid id) => new() { Id = id, GroupId = Guid.NewGuid(), IsDaily = true };
+
+    private static MainTask Weekly(Guid id, params DayOfWeek[] days) =>
+        new() { Id = id, GroupId = Guid.NewGuid(), RecurrenceDaysRaw = string.Join(',', days) };
+
+    private static MainTask Monthly(Guid id, params DayOfWeek[] days) =>
+        new() { Id = id, GroupId = Guid.NewGuid(), IsMonthly = true, RecurrenceDaysRaw = string.Join(',', days) };
+
+    private static MainTask Biweekly(Guid id, params DayOfWeek[] days) =>
+        new() { Id = id, GroupId = Guid.NewGuid(), IsBiweekly = true, RecurrenceDaysRaw = string.Join(',', days) };
 
     [Test]
     public async Task ReopenStaleTasksAsync_reopens_a_daily_task_completed_before_todays_local_start()
@@ -134,7 +143,7 @@ public class AssignmentTaskServiceTests
         var completedYesterday = localTodayStartUtc.AddHours(-2);
         var t = AddAssignment(mainTaskId: dailyMainTaskId, isCompleted: true, completedAt: completedYesterday);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [dailyMainTaskId], NoWeekly, [], [], localTodayStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Daily(dailyMainTaskId)], localTodayStartUtc);
 
         var reloaded = await _db.Assignments.FindAsync(t.Id);
         reloaded!.IsCompleted.Should().BeFalse();
@@ -150,7 +159,7 @@ public class AssignmentTaskServiceTests
         var completedThisMorning = localTodayStartUtc.AddHours(2);
         var t = AddAssignment(mainTaskId: dailyMainTaskId, isCompleted: true, completedAt: completedThisMorning);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [dailyMainTaskId], NoWeekly, [], [], localTodayStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Daily(dailyMainTaskId)], localTodayStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue("it was already completed on today's local calendar day");
     }
@@ -162,9 +171,9 @@ public class AssignmentTaskServiceTests
         var localTodayStartUtc = new DateTime(2026, 9, 6, 0, 0, 0, DateTimeKind.Utc);
         var t = AddAssignment(mainTaskId: nonDailyMainTaskId, isCompleted: true, completedAt: localTodayStartUtc.AddDays(-5));
 
-        // nonDailyMainTaskId is deliberately NOT in the daily list passed in -
+        // nonDailyMainTaskId is deliberately NOT in the recurring list passed in -
         // a one-off backlog task (Bogshoppen-style) must never auto-reopen.
-        await _sut.ReopenStaleTasksAsync(_groupId, [], NoWeekly, [], [], localTodayStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [], localTodayStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue();
     }
@@ -175,7 +184,7 @@ public class AssignmentTaskServiceTests
         var dailyMainTaskId = Guid.NewGuid();
         var t = AddAssignment(mainTaskId: dailyMainTaskId, isCompleted: false);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [dailyMainTaskId], NoWeekly, [], [], DateTime.UtcNow);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Daily(dailyMainTaskId)], DateTime.UtcNow);
 
         var reloaded = await _db.Assignments.FindAsync(t.Id);
         reloaded!.IsCompleted.Should().BeFalse();
@@ -193,7 +202,7 @@ public class AssignmentTaskServiceTests
         var completedLastThursday = thisThursdayLocalStartUtc.AddDays(-7).AddHours(10);
         var t = AddAssignment(mainTaskId: weeklyMainTaskId, isCompleted: true, completedAt: completedLastThursday);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [], new Dictionary<Guid, IReadOnlyList<DayOfWeek>> { [weeklyMainTaskId] = [DayOfWeek.Thursday] }, [], [], thisThursdayLocalStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Weekly(weeklyMainTaskId, DayOfWeek.Thursday)], thisThursdayLocalStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("it's Thursday again - last week's cleaning doesn't count for this week");
     }
@@ -208,7 +217,7 @@ public class AssignmentTaskServiceTests
         var completedThisThursday = thisThursday.AddHours(9);
         var t = AddAssignment(mainTaskId: weeklyMainTaskId, isCompleted: true, completedAt: completedThisThursday);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [], new Dictionary<Guid, IReadOnlyList<DayOfWeek>> { [weeklyMainTaskId] = [DayOfWeek.Thursday] }, [], [], saturdayLocalStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Weekly(weeklyMainTaskId, DayOfWeek.Thursday)], saturdayLocalStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue("Thursday's cleaning still counts through the rest of that week");
     }
@@ -224,7 +233,7 @@ public class AssignmentTaskServiceTests
         var completedLastThursday = thisThursday.AddDays(-7).AddHours(9);
         var t = AddAssignment(mainTaskId: weeklyMainTaskId, isCompleted: true, completedAt: completedLastThursday);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [], new Dictionary<Guid, IReadOnlyList<DayOfWeek>> { [weeklyMainTaskId] = [DayOfWeek.Thursday] }, [], [], tuesdayBeforeLocalStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Weekly(weeklyMainTaskId, DayOfWeek.Thursday)], tuesdayBeforeLocalStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue("this week's Thursday hasn't arrived yet");
     }
@@ -238,7 +247,7 @@ public class AssignmentTaskServiceTests
         var staleDaily = AddAssignment(mainTaskId: dailyId, isCompleted: true, completedAt: localTodayStartUtc.AddDays(-1));
         var staleWeekly = AddAssignment(mainTaskId: weeklyId, isCompleted: true, completedAt: localTodayStartUtc.AddDays(-7));
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [dailyId], new Dictionary<Guid, IReadOnlyList<DayOfWeek>> { [weeklyId] = [DayOfWeek.Thursday] }, [], [], localTodayStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Daily(dailyId), Weekly(weeklyId, DayOfWeek.Thursday)], localTodayStartUtc);
 
         (await _db.Assignments.FindAsync(staleDaily.Id))!.IsCompleted.Should().BeFalse();
         (await _db.Assignments.FindAsync(staleWeekly.Id))!.IsCompleted.Should().BeFalse();
@@ -257,9 +266,7 @@ public class AssignmentTaskServiceTests
         var t = AddAssignment(mainTaskId: weeklyMainTaskId, isCompleted: true, completedAt: completedThisMonday);
 
         await _sut.ReopenStaleTasksAsync(
-            _groupId, [],
-            new Dictionary<Guid, IReadOnlyList<DayOfWeek>> { [weeklyMainTaskId] = [DayOfWeek.Monday, DayOfWeek.Thursday] },
-            [], [],
+            _groupId, [Weekly(weeklyMainTaskId, DayOfWeek.Monday, DayOfWeek.Thursday)],
             thisThursdayLocalStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("Thursday is one of its recurrence days too, and it's arrived");
@@ -277,9 +284,7 @@ public class AssignmentTaskServiceTests
         var t = AddAssignment(mainTaskId: weeklyMainTaskId, isCompleted: true, completedAt: completedThisThursday);
 
         await _sut.ReopenStaleTasksAsync(
-            _groupId, [],
-            new Dictionary<Guid, IReadOnlyList<DayOfWeek>> { [weeklyMainTaskId] = [DayOfWeek.Monday, DayOfWeek.Thursday] },
-            [], [],
+            _groupId, [Weekly(weeklyMainTaskId, DayOfWeek.Monday, DayOfWeek.Thursday)],
             fridayLocalStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue();
@@ -295,7 +300,7 @@ public class AssignmentTaskServiceTests
         var completedInAugust = startOfSeptemberUtc.AddDays(-3);
         var t = AddAssignment(mainTaskId: monthlyMainTaskId, isCompleted: true, completedAt: completedInAugust);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [], NoWeekly, [monthlyMainTaskId], [], startOfSeptemberUtc.AddDays(9));
+        await _sut.ReopenStaleTasksAsync(_groupId, [Monthly(monthlyMainTaskId)], startOfSeptemberUtc.AddDays(9));
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("it's a new calendar month since it was completed");
     }
@@ -308,9 +313,38 @@ public class AssignmentTaskServiceTests
         var completedEarlierThisMonth = new DateTime(2026, 9, 3, 0, 0, 0, DateTimeKind.Utc);
         var t = AddAssignment(mainTaskId: monthlyMainTaskId, isCompleted: true, completedAt: completedEarlierThisMonth);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [], NoWeekly, [monthlyMainTaskId], [], localTodayStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Monthly(monthlyMainTaskId)], localTodayStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue("still the same calendar month");
+    }
+
+    [Test]
+    public async Task ReopenStaleTasksAsync_a_monthly_task_with_a_day_picked_reopens_on_the_first_occurrence_of_that_day()
+    {
+        // September 2026's 1st is a Tuesday, so "first Wednesday" is 2026-09-02.
+        var monthlyMainTaskId = Guid.NewGuid();
+        var startOfSeptemberUtc = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+        var completedInAugust = startOfSeptemberUtc.AddDays(-2);
+        var t = AddAssignment(mainTaskId: monthlyMainTaskId, isCompleted: true, completedAt: completedInAugust);
+
+        // Checked on the first Wednesday itself.
+        await _sut.ReopenStaleTasksAsync(_groupId, [Monthly(monthlyMainTaskId, DayOfWeek.Wednesday)], startOfSeptemberUtc.AddDays(1));
+
+        (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("the month's first Wednesday has arrived");
+    }
+
+    [Test]
+    public async Task ReopenStaleTasksAsync_a_monthly_task_with_a_day_picked_leaves_it_done_before_that_days_first_occurrence()
+    {
+        var monthlyMainTaskId = Guid.NewGuid();
+        var startOfSeptemberUtc = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc); // Tuesday
+        var completedOnTheFirst = startOfSeptemberUtc.AddHours(9);
+        var t = AddAssignment(mainTaskId: monthlyMainTaskId, isCompleted: true, completedAt: completedOnTheFirst);
+
+        // Checked on the 1st itself - the first Wednesday (2026-09-02) hasn't arrived yet.
+        await _sut.ReopenStaleTasksAsync(_groupId, [Monthly(monthlyMainTaskId, DayOfWeek.Wednesday)], startOfSeptemberUtc);
+
+        (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue("this month's first Wednesday hasn't happened yet");
     }
 
     // ── ReopenStaleTasksAsync (biweekly) ─────────────────────────────────
@@ -323,7 +357,7 @@ public class AssignmentTaskServiceTests
         var completed15DaysAgo = localTodayStartUtc.AddDays(-15);
         var t = AddAssignment(mainTaskId: biweeklyMainTaskId, isCompleted: true, completedAt: completed15DaysAgo);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [], NoWeekly, [], [biweeklyMainTaskId], localTodayStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Biweekly(biweeklyMainTaskId)], localTodayStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("15 days have passed since it was last done");
     }
@@ -336,9 +370,43 @@ public class AssignmentTaskServiceTests
         var completed10DaysAgo = localTodayStartUtc.AddDays(-10);
         var t = AddAssignment(mainTaskId: biweeklyMainTaskId, isCompleted: true, completedAt: completed10DaysAgo);
 
-        await _sut.ReopenStaleTasksAsync(_groupId, [], NoWeekly, [], [biweeklyMainTaskId], localTodayStartUtc);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Biweekly(biweeklyMainTaskId)], localTodayStartUtc);
 
         (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue("only 10 of the 14 days have passed");
+    }
+
+    [Test]
+    public async Task ReopenStaleTasksAsync_a_biweekly_task_with_a_day_picked_stays_done_on_the_off_week()
+    {
+        // BiweeklyEpochMonday is 2024-01-01. 2025-12-31 is a Wednesday whose
+        // week bucket ((date - epoch).Days / 7, floored) is 104, an even
+        // ("active") bucket - verified by direct calculation, not assumed,
+        // since which absolute weeks land on the active parity is an
+        // implementation detail of the epoch, not something callers should
+        // have to reason about by eye.
+        var biweeklyMainTaskId = Guid.NewGuid();
+        var activeWednesday = new DateTime(2025, 12, 31, 0, 0, 0, DateTimeKind.Utc);
+        var completedOnActiveWednesday = activeWednesday.AddHours(9);
+        var t = AddAssignment(mainTaskId: biweeklyMainTaskId, isCompleted: true, completedAt: completedOnActiveWednesday);
+
+        var offWeekWednesday = activeWednesday.AddDays(7);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Biweekly(biweeklyMainTaskId, DayOfWeek.Wednesday)], offWeekWednesday);
+
+        (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeTrue("this Wednesday is the off week - it only reopens every other Wednesday");
+    }
+
+    [Test]
+    public async Task ReopenStaleTasksAsync_a_biweekly_task_with_a_day_picked_reopens_on_the_next_active_occurrence()
+    {
+        var biweeklyMainTaskId = Guid.NewGuid();
+        var activeWednesday = new DateTime(2025, 12, 31, 0, 0, 0, DateTimeKind.Utc);
+        var completedOnActiveWednesday = activeWednesday.AddHours(9);
+        var t = AddAssignment(mainTaskId: biweeklyMainTaskId, isCompleted: true, completedAt: completedOnActiveWednesday);
+
+        var nextActiveWednesday = activeWednesday.AddDays(14);
+        await _sut.ReopenStaleTasksAsync(_groupId, [Biweekly(biweeklyMainTaskId, DayOfWeek.Wednesday)], nextActiveWednesday);
+
+        (await _db.Assignments.FindAsync(t.Id))!.IsCompleted.Should().BeFalse("the next active Wednesday, two weeks later, has arrived");
     }
 
     // ── DeclineAsync ─────────────────────────────────────────────────────
