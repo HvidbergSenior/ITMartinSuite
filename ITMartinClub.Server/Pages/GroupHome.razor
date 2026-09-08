@@ -142,6 +142,7 @@ else
                                 <div class="maintask-header">
                                     <div class="maintask-title">@mt.Title</div>
                                     <div class="maintask-count">@tasksForMain.Count</div>
+                                    <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => DeleteMainTaskAsync(mt.Id)">✕</button>
                                 </div>
                                 <div class="maintask-daily-badge @(tasksForMain.Count == 0 ? "daily-done" : "")">
                                     @(string.Join(" + ", mt.RecurrenceDays.Select(WeekdayDanish))) @(tasksForMain.Count == 0 ? "— ✅ gjort denne uge" : $"— {tasksForMain.Count} tilbage")
@@ -187,6 +188,7 @@ else
                         <div class="maintask-header">
                             <div class="maintask-title">@mt.Title</div>
                             <div class="maintask-count">@tasksForMain.Count</div>
+                            <button class="task-del-btn" title="Slet hovedopgave" @onclick="() => DeleteMainTaskAsync(mt.Id)">✕</button>
                         </div>
 
                         @if (mt.IsDaily)
@@ -632,6 +634,21 @@ else
     {
         if (isChecked) _newMainTaskDays.Add(day);
         else _newMainTaskDays.Remove(day);
+    }
+
+    // Tasks still under this category are kept, not deleted - they drop to
+    // "Ikke kategoriseret" instead of disappearing, same as the manual
+    // cleanup done for hvidberg's old categories (2026-09-08).
+    private async Task DeleteMainTaskAsync(Guid id)
+    {
+        var stillLinked = await Db.Assignments.Where(a => a.MainTaskId == id).ToListAsync();
+        foreach (var a in stillLinked) a.MainTaskId = null;
+
+        var mainTask = await Db.MainTasks.FirstOrDefaultAsync(m => m.Id == id && m.GroupId == _group!.Id);
+        if (mainTask is not null) Db.MainTasks.Remove(mainTask);
+
+        await Db.SaveChangesAsync();
+        await RefreshAsync();
     }
 
     private static string WeekdayDanish(DayOfWeek day) => day switch
