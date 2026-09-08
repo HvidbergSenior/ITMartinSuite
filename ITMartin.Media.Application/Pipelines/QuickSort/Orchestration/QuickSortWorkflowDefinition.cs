@@ -20,7 +20,6 @@ public sealed class QuickSortWorkflowDefinition
         ZipExtractionWorkflowStep zipExtractionWorkflowStep,
         FileDiscoveryWorkflowStep fileDiscoveryWorkflowStep,
         MediaRulesWorkflowStep mediaRulesWorkflowStep,
-        LivePhotoDetectionWorkflowStep livePhotoDetectionWorkflowStep,
         HashWorkflowStep hashWorkflowStep,
         MetadataWorkflowStep metadataWorkflowStep,
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
@@ -60,7 +59,14 @@ public sealed class QuickSortWorkflowDefinition
 
             mediaRulesWorkflowStep,
 
-            livePhotoDetectionWorkflowStep,
+            // LivePhotoDetectionWorkflowStep removed from the pipeline
+            // 2026-09-08 ("the important thing is categorizing" - basic
+            // MediaClassification above is what matters; a Live Photo's
+            // companion video just flows through as an ordinary video
+            // instead of getting its own pairing-detection pass). "LivePhotos"
+            // stays in CategoryHelper's never-necessary set defensively, but
+            // nothing sets that SubCategory anymore now that this step is
+            // gone.
 
             hashWorkflowStep,
 

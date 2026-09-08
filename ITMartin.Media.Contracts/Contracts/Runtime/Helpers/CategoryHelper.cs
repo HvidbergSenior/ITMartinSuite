@@ -17,7 +17,12 @@ public static class CategoryHelper
     private static readonly HashSet<string> NeverNecessaryCategories =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            "Skærmbilleder", "Memes", "Gifs", "Chat", "Film", "Ikke_identificeret"
+            "Skærmbilleder", "Memes", "Gifs", "Chat", "Film", "Ikke_identificeret",
+            // LivePhotoDetectionWorkflowStep was removed from the pipeline
+            // 2026-09-08 (not worth spending a whole step detecting these) -
+            // kept in this set defensively so a file that's ever classified
+            // LivePhotoVideo by any future/other path still never exports.
+            "LivePhotos"
         };
 
     public static bool IsNeverNecessary(MediaFile file) =>
