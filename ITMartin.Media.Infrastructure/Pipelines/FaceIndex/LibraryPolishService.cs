@@ -1236,6 +1236,110 @@ public sealed class LibraryPolishService : ILibraryPolishService
         });
     }
 
+    public Task<ManualRotationResult> ApplyManualRotationsAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var result = new ManualRotationResult();
+
+        var folder = Path.Combine(libraryPath, "SmartFolders", "RoterManuelt");
+        var manifestPath = Path.Combine(folder, "RoterManuelt.csv");
+        if (!File.Exists(manifestPath)) return Task.FromResult(result);
+
+        foreach (var line in File.ReadLines(manifestPath).Skip(1))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var parts = SplitCsvPair(line);
+            if (parts is null) continue;
+
+            var (copyName, original) = parts.Value;
+            var copy = Path.Combine(folder, copyName);
+            if (!File.Exists(copy) || !File.Exists(original)) continue;
+
+            result.Staged++;
+
+            // A copy nobody touched still matches the library file byte for
+            // byte. Comparing write times would be wrong here: the staging
+            // copy inherits its timestamp from the source, and a viewer can
+            // rewrite a file without changing what it looks like. Length plus
+            // last-write is the cheap proxy; content compare is the check
+            // that actually decides.
+            if (FilesAreIdentical(copy, original)) continue;
+
+            result.Rotated++;
+
+            try
+            {
+                // Bake first - see ApplyManualRotationsAsync's interface
+                // comment. Without this the rotation exists only as an EXIF
+                // tag and every raw-pixel reader still sees the old
+                // orientation.
+                if (TryReadOrientationTagCheap(copy, out var orientation) && orientation > 1)
+                {
+                    using var image = Image.Load(copy);
+                    image.Mutate(x => x.AutoOrient());
+                    image.Metadata.ExifProfile?.RemoveValue(ExifTag.Orientation);
+                    image.Save(copy);
+                }
+
+                File.Copy(copy, original, overwrite: true);
+                result.AppliedToLibrary++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not apply the manual rotation for {Path}", original);
+                result.Failed.Add(Path.GetRelativePath(libraryPath, original));
+            }
+        }
+
+        _logger.LogInformation(
+            "ApplyManualRotations for {Path}: {Staged} staged, {Rotated} changed by hand, {Applied} written back, {Failed} failed",
+            libraryPath, result.Staged, result.Rotated, result.AppliedToLibrary, result.Failed.Count);
+
+        return Task.FromResult(result);
+    }
+
+    // Minimal two-column CSV reader for the staging manifest - both fields are
+    // always quoted by the writer, and paths routinely contain commas.
+    private static (string CopyName, string Original)? SplitCsvPair(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return null;
+
+        var m = System.Text.RegularExpressions.Regex.Match(line, "^\"(?<a>(?:[^\"]|\"\")*)\",\"(?<b>(?:[^\"]|\"\")*)\"$");
+        if (!m.Success) return null;
+
+        return (m.Groups["a"].Value.Replace("\"\"", "\""),
+                m.Groups["b"].Value.Replace("\"\"", "\""));
+    }
+
+    private static bool FilesAreIdentical(string a, string b)
+    {
+        try
+        {
+            var fa = new FileInfo(a);
+            var fb = new FileInfo(b);
+            if (fa.Length != fb.Length) return false;
+
+            using var sa = fa.OpenRead();
+            using var sb = fb.OpenRead();
+            var ba = new byte[64 * 1024];
+            var bb = new byte[64 * 1024];
+
+            int read;
+            while ((read = sa.Read(ba, 0, ba.Length)) > 0)
+            {
+                var readB = sb.Read(bb, 0, read);
+                if (readB != read) return false;
+                if (!ba.AsSpan(0, read).SequenceEqual(bb.AsSpan(0, read))) return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static bool TryReadOrientationTagCheap(string path, out ushort orientation)
     {
         orientation = 0;

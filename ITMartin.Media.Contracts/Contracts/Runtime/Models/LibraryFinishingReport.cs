@@ -11,6 +11,10 @@ public sealed class LibraryFinishingReport
     public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
     public DateTime? FinishedAtUtc { get; set; }
 
+    // Phase 0 - rotations a person made in SmartFolders/RoterManuelt, applied
+    // back onto the library before anything else reads pixels
+    public ManualRotationResult? ManualRotations { get; set; }
+
     // Phase 1 - reorganization (rotation, junk reclassification, small albums)
     public FreeOrientationFixResult? OrientationFix { get; set; }
     public BurstFlattenResult? BurstsFlattened { get; set; }

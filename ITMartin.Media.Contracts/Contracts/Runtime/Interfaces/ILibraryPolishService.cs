@@ -234,4 +234,18 @@ public interface ILibraryPolishService
     // every consumer - EXIF-aware or not - agrees afterward. Safe to re-run:
     // a file with no tag or Orientation=1 is left untouched.
     Task<BakeOrientationResult> BakeExifOrientationAsync(string path, CancellationToken cancellationToken = default);
+
+    // Applies rotations a person made by hand in SmartFolders/RoterManuelt
+    // back onto the real library files. FileStatusWorkflowStep stages that
+    // folder for photos whose orientation cannot be determined from metadata
+    // (see its own comment); this is the other half - it reads the manifest,
+    // finds the copies whose timestamp moved after staging, and puts them
+    // back where they came from.
+    //
+    // Critically, it bakes the EXIF Orientation tag into the pixels first.
+    // Windows Photos' rotate button usually only flips that tag: the photo
+    // then looks correct in Explorer while every raw-pixel reader - the
+    // gallery thumbnailer included - still sees it sideways. Copying such a
+    // file back unchanged looks like it worked and silently does not.
+    Task<ManualRotationResult> ApplyManualRotationsAsync(string libraryPath, CancellationToken cancellationToken = default);
 }

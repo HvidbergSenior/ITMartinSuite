@@ -112,6 +112,21 @@ public sealed class LibraryFinishingService : ILibraryFinishingService
     {
         var report = new LibraryFinishingReport { LibraryPath = libraryPath };
 
+        await RunPhaseAsync(report, "ApplyManualRotations", async () =>
+        {
+            // First, before anything reads pixels. If a person has rotated
+            // photos in SmartFolders/RoterManuelt since the last run, those
+            // corrections belong in the library before dedup hashes them,
+            // before the gallery thumbnails them, and before delivery copies
+            // them anywhere.
+            //
+            // Runs unprompted by design: the user's rule is "no endpoint
+            // calls, I want automatic progress". Staging the folder and
+            // applying what comes back are two halves of one loop, and only
+            // the human part in the middle should need a person.
+            report.ManualRotations = await _polish.ApplyManualRotationsAsync(libraryPath, cancellationToken);
+        });
+
         await RunPhaseAsync(report, "Reorganization", async () =>
         {
             // Reorganization first - these move/rewrite files, so anything
