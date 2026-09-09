@@ -1,5 +1,29 @@
 # ITMartinSuite — instructions for Claude
 
+## NEVER delete customer source data (highest priority rule in this file)
+
+**Never run `rm` (or any delete) against a FileSorter *source* path.** On the photoserver that is
+anything under `/home/martinhvidberg/filesorter-personal/jobs/` (`/jobs/...` inside the
+containers). The same applies to any customer drive or folder a job was copied from.
+
+**Why this rule exists:** a customer's photos frequently exist in exactly ONE place — the copy on
+the photoserver — because the drive they came from gets reused as the *output* target for the
+sorted library. The sorted output is NOT a backup: it is deliberately smaller (screenshots, memes,
+chat images and duplicates are excluded, and duplicates collapse to one copy). On the ToshibaTest
+job the source was 87,009 files while the delivered output was 34,079 photos. Deleting the source
+because "it's already sorted" therefore destroys ~53,000 files that exist nowhere else.
+
+**How to apply:**
+- The pipeline itself only ever reads its source. Keep it that way; no step may write to or delete
+  from the source path.
+- If something under `jobs/` genuinely must go (a half-finished transfer, a wrong upload), **move
+  it aside with `mv` instead of deleting**, list what you are about to touch first, and tell the
+  user what you are doing and why before you do it.
+- Never delete a source copy to free disk space. Free space from Docker (`docker image prune`),
+  build artifacts, or old *output* instead — and if that is not enough, ask.
+- Before any destructive command on the photoserver, state the full path out loud and confirm it
+  is an output/generated path, not a source path.
+
 ## AI/Claude API cost discipline (critical, stated repeatedly by the user)
 
 **NEVER write code that makes one Claude API call per file in a loop.** This applies to every AI-driven feature in this suite (image tagging, captions, face/object detection, OCR cleanup, anything that calls Claude per photo/document). A real customer library can be tens of thousands of files — a 1:1 call-per-file pattern is the single most expensive mistake to make here, and it has happened more than once.

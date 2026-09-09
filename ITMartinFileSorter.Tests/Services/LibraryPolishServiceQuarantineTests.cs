@@ -60,8 +60,22 @@ public class LibraryPolishServiceQuarantineTests
             Mock.Of<IConfiguration>());
     }
 
+    // Changed 2026-09-09. This previously asserted the loser was quarantined
+    // into Dubletter/ rather than deleted (requested 2026-09-07: "not 'yes,
+    // permanently destroy the loser copy with no way back'"). On a real
+    // delivery that shipped 4,359 files / 5.0 GB of pure duplicates on the
+    // customer's drive, against the rule that only one copy of each file
+    // should exist.
+    //
+    // Deleting is safe specifically for EXACT-hash matches: the identical
+    // bytes remain in the library under the kept name, so there is nothing to
+    // restore. The 2026-09-07 concern still applies to near-duplicates, whose
+    // bytes differ and where a match can be wrong - those are deliberately
+    // still quarantined in DeduplicateFolderAsync. That path has no test here
+    // because it needs real perceptual-hash input rather than the byte-array
+    // fixtures these tests use.
     [Test]
-    public async Task Exact_duplicate_is_moved_to_Dubletter_not_deleted()
+    public async Task Exact_duplicate_is_deleted_not_quarantined()
     {
         var billeder = Path.Combine(_root, "Billeder");
         Directory.CreateDirectory(billeder);
@@ -74,18 +88,19 @@ public class LibraryPolishServiceQuarantineTests
 
         result.Deleted.Should().Be(1);
 
-        // Winner (first by ordinal filename) stays put.
+        // Winner (first by ordinal filename) stays put - the bytes are still
+        // in the library, which is what makes deleting the loser lossless.
         File.Exists(Path.Combine(billeder, "a_original.jpg")).Should().BeTrue();
+        File.ReadAllBytes(Path.Combine(billeder, "a_original.jpg")).Should().Equal(bytes);
 
-        // Loser is gone from Billeder...
+        // Loser is gone entirely - not moved aside.
         File.Exists(Path.Combine(billeder, "b_duplicate.jpg")).Should().BeFalse();
 
-        // ...but recoverable in Dubletter/, at the library root (sibling of
-        // Billeder, not buried inside it), preserving its original relative
-        // path under the category it came from.
         var quarantined = Path.Combine(_root, LibraryPolishService.DuplicatesRemovedFolderName, "Billeder", "b_duplicate.jpg");
-        File.Exists(quarantined).Should().BeTrue();
-        File.ReadAllBytes(quarantined).Should().Equal(bytes);
+        File.Exists(quarantined).Should().BeFalse();
+
+        // And no empty Dubletter/ shell left behind on the delivered drive.
+        Directory.Exists(Path.Combine(_root, LibraryPolishService.DuplicatesRemovedFolderName)).Should().BeFalse();
     }
 
     [Test]

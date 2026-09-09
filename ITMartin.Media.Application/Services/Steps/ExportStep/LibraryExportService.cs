@@ -451,6 +451,15 @@ public class LibraryExportService
         // Only categories that can actually receive a file now that
         // Skærmbilleder/Memes/Gifs/Chat/Film/Ikke_identificeret are excluded
         // from export entirely (2026-09-08 - "only the necessary files").
+        //
+        // LivePhotos was still listed here until 2026-09-09 even though it is
+        // in CategoryHelper's never-necessary set, so it could never receive a
+        // file - it just shipped as an empty folder on the delivered drive.
+        // A category that is excluded from export must not get a folder.
+        //
+        // The rest are still pre-created, but any that stay empty (e.g. Musik
+        // in a library with no music) are removed by the DeliveryPolish phase
+        // in LibraryFinishingService before delivery.
         var baseFolders =
             new[]
             {
@@ -458,7 +467,6 @@ public class LibraryExportService
                 "Videoer",
                 "Dokumenter",
                 "Musik",
-                "LivePhotos",
             };
 
         foreach (var folder in baseFolders)

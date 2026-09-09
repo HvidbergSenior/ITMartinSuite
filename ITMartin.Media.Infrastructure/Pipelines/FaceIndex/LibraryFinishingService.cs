@@ -189,6 +189,21 @@ public sealed class LibraryFinishingService : ILibraryFinishingService
             report.GalleryExport = await _galleryExport.ExportAsync(libraryPath, cancellationToken);
         });
 
+        await RunPhaseAsync(report, "DeliveryPolish", async () =>
+        {
+            // Removes empty folders, OS junk (thumbnail caches etc.) and
+            // hides the manifest. This existed as PolishAsync but nothing in
+            // this chain ever called it, so a delivered drive kept every
+            // folder that happened to end up empty - the ToshibaTest delivery
+            // 2026-09-09 shipped empty LivePhotos, Musik and _Galleri/thumbs
+            // folders, which just look to the customer like something failed.
+            //
+            // After GalleryExport so it also catches anything that export
+            // leaves empty, and before DeliveryVerify so verification runs
+            // against the structure actually being delivered.
+            report.Polish = await _polish.PolishAsync(libraryPath, cancellationToken);
+        });
+
         await RunPhaseAsync(report, "DeliveryVerify", async () =>
         {
             // Last overall - sanity-checks the truly final state.

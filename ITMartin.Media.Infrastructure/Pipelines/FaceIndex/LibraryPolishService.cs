@@ -367,12 +367,22 @@ public sealed class LibraryPolishService : ILibraryPolishService
             {
                 try
                 {
-                    MoveToQuarantine(duplicate, libraryRoot, DuplicatesRemovedFolderName);
+                    // Deleted outright, NOT quarantined. These are exact-hash
+                    // matches - the identical bytes are still in the library
+                    // under the kept name a few lines up - so there is nothing
+                    // to restore and nothing lost. Quarantining them instead
+                    // (as this did until 2026-09-09) shipped 4,359 files /
+                    // 5.0 GB of pure duplicates in a "Dubletter" folder on the
+                    // customer's delivered drive, against the rule that only
+                    // one copy of each file should exist. Near-duplicates
+                    // below are different: those bytes differ, a match can be
+                    // wrong, and they are still quarantined.
+                    File.Delete(duplicate);
                     deleted++;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to move duplicate {Path} to {Folder}", duplicate, DuplicatesRemovedFolderName);
+                    _logger.LogWarning(ex, "Failed to delete exact duplicate {Path}", duplicate);
                 }
             }
         }

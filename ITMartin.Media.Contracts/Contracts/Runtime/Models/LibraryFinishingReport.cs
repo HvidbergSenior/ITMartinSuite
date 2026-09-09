@@ -38,7 +38,10 @@ public sealed class LibraryFinishingReport
     // Phase 5 - gallery export
     public StaticGalleryExportResult? GalleryExport { get; set; }
 
-    // Phase 6 - delivery verification
+    // Phase 6 - delivery polish (empty folders, OS junk, manifest hidden)
+    public LibraryPolishResult? Polish { get; set; }
+
+    // Phase 7 - delivery verification
     public LibraryIntegrityReport? IntegrityReport { get; set; }
     public LibraryStructureReport? StructureReport { get; set; }
     public StructureRepairResult? CollectionsRepair { get; set; }
