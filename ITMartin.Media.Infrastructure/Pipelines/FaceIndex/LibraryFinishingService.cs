@@ -116,7 +116,19 @@ public sealed class LibraryFinishingService : ILibraryFinishingService
             // Reorganization first - these move/rewrite files, so anything
             // after this (index, dedup, gallery export) sees the final
             // structure instead of one that gets reshuffled later.
-            report.OrientationFix = await _polish.FixOrientationFreeOnlyAsync(libraryPath, cancellationToken);
+            //
+            // FixOrientationFreeOnlyAsync is deliberately NOT called here.
+            // It runs local face-detection on every image to judge rotation,
+            // which does not finish in any usable time on a real library:
+            // on the ToshibaTest delivery 2026-09-09 it managed ~600 of
+            // 38,367 images in over four hours, and because it is the first
+            // phase it blocked push-to-nas and wire-gallery behind it - the
+            // library was fully sorted but undeliverable. The user's standing
+            // instruction is not to run this pass automatically; a quick look
+            // at an existing RotationUkendt folder is the cheap check, and
+            // fixing a handful by hand beats a multi-day scan. Run it
+            // explicitly via /api/debug/fix-orientation-free when it is
+            // actually wanted.
             report.BurstsFlattened = await _polish.FlattenBurstFoldersAsync(libraryPath, cancellationToken);
             report.AlbumArtReclassified = await _polish.ReclassifyAlbumArtAsync(libraryPath, cancellationToken);
             report.WebWatermarksReclassified = await _polish.ReclassifyWebWatermarksAsync(libraryPath, cancellationToken);
