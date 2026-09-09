@@ -338,6 +338,34 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
                 await AddPageAsync("tur", trip.Name, trip.Name, Directory.EnumerateFiles(trip.Dir));
         }
 
+        // Traditions (Jul, Nytår) - added 2026-09-09. SmartFoldersService has
+        // been generating these all along and nothing ever linked them, so on
+        // the ToshibaTest delivery 274 deliberately-curated photos (Jul 244,
+        // Nytår 30) existed on the drive but were unreachable from index.html:
+        // the only way to find them was digging through folders in Explorer.
+        var traditionsRoot = Path.Combine(smartFoldersRoot, "Traditioner");
+        if (Directory.Exists(traditionsRoot))
+        {
+            foreach (var traditionDir in Directory.EnumerateDirectories(traditionsRoot))
+            {
+                var name = Path.GetFileName(traditionDir);
+                await AddPageAsync("tradition", name, name, Directory.EnumerateFiles(traditionDir));
+            }
+        }
+
+        // Same gap: GenerateUnknownPersonFoldersAsync writes to
+        // "UkendtePersoner", while the People block below reads "People" - so
+        // discovered-but-unnamed people were generated and never linked either.
+        var unknownPeopleRoot = Path.Combine(smartFoldersRoot, "UkendtePersoner");
+        if (Directory.Exists(unknownPeopleRoot))
+        {
+            foreach (var personDir in Directory.EnumerateDirectories(unknownPeopleRoot))
+            {
+                var name = Path.GetFileName(personDir);
+                await AddPageAsync("person", name, name, Directory.EnumerateFiles(personDir));
+            }
+        }
+
         var peopleRoot = Path.Combine(smartFoldersRoot, "People");
         if (Directory.Exists(peopleRoot))
         {
@@ -896,6 +924,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         sb.AppendLine("</div>");
 
         AppendSmartFolderSection(sb, "Årbøger", "aarbog", smartFolderLinks, galleryRoot, libraryPath);
+        AppendSmartFolderSection(sb, "Traditioner", "tradition", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Personer", "person", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Steder", "sted", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Ture", "tur", smartFolderLinks, galleryRoot, libraryPath);
