@@ -159,18 +159,35 @@ public sealed class WorkflowExecutor(
 
                 stepStopwatch.Stop();
 
-                await workflowStepExecutionStore
-                    .MarkCompletedAsync(
-                        workflowId,
-                        step.Name,
-                        cancellationToken);
-
+                // Checkpoint FIRST, then mark the step completed. These are
+                // two separate tables, and resume reads them independently:
+                // the skip decision above comes from the step-execution
+                // store, while the state comes from the latest checkpoint. If
+                // the process dies between them the two disagree, and the
+                // order decides which way.
+                //
+                // Marking completed first fails dangerously: the step is
+                // skipped on resume while its output was never checkpointed,
+                // so every later step runs against state missing that step's
+                // work - silently, with no error. That is what produced
+                // "0 files tracked" from FileStatus on the ToshibaTest run
+                // 2026-09-09, after 41,176 files had actually been exported.
+                //
+                // Checkpointing first fails safely: the step simply runs
+                // again on resume, which recovery already assumes steps
+                // tolerate.
                 await workflowCheckpointStore
                     .SaveCheckpointAsync(
                         workflowId,
                         workflow.Name,
                         step.Name,
                         context.State,
+                        cancellationToken);
+
+                await workflowStepExecutionStore
+                    .MarkCompletedAsync(
+                        workflowId,
+                        step.Name,
                         cancellationToken);
 
                 logger.LogWorkflowStepEnd(

@@ -25,7 +25,6 @@ public sealed class QuickSortWorkflowDefinition
         DuplicateDetectionWorkflowStep duplicateDetectionWorkflowStep,
         AudioDuplicateDetectionWorkflowStep audioDuplicateDetectionWorkflowStep,
         ImageNormalizationWorkflowStep imageNormalizationWorkflowStep,
-        ImageQualityWorkflowStep imageQualityWorkflowStep,
         CleanupEvaluationWorkflowStep cleanupEvaluationWorkflowStep,
         AiClassificationWorkflowStep aiClassificationWorkflowStep,
         Manifest1BuildWorkflowStep manifest1BuildWorkflowStep,
@@ -93,9 +92,15 @@ public sealed class QuickSortWorkflowDefinition
 
             imageNormalizationWorkflowStep,
 
-            // Needs NormalizedPath (image side) already resolved - reads
-            // whichever file the export will actually use.
-            imageQualityWorkflowStep,
+            // ImageQualityWorkflowStep removed 2026-09-09. It spent 6m33s per
+            // run decoding every image to set IsBlurry/IsSolidColor, and
+            // nothing acted on the answer: Export never skipped blurry files,
+            // and the only readers were AiClassification (disabled without an
+            // API key) and FileStatus. Moving CleanupEvaluation earlier on
+            // 2026-09-07 - correct on its own terms - put the one step that
+            // could have used the verdict ahead of the step producing it. Work
+            // whose result is discarded is exactly what this pipeline is meant
+            // not to do.
 
             aiClassificationWorkflowStep,
 

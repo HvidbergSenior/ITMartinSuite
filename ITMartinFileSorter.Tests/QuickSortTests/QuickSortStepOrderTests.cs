@@ -52,13 +52,12 @@ public class QuickSortStepOrderTests
         "AudioDuplicateDetectionWorkflowStep", // 10. Same idea, scoped to audio tracks.
         "CleanupEvaluationWorkflowStep",    // 11. Decides Keep/Delete/Review per file (junk, near-duplicates). Moved here 2026-09-07 (was after ImageQuality) - every decision it makes only needs data already available by this point (DuplicateGroups from the two steps just above, Width/Height/Duration/Artist from Metadata), so a known duplicate/delete-candidate is now skipped by the two expensive per-image steps below instead of being processed and thrown away.
         "ImageNormalizationWorkflowStep",   // 12. HEIC/HEIF/AVIF -> JPG conversion, orientation baking (every image not already marked Duplicates/DeleteCandidates).
-        "ImageQualityWorkflowStep",         // 13. Free local blur/solid-color check (same exclusion).
-        "AiClassificationWorkflowStep",     // 14. Optional Claude-based classification (EnableAiClassification), batched since 2026-09-06.
-        "Manifest1BuildWorkflowStep",       // 15. Builds the in-memory QuickSort manifest from everything above.
-        "ExportWorkflowExecutionStep",      // 16. Physically copies files into the final category/Year/group layout. Never copies Duplicates/DeleteCandidates/LargeFilm/SmallArtist/Unplayable either, as of 2026-09-08 - no more "Review" folder.
-        "VideoConvertFinalizeWorkflowStep", // 17. Swaps in any video conversions (dispatched back in step 6, MediaRulesWorkflowStep) that finished after Export ran - fire-and-forget, doesn't block QuickSort's own completion.
-        "GalleryThumbnailWorkflowStep",     // 18. Generates the gallery's own per-file thumbnails, post-export.
-        "FileStatusWorkflowStep",           // 19. Writes filestatus.json - needs ExportedPath/category already settled.
+        "AiClassificationWorkflowStep",     // 13. Optional Claude-based classification (EnableAiClassification), batched since 2026-09-06.
+        "Manifest1BuildWorkflowStep",       // 14. Builds the in-memory QuickSort manifest from everything above.
+        "ExportWorkflowExecutionStep",      // 15. Physically copies files into the final category/Year/group layout. Never copies Duplicates/DeleteCandidates/LargeFilm/SmallArtist/Unplayable either, as of 2026-09-08 - no more "Review" folder.
+        "VideoConvertFinalizeWorkflowStep", // 16. Swaps in any video conversions (dispatched back in step 6, MediaRulesWorkflowStep) that finished after Export ran - fire-and-forget, doesn't block QuickSort's own completion.
+        "GalleryThumbnailWorkflowStep",     // 17. Generates the gallery's own per-file thumbnails, post-export.
+        "FileStatusWorkflowStep",           // 18. Writes filestatus.json - needs ExportedPath/category already settled.
         // NOTE: VideoSegmentationWorkflowStep, SegmentThumbnailWorkflowStep, and
         // ThumbnailWorkflowStep were removed 2026-08-24 - all three were
         // permanently dead code (no UI/request field ever set EnableSegmentation
