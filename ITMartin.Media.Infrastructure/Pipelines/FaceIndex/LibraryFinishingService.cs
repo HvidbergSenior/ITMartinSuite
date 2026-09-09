@@ -175,7 +175,17 @@ public sealed class LibraryFinishingService : ILibraryFinishingService
             }
 
             report.UnknownPersonFolders.AddRange(await _smartFolders.GenerateUnknownPersonFoldersAsync(libraryPath, cancellationToken: cancellationToken));
-            report.SimilarSceneFolders.AddRange(await _smartFolders.GenerateSimilarSceneFoldersAsync(libraryPath, cancellationToken));
+
+            // GenerateSimilarSceneFoldersAsync removed from the chain
+            // 2026-09-09 ("IT IS NOT NEEDED - REMOVE"). It perceptual-hashed
+            // every image in the library and copied each cluster into
+            // SmartFolders/Lignende/Gruppe N. On ToshibaTest that produced 94
+            // groups / 288 files / 605 MB of duplicated copies, and the
+            // grouping was poor: one group held a 2017 photo, a 2020 resized
+            // one and a Snapchat image, because clustering buckets per
+            // containing folder and the 2,554 undated photos all share the
+            // Billeder root as one giant bucket. The method is still on
+            // ISmartFoldersService if it is ever wanted deliberately.
 
             await _smartFolders.SyncGalleryCollectionsAsync(libraryPath, cancellationToken);
             report.GalleryCollectionsSynced = true;

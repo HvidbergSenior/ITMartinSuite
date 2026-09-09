@@ -62,9 +62,24 @@ public sealed class NasDeliveryService : INasDeliveryService
         try
         {
             // Local tar - no timeout drama here, it's the same machine's disk.
-            var tarResult = await RunProcessAsync("tar", $"-czf \"{tarPath}\" -C \"{libraryPath}\" .", TimeSpan.FromHours(2), cancellationToken);
+            //
+            // --ignore-failed-read so one unreadable path cannot throw away an
+            // entire delivery. Learned on ToshibaTest 2026-09-09: the USB drive
+            // dropped off the bus mid-write and left 10 corrupt directories in
+            // a generated SmartFolders/Lignende folder. tar aborted on them
+            // after archiving ~70 GB, the whole archive was discarded, and the
+            // delivery retried from scratch - even though every byte of real
+            // content (Billeder, Videoer, Dokumenter, _Galleri) was readable
+            // and verified fine. Skipping an unreadable file and still
+            // delivering everything else is strictly better than delivering
+            // nothing; the failure is still visible because tar's stderr is
+            // logged below and the delivery verification runs afterwards.
+            var tarResult = await RunProcessAsync("tar", $"--ignore-failed-read -czf \"{tarPath}\" -C \"{libraryPath}\" .", TimeSpan.FromHours(2), cancellationToken);
             if (tarResult.ExitCode != 0)
                 return new NasPushResult { Success = false, Error = $"tar failed: {tarResult.StdErr}" };
+
+            if (!string.IsNullOrWhiteSpace(tarResult.StdErr))
+                _logger.LogWarning("tar reported unreadable paths while archiving {LibraryPath} (archive still created): {Errors}", libraryPath, tarResult.StdErr);
 
             // -O forces the legacy scp protocol - this Synology account
             // doesn't serve the SFTP-based one modern OpenSSH defaults to
