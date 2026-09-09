@@ -80,6 +80,18 @@ public class ImageConverterService : IImageConverterService
     private static readonly string[] OrientationUnreliableModelSubstrings =
     [
         "ES60", "SL105", "ES63",
+
+        // Added 2026-09-10, confirmed to the bar described above on the
+        // ToshibaTest library. Both are mid-2000s Olympus compacts with no
+        // orientation sensor at all, so a portrait shot is stored as
+        // landscape pixels with nothing recording it:
+        //   C8080WZ    - writes Orientation=1 ("upright") on physically
+        //                sideways pixels
+        //   u760/S760  - writes no Orientation tag whatsoever
+        // The user hand-rotated 451 photos off this drive and every single
+        // one traced back to 2007-2010 from these two bodies; not one came
+        // from 2011 or later, when devices started recording orientation.
+        "C8080WZ", "u760", "S760",
     ];
 
     public bool IsFromOrientationUnreliableCamera(string path)

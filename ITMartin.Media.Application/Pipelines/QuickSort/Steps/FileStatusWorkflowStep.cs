@@ -174,5 +174,68 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
         _logger.LogInformation(
             "File status recorded for {Root}: {Total} files tracked, {Done} fully done, {Duplicates} matched an existing hash from a prior run",
             exportRoot, eligible.Count, newlyDone, duplicatesOfExisting);
+
+        await WriteManualRotationListAsync(exportRoot, eligible, cancellationToken);
+    }
+
+    // Photos whose orientation the pipeline cannot determine, written out for
+    // a human to fix rather than guessed at.
+    //
+    // The rule (user, 2026-09-10): "Should know which cameras and which year
+    // and if no exif -> Dont do anything -> Handle by them self". Inferring
+    // rotation from image content means face detection, which measured ~24
+    // seconds per photo on real hardware and is why the old rotation pass was
+    // removed from the pipeline entirely. So this step guesses nothing - it
+    // lists the files that cannot be resolved from metadata, grouped so the
+    // affected cameras and years are obvious, and leaves the decision to the
+    // person who can actually see the picture.
+    //
+    // Confirmed shape of the problem on ToshibaTest: 451 hand-rotated photos,
+    // every one from 2007-2010 on two Olympus compacts with no orientation
+    // sensor, and nothing at all from 2011 onward.
+    private async Task WriteManualRotationListAsync(
+        string exportRoot,
+        List<MediaFile> eligible,
+        CancellationToken cancellationToken)
+    {
+        var needsReview = eligible
+            .Where(f => f.Type == MediaType.Image)
+            .Where(f => !f.OrientationKnownFromExif || f.OrientationSourceIsUnreliable)
+            .Where(f => !string.IsNullOrWhiteSpace(f.ExportedPath))
+            .OrderBy(f => f.ExportedPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (needsReview.Count == 0) return;
+
+        var lines = new List<string> { "RelativePath,Year,Reason" };
+        foreach (var f in needsReview)
+        {
+            var relative = Path.GetRelativePath(exportRoot, f.ExportedPath!);
+            var year = f.CreatedAt?.Year.ToString() ?? "";
+            var reason = f.OrientationSourceIsUnreliable
+                ? "Camera writes an unreliable orientation tag"
+                : "No EXIF orientation tag";
+            lines.Add($"\"{relative.Replace("\"", "\"\"")}\",{year},{reason}");
+        }
+
+        var path = Path.Combine(exportRoot, "Roter-manuelt.csv");
+        try
+        {
+            await File.WriteAllLinesAsync(path, lines, cancellationToken);
+
+            var byYear = needsReview
+                .GroupBy(f => f.CreatedAt?.Year.ToString() ?? "(ukendt)")
+                .OrderBy(g => g.Key)
+                .Select(g => $"{g.Key}:{g.Count()}");
+
+            _logger.LogInformation(
+                "{Count} image(s) have no trustworthy orientation and were NOT rotated - listed in Roter-manuelt.csv for manual review. By year: {ByYear}",
+                needsReview.Count,
+                string.Join(", ", byYear));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not write the manual-rotation list to {Path}", path);
+        }
     }
 }
