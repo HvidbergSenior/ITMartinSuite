@@ -1,5 +1,8 @@
 using FluentAssertions;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Infrastructure.Pipelines.FaceIndex;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace ITMartinFileSorter.Tests.Services;
 
@@ -80,5 +83,47 @@ public class LibraryFinishingServiceTests
         Directory.CreateDirectory(Path.Combine(_root, "Billeder"));
 
         LibraryFinishingService.DiscoverYears(_root).Should().BeEmpty();
+    }
+
+    // The rotation passes infer orientation by running local face-detection
+    // on every image. That is ~24 seconds per photo on real hardware: on the
+    // ToshibaTest library it managed ~600 of 38,367 images in over four
+    // hours, and because it ran as the first phase of this chain it sat in
+    // front of push-to-nas and wire-gallery, leaving a fully sorted library
+    // undeliverable. The user's instruction is that no rotation scan runs
+    // programmatically at all.
+    //
+    // This has now regressed twice - removed from the QuickSort pipeline
+    // 2026-09-03, then reintroduced here - so it is pinned with a test
+    // rather than a comment. If this fails, do not "fix" it by updating the
+    // assertion.
+    [Test]
+    public async Task Never_runs_a_rotation_scan()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "Billeder"));
+
+        var polish = new Mock<ILibraryPolishService>();
+        var smartFolders = new Mock<ISmartFoldersService>();
+        var galleryExport = new Mock<IStaticGalleryExportService>();
+        var verify = new Mock<ILibraryVerifyService>();
+
+        var service = new LibraryFinishingService(
+            polish.Object,
+            smartFolders.Object,
+            galleryExport.Object,
+            verify.Object,
+            NullLogger<LibraryFinishingService>.Instance);
+
+        await service.RunAsync(_root);
+
+        polish.Verify(
+            p => p.FixOrientationFreeOnlyAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        polish.Verify(
+            p => p.FixOrientationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        polish.Verify(
+            p => p.DetectRotatedImagesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

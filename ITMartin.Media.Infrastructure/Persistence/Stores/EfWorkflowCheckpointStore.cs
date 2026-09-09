@@ -10,6 +10,12 @@ namespace ITMartin.Media.Infrastructure.Persistence.Stores;
 public sealed class EfWorkflowCheckpointStore
     : IWorkflowCheckpointStore
 {
+    // How many already-superseded checkpoints to keep per workflow, beyond
+    // the current one. Enough to look at how a bad step transitioned;
+    // see the pruning comment in SaveCheckpointAsync for why it is not
+    // unlimited.
+    private const int SupersededCheckpointsToKeep = 2;
+
     private readonly MediaDbContext _dbContext;
 
     public EfWorkflowCheckpointStore(
@@ -77,6 +83,31 @@ public sealed class EfWorkflowCheckpointStore
 
         await _dbContext.SaveChangesAsync(
             cancellationToken);
+
+        // Every checkpoint row holds the ENTIRE serialized workflow state -
+        // on a real library that is the whole MediaFiles list, tens of
+        // megabytes per row, written once per step. Nothing ever deleted
+        // them, so the database grew without bound: the ToshibaTest run
+        // 2026-09-09 left a 5.6 GB .media.db with a 530 MB WAL beside it, on
+        // the same slow external drive the export was competing for. Keeping
+        // a couple of superseded rows is enough to inspect a bad transition;
+        // the rest are dead weight that make every later write slower.
+        var supersededIds =
+            await _dbContext.WorkflowCheckpoints
+                .Where(x =>
+                    x.WorkflowId == workflowId &&
+                    !x.IsLatest)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .Skip(SupersededCheckpointsToKeep)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+
+        if (supersededIds.Count > 0)
+        {
+            await _dbContext.WorkflowCheckpoints
+                .Where(x => supersededIds.Contains(x.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
 
         await transaction.CommitAsync(cancellationToken);
     }

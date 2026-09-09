@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ITMartin.Media.Application.Pipelines.LibraryFinishing;
 using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
@@ -222,13 +223,35 @@ public sealed class LibraryFinishingService : ILibraryFinishingService
     // watching - logged and recorded in the report instead of thrown.
     private async Task RunPhaseAsync(LibraryFinishingReport report, string phaseName, Func<Task> phase)
     {
+        // Log the phase before running it. This chain used to be silent while
+        // it worked, and on 2026-09-09 that hid a rotation scan that sat in
+        // the first phase for five hours - from the outside the delivery just
+        // never happened, with nothing in the log to say where it was. A
+        // phase name on the way in and a duration on the way out is what
+        // makes a future slow phase obvious instead of invisible.
+        _logger.LogInformation(
+            "LibraryFinishing phase {Phase} starting for {LibraryPath}",
+            phaseName,
+            report.LibraryPath);
+
+        var stopwatch = Stopwatch.StartNew();
+
         try
         {
             await phase();
+
+            stopwatch.Stop();
+
+            _logger.LogInformation(
+                "LibraryFinishing phase {Phase} finished in {Duration}",
+                phaseName,
+                stopwatch.Elapsed);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "LibraryFinishingService phase {Phase} failed", phaseName);
+            stopwatch.Stop();
+
+            _logger.LogError(ex, "LibraryFinishingService phase {Phase} failed after {Duration}", phaseName, stopwatch.Elapsed);
             report.PhaseErrors.Add($"{phaseName}: {ex.Message}");
         }
     }
