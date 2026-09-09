@@ -141,6 +141,22 @@ public sealed class MetadataWorkflowStep
                                 .GetDimensions(
                                     file.FullPath);
 
+                        // Captured here, at step 8, rather than left unset:
+                        // this service is already open on the file's EXIF for
+                        // the dimensions above, so the camera name is free,
+                        // and knowing it this early means every later step -
+                        // and the Roter-manuelt.csv review list - can say
+                        // WHICH camera a rotation problem came from instead of
+                        // just "orientation unknown". The whole 2007-2010
+                        // rotation problem on ToshibaTest turned out to be two
+                        // specific Olympus bodies (see
+                        // ImageConverterService.OrientationUnreliableModelSubstrings),
+                        // which is only obvious once the model is recorded.
+                        file.CameraModel =
+                            _imageMetadataService
+                                .GetCameraModel(
+                                    file.FullPath);
+
                         var coordinates =
                             _gpsService
                                 .GetCoordinates(

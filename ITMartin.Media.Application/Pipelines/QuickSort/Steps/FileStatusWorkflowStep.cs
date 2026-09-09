@@ -207,15 +207,16 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
 
         if (needsReview.Count == 0) return;
 
-        var lines = new List<string> { "RelativePath,Year,Reason" };
+        var lines = new List<string> { "RelativePath,Year,Camera,Reason" };
         foreach (var f in needsReview)
         {
             var relative = Path.GetRelativePath(exportRoot, f.ExportedPath!);
             var year = f.CreatedAt?.Year.ToString() ?? "";
+            var camera = (f.CameraModel ?? "(ukendt)").Replace("\"", "\"\"");
             var reason = f.OrientationSourceIsUnreliable
                 ? "Camera writes an unreliable orientation tag"
                 : "No EXIF orientation tag";
-            lines.Add($"\"{relative.Replace("\"", "\"\"")}\",{year},{reason}");
+            lines.Add($"\"{relative.Replace("\"", "\"\"")}\",{year},\"{camera}\",{reason}");
         }
 
         var path = Path.Combine(exportRoot, "Roter-manuelt.csv");
@@ -223,19 +224,104 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
         {
             await File.WriteAllLinesAsync(path, lines, cancellationToken);
 
+            await BuildManualRotationFolderAsync(exportRoot, needsReview, cancellationToken);
+
             var byYear = needsReview
                 .GroupBy(f => f.CreatedAt?.Year.ToString() ?? "(ukendt)")
                 .OrderBy(g => g.Key)
                 .Select(g => $"{g.Key}:{g.Count()}");
 
+            var byCamera = needsReview
+                .GroupBy(f => string.IsNullOrWhiteSpace(f.CameraModel) ? "(ukendt)" : f.CameraModel!)
+                .OrderByDescending(g => g.Count())
+                .Take(5)
+                .Select(g => $"{g.Key}:{g.Count()}");
+
             _logger.LogInformation(
-                "{Count} image(s) have no trustworthy orientation and were NOT rotated - listed in Roter-manuelt.csv for manual review. By year: {ByYear}",
+                "{Count} image(s) have no trustworthy orientation and were NOT rotated - listed in Roter-manuelt.csv for manual review. By year: {ByYear}. Top cameras: {ByCamera}",
                 needsReview.Count,
-                string.Join(", ", byYear));
+                string.Join(", ", byYear),
+                string.Join(", ", byCamera));
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not write the manual-rotation list to {Path}", path);
+        }
+    }
+
+    // Everything the pipeline could not resolve, gathered into ONE flat
+    // folder so a person can page through it in a photo viewer and rotate
+    // what needs rotating, instead of hunting the same photos across twenty
+    // year folders.
+    //
+    // This is the workflow that was done by hand on ToshibaTest 2026-09-10 -
+    // ~600 photos, copied out flat, paged through, rotated, copied back - now
+    // produced by the sort itself. Copies, not moves: these are real photos
+    // that belong in their year folders, and the folder is a review surface,
+    // not a new home for them.
+    //
+    // Names are prefixed with a zero-padded number so they keep library order
+    // and cannot collide - basenames repeat across year folders constantly.
+    // RoterManuelt.csv beside them maps each copy back to the real file, which
+    // is what an apply-back pass needs.
+    //
+    // NOTE for whoever writes that apply-back: Windows' Photos app "rotate"
+    // usually only flips the EXIF Orientation tag and leaves the pixels alone.
+    // The photo then looks right in Explorer while every raw-pixel reader -
+    // the gallery thumbnailer included - still sees it sideways. Bake the tag
+    // into the pixels before copying anything back, or the fix is invisible
+    // where it matters.
+    private async Task BuildManualRotationFolderAsync(
+        string exportRoot,
+        List<MediaFile> needsReview,
+        CancellationToken cancellationToken)
+    {
+        var folder = Path.Combine(exportRoot, "SmartFolders", "RoterManuelt");
+
+        try
+        {
+            Directory.CreateDirectory(folder);
+
+            var map = new List<string> { "CopyName,Original" };
+            var i = 0;
+            var copied = 0;
+
+            foreach (var f in needsReview)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                i++;
+
+                var source = f.ExportedPath!;
+                if (!File.Exists(source)) continue;
+
+                var copyName = $"{i:D5}__{Path.GetFileName(source)}";
+                var destination = Path.Combine(folder, copyName);
+
+                try
+                {
+                    File.Copy(source, destination, overwrite: true);
+                    map.Add($"\"{copyName.Replace("\"", "\"\"")}\",\"{source.Replace("\"", "\"\"")}\"");
+                    copied++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not stage {Path} for manual rotation", source);
+                }
+            }
+
+            await File.WriteAllLinesAsync(
+                Path.Combine(folder, "RoterManuelt.csv"),
+                map,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Staged {Copied} image(s) into {Folder} for manual rotation - page through them in a photo viewer, rotate what is wrong, then run the apply-back pass",
+                copied,
+                folder);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not build the manual-rotation folder at {Folder}", folder);
         }
     }
 }
