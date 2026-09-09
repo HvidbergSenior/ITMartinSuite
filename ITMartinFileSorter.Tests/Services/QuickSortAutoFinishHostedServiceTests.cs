@@ -358,6 +358,45 @@ public class QuickSortAutoFinishHostedServiceTests
         File.Exists(Path.Combine(_libraryRoot, ".autofinished")).Should().BeTrue();
     }
 
+    // The two thumbnail sets look identical but serve different consumers:
+    // gallery-web's live /api/browse reads a per-folder "thumbnails" folder
+    // next to each file (and serves full-resolution originals without it),
+    // while the physical drive's offline index.html reads the centralized
+    // _Galleri/thumbs. Deleting the wrong one either slows the live gallery
+    // to a crawl or breaks the delivered drive's gallery outright.
+    [Test]
+    public void Per_folder_thumbnails_are_removed_but_the_offline_gallery_thumbs_survive()
+    {
+        var year = Path.Combine(_libraryRoot, "Billeder", "2007", "3 Juli");
+        Directory.CreateDirectory(Path.Combine(year, "thumbnails"));
+        File.WriteAllText(Path.Combine(year, "photo.jpg"), "photo");
+        File.WriteAllText(Path.Combine(year, "thumbnails", "photo.jpg"), "thumb");
+
+        var videoThumbs = Path.Combine(_libraryRoot, "Videoer", "thumbnails");
+        Directory.CreateDirectory(videoThumbs);
+        File.WriteAllText(Path.Combine(videoThumbs, "clip.jpg"), "thumb");
+
+        var galleryThumbs = Path.Combine(_libraryRoot, "_Galleri", "thumbs", "Billeder");
+        Directory.CreateDirectory(galleryThumbs);
+        File.WriteAllText(Path.Combine(galleryThumbs, "photo.jpg"), "gallery thumb");
+
+        var removed = QuickSortAutoFinishHostedService.RemovePerFolderThumbnails(
+            _libraryRoot,
+            NullLogger<QuickSortAutoFinishHostedService>.Instance);
+
+        removed.Should().Be(2);
+
+        // The customer's photos are untouched.
+        File.Exists(Path.Combine(year, "photo.jpg")).Should().BeTrue();
+
+        // The clutter is gone from inside their photo folders.
+        Directory.Exists(Path.Combine(year, "thumbnails")).Should().BeFalse();
+        Directory.Exists(videoThumbs).Should().BeFalse();
+
+        // ...but the offline gallery still has what index.html loads.
+        File.Exists(Path.Combine(galleryThumbs, "photo.jpg")).Should().BeTrue();
+    }
+
     private sealed class TestDbContextFactory(DbContextOptions<MediaDbContext> options)
         : IDbContextFactory<MediaDbContext>
     {

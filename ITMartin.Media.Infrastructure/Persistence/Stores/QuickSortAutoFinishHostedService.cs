@@ -59,6 +59,40 @@ public sealed class QuickSortAutoFinishHostedService(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
+    // Every per-folder "thumbnails" directory under the library, except the
+    // offline gallery's own _Galleri/thumbs, which the delivered index.html
+    // depends on. Public so the delivery behaviour is directly testable.
+    public static int RemovePerFolderThumbnails(string libraryRoot, ILogger logger)
+    {
+        if (!Directory.Exists(libraryRoot)) return 0;
+
+        var galleryRoot = Path.Combine(libraryRoot, "_Galleri");
+        var removed = 0;
+
+        foreach (var dir in Directory.EnumerateDirectories(libraryRoot, "thumbnails", SearchOption.AllDirectories))
+        {
+            if (dir.StartsWith(galleryRoot, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+                removed++;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not remove per-folder thumbnails at {Path}", dir);
+            }
+        }
+
+        logger.LogInformation(
+            "Removed {Count} per-folder thumbnails directories from {LibraryRoot} (the NAS copy keeps them; the offline gallery uses _Galleri/thumbs)",
+            removed,
+            libraryRoot);
+
+        return removed;
+    }
+
     // Public (not private) so this is directly unit-testable without a real
     // PeriodicTimer - same convention as WorkflowStallWatchdogHostedService.
     public async Task CheckOnceAsync(CancellationToken cancellationToken)
@@ -135,6 +169,18 @@ public sealed class QuickSortAutoFinishHostedService(
             {
                 throw new InvalidOperationException($"wire-gallery failed: {wireResult.Error}");
             }
+
+            // Deliberately AFTER push-to-nas, never before: the two thumbnail
+            // sets serve different consumers. gallery-web's live /api/browse
+            // reads a per-folder "thumbnails" subfolder next to each file and
+            // falls back to full-resolution originals when it is missing, so
+            // the copy pushed to the NAS must keep them. The physical drive
+            // handed to the customer uses the offline gallery instead, which
+            // reads the centralized _Galleri/thumbs - it never touches these,
+            // so on the drive they are just a "thumbnails" folder inside every
+            // single year folder the customer opens. Measured on ToshibaTest:
+            // 17,985 files the delivered gallery has zero references to.
+            RemovePerFolderThumbnails(libraryRoot, logger);
 
             await File.WriteAllTextAsync(markerPath, latest.WorkflowId.ToString(), cancellationToken);
 
