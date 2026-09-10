@@ -14,6 +14,7 @@ public sealed class QuickSortWorkflowDefinition
         Steps { get; }
 
     public QuickSortWorkflowDefinition(
+        StoragePreflightWorkflowStep storagePreflightWorkflowStep,
         CleanStartWorkflowStep cleanStartWorkflowStep,
         LibraryRootReconcileWorkflowStep libraryRootReconcileWorkflowStep,
         DvdJoinWorkflowStep dvdJoinWorkflowStep,
@@ -35,6 +36,15 @@ public sealed class QuickSortWorkflowDefinition
     {
         Steps =
         [
+            // Absolutely first. Proves the source and destination are really
+            // there, really respond, and really have content before any other
+            // step reads or writes a single byte - and in particular before
+            // CleanStart below, which DELETES generated folders from the
+            // source and must never run against a path whose mount is stale.
+            // See StoragePreflightWorkflowStep for the drive-drop history that
+            // put this here.
+            storagePreflightWorkflowStep,
+
             // Must run before anything else scans/reads the source folder -
             // see CleanStartWorkflowStep for why.
             cleanStartWorkflowStep,

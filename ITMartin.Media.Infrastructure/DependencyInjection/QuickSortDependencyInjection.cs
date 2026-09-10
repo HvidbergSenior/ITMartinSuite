@@ -42,6 +42,9 @@ public static class QuickSortDependencyInjection
             QuickSortCleanupResultBuilder>();
 
         services.AddScoped<
+            StoragePreflightWorkflowStep>();
+
+        services.AddScoped<
             CleanStartWorkflowStep>();
 
         // Missing entirely - confirmed 2026-09-06: QuickSortWorkflowDefinition

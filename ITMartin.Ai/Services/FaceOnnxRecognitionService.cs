@@ -38,6 +38,18 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
         // runs as part of a single-threaded library scan - a lock is cheap insurance.
         return Task.Run<IReadOnlyList<float[]>>(() =>
         {
+            // A file the index knows about but that is no longer on disk is
+            // ORDINARY, not an error: dedup removes the "_2" copies after they
+            // were recorded, so a library re-index always meets some. Logged as
+            // a stack trace it drowned the run - 1,655 multi-line traces on a
+            // 5% test run on 2026-09-10, which buried every real progress line.
+            // Checked before the lock so it costs nothing and never serialises.
+            if (!File.Exists(filePath))
+            {
+                _logger.LogDebug("Skipping {FilePath} - no longer on disk", filePath);
+                return [];
+            }
+
             lock (_lock)
             {
                 try
