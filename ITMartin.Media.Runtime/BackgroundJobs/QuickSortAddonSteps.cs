@@ -110,20 +110,16 @@ public sealed class QuickSortAddonSteps
     // or costs money. Run them explicitly against a delivered library when
     // they are actually wanted:
     //
-    //   EstimateUndatedDates (IFaceIndexService.EstimateUndatedDatesAsync)
-    //     Face-matching plus a GPS pass. Depends on the face index, so it
-    //     inherits that cost, and unlike person folders nothing signals that
-    //     a particular library wants it.
-    //
     //   GenerateUnknownPersonFolders (ISmartFoldersService)
     //     Reads the face index. Cheap on its own, but returns nothing at all
     //     until IndexFaces has run - on ToshibaTest it dutifully produced
     //     "0 unknown-person folders" because MediaFaces was empty. Worth
     //     revisiting once a library has an index from the person pass.
     //
-    // IndexFaces itself is NOT in this list: it runs, but only when
-    // .ReferencePhotos says someone wants person folders. See
-    // GeneratePersonFoldersAsync for why that gate is the whole design.
+    // IndexFaces and EstimateUndatedDates are NOT in this list: they run, but
+    // only when .ReferencePhotos says someone wants person folders. Once that
+    // gate opens and the index is built, dating the undated files is nearly
+    // free, so it rides along. See GeneratePersonFoldersAsync.
     //
     //   ClassifyUnhandledFilesAsync (IFaceIndexService)
     //     Makes real Claude API calls. CLAUDE.md keeps paid passes
@@ -182,6 +178,27 @@ public sealed class QuickSortAddonSteps
         // The prerequisite. Local FaceONNX, no API cost, and resumable - an
         // interrupted run just picks up where it stopped.
         await _faceIndex.IndexFacesAsync(libraryPath, cancellationToken: cancellationToken);
+
+        // Once the index exists, this is nearly free - the expensive work has
+        // already been paid for above. It places files sitting undated (no
+        // reliable date could be determined) by matching them against dated
+        // content elsewhere: first by face, then by GPS proximity for whatever
+        // the face pass missed. Confident matches move into the matched file's
+        // Year/Month folder; everything else stays where it is.
+        //
+        // This is the fix for the loose files at the root of Billeder - 2,554
+        // of them on ToshibaTest, 7% of the library, sitting outside any year
+        // folder because nothing in the file said when it was taken.
+        //
+        // Unlike the rotation work, this DOES infer: a wrong face match files
+        // a photo under the wrong year. The defaults are deliberately
+        // conservative and anything unmatched is left alone rather than
+        // guessed at.
+        await RunStepAsync("EstimateUndatedDates", libraryPath,
+            () => _faceIndex.EstimateUndatedDatesAsync(
+                libraryPath,
+                maxDatedReferenceFiles: 3000,
+                cancellationToken: cancellationToken));
 
         var existing = await _faceIndex.GetPeopleAsync();
 
