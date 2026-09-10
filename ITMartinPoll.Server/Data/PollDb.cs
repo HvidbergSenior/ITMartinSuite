@@ -4,6 +4,7 @@ namespace ITMartinPoll.Server.Data;
 
 public class PollDb(DbContextOptions<PollDb> opts) : DbContext(opts)
 {
+    public DbSet<Package>      Packages      => Set<Package>();
     public DbSet<Poll>         Polls         => Set<Poll>();
     public DbSet<PollOption>   Options       => Set<PollOption>();
     public DbSet<Vote>         Votes         => Set<Vote>();

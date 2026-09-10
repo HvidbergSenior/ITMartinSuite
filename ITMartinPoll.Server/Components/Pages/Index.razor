@@ -9,18 +9,12 @@
         <span class="poll-logo">Stem</span>
     </header>
 
-    <ProblemPurposeBanner
-        Problem="At lave en hurtig afstemning blandt venner eller familie kræver normalt en konto, et betalt værktøj, eller et rodet opslag hvor svarene drukner."
-        Formaal="Opret en afstemning på få sekunder. Del et link — alle kan stemme uden login, og du ser resultatet med det samme." />
+    @* Problem/formål- og "sådan bruger du appen"-bannerne er fjernet (bruger,
+       2026-09-10). De solgte appen til en førstegangsbesøgende, men forsiden
+       bruges nu til konkrete forespørgsler til folk der allerede har fået et
+       link - så pitchen stod bare i vejen for det de kom efter. *@
 
-    <HowToUseBanner Steps='@(new[]
-    {
-        "Opret en afstemning med de svarmuligheder, du vil have.",
-        "Del linket med dem, der skal stemme.",
-        "Følg resultatet live, efterhånden som svarene kommer ind.",
-    })' />
-
-    @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any())
+    @if (!_polls.Any() && !_sessions.Any() && !_datePolls.Any() && !_packages.Any())
     {
         <div class="poll-empty">
             <p>Ingen aktive meningsmålinger lige nu</p>
@@ -28,6 +22,29 @@
     }
     else
     {
+        @if (_packages.Any())
+        {
+        <div class="vote-section-label">📦 Forespørgsler — flere spørgsmål samlet</div>
+        <div class="poll-list">
+            @foreach (var pkg in _packages)
+            {
+                <a class="poll-card" href="/pakke/@pkg.Id">
+                    <div class="poll-card-body">
+                        <span class="session-badge">
+                            FORESPØRGSEL · @(pkg.Polls.Count + pkg.Sessions.Count) dele
+                        </span>
+                        <div class="poll-card-title">@pkg.Title</div>
+                        @if (!string.IsNullOrEmpty(pkg.Intro))
+                        {
+                            <div class="poll-card-desc">@pkg.Intro</div>
+                        }
+                        <div class="poll-card-meta"><span>Tryk for at svare</span></div>
+                    </div>
+                </a>
+            }
+        </div>
+        }
+
         @if (_sessions.Any())
         {
         <div class="vote-section-label">🖼️ Billedserier — bedøm billeder</div>
@@ -127,11 +144,28 @@
     private List<Poll>         _polls    = [];
     private List<ImageSession> _sessions = [];
     private List<DatePoll>     _datePolls = [];
+    private List<Package>      _packages = [];
 
     protected override void OnInitialized()
     {
-        _polls = Db.Polls
+        _packages = Db.Packages
             .Where(p => p.IsActive)
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => new Package
+            {
+                Id       = p.Id,
+                Title    = p.Title,
+                Intro    = p.Intro,
+                Polls    = p.Polls.Where(x => x.IsActive).ToList(),
+                Sessions = p.Sessions.Where(x => x.IsActive).ToList(),
+            })
+            .ToList();
+
+        // Items belonging to a package are reached through the package, not
+        // on their own - listing them both places invites someone to answer
+        // one question in isolation and never see the rest.
+        _polls = Db.Polls
+            .Where(p => p.IsActive && p.PackageId == null)
             .OrderByDescending(p => p.CreatedAt)
             .Select(p => new Poll
             {
@@ -145,7 +179,7 @@
             .ToList();
 
         _sessions = Db.Sessions
-            .Where(s => s.IsActive)
+            .Where(s => s.IsActive && s.PackageId == null)
             .OrderByDescending(s => s.CreatedAt)
             .Select(s => new ImageSession
             {

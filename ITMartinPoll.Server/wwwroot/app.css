@@ -596,6 +596,85 @@ a { color: inherit; text-decoration: none; }
     white-space: pre-wrap;
 }
 
+/* ── Forespørgsel (package) ──────────── */
+
+.pkg-intro { white-space: pre-wrap; }
+
+/* The identity gate. Deliberately the most prominent thing on the page until
+   it is filled in - an answer with no household attached cannot be used. */
+.pkg-identity {
+    margin: 0 16px 20px;
+    padding: 16px;
+    border: 2px solid var(--accent-strong);
+    border-radius: 10px;
+    background: var(--bg-deep);
+}
+
+.pkg-identity.done {
+    border-color: var(--border);
+    padding: 10px 14px;
+}
+
+.pkg-identity-done {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.pkg-identity-fields {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0 8px;
+    flex-wrap: wrap;
+}
+
+.pkg-identity-fields .poll-input { flex: 1 1 160px; min-width: 0; }
+.pkg-house-input { flex: 0 1 120px !important; }
+
+.pkg-identity-hint {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+
+.pkg-question {
+    margin: 0 16px 26px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+}
+
+.pkg-question:last-of-type { border-bottom: none; }
+
+.pkg-question-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.pkg-question-body {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--muted);
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+}
+
+.pkg-footer { padding: 0 16px 40px; }
+
+.pkg-saved {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 6px;
+}
+
+.pkg-footer-hint { font-size: 12px; color: var(--muted); }
+
 .session-result-name {
     font-size: 14px;
     font-weight: 700;

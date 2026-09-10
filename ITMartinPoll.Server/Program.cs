@@ -67,6 +67,19 @@ using (var scope = app.Services.CreateScope())
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Votes\" ADD COLUMN \"VoterName\" TEXT NOT NULL DEFAULT '';"); }
     catch { /* column already exists */ }
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Packages" (
+            "Id"        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            "Title"     TEXT    NOT NULL DEFAULT '',
+            "Intro"     TEXT    NOT NULL DEFAULT '',
+            "IsActive"  INTEGER NOT NULL DEFAULT 1,
+            "CreatedAt" TEXT    NOT NULL
+        );
+    """);
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"PackageId\" INTEGER NULL;"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Sessions\" ADD COLUMN \"PackageId\" INTEGER NULL;"); }
+    catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"SessionImages\" ADD COLUMN \"Caption\" TEXT NOT NULL DEFAULT '';"); }
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"SessionImages\" ADD COLUMN \"Description\" TEXT NOT NULL DEFAULT '';"); }

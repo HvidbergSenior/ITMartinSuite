@@ -7,9 +7,35 @@ public static class RatingScale
     public static string Label(int score) => score is >= 1 and <= 5 ? Labels[score] : "";
 }
 
+// Several questions that only make sense together - "vi overvejer ladestandere:
+// hvor mange, hvor hurtige, hvilket firma, og har du overhovedet en elbil?".
+// Asked one link at a time they read as four unrelated polls and get four
+// different sets of respondents; asked as one package they read as what they
+// are, a single forespørgsel, and one person answers all of it in one go.
+//
+// A package OWNS its items: a Poll or ImageSession with a PackageId is hidden
+// from the front page's own lists, because it is reached through the package
+// instead and listing it twice invites half-answers.
+public class Package
+{
+    public int      Id        { get; set; }
+    public string   Title     { get; set; } = "";
+
+    // Shown once at the top, so the shared context is stated in one place
+    // rather than repeated into every question's own body text.
+    public string   Intro     { get; set; } = "";
+
+    public bool     IsActive  { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public List<Poll>         Polls    { get; set; } = [];
+    public List<ImageSession> Sessions { get; set; } = [];
+}
+
 public class Poll
 {
     public int       Id        { get; set; }
+    public int?      PackageId { get; set; }
     public string    Title     { get; set; } = "";
     public string    Body      { get; set; } = "";
     public string?   ImageName { get; set; }
@@ -49,6 +75,7 @@ public class Vote
 public class ImageSession
 {
     public int       Id             { get; set; }
+    public int?      PackageId      { get; set; }
     public string    Title          { get; set; } = "";
     public string    Description    { get; set; } = "";
 

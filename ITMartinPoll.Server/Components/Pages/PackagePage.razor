@@ -1,0 +1,395 @@
+@page "/pakke/{PackageId:int}"
+@rendermode InteractiveServer
+@inject PollDb     Db
+@inject IJSRuntime JS
+
+@* One forespørgsel, one link, one pass. The questions here only mean anything
+   together - how many chargers, how fast, which operator, do you even have an
+   EV - so splitting them across four links would split the respondents too and
+   leave every question answered by a different subset of the household.
+
+   Identity is asked ONCE at the top and reused for every answer below, which is
+   why this page exists rather than four visits: nobody types their name four
+   times, and the answers can actually be tied together per household. *@
+
+<PageTitle>@(_package?.Title ?? "Forespørgsel")</PageTitle>
+
+<div class="poll-root">
+    <header class="poll-header">
+        <a href="/" class="poll-back">← Tilbage</a>
+        @if (_package is not null && _identified)
+        {
+            <span class="session-counter">@AnsweredCount / @TotalCount besvaret</span>
+        }
+    </header>
+
+    @if (_loading)
+    {
+        <div class="poll-empty"><p>Indlæser…</p></div>
+    }
+    else if (_package is null)
+    {
+        <div class="poll-empty"><p>Forespørgslen findes ikke.</p></div>
+    }
+    else
+    {
+        <div class="poll-content">
+            <h1 class="poll-title">@_package.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(_package.Intro))
+            {
+                <p class="poll-body pkg-intro">@_package.Intro</p>
+            }
+        </div>
+
+        @* Asked once, up front. Everything below stays hidden until it is
+           answered - not to be strict, but because an answer that cannot be
+           traced to a household is useless when the point is to size a shared
+           installation. *@
+        <div class="pkg-identity @(_identified ? "done" : "")">
+            @if (_identified)
+            {
+                <div class="pkg-identity-done">
+                    Svarer som <strong>@VoterLabel</strong>
+                    <button class="admin-btn" @onclick="() => _identified = false">Skift</button>
+                </div>
+            }
+            else
+            {
+                <div class="poll-vote-label">Hvem svarer?</div>
+                <div class="pkg-identity-fields">
+                    <input class="poll-input" placeholder="Fornavn, f.eks. Martin"
+                           maxlength="40" @bind="_name" @bind:event="oninput" />
+                    <input class="poll-input pkg-house-input" placeholder="Husstand, f.eks. 222"
+                           maxlength="10" @bind="_house" @bind:event="oninput" />
+                </div>
+                <div class="pkg-identity-hint">
+                    Skriv fornavn og husstandsnummer — f.eks. <strong>Martin 222</strong>.
+                    Så ved vi hvilke husstande der har svaret, og du kan rette dit svar senere.
+                </div>
+                @if (_identityError)
+                {
+                    <div class="form-error">Både navn og husstandsnummer skal udfyldes</div>
+                }
+                <button class="poll-submit-btn" @onclick="ConfirmIdentity">Fortsæt →</button>
+            }
+        </div>
+
+        @if (_identified)
+        {
+            @foreach (var poll in _package.Polls.OrderBy(p => p.Id))
+            {
+                var p = poll;
+                var chosen = _votes.GetValueOrDefault(p.Id);
+                <div class="pkg-question">
+                    <div class="pkg-question-title">@p.Title</div>
+                    @if (!string.IsNullOrWhiteSpace(p.Body))
+                    {
+                        <div class="pkg-question-body">@p.Body</div>
+                    }
+                    <div class="poll-options">
+                        @foreach (var opt in p.Options.OrderBy(o => o.SortOrder))
+                        {
+                            var o = opt;
+                            <button class="poll-option-btn @(chosen == o.Id ? "selected" : "")"
+                                    @onclick="() => SaveVoteAsync(p.Id, o.Id)">
+                                @o.Label
+                            </button>
+                        }
+                    </div>
+                    <div class="poll-comment-wrap">
+                        <textarea class="poll-comment-input" rows="2"
+                                  placeholder="Vil du uddybe? (valgfrit)"
+                                  maxlength="280"
+                                  value="@_voteComments.GetValueOrDefault(p.Id, "")"
+                                  @onchange="e => SaveVoteCommentAsync(p.Id, e.Value?.ToString() ?? string.Empty)"></textarea>
+                    </div>
+                </div>
+            }
+
+            @foreach (var session in _package.Sessions.OrderBy(s => s.Id))
+            {
+                var s = session;
+                <div class="pkg-question">
+                    <div class="pkg-question-title">@s.Title</div>
+                    @if (!string.IsNullOrWhiteSpace(s.Description))
+                    {
+                        <div class="pkg-question-body">@s.Description</div>
+                    }
+
+                    <div class="session-grid">
+                        @foreach (var image in s.Images.OrderBy(i => i.SortOrder))
+                        {
+                            var img   = image;
+                            var score = _ratings.GetValueOrDefault(img.Id);
+                            <button class="session-thumb-btn captioned @(score > 0 ? "rated" : "") @(_openImageId == img.Id ? "active" : "")"
+                                    @onclick="() => ToggleImage(img.Id)">
+                                <img src="/poll-images/@img.FileName" alt="@img.Caption" />
+                                <span class="session-thumb-caption">@img.Caption</span>
+                                @if (score > 0)
+                                {
+                                    <span class="session-score-badge">@RatingScale.Label(score)</span>
+                                }
+                            </button>
+                        }
+                    </div>
+
+                    @if (_openImageId is int openId)
+                    {
+                        var open = s.Images.FirstOrDefault(i => i.Id == openId);
+                        @if (open is not null)
+                        {
+                            <div class="session-rating-panel">
+                                <div class="session-panel-caption">@open.Caption</div>
+                                @if (!string.IsNullOrWhiteSpace(open.Description))
+                                {
+                                    <div class="session-panel-desc">@open.Description</div>
+                                }
+                                <div class="session-vote">
+                                    <div class="poll-vote-label">@(!string.IsNullOrWhiteSpace(s.Question) ? s.Question : "Hvad er din erfaring?")</div>
+                                    <div class="poll-options">
+                                        @for (var v = 5; v >= 1; v--)
+                                        {
+                                            var score = v;
+                                            <button class="poll-option-btn @(_ratings.GetValueOrDefault(openId) == score ? "selected" : "")"
+                                                    @onclick="() => SaveRatingAsync(openId, score)">
+                                                @RatingScale.Label(score)
+                                            </button>
+                                        }
+                                    </div>
+                                    <div class="poll-comment-wrap">
+                                        <textarea class="poll-comment-input" rows="2"
+                                                  placeholder="Hvad fungerede, og hvad drillede? (valgfrit)"
+                                                  maxlength="280"
+                                                  value="@_ratingComments.GetValueOrDefault(openId, "")"
+                                                  @onchange="e => SaveRatingCommentAsync(openId, e.Value?.ToString() ?? string.Empty)"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+
+            <div class="pkg-footer">
+                @if (_saved)
+                {
+                    <div class="pkg-saved">Dine svar er gemt ✓ Du kan altid komme tilbage og rette dem.</div>
+                }
+                <div class="pkg-footer-hint">
+                    Svarene gemmes med det samme — der er ingen "send"-knap.
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int PackageId { get; set; }
+
+    private Package? _package;
+    private bool _loading = true;
+    private bool _identified;
+    private bool _identityError;
+    private bool _saved;
+
+    private string _name  = "";
+    private string _house = "";
+    private string _token = "";
+
+    private int? _openImageId;
+
+    private Dictionary<int, int>    _votes          = [];   // PollId  -> OptionId
+    private Dictionary<int, string> _voteComments   = [];   // PollId  -> comment
+    private Dictionary<int, int>    _ratings        = [];   // ImageId -> score
+    private Dictionary<int, string> _ratingComments = [];   // ImageId -> comment
+
+    private string VoterLabel => $"{_name.Trim()} {_house.Trim()}".Trim();
+
+    private int TotalCount =>
+        (_package?.Polls.Count ?? 0) +
+        (_package?.Sessions.Sum(s => s.Images.Count) ?? 0);
+
+    private int AnsweredCount => _votes.Count + _ratings.Count;
+
+    protected override void OnInitialized()
+    {
+        _package = Db.Packages
+            .Where(p => p.Id == PackageId && p.IsActive)
+            .Select(p => new Package
+            {
+                Id    = p.Id,
+                Title = p.Title,
+                Intro = p.Intro,
+                Polls = p.Polls
+                    .Where(x => x.IsActive)
+                    .Select(x => new Poll
+                    {
+                        Id      = x.Id,
+                        Title   = x.Title,
+                        Body    = x.Body,
+                        Options = x.Options.ToList(),
+                    }).ToList(),
+                Sessions = p.Sessions
+                    .Where(x => x.IsActive)
+                    .Select(x => new ImageSession
+                    {
+                        Id          = x.Id,
+                        Title       = x.Title,
+                        Description = x.Description,
+                        Question    = x.Question,
+                        Images      = x.Images.ToList(),
+                    }).ToList(),
+            })
+            .FirstOrDefault();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Always clear the loading flag, including when nothing was found -
+        // the same mistake in SessionPage left that page spinning forever on a
+        // bad link, which reads as a broken app rather than a wrong URL.
+        if (_package is null)
+        {
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
+
+        _token = await JS.InvokeAsync<string?>("localStorage.getItem", $"pkg_token_{PackageId}") ?? "";
+        if (string.IsNullOrEmpty(_token))
+        {
+            _token = Guid.NewGuid().ToString("N");
+            await JS.InvokeVoidAsync("localStorage.setItem", $"pkg_token_{PackageId}", _token);
+        }
+
+        _name  = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_first_name") ?? "";
+        _house = await JS.InvokeAsync<string?>("localStorage.getItem", "voter_house") ?? "";
+        _identified = !string.IsNullOrWhiteSpace(_name) && !string.IsNullOrWhiteSpace(_house);
+
+        if (_identified) LoadExistingAnswers();
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    // What this household already said, so a return visit shows their answers
+    // instead of a blank form they would fill in twice.
+    private void LoadExistingAnswers()
+    {
+        if (_package is null) return;
+
+        var pollIds = _package.Polls.Select(p => p.Id).ToList();
+        foreach (var v in Db.Votes.Where(v => pollIds.Contains(v.PollId) && v.VoterName == VoterLabel))
+        {
+            _votes[v.PollId] = v.OptionId;
+            _voteComments[v.PollId] = v.Comment;
+        }
+
+        var imageIds = _package.Sessions.SelectMany(s => s.Images).Select(i => i.Id).ToList();
+        foreach (var r in Db.ImageRatings.Where(r => imageIds.Contains(r.ImageId) && r.VoterToken == _token))
+        {
+            _ratings[r.ImageId] = r.Score;
+            _ratingComments[r.ImageId] = r.Comment;
+        }
+    }
+
+    private void ConfirmIdentity()
+    {
+        if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_house))
+        {
+            _identityError = true;
+            return;
+        }
+
+        _identityError = false;
+        _identified = true;
+        LoadExistingAnswers();
+
+        _ = JS.InvokeVoidAsync("localStorage.setItem", "voter_first_name", _name.Trim());
+        _ = JS.InvokeVoidAsync("localStorage.setItem", "voter_house", _house.Trim());
+    }
+
+    private void ToggleImage(int imageId) =>
+        _openImageId = _openImageId == imageId ? null : imageId;
+
+    // Vote has no VoterToken column, so a household is identified by the
+    // name+number label. That is exactly why the number is mandatory: two
+    // people called Martin would otherwise overwrite each other's answer.
+    private async Task SaveVoteAsync(int pollId, int optionId)
+    {
+        var existing = Db.Votes.FirstOrDefault(v => v.PollId == pollId && v.VoterName == VoterLabel);
+        if (existing is null)
+        {
+            Db.Votes.Add(new Vote
+            {
+                PollId    = pollId,
+                OptionId  = optionId,
+                VoterName = VoterLabel,
+                Comment   = _voteComments.GetValueOrDefault(pollId, ""),
+                VotedAt   = DateTime.UtcNow,
+            });
+        }
+        else
+        {
+            existing.OptionId = optionId;
+            existing.VotedAt  = DateTime.UtcNow;
+        }
+
+        await Db.SaveChangesAsync();
+        _votes[pollId] = optionId;
+        _saved = true;
+    }
+
+    private async Task SaveVoteCommentAsync(int pollId, string comment)
+    {
+        _voteComments[pollId] = comment;
+
+        var existing = Db.Votes.FirstOrDefault(v => v.PollId == pollId && v.VoterName == VoterLabel);
+        if (existing is null) return;   // no choice yet - kept and saved with the vote
+
+        existing.Comment = comment.Trim();
+        await Db.SaveChangesAsync();
+        _saved = true;
+    }
+
+    private async Task SaveRatingAsync(int imageId, int score)
+    {
+        var existing = Db.ImageRatings.FirstOrDefault(r => r.ImageId == imageId && r.VoterToken == _token);
+        if (existing is null)
+        {
+            Db.ImageRatings.Add(new ImageRating
+            {
+                ImageId    = imageId,
+                Score      = score,
+                VoterToken = _token,
+                VoterName  = VoterLabel,
+                Comment    = _ratingComments.GetValueOrDefault(imageId, ""),
+                RatedAt    = DateTime.UtcNow,
+            });
+        }
+        else
+        {
+            existing.Score     = score;
+            existing.VoterName = VoterLabel;
+            existing.RatedAt   = DateTime.UtcNow;
+        }
+
+        await Db.SaveChangesAsync();
+        _ratings[imageId] = score;
+        _saved = true;
+    }
+
+    private async Task SaveRatingCommentAsync(int imageId, string comment)
+    {
+        _ratingComments[imageId] = comment;
+
+        var existing = Db.ImageRatings.FirstOrDefault(r => r.ImageId == imageId && r.VoterToken == _token);
+        if (existing is null) return;
+
+        existing.Comment = comment.Trim();
+        await Db.SaveChangesAsync();
+        _saved = true;
+    }
+}
