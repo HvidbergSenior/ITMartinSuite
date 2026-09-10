@@ -106,6 +106,12 @@ public static class QuickSortDependencyInjection
         services.AddScoped<
             FileStatusWorkflowStep>();
 
+        // Resolved by BOTH the queue handler and WorkflowRecoveryHostedService
+        // - a recovered workflow must finish the same library as a normally
+        // queued one. See QuickSortAddonSteps for what happens when it does not.
+        services.AddScoped<
+            QuickSortAddonSteps>();
+
         services.AddScoped<
             IBackgroundJobHandler,
             StartQuickSortHandler>();

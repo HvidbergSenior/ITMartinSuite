@@ -3,7 +3,9 @@ using ITMartin.Media.Application.Pipelines.QuickSort.Models;
 using ITMartin.Media.Application.Pipelines.QuickSort.Orchestration;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
+using ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 using ITMartin.Media.Contracts.Contracts.Runtime.Workflows;
+using ITMartin.Media.Runtime.BackgroundJobs;
 using ITMartin.Media.Runtime.Execution;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -184,6 +186,23 @@ public sealed class WorkflowRecoveryHostedService
                     workflowDefinition,
                     context,
                     stoppingToken);
+
+                // A recovered workflow used to stop here, having run all 18
+                // sort steps and none of the post-sort ones - those lived
+                // inside StartQuickSortHandler, which recovery never touches.
+                // The result looked like success while quietly producing a
+                // less complete library: on ToshibaTest 2026-09-09 it left
+                // MediaFaces empty and no static gallery export. Nothing
+                // failed; the steps simply did not exist on this path.
+                var outputPath = !string.IsNullOrWhiteSpace(state.OutputPath)
+                    ? state.OutputPath
+                    : scope.ServiceProvider
+                        .GetRequiredService<ILibraryPathProvider>()
+                        .LibraryRoot;
+
+                await scope.ServiceProvider
+                    .GetRequiredService<QuickSortAddonSteps>()
+                    .RunAsync(outputPath, stoppingToken);
             }
             catch (Exception ex)
             {
