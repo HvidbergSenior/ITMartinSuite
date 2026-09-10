@@ -38,6 +38,13 @@ if (!string.IsNullOrWhiteSpace(clientSlug))
 var libraryRootForDb = builder.Configuration["MediaSettings:LibraryRoot"];
 if (!string.IsNullOrWhiteSpace(libraryRootForDb))
 {
+    // Same reason as the identical line in ITMartinFileSorter.Worker/Program.cs:
+    // SQLite creates the database file but not its parent directory, so a
+    // library root that does not exist yet takes the whole app down at startup
+    // with "SQLite Error 14: unable to open database file" - which names the
+    // file, never the missing folder that actually caused it.
+    Directory.CreateDirectory(libraryRootForDb);
+
     builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={Path.Combine(libraryRootForDb, ".media.db")}";
 }
 

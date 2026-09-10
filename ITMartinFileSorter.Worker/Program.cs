@@ -23,6 +23,18 @@ using Microsoft.EntityFrameworkCore;
     var libraryRootForDb = builder.Configuration["MediaSettings:LibraryRoot"];
     if (!string.IsNullOrWhiteSpace(libraryRootForDb))
     {
+        // SQLite creates the database FILE but never its parent directory, so
+        // a library root that does not exist yet crashes the whole worker at
+        // startup with "SQLite Error 14: unable to open database file" - a
+        // message that says nothing about the missing folder being the cause.
+        //
+        // That is not an edge case: it is what a first run for a new client
+        // slug looks like, and what a deliberately cleaned library looks like.
+        // Hit for real on 2026-09-10 after wiping TestRun5 to start the test
+        // over; the worker then crash-looped until the folder was recreated by
+        // hand.
+        Directory.CreateDirectory(libraryRootForDb);
+
         builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={Path.Combine(libraryRootForDb, ".media.db")}";
     }
 
