@@ -133,9 +133,59 @@ public class ImageMetadataService : IImageMetadataService
         }
     }
 
+    // Was a `throw new NotImplementedException()` stub while MetadataWorkflowStep
+    // already called it for every image, inside one shared try/catch. Every
+    // photo therefore "failed metadata extraction" - 3,816 of 4,351 files on the
+    // 2026-09-10 test run - and every extraction AFTER this call in that lambda
+    // (GPS, width/height) was skipped along with it. Only the date survived,
+    // because it is read first, which is why the output still looked broadly
+    // right and the bug went unnoticed.
+    //
+    // The irony: this is the field the rotation work needs most. Without it
+    // Roter-manuelt.csv reports "(ukendt)" for every camera, and the narrow
+    // filter in ImageConverterService.OrientationUnreliableModelSubstrings -
+    // which exists precisely to name the two Olympus bodies behind the whole
+    // 2007-2010 rotation problem - can never match anything.
     public string? GetCameraModel(string path)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var ifd0 = ImageMetadataReader.ReadMetadata(path)
+                .OfType<ExifIfd0Directory>()
+                .FirstOrDefault();
+
+            if (ifd0 is null) return null;
+
+            var model = ifd0.GetDescription(ExifDirectoryBase.TagModel)?.Trim();
+            var make = ifd0.GetDescription(ExifDirectoryBase.TagMake)?.Trim();
+
+            if (string.IsNullOrWhiteSpace(model))
+                return string.IsNullOrWhiteSpace(make) ? null : make;
+
+            // Makers vary in whether Model already repeats Make: Olympus writes
+            // Make "OLYMPUS IMAGING CORP." with Model "C8080WZ", while Canon
+            // writes Model "Canon EOS 5D". Prefix only when it is not already
+            // there, so the substring matching downstream sees one consistent
+            // shape rather than "Canon Canon EOS 5D".
+            if (!string.IsNullOrWhiteSpace(make) &&
+                !model.StartsWith(make, StringComparison.OrdinalIgnoreCase))
+            {
+                var firstWord = make.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                if (firstWord is not null &&
+                    !model.StartsWith(firstWord, StringComparison.OrdinalIgnoreCase))
+                {
+                    return $"{firstWord} {model}";
+                }
+            }
+
+            return model;
+        }
+        catch
+        {
+            // A file with no readable EXIF is ordinary, not an error - it is
+            // exactly what the manual-rotation review list exists to collect.
+            return null;
+        }
     }
 
     

@@ -136,10 +136,24 @@ public sealed class MetadataWorkflowStep
 
                     if (MediaTypeHelper.IsImage(file.FullPath))
                     {
+                        // Each extraction below is independent - a photo with no
+                        // GPS still has usable dimensions, and one with unreadable
+                        // EXIF still has a date. They used to share this method's
+                        // single try/catch, so the FIRST one to throw silently
+                        // discarded every later one for that file.
+                        //
+                        // That is not hypothetical: GetCameraModel was a
+                        // NotImplementedException stub, so on the 2026-09-10 test
+                        // run it threw for all 3,816 photos and took GPS and
+                        // dimensions down with it every single time. The run still
+                        // produced a plausible-looking library, because the date is
+                        // read before this point - which is exactly why nobody
+                        // noticed. Isolate them so one missing field can never
+                        // again cost the others.
                         var dimensions =
-                            _imageMetadataService
-                                .GetDimensions(
-                                    file.FullPath);
+                            TryExtract(
+                                () => _imageMetadataService.GetDimensions(file.FullPath),
+                                "dimensions", file.FullPath);
 
                         // Captured here, at step 8, rather than left unset:
                         // this service is already open on the file's EXIF for
@@ -153,14 +167,14 @@ public sealed class MetadataWorkflowStep
                         // ImageConverterService.OrientationUnreliableModelSubstrings),
                         // which is only obvious once the model is recorded.
                         file.CameraModel =
-                            _imageMetadataService
-                                .GetCameraModel(
-                                    file.FullPath);
+                            TryExtract(
+                                () => _imageMetadataService.GetCameraModel(file.FullPath),
+                                "camera model", file.FullPath);
 
                         var coordinates =
-                            _gpsService
-                                .GetCoordinates(
-                                    file.FullPath);
+                            TryExtract(
+                                () => _gpsService.GetCoordinates(file.FullPath),
+                                "GPS", file.FullPath);
 
                         if (coordinates is not null)
                         {
@@ -233,6 +247,34 @@ public sealed class MetadataWorkflowStep
 
             if (!ok)
                 state.FailedFiles.Add(new FailedFile { FilePath = file.FullPath, Step = Name, Error = "Metadata extraction failed" });
+        }
+    }
+
+    // One optional field, extracted without letting its absence cost the fields
+    // around it. Returns null both when a file genuinely has no such metadata
+    // (the common case - most photos have no GPS) and when reading it threw.
+    //
+    // The distinction is deliberately not made at the call site: neither case
+    // is a reason to fail the file, and both leave the field unset. A throw is
+    // logged at Warning so a systematic failure - one extractor breaking for
+    // every file, as happened on 2026-09-10 - is visible in the log instead of
+    // hiding behind a per-file "metadata extraction failed" that says nothing
+    // about which of four extractions actually broke.
+    private T? TryExtract<T>(Func<T?> extract, string what, string path)
+    {
+        try
+        {
+            return extract();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Could not read {What} from {Path} - continuing with the other metadata",
+                what,
+                path);
+
+            return default;
         }
     }
 }
