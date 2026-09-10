@@ -692,7 +692,37 @@ a { color: inherit; text-decoration: none; }
     border-bottom: 1px solid var(--border);
 }
 
-.pkg-question:last-of-type { border-bottom: none; }
+/* :last-of-type matched the last DIV among the siblings, which is .pkg-footer,
+   so the last question kept its divider and the page ended on a stray line
+   above the footer. :has() targets the real last one. */
+.pkg-question:has(+ .pkg-footer) { border-bottom: none; }
+
+/* The blocks below were written for their own full-width pages, where they
+   supply the page's own side padding and a big bottom margin. Nested inside
+   .pkg-question - which already has 16px side margins - that padding doubled
+   up and pushed the operator grid visibly further in than the text above it.
+   Strip the outer spacing and let .pkg-question own the rhythm. */
+.pkg-question > .poll-comment-wrap { margin-top: 14px; }
+
+.pkg-question .session-grid { padding: 0 0 4px; }
+
+.pkg-question .session-rating-panel { margin-top: 14px; }
+
+.pkg-question .session-vote { padding: 16px 0 4px; }
+
+.pkg-question .session-panel-caption,
+.pkg-question .session-panel-desc {
+    padding-left: 0;
+    padding-right: 0;
+    text-align: left;
+    margin-left: 0;
+}
+
+/* The 60ch reading measure is right on the standalone page, where the text is
+   centred in a wide column. Here the surrounding paragraphs already run the
+   full width of .pkg-question, so keeping it made this one block wrap short
+   and look ragged against everything above it. */
+.pkg-question .session-panel-desc { max-width: none; }
 
 .pkg-question-title {
     font-size: 17px;
