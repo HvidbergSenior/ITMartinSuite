@@ -144,6 +144,21 @@ public sealed class StoragePreflightWorkflowStep : QuickSortWorkflowStepBase
             outputPath);
     }
 
+    // Free space on the filesystem THIS PATH actually lives on.
+    //
+    // The obvious spelling - DriveInfo(Path.GetPathRoot(path)) - is wrong on
+    // Linux, where GetPathRoot returns "/" for every absolute path. It
+    // therefore measured the root filesystem no matter what was asked about,
+    // and on 2026-09-10 reported 104 GB free for an output path sitting on a
+    // freshly mounted 932 GB drive - blocking a run that would have fitted
+    // easily. A check that silently measures something other than what it
+    // claims is worse than no check.
+    //
+    // DriveInfo on Unix takes any path and resolves it to the mount point
+    // containing it, which is what was wanted all along.
+    private static long FreeBytesAt(string path) =>
+        new DriveInfo(path).AvailableFreeSpace;
+
     // Is there room for what this run is about to produce? Free space on its
     // own says nothing - 104 GB sounds generous until the source turns out to
     // be 276 GB, which is exactly the situation this catches.
@@ -185,7 +200,7 @@ public sealed class StoragePreflightWorkflowStep : QuickSortWorkflowStepBase
         }
 
         var freeBytes = await ProbeAsync(
-            () => new DriveInfo(Path.GetPathRoot(Path.GetFullPath(outputPath)) ?? outputPath).AvailableFreeSpace,
+            () => FreeBytesAt(outputPath),
             $"Free space at {outputPath}",
             problems,
             cancellationToken);
@@ -307,7 +322,7 @@ public sealed class StoragePreflightWorkflowStep : QuickSortWorkflowStepBase
         try { if (File.Exists(probeFile)) File.Delete(probeFile); } catch { /* ignore */ }
 
         var freeBytes = await ProbeAsync(
-            () => new DriveInfo(Path.GetPathRoot(Path.GetFullPath(path)) ?? path).AvailableFreeSpace,
+            () => FreeBytesAt(path),
             $"Output path {path} (free space)",
             problems,
             cancellationToken);
