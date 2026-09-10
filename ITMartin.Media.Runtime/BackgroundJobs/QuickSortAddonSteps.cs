@@ -56,7 +56,7 @@ public sealed class QuickSortAddonSteps
         _logger = logger;
     }
 
-    public async Task RunAsync(string outputPath, CancellationToken cancellationToken)
+    public async Task RunAsync(string outputPath, string? sourcePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(outputPath) || !Directory.Exists(outputPath))
         {
@@ -95,7 +95,7 @@ public sealed class QuickSortAddonSteps
         // included in the browsable output rather than missing until the next
         // run. Costs nothing unless reference photos exist - see the method.
         await RunStepAsync("PersonFolders", outputPath,
-            () => GeneratePersonFoldersAsync(outputPath, cancellationToken));
+            () => GeneratePersonFoldersAsync(outputPath, sourcePath, cancellationToken));
 
         // Last, and the one genuinely non-trivial step kept here: without it
         // the delivered drive has no index.html and nothing to browse, so it
@@ -147,10 +147,22 @@ public sealed class QuickSortAddonSteps
     // Everything here is incremental: IndexFacesAsync skips already-indexed
     // files, and people already registered are not added twice, so a re-run
     // against an unchanged library costs almost nothing.
-    private async Task GeneratePersonFoldersAsync(string libraryPath, CancellationToken cancellationToken)
+    private async Task GeneratePersonFoldersAsync(string libraryPath, string? sourcePath, CancellationToken cancellationToken)
     {
-        var referenceRoot = Path.Combine(libraryPath, ReferencePhotosFolderName);
-        if (!Directory.Exists(referenceRoot)) return;
+        // Looked for in the source folder as well as the library, because the
+        // library is created by the run and is routinely wiped between runs -
+        // so a choice made only there would have to be remade every time, and
+        // could not be made at all before a first run. The source folder is
+        // where someone naturally keeps stable input. FileScanner skips
+        // .ReferencePhotos, so these never get imported as library content.
+        var referenceRoot = new[]
+            {
+                string.IsNullOrWhiteSpace(sourcePath) ? null : Path.Combine(sourcePath, ReferencePhotosFolderName),
+                Path.Combine(libraryPath, ReferencePhotosFolderName),
+            }
+            .FirstOrDefault(p => p is not null && Directory.Exists(p));
+
+        if (referenceRoot is null) return;
 
         var people = Directory.EnumerateDirectories(referenceRoot)
             .Select(dir => new

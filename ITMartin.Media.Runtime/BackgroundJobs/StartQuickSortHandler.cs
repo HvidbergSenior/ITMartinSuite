@@ -97,6 +97,6 @@ public sealed class StartQuickSortHandler
         // they lived here, a recovered run finished all 18 sort steps,
         // reported success, and silently skipped every one of them. See that
         // type for the full account and for what is deliberately excluded.
-        await _addonSteps.RunAsync(outputPath, cancellationToken);
+        await _addonSteps.RunAsync(outputPath, request.RootPath, cancellationToken);
     }
 }

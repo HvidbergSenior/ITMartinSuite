@@ -202,7 +202,7 @@ public sealed class WorkflowRecoveryHostedService
 
                 await scope.ServiceProvider
                     .GetRequiredService<QuickSortAddonSteps>()
-                    .RunAsync(outputPath, stoppingToken);
+                    .RunAsync(outputPath, state.RootPath, stoppingToken);
             }
             catch (Exception ex)
             {

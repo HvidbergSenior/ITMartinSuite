@@ -22,6 +22,11 @@ public sealed class FileScanner : IFileScanner
             "@eadir", "#recycle", "#snapshot",
             ".@__thumb", "@recently-snapshot", ".synophoto",
             ".package1", ".package2", "thumbnails", "SmartFolders", "_Galleri",
+            // Photos used to recognise a person, not photos to sort. Without
+            // this they get imported as ordinary library content, so asking
+            // for a person folder would quietly add their reference shots to
+            // the library as duplicates.
+            ".ReferencePhotos",
             // Windows/OS system folders — never real content, and $RECYCLE.BIN's
             // per-user subfolders are access-denied to a normal process, which
             // previously crashed the whole scan rather than just skipping it.
