@@ -39,6 +39,22 @@
             {
                 <p class="poll-body pkg-intro">@_package.Intro</p>
             }
+
+            @* Gentaget fra forsiden med vilje: et delt link fører hertil, ikke
+               til forsiden, så den der kommer udefra ville ellers aldrig se
+               vejledningen. *@
+            @if (Steps.Length > 0)
+            {
+                <div class="pkg-front-howto">
+                    <div class="pkg-front-howto-label">Sådan gør du</div>
+                    <ol class="pkg-front-steps">
+                        @foreach (var step in Steps)
+                        {
+                            <li>@step</li>
+                        }
+                    </ol>
+                </div>
+            }
         </div>
 
         @* Asked once, up front. Everything below stays hidden until it is
@@ -205,6 +221,9 @@
 
     private string VoterLabel => $"{_name.Trim()} {_house.Trim()}".Trim();
 
+    private string[] Steps => (_package?.Instructions ?? "")
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
     private int TotalCount =>
         (_package?.Polls.Count ?? 0) +
         (_package?.Sessions.Sum(s => s.Images.Count) ?? 0);
@@ -217,9 +236,10 @@
             .Where(p => p.Id == PackageId && p.IsActive)
             .Select(p => new Package
             {
-                Id    = p.Id,
-                Title = p.Title,
-                Intro = p.Intro,
+                Id           = p.Id,
+                Title        = p.Title,
+                Intro        = p.Intro,
+                Instructions = p.Instructions,
                 Polls = p.Polls
                     .Where(x => x.IsActive)
                     .Select(x => new Poll

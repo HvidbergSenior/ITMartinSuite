@@ -22,27 +22,39 @@
     }
     else
     {
-        @if (_packages.Any())
+        @* Hvorfor og hvad-skal-jeg-gøre står HER, på forsiden, i fuld længde -
+           ikke gemt bag et klik. Den der lander her skal kunne se hvad det
+           handler om og hvad der forventes, før han beslutter sig for at gå
+           i gang. Derfor et helt afsnit frem for et listepunkt. *@
+        @foreach (var pkg in _packages)
         {
-        <div class="vote-section-label">📦 Forespørgsler — flere spørgsmål samlet</div>
-        <div class="poll-list">
-            @foreach (var pkg in _packages)
-            {
-                <a class="poll-card" href="/pakke/@pkg.Id">
-                    <div class="poll-card-body">
-                        <span class="session-badge">
-                            FORESPØRGSEL · @(pkg.Polls.Count + pkg.Sessions.Count) dele
-                        </span>
-                        <div class="poll-card-title">@pkg.Title</div>
-                        @if (!string.IsNullOrEmpty(pkg.Intro))
-                        {
-                            <div class="poll-card-desc">@pkg.Intro</div>
-                        }
-                        <div class="poll-card-meta"><span>Tryk for at svare</span></div>
+            var steps = (pkg.Instructions ?? "")
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            <div class="pkg-front">
+                <div class="pkg-front-badge">FORESPØRGSEL · @(pkg.Polls.Count + pkg.Sessions.Count) dele</div>
+                <h1 class="pkg-front-title">@pkg.Title</h1>
+
+                @if (!string.IsNullOrWhiteSpace(pkg.Intro))
+                {
+                    <p class="pkg-front-intro">@pkg.Intro</p>
+                }
+
+                @if (steps.Length > 0)
+                {
+                    <div class="pkg-front-howto">
+                        <div class="pkg-front-howto-label">Sådan gør du</div>
+                        <ol class="pkg-front-steps">
+                            @foreach (var step in steps)
+                            {
+                                <li>@step</li>
+                            }
+                        </ol>
                     </div>
-                </a>
-            }
-        </div>
+                }
+
+                <a class="poll-submit-btn pkg-front-cta" href="/pakke/@pkg.Id">Svar på forespørgslen →</a>
+            </div>
         }
 
         @if (_sessions.Any())
@@ -153,9 +165,10 @@
             .OrderByDescending(p => p.CreatedAt)
             .Select(p => new Package
             {
-                Id       = p.Id,
-                Title    = p.Title,
-                Intro    = p.Intro,
+                Id           = p.Id,
+                Title        = p.Title,
+                Intro        = p.Intro,
+                Instructions = p.Instructions,
                 Polls    = p.Polls.Where(x => x.IsActive).ToList(),
                 Sessions = p.Sessions.Where(x => x.IsActive).ToList(),
             })

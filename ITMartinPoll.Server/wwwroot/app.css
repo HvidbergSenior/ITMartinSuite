@@ -1,28 +1,8 @@
+/* Lyst tema, og kun lyst (bruger, 2026-09-10). Paletten står direkte i :root
+   frem for bag en html[data-theme="light"]-selector, så siden ser ens ud uanset
+   hvad browseren, systemet eller en gammel gemt indstilling måtte foretrække -
+   der er ikke længere en temaknap til at sætte attributten. */
 :root {
-    --bg: #0F1117;
-    --bg-deep: #090B12;
-    --card: #161825;
-    --border: #1E2030;
-    --border-2: #1A1D2E;
-    --border-3: #262A40;
-    --text: #F0F0F0;
-    --muted: #9CA3AF;
-    --muted-2: #4B5563;
-    --muted-3: #374151;
-    --muted-4: #6B7280;
-    --accent: #818CF8;
-    --accent-strong: #4338CA;
-    --accent-dark: #3730A3;
-    --accent-subtle-bg: #1E1B4B;
-    --accent-light: #A5B4FC;
-    --danger: #F87171;
-    --danger-border: #7F1D1D;
-    --success: #34D399;
-    --warning: #B45309;
-    --warning-2: #D97706;
-}
-
-html[data-theme="light"] {
     --bg: #f4f5f9;
     --bg-deep: #e5e7f0;
     --card: #ffffff;
@@ -45,6 +25,7 @@ html[data-theme="light"] {
     --warning: #b45309;
     --warning-2: #d97706;
 }
+
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -598,6 +579,70 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Forespørgsel (package) ──────────── */
 
+/* Forsidens præsentation. Et helt afsnit frem for et listepunkt, fordi
+   hvorfor og hvad-skal-jeg-gøre skal kunne læses FØR man klikker. */
+.pkg-front {
+    padding: 24px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pkg-front-badge {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent);
+}
+
+.pkg-front-title {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text);
+    text-wrap: balance;
+}
+
+.pkg-front-intro {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--muted);
+    white-space: pre-wrap;
+}
+
+.pkg-front-howto {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.pkg-front-howto-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+}
+
+.pkg-front-steps {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pkg-front-steps li {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text);
+}
+
+.pkg-front-cta { margin-top: 4px; }
+
+
 .pkg-intro { white-space: pre-wrap; }
 
 /* The identity gate. Deliberately the most prominent thing on the page until
@@ -876,23 +921,3 @@ a { color: inherit; text-decoration: none; }
 #components-reconnect-modal.components-reconnect-show,
 #components-reconnect-modal.components-reconnect-failed { display: block; }
 
-/* ── Theme toggle ─────────────────────── */
-
-#themeToggleBtn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    background: linear-gradient(135deg, #60a5fa, #3b82f6);
-    color: #fff;
-    font-size: 22px;
-    cursor: pointer;
-    box-shadow: 0 6px 20px rgba(0,0,0,.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}

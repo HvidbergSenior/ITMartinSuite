@@ -21,9 +21,18 @@ public class Package
     public int      Id        { get; set; }
     public string   Title     { get; set; } = "";
 
-    // Shown once at the top, so the shared context is stated in one place
-    // rather than repeated into every question's own body text.
+    // WHY we are asking. Shown once at the top, so the shared context is
+    // stated in one place rather than repeated into every question's body.
     public string   Intro     { get; set; } = "";
+
+    // WHAT the reader should actually do, one step per line. Kept separate
+    // from Intro because they answer different questions and belong in
+    // different places on the page - and because a reader who already knows
+    // why still needs telling what is expected of them. Both appear on the
+    // FRONT page too, not only after opening the package: someone who lands
+    // on the list should be able to see what this is before deciding to
+    // click.
+    public string   Instructions { get; set; } = "";
 
     public bool     IsActive  { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
