@@ -194,7 +194,20 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _session is null) return;
+        if (!firstRender) return;
+
+        // A missing session still has to stop loading. Returning early here
+        // without clearing _loading left the page showing "Indlæser…" forever
+        // and made the "Billedserien findes ikke" branch below unreachable
+        // dead code - so a bad link looked like a hung app rather than a
+        // wrong link. Cost an hour of chasing a phantom deploy problem on
+        // 2026-09-10. DatePollPage has always got this right.
+        if (_session is null)
+        {
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
 
         var raw = await JS.InvokeAsync<string?>("localStorage.getItem", $"session_{SessionId}");
         if (raw is not null)
