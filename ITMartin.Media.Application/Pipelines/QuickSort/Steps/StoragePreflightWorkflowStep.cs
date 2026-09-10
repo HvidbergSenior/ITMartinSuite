@@ -52,6 +52,24 @@ public sealed class StoragePreflightWorkflowStep : QuickSortWorkflowStepBase
     // the run fits - just a guard against starting one that obviously cannot.
     private const long MinimumFreeBytes = 5L * 1024 * 1024 * 1024;
 
+    // The output is not smaller than the source. On the 2026-09-10 test run a
+    // 13 GB source produced 16 GB of library - the sort removes duplicates and
+    // junk, then adds thumbnails, a static gallery and (when enabled) a full
+    // baseline mirror of the whole export. Requiring merely "some" free space
+    // is therefore useless: what matters is free space measured against the
+    // SIZE OF THE SOURCE.
+    //
+    // 1.2x is the floor, not a forecast. It is what the export alone needed;
+    // a run with the baseline snapshot on wants roughly double that. Blocking
+    // below the floor catches the case this exists for - a 276 GB source aimed
+    // at a 104 GB disk, which would have run for hours before dying.
+    private const double MinimumFreeToSourceRatio = 1.2;
+
+    // Measuring 87,000 files takes longer than a liveness probe should, so it
+    // gets its own budget. If it cannot finish, the run is NOT blocked - an
+    // unmeasurable source is a reason to warn, never a reason to refuse.
+    private static readonly TimeSpan SizeProbeTimeout = TimeSpan.FromSeconds(120);
+
     private readonly ILibraryPathProvider _libraryPathProvider;
     private readonly ILogger<StoragePreflightWorkflowStep> _logger;
 
@@ -100,6 +118,9 @@ public sealed class StoragePreflightWorkflowStep : QuickSortWorkflowStepBase
         }
         else
         {
+            problems.AddRange(
+                await CheckRoomForTheSourceAsync(state.RootPath, outputPath, cancellationToken));
+
             problems.AddRange(await CheckWritableAsync(outputPath, cancellationToken));
         }
 
@@ -121,6 +142,75 @@ public sealed class StoragePreflightWorkflowStep : QuickSortWorkflowStepBase
             "Storage preflight passed: source {Source} is readable and non-empty, output {Output} is writable",
             state.RootPath,
             outputPath);
+    }
+
+    // Is there room for what this run is about to produce? Free space on its
+    // own says nothing - 104 GB sounds generous until the source turns out to
+    // be 276 GB, which is exactly the situation this catches.
+    //
+    // Reports the two numbers in the failure so the reader can see the shape
+    // of the problem immediately, rather than a bare "not enough space".
+    private async Task<List<string>> CheckRoomForTheSourceAsync(
+        string? sourcePath,
+        string outputPath,
+        CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(sourcePath))
+            return problems;
+
+        var sourceBytes = await ProbeAsync(
+            () => new DirectoryInfo(sourcePath)
+                .EnumerateFiles("*", SearchOption.AllDirectories)
+                .Sum(f => f.Length),
+            $"Source size of {sourcePath}",
+            problems,
+            cancellationToken,
+            SizeProbeTimeout);
+
+        if (sourceBytes is null || sourceBytes.Value <= 0)
+        {
+            // Could not measure it - that is a warning, not a refusal. The
+            // ProbeAsync call above has already recorded why, but this must
+            // not be one of the problems that blocks the run, so drop it.
+            problems.RemoveAll(p => p.StartsWith($"Source size of {sourcePath}", StringComparison.Ordinal));
+
+            _logger.LogWarning(
+                "Could not measure the source size at {Source} - skipping the free-space comparison. " +
+                "The run may still fill the destination.",
+                sourcePath);
+
+            return problems;
+        }
+
+        var freeBytes = await ProbeAsync(
+            () => new DriveInfo(Path.GetPathRoot(Path.GetFullPath(outputPath)) ?? outputPath).AvailableFreeSpace,
+            $"Free space at {outputPath}",
+            problems,
+            cancellationToken);
+
+        if (freeBytes is null) return problems;
+
+        var needed = (long)(sourceBytes.Value * MinimumFreeToSourceRatio);
+        const double gb = 1024.0 * 1024 * 1024;
+
+        _logger.LogInformation(
+            "Storage preflight: source {SourceGb:F1} GB, destination {FreeGb:F1} GB free at {Output}",
+            sourceBytes.Value / gb, freeBytes.Value / gb, outputPath);
+
+        if (freeBytes.Value < needed)
+        {
+            problems.Add(
+                $"Not enough room at {outputPath}: the source is {sourceBytes.Value / gb:F1} GB " +
+                $"but only {freeBytes.Value / gb:F1} GB is free, and a sorted library needs at " +
+                $"least {MinimumFreeToSourceRatio:F1}x the source ({needed / gb:F1} GB) - more " +
+                "again if the baseline snapshot is on. If the destination is meant to be an " +
+                "external drive, check that it is actually mounted: an unmounted mount point is " +
+                "an ordinary empty folder on the system disk, and writing there is what fills it.");
+        }
+
+        return problems;
     }
 
     private async Task<List<string>> CheckReadableAsync(
@@ -245,21 +335,24 @@ public sealed class StoragePreflightWorkflowStep : QuickSortWorkflowStepBase
         Func<T> probe,
         string description,
         List<string> problems,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? timeout = null)
         where T : struct
     {
+        var budget = timeout ?? ProbeTimeout;
+
         try
         {
             var task = Task.Run(probe, cancellationToken);
 
             var completed = await Task.WhenAny(
                 task,
-                Task.Delay(ProbeTimeout, cancellationToken));
+                Task.Delay(budget, cancellationToken));
 
             if (completed != task)
             {
                 problems.Add(
-                    $"{description} did not respond within {ProbeTimeout.TotalSeconds:F0}s - " +
+                    $"{description} did not respond within {budget.TotalSeconds:F0}s - " +
                     "this is what a disconnected drive or a stale mount looks like. " +
                     "Check that the device is still attached and that the mount " +
                     "points at the device it currently is (a drive that drops off " +
