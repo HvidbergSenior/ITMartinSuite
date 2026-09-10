@@ -19,7 +19,16 @@
         <a href="/" class="poll-back">← Tilbage</a>
         @if (_package is not null && _identified)
         {
-            <span class="session-counter">@AnsweredCount / @TotalCount besvaret</span>
+            <span class="session-counter">
+                @if (AnsweredCount >= TotalCount && TotalCount > 0)
+                {
+                    <span class="pkg-counter-done">Alle spørgsmål besvaret ✓</span>
+                }
+                else
+                {
+                    @($"{AnsweredCount} / {TotalCount} spørgsmål besvaret")
+                }
+            </span>
         }
     </header>
 
@@ -125,12 +134,25 @@
             @foreach (var session in _package.Sessions.OrderBy(s => s.Id))
             {
                 var s = session;
+                var ratedHere = s.Images.Count(i => _ratings.ContainsKey(i.Id));
+
                 <div class="pkg-question">
                     <div class="pkg-question-title">@s.Title</div>
                     @if (!string.IsNullOrWhiteSpace(s.Description))
                     {
                         <div class="pkg-question-body">@s.Description</div>
                     }
+
+                    @* Deliberately "X bedømt" and not "X af 13": nobody is
+                       expected to know all of them, so a denominator here
+                       would look like a target the reader is failing to meet. *@
+                    <div class="pkg-optional-note">
+                        Valgfrit — bedøm kun dem du kender.
+                        @if (ratedHere > 0)
+                        {
+                            <strong>@ratedHere bedømt</strong>
+                        }
+                    </div>
 
                     <div class="session-grid">
                         @foreach (var image in s.Images.OrderBy(i => i.SortOrder))
@@ -224,11 +246,15 @@
     private string[] Steps => (_package?.Instructions ?? "")
         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    private int TotalCount =>
-        (_package?.Polls.Count ?? 0) +
-        (_package?.Sessions.Sum(s => s.Images.Count) ?? 0);
+    // Counts the QUESTIONS only, never the operators. Everyone is expected to
+    // answer every question, but the operators are explicitly "bedøm kun dem
+    // du selv har brugt" - so counting them made the progress read "0 / 14"
+    // and never reach the end for anyone answering honestly. A counter that
+    // cannot be completed reads as an unfinished form, which is the opposite
+    // of what it is for.
+    private int TotalCount => _package?.Polls.Count ?? 0;
 
-    private int AnsweredCount => _votes.Count + _ratings.Count;
+    private int AnsweredCount => _votes.Count;
 
     protected override void OnInitialized()
     {
