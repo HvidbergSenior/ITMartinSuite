@@ -35,7 +35,33 @@ using Microsoft.EntityFrameworkCore;
         // hand.
         Directory.CreateDirectory(libraryRootForDb);
 
-        builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={Path.Combine(libraryRootForDb, ".media.db")}";
+        // Co-locating the database with the library is the right default: it
+        // keeps a library and its index together, so moving or re-pointing one
+        // can never leave the other behind (a library that had genuinely been
+        // indexed used to look uncached whenever LibraryRoot was overridden
+        // without the connection string).
+        //
+        // But it is wrong when the library lives on an external drive. SQLite
+        // writes constantly - WAL, checkpoints, every workflow step - and a USB
+        // drive that stalls takes the whole run down with it: on 2026-09-09
+        // stat() on this very mount timed out after 240s while a directory
+        // listing had succeeded seconds earlier, and filesorter-web hung at
+        // startup with no logs at all because its database was over there.
+        //
+        // So allow the database to be placed deliberately elsewhere - fast,
+        // local, reliable storage - while the library itself is delivered to
+        // the slow removable disk. Unset, nothing changes.
+        var dbDirectory = builder.Configuration["MediaSettings:MediaDbDirectory"];
+
+        var dbPath = string.IsNullOrWhiteSpace(dbDirectory)
+            ? Path.Combine(libraryRootForDb, ".media.db")
+            : Path.Combine(dbDirectory, $"{clientSlug ?? "library"}.media.db");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+
+        builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={dbPath}";
+
+        Console.WriteLine($"MEDIA DB: {dbPath}");
     }
 
     builder.Services.AddMediaPlatform(

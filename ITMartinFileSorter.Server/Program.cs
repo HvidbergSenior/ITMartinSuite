@@ -45,7 +45,21 @@ if (!string.IsNullOrWhiteSpace(libraryRootForDb))
     // file, never the missing folder that actually caused it.
     Directory.CreateDirectory(libraryRootForDb);
 
-    builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={Path.Combine(libraryRootForDb, ".media.db")}";
+    // See the fuller explanation in ITMartinFileSorter.Worker/Program.cs. Both
+    // processes must derive the SAME path or they end up on two different
+    // databases for one library - so this logic is duplicated deliberately
+    // rather than left to drift.
+    var dbDirectory = builder.Configuration["MediaSettings:MediaDbDirectory"];
+
+    var dbPath = string.IsNullOrWhiteSpace(dbDirectory)
+        ? Path.Combine(libraryRootForDb, ".media.db")
+        : Path.Combine(dbDirectory, $"{clientSlug ?? "library"}.media.db");
+
+    Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+
+    builder.Configuration["ConnectionStrings:MediaDb"] = $"Data Source={dbPath}";
+
+    Console.WriteLine($"MEDIA DB: {dbPath}");
 }
 
 // =========================
