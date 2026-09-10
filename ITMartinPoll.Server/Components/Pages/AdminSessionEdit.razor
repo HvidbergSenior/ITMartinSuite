@@ -60,14 +60,45 @@
                 <div class="poll-vote-label">Uploader… @_uploaded / @_total</div>
             }
 
+            @* Navn/beskrivelse pr. billede - til serier hvor billederne er ting
+               der bedømmes (firmaer, produkter, forslag) og ikke bare fotos.
+               Lades de tomme, opfører serien sig præcis som før. *@
             @if (_pendingNames.Count > 0)
             {
-                <div class="session-thumb-grid">
-                    @foreach (var name in _pendingNames)
-                    {
-                        <img class="session-thumb" src="/poll-images/@name" alt="" />
-                    }
-                </div>
+                <label class="form-label">Nye billeder — navn og beskrivelse (valgfrit)</label>
+                @foreach (var name in _pendingNames)
+                {
+                    var key = name;
+                    <div class="session-item-edit">
+                        <img class="session-thumb" src="/poll-images/@key" alt="" />
+                        <div class="session-item-fields">
+                            <input class="poll-input" placeholder="Navn, f.eks. firmaets navn"
+                                   value="@_pendingCaptions.GetValueOrDefault(key, "")"
+                                   @onchange="e => _pendingCaptions[key] = e.Value?.ToString() ?? string.Empty" />
+                            <textarea class="poll-textarea" rows="3" placeholder="Beskrivelse (valgfrit)"
+                                      value="@_pendingDescriptions.GetValueOrDefault(key, "")"
+                                      @onchange="e => _pendingDescriptions[key] = e.Value?.ToString() ?? string.Empty"></textarea>
+                        </div>
+                    </div>
+                }
+            }
+
+            @if (!_isNew && _existing.Count > 0)
+            {
+                <label class="form-label">Billeder — navn og beskrivelse</label>
+                @foreach (var img in _existing)
+                {
+                    var item = img;
+                    <div class="session-item-edit">
+                        <img class="session-thumb" src="/poll-images/@item.FileName" alt="" />
+                        <div class="session-item-fields">
+                            <input class="poll-input" placeholder="Navn, f.eks. firmaets navn"
+                                   @bind="item.Caption" @bind:event="oninput" />
+                            <textarea class="poll-textarea" rows="3" placeholder="Beskrivelse (valgfrit)"
+                                      @bind="item.Description" @bind:event="oninput"></textarea>
+                        </div>
+                    </div>
+                }
             }
 
             @if (!_isNew && _existing.Count > 0)
@@ -93,6 +124,10 @@
                         <div class="session-result-row">
                             <img class="session-result-thumb" src="/poll-images/@img.FileName" alt="" />
                             <div class="session-result-info">
+                                @if (!string.IsNullOrWhiteSpace(img.Caption))
+                                {
+                                    <div class="session-result-name">@img.Caption</div>
+                                }
                                 <div class="session-result-avg">
                                     @(avg.HasValue ? $"⌀ {avg.Value:F1}" : "Ingen bedømmelser")
                                 </div>
@@ -161,6 +196,10 @@
     private List<string>      _pendingNames = [];
     private List<SessionImage> _existing    = [];
 
+    // Keyed by uploaded file name, because a pending image has no Id yet.
+    private Dictionary<string, string> _pendingCaptions     = [];
+    private Dictionary<string, string> _pendingDescriptions = [];
+
     protected override void OnInitialized()
     {
         _isNew = SessionId == 0;
@@ -179,9 +218,11 @@
                     Images         = x.Images.OrderBy(i => i.SortOrder)
                         .Select(i => new SessionImage
                         {
-                            Id       = i.Id,
-                            FileName = i.FileName,
-                            Ratings  = i.Ratings.ToList(),
+                            Id          = i.Id,
+                            FileName    = i.FileName,
+                            Caption     = i.Caption,
+                            Description = i.Description,
+                            Ratings     = i.Ratings.ToList(),
                         }).ToList(),
                 })
                 .FirstOrDefault();
@@ -257,7 +298,12 @@
                 CreatedAt      = DateTime.UtcNow,
                 Deadline       = deadline,
                 Images    = _pendingNames.Select((n, i) => new SessionImage
-                    { FileName = n, SortOrder = i }).ToList(),
+                {
+                    FileName    = n,
+                    SortOrder   = i,
+                    Caption     = _pendingCaptions.GetValueOrDefault(n, "").Trim(),
+                    Description = _pendingDescriptions.GetValueOrDefault(n, "").Trim(),
+                }).ToList(),
             };
             Db.Sessions.Add(session);
         }
@@ -271,10 +317,26 @@
             session.CoverImageName = string.IsNullOrEmpty(_coverName) ? null : _coverName;
             session.Deadline       = deadline;
 
+            // _existing holds detached projections (see OnInitialized), so the
+            // edits the form made to them have to be written back explicitly.
+            foreach (var edited in _existing)
+            {
+                var tracked = await Db.SessionImages.FindAsync(edited.Id);
+                if (tracked is null) continue;
+                tracked.Caption     = (edited.Caption     ?? "").Trim();
+                tracked.Description = (edited.Description ?? "").Trim();
+            }
+
             var nextOrder = _existing.Count;
             foreach (var (name, i) in _pendingNames.Select((n, i) => (n, i)))
                 Db.SessionImages.Add(new SessionImage
-                    { SessionId = SessionId, FileName = name, SortOrder = nextOrder + i });
+                {
+                    SessionId   = SessionId,
+                    FileName    = name,
+                    SortOrder   = nextOrder + i,
+                    Caption     = _pendingCaptions.GetValueOrDefault(name, "").Trim(),
+                    Description = _pendingDescriptions.GetValueOrDefault(name, "").Trim(),
+                });
         }
 
         await Db.SaveChangesAsync();

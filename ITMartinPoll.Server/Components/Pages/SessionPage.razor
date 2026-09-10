@@ -79,9 +79,15 @@
                 var score = _rated.TryGetValue(sImg.Id, out var sc) ? sc : 0;
                 var isSelected = _selectedIdx == idx;
 
-                <button class="session-thumb-btn @(score > 0 ? "rated" : "") @(isSelected ? "active" : "")"
+                var captioned = !string.IsNullOrWhiteSpace(sImg.Caption);
+
+                <button class="session-thumb-btn @(score > 0 ? "rated" : "") @(isSelected ? "active" : "") @(captioned ? "captioned" : "")"
                         @onclick="() => SelectImage(idx)">
-                    <img src="/poll-images/@sImg.FileName" alt="" />
+                    <img src="/poll-images/@sImg.FileName" alt="@sImg.Caption" />
+                    @if (captioned)
+                    {
+                        <span class="session-thumb-caption">@sImg.Caption</span>
+                    }
                     @if (score > 0)
                     {
                         <span class="session-score-badge">@RatingScale.Label(score)</span>
@@ -103,9 +109,21 @@
                     <img class="session-panel-img" src="/poll-images/@selImg.FileName" alt="" />
                 </div>
                 <div class="session-zoom-hint">Knib ud for at zoome</div>
+                @if (!string.IsNullOrWhiteSpace(selImg.Caption))
+                {
+                    <div class="session-panel-caption">@selImg.Caption</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(selImg.Description))
+                {
+                    <div class="session-panel-desc">@selImg.Description</div>
+                }
                 <div class="session-vote">
                     <div class="poll-vote-label">
-                        @(!string.IsNullOrEmpty(_session.Question) ? _session.Question : $"Billede {_selectedIdx + 1} — hvad synes du?")
+                        @(!string.IsNullOrEmpty(_session.Question)
+                            ? _session.Question
+                            : !string.IsNullOrWhiteSpace(selImg.Caption)
+                                ? $"{selImg.Caption} — hvad synes du?"
+                                : $"Billede {_selectedIdx + 1} — hvad synes du?")
                     </div>
                     <div class="poll-options">
                         @for (int s = 5; s >= 1; s--)

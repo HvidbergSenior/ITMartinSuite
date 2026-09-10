@@ -559,6 +559,70 @@ a { color: inherit; text-decoration: none; }
 
 .session-thumb-btn.rated .session-score-badge { color: var(--accent); }
 
+/* When the images are named things (companies, products) rather than photos,
+   the name has to stay readable — so the badge stops floating over the picture
+   and both stack under it instead. */
+.session-thumb-btn.captioned .session-score-badge {
+    position: static;
+    background: none;
+}
+
+.session-thumb-caption {
+    display: block;
+    padding: 4px 4px 0;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.session-panel-caption {
+    padding: 4px 16px 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+}
+
+.session-panel-desc {
+    padding: 6px 16px 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 60ch;
+    margin: 0 auto;
+    white-space: pre-wrap;
+}
+
+.session-result-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* Thumb + name/description side by side in the admin editor. */
+.session-item-edit {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.session-item-edit .session-thumb {
+    width: 80px;
+    flex-shrink: 0;
+}
+
+.session-item-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
 /* ── Rating panel (stays below grid) ─── */
 
 .session-rating-panel {

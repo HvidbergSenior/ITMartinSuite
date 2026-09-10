@@ -72,6 +72,14 @@ public class SessionImage
     public int    SessionId { get; set; }
     public string FileName  { get; set; } = "";
     public int    SortOrder { get; set; }
+
+    // What the picture IS, for series where the images are things being
+    // evaluated rather than pictures being compared - a company, a product, a
+    // proposal. An ordinary photo series leaves both blank and the picture
+    // speaks for itself; SessionPage only renders them when they are set.
+    public string Caption     { get; set; } = "";
+    public string Description { get; set; } = "";
+
     public List<ImageRating> Ratings { get; set; } = [];
     public ImageSession Session { get; set; } = null!;
 }
