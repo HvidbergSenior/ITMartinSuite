@@ -178,6 +178,43 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
         await WriteManualRotationListAsync(exportRoot, eligible, cancellationToken);
     }
 
+    // Cameras stopped being the problem around here. Devices from roughly
+    // 2011 on carry an orientation sensor and write a real tag, which
+    // BakeExifOrientation then applies automatically - so a missing tag on a
+    // modern photo means something harmless (a screenshot, a download, an app
+    // that stripped EXIF), not a sideways picture.
+    private const int LastYearOrientationWasUnreliable = 2010;
+
+    // Which photos genuinely need a human to look at them.
+    //
+    // Measured on the ToshibaTest library before this filter existed: keying
+    // on "no EXIF orientation tag" alone flagged 10,511 of 16,990 photos -
+    // 62%, which is not a shortlist, it is the whole library. The noise was
+    // all modern: 824 from 2025 and 2,232 loose-root files, none of them from
+    // an affected camera.
+    //
+    // The signal that actually predicted a sideways photo was the CAMERA.
+    // Every one of the ~600 rotations found by hand traced back to two
+    // Olympus bodies from 2007-2010. So an unreliable camera is enough on its
+    // own, and a missing tag only counts alongside a pre-2011 date.
+    // Public so the filter can be tested directly - it is the part that got
+    // this wrong once already, at 62% of the library.
+    public static bool NeedsManualRotationReview(MediaFile file)
+    {
+        // The camera is known to lie about orientation - enough on its own,
+        // whatever the date says.
+        if (file.OrientationSourceIsUnreliable) return true;
+
+        // A tag the pipeline could read has already been applied.
+        if (file.OrientationKnownFromExif) return false;
+
+        // No tag, and no date to judge the era by - leave it alone rather
+        // than sweep in every undated screenshot in the library.
+        if (file.CreatedAt is null) return false;
+
+        return file.CreatedAt.Value.Year <= LastYearOrientationWasUnreliable;
+    }
+
     // Photos whose orientation the pipeline cannot determine, written out for
     // a human to fix rather than guessed at.
     //
@@ -200,7 +237,7 @@ public sealed class FileStatusWorkflowStep : QuickSortWorkflowStepBase
     {
         var needsReview = eligible
             .Where(f => f.Type == MediaType.Image)
-            .Where(f => !f.OrientationKnownFromExif || f.OrientationSourceIsUnreliable)
+            .Where(NeedsManualRotationReview)
             .Where(f => !string.IsNullOrWhiteSpace(f.ExportedPath))
             .OrderBy(f => f.ExportedPath, StringComparer.OrdinalIgnoreCase)
             .ToList();
