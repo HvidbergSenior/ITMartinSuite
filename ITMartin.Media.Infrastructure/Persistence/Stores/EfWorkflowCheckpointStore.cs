@@ -92,15 +92,23 @@ public sealed class EfWorkflowCheckpointStore
         // the same slow external drive the export was competing for. Keeping
         // a couple of superseded rows is enough to inspect a bad transition;
         // the rest are dead weight that make every later write slower.
+        // Ordered in memory, not in SQL. SQLite cannot ORDER BY a
+        // DateTimeOffset column - it throws NotSupportedException outright -
+        // and CreatedAtUtc is one. Every other query in this file already
+        // materialises before ordering for exactly this reason; ordering
+        // server-side here broke the very first checkpoint save of every run,
+        // which failed the job, requeued it, and left the worker looping.
         var supersededIds =
-            await _dbContext.WorkflowCheckpoints
+            (await _dbContext.WorkflowCheckpoints
                 .Where(x =>
                     x.WorkflowId == workflowId &&
                     !x.IsLatest)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .Skip(SupersededCheckpointsToKeep)
-                .Select(x => x.Id)
-                .ToListAsync(cancellationToken);
+                .Select(x => new { x.Id, x.CreatedAtUtc })
+                .ToListAsync(cancellationToken))
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Skip(SupersededCheckpointsToKeep)
+            .Select(x => x.Id)
+            .ToList();
 
         if (supersededIds.Count > 0)
         {
