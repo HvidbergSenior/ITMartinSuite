@@ -169,10 +169,16 @@ else
                     <thead>
                         <tr style="text-align:left;color:var(--muted);font-size:13px">
                             <th style="padding:8px">Måned</th>
-                            <th style="padding:8px">Omsætning</th>
-                            <th style="padding:8px">Udgifter, snit/md (faktisk)</th>
-                            <th style="padding:8px">Butiksresultat, snit/md (faktisk)</th>
-                            <th style="padding:8px">Privat hævet</th>
+                            @if (_focus != Focus.Private)
+                            {
+                                <th style="padding:8px">Omsætning</th>
+                                <th style="padding:8px">Udgifter, snit/md (faktisk)</th>
+                                <th style="padding:8px">Butiksresultat, snit/md (faktisk)</th>
+                            }
+                            @if (_focus != Focus.Business)
+                            {
+                                <th style="padding:8px">Privat hævet</th>
+                            }
                             <th style="padding:8px">Saldo v. mdr. slut</th>
                         </tr>
                     </thead>
@@ -181,10 +187,16 @@ else
                         {
                             <tr style="border-top:1px solid var(--border)">
                                 <td style="padding:8px">@m.Label</td>
-                                <td style="padding:8px;color:var(--green)">@m.Revenue.ToString("N0")</td>
-                                <td style="padding:8px;color:var(--red)">@Math.Abs(_avgMonthlyExpenses).ToString("N0") <span class="meta">(@Math.Abs(m.Expenses).ToString("N0"))</span></td>
-                                <td style="padding:8px;color:@(m.Revenue + _avgMonthlyExpenses >= 0 ? "var(--green)" : "var(--red)")">@((m.Revenue + _avgMonthlyExpenses).ToString("N0")) <span class="meta">(@m.Net.ToString("N0"))</span></td>
-                                <td style="padding:8px;color:var(--orange)">@Math.Abs(m.PrivateOut).ToString("N0")</td>
+                                @if (_focus != Focus.Private)
+                                {
+                                    <td style="padding:8px;color:var(--green)">@m.Revenue.ToString("N0")</td>
+                                    <td style="padding:8px;color:var(--red)">@Math.Abs(_avgMonthlyExpenses).ToString("N0") <span class="meta">(@Math.Abs(m.Expenses).ToString("N0"))</span></td>
+                                    <td style="padding:8px;color:@(m.Revenue + _avgMonthlyExpenses >= 0 ? "var(--green)" : "var(--red)")">@((m.Revenue + _avgMonthlyExpenses).ToString("N0")) <span class="meta">(@m.Net.ToString("N0"))</span></td>
+                                }
+                                @if (_focus != Focus.Business)
+                                {
+                                    <td style="padding:8px;color:var(--orange)">@Math.Abs(m.PrivateOut).ToString("N0")</td>
+                                }
                                 <td style="padding:8px">@(m.EndBalance?.ToString("N0") ?? "-")</td>
                             </tr>
                         }

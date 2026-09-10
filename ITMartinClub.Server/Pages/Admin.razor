@@ -111,6 +111,20 @@ else
                 }
             </div>
 
+            @if (_mainTasks.Count > 0)
+            {
+                <div class="admin-section">
+                    <div class="admin-section-title">Hovedopgave-emner (@_mainTasks.Count)</div>
+                    @foreach (var mt in _mainTasks)
+                    {
+                        <div class="admin-member-row">
+                            <input class="admin-role-input" style="width:220px" value="@mt.Title" maxlength="100"
+                                   @onchange="e => RenameMainTaskAsync(mt.Id, e.Value?.ToString() ?? string.Empty)" />
+                        </div>
+                    }
+                </div>
+            }
+
             <div class="admin-section admin-danger">
                 <div class="admin-section-title">Ryd data</div>
 
@@ -234,6 +248,7 @@ else
             _authed = true;
             _ = LoadMembersAsync();
             _ = LoadEventsAsync();
+            _ = LoadMainTasksAsync();
         }
         else
         {
@@ -247,6 +262,29 @@ else
     {
         _members = await Db.Members.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.Name).ToListAsync();
         StateHasChanged();
+    }
+
+    // ── Hovedopgave-emner (MainTask categories): rename ──────────────────────
+    // GroupHome lets you add or delete a category, but never fix a typo/rename
+    // one - a real gap once a category needs restructuring (2026-09-07,
+    // Bogshoppen's "Salg: X" categories needed collapsing down to just "X").
+    private List<MainTask> _mainTasks = [];
+
+    private async Task LoadMainTasksAsync()
+    {
+        _mainTasks = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).OrderBy(m => m.SortOrder).ToListAsync();
+        StateHasChanged();
+    }
+
+    private async Task RenameMainTaskAsync(Guid id, string newTitle)
+    {
+        var title = newTitle.Trim();
+        if (string.IsNullOrWhiteSpace(title)) return;
+        var mt = await Db.MainTasks.FirstOrDefaultAsync(m => m.Id == id && m.GroupId == _group!.Id);
+        if (mt is null) return;
+        mt.Title = title;
+        await Db.SaveChangesAsync();
+        await LoadMainTasksAsync();
     }
 
     // ── Planning: starting a session/invite and creating events ─────────────

@@ -50,8 +50,15 @@ public sealed class LedgerQaService : ILedgerQaService
 
     public async Task<string> AskAsync(string ledgerId, string question, CancellationToken cancellationToken = default)
     {
-        var transactions = await _db.Transactions
-            .Where(x => x.LedgerId == ledgerId)
+        // Bogshoppen only: 2025 history is stale/irrelevant now that the shop
+        // is closing, and mixing it back in is what caused "giv mig alle
+        // forretningshuslejer" to answer with 2025 postings even though the
+        // ledger's own overview only shows 2026 (2026-09-07). Other ledgers
+        // (e.g. "family") still want their full history for Q&A.
+        var query = _db.Transactions.Where(x => x.LedgerId == ledgerId);
+        if (ledgerId == "bogshoppen") query = query.Where(x => x.Date >= new DateTime(2026, 1, 1));
+
+        var transactions = await query
             .OrderBy(x => x.Date)
             .ToListAsync(cancellationToken);
 
