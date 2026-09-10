@@ -37,6 +37,43 @@ Instead:
 
 If you're about to write a `foreach`/`Parallel.ForEachAsync` loop that calls a Claude service once per file, stop and batch it instead.
 
+## The photoserver must never suspend (learned the hard way, 2026-09-10)
+
+**`sleep.target`, `suspend.target`, `hibernate.target` and `hybrid-sleep.target` are masked on
+10.0.0.200. Leave them that way.**
+
+**Why:** the photoserver used to suspend when idle, and the USB drive did not survive it. The
+enclosure's bridge chip came back half-alive: it answered USB enumeration (so `lsusb` listed the
+drive and it looked fine) while refusing to open the block device, and the kernel no longer
+processed disconnect events — so unplugging and replugging the cable changed nothing at all.
+`/dev/sdb` stayed frozen with a device node over 28 hours old.
+
+This looked like four separate random drive failures across two days. It was the suspend, every
+time. Hours went into chasing mounts, device nodes and cabling before the cause showed itself in
+an unrelated error message: `Call to Reboot failed: Action suspend already in progress`.
+
+**How to apply:**
+- A drive that is present in `lsusb` but cannot be opened is a wedged bridge, not a dead disk.
+  Software resets (`/sys/bus/usb/devices/*/authorized`) do not clear it, and neither does
+  replugging the cable — only a full power cycle does, because only that actually removes power.
+- Check `systemctl is-enabled sleep.target` before blaming the hardware.
+- Symptom that a suspend is pending: `reboot` refuses, and the machine answers ping while no
+  userland service responds.
+
+## The media database must not live on a removable drive
+
+`MediaSettings:MediaDbDirectory` puts the SQLite database on local storage while the library is
+still delivered to an external drive. **Set it whenever the library root is a USB disk.**
+
+**Why:** SQLite writes constantly — WAL, checkpoints, every workflow step — and a stalling USB
+drive takes the whole run with it. On this mount a `stat()` timed out after 240 seconds the day
+after a directory listing had succeeded on it seconds earlier, and `filesorter-web` hung at
+startup with no logs at all, because its database was over there. The default (co-located with the
+library) is right for internal storage and wrong for removable.
+
+Both the worker and the web app log `MEDIA DB: <path>` at startup. Check it after any deploy —
+the two must agree, or they are indexing one library into two different databases.
+
 ## Deploy / environment rules
 
 - FileSorter (`ITMartinFileSorter.Server`/`.Worker`) must always process files on **local disk relative to wherever it's actually running** — never over a network path (SMB share, NAS mount) for its own heavy per-file work. Source/library folders must sit on that machine's own storage.
