@@ -411,9 +411,18 @@ async function selectGallery(slug, name) {
   document.getElementById('galleryPicker').style.display = 'none';
   document.getElementById('fileBrowser').style.display   = '';
   document.getElementById('demoPhotoNotice').style.display = slug === 'demo' ? '' : 'none';
-  const data = await res.json();
-  parentRelPath = data.parentRelPath;
-  renderBrowse(data, name);
+  // A reload or shared link inside a folder (?p=...) opens that folder,
+  // not the root. The root itself is the first history entry.
+  const deepRel = new URLSearchParams(location.search).get('p');
+  if (deepRel) {
+    history.replaceState({ relPath: '' }, '', folderUrl(''));
+    await loadBrowse(deepRel);
+  } else {
+    const data = await res.json();
+    parentRelPath = data.parentRelPath;
+    history.replaceState({ relPath: '' }, '', folderUrl(''));
+    renderBrowse(data, name);
+  }
   loadSummary(slug);
   loadCollections(slug);
 }
@@ -455,7 +464,9 @@ async function doLogin() {
     galleryDisplayName = name;
     document.getElementById('galleryPicker').style.display = 'none';
     document.getElementById('fileBrowser').style.display   = '';
-    await loadBrowse('', name);
+    const deepRel = new URLSearchParams(location.search).get('p');
+    history.replaceState({ relPath: '' }, '', folderUrl(''));
+    await loadBrowse(deepRel || '', deepRel ? undefined : name);
     loadSummary(slug);
     loadCollections(slug);
   } else {
@@ -469,7 +480,25 @@ async function doLogin() {
 // (e.g. "Billeder") - used verbatim as the header once inside that folder,
 // since the API only translates folder names at the library root and a
 // nested path segment (e.g. "Images") would otherwise show up untranslated.
-async function loadBrowse(relPath, titleOverride) {
+// Every folder is a browser history entry (?g=slug&p=rel), so the phone's
+// back gesture and the browser's back/forward buttons walk the folders
+// instead of leaving the gallery - and a folder link can be shared or
+// bookmarked. fromHistory=true means we are answering popstate and must
+// not push again.
+function folderUrl(relPath) {
+  const q = new URLSearchParams();
+  q.set('g', currentGallery);
+  if (relPath) q.set('p', relPath);
+  return `${location.pathname}?${q}`;
+}
+
+window.addEventListener('popstate', (e) => {
+  if (!currentGallery) return;
+  const rel = (e.state && e.state.relPath) ?? new URLSearchParams(location.search).get('p') ?? '';
+  loadBrowse(rel, null, true);
+});
+
+async function loadBrowse(relPath, titleOverride, fromHistory) {
   if (!currentGallery) return;
   viewingCollection = null;
   viewingSpecialAddon = null;
@@ -483,7 +512,12 @@ async function loadBrowse(relPath, titleOverride) {
   if (!res.ok) return;
   const data = await res.json();
   parentRelPath = data.parentRelPath;
-  renderBrowse(data, titleOverride);
+  if (!fromHistory) {
+    const target = folderUrl(currentRelPath);
+    if (location.pathname + location.search !== target)
+      history.pushState({ relPath: currentRelPath }, '', target);
+  }
+  renderBrowse(data, titleOverride || data.title);
 }
 
 function folderCardHtml(f) {

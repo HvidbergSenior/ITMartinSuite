@@ -642,7 +642,20 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     var parentFull = atRoot ? null : Directory.GetParent(current)?.FullName;
     var parentRel  = parentFull is null ? null : NormalizeRel(Rel(parentFull, r));
 
-    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly };
+    // View-only: SmartFolders itself is never a page. Going back from
+    // Personer/Rejser/Årbog lands on the front page, not on a raw folder
+    // listing the viewer was never shown; and the header says "Personer",
+    // not "People".
+    string? title = null;
+    if (g.ViewOnly && !atRoot)
+    {
+        var relNow = NormalizeRel(Rel(current, r));
+        if (parentRel is not null && parentRel.Equals("SmartFolders", StringComparison.OrdinalIgnoreCase))
+            parentRel = "";
+        title = ViewOnlyRootFolders.FirstOrDefault(v => v.Rel.Equals(relNow, StringComparison.OrdinalIgnoreCase)).Name;
+    }
+
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title };
     browseCache[cacheKey] = (DateTime.UtcNow.AddMinutes(10), browsePayload);
     return Results.Ok(browsePayload);
 });
