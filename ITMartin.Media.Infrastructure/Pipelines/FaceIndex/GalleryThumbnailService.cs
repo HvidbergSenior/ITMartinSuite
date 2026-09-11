@@ -53,7 +53,11 @@ public sealed class GalleryThumbnailService : IGalleryThumbnailService
             if (done % 500 == 0)
                 _logger.LogInformation("Gallery thumbnail progress: {Done}/{Total}", done, images.Count);
 
-            if (File.Exists(thumbPath)) return;
+            // A thumbnail is only current if it is at least as new as its
+            // source: a photo rotated in place after export (manual or cached
+            // rotation decisions) would otherwise keep its sideways thumbnail
+            // forever, since nothing else ever deletes one.
+            if (File.Exists(thumbPath) && File.GetLastWriteTimeUtc(thumbPath) >= File.GetLastWriteTimeUtc(file)) return;
 
             try
             {

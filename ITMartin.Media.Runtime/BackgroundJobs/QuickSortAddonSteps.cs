@@ -250,6 +250,17 @@ public sealed class QuickSortAddonSteps
                         "Registered {Name} from {Count} reference photo(s)",
                         person.Name, inputs.Count);
                 }
+                else if (person.BornYear is not null && known!.BornYear != person.BornYear)
+                {
+                    // The folder was renamed to carry a year after this person
+                    // was first registered. The folder name is the source of
+                    // truth, so the database follows it - without this, a year
+                    // added later would never take effect on re-runs.
+                    await _faceIndex.SetBornYearAsync(personId.Value, person.BornYear);
+                    _logger.LogInformation(
+                        "Set birth year {Year} on {Name} from the reference folder name",
+                        person.BornYear, person.Name);
+                }
 
                 var folder = await _smartFolders.GeneratePersonFolderAsync(
                     libraryPath, personId.Value, cancellationToken: cancellationToken);

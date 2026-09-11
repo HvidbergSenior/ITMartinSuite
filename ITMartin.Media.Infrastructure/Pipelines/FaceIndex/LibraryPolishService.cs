@@ -1298,6 +1298,71 @@ public sealed class LibraryPolishService : ILibraryPolishService
         return Task.FromResult(result);
     }
 
+    public async Task<CachedRotationResult> ApplyCachedRotationDecisionsAsync(string libraryPath, CancellationToken cancellationToken = default)
+    {
+        var result = new CachedRotationResult();
+
+        var decisionsFile = Path.Combine(libraryPath, RotationDecisionsFileName);
+        if (!File.Exists(decisionsFile)) return result;
+
+        var decisions = LoadHashDecisions(decisionsFile);
+        if (decisions.Count == 0) return result;
+
+        // The registry is the hash -> path map we need; without it there is
+        // nothing to join against and hashing the library here would cost
+        // the hours this method exists to avoid. IndexConverge builds it.
+        var registry = await _fileStatusRegistry.LoadAsync(libraryPath, cancellationToken);
+        if (registry.Count == 0)
+        {
+            _logger.LogInformation("ApplyCachedRotationDecisions for {Path}: no file status registry yet, {Decisions} decisions left for the next round", libraryPath, decisions.Count);
+            return result;
+        }
+
+        var checkedPathsFile = Path.Combine(libraryPath, RotationCheckedFileName);
+        var checkedPaths = LoadStringSet(checkedPathsFile);
+        var rotated = 0;
+
+        foreach (var (hash, record) in registry)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!decisions.TryGetValue(hash, out var degrees)) continue;
+
+            var relativePath = record.RelativePath;
+            var file = Path.Combine(libraryPath, relativePath);
+            if (!File.Exists(file)) continue;
+
+            // The registry keeps the pre-rotation hash pointing at this path
+            // until IndexConverge re-hashes the file, so the decision would
+            // match again on the next run and turn the photo a second time.
+            // It did, on ToshibaTest 2026-09-11. The checked set is the guard.
+            if (checkedPaths.Contains(relativePath)) continue;
+
+            if (degrees == 0)
+            {
+                checkedPaths.Add(relativePath);
+                continue;
+            }
+
+            result.Matched++;
+            var before = rotated;
+            ApplyResolvedFile(file, degrees, ref rotated);
+            if (rotated > before)
+                checkedPaths.Add(relativePath);
+            else
+                result.Failed.Add(relativePath);
+        }
+
+        result.Rotated = rotated;
+        SaveStringSet(checkedPathsFile, checkedPaths);
+
+        _logger.LogInformation(
+            "ApplyCachedRotationDecisions for {Path}: {Decisions} cached decisions, {Matched} matched a file, {Rotated} rotated, {Failed} failed",
+            libraryPath, decisions.Count, result.Matched, result.Rotated, result.Failed.Count);
+
+        return result;
+    }
+
     // Minimal two-column CSV reader for the staging manifest - both fields are
     // always quoted by the writer, and paths routinely contain commas.
     private static (string CopyName, string Original)? SplitCsvPair(string line)

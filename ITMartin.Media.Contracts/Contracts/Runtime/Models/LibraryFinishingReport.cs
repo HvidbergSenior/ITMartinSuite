@@ -15,6 +15,10 @@ public sealed class LibraryFinishingReport
     // back onto the library before anything else reads pixels
     public ManualRotationResult? ManualRotations { get; set; }
 
+    // Phase 0 as well - decisions cached in rotation-decisions.json from an
+    // earlier run of the same photos, replayed by content hash
+    public CachedRotationResult? CachedRotations { get; set; }
+
     // Phase 1 - reorganization (rotation, junk reclassification, small albums)
     public FreeOrientationFixResult? OrientationFix { get; set; }
     public BurstFlattenResult? BurstsFlattened { get; set; }

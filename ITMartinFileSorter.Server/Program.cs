@@ -677,6 +677,11 @@ app.MapPost("/api/debug/library-polish", async (string path, ITMartin.Media.Cont
 app.MapPost("/api/debug/fix-orientation", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.FixOrientationAsync(path)));
 
+// Free replay of rotation-decisions.json by content hash - the finishing
+// chain runs this itself in phase 0; here for running it on demand.
+app.MapPost("/api/debug/apply-cached-rotations", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
+    Results.Ok(await service.ApplyCachedRotationDecisionsAsync(path)));
+
 app.MapPost("/api/debug/redate-undated", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.RedateUndatedAsync(path)));
 

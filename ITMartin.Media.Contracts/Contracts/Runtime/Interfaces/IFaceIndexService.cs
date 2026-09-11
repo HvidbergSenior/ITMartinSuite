@@ -26,6 +26,11 @@ public interface IFaceIndexService
 
     Task<Guid> AddPersonAsync(string name, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath, int? bornYear = null);
 
+    // The reference folder name is the source of truth for the year, so a
+    // year added to the folder after the person was registered must reach the
+    // database on the next run rather than staying whatever it was at first.
+    Task SetBornYearAsync(Guid personId, int? bornYear);
+
     Task AddReferencePhotosAsync(Guid personId, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath);
 
     Task DeletePersonAsync(Guid personId);

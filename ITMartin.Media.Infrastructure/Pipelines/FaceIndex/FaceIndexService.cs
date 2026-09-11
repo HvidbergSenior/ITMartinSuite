@@ -339,6 +339,7 @@ public sealed class FaceIndexService : IFaceIndexService
             {
                 Id = p.Id,
                 Name = p.Name,
+                BornYear = p.BornYear,
                 ReferencePhotoCount = db.PersonReferencePhotos.Count(r => r.PersonId == p.Id)
             })
             .ToListAsync();
@@ -361,6 +362,15 @@ public sealed class FaceIndexService : IFaceIndexService
         await db.SaveChangesAsync();
 
         return person.Id;
+    }
+
+    public async Task SetBornYearAsync(Guid personId, int? bornYear)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await db.People.FindAsync(personId);
+        if (person is null || person.BornYear == bornYear) return;
+        person.BornYear = bornYear;
+        await db.SaveChangesAsync();
     }
 
     public async Task AddReferencePhotosAsync(Guid personId, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath)

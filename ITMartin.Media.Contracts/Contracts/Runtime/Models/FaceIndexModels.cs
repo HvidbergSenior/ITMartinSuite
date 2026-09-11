@@ -10,6 +10,7 @@ public sealed class PersonDto
     public Guid Id { get; init; }
     public required string Name { get; init; }
     public int ReferencePhotoCount { get; init; }
+    public int? BornYear { get; init; }
 }
 
 public sealed class PersonMatchResult

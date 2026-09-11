@@ -125,6 +125,15 @@ public sealed class LibraryFinishingService : ILibraryFinishingService
             // applying what comes back are two halves of one loop, and only
             // the human part in the middle should need a person.
             report.ManualRotations = await _polish.ApplyManualRotationsAsync(libraryPath, cancellationToken);
+
+            // Same reasoning for decisions already made about these exact
+            // bytes in an earlier run (rotation-decisions.json). On the
+            // ToshibaTest delivery 264 photos reviewed on the test run sat
+            // sideways in the full library because nothing replayed them.
+            // Joins by hash through the file status registry, so it is free;
+            // on a first run the registry is empty and it simply does nothing
+            // until IndexConverge has built it.
+            report.CachedRotations = await _polish.ApplyCachedRotationDecisionsAsync(libraryPath, cancellationToken);
         });
 
         await RunPhaseAsync(report, "Reorganization", async () =>

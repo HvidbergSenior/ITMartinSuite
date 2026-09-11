@@ -248,4 +248,12 @@ public interface ILibraryPolishService
     // gallery thumbnailer included - still sees it sideways. Copying such a
     // file back unchanged looks like it worked and silently does not.
     Task<ManualRotationResult> ApplyManualRotationsAsync(string libraryPath, CancellationToken cancellationToken = default);
+
+    // Replays rotation-decisions.json (content hash -> degrees) onto the
+    // library without hashing a single file: the join goes through the file
+    // status registry, which already knows every file's hash. Decisions come
+    // from an earlier run over the same photos, so this is how a review done
+    // on a test run reaches the full delivery. Free and fast; a rotated file
+    // gets a new hash and never matches again.
+    Task<CachedRotationResult> ApplyCachedRotationDecisionsAsync(string libraryPath, CancellationToken cancellationToken = default);
 }
