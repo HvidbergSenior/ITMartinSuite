@@ -21,6 +21,11 @@ public class Package
     public int      Id        { get; set; }
     public string   Title     { get; set; } = "";
 
+    // WHO this is for - "For Skelagerhøjen" - shown above the title. A
+    // tester's first remark (2026-09-11): without it the page could be
+    // anyone's, and a link to an unnamed survey reads like phishing.
+    public string   Audience  { get; set; } = "";
+
     // WHY we are asking. Shown once at the top, so the shared context is
     // stated in one place rather than repeated into every question's body.
     public string   Intro     { get; set; } = "";
@@ -51,6 +56,10 @@ public class Poll
     public DateTime  CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? Deadline  { get; set; }
     public bool      IsActive  { get; set; } = true;
+
+    // Several options may be chosen at once (one Vote row per chosen option,
+    // same voter). Results then count people per option, not share of votes.
+    public bool      AllowMultiple { get; set; }
 
     public List<PollOption> Options { get; set; } = [];
     public List<Vote>       Votes   { get; set; } = [];

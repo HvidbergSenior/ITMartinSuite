@@ -43,6 +43,10 @@
     else
     {
         <div class="poll-content">
+            @if (!string.IsNullOrWhiteSpace(_package.Audience))
+            {
+                <div class="pkg-audience">@_package.Audience</div>
+            }
             <h1 class="poll-title">@_package.Title</h1>
             @if (!string.IsNullOrWhiteSpace(_package.Intro))
             {
@@ -122,9 +126,9 @@
                         }
                     </div>
                     <div class="poll-comment-wrap">
-                        <textarea class="poll-comment-input" rows="2"
+                        <textarea class="poll-comment-input" rows="3"
                                   placeholder="Vil du uddybe? (valgfrit)"
-                                  maxlength="280"
+                                  maxlength="1000"
                                   value="@_voteComments.GetValueOrDefault(p.Id, "")"
                                   @onchange="e => SaveVoteCommentAsync(p.Id, e.Value?.ToString() ?? string.Empty)"></textarea>
                     </div>
@@ -195,9 +199,9 @@
                                         }
                                     </div>
                                     <div class="poll-comment-wrap">
-                                        <textarea class="poll-comment-input" rows="2"
+                                        <textarea class="poll-comment-input" rows="3"
                                                   placeholder="Hvad fungerede, og hvad drillede? (valgfrit)"
-                                                  maxlength="280"
+                                                  maxlength="1000"
                                                   value="@_ratingComments.GetValueOrDefault(openId, "")"
                                                   @onchange="e => SaveRatingCommentAsync(openId, e.Value?.ToString() ?? string.Empty)"></textarea>
                                     </div>
@@ -265,6 +269,7 @@
                 Id           = p.Id,
                 Title        = p.Title,
                 Intro        = p.Intro,
+                Audience     = p.Audience,
                 Instructions = p.Instructions,
                 Polls = p.Polls
                     .Where(x => x.IsActive)

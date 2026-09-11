@@ -32,6 +32,10 @@
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             <div class="pkg-front">
+                @if (!string.IsNullOrWhiteSpace(pkg.Audience))
+                {
+                    <div class="pkg-audience">@pkg.Audience</div>
+                }
                 <div class="pkg-front-badge">FORESPØRGSEL · @(pkg.Polls.Count + pkg.Sessions.Count) dele</div>
                 <h1 class="pkg-front-title">@pkg.Title</h1>
 
@@ -168,6 +172,7 @@
                 Id           = p.Id,
                 Title        = p.Title,
                 Intro        = p.Intro,
+                Audience     = p.Audience,
                 Instructions = p.Instructions,
                 Polls    = p.Polls.Where(x => x.IsActive).ToList(),
                 Sessions = p.Sessions.Where(x => x.IsActive).ToList(),

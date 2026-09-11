@@ -78,6 +78,10 @@ using (var scope = app.Services.CreateScope())
     """);
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Packages\" ADD COLUMN \"Instructions\" TEXT NOT NULL DEFAULT '';"); }
     catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Packages\" ADD COLUMN \"Audience\" TEXT NOT NULL DEFAULT '';"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"AllowMultiple\" INTEGER NOT NULL DEFAULT 0;"); }
+    catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Polls\" ADD COLUMN \"PackageId\" INTEGER NULL;"); }
     catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE \"Sessions\" ADD COLUMN \"PackageId\" INTEGER NULL;"); }
