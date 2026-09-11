@@ -7,6 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <!-- Object detection model (YOLOv10n, COCO 80 classes) - shipped with every app that references this project -->
+      <None Include="Models\yolov10n.onnx" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="Anthropic" Version="12.29.0" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.1">
         <PrivateAssets>all</PrivateAssets>

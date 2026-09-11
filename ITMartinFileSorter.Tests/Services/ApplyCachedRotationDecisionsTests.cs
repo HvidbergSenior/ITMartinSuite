@@ -131,6 +131,24 @@ public class ApplyCachedRotationDecisionsTests
         image.Width.Should().Be(20, "a 90-degree decision applied twice would be 180 and the photo would be upside down instead of upright");
     }
 
+    // A thumbnail made from the sideways pixels must not survive the
+    // rotation - the gallery grid is built from thumbnails, so a stale one
+    // shows the photo still sideways after it was fixed.
+    [Test]
+    public async Task Rotating_a_photo_removes_its_stale_thumbnail()
+    {
+        var sideways = WriteLandscape(Path.Combine("Billeder", "2019", "sideways.jpg"));
+        var thumbDir = Path.Combine(_root, "Billeder", "2019", "thumbnails");
+        Directory.CreateDirectory(thumbDir);
+        var thumb = Path.Combine(thumbDir, "sideways.jpg");
+        File.WriteAllBytes(thumb, [9]);
+        WriteDecisions(new() { [sideways] = 90 });
+
+        await CreateService().ApplyCachedRotationDecisionsAsync(_root);
+
+        File.Exists(thumb).Should().BeFalse("the thumbnail was made from the unrotated pixels");
+    }
+
     [Test]
     public async Task Decisions_for_hashes_not_in_the_library_are_ignored()
     {

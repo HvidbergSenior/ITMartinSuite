@@ -548,7 +548,32 @@ app.MapPost("/api/debug/sf-set-born-year", async (Guid personId, int? bornYear, 
     return Results.Ok(new { person.Name, person.BornYear });
 });
 
-app.MapPost("/api/debug/sf-reembed-references", async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+// Local object detection (YOLO, no API cost). object-index scans the library
+// once in the background; object-folder turns a label into a SmartFolders
+// set - e.g. label=dog&name=Fie. Re-running the index only costs new files.
+app.MapPost("/api/debug/object-index", (string path, IServiceScopeFactory scopeFactory) =>
+{
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IObjectIndexService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        try { logger.LogInformation("Object index finished: {Scanned} images scanned", await service.IndexAsync(path)); }
+        catch (Exception ex) { logger.LogError(ex, "Object index failed for {Path}", path); }
+    });
+    return Results.Ok("started");
+});
+
+app.MapGet("/api/debug/object-index-status", async (string path, string label, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IObjectIndexService service) =>
+{
+    var (scanned, with) = await service.StatusAsync(path, label);
+    return Results.Ok(new { scanned, withLabel = with });
+});
+
+app.MapPost("/api/debug/object-folder", async (string path, string label, string name, double? minConfidence, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IObjectIndexService service) =>
+    Results.Ok(new { name, label, fileCount = await service.GenerateFolderAsync(path, label, name, minConfidence ?? 0.4) }));
+
+app.MapPost("/api/debug/sf-reembed-references",async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(new { updated = await service.ReembedReferencePhotosAsync() }));
 
 app.MapPost("/api/debug/sf-delete-person",async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>

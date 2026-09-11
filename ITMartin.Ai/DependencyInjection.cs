@@ -70,6 +70,12 @@ public static class DependencyInjection
         services.AddSingleton<Func<IFaceRecognitionService>>(sp =>
             () => new FaceOnnxRecognitionService(sp.GetRequiredService<ILogger<FaceOnnxRecognitionService>>()));
 
+        // Same shape for object detection: a factory so the indexer can run
+        // several independent sessions in parallel.
+        services.AddSingleton<IObjectDetectionService, YoloObjectDetectionService>();
+        services.AddSingleton<Func<IObjectDetectionService>>(sp =>
+            () => new YoloObjectDetectionService(sp.GetRequiredService<ILogger<YoloObjectDetectionService>>()));
+
         return services;
     }
 }

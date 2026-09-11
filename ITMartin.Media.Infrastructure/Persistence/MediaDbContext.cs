@@ -38,6 +38,8 @@ public sealed class MediaDbContext
         => Set<PersonReferencePhotoEntity>();
     public DbSet<MediaFaceEntity> MediaFaces
         => Set<MediaFaceEntity>();
+    public DbSet<MediaObjectTagEntity> MediaObjectTags
+        => Set<MediaObjectTagEntity>();
     public DbSet<Package3IndexStatusEntity> Package3IndexStatuses
         => Set<Package3IndexStatusEntity>();
 
@@ -130,6 +132,13 @@ public sealed class MediaDbContext
             .HasIndex(x => x.RelativePath);
         modelBuilder.Entity<MediaFaceEntity>()
             .HasIndex(x => x.MatchedPersonId);
+
+        modelBuilder.Entity<MediaObjectTagEntity>()
+            .HasKey(x => x.Id);
+        modelBuilder.Entity<MediaObjectTagEntity>()
+            .HasIndex(x => x.RelativePath);
+        modelBuilder.Entity<MediaObjectTagEntity>()
+            .HasIndex(x => x.Label);
 
         modelBuilder.Entity<Package3IndexStatusEntity>()
             .HasKey(x => x.Id);

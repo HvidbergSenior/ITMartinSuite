@@ -82,6 +82,39 @@ namespace ITMartin.Media.Infrastructure.Migrations
                     b.ToTable("MediaFaces");
                 });
 
+            modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.MediaObjectTagEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MediaFilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Label");
+
+                    b.HasIndex("RelativePath");
+
+                    b.ToTable("MediaObjectTags");
+                });
+
             modelBuilder.Entity("ITMartin.Media.Infrastructure.Persistence.Entities.Package1ManifestEntity", b =>
                 {
                     b.Property<Guid>("WorkflowId")

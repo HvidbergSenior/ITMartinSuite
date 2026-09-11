@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="TestAssets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ITMartinFileSorter.Application\ITMartinFileSorter.Application.csproj" />
     <ProjectReference Include="..\ITMartinFileSorter.Infrastructure\ITMartinFileSorter.Infrastructure.csproj" />
     <ProjectReference Include="..\ITMartinFileSorter.Domain\ITMartinFileSorter.Domain.csproj" />

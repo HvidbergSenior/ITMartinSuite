@@ -78,6 +78,10 @@ public static class FileSorterDependencyInjection
             SmartFoldersService>();
 
         services.AddScoped<
+            IObjectIndexService,
+            ObjectIndexService>();
+
+        services.AddScoped<
             IImageTaggingService,
             ImageTaggingService>();
 
