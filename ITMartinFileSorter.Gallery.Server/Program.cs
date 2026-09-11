@@ -80,9 +80,22 @@ var CoreCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "Images", "Videos", "Documents", "Musik",
 };
 
+// The root of a view-only gallery, in this order. Relative paths are what
+// LibraryExportService and SmartFoldersService actually write.
+var ViewOnlyRootFolders = new (string Name, string Rel, string Icon)[]
+{
+    ("Billeder", "Billeder", "🖼️"),
+    ("Videoer", "Videoer", "🎬"),
+    ("Dokumenter", "Dokumenter", "📄"),
+    ("Rejser", "SmartFolders/Trips", "✈️"),
+    ("Årbog", "SmartFolders/Yearbook", "📚"),
+    ("Personer", "SmartFolders/People", "👤"),
+    ("Traditioner og mærkedage", "SmartFolders/Traditioner", "🎄"),
+};
+
 // Friendly Danish labels for the root-level folders that do stay visible -
 // the folder name on disk never changes (other pipeline code depends on the
-// exact name), this only changes what's displayed to the viewer.
+// exact name), this only changes what is displayed to the viewer.
 var RootFolderDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 {
     ["Images"] = "Billeder",
@@ -246,7 +259,8 @@ var galleries = app.Configuration
         OnThisDayEnabled: s.GetValue<bool>("OnThisDayEnabled"),
         SearchEnabled: s.GetValue<bool>("SearchEnabled"),
         HideAddons: s.GetValue<bool>("HideAddons"),
-        CoreCategoriesOnly: s.GetValue<bool>("CoreCategoriesOnly")))
+        CoreCategoriesOnly: s.GetValue<bool>("CoreCategoriesOnly"),
+        ViewOnly: s.GetValue<bool>("ViewOnly")))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -508,6 +522,21 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     // non-technical viewer - keep exactly one place it appears.
     var folders = priorityFolders.Concat(restFolders).ToList();
 
+    // View-only gallery (Galleries__N__ViewOnly): the root is exactly the
+    // seven things a family wants to open and nothing else - no add-ons, no
+    // locked placeholders, no collections rows, no duplicates/small-albums
+    // clutter. The SmartFolders sets that the addons UI otherwise sells are
+    // simply folders here, with Danish names. Asked for on 2026-09-11:
+    // "Kun visning - fjern alt det man kan vælge."
+    if (atRoot && g.ViewOnly)
+    {
+        folders = ViewOnlyRootFolders
+            .Select(v => (v.Name, Full: Path.Combine(r, v.Rel), v.Rel, v.Icon))
+            .Where(v => Directory.Exists(v.Full) && HasAnyMediaFile(v.Full))
+            .Select(v => new FolderEntry(v.Name, v.Rel, FolderCover(v.Full, r, g.Slug), 0, v.Icon))
+            .ToList();
+    }
+
     // Musik folders are full of Windows Media Player's cached album art
     // (AlbumArt_{GUID}_Large.jpg, Folder.jpg) sitting next to the actual
     // tracks - browsing in there should show the music, not a wall of cover
@@ -613,7 +642,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     var parentFull = atRoot ? null : Directory.GetParent(current)?.FullName;
     var parentRel  = parentFull is null ? null : NormalizeRel(Rel(parentFull, r));
 
-    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons };
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly };
     browseCache[cacheKey] = (DateTime.UtcNow.AddMinutes(10), browsePayload);
     return Results.Ok(browsePayload);
 });
@@ -1070,6 +1099,6 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // range, folder/photo counts) is a one-time customer-handoff moment, not
 // something a family member visiting a shared link should see - opt-in per
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly);
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false);
 record LoginRequest(string Gallery, string Password);
 record FolderEntry(string name, string relPath, string? cover, int row = 99, string? icon = null);

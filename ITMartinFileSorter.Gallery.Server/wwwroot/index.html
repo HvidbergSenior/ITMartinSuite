@@ -191,6 +191,21 @@ html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-c
 .v-btn{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer}
 .v-stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .v-media{max-width:100%;max-height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
+/* A video plays at its encoded size by default, so an old 320x240 clip sat
+   as a stamp in the middle of the stage. Fill the stage and let object-fit
+   keep the aspect ratio - same as photos already behave. */
+video.v-media{width:100%;height:100%}
+
+/* View-only gallery root: seven big tiles, one uniform grid, label under a
+   generous cover - an overview, not a directory listing. */
+body.view-only.at-root .folder-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+body.view-only.at-root .folder-card{border-radius:16px}
+body.view-only.at-root .folder-cover{aspect-ratio:4/3;font-size:48px}
+body.view-only.at-root .folder-info{padding:12px 14px}
+body.view-only.at-root .folder-name{font-size:16px;white-space:normal;line-height:1.25}
+body.view-only.at-root .folder-count{font-size:12px;margin-top:2px}
+body.view-only.at-root .section-label{display:none}
+body.view-only #addonsSection,body.view-only #collectionsSection,body.view-only #examplesSection,body.view-only #summaryCard,body.view-only #demoPhotoNotice{display:none!important}
 .v-live-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:999px;display:flex;align-items:center;gap:6px;pointer-events:none;z-index:5;transition:opacity .15s}
 .v-live-hint .dot{width:7px;height:7px;border-radius:50%;background:#fbbf24}
 .v-live-hint.playing{opacity:0}
@@ -316,6 +331,7 @@ let playIdx        = 0;
 let pendingSlug    = null;
 let pendingName    = null;
 let summaryData    = null;
+let currentViewOnly = false;
 let collectionsData    = null;
 let viewingCollection  = null;
 let galleryDisplayName = null;
@@ -514,8 +530,14 @@ function renderFolderRows(folders, placeholders) {
 }
 
 function renderBrowse(data, titleOverride) {
-  const { atRoot, folders, files, hideAddons } = data;
+  const { atRoot, folders, files, hideAddons, viewOnly } = data;
   currentHideAddons = !!hideAddons;
+  // View-only gallery: no add-ons, no collection rows, no summary hero -
+  // just folders and files. Also a body class so CSS can give the root
+  // grid room to breathe.
+  currentViewOnly   = !!viewOnly;
+  document.body.classList.toggle('view-only', currentViewOnly);
+  document.body.classList.toggle('at-root', !!atRoot);
   currentAtRoot = atRoot;
 
   const title = atRoot
@@ -524,7 +546,7 @@ function renderBrowse(data, titleOverride) {
   document.getElementById('hdrTitle').textContent       = title;
   document.getElementById('btnGalleries').style.display = '';
   document.getElementById('btnBack').style.display      = atRoot ? 'none' : '';
-  document.getElementById('summaryCard').style.display  = (atRoot && summaryData) ? '' : 'none';
+  document.getElementById('summaryCard').style.display  = (atRoot && summaryData && !currentViewOnly) ? '' : 'none';
 
   const fg = document.getElementById('folderGrid');
   const fs = document.getElementById('folderSection');
@@ -987,7 +1009,7 @@ function renderCollections() {
   document.getElementById('collectionRow').innerHTML = rest.map(collectionCardHtml).join('');
   document.getElementById('examplesRow').innerHTML   = examples.map(collectionCardHtml).join('');
 
-  const showSections = currentAtRoot && !viewingCollection;
+  const showSections = currentAtRoot && !viewingCollection && !currentViewOnly;
   document.getElementById('collectionsSection').style.display = (showSections && rest.length)     ? '' : 'none';
   document.getElementById('examplesSection').style.display    = (showSections && examples.length) ? '' : 'none';
 }
