@@ -344,7 +344,7 @@ public sealed class FaceIndexService : IFaceIndexService
             .ToListAsync();
     }
 
-    public async Task<Guid> AddPersonAsync(string name, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath)
+    public async Task<Guid> AddPersonAsync(string name, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath, int? bornYear = null)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 
@@ -352,6 +352,7 @@ public sealed class FaceIndexService : IFaceIndexService
         {
             Id = Guid.NewGuid(),
             Name = name,
+            BornYear = bornYear,
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
         db.People.Add(person);

@@ -494,10 +494,10 @@ app.MapGet("/api/debug/gps-stats-any", (string path, ITMartin.Media.Contracts.Co
 app.MapGet("/api/debug/sf-people", async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.GetPeopleAsync()));
 
-app.MapPost("/api/debug/sf-add-person", async (string path, string name, string referencePhotoPath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+app.MapPost("/api/debug/sf-add-person", async (string path, string name, string referencePhotoPath, int? bornYear, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
     var bytes = await File.ReadAllBytesAsync(referencePhotoPath);
-    var personId = await service.AddPersonAsync(name, [new(Path.GetFileName(referencePhotoPath), bytes)], path);
+    var personId = await service.AddPersonAsync(name, [new(Path.GetFileName(referencePhotoPath), bytes)], path, bornYear);
     return Results.Ok(new { personId });
 });
 
@@ -534,6 +534,19 @@ app.MapGet("/api/debug/p3-find-matches", async (Guid personId, double threshold,
 
 app.MapPost("/api/debug/p3-classify-unhandled", async (string path, int? maxFiles, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(await service.ClassifyUnhandledFilesAsync(path, maxFiles ?? 5000)));
+
+// Set or clear a birth year on an existing person - see PersonEntity.BornYear.
+// The 22 people on ToshibaTest were registered before the column existed, so
+// this is how they get theirs without being deleted and re-added.
+app.MapPost("/api/debug/sf-set-born-year", async (Guid personId, int? bornYear, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var person = await db.People.FindAsync(personId);
+    if (person is null) return Results.NotFound();
+    person.BornYear = bornYear;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { person.Name, person.BornYear });
+});
 
 app.MapPost("/api/debug/sf-delete-person", async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {

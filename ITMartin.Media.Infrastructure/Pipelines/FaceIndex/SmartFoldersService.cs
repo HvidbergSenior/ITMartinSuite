@@ -139,6 +139,24 @@ public sealed class SmartFoldersService : ISmartFoldersService
 
         var matches = await _package3.FindMatchesAsync(personId, threshold);
         var filePaths = matches.Select(m => m.MediaFilePath).ToList();
+
+        // Nobody appears in a photo taken before they were born. The matcher
+        // has no notion of time, and for young children it is wildly generous
+        // - see PersonEntity.BornYear for the 6,144-photo case that prompted
+        // this. Every library photo lives under Billeder/<year>/, so the year
+        // is right there in the path; anything undated is kept, since we
+        // cannot say it is impossible.
+        if (person.BornYear is int born)
+        {
+            var before = filePaths.Count;
+            filePaths = filePaths.Where(p => YearFromLibraryPath(p) is not int y || y >= born).ToList();
+
+            if (before != filePaths.Count)
+                _logger.LogInformation(
+                    "{Name}: dropped {Dropped} match(es) dated before {Born}, the year they were born",
+                    person.Name, before - filePaths.Count, born);
+        }
+
         if (filePaths.Count == 0) return null;
 
         var folderPath = Path.Combine(libraryPath, RootFolderName, "People", SanitizeName(person.Name));
@@ -1423,6 +1441,19 @@ public sealed class SmartFoldersService : ISmartFoldersService
         }
 
         return mapping;
+    }
+
+    // The year a library photo was filed under, read off its path - the export
+    // always places dated photos as .../Billeder/<yyyy>/... (with an optional
+    // month folder beneath). Returns null for anything not under a year folder,
+    // such as Billeder/Ukendt måned or a file at the library root.
+    private static readonly System.Text.RegularExpressions.Regex YearFolder =
+        new(@"[\\/](19|20)\d{2}[\\/]", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    public static int? YearFromLibraryPath(string path)
+    {
+        var m = YearFolder.Match(path);
+        return m.Success ? int.Parse(m.Value.Trim('\\', '/')) : null;
     }
 
     private static string SanitizeName(string name)

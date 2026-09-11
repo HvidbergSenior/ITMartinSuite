@@ -164,13 +164,22 @@ public sealed class QuickSortAddonSteps
 
         if (referenceRoot is null) return;
 
+        // A folder named "Theodor (2013)" registers Theodor with a birth year of
+        // 2013, and no photo dated before 2013 can then land in his folder.
+        // Plain "Theodor" works as before, with no such rule. See
+        // PersonEntity.BornYear for why this matters enormously for children.
         var people = Directory.EnumerateDirectories(referenceRoot)
-            .Select(dir => new
+            .Select(dir =>
             {
-                Name = Path.GetFileName(dir),
-                Photos = Directory.EnumerateFiles(dir)
-                    .Where(f => ReferencePhotoExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
-                    .ToList(),
+                var (name, born) = SplitNameAndBirthYear(Path.GetFileName(dir));
+                return new
+                {
+                    Name = name,
+                    BornYear = born,
+                    Photos = Directory.EnumerateFiles(dir)
+                        .Where(f => ReferencePhotoExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
+                        .ToList(),
+                };
             })
             .Where(p => p.Photos.Count > 0 && !string.IsNullOrWhiteSpace(p.Name))
             .ToList();
@@ -235,7 +244,7 @@ public sealed class QuickSortAddonSteps
                             await File.ReadAllBytesAsync(photo, cancellationToken)));
                     }
 
-                    personId = await _faceIndex.AddPersonAsync(person.Name, inputs, libraryPath);
+                    personId = await _faceIndex.AddPersonAsync(person.Name, inputs, libraryPath, person.BornYear);
 
                     _logger.LogInformation(
                         "Registered {Name} from {Count} reference photo(s)",
@@ -263,6 +272,20 @@ public sealed class QuickSortAddonSteps
                 _logger.LogError(ex, "Could not build a person folder for {Name}", person.Name);
             }
         }
+    }
+
+    // "Theodor (2013)" -> ("Theodor", 2013). "Theodor" -> ("Theodor", null).
+    // Only a four-digit year in trailing parentheses counts; anything else is
+    // left in the name untouched, so "Jørgens Mor" or "Niels (den lille)"
+    // still work as plain names.
+    public static (string Name, int? BornYear) SplitNameAndBirthYear(string folderName)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(
+            folderName.Trim(), @"^(.*?)\s*\(((?:19|20)\d{2})\)\s*$");
+
+        return m.Success
+            ? (m.Groups[1].Value.Trim(), int.Parse(m.Groups[2].Value))
+            : (folderName.Trim(), null);
     }
 
     // One failing step must not lose the rest - these run unattended after a

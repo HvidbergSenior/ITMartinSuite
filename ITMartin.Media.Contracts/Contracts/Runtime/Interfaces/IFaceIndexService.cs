@@ -24,7 +24,7 @@ public interface IFaceIndexService
 
     Task<List<PersonDto>> GetPeopleAsync();
 
-    Task<Guid> AddPersonAsync(string name, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath);
+    Task<Guid> AddPersonAsync(string name, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath, int? bornYear = null);
 
     Task AddReferencePhotosAsync(Guid personId, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath);
 
