@@ -158,6 +158,22 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseAntiforgery();
 
+// Paper version of a package - for the neighbours who will not use a link.
+// Generated from the live package on every request, so it always matches
+// the page. See PackagePdf.
+app.MapGet("/pakke/{id:int}/pdf", async (int id, PollDb db) =>
+{
+    var package = await db.Packages
+        .Include(p => p.Polls).ThenInclude(p => p.Options)
+        .Include(p => p.Sessions).ThenInclude(s => s.Images)
+        .FirstOrDefaultAsync(p => p.Id == id);
+    if (package is null) return Results.NotFound();
+
+    var bytes = ITMartinPoll.Server.Services.PackagePdf.Render(package);
+    var fileName = string.Concat(package.Title.Select(c => char.IsLetterOrDigit(c) ? c : '-')).Trim('-') + ".pdf";
+    return Results.File(bytes, "application/pdf", fileName);
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
