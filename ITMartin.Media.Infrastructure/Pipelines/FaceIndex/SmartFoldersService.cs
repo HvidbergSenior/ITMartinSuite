@@ -1,3 +1,4 @@
+using ITMartin.Media.Infrastructure.FileSystem;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -1405,8 +1406,18 @@ public sealed class SmartFoldersService : ISmartFoldersService
 
             var destPath = Path.Combine(destFolder, finalName);
 
-            try { File.Copy(source, destPath, overwrite: true); }
-            catch { continue; }
+            // Hardlink first, copy only if that fails. See HardLink for the full
+            // account; the short version is that the same folders took five
+            // hours and ~25 GB as copies on 2026-09-11, and take minutes and no
+            // space as links - while still showing up as ordinary files when the
+            // NTFS drive is plugged into Windows. The fallback keeps the old
+            // guarantee that SOMETHING lands in the folder on filesystems that
+            // cannot link (exFAT/FAT32 USB sticks) or across devices.
+            if (!HardLink.TryCreate(source, destPath))
+            {
+                try { File.Copy(source, destPath, overwrite: true); }
+                catch { continue; }
+            }
 
             mapping[source] = finalName;
         }
