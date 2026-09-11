@@ -5,6 +5,12 @@
 <div class="page">
     <h1>🪑 Møbelpolstrer</h1>
 
+    @* Photo first, paperwork later: a picture taken here lands in the
+       "Indbakke" folder on the NAS without picking or creating a job, so
+       nothing stands between opening the app and pressing the button. *@
+    <CameraUpload Slug="@InboxSlug" ShowLibraryPicker="false" />
+    <p class="camera-hint">Billeder herfra ender i mappen <strong>Indbakke</strong> på NAS. Åbn en opgave for at lægge billeder direkte på den.</p>
+
     @if (_adding)
     {
         <div class="field">
@@ -53,6 +59,9 @@
 </div>
 
 @code {
+    // NAS folder for photos taken without a job (polstrer/indbakke on the NAS)
+    private const string InboxSlug = "indbakke";
+
     private List<Job>? _jobs;
     private bool _adding;
     private string _newTitle = "";
