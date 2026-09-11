@@ -139,12 +139,18 @@ public sealed class FaceIndexService : IFaceIndexService
         // SQLite writers safe; status writes are still throttled to keep
         // contention low.
         // Each worker loads its own copy of 3 ONNX models (detector, landmarks,
-        // embedder) - the original cap of 2 was tuned for a memory-constrained
-        // Docker container (ProcessorCount-1 OOM-killed it). FileSorter never
-        // runs in a container though (confirmed permanent: always local,
-        // bare-metal) - on real hardware with real RAM, leave 4 threads free
-        // for the OS/everything else and use the rest.
-        var degreeOfParallelism = Math.Min(12, Math.Max(1, Environment.ProcessorCount - 4));
+        // embedder). The cap used to be ProcessorCount-4 because ProcessorCount-1
+        // had OOM-killed the container - but the memory was not the models, it
+        // was the images: FaceOnnxRecognitionService fed the detector the full
+        // 12-megapixel frame as ~146 MB of floats, per worker, at once. It now
+        // detects on a 1600 px downscale (~25 MB), so the pressure that forced
+        // the cap is gone and the workers can go back up.
+        //
+        // The earlier comment here also claimed FileSorter "never runs in a
+        // container (confirmed permanent)". It has run in Docker on the
+        // photoserver since 2026-09-03. On its 8 cores this went from 4 workers
+        // to 6.
+        var degreeOfParallelism = Math.Min(12, Math.Max(1, Environment.ProcessorCount - 2));
         var recognizerPool = new System.Collections.Concurrent.ConcurrentBag<IFaceRecognitionService>();
         for (var i = 0; i < degreeOfParallelism; i++)
             recognizerPool.Add(_faceRecognitionFactory());

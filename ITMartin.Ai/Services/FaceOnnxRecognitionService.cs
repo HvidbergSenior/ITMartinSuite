@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.ML.OnnxRuntime;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace ITMartin.Ai.Services;
 
@@ -14,6 +15,10 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
     private readonly FaceEmbedder _faceEmbedder;
     private readonly ILogger<FaceOnnxRecognitionService> _logger;
     private readonly object _lock = new();
+
+    // Long side, in pixels, that detection runs at. Below this a group photo's
+    // smallest faces start to drop out; above it the cost climbs for nothing.
+    private const int DetectionMaxSide = 1600;
 
     public FaceOnnxRecognitionService(ILogger<FaceOnnxRecognitionService> logger)
     {
@@ -54,19 +59,81 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
             {
                 try
                 {
-                    using var image = Image.Load<Rgb24>(filePath);
-                    var array = ToFloatArray(image);
+                    using var original = Image.Load<Rgb24>(filePath);
 
-                    var faces = _faceDetector.Forward(array);
+                    // Two stages, at two resolutions, because detection and
+                    // recognition want opposite things from the image.
+                    //
+                    // DETECTION runs on a downscaled copy. A modern phone photo
+                    // is 12 megapixels; as three float planes that is ~146 MB,
+                    // and the detector walks every pixel of it. At 1600 px on
+                    // the long side there are six times fewer pixels and faces
+                    // are still found reliably. This was the whole cost of face
+                    // indexing on 2026-09-11 - 2h15m for 87,000 photos - and
+                    // the memory pressure that held FaceIndexService to four
+                    // workers.
+                    //
+                    // The EMBEDDING, though, is what recognition compares, and a
+                    // face that is 100 px wide in the original is 40 px in the
+                    // downscale - too little for a good one. So each detected
+                    // box is mapped back onto the original and the embedding is
+                    // taken from a full-resolution crop around it. Only the
+                    // region around each face is converted to floats, so the
+                    // memory saving survives too.
+                    var longSide = Math.Max(original.Width, original.Height);
+                    var scale = longSide > DetectionMaxSide ? DetectionMaxSide / (double)longSide : 1.0;
+
+                    float[][,] detectionArray;
+                    if (scale < 1.0)
+                    {
+                        using var small = original.Clone(x => x.Resize(
+                            (int)Math.Round(original.Width * scale),
+                            (int)Math.Round(original.Height * scale)));
+                        detectionArray = ToFloatArray(small);
+                    }
+                    else
+                    {
+                        detectionArray = ToFloatArray(original);
+                    }
+
+                    var faces = _faceDetector.Forward(detectionArray);
                     var embeddings = new List<float[]>();
 
                     foreach (var face in faces)
                     {
                         if (face.Box.IsEmpty) continue;
 
-                        var points = _landmarksExtractor.Forward(array, face.Box);
-                        var aligned = FaceProcessingExtensions.Align(array, face.Box, points.RotationAngle);
-                        embeddings.Add(_faceEmbedder.Forward(aligned));
+                        if (scale >= 1.0)
+                        {
+                            // Small image: nothing was downscaled, work in place.
+                            var points = _landmarksExtractor.Forward(detectionArray, face.Box);
+                            var aligned = FaceProcessingExtensions.Align(detectionArray, face.Box, points.RotationAngle);
+                            embeddings.Add(_faceEmbedder.Forward(aligned));
+                            continue;
+                        }
+
+                        // Box back in original coordinates, then a crop with
+                        // generous margin so alignment has hair and chin to
+                        // work with, not a tight rectangle on the eyes.
+                        var ox = (int)(face.Box.X / scale);
+                        var oy = (int)(face.Box.Y / scale);
+                        var ow = (int)(face.Box.Width / scale);
+                        var oh = (int)(face.Box.Height / scale);
+
+                        var margin = (int)(Math.Max(ow, oh) * 0.6);
+                        var cx = Math.Max(0, ox - margin);
+                        var cy = Math.Max(0, oy - margin);
+                        var cw = Math.Min(original.Width - cx, ow + 2 * margin);
+                        var ch = Math.Min(original.Height - cy, oh + 2 * margin);
+                        if (cw <= 0 || ch <= 0) continue;
+
+                        using var crop = original.Clone(x => x.Crop(new Rectangle(cx, cy, cw, ch)));
+                        var cropArray = ToFloatArray(crop);
+
+                        var boxInCrop = new System.Drawing.Rectangle(ox - cx, oy - cy, ow, oh);
+                        var pts = _landmarksExtractor.Forward(cropArray, boxInCrop);
+                        var alignedFace = FaceProcessingExtensions.Align(cropArray, boxInCrop, pts.RotationAngle);
+                        embeddings.Add(_faceEmbedder.Forward(alignedFace));
                     }
 
                     return embeddings;
