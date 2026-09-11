@@ -680,7 +680,11 @@ public sealed class SmartFoldersService : ISmartFoldersService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var d = _dateService.GetBestDate(new MediaDateRequest(file));
-            if (d.Date is not null) dated.Add((file, d.Date.Value));
+            // A tradition is a DAY. A year-only date is a placeholder on
+            // 1 January and a filesystem date is when the file was copied -
+            // both put random photos into Nytår (1,077 of them on
+            // ToshibaTest). Only a date that names the actual day counts.
+            if (d.Date is not null && d.IsReliable && !d.IsYearOnly) dated.Add((file, d.Date.Value));
         }
 
         var results = new List<TraditionResult>();

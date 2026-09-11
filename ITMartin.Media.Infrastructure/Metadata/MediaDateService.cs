@@ -167,9 +167,38 @@ public class MediaDateService : IMediaDateService
         return null;
     }
 
+    // Samsung/Android/WhatsApp names: 20200819_083325.jpg, IMG_20160920_143320,
+    // "Resized 20200819 083325 7241". The commonest phone naming there is,
+    // and until 2026-09-12 it was not parsed at all - such a file without
+    // EXIF (every "Resized"/WhatsApp copy) fell to its year folder or its
+    // copy date, and 1,597 photos on ToshibaTest landed on 1 January of the
+    // wrong year, which is what filled the "Nytår" tradition folder.
+    private static readonly Regex CompactDateTimePattern = new(
+        @"(?<!\d)(?<year>19[89]\d|20\d{2})(?<month>0[1-9]|1[0-2])(?<day>0[1-9]|[12]\d|3[01])[ _-]?(?<hour>[01]\d|2[0-3])(?<min>[0-5]\d)(?<sec>[0-5]\d)(?!\d)");
+
     private static DateTime? TryParseDateFromFileName(string path)
     {
         var fileName = Path.GetFileNameWithoutExtension(path);
+
+        var compact = CompactDateTimePattern.Match(fileName);
+        if (compact.Success)
+        {
+            try
+            {
+                var dt = new DateTime(
+                    int.Parse(compact.Groups["year"].Value),
+                    int.Parse(compact.Groups["month"].Value),
+                    int.Parse(compact.Groups["day"].Value),
+                    int.Parse(compact.Groups["hour"].Value),
+                    int.Parse(compact.Groups["min"].Value),
+                    int.Parse(compact.Groups["sec"].Value));
+                if (dt <= DateTime.Now.AddDays(1)) return dt;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // e.g. 20230231 - fall through to the dashed patterns
+            }
+        }
 
         var match = Regex.Match(
             fileName,

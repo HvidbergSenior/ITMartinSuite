@@ -179,6 +179,37 @@ public sealed class LibraryPolishService : ILibraryPolishService
 
     private static readonly string[] UndatedFolderNames = ["Undated", "Udaterede"];
 
+    private static readonly string[] DanishMonths =
+        ["Januar", "Februar", "Marts", "April", "Maj", "Juni", "Juli", "August", "September", "Oktober", "November", "December"];
+
+    // The month folder a file belongs in, inside a year folder the export has
+    // already laid out. Years are split either into single months ("4 Juni")
+    // or ranges ("2 September-Oktober", "1 Januar-Marts") depending on how
+    // busy the year was - a re-dated file must join whatever that year uses,
+    // not start a parallel scheme. Only when no existing folder covers the
+    // month is a plain "N Måned" created.
+    public static string MonthFolderFor(string yearDir, int month)
+    {
+        if (Directory.Exists(yearDir))
+        {
+            foreach (var dir in Directory.EnumerateDirectories(yearDir))
+            {
+                var name = Path.GetFileName(dir);
+                var m = System.Text.RegularExpressions.Regex.Match(name, @"^\d{1,2}[ -]([A-Za-zæøåÆØÅ]+)(?:-([A-Za-zæøåÆØÅ]+))?$");
+                if (!m.Success) continue;
+
+                var from = Array.FindIndex(DanishMonths, x => x.Equals(m.Groups[1].Value, StringComparison.OrdinalIgnoreCase)) + 1;
+                var to = m.Groups[2].Success
+                    ? Array.FindIndex(DanishMonths, x => x.Equals(m.Groups[2].Value, StringComparison.OrdinalIgnoreCase)) + 1
+                    : from;
+                if (from <= 0 || to <= 0) continue;
+                if (month >= from && month <= to) return name;
+            }
+        }
+
+        return $"{month} {DanishMonths[month - 1]}";
+    }
+
     public Task<RedateUndatedResult> RedateUndatedAsync(string libraryPath, CancellationToken cancellationToken = default)
     {
         var checkedCount = 0;
@@ -226,8 +257,54 @@ public sealed class LibraryPolishService : ILibraryPolishService
             }
         }
 
+        // Second sweep: "<year>/Ukendt måned" - files whose year was known
+        // (from a folder name) but whose month was not, at export time. The
+        // file name often knows better: 1,597 phone photos on ToshibaTest
+        // carried a full date in their name (20200819_083325) that the date
+        // parser did not read until 2026-09-12. Those are moved into the
+        // month folder their year already uses, so they sit with their
+        // siblings instead of on a 1 January placeholder.
+        foreach (var (_, category) in RedatableCategories)
+        {
+            var categoryDir = Path.Combine(libraryPath, category);
+            if (!Directory.Exists(categoryDir)) continue;
+
+            foreach (var yearDir in Directory.EnumerateDirectories(categoryDir))
+            {
+                var unknownMonth = Path.Combine(yearDir, "Ukendt måned");
+                if (!Directory.Exists(unknownMonth)) continue;
+
+                foreach (var file in Directory.EnumerateFiles(unknownMonth, "*", SearchOption.TopDirectoryOnly).ToList())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    checkedCount++;
+
+                    MediaDateResult dateResult;
+                    try { dateResult = _mediaDateService.GetBestDate(new MediaDateRequest(file)); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to re-check date for {Path}", file); continue; }
+
+                    if (!dateResult.IsReliable || dateResult.IsYearOnly || dateResult.Date is not { } date) continue;
+
+                    var targetDir = Path.Combine(categoryDir, date.Year.ToString(), MonthFolderFor(Path.Combine(categoryDir, date.Year.ToString()), date.Month));
+                    try
+                    {
+                        Directory.CreateDirectory(targetDir);
+                        var targetPath = ResolveNameCollision(Path.Combine(targetDir, Path.GetFileName(file)));
+                        File.Move(file, targetPath);
+                        var thumb = Path.Combine(unknownMonth, "thumbnails", Path.GetFileNameWithoutExtension(file) + ".jpg");
+                        try { if (File.Exists(thumb)) File.Delete(thumb); } catch (IOException) { /* regenerated */ }
+                        moved++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to move re-dated file {Path} to {Target}", file, targetDir);
+                    }
+                }
+            }
+        }
+
         _logger.LogInformation(
-            "Re-date pass complete for {LibraryPath}: {Checked} checked, {Moved} moved out of Undated",
+            "Re-date pass complete for {LibraryPath}: {Checked} checked, {Moved} moved out of Undated/Ukendt måned",
             libraryPath, checkedCount, moved);
 
         return Task.FromResult(new RedateUndatedResult
