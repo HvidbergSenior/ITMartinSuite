@@ -105,6 +105,17 @@
 
         @if (_identified)
         {
+            @* Testers looked for a send button and missed the small footer
+               line saying there is none - so it is a banner, at the top,
+               before the first question. *@
+            <div class="pkg-autosave-banner">
+                <span class="pkg-autosave-icon">✓</span>
+                <div>
+                    <div class="pkg-autosave-title">Svarene gemmes med det samme</div>
+                    <div class="pkg-autosave-sub">Der er ingen "send"-knap. Tryk på dit svar, skriv evt. en kommentar — og du er færdig. Du kan altid komme tilbage og rette.</div>
+                </div>
+            </div>
+
             @foreach (var poll in _package.Polls.OrderBy(p => p.Id))
             {
                 var p = poll;
@@ -126,7 +137,7 @@
                         }
                     </div>
                     <div class="poll-comment-wrap">
-                        <textarea class="poll-comment-input" rows="3"
+                        <textarea class="poll-comment-input" rows="6"
                                   placeholder="Vil du uddybe? (valgfrit)"
                                   maxlength="1000"
                                   value="@_voteComments.GetValueOrDefault(p.Id, "")"
@@ -199,7 +210,7 @@
                                         }
                                     </div>
                                     <div class="poll-comment-wrap">
-                                        <textarea class="poll-comment-input" rows="3"
+                                        <textarea class="poll-comment-input" rows="6"
                                                   placeholder="Hvad fungerede, og hvad drillede? (valgfrit)"
                                                   maxlength="1000"
                                                   value="@_ratingComments.GetValueOrDefault(openId, "")"
