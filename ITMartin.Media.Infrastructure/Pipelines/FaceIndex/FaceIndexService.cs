@@ -373,6 +373,46 @@ public sealed class FaceIndexService : IFaceIndexService
         await db.SaveChangesAsync();
     }
 
+    public async Task<int> ReembedReferencePhotosAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var recognizer = _faceRecognitionFactory();
+        var updated = 0;
+
+        try
+        {
+            foreach (var reference in await db.PersonReferencePhotos.ToListAsync(cancellationToken))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!File.Exists(reference.PhotoPath))
+                {
+                    _logger.LogWarning("Reference photo {Path} is gone - keeping its old embedding", reference.PhotoPath);
+                    continue;
+                }
+
+                var embeddings = await recognizer.ExtractFaceEmbeddingsAsync(reference.PhotoPath);
+                if (embeddings.Count == 0)
+                {
+                    _logger.LogWarning("No face found in reference photo {Path} - keeping its old embedding", reference.PhotoPath);
+                    continue;
+                }
+
+                reference.EmbeddingJson = JsonSerializer.Serialize(embeddings[0]);
+                updated++;
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            (recognizer as IDisposable)?.Dispose();
+        }
+
+        _logger.LogInformation("Re-embedded {Count} reference photo(s)", updated);
+        return updated;
+    }
+
     public async Task AddReferencePhotosAsync(Guid personId, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
@@ -416,17 +456,24 @@ public sealed class FaceIndexService : IFaceIndexService
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 
-        var referenceEmbeddings = await db.PersonReferencePhotos
-            .Where(x => x.PersonId == personId)
-            .Select(x => x.EmbeddingJson)
-            .ToListAsync();
+        // Every person's references, not just this one's. A face belongs to
+        // whoever it resembles MOST - matching each person in isolation put
+        // the same 91 photos of an 11-year-old in both Bertil's and Eigil's
+        // folder (2026-09-11), because at that age the two score alike and
+        // both clear the threshold. Siblings and cousins at the same age are
+        // the normal case in a family library, so this is the rule, not an
+        // option.
+        var referencesByPerson = new Dictionary<Guid, List<float[]>>();
+        foreach (var row in await db.PersonReferencePhotos.Select(x => new { x.PersonId, x.EmbeddingJson }).ToListAsync())
+        {
+            var vector = JsonSerializer.Deserialize<float[]>(row.EmbeddingJson) ?? [];
+            if (vector.Length == 0) continue;
+            if (!referencesByPerson.TryGetValue(row.PersonId, out var list))
+                referencesByPerson[row.PersonId] = list = [];
+            list.Add(vector);
+        }
 
-        if (referenceEmbeddings.Count == 0) return [];
-
-        var references = referenceEmbeddings
-            .Select(json => JsonSerializer.Deserialize<float[]>(json) ?? [])
-            .Where(v => v.Length > 0)
-            .ToList();
+        if (!referencesByPerson.TryGetValue(personId, out var references)) return [];
 
         var allFaces = await db.MediaFaces
             .Where(x => x.EmbeddingJson != "[]")
@@ -461,15 +508,16 @@ public sealed class FaceIndexService : IFaceIndexService
                 }
                 if (vector.Length == 0) continue;
 
-                foreach (var reference in references)
-                {
-                    var similarity = CosineSimilarity(reference, vector);
-                    if (similarity > best)
-                    {
-                        best = similarity;
-                        confirmed = face.MatchedPersonId == personId && face.UserConfirmed;
-                    }
-                }
+                var mine = BestSimilarity(references, vector);
+                if (mine < threshold || mine <= best) continue;
+
+                // Someone else resembles this face more? Then it is theirs.
+                var claimedByOther = referencesByPerson.Any(kv =>
+                    kv.Key != personId && BestSimilarity(kv.Value, vector) > mine);
+                if (claimedByOther) continue;
+
+                best = mine;
+                confirmed = face.MatchedPersonId == personId && face.UserConfirmed;
             }
 
             if (best >= threshold)
@@ -1446,8 +1494,18 @@ public sealed class FaceIndexService : IFaceIndexService
                 continue;
             }
 
-            // A reference photo with several faces isn't disambiguated - use the
-            // largest/first detection, which FaceONNX returns first in practice.
+            // A reference photo with several faces isn't disambiguated - the
+            // recognizer returns the largest face first and that is the one
+            // used. Say so, because a crowd selfie is exactly the kind of
+            // photo people hand in, and when the largest face is not the
+            // person, the folder fills with a stranger (Vibeke, 2026-09-11).
+            if (embeddings.Count > 1)
+            {
+                _logger.LogWarning(
+                    "Reference photo {FileName} for person {PersonId} has {Count} faces - using the largest; crop it to one face if the folder comes out wrong",
+                    photo.FileName, personId, embeddings.Count);
+            }
+
             db.PersonReferencePhotos.Add(new PersonReferencePhotoEntity
             {
                 Id = Guid.NewGuid(),
@@ -1459,6 +1517,17 @@ public sealed class FaceIndexService : IFaceIndexService
         }
 
         (recognizer as IDisposable)?.Dispose();
+    }
+
+    private static double BestSimilarity(List<float[]> references, float[] vector)
+    {
+        double best = 0;
+        foreach (var reference in references)
+        {
+            var s = CosineSimilarity(reference, vector);
+            if (s > best) best = s;
+        }
+        return best;
     }
 
     private static double CosineSimilarity(float[] a, float[] b)

@@ -31,6 +31,12 @@ public interface IFaceIndexService
     // database on the next run rather than staying whatever it was at first.
     Task SetBornYearAsync(Guid personId, int? bornYear);
 
+    // Recomputes the embedding of every stored reference photo with the
+    // current recognizer. For when the recognizer itself changed (the
+    // padded-margin fix of 2026-09-11 turned every tight head crop from a
+    // stranger into the right person) - people, ids and birth years stay.
+    Task<int> ReembedReferencePhotosAsync(CancellationToken cancellationToken = default);
+
     Task AddReferencePhotosAsync(Guid personId, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath);
 
     Task DeletePersonAsync(Guid personId);

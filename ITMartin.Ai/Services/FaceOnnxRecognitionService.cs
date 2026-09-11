@@ -96,41 +96,58 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
                         detectionArray = ToFloatArray(original);
                     }
 
-                    var faces = _faceDetector.Forward(detectionArray);
+                    // Largest face first. Callers that need "the" face of a
+                    // photo - registering a reference photo above all - take
+                    // the first embedding, and the detector's own order is
+                    // not by size: on 2026-09-11 a selfie whose subject filled
+                    // a third of the frame came back with a bystander first,
+                    // and that bystander became the person's reference.
+                    var faces = _faceDetector.Forward(detectionArray)
+                        .OrderByDescending(f => (long)f.Box.Width * f.Box.Height)
+                        .ToList();
                     var embeddings = new List<float[]>();
 
                     foreach (var face in faces)
                     {
                         if (face.Box.IsEmpty) continue;
 
-                        if (scale >= 1.0)
-                        {
-                            // Small image: nothing was downscaled, work in place.
-                            var points = _landmarksExtractor.Forward(detectionArray, face.Box);
-                            var aligned = FaceProcessingExtensions.Align(detectionArray, face.Box, points.RotationAngle);
-                            embeddings.Add(_faceEmbedder.Forward(aligned));
-                            continue;
-                        }
-
-                        // Box back in original coordinates, then a crop with
-                        // generous margin so alignment has hair and chin to
-                        // work with, not a tight rectangle on the eyes.
+                        // Box back in original coordinates.
                         var ox = (int)(face.Box.X / scale);
                         var oy = (int)(face.Box.Y / scale);
                         var ow = (int)(face.Box.Width / scale);
                         var oh = (int)(face.Box.Height / scale);
+                        if (ow <= 0 || oh <= 0) continue;
 
+                        // The embedding is taken from a crop with a generous
+                        // margin around the box - alignment rotates the face
+                        // by its tilt and needs hair and chin to work with.
+                        // The margin is PADDED, never clamped: a face near the
+                        // image edge, or a photo that IS a tight head crop,
+                        // otherwise loses part of itself in the rotation and
+                        // comes out as a different person. Measured on
+                        // 2026-09-11: the same tilted face scored 0.94 against
+                        // itself with margin and 0.29 as a tight crop - which
+                        // is why every hand-cropped reference photo had been
+                        // matching almost nothing.
                         var margin = (int)(Math.Max(ow, oh) * 0.6);
-                        var cx = Math.Max(0, ox - margin);
-                        var cy = Math.Max(0, oy - margin);
-                        var cw = Math.Min(original.Width - cx, ow + 2 * margin);
-                        var ch = Math.Min(original.Height - cy, oh + 2 * margin);
-                        if (cw <= 0 || ch <= 0) continue;
+                        var cw = ow + 2 * margin;
+                        var ch = oh + 2 * margin;
 
-                        using var crop = original.Clone(x => x.Crop(new Rectangle(cx, cy, cw, ch)));
+                        using var crop = new Image<Rgb24>(cw, ch, new Rgb24(114, 114, 114));
+                        var srcX = Math.Max(0, ox - margin);
+                        var srcY = Math.Max(0, oy - margin);
+                        var srcW = Math.Min(original.Width, ox - margin + cw) - srcX;
+                        var srcH = Math.Min(original.Height, oy - margin + ch) - srcY;
+                        if (srcW <= 0 || srcH <= 0) continue;
+
+                        using (var region = original.Clone(x => x.Crop(new Rectangle(srcX, srcY, srcW, srcH))))
+                        {
+                            var dest = new Point(srcX - (ox - margin), srcY - (oy - margin));
+                            crop.Mutate(x => x.DrawImage(region, dest, 1f));
+                        }
+
                         var cropArray = ToFloatArray(crop);
-
-                        var boxInCrop = new System.Drawing.Rectangle(ox - cx, oy - cy, ow, oh);
+                        var boxInCrop = new System.Drawing.Rectangle(margin, margin, ow, oh);
                         var pts = _landmarksExtractor.Forward(cropArray, boxInCrop);
                         var alignedFace = FaceProcessingExtensions.Align(cropArray, boxInCrop, pts.RotationAngle);
                         embeddings.Add(_faceEmbedder.Forward(alignedFace));

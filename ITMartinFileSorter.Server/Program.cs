@@ -548,7 +548,10 @@ app.MapPost("/api/debug/sf-set-born-year", async (Guid personId, int? bornYear, 
     return Results.Ok(new { person.Name, person.BornYear });
 });
 
-app.MapPost("/api/debug/sf-delete-person", async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+app.MapPost("/api/debug/sf-reembed-references", async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+    Results.Ok(new { updated = await service.ReembedReferencePhotosAsync() }));
+
+app.MapPost("/api/debug/sf-delete-person",async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
 {
     await service.DeletePersonAsync(personId);
     return Results.Ok("deleted");
