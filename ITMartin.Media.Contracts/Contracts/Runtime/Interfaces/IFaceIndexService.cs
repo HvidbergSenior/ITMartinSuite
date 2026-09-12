@@ -37,6 +37,13 @@ public interface IFaceIndexService
     // stranger into the right person) - people, ids and birth years stay.
     Task<int> ReembedReferencePhotosAsync(CancellationToken cancellationToken = default);
 
+    // "That face, in that photo, is actually <person>". Takes the indexed
+    // face in mediaFilePath that most resembles wrongPersonId - the one that
+    // put the photo in the wrong folder - and stores its embedding as a
+    // reference for personId. No re-detection, so it is exactly the face the
+    // owner pointed at, not the largest face in the frame.
+    Task<bool> AddReferenceFromIndexedFaceAsync(Guid personId, Guid wrongPersonId, string mediaFilePath);
+
     Task AddReferencePhotosAsync(Guid personId, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath);
 
     Task DeletePersonAsync(Guid personId);

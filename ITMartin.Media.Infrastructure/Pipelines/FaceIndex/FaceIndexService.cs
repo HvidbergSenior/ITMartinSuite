@@ -413,6 +413,39 @@ public sealed class FaceIndexService : IFaceIndexService
         return updated;
     }
 
+    public async Task<bool> AddReferenceFromIndexedFaceAsync(Guid personId, Guid wrongPersonId, string mediaFilePath)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        var wrongRefs = (await db.PersonReferencePhotos.Where(x => x.PersonId == wrongPersonId).Select(x => x.EmbeddingJson).ToListAsync())
+            .Select(j => JsonSerializer.Deserialize<float[]>(j) ?? []).Where(v => v.Length > 0).ToList();
+        if (wrongRefs.Count == 0) return false;
+
+        var normalized = NormalizeMediaFilePath(mediaFilePath);
+        var faces = await db.MediaFaces.Where(x => x.EmbeddingJson != "[]").ToListAsync();
+        var candidates = faces.Where(f => NormalizeMediaFilePath(f.MediaFilePath) == normalized).ToList();
+        if (candidates.Count == 0) return false;
+
+        var best = candidates
+            .Select(f => (Face: f, Vector: JsonSerializer.Deserialize<float[]>(f.EmbeddingJson) ?? []))
+            .Where(x => x.Vector.Length > 0)
+            .OrderByDescending(x => BestSimilarity(wrongRefs, x.Vector))
+            .First();
+
+        db.PersonReferencePhotos.Add(new PersonReferencePhotoEntity
+        {
+            Id = Guid.NewGuid(),
+            PersonId = personId,
+            PhotoPath = best.Face.MediaFilePath,
+            EmbeddingJson = best.Face.EmbeddingJson,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Reference added for {Person} from indexed face in {Path} (was matching {Wrong})", personId, mediaFilePath, wrongPersonId);
+        return true;
+    }
+
     public async Task AddReferencePhotosAsync(Guid personId, IReadOnlyList<ReferencePhotoInput> referencePhotos, string libraryPath)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();

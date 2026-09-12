@@ -573,7 +573,10 @@ app.MapGet("/api/debug/object-index-status", async (string path, string label, I
 app.MapPost("/api/debug/object-folder", async (string path, string label, string name, double? minConfidence, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IObjectIndexService service) =>
     Results.Ok(new { name, label, fileCount = await service.GenerateFolderAsync(path, label, name, minConfidence ?? 0.4) }));
 
-app.MapPost("/api/debug/sf-reembed-references",async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+app.MapPost("/api/debug/sf-add-reference-face", async (Guid personId, Guid wrongPersonId, string mediaFilePath, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
+    Results.Ok(new { added = await service.AddReferenceFromIndexedFaceAsync(personId, wrongPersonId, mediaFilePath) }));
+
+app.MapPost("/api/debug/sf-reembed-references", async (ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
     Results.Ok(new { updated = await service.ReembedReferencePhotosAsync() }));
 
 app.MapPost("/api/debug/sf-delete-person",async (Guid personId, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceIndexService service) =>
