@@ -1,0 +1,182 @@
+@page "/scan"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IDbContextFactory<BibliotekDbContext> DbFactory
+@inject MetadataLookup Lookup
+@inject NavigationManager Nav
+
+<PageTitle>Scan – Bibliotek</PageTitle>
+
+<h1>Scan en disc</h1>
+<p class="hint">Hold stregkoden på bagsiden af coveret foran kameraet.</p>
+
+@if (_error is not null)
+{
+    <div class="error-box">@_error</div>
+}
+
+@if (_barcode is null)
+{
+    <div class="scan-frame @(_cameraOn ? "" : "scan-off")">
+        <video id="scan-video" muted playsinline></video>
+        @if (!_cameraOn)
+        {
+            <button class="camera-btn" @onclick="StartCamera"><span class="camera-icon">📷</span> Start kamera</button>
+        }
+        else
+        {
+            <div class="scan-line"></div>
+        }
+    </div>
+
+    <div class="field" style="margin-top:14px">
+        <label>Eller skriv stregkoden</label>
+        <div class="field-row">
+            <input type="text" inputmode="numeric" placeholder="5051895 …" @bind="_manual" @onkeydown="ManualKey" />
+            <button class="btn" @onclick="() => OnBarcode(_manual)">Slå op</button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="section-label" style="margin-top:0">Stregkode</div>
+        <div class="barcode">@_barcode</div>
+        @if (_existing is not null)
+        {
+            <p>Den er allerede i samlingen: <a href="/titel/@_existing.Id"><b>@_existing.Title</b></a></p>
+        }
+    </div>
+
+    @if (_busy)
+    {
+        <p class="muted">Slår op hos MusicBrainz, Discogs og TMDB…</p>
+    }
+    else
+    {
+        @if (_candidates.Count == 0)
+        {
+            <p class="muted">Ingen træffer på stregkoden. Opret den manuelt – titlen kan slås op bagefter.</p>
+        }
+        else
+        {
+            <div class="section-label">Er det en af disse?</div>
+            @foreach (var c in _candidates)
+            {
+                <button class="hit" @onclick="() => Choose(c)" disabled="@_saving">
+                    <div class="hit-cover">
+                        @if (!string.IsNullOrEmpty(c.CoverUrl))
+                        {
+                            <img src="@c.CoverUrl" alt="" loading="lazy" onerror="this.style.display='none'" />
+                        }
+                        <span>@Index.Icon(c.Kind)</span>
+                    </div>
+                    <div class="hit-body">
+                        <div class="hit-title">@c.Title</div>
+                        <div class="hit-sub">
+                            @if (!string.IsNullOrEmpty(c.Artist)) { <text>@c.Artist · </text> }
+                            @(c.Year?.ToString() ?? "")
+                            @if (c.Format is { } f) { <text> · @Index.FormatText(f)</text> }
+                        </div>
+                        <div class="hit-src">@c.Source</div>
+                    </div>
+                </button>
+            }
+        }
+        <div class="btn-row">
+            <a class="btn" href="/titel/ny?barcode=@_barcode">Opret manuelt</a>
+            <button class="btn btn-ghost" @onclick="Reset">Scan igen</button>
+        </div>
+    }
+}
+
+@code {
+    private DotNetObjectReference<Scan>? _ref;
+    private bool _cameraOn;
+    private bool _busy;
+    private bool _saving;
+    private string? _error;
+    private string? _barcode;
+    private string _manual = "";
+    private MediaItem? _existing;
+    private List<Candidate> _candidates = [];
+
+    private async Task StartCamera()
+    {
+        _error = null;
+        _ref ??= DotNetObjectReference.Create(this);
+        try
+        {
+            _cameraOn = true;
+            await JS.InvokeVoidAsync("scanner.start", _ref);
+        }
+        catch (Exception ex)
+        {
+            _cameraOn = false;
+            _error = "Kameraet kunne ikke startes: " + ex.Message;
+        }
+    }
+
+    private async Task ManualKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await OnBarcode(_manual);
+    }
+
+    [JSInvokable]
+    public async Task OnBarcode(string code)
+    {
+        code = new string((code ?? "").Where(char.IsDigit).ToArray());
+        if (code.Length < 8) { _error = "Det ligner ikke en stregkode."; StateHasChanged(); return; }
+
+        _cameraOn = false;
+        _error = null;
+        _barcode = code;
+        _busy = true;
+        StateHasChanged();
+        _ = JS.InvokeVoidAsync("scanner.beep");
+
+        await using (var db = await DbFactory.CreateDbContextAsync())
+            _existing = await db.Items.FirstOrDefaultAsync(i => i.Barcode == code);
+
+        _candidates = await Lookup.ByBarcodeAsync(code);
+        _busy = false;
+        StateHasChanged();
+    }
+
+    private async Task Choose(Candidate c)
+    {
+        _saving = true;
+        var item = new MediaItem
+        {
+            Title = c.Title,
+            Artist = c.Artist,
+            Kind = c.Kind,
+            Format = c.Format ?? (c.Kind == MediaKind.Musik ? MediaFormat.Cd : MediaFormat.Dvd),
+            Status = MediaStatus.Ejet,
+            Year = c.Year,
+            Barcode = _barcode!,
+            CoverUrl = c.CoverUrl,
+            TmdbId = c.TmdbId,
+            MusicBrainzId = c.MusicBrainzId,
+            DiscogsId = c.DiscogsId,
+        };
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Items.Add(item);
+        await db.SaveChangesAsync();
+        Nav.NavigateTo($"/titel/{item.Id}?ny=1");
+    }
+
+    private void Reset()
+    {
+        _barcode = null;
+        _existing = null;
+        _candidates = [];
+        _manual = "";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("scanner.stop"); } catch { }
+        _ref?.Dispose();
+    }
+}

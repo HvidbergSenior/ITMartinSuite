@@ -1,0 +1,236 @@
+@page "/titel/{IdText}"
+@inject IDbContextFactory<BibliotekDbContext> DbFactory
+@inject MetadataLookup Lookup
+@inject JellyfinClient Jellyfin
+@inject NavigationManager Nav
+
+<PageTitle>@(_item?.Title ?? "Titel") – Bibliotek</PageTitle>
+
+@if (_item is null)
+{
+    <p class="muted">Henter…</p>
+}
+else
+{
+    <div class="top-row">
+        <h1>@(_isNew ? "Ny titel" : _item.Title)</h1>
+        <a class="top-link" href="/">Samling</a>
+    </div>
+
+    @if (Ny == "1")
+    {
+        <div class="ok-box">Tilføjet til samlingen. Ret detaljerne her hvis noget er forkert.</div>
+    }
+
+    <div class="detail-head">
+        <div class="detail-cover">
+            @if (!string.IsNullOrEmpty(_item.CoverUrl))
+            {
+                <img src="@_item.CoverUrl" alt="" onerror="this.style.display='none'" />
+            }
+            <span>@Index.Icon(_item.Kind)</span>
+        </div>
+        <div class="detail-status">
+            <div class="section-label" style="margin-top:0">Status</div>
+            <button class="status-btn @(_item.Status == MediaStatus.Ejet ? "on-ejet" : "")" @onclick="() => SetStatus(MediaStatus.Ejet)">
+                💿 Kun på hylden
+            </button>
+            <button class="status-btn @(_item.Status == MediaStatus.Rippet ? "on-rippet" : "")" @onclick="() => SetStatus(MediaStatus.Rippet)">
+                ✅ Rippet og klar
+            </button>
+            @if (!string.IsNullOrEmpty(_playUrl))
+            {
+                <a class="btn btn-primary btn-block" href="@_playUrl" target="_blank" rel="noopener">▶ Afspil i Jellyfin</a>
+            }
+            else if (_item.Status == MediaStatus.Ejet)
+            {
+                <p class="hint">Rip den med MakeMKV/HandBrake ind i MartinBibliotek, så finder Jellyfin-synk den selv.</p>
+            }
+        </div>
+    </div>
+
+    <div class="field">
+        <label>Titel</label>
+        <input type="text" @bind="_item.Title" />
+    </div>
+    <div class="field-row">
+        <div class="field">
+            <label>Type</label>
+            <select @bind="_item.Kind">
+                <option value="@MediaKind.Film">Film</option>
+                <option value="@MediaKind.Serie">Serie</option>
+                <option value="@MediaKind.Musik">Musik</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Format</label>
+            <select @bind="_item.Format">
+                <option value="@MediaFormat.Dvd">DVD</option>
+                <option value="@MediaFormat.BluRay">Blu-ray</option>
+                <option value="@MediaFormat.Cd">CD</option>
+                <option value="@MediaFormat.Digital">Kun digital</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>År</label>
+            <input type="text" inputmode="numeric" @bind="_item.Year" />
+        </div>
+    </div>
+    @if (_item.Kind == MediaKind.Musik)
+    {
+        <div class="field">
+            <label>Kunstner</label>
+            <input type="text" @bind="_item.Artist" />
+        </div>
+    }
+    <div class="field">
+        <label>Stregkode</label>
+        <input type="text" inputmode="numeric" @bind="_item.Barcode" />
+    </div>
+    <div class="field">
+        <label>Cover (URL)</label>
+        <input type="text" @bind="_item.CoverUrl" />
+    </div>
+    <div class="field">
+        <label>Noter</label>
+        <textarea rows="3" @bind="_item.Notes" placeholder="Fx hvor discen står, om den er ridset, hvem der har lånt den"></textarea>
+    </div>
+
+    <div class="btn-row">
+        <button class="btn btn-primary" @onclick="Save" disabled="@_saving">Gem</button>
+        <button class="btn" @onclick="FindMetadata" disabled="@_busy">🔎 Slå titlen op</button>
+    </div>
+    @if (_saved)
+    {
+        <p class="hint" style="margin-top:8px">Gemt.</p>
+    }
+
+    @if (_busy)
+    {
+        <p class="muted">Søger…</p>
+    }
+    else if (_candidates is { Count: > 0 })
+    {
+        <div class="section-label">Vælg for at hente år, cover og id</div>
+        @foreach (var c in _candidates)
+        {
+            <button class="hit" @onclick="() => Apply(c)">
+                <div class="hit-cover">
+                    @if (!string.IsNullOrEmpty(c.CoverUrl))
+                    {
+                        <img src="@c.CoverUrl" alt="" loading="lazy" onerror="this.style.display='none'" />
+                    }
+                    <span>@Index.Icon(c.Kind)</span>
+                </div>
+                <div class="hit-body">
+                    <div class="hit-title">@c.Title</div>
+                    <div class="hit-sub">@c.Artist @(c.Year?.ToString() ?? "")</div>
+                    <div class="hit-src">@c.Source</div>
+                </div>
+            </button>
+        }
+    }
+    else if (_candidates is { Count: 0 })
+    {
+        <p class="muted">Ingen træffere. @(_item.Kind == MediaKind.Musik ? "" : "Er TMDB-nøglen sat under ⚙️?")</p>
+    }
+
+    @if (!_isNew)
+    {
+        <div class="ids">
+            @if (_item.TmdbId != "") { <span>TMDB @_item.TmdbId</span> }
+            @if (_item.MusicBrainzId != "") { <span>MusicBrainz @_item.MusicBrainzId[..8]…</span> }
+            @if (_item.DiscogsId != "") { <span>Discogs @_item.DiscogsId</span> }
+            @if (_item.JellyfinId != "") { <span>Jellyfin ✓</span> }
+            <span>Tilføjet @_item.AddedAt.ToLocalTime().ToString("d. MMM yyyy")</span>
+        </div>
+        <button class="btn btn-danger" @onclick="Delete">Fjern fra samlingen</button>
+    }
+}
+
+@code {
+    [Parameter] public string IdText { get; set; } = "";
+    [SupplyParameterFromQuery] public string? Barcode { get; set; }
+    [SupplyParameterFromQuery] public string? Ny { get; set; }
+
+    private MediaItem? _item;
+    private bool _isNew;
+    private bool _saving;
+    private bool _saved;
+    private bool _busy;
+    private string _playUrl = "";
+    private List<Candidate>? _candidates;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IdText == "ny")
+        {
+            _isNew = true;
+            _item = new MediaItem { Barcode = Barcode ?? "", Format = MediaFormat.Dvd };
+            return;
+        }
+        if (!Guid.TryParse(IdText, out var id)) { Nav.NavigateTo("/"); return; }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _item = await db.Items.FindAsync(id);
+        if (_item is null) { Nav.NavigateTo("/"); return; }
+        _playUrl = _item.JellyfinId == "" ? "" : await Jellyfin.PlayUrlAsync(_item.JellyfinId);
+    }
+
+    private async Task SetStatus(MediaStatus s)
+    {
+        _item!.Status = s;
+        if (!_isNew) await Save();
+    }
+
+    private async Task Save()
+    {
+        if (_item is null || string.IsNullOrWhiteSpace(_item.Title)) return;
+        _saving = true;
+        _item.Title = _item.Title.Trim();
+        _item.UpdatedAt = DateTime.UtcNow;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (_isNew)
+        {
+            db.Items.Add(_item);
+            await db.SaveChangesAsync();
+            Nav.NavigateTo($"/titel/{_item.Id}?ny=1");
+            return;
+        }
+        db.Items.Update(_item);
+        await db.SaveChangesAsync();
+        _saving = false;
+        _saved = true;
+    }
+
+    private async Task FindMetadata()
+    {
+        if (_item is null || string.IsNullOrWhiteSpace(_item.Title)) return;
+        _busy = true;
+        _candidates = null;
+        var query = _item.Kind == MediaKind.Musik && _item.Artist != "" ? $"{_item.Artist} {_item.Title}" : _item.Title;
+        _candidates = await Lookup.SearchTitleAsync(query, _item.Kind);
+        _busy = false;
+    }
+
+    private async Task Apply(Candidate c)
+    {
+        _item!.Title = c.Title;
+        if (c.Artist != "") _item.Artist = c.Artist;
+        _item.Kind = c.Kind;
+        _item.Year ??= c.Year;
+        if (c.CoverUrl != "") _item.CoverUrl = c.CoverUrl;
+        if (c.TmdbId != "") _item.TmdbId = c.TmdbId;
+        if (c.MusicBrainzId != "") _item.MusicBrainzId = c.MusicBrainzId;
+        if (c.DiscogsId != "") _item.DiscogsId = c.DiscogsId;
+        _candidates = null;
+        await Save();
+    }
+
+    private async Task Delete()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Items.Remove(_item!);
+        await db.SaveChangesAsync();
+        Nav.NavigateTo("/");
+    }
+}

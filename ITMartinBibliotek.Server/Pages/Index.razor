@@ -1,0 +1,118 @@
+@page "/"
+@inject IDbContextFactory<BibliotekDbContext> DbFactory
+
+<PageTitle>Samling – Bibliotek</PageTitle>
+
+<div class="top-row">
+    <h1>Samling</h1>
+    <a class="top-link" href="/api/auth/logout">Log ud</a>
+</div>
+
+@if (_all is not null)
+{
+    <div class="stat-row">
+        <div class="stat">
+            <div class="stat-n">@_all.Count</div>
+            <div class="stat-l">titler</div>
+        </div>
+        <div class="stat stat-ejet">
+            <div class="stat-n">@_all.Count(i => i.Status == MediaStatus.Ejet)</div>
+            <div class="stat-l">kun på hylden</div>
+        </div>
+        <div class="stat stat-rippet">
+            <div class="stat-n">@_all.Count(i => i.Status == MediaStatus.Rippet)</div>
+            <div class="stat-l">rippet</div>
+        </div>
+    </div>
+}
+
+<input type="search" placeholder="Søg titel, kunstner eller stregkode" @bind="_query" @bind:event="oninput" />
+
+<div class="filter-row">
+    <button class="chip @(_kind is null ? "chip-on" : "")" @onclick="() => _kind = null">Alle</button>
+    <button class="chip @(_kind == MediaKind.Film ? "chip-on" : "")" @onclick="() => _kind = MediaKind.Film">Film</button>
+    <button class="chip @(_kind == MediaKind.Serie ? "chip-on" : "")" @onclick="() => _kind = MediaKind.Serie">Serier</button>
+    <button class="chip @(_kind == MediaKind.Musik ? "chip-on" : "")" @onclick="() => _kind = MediaKind.Musik">Musik</button>
+    <span class="chip-gap"></span>
+    <button class="chip @(_status == MediaStatus.Ejet ? "chip-on" : "")" @onclick="() => Toggle(MediaStatus.Ejet)">Kun på hylden</button>
+    <button class="chip @(_status == MediaStatus.Rippet ? "chip-on" : "")" @onclick="() => Toggle(MediaStatus.Rippet)">Rippet</button>
+</div>
+
+@if (_all is null)
+{
+    <p class="muted">Henter…</p>
+}
+else if (_all.Count == 0)
+{
+    <div class="empty">
+        <div class="empty-icon">💿</div>
+        <p>Samlingen er tom.</p>
+        <a class="btn btn-primary" href="/scan">📷 Scan første disc</a>
+        <p class="hint" style="margin-top:14px">…eller forbind Jellyfin under ⚙️ og hent det, der allerede er rippet.</p>
+    </div>
+}
+else
+{
+    var shown = Filtered().ToList();
+    <p class="hint">@shown.Count vist</p>
+    <div class="grid">
+        @foreach (var i in shown)
+        {
+            <a class="tile" href="/titel/@i.Id">
+                <div class="tile-cover">
+                    @if (!string.IsNullOrEmpty(i.CoverUrl))
+                    {
+                        <img src="@i.CoverUrl" alt="" loading="lazy" onerror="this.style.display='none'" />
+                    }
+                    <span class="tile-icon">@Icon(i.Kind)</span>
+                    <span class="badge badge-@i.Status.ToString().ToLower()">@(i.Status == MediaStatus.Rippet ? "Rippet" : "Hylden")</span>
+                </div>
+                <div class="tile-title">@i.Title</div>
+                <div class="tile-sub">
+                    @if (!string.IsNullOrEmpty(i.Artist)) { <text>@i.Artist · </text> }
+                    @FormatText(i.Format)@(i.Year is { } y ? $" · {y}" : "")
+                </div>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private List<MediaItem>? _all;
+    private string _query = "";
+    private MediaKind? _kind;
+    private MediaStatus? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _all = await db.Items.OrderBy(i => i.Title).ToListAsync();
+    }
+
+    private void Toggle(MediaStatus s) => _status = _status == s ? null : s;
+
+    private IEnumerable<MediaItem> Filtered()
+    {
+        var q = _query.Trim();
+        foreach (var i in _all!)
+        {
+            if (_kind is { } k && i.Kind != k) continue;
+            if (_status is { } s && i.Status != s) continue;
+            if (q.Length > 0
+                && !i.Title.Contains(q, StringComparison.OrdinalIgnoreCase)
+                && !i.Artist.Contains(q, StringComparison.OrdinalIgnoreCase)
+                && !i.Barcode.Contains(q, StringComparison.Ordinal)) continue;
+            yield return i;
+        }
+    }
+
+    public static string Icon(MediaKind k) => k switch { MediaKind.Musik => "🎵", MediaKind.Serie => "📺", _ => "🎬" };
+
+    public static string FormatText(MediaFormat f) => f switch
+    {
+        MediaFormat.Dvd => "DVD",
+        MediaFormat.BluRay => "Blu-ray",
+        MediaFormat.Cd => "CD",
+        _ => "Digital"
+    };
+}

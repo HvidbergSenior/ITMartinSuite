@@ -1,0 +1,115 @@
+@page "/indstillinger"
+@inject SettingsStore Store
+@inject JellyfinClient Jellyfin
+@inject JellyfinSync Sync
+
+<PageTitle>Jellyfin – Bibliotek</PageTitle>
+
+<h1>Jellyfin og opslag</h1>
+
+<div class="card">
+    <div class="section-label" style="margin-top:0">Jellyfin-server</div>
+    <div class="field">
+        <label>Adresse som appen bruger (inde i Docker-netværket)</label>
+        <input type="text" @bind="_jellyfinUrl" placeholder="http://jellyfin:8096" />
+    </div>
+    <div class="field">
+        <label>Adresse som telefonen bruger (til afspilning og covers)</label>
+        <input type="text" @bind="_jellyfinPublic" placeholder="https://jellyfin.itmartin.dk eller http://10.0.0.126:8096" />
+    </div>
+    <div class="field">
+        <label>API-nøgle (Jellyfin → Kontrolpanel → API-nøgler)</label>
+        <input type="text" @bind="_jellyfinKey" />
+    </div>
+    <div class="btn-row">
+        <button class="btn btn-primary" @onclick="SaveAll">Gem</button>
+        <button class="btn" @onclick="Test" disabled="@_busy">Test forbindelse</button>
+        <button class="btn" @onclick="RunSync" disabled="@_busy">⟳ Synkroniser bibliotek</button>
+    </div>
+    @if (_message is not null)
+    {
+        <div class="@(_ok ? "ok-box" : "error-box")">@_message</div>
+    }
+    @if (_lastSync is { } ls)
+    {
+        <p class="hint" style="margin-top:8px">Sidst synkroniseret @ls.ToLocalTime().ToString("d. MMM HH:mm")</p>
+    }
+</div>
+
+<div class="card">
+    <div class="section-label" style="margin-top:0">Metadata-nøgler</div>
+    <p class="hint">MusicBrainz og Cover Art Archive kræver ingen nøgle. De to her er valgfri, men gør film- og CD-opslag meget bedre.</p>
+    <div class="field">
+        <label>TMDB API-nøgle (film og serier) – gratis på themoviedb.org</label>
+        <input type="text" @bind="_tmdb" />
+    </div>
+    <div class="field">
+        <label>Discogs personal access token (stregkoder på CD/DVD) – gratis på discogs.com/settings/developers</label>
+        <input type="text" @bind="_discogs" />
+    </div>
+    <button class="btn btn-primary" @onclick="SaveAll">Gem</button>
+</div>
+
+<div class="card">
+    <div class="section-label" style="margin-top:0">Sådan deler du</div>
+    <p>Deling sker i Jellyfin, ikke her: opret en bruger pr. person under <b>Kontrolpanel → Brugere</b> og vælg hvilke biblioteker de må se. Ingen åbne links – kun folk med en konto.</p>
+    <p class="hint">Rippede film og musik lægges i <b>MartinBibliotek</b> på NAS'en. Jellyfin scanner mappen, og næste synkronisering markerer discene som rippet.</p>
+</div>
+
+@code {
+    private string _jellyfinUrl = "", _jellyfinPublic = "", _jellyfinKey = "", _tmdb = "", _discogs = "";
+    private DateTime? _lastSync;
+    private string? _message;
+    private bool _ok, _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var all = await Store.GetAllAsync();
+        _jellyfinUrl = all.GetValueOrDefault(SettingsStore.JellyfinUrl, "");
+        _jellyfinPublic = all.GetValueOrDefault(SettingsStore.JellyfinPublicUrl, "");
+        _jellyfinKey = all.GetValueOrDefault(SettingsStore.JellyfinApiKey, "");
+        _tmdb = all.GetValueOrDefault(SettingsStore.TmdbApiKey, "");
+        _discogs = all.GetValueOrDefault(SettingsStore.DiscogsToken, "");
+        if (DateTime.TryParse(all.GetValueOrDefault(SettingsStore.LastSync, ""), null, System.Globalization.DateTimeStyles.RoundtripKind, out var ls))
+            _lastSync = ls;
+    }
+
+    private async Task SaveAll()
+    {
+        await Store.SetAsync(SettingsStore.JellyfinUrl, _jellyfinUrl);
+        await Store.SetAsync(SettingsStore.JellyfinPublicUrl, _jellyfinPublic);
+        await Store.SetAsync(SettingsStore.JellyfinApiKey, _jellyfinKey);
+        await Store.SetAsync(SettingsStore.TmdbApiKey, _tmdb);
+        await Store.SetAsync(SettingsStore.DiscogsToken, _discogs);
+        _ok = true;
+        _message = "Gemt.";
+    }
+
+    private async Task Test()
+    {
+        _busy = true;
+        await SaveAll();
+        (_ok, _message) = await Jellyfin.TestAsync();
+        _busy = false;
+    }
+
+    private async Task RunSync()
+    {
+        _busy = true;
+        await SaveAll();
+        try
+        {
+            var r = await Sync.RunAsync();
+            _ok = true;
+            _message = $"{r.InLibrary} titler i Jellyfin: {r.Matched} matchede discs i samlingen, {r.Imported} nye hentet ind"
+                     + (r.NoLongerFound > 0 ? $", {r.NoLongerFound} ikke længere i Jellyfin" : "") + ".";
+            _lastSync = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            _ok = false;
+            _message = ex.Message;
+        }
+        _busy = false;
+    }
+}
