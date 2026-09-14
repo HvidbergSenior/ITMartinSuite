@@ -20,6 +20,10 @@ public static partial class TitleMatch
     [GeneratedRegex(@"\s+")]
     private static partial Regex Spaces();
 
+    // Jellyfin names an unidentified film after its folder, "Title (2006)".
+    [GeneratedRegex(@"\((19|20)\d{2}\)")]
+    private static partial Regex ParenYear();
+
     [GeneratedRegex(@"\b(19|20)\d{2}\b")]
     private static partial Regex YearRx();
 
@@ -32,6 +36,7 @@ public static partial class TitleMatch
             if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
         s = sb.ToString().ToLowerInvariant();
         s = ParenNoise().Replace(s, " ");
+        s = ParenYear().Replace(s, " ");
         s = WordNoise().Replace(s, " ");
         s = NonAlnum().Replace(s, " ");
         s = Spaces().Replace(s, " ").Trim();

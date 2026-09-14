@@ -10,6 +10,8 @@ public class TitleMatchTests
     [TestCase("Blade Runner 2049 [Blu-ray]", "blade runner 2049")]
     [TestCase("Amélie", "amelie")]
     [TestCase("Absolute Music 69 2012", "absolute music 69 2012")]
+    [TestCase("Anden på Coke (2006)", "anden pa coke")]
+    [TestCase("Anden på coke?", "anden pa coke")]
     public void Normalize_strips_format_noise_and_accents(string input, string expected) =>
         TitleMatch.Normalize(input).Should().Be(expected);
 
