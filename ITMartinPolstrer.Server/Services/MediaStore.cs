@@ -55,8 +55,17 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
         var name = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}{ext.ToLowerInvariant()}";
         var fullPath = Path.Combine(dir, name);
 
+        long written;
         await using (var fs = new FileStream(fullPath, FileMode.Create))
+        {
             await file.Content.CopyToAsync(fs, ct);
+            written = fs.Length;
+        }
+        if (written == 0)
+        {
+            File.Delete(fullPath);
+            throw new IOException($"{file.OriginalFileName} blev gemt som en tom fil");
+        }
 
         string? thumbRel = null;
         if (!isVideo)
@@ -84,6 +93,21 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
             ThumbPath = thumbRel,
             IsVideo = isVideo
         };
+    }
+
+    // Moves an already-buffered upload (see CameraUpload) into place; the
+    // temp file is removed whether or not this succeeds.
+    public async Task<MediaFile> SaveFromTempAsync(string folder, string originalFileName, string tempPath, CancellationToken ct = default)
+    {
+        try
+        {
+            await using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read);
+            return await SaveAsync(folder, new Pending(originalFileName, fs), ct);
+        }
+        finally
+        {
+            try { File.Delete(tempPath); } catch { /* best effort */ }
+        }
     }
 
     public void Delete(MediaFile m)

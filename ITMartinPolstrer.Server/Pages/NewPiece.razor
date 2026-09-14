@@ -53,7 +53,7 @@
 </button>
 
 @code {
-    private readonly List<IBrowserFile> _files = [];
+    private readonly List<CameraUpload.Chosen> _files = [];
     private string _title = "";
     private string _customer = "";
     private string _instructedBy = "";
@@ -62,7 +62,7 @@
     private bool _saving;
     private string? _error;
 
-    private void OnFiles(IReadOnlyList<IBrowserFile> files) => _files.AddRange(files);
+    private void OnFiles(IReadOnlyList<CameraUpload.Chosen> files) => _files.AddRange(files);
 
     private async Task SaveAsync()
     {
@@ -84,8 +84,7 @@
             var step = new Step { PieceId = piece.Id, Note = "Modtaget" };
             foreach (var f in _files)
             {
-                await using var s = f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024);
-                var m = await Media.SaveAsync(piece.Folder, new MediaStore.Pending(f.Name, s));
+                var m = await Media.SaveFromTempAsync(piece.Folder, f.FileName, f.TempPath);
                 m.StepId = step.Id;
                 step.Media.Add(m);
             }

@@ -119,7 +119,7 @@ else
     private bool _editing;
     private Guid? _editStep;
     private string _newNote = "";
-    private readonly List<IBrowserFile> _newFiles = [];
+    private readonly List<CameraUpload.Chosen> _newFiles = [];
     private bool _saving;
     private bool _copied;
     private string? _error;
@@ -136,7 +136,7 @@ else
         if (_piece is null) Nav.NavigateTo("/");
     }
 
-    private void OnNewFiles(IReadOnlyList<IBrowserFile> files) => _newFiles.AddRange(files);
+    private void OnNewFiles(IReadOnlyList<CameraUpload.Chosen> files) => _newFiles.AddRange(files);
 
     private async Task AddStepAsync()
     {
@@ -147,8 +147,7 @@ else
             var step = new Step { PieceId = _piece.Id, Note = _newNote.Trim() };
             foreach (var f in _newFiles)
             {
-                await using var s = f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024);
-                var m = await Media.SaveAsync(_piece.Folder, new MediaStore.Pending(f.Name, s));
+                var m = await Media.SaveFromTempAsync(_piece.Folder, f.FileName, f.TempPath);
                 m.StepId = step.Id;
                 step.Media.Add(m);
             }

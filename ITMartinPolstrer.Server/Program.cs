@@ -1,6 +1,7 @@
 using ITMartinPolstrer.Server;
 using ITMartinPolstrer.Server.Data;
 using ITMartinPolstrer.Server.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -16,6 +17,12 @@ var dbPath = builder.Configuration.GetConnectionString("PolstrerDb")
 
 builder.Services.AddDbContextFactory<PolstrerDbContext>(o => o.UseSqlite(dbPath));
 builder.Services.AddSingleton<MediaStore>();
+
+// Keys on the data volume, otherwise every deploy invalidates every
+// antiforgery cookie already sitting in her browser.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["Polstrer:KeysDir"] ?? "/app/data/keys"))
+    .SetApplicationName("polstrer");
 
 var app = builder.Build();
 

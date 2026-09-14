@@ -1,13 +1,23 @@
+@inject ILogger<CameraUpload> Logger
+
 @* One big camera button (rear camera, straight to capture) plus a quieter
    "pick from the phone" button that also allows video and several files at
-   once. The component just hands the chosen files to its parent - what
-   happens to them (new piece, new step) is the page's business. *@
+   once.
+
+   Files are copied to a temp file the moment they are chosen. A browser
+   file handle is only reliably readable during the change event - iOS drops
+   it after a while, and taking "one more" photo replaces the input's file
+   list - so reading it later at "Gem" produced 0-byte files. *@
 
 <div class="camera-block">
-    <label class="camera-btn @(Busy ? "camera-busy" : "")" for="@_cameraId">
+    <label class="camera-btn @(Busy || _copying ? "camera-busy" : "")" for="@_cameraId">
         @if (Busy)
         {
             <span>@BusyText</span>
+        }
+        else if (_copying)
+        {
+            <span>Henter billede…</span>
         }
         else
         {
@@ -15,21 +25,53 @@
             <span>@Text</span>
         }
     </label>
-    <InputFile id="@_cameraId" class="camera-input" OnChange="OnFiles" accept="image/*" capture="environment" disabled="@Busy" />
+    <InputFile id="@_cameraId" class="camera-input" OnChange="OnFiles" accept="image/*" capture="environment" disabled="@(Busy || _copying)" />
 
     <label class="camera-secondary" for="@_libraryId">Vælg billeder eller video fra telefonen</label>
-    <InputFile id="@_libraryId" class="camera-input" OnChange="OnFiles" accept="image/*,video/*" multiple disabled="@Busy" />
+    <InputFile id="@_libraryId" class="camera-input" OnChange="OnFiles" accept="image/*,video/*" multiple disabled="@(Busy || _copying)" />
+
+    @if (_error is not null)
+    {
+        <div class="error-box">@_error</div>
+    }
 </div>
 
 @code {
+    public sealed record Chosen(string FileName, string TempPath);
+
     [Parameter] public string Text { get; set; } = "Tag billede";
     [Parameter] public string BusyText { get; set; } = "Gemmer…";
     [Parameter] public bool Busy { get; set; }
-    [Parameter] public EventCallback<IReadOnlyList<IBrowserFile>> FilesChosen { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<Chosen>> FilesChosen { get; set; }
 
     private readonly string _cameraId = "cam-" + Guid.NewGuid().ToString("N")[..8];
     private readonly string _libraryId = "lib-" + Guid.NewGuid().ToString("N")[..8];
+    private bool _copying;
+    private string? _error;
 
-    private Task OnFiles(InputFileChangeEventArgs e)
-        => FilesChosen.InvokeAsync(e.GetMultipleFiles(maximumFileCount: 30));
+    private async Task OnFiles(InputFileChangeEventArgs e)
+    {
+        _copying = true; _error = null;
+        var chosen = new List<Chosen>();
+        try
+        {
+            foreach (var f in e.GetMultipleFiles(maximumFileCount: 30))
+            {
+                var temp = Path.Combine(Path.GetTempPath(), $"polstrer-{Guid.NewGuid():N}{Path.GetExtension(f.Name)}");
+                await using var src = f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024);
+                await using var dst = new FileStream(temp, FileMode.Create);
+                await src.CopyToAsync(dst);
+                if (dst.Length == 0) throw new IOException($"{f.Name} blev tom");
+                chosen.Add(new Chosen(f.Name, temp));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Kunne ikke hente valgte filer");
+            _error = "Kunne ikke hente billedet – prøv igen.";
+        }
+        finally { _copying = false; }
+
+        if (chosen.Count > 0) await FilesChosen.InvokeAsync(chosen);
+    }
 }
