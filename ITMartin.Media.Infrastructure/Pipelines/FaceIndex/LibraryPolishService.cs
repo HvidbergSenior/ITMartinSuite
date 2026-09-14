@@ -2559,8 +2559,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
         // instead of saving four full-size rotated JPEGs to disk and running
         // the whole recognition pipeline on each - that was ~35 s per photo on
         // the photoserver (2026-09-14), this is a few seconds.
-        var faceCounts = await faceService.CountFacesPerRotationAsync(filePath);
-        return PickRotation(faceCounts);
+        var rolls = await faceService.DetectFaceRollsAsync(filePath);
+        return PickRotationFromRolls(rolls);
     }
 
     // The detector also fires, weakly, on faces that are lying on their side
@@ -2570,6 +2570,36 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // when one rotation is clearly best.
     public const float MinUprightScore = 0.75f;
     public const float MinScoreMargin = 0.15f;
+
+    // Landmark roll -> the clockwise rotation that makes the face upright.
+    // Calibrated 2026-09-14 on PC270018.jpg: roll +85.7 -> rotate 90 CW ->
+    // roll 0.9; an upright photo rotated 90 CW reads roll -78. So the fix is
+    // simply the roll rounded to the nearest 90, applied clockwise.
+    // Only confident, big-enough faces vote; faces much smaller than the
+    // largest one are ignored (a background bystander must not outvote the
+    // subject); everyone left must agree, and the roll must sit close to a
+    // cardinal angle - a head tilted 45 degrees is not evidence of anything.
+    public const float MinRollScore = 0.75f;
+    public const float MaxCardinalDeviation = 25f;
+
+    public static int? PickRotationFromRolls(IReadOnlyList<FaceRoll> rolls)
+    {
+        var good = rolls.Where(r => r.Score >= MinRollScore).ToList();
+        if (good.Count == 0) return null;
+        var biggest = good.Max(r => r.SizePx);
+        var voters = good.Where(r => r.SizePx >= biggest * 0.5).ToList();
+
+        int? decision = null;
+        foreach (var v in voters)
+        {
+            var cardinal = (int)Math.Round(v.RollDegrees / 90.0) * 90;
+            if (Math.Abs(v.RollDegrees - cardinal) > MaxCardinalDeviation) return null;
+            var cw = ((cardinal % 360) + 360) % 360;
+            if (decision is { } d && d != cw) return null;
+            decision = cw;
+        }
+        return decision;
+    }
 
     public static int? PickRotation(IReadOnlyDictionary<int, RotationFaces> perRotation)
     {

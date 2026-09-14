@@ -19,3 +19,18 @@ public class PickRotationTests
     [Test] public void Two_rotations_close_together_stay_undecided() => LibraryPolishService.PickRotation(R(0.9f, 0.85f, 0.2f, 0.1f)).Should().BeNull();
     [Test] public void No_faces_is_undecided() => LibraryPolishService.PickRotation(R(0, 0, 0, 0)).Should().BeNull();
 }
+
+[TestFixture]
+public class PickRotationFromRollsTests
+{
+    private static FaceRoll F(float score, float roll, int size = 300) => new(score, roll, size);
+
+    [Test] public void Upright_face_means_no_rotation() => LibraryPolishService.PickRotationFromRolls([F(0.98f, 9f)]).Should().Be(0);
+    [Test] public void Face_rolled_plus_86_needs_90_clockwise() => LibraryPolishService.PickRotationFromRolls([F(0.98f, 85.7f)]).Should().Be(90);
+    [Test] public void Face_rolled_minus_78_needs_270_clockwise() => LibraryPolishService.PickRotationFromRolls([F(0.98f, -77.9f)]).Should().Be(270);
+    [Test] public void Upside_down_face_needs_180() => LibraryPolishService.PickRotationFromRolls([F(0.98f, 175f)]).Should().Be(180);
+    [Test] public void Tilted_head_is_not_evidence() => LibraryPolishService.PickRotationFromRolls([F(0.98f, 45f)]).Should().BeNull();
+    [Test] public void Low_confidence_faces_do_not_vote() => LibraryPolishService.PickRotationFromRolls([F(0.5f, 88f)]).Should().BeNull();
+    [Test] public void Disagreeing_big_faces_leave_it_undecided() => LibraryPolishService.PickRotationFromRolls([F(0.98f, 2f), F(0.98f, 88f)]).Should().BeNull();
+    [Test] public void A_small_bystander_cannot_outvote_the_subject() => LibraryPolishService.PickRotationFromRolls([F(0.98f, 88f, 400), F(0.98f, 3f, 60)]).Should().Be(90);
+}

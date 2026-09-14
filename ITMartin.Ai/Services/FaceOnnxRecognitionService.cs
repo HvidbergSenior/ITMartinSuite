@@ -220,6 +220,73 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
         });
     }
 
+
+    public Task<IReadOnlyList<FaceRoll>> DetectFaceRollsAsync(string filePath, int preRotateDegrees = 0)
+    {
+        return Task.Run<IReadOnlyList<FaceRoll>>(() =>
+        {
+            var result = new List<FaceRoll>();
+            if (!File.Exists(filePath)) return result;
+
+            lock (_lock)
+            {
+                try
+                {
+                    using var loaded = Image.Load<Rgb24>(filePath);
+                    using var original = preRotateDegrees switch
+                    {
+                        90 => loaded.Clone(x => x.Rotate(RotateMode.Rotate90)),
+                        180 => loaded.Clone(x => x.Rotate(RotateMode.Rotate180)),
+                        270 => loaded.Clone(x => x.Rotate(RotateMode.Rotate270)),
+                        _ => loaded.Clone(),
+                    };
+                    var longSide = Math.Max(original.Width, original.Height);
+                    var scale = longSide > DetectionMaxSide ? DetectionMaxSide / (double)longSide : 1.0;
+                    float[][,] detectionArray;
+                    if (scale < 1.0)
+                    {
+                        using var small = original.Clone(x => x.Resize((int)Math.Round(original.Width * scale), (int)Math.Round(original.Height * scale)));
+                        detectionArray = ToFloatArray(small);
+                    }
+                    else detectionArray = ToFloatArray(original);
+
+                    foreach (var face in _faceDetector.Forward(detectionArray).OrderByDescending(f => (long)f.Box.Width * f.Box.Height))
+                    {
+                        if (face.Box.IsEmpty) continue;
+                        var ox = (int)(face.Box.X / scale);
+                        var oy = (int)(face.Box.Y / scale);
+                        var ow = (int)(face.Box.Width / scale);
+                        var oh = (int)(face.Box.Height / scale);
+                        if (ow <= 0 || oh <= 0) continue;
+                        if (Math.Max(ow, oh) < longSide * MinFaceFractionOfLongSide) continue;
+
+                        // Same padded crop as ExtractFaceEmbeddingsAsync - the
+                        // landmark model needs the surroundings of the box.
+                        var margin = (int)(Math.Max(ow, oh) * 0.6);
+                        var cw = ow + 2 * margin;
+                        var ch = oh + 2 * margin;
+                        using var crop = new Image<Rgb24>(cw, ch, new Rgb24(114, 114, 114));
+                        var srcX = Math.Max(0, ox - margin);
+                        var srcY = Math.Max(0, oy - margin);
+                        var srcW = Math.Min(original.Width, ox - margin + cw) - srcX;
+                        var srcH = Math.Min(original.Height, oy - margin + ch) - srcY;
+                        if (srcW <= 0 || srcH <= 0) continue;
+                        using (var region = original.Clone(x => x.Crop(new Rectangle(srcX, srcY, srcW, srcH))))
+                            crop.Mutate(x => x.DrawImage(region, new Point(srcX - (ox - margin), srcY - (oy - margin)), 1f));
+
+                        var pts = _landmarksExtractor.Forward(ToFloatArray(crop), new System.Drawing.Rectangle(margin, margin, ow, oh));
+                        result.Add(new FaceRoll(face.Score, pts.RotationAngle, Math.Max(ow, oh)));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Face roll detection failed for {FilePath}", filePath);
+                }
+            }
+            return result;
+        });
+    }
+
     private static float[][,] ToFloatArray(Image<Rgb24> image)
     {
         var array = new[]

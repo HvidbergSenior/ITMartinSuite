@@ -762,7 +762,7 @@ app.MapPost("/api/debug/find-screenshots-in-images", async (string sourcePath, s
 // orientation check itself (2026-09-14: it answered "undecided" for 1,150
 // photos in a row).
 app.MapGet("/api/debug/face-count", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceRecognitionService faces) =>
-    Results.Ok(new { path, perRotation = await faces.CountFacesPerRotationAsync(path), embeddings = (await faces.ExtractFaceEmbeddingsAsync(path)).Count }));
+    Results.Ok(new { path, perRotation = await faces.CountFacesPerRotationAsync(path), rolls = await faces.DetectFaceRollsAsync(path), rollsPreRotated90 = await faces.DetectFaceRollsAsync(path, 90) }));
 
 app.MapPost("/api/debug/fix-orientation-free", (string path, string? make, IServiceScopeFactory scopeFactory) =>
 {
