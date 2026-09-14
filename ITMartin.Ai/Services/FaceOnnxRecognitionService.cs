@@ -176,11 +176,12 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
     }
 
 
-    public Task<IReadOnlyDictionary<int, int>> CountFacesPerRotationAsync(string filePath)
+    public Task<IReadOnlyDictionary<int, RotationFaces>> CountFacesPerRotationAsync(string filePath)
     {
-        return Task.Run<IReadOnlyDictionary<int, int>>(() =>
+        return Task.Run<IReadOnlyDictionary<int, RotationFaces>>(() =>
         {
-            var counts = new Dictionary<int, int> { [0] = 0, [90] = 0, [180] = 0, [270] = 0 };
+            var none = new RotationFaces(0, 0f);
+            var counts = new Dictionary<int, RotationFaces> { [0] = none, [90] = none, [180] = none, [270] = none };
             if (!File.Exists(filePath)) return counts;
 
             lock (_lock)
@@ -206,7 +207,8 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
                         var faces = _faceDetector.Forward(ToFloatArray(rotated));
                         // Same tiny-face rule as ExtractFaceEmbeddingsAsync, in
                         // downscaled coordinates.
-                        counts[degrees] = faces.Count(f => !f.Box.IsEmpty && Math.Max(f.Box.Width, f.Box.Height) >= smallLong * MinFaceFractionOfLongSide);
+                        var real = faces.Where(f => !f.Box.IsEmpty && Math.Max(f.Box.Width, f.Box.Height) >= smallLong * MinFaceFractionOfLongSide).ToList();
+                        counts[degrees] = new RotationFaces(real.Count, real.Count == 0 ? 0f : real.Max(f => f.Score));
                     }
                 }
                 catch (Exception ex)

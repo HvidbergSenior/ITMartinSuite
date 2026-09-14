@@ -1,5 +1,8 @@
 namespace ITMartin.Media.Contracts.Contracts.Runtime.Interfaces;
 
+/// <summary>Faces found at one rotation: how many, and the detector's best confidence among them.</summary>
+public sealed record RotationFaces(int Count, float MaxScore);
+
 public interface IFaceRecognitionService
 {
     /// <summary>
@@ -15,5 +18,5 @@ public interface IFaceRecognitionService
     /// cheaper than four ExtractFaceEmbeddingsAsync calls on rotated copies.
     /// Used by the free orientation check. All zeros if the file is unreadable.
     /// </summary>
-    Task<IReadOnlyDictionary<int, int>> CountFacesPerRotationAsync(string filePath);
+    Task<IReadOnlyDictionary<int, RotationFaces>> CountFacesPerRotationAsync(string filePath);
 }

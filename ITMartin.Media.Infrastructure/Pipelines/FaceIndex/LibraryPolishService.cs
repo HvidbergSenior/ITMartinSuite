@@ -816,6 +816,9 @@ public sealed class LibraryPolishService : ILibraryPolishService
         new(StringComparer.OrdinalIgnoreCase)
         {
             ".package1", ".package2", ".package3", "_Galleri", UnplayableFolderName, RotationUnknownFolderName,
+            // Not what the gallery shows: Dubletter is hidden, SmartFolders are
+            // hardlinks to Billeder files (fixing the original fixes them).
+            "Dubletter", "SmartFolders",
             "thumbnails", "working", "enhanced", "manifests", "temp",
         };
 
@@ -2557,8 +2560,26 @@ public sealed class LibraryPolishService : ILibraryPolishService
         // the whole recognition pipeline on each - that was ~35 s per photo on
         // the photoserver (2026-09-14), this is a few seconds.
         var faceCounts = await faceService.CountFacesPerRotationAsync(filePath);
-        var withFaces = faceCounts.Where(kv => kv.Value > 0).ToList();
-        return withFaces.Count == 1 ? withFaces[0].Key : null;
+        return PickRotation(faceCounts);
+    }
+
+    // The detector also fires, weakly, on faces that are lying on their side
+    // or upside down - so "exactly one rotation has faces" almost never
+    // happens (1,150 undecided in a row on 2026-09-14). Use its confidence
+    // instead: the upright rotation scores high, the others low. Decide only
+    // when one rotation is clearly best.
+    public const float MinUprightScore = 0.75f;
+    public const float MinScoreMargin = 0.15f;
+
+    public static int? PickRotation(IReadOnlyDictionary<int, RotationFaces> perRotation)
+    {
+        var ranked = perRotation.OrderByDescending(kv => kv.Value.MaxScore).ToList();
+        if (ranked.Count == 0 || ranked[0].Value.Count == 0) return null;
+        var best = ranked[0];
+        var second = ranked.Count > 1 ? ranked[1].Value.MaxScore : 0f;
+        if (best.Value.MaxScore < MinUprightScore) return null;
+        if (best.Value.MaxScore - second < MinScoreMargin) return null;
+        return best.Key;
     }
 
     private void ApplyResolvedFile(string file, int degrees, ref int rotatedCounter)

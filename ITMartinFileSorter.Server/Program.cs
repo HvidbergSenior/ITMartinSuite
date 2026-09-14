@@ -758,6 +758,12 @@ app.MapPost("/api/debug/find-screenshots-in-images", async (string sourcePath, s
 // (the Olympus photos with an unreliable orientation tag), mark everything
 // else as checked first; that is what kept it from crawling all 38k photos
 // again (the four-hour run of 2026-09-09). Result is in the log.
+// Raw per-rotation face counts for one file - to sanity-check the free
+// orientation check itself (2026-09-14: it answered "undecided" for 1,150
+// photos in a row).
+app.MapGet("/api/debug/face-count", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.IFaceRecognitionService faces) =>
+    Results.Ok(new { path, perRotation = await faces.CountFacesPerRotationAsync(path), embeddings = (await faces.ExtractFaceEmbeddingsAsync(path)).Count }));
+
 app.MapPost("/api/debug/fix-orientation-free", (string path, string? make, IServiceScopeFactory scopeFactory) =>
 {
     _ = Task.Run(async () =>
