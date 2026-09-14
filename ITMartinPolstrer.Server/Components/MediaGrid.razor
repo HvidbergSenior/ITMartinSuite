@@ -1,0 +1,51 @@
+@* Thumbnails for one step. Tap opens the original in an overlay (video
+   plays inline). Delete is only offered when the parent passes a handler. *@
+
+@if (Items.Count > 0)
+{
+    <div class="media-grid">
+        @foreach (var m in Items)
+        {
+            <div class="media-cell">
+                @if (m.IsVideo)
+                {
+                    <button class="media-thumb media-video" @onclick="() => Open(m)">▶ Video</button>
+                }
+                else
+                {
+                    <button class="media-thumb" @onclick="() => Open(m)">
+                        <img src="@MediaStore.Url(m.ThumbPath ?? m.RelativePath)" loading="lazy" alt="" />
+                    </button>
+                }
+                @if (OnDelete.HasDelegate)
+                {
+                    <button class="media-delete" title="Slet" @onclick="() => OnDelete.InvokeAsync(m)">✕</button>
+                }
+            </div>
+        }
+    </div>
+}
+
+@if (_open is not null)
+{
+    <div class="lightbox" @onclick="Close">
+        @if (_open.IsVideo)
+        {
+            <video src="@MediaStore.Url(_open.RelativePath)" controls autoplay playsinline @onclick:stopPropagation></video>
+        }
+        else
+        {
+            <img src="@MediaStore.Url(_open.RelativePath)" alt="" @onclick:stopPropagation />
+        }
+        <button class="lightbox-close" @onclick="Close">✕</button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<MediaFile> Items { get; set; } = [];
+    [Parameter] public EventCallback<MediaFile> OnDelete { get; set; }
+
+    private MediaFile? _open;
+    private void Open(MediaFile m) => _open = m;
+    private void Close() => _open = null;
+}

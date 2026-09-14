@@ -1,95 +1,118 @@
 @page "/"
-@inject PolstrerDbContext Db
-@inject NavigationManager Nav
+@inject IDbContextFactory<PolstrerDbContext> DbFactory
 
-<div class="page">
-    <h1>🪑 Møbelpolstrer</h1>
+<PageTitle>Møbler</PageTitle>
 
-    @* Photo first, paperwork later: a picture taken here lands in the
-       "Indbakke" folder on the NAS without picking or creating a job, so
-       nothing stands between opening the app and pressing the button. *@
-    <CameraUpload Slug="@InboxSlug" ShowLibraryPicker="false" />
-    <p class="camera-hint">Billeder herfra ender i mappen <strong>Indbakke</strong> på NAS. Åbn en opgave for at lægge billeder direkte på den.</p>
+<div class="top-row">
+    <h1>Møbler</h1>
+    <a class="top-link" href="/api/auth/logout">Log ud</a>
+</div>
 
-    @if (_adding)
-    {
-        <div class="field">
-            <label>Hvad er det for en stol/møbel?</label>
-            <input type="text" @bind="_newTitle" @bind:event="oninput" placeholder="fx Lænestol - Marianne" />
-        </div>
-        <div class="field">
-            <label>Instrukser (skriv dem ned med det samme, så du ikke glemmer dem)</label>
-            <textarea @bind="_newInstructions" @bind:event="oninput" placeholder="Hvad fik du at vide? Stof, farve, reparationer, deadline..."></textarea>
-        </div>
-        <button class="btn" disabled="@string.IsNullOrWhiteSpace(_newTitle)" @onclick="CreateJob">Opret opgave</button>
-        <button class="btn btn-secondary" @onclick="() => _adding = false" style="margin-left:8px">Annuller</button>
-    }
-    else
-    {
-        <button class="btn" @onclick="() => _adding = true">+ Ny opgave</button>
-    }
+<div class="filter-row">
+    <button class="chip @(_showDone ? "" : "chip-on")" @onclick="() => SetFilter(false)">I arbejde</button>
+    <button class="chip @(_showDone ? "chip-on" : "")" @onclick="() => SetFilter(true)">Afleveret</button>
+</div>
 
-    <div style="margin-top:24px">
-        @if (_jobs is null)
+@if (_pieces is null)
+{
+    <p class="muted">Henter…</p>
+}
+else if (_pieces.Count == 0)
+{
+    <div class="empty">
+        <div class="empty-icon">🪑</div>
+        @if (_showDone)
         {
-            <p class="empty">Indlæser...</p>
-        }
-        else if (_jobs.Count == 0)
-        {
-            <p class="empty">Ingen opgaver endnu.</p>
+            <p>Ingen afleverede møbler endnu.</p>
         }
         else
         {
-            @foreach (var job in _jobs)
-            {
-                <a class="job-card @(job.IsDone ? "job-done" : "")" href="@($"/job/{job.Id}")">
-                    <div class="job-title">
-                        @job.Title
-                        @if (job.IsDone) { <span class="badge-done">Færdig</span> }
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(job.Instructions))
-                    {
-                        <div class="job-preview">@job.Instructions</div>
-                    }
-                    <div class="job-meta">@job.CreatedAt.ToLocalTime().ToString("d. MMM yyyy")</div>
-                </a>
-            }
+            <p>Ingen møbler i arbejde.</p>
+            <a class="btn btn-primary" href="/ny">📷 Nyt møbel</a>
         }
     </div>
-</div>
+}
+else
+{
+    @foreach (var p in _pieces)
+    {
+        var cover = p.Steps.SelectMany(s => s.Media).Where(m => !m.IsVideo).OrderBy(m => m.UploadedAt).FirstOrDefault();
+        <a class="piece-card @UrgencyClass(p)" href="/moebel/@p.Slug">
+            <div class="piece-cover">
+                @if (cover is not null)
+                {
+                    <img src="@MediaStore.Url(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" />
+                }
+                else
+                {
+                    <span>🪑</span>
+                }
+            </div>
+            <div class="piece-body">
+                <div class="piece-title">@p.Title</div>
+                @if (!string.IsNullOrWhiteSpace(p.Customer))
+                {
+                    <div class="piece-sub">@p.Customer</div>
+                }
+                <div class="piece-meta">
+                    <span class="status status-@p.Status.ToString().ToLower()">@StatusText(p.Status)</span>
+                    @if (p.Deadline is { } d)
+                    {
+                        <span class="deadline">@DeadlineText(d)</span>
+                    }
+                </div>
+            </div>
+        </a>
+    }
+}
 
 @code {
-    // NAS folder for photos taken without a job (polstrer/indbakke on the NAS)
-    private const string InboxSlug = "indbakke";
-
-    private List<Job>? _jobs;
-    private bool _adding;
-    private string _newTitle = "";
-    private string _newInstructions = "";
+    private List<Piece>? _pieces;
+    private bool _showDone;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
-    private async Task LoadAsync()
+    private async Task SetFilter(bool done)
     {
-        _jobs = await Db.Jobs
-            .OrderBy(j => j.IsDone)
-            .ThenByDescending(j => j.CreatedAt)
-            .ToListAsync();
+        _showDone = done;
+        await LoadAsync();
     }
 
-    private async Task CreateJob()
+    private async Task LoadAsync()
     {
-        if (string.IsNullOrWhiteSpace(_newTitle)) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var q = db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).AsNoTracking();
+        q = _showDone
+            ? q.Where(p => p.Status == PieceStatus.Afleveret)
+            : q.Where(p => p.Status != PieceStatus.Afleveret);
+        var list = await q.ToListAsync();
+        _pieces = _showDone
+            ? list.OrderByDescending(p => p.ReceivedAt).ToList()
+            : list.OrderBy(p => p.Deadline ?? DateOnly.MaxValue).ThenBy(p => p.ReceivedAt).ToList();
+    }
 
-        var job = new Job
-        {
-            Title = _newTitle.Trim(),
-            Instructions = _newInstructions.Trim(),
-            Slug = JobSlug.From(_newTitle),
-        };
-        Db.Jobs.Add(job);
-        await Db.SaveChangesAsync();
+    public static string StatusText(PieceStatus s) => s switch
+    {
+        PieceStatus.Modtaget => "Modtaget",
+        PieceStatus.IGang => "I gang",
+        PieceStatus.Faerdig => "Færdig",
+        PieceStatus.Afleveret => "Afleveret",
+        _ => s.ToString()
+    };
 
-        Nav.NavigateTo($"/job/{job.Id}");
+    public static string DeadlineText(DateOnly d)
+    {
+        var days = d.DayNumber - DateOnly.FromDateTime(DateTime.Now).DayNumber;
+        if (days < 0) return $"Overskredet {-days} dg";
+        if (days == 0) return "I dag";
+        if (days == 1) return "I morgen";
+        return $"{days} dage – {d:d. MMM}";
+    }
+
+    private static string UrgencyClass(Piece p)
+    {
+        if (p.Status >= PieceStatus.Faerdig || p.Deadline is null) return "";
+        var days = p.Deadline.Value.DayNumber - DateOnly.FromDateTime(DateTime.Now).DayNumber;
+        return days < 0 ? "urgent-over" : days <= 3 ? "urgent-soon" : "";
     }
 }

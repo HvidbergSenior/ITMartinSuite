@@ -1,0 +1,110 @@
+@page "/erfaring"
+@inject IDbContextFactory<PolstrerDbContext> DbFactory
+
+<PageTitle>Erfaring</PageTitle>
+
+<h1>Erfaring</h1>
+<p class="hint">Har du gjort det før? Søg i alle møbler, instruktioner, trin og teknikker.</p>
+
+<div class="field">
+    <input type="search" @bind="_q" @bind:event="oninput" placeholder="fx nakkerulle, fjedre, læder…" autofocus />
+</div>
+
+@if (_allTags.Count > 0)
+{
+    <div class="tag-row">
+        @foreach (var t in _allTags)
+        {
+            <button class="tag @(string.Equals(_q, t, StringComparison.OrdinalIgnoreCase) ? "tag-on" : "")" @onclick="() => _q = t">@t</button>
+        }
+    </div>
+}
+
+@if (_pieces is null)
+{
+    <p class="muted">Henter…</p>
+}
+else if (string.IsNullOrWhiteSpace(_q))
+{
+    <p class="muted">Skriv et ord, eller tryk på en teknik.</p>
+}
+else
+{
+    var hits = Find(_q.Trim());
+    if (hits.Count == 0)
+    {
+        <p class="muted">Ingen møbler matcher "@_q".</p>
+    }
+    foreach (var h in hits)
+    {
+        <div class="card hit">
+            <a class="hit-title" href="/moebel/@h.Piece.Slug">@h.Piece.Title <span class="muted">· @h.Piece.ReceivedAt.ToLocalTime().ToString("MMM yyyy")</span></a>
+            @if (h.InstructionsHit)
+            {
+                <div class="hit-snippet"><b>Instruktion:</b> @Snippet(h.Piece.Instructions, _q)</div>
+            }
+            @foreach (var s in h.Steps)
+            {
+                <div class="hit-step">
+                    <div class="hit-snippet">@s.At.ToLocalTime().ToString("d. MMM yyyy") – @Snippet(s.Note, _q)</div>
+                    <MediaGrid Items="s.Media" />
+                </div>
+            }
+            @if (!h.InstructionsHit && h.Steps.Count == 0)
+            {
+                <div class="hit-snippet muted">Match på titel, kunde eller teknik</div>
+                var firstMedia = h.Piece.Steps.SelectMany(s => s.Media).Take(6).ToList();
+                <MediaGrid Items="firstMedia" />
+            }
+        </div>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? InitialQ { get; set; }
+
+    private string _q = "";
+    private List<Piece>? _pieces;
+    private List<string> _allTags = [];
+
+    private sealed record Hit(Piece Piece, bool InstructionsHit, List<Step> Steps);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _q = InitialQ ?? "";
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _pieces = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).AsNoTracking()
+            .OrderByDescending(p => p.ReceivedAt).ToListAsync();
+        _allTags = _pieces.SelectMany(p => p.TechniqueList)
+            .GroupBy(t => t.ToLowerInvariant())
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key)
+            .Select(g => g.First()).ToList();
+    }
+
+    // Everything is in memory - a single upholsterer's whole career is a few
+    // hundred pieces, so a full scan per keystroke is fine and far simpler
+    // than SQLite FTS.
+    private List<Hit> Find(string q)
+    {
+        var cmp = StringComparison.OrdinalIgnoreCase;
+        var hits = new List<Hit>();
+        foreach (var p in _pieces!)
+        {
+            var instr = p.Instructions.Contains(q, cmp);
+            var steps = p.Steps.Where(s => s.Note.Contains(q, cmp)).OrderBy(s => s.At).ToList();
+            var meta = p.Title.Contains(q, cmp) || p.Customer.Contains(q, cmp)
+                    || p.TechniqueList.Any(t => t.Contains(q, cmp));
+            if (instr || steps.Count > 0 || meta) hits.Add(new Hit(p, instr, steps));
+        }
+        return hits;
+    }
+
+    private static string Snippet(string text, string q)
+    {
+        var i = text.IndexOf(q, StringComparison.OrdinalIgnoreCase);
+        if (i < 0 || text.Length <= 140) return text;
+        var start = Math.Max(0, i - 50);
+        var len = Math.Min(140, text.Length - start);
+        return (start > 0 ? "…" : "") + text.Substring(start, len) + (start + len < text.Length ? "…" : "");
+    }
+}

@@ -1,83 +1,35 @@
-@inject NasPhotoService NasPhoto
-
-@* One big button that opens the phone's camera and sends the photo to the
-   NAS the moment it is taken - no picker, no confirm step. This is the whole
-   phone use case (2026-09-11): "take a picture and the picture will go
-   directly up on the nas". capture="environment" makes iOS and Android open
-   the rear camera straight away instead of the photo library; the hidden
-   input is triggered through the label so the button can be styled. A second,
-   quieter button covers photos already on the phone. *@
+@* One big camera button (rear camera, straight to capture) plus a quieter
+   "pick from the phone" button that also allows video and several files at
+   once. The component just hands the chosen files to its parent - what
+   happens to them (new piece, new step) is the page's business. *@
 
 <div class="camera-block">
-    <label class="camera-btn @(_uploading ? "camera-busy" : "")" for="@_cameraId">
-        @if (_uploading)
+    <label class="camera-btn @(Busy ? "camera-busy" : "")" for="@_cameraId">
+        @if (Busy)
         {
-            <span>Sender til NAS…</span>
+            <span>@BusyText</span>
         }
         else
         {
             <span class="camera-icon">📷</span>
-            <span>Tag billede</span>
+            <span>@Text</span>
         }
     </label>
-    <InputFile id="@_cameraId" class="camera-input" OnChange="OnFilesSelected" accept="image/*" capture="environment" disabled="@_uploading" />
+    <InputFile id="@_cameraId" class="camera-input" OnChange="OnFiles" accept="image/*" capture="environment" disabled="@Busy" />
 
-    @if (ShowLibraryPicker)
-    {
-        <label class="camera-secondary" for="@_libraryId">Vælg fra kamerarullen (flere ad gangen)</label>
-        <InputFile id="@_libraryId" class="camera-input" OnChange="OnFilesSelected" accept="image/*,video/*" multiple disabled="@_uploading" />
-    }
-
-    @if (_message is not null)
-    {
-        <div class="upload-status @(_ok ? "ok" : "error")">@_message</div>
-    }
+    <label class="camera-secondary" for="@_libraryId">Vælg billeder eller video fra telefonen</label>
+    <InputFile id="@_libraryId" class="camera-input" OnChange="OnFiles" accept="image/*,video/*" multiple disabled="@Busy" />
 </div>
 
 @code {
-    // NAS folder under the polstrer gallery the photos land in
-    [Parameter, EditorRequired] public string Slug { get; set; } = "";
-    [Parameter] public bool ShowLibraryPicker { get; set; } = true;
-    [Parameter] public EventCallback Uploaded { get; set; }
+    [Parameter] public string Text { get; set; } = "Tag billede";
+    [Parameter] public string BusyText { get; set; } = "Gemmer…";
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<IBrowserFile>> FilesChosen { get; set; }
 
     private readonly string _cameraId = "cam-" + Guid.NewGuid().ToString("N")[..8];
     private readonly string _libraryId = "lib-" + Guid.NewGuid().ToString("N")[..8];
 
-    private bool _uploading;
-    private string? _message;
-    private bool _ok;
-
-    private async Task OnFilesSelected(InputFileChangeEventArgs e)
-    {
-        _uploading = true;
-        _message = null;
-        StateHasChanged();
-
-        var selected = e.GetMultipleFiles(maximumFileCount: 20);
-        var streams = selected.Select(f => f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024)).ToList();
-        try
-        {
-            var pending = selected.Zip(streams, (f, s) => new NasPhotoService.PendingFile(f.Name, s)).ToList();
-            var error = await NasPhoto.UploadAsync(Slug, pending);
-
-            _ok = error is null;
-            _message = error is null
-                ? (selected.Count == 1 ? "Billedet er på NAS ✓" : $"{selected.Count} filer er på NAS ✓")
-                : $"Upload fejlede: {error}";
-        }
-        catch (Exception ex)
-        {
-            _ok = false;
-            _message = $"Upload fejlede: {ex.Message}";
-        }
-        finally
-        {
-            foreach (var s in streams) await s.DisposeAsync();
-        }
-
-        _uploading = false;
-        StateHasChanged();
-
-        if (_ok) await Uploaded.InvokeAsync();
-    }
+    private Task OnFiles(InputFileChangeEventArgs e)
+        => FilesChosen.InvokeAsync(e.GetMultipleFiles(maximumFileCount: 30));
 }

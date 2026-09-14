@@ -1,10 +1,8 @@
 namespace ITMartinPolstrer.Server.Services;
 
-// Extracted from Index.razor's create-job handler so the slugging rules are
-// directly testable - the NAS folder name a job's photos live under depends
-// on getting this right (filesystem-safe, stable, and not collision-prone
-// when two jobs share a title like "Lænestol").
-public static class JobSlug
+// Filesystem-safe, stable folder name for a piece's media. Two pieces with
+// the same title ("Lænestol") must not collide, hence the random suffix.
+public static class PieceSlug
 {
     public static string From(string title)
     {
@@ -13,6 +11,7 @@ public static class JobSlug
             .ToArray());
         while (cleaned.Contains("--")) cleaned = cleaned.Replace("--", "-");
         cleaned = cleaned.Trim('-');
+        if (cleaned.Length == 0) cleaned = "moebel";
         return $"{cleaned}-{Guid.NewGuid().ToString("N")[..6]}";
     }
 }

@@ -1,0 +1,105 @@
+@page "/ny"
+@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@inject MediaStore Media
+@inject NavigationManager Nav
+
+<PageTitle>Nyt møbel</PageTitle>
+
+<h1>Nyt møbel</h1>
+
+@* Photo first: the piece is standing in front of her, the person who
+   brought it is still talking. Details can be filled in after. *@
+<div class="section-label">1. Tag billede af møblet</div>
+<CameraUpload Text="@(_files.Count == 0 ? "Tag billede" : "Tag et til")" FilesChosen="OnFiles" />
+@if (_files.Count > 0)
+{
+    <div class="chosen-files">@_files.Count @(_files.Count == 1 ? "fil" : "filer") valgt</div>
+}
+
+<div class="section-label">2. Hvad er det, og hvornår skal det være færdigt?</div>
+<div class="field">
+    <label>Møbel</label>
+    <input type="text" @bind="_title" placeholder="fx Lænestol, grøn – Marianne" />
+</div>
+<div class="field-row">
+    <div class="field">
+        <label>Kunde</label>
+        <input type="text" @bind="_customer" placeholder="Navn" />
+    </div>
+    <div class="field">
+        <label>Deadline</label>
+        <input type="date" @bind="_deadline" />
+    </div>
+</div>
+
+<div class="section-label">3. Hvad blev der sagt?</div>
+<p class="hint">Skriv det ned nu – det er det, du glemmer senere.</p>
+<div class="field">
+    <label>Hvem fortalte dig det?</label>
+    <input type="text" @bind="_instructedBy" placeholder="fx kunden, Peter" />
+</div>
+<div class="field">
+    <label>Besked / instruktion</label>
+    <textarea rows="6" @bind="_instructions" placeholder="Nyt betræk i samme stof, behold nakkerullen, fjedrene skal efterses…"></textarea>
+</div>
+
+@if (_error is not null)
+{
+    <div class="error-box">@_error</div>
+}
+
+<button class="btn btn-primary btn-block" @onclick="SaveAsync" disabled="@_saving">
+    @(_saving ? "Gemmer…" : "Gem møbel")
+</button>
+
+@code {
+    private readonly List<IBrowserFile> _files = [];
+    private string _title = "";
+    private string _customer = "";
+    private string _instructedBy = "";
+    private string _instructions = "";
+    private DateOnly? _deadline;
+    private bool _saving;
+    private string? _error;
+
+    private void OnFiles(IReadOnlyList<IBrowserFile> files) => _files.AddRange(files);
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_title)) { _error = "Skriv hvad møblet er."; return; }
+        _saving = true; _error = null;
+        try
+        {
+            var piece = new Piece
+            {
+                Title = _title.Trim(),
+                Customer = _customer.Trim(),
+                InstructedBy = _instructedBy.Trim(),
+                Instructions = _instructions.Trim(),
+                Deadline = _deadline,
+                Slug = PieceSlug.From(_title)
+            };
+
+            var step = new Step { PieceId = piece.Id, Note = "Modtaget" };
+            foreach (var f in _files)
+            {
+                await using var s = f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024);
+                var m = await Media.SaveAsync(piece.Slug, new MediaStore.Pending(f.Name, s));
+                m.StepId = step.Id;
+                step.Media.Add(m);
+            }
+            piece.Steps.Add(step);
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.Pieces.Add(piece);
+            await db.SaveChangesAsync();
+
+            Nav.NavigateTo($"/moebel/{piece.Slug}");
+        }
+        catch (Exception ex)
+        {
+            _error = "Kunne ikke gemme: " + ex.Message;
+            _saving = false;
+        }
+    }
+}

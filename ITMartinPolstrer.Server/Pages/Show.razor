@@ -1,0 +1,61 @@
+@page "/vis/{Slug}"
+@layout EmptyLayout
+@inject IDbContextFactory<PolstrerDbContext> DbFactory
+
+@* Public, read-only story of one piece: before → steps → after. This is
+   the link she sends to the customer or to the colleague who handed the
+   job over. No login; the slug's random suffix is the only "secret". *@
+
+<div class="page show-page">
+    @if (_piece is null)
+    {
+        <p class="muted">@(_loaded ? "Møblet findes ikke." : "Henter…")</p>
+    }
+    else
+    {
+        <PageTitle>@_piece.Title</PageTitle>
+        <h1>@_piece.Title</h1>
+        <div class="piece-sub">
+            Modtaget @_piece.ReceivedAt.ToLocalTime().ToString("d. MMMM yyyy")
+            · <span class="status status-@_piece.Status.ToString().ToLower()">@Index.StatusText(_piece.Status)</span>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_piece.Instructions))
+        {
+            <div class="instructions">
+                <div class="section-label">Opgaven</div>
+                <p class="instructions-text">@_piece.Instructions</p>
+            </div>
+        }
+
+        <div class="timeline">
+            @foreach (var step in _piece.Steps.OrderBy(s => s.At))
+            {
+                <div class="step">
+                    <div class="step-when">@step.At.ToLocalTime().ToString("d. MMM yyyy")</div>
+                    @if (!string.IsNullOrWhiteSpace(step.Note))
+                    {
+                        <div class="step-note">@step.Note</div>
+                    }
+                    <MediaGrid Items="step.Media" />
+                </div>
+            }
+        </div>
+
+        <p class="muted show-footer">Møbelpolstrer</p>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Piece? _piece;
+    private bool _loaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _piece = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Slug == Slug);
+        _loaded = true;
+    }
+}

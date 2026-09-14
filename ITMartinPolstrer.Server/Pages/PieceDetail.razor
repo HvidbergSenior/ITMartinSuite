@@ -1,0 +1,236 @@
+@page "/moebel/{Slug}"
+@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@inject MediaStore Media
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (_piece is null)
+{
+    <p class="muted">Henter…</p>
+    return;
+}
+
+<PageTitle>@_piece.Title</PageTitle>
+
+<div class="top-row">
+    <a class="top-link" href="/">← Møbler</a>
+    <button class="top-link" @onclick="() => _editing = !_editing">@(_editing ? "Luk" : "Ret")</button>
+</div>
+
+<h1>@_piece.Title</h1>
+<div class="piece-sub">
+    @if (!string.IsNullOrWhiteSpace(_piece.Customer)) { <span>@_piece.Customer · </span> }
+    <span>modtaget @_piece.ReceivedAt.ToLocalTime().ToString("d. MMM yyyy")</span>
+    @if (_piece.Deadline is { } d) { <span> · deadline <b>@Index.DeadlineText(d)</b></span> }
+</div>
+
+<div class="status-row">
+    @foreach (var s in Enum.GetValues<PieceStatus>())
+    {
+        <button class="chip @(_piece.Status == s ? "chip-on" : "")" @onclick="() => SetStatusAsync(s)">@Index.StatusText(s)</button>
+    }
+</div>
+
+@if (_editing)
+{
+    <div class="card">
+        <div class="field"><label>Møbel</label><input type="text" @bind="_piece.Title" /></div>
+        <div class="field-row">
+            <div class="field"><label>Kunde</label><input type="text" @bind="_piece.Customer" /></div>
+            <div class="field"><label>Deadline</label><input type="date" @bind="_piece.Deadline" /></div>
+        </div>
+        <div class="field"><label>Hvem fortalte dig det?</label><input type="text" @bind="_piece.InstructedBy" /></div>
+        <div class="field"><label>Hvad blev der sagt?</label><textarea rows="6" @bind="_piece.Instructions"></textarea></div>
+        <div class="field">
+            <label>Teknikker (adskilt med komma)</label>
+            <input type="text" @bind="_piece.Techniques" placeholder="fjedre, nakkerulle, kantsyning" />
+        </div>
+        <button class="btn btn-primary btn-block" @onclick="SavePieceAsync">Gem</button>
+        <button class="btn btn-danger btn-block" @onclick="DeletePieceAsync">Slet møblet</button>
+    </div>
+}
+else
+{
+    <div class="instructions">
+        <div class="section-label">Hvad blev der sagt@(string.IsNullOrWhiteSpace(_piece.InstructedBy) ? "" : $" – {_piece.InstructedBy}")</div>
+        @if (string.IsNullOrWhiteSpace(_piece.Instructions))
+        {
+            <p class="muted">Intet skrevet ned. <button class="link" @onclick="() => _editing = true">Skriv det nu</button></p>
+        }
+        else
+        {
+            <p class="instructions-text">@_piece.Instructions</p>
+        }
+    </div>
+
+    @if (_piece.TechniqueList.Any())
+    {
+        <div class="tag-row">
+            @foreach (var t in _piece.TechniqueList)
+            {
+                <a class="tag" href="/erfaring?q=@Uri.EscapeDataString(t)">@t</a>
+            }
+        </div>
+    }
+}
+
+<div class="share-row">
+    <button class="btn btn-ghost" @onclick="CopyShareLinkAsync">🔗 @(_copied ? "Link kopieret" : "Del proces")</button>
+</div>
+
+<div class="section-label">Nyt trin</div>
+<div class="card">
+    <textarea rows="2" @bind="_newNote" placeholder="Hvad har du gjort? fx Afmonteret betræk, fandt rådne fjedre"></textarea>
+    <CameraUpload Text="@(_newFiles.Count == 0 ? "Tag billede" : $"Tag et til ({_newFiles.Count} valgt)")" FilesChosen="OnNewFiles" Busy="_saving" />
+    <button class="btn btn-primary btn-block" @onclick="AddStepAsync" disabled="@(_saving || (_newFiles.Count == 0 && string.IsNullOrWhiteSpace(_newNote)))">
+        @(_saving ? "Gemmer…" : "Gem trin")
+    </button>
+    @if (_error is not null) { <div class="error-box">@_error</div> }
+</div>
+
+<div class="section-label">Forløb</div>
+<div class="timeline">
+    @foreach (var step in _piece.Steps.OrderByDescending(s => s.At))
+    {
+        <div class="step">
+            <div class="step-when">@step.At.ToLocalTime().ToString("ddd d. MMM HH:mm")</div>
+            @if (_editStep == step.Id)
+            {
+                <textarea rows="3" @bind="step.Note"></textarea>
+                <div class="btn-row">
+                    <button class="btn btn-small btn-primary" @onclick="() => SaveStepAsync(step)">Gem</button>
+                    <button class="btn btn-small btn-danger" @onclick="() => DeleteStepAsync(step)">Slet trin</button>
+                    <button class="btn btn-small" @onclick="() => _editStep = null">Luk</button>
+                </div>
+            }
+            else
+            {
+                <div class="step-note" @onclick="() => _editStep = step.Id">@(string.IsNullOrWhiteSpace(step.Note) ? "(ingen tekst)" : step.Note)</div>
+            }
+            <MediaGrid Items="step.Media" OnDelete="m => DeleteMediaAsync(step, m)" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Piece? _piece;
+    private bool _editing;
+    private Guid? _editStep;
+    private string _newNote = "";
+    private readonly List<IBrowserFile> _newFiles = [];
+    private bool _saving;
+    private bool _copied;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _piece = await db.Pieces
+            .Include(p => p.Steps).ThenInclude(s => s.Media)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Slug == Slug);
+        if (_piece is null) Nav.NavigateTo("/");
+    }
+
+    private void OnNewFiles(IReadOnlyList<IBrowserFile> files) => _newFiles.AddRange(files);
+
+    private async Task AddStepAsync()
+    {
+        if (_piece is null) return;
+        _saving = true; _error = null;
+        try
+        {
+            var step = new Step { PieceId = _piece.Id, Note = _newNote.Trim() };
+            foreach (var f in _newFiles)
+            {
+                await using var s = f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024);
+                var m = await Media.SaveAsync(_piece.Slug, new MediaStore.Pending(f.Name, s));
+                m.StepId = step.Id;
+                step.Media.Add(m);
+            }
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.Steps.Add(step);
+            if (_piece.Status == PieceStatus.Modtaget)
+                await db.Pieces.Where(p => p.Id == _piece.Id).ExecuteUpdateAsync(u => u.SetProperty(p => p.Status, PieceStatus.IGang));
+            await db.SaveChangesAsync();
+
+            _newNote = ""; _newFiles.Clear();
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = "Kunne ikke gemme: " + ex.Message; }
+        finally { _saving = false; }
+    }
+
+    private async Task SaveStepAsync(Step step)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Steps.Where(s => s.Id == step.Id).ExecuteUpdateAsync(u => u.SetProperty(s => s.Note, step.Note.Trim()));
+        _editStep = null;
+        await LoadAsync();
+    }
+
+    private async Task DeleteStepAsync(Step step)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Slet dette trin og dets billeder?")) return;
+        foreach (var m in step.Media) Media.Delete(m);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Steps.Where(s => s.Id == step.Id).ExecuteDeleteAsync();
+        _editStep = null;
+        await LoadAsync();
+    }
+
+    private async Task DeleteMediaAsync(Step step, MediaFile m)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Slet billedet?")) return;
+        Media.Delete(m);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Media.Where(x => x.Id == m.Id).ExecuteDeleteAsync();
+        await LoadAsync();
+    }
+
+    private async Task SetStatusAsync(PieceStatus s)
+    {
+        if (_piece is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Pieces.Where(p => p.Id == _piece.Id).ExecuteUpdateAsync(u => u.SetProperty(p => p.Status, s));
+        _piece.Status = s;
+    }
+
+    private async Task SavePieceAsync()
+    {
+        if (_piece is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var p = _piece;
+        await db.Pieces.Where(x => x.Id == p.Id).ExecuteUpdateAsync(u => u
+            .SetProperty(x => x.Title, p.Title.Trim())
+            .SetProperty(x => x.Customer, p.Customer.Trim())
+            .SetProperty(x => x.Deadline, p.Deadline)
+            .SetProperty(x => x.InstructedBy, p.InstructedBy.Trim())
+            .SetProperty(x => x.Instructions, p.Instructions.Trim())
+            .SetProperty(x => x.Techniques, p.Techniques.Trim()));
+        _editing = false;
+        await LoadAsync();
+    }
+
+    private async Task DeletePieceAsync()
+    {
+        if (_piece is null) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Slet \"{_piece.Title}\" med alle trin og billeder?")) return;
+        foreach (var m in _piece.Steps.SelectMany(s => s.Media)) Media.Delete(m);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Pieces.Where(p => p.Id == _piece.Id).ExecuteDeleteAsync();
+        Nav.NavigateTo("/");
+    }
+
+    private async Task CopyShareLinkAsync()
+    {
+        var url = Nav.ToAbsoluteUri($"/vis/{Slug}").ToString();
+        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", url); _copied = true; }
+        catch { Nav.NavigateTo(url); }
+    }
+}

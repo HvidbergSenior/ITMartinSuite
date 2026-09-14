@@ -14,13 +14,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y openssh-client tar \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY --from=build /app/publish .
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data/media
 
 EXPOSE 8080
 
