@@ -56,3 +56,26 @@ public class EloverblikParsingTests
         fake.Urls.Count(u => u.Contains("/token")).Should().Be(1);
     }
 }
+
+[TestFixture]
+public class EloverblikNullDocumentTests
+{
+    private sealed class NullDoc : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var json = request.RequestUri!.PathAndQuery.Contains("/token")
+                ? """{"result":"ACCESS"}"""
+                : """{"result":[{"MyEnergyData_MarketDocument":null,"success":false,"errorCode":30000},{"MyEnergyData_MarketDocument":{"TimeSeries":[{"Period":null}]}}]}""";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) });
+        }
+    }
+
+    [Test]
+    public async Task A_day_without_data_yet_is_skipped_not_fatal()
+    {
+        var svc = new EloverblikService(new HttpClient(new NullDoc()), NullLogger<EloverblikService>.Instance);
+        var readings = await svc.GetHourlyAsync("R", "x", new DateOnly(2026, 9, 10), new DateOnly(2026, 9, 13));
+        readings.Should().BeEmpty();
+    }
+}

@@ -2,6 +2,7 @@
 @inject HouseholdStore Store
 @inject EloverblikService Eloverblik
 @inject ConsumptionSync Sync
+@inject ConsumptionStore Consumption
 
 <PageTitle>Indstillinger – ElPriser</PageTitle>
 
@@ -126,8 +127,9 @@
             _s.MeteringPointId = mp.Id; _s.MeteringPointAddress = mp.Address;
             Save();
             var ok = await Sync.SyncAsync();
-            _meterOk = true;
-            _meterMsg = ok ? $"Forbundet til {mp.Address}. Forbruget hentes - se Forbrug." : $"Forbundet til {mp.Address}, men der kom ingen målinger endnu (Datahub er 1-2 dage bagud).";
+            _meterOk = ok;
+            _meterMsg = ok ? $"Forbundet til {mp.Address}. Forbruget hentes - se Forbrug."
+                : $"Måleren på {mp.Address} er fundet, men: {Consumption.LastSyncError ?? "ingen målinger endnu (Datahub er 1-2 dage bagud)"}";
         }
         catch (Exception ex) { _meterOk = false; _meterMsg = "Kunne ikke forbinde: " + ex.Message; }
         finally { _busy = false; }

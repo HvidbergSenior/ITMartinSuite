@@ -64,20 +64,26 @@ public sealed class EloverblikService(HttpClient http, ILogger<EloverblikService
 
         var readings = new List<HourReading>();
         var dk = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+        string? apiError = null;
         foreach (var r in doc.RootElement.GetProperty("result").EnumerateArray())
         {
-            if (!r.TryGetProperty("MyEnergyData_MarketDocument", out var md)) continue;
-            if (!md.TryGetProperty("TimeSeries", out var series)) continue;
+            if (r.TryGetProperty("errorText", out var et) && et.ValueKind == JsonValueKind.String)
+                apiError = et.GetString();
+            // A day with no data yet comes back as a result entry whose document
+            // is null - skip it rather than crash the whole sync.
+            if (!r.TryGetProperty("MyEnergyData_MarketDocument", out var md) || md.ValueKind != JsonValueKind.Object) continue;
+            if (!md.TryGetProperty("TimeSeries", out var series) || series.ValueKind != JsonValueKind.Array) continue;
             foreach (var ts in series.EnumerateArray())
             {
-                if (!ts.TryGetProperty("Period", out var periods)) continue;
+                if (!ts.TryGetProperty("Period", out var periods) || periods.ValueKind != JsonValueKind.Array) continue;
                 foreach (var period in periods.EnumerateArray())
                 {
                     var startUtc = DateTime.Parse(period.GetProperty("timeInterval").GetProperty("start").GetString()!,
                         null, System.Globalization.DateTimeStyles.AdjustToUniversal);
                     var resolution = period.TryGetProperty("resolution", out var resEl) ? resEl.GetString() : "PT1H";
                     var step = resolution == "PT15M" ? TimeSpan.FromMinutes(15) : TimeSpan.FromHours(1);
-                    foreach (var pt in period.GetProperty("Point").EnumerateArray())
+                    if (!period.TryGetProperty("Point", out var points) || points.ValueKind != JsonValueKind.Array) continue;
+                    foreach (var pt in points.EnumerateArray())
                     {
                         var pos = int.Parse(pt.GetProperty("position").GetString()!);
                         var qty = double.Parse(pt.GetProperty("out_Quantity.quantity").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
@@ -89,6 +95,13 @@ public sealed class EloverblikService(HttpClient http, ILogger<EloverblikService
                 }
             }
         }
+
+        // Datahub answers 200 with a per-meter error when the token holder is
+        // not (or no longer) the registered customer on the meter. Say so.
+        if (readings.Count == 0 && apiError is not null)
+            throw new InvalidOperationException(apiError == "MeteringPointDataNotAvailableForTheRequestedPeriod"
+                ? "Datahub har ingen data til dette token for måleren - typisk fordi elaftalen står i en andens navn. Opret tokenet med den persons MitID, eller giv en fuldmagt på eloverblik.dk."
+                : $"Eloverblik: {apiError}");
 
         // Quarter-hour meters: fold into hours so the rest of the app has one shape.
         return readings
