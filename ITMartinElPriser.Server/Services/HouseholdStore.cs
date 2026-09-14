@@ -15,6 +15,12 @@ public sealed class HouseholdSettings
     // inside them, so "cheapest" is cheapest when someone is actually up.
     public int QuietFromHour { get; set; } = 23;
     public int QuietToHour { get; set; } = 6;
+
+    // eloverblik.dk personal refresh token + which meter to read. Lets the
+    // app show what the household actually used, priced hour by hour.
+    public string EloverblikToken { get; set; } = "";
+    public string MeteringPointId { get; set; } = "";
+    public string MeteringPointAddress { get; set; } = "";
 }
 
 // A machine and what one run of it draws. Energy is assumed to be spread

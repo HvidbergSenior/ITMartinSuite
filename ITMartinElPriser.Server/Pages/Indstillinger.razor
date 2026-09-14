@@ -1,5 +1,7 @@
 @page "/indstillinger"
 @inject HouseholdStore Store
+@inject EloverblikService Eloverblik
+@inject ConsumptionSync Sync
 
 <PageTitle>Indstillinger – ElPriser</PageTitle>
 
@@ -70,6 +72,22 @@
     </div>
 </div>
 
+<div class="card">
+    <div class="card-title">Din elmåler (eloverblik.dk)</div>
+    <div class="muted small" style="margin-bottom:8px">
+        Log ind på <a href="https://eloverblik.dk" target="_blank">eloverblik.dk</a> med MitID → profilikonet øverst → <b>Datadeling</b> → <b>Opret token</b>. Kopiér den lange tekst herind. Tokenet gælder i et år og kan kun læse dit forbrug.
+    </div>
+    <div class="field"><label>Token</label><input type="text" @bind="_s.EloverblikToken" placeholder="eyJ…" autocomplete="off" /></div>
+    @if (!string.IsNullOrWhiteSpace(_s.MeteringPointId))
+    {
+        <div class="note ok">Forbundet: @_s.MeteringPointAddress <span class="muted small">(@_s.MeteringPointId)</span></div>
+    }
+    <div class="btn-row">
+        <button class="btn" @onclick="ConnectAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_s.EloverblikToken))">@(_busy ? "Forbinder…" : "Forbind og hent måler")</button>
+    </div>
+    @if (_meterMsg is not null) { <div class="note @(_meterOk ? "ok" : "err")">@_meterMsg</div> }
+</div>
+
 <button class="btn btn-primary btn-block" @onclick="Save">Gem</button>
 @if (_saved) { <div class="note ok">Gemt ✓</div> }
 
@@ -77,6 +95,9 @@
     private HouseholdSettings _s = new();
     private List<Appliance> _appliances = [];
     private bool _saved;
+    private bool _busy;
+    private bool _meterOk;
+    private string? _meterMsg;
 
     protected override void OnInitialized()
     {
@@ -87,10 +108,29 @@
             GridCompanyId = d.Settings.GridCompanyId, CustomNettarifOre = d.Settings.CustomNettarifOre,
             SupplierId = d.Settings.SupplierId, CustomTillaegOre = d.Settings.CustomTillaegOre,
             QuietFromHour = d.Settings.QuietFromHour, QuietToHour = d.Settings.QuietToHour,
+            EloverblikToken = d.Settings.EloverblikToken, MeteringPointId = d.Settings.MeteringPointId, MeteringPointAddress = d.Settings.MeteringPointAddress,
         };
         _appliances = d.Appliances.OrderBy(a => a.SortOrder)
             .Select(a => new Appliance { Id = a.Id, Name = a.Name, Icon = a.Icon, KwhPerRun = a.KwhPerRun, DurationHours = a.DurationHours, SortOrder = a.SortOrder })
             .ToList();
+    }
+
+    private async Task ConnectAsync()
+    {
+        _busy = true; _meterMsg = null;
+        try
+        {
+            var points = await Eloverblik.GetMeteringPointsAsync(_s.EloverblikToken);
+            var mp = points.FirstOrDefault(p => p.TypeOfMp == "E17") ?? points.FirstOrDefault();
+            if (mp is null) { _meterOk = false; _meterMsg = "Tokenet virker, men der er ingen målere på det."; return; }
+            _s.MeteringPointId = mp.Id; _s.MeteringPointAddress = mp.Address;
+            Save();
+            var ok = await Sync.SyncAsync();
+            _meterOk = true;
+            _meterMsg = ok ? $"Forbundet til {mp.Address}. Forbruget hentes - se Forbrug." : $"Forbundet til {mp.Address}, men der kom ingen målinger endnu (Datahub er 1-2 dage bagud).";
+        }
+        catch (Exception ex) { _meterOk = false; _meterMsg = "Kunne ikke forbinde: " + ex.Message; }
+        finally { _busy = false; }
     }
 
     private void AddAppliance() => _appliances.Add(new Appliance { Name = "", KwhPerRun = 1, DurationHours = 1, SortOrder = _appliances.Count });

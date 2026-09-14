@@ -3,10 +3,17 @@ using ITMartinElPriser.Server.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-builder.Services.AddHttpClient<ElectricityPriceService>();
+// Singletons with their own HttpClient: both services cache (prices for
+// 30 min, the Eloverblik access token for 12 h) - a transient-per-request
+// registration would throw the cache away every call.
+builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
 builder.Services.AddSingleton<HouseholdStore>();
 builder.Services.AddSingleton<PushService>();
 builder.Services.AddHostedService<NotificationScheduler>();
+builder.Services.AddSingleton(sp => new EloverblikService(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, sp.GetRequiredService<ILogger<EloverblikService>>()));
+builder.Services.AddSingleton<ConsumptionStore>();
+builder.Services.AddSingleton<ConsumptionSync>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ConsumptionSync>());
 
 var app = builder.Build();
 

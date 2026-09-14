@@ -1,0 +1,156 @@
+@page "/forbrug"
+@using System.Globalization
+@inject ElectricityPriceService Prices
+@inject HouseholdStore Store
+@inject ConsumptionStore Consumption
+@inject ConsumptionSync Sync
+
+<PageTitle>Forbrug – ElPriser</PageTitle>
+
+<h1>Dit forbrug</h1>
+<p class="muted small" style="margin:4px 0 14px">Fra din egen elmåler via eloverblik.dk – typisk 1–2 dage bagud.</p>
+
+@if (string.IsNullOrWhiteSpace(Store.Get().Settings.MeteringPointId))
+{
+    <div class="card">
+        <div class="card-title">Ikke forbundet</div>
+        <p class="small">Forbind din elmåler under <a href="/indstillinger">Indstillinger</a> – så viser siden hvad strømmen faktisk kostede time for time.</p>
+    </div>
+}
+else if (_days is null)
+{
+    <div class="card muted">Henter…</div>
+}
+else if (_days.Count == 0)
+{
+    <div class="card">
+        <div class="card-title">Ingen målinger endnu</div>
+        <p class="small">@(Consumption.LastSyncError is { } e ? $"Sidste hentning fejlede: {e}" : "Datahub leverer normalt målinger 1–2 dage efter. Prøv igen i morgen.")</p>
+        <button class="btn btn-block" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent nu")</button>
+    </div>
+}
+else
+{
+    var d = _days[_sel];
+    <div class="day-tabs" style="overflow-x:auto">
+        @for (var i = 0; i < _days.Count; i++)
+        {
+            var idx = i;
+            <button class="tab @(idx == _sel ? "on" : "")" style="flex:none;padding:8px 12px" @onclick="() => _sel = idx">@_days[idx].Date.ToString("ddd d/M", Da)</button>
+        }
+    </div>
+
+    <div class="card now-tile">
+        <div class="now-price">@d.CostKr.ToString("0.00", Da)</div>
+        <div class="now-unit">kr · @d.Kwh.ToString("0.0", Da) kWh · snit @((d.Kwh > 0 ? d.CostKr / d.Kwh : 0).ToString("0.00", Da)) kr/kWh</div>
+        @if (d.CheapestPossibleKr is { } cp && d.Kwh > 0)
+        {
+            <div class="now-compare">Samme kWh på dagens billigste timer: <b>@cp.ToString("0.00", Da) kr</b> · dyreste: <b>@d.DearestPossibleKr?.ToString("0.00", Da) kr</b></div>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-title">Time for time – @d.Date.ToString("dddd d. MMMM", Da)</div>
+        @{ var maxKwh = d.Hours.Max(h => h.Kwh); }
+        <div class="bars">
+            @foreach (var h in d.Hours)
+            {
+                var pct = maxKwh > 0 ? 8 + 92 * h.Kwh / maxKwh : 8;
+                <div class="bar @(_selHour == h.Hour ? "sel" : "")" style="height:@pct.ToString("0", CultureInfo.InvariantCulture)%;background:@Color(h.PriceRank)" @onclick="() => _selHour = h.Hour" title="@h.Hour:00 @h.Kwh kWh"></div>
+            }
+        </div>
+        <div class="bar-axis">@foreach (var h in d.Hours) { <span>@(h.Hour % 3 == 0 ? h.Hour.ToString() : "")</span> }</div>
+        <div class="bar-info">
+            @if (_selHour is { } sh && d.Hours.FirstOrDefault(x => x.Hour == sh) is { } hb)
+            {
+                <span>Kl. @sh:00–@((sh + 1) % 24):00 · @hb.Kwh.ToString("0.00", Da) kWh</span>
+                <b>@hb.CostKr.ToString("0.00", Da) kr <span class="muted small">(@hb.KrPerKwh.ToString("0.00", Da) kr/kWh)</span></b>
+            }
+            else
+            {
+                <span class="muted">Søjlehøjde = forbrug, farve = pris den time</span>
+            }
+        </div>
+        <div class="legend"><span><i style="background:var(--cheap)"></i>billig time</span><span><i style="background:var(--mid)"></i>middel</span><span><i style="background:var(--expensive)"></i>dyr time</span></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Sidste @_days.Count dage</div>
+        @foreach (var x in _days)
+        {
+            <div class="appl-row" style="padding:6px 0;border-top:1px solid var(--border)">
+                <span>@x.Date.ToString("ddd d/M", Da) <span class="muted small">@x.Kwh.ToString("0.0", Da) kWh</span></span>
+                <b>@x.CostKr.ToString("0.00", Da) kr</b>
+            </div>
+        }
+        <div class="appl-row" style="padding:8px 0 0;font-weight:700">
+            <span>I alt</span><b>@_days.Sum(x => x.CostKr).ToString("0.00", Da) kr</b>
+        </div>
+        <div class="muted small" style="margin-top:8px">
+            Sidst hentet @(Consumption.LastSyncUtc?.ToLocalTime().ToString("d/M HH:mm") ?? "aldrig").
+            <button class="link" style="background:none;border:none;color:var(--accent);cursor:pointer;font:inherit" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent igen")</button>
+            @if (Consumption.LastSyncError is { } err) { <span class="err"> – @err</span> }
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+
+    private sealed record HourRow(int Hour, double Kwh, double KrPerKwh, double CostKr, double PriceRank);
+    private sealed record DayRow(DateOnly Date, double Kwh, double CostKr, List<HourRow> Hours, double? CheapestPossibleKr, double? DearestPossibleKr);
+
+    private List<DayRow>? _days;
+    private int _sel;
+    private int? _selHour;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task ResyncAsync()
+    {
+        _busy = true;
+        try { await Sync.SyncAsync(); await LoadAsync(); }
+        finally { _busy = false; }
+    }
+
+    private async Task LoadAsync()
+    {
+        var data = Store.Get();
+        var s = data.Settings;
+        var rows = new List<DayRow>();
+        var latest = Consumption.LatestDay ?? DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
+
+        for (var i = 0; i < 7; i++)
+        {
+            var date = latest.AddDays(-i);
+            var kwhByHour = Consumption.Day(date);
+            if (kwhByHour.Count == 0) continue;
+
+            var prices = (await Prices.GetDayAsync(date, s.PriceArea))
+                .Select(p => PriceBreakdownCalculator.Compute(p, s))
+                .GroupBy(p => p.TimeDk.Hour)
+                .ToDictionary(g => g.Key, g => g.Average(p => p.KrPerKwh(s.ShowAllIn)));
+            if (prices.Count == 0) continue;
+
+            var min = prices.Values.Min(); var max = prices.Values.Max();
+            var hours = Enumerable.Range(0, 24).Select(h =>
+            {
+                var kwh = kwhByHour.GetValueOrDefault(h);
+                var price = prices.GetValueOrDefault(h, prices.Values.Average());
+                return new HourRow(h, kwh, price, kwh * price, max > min ? (price - min) / (max - min) : 0.5);
+            }).ToList();
+
+            var totalKwh = hours.Sum(h => h.Kwh);
+            rows.Add(new DayRow(date, Math.Round(totalKwh, 2), Math.Round(hours.Sum(h => h.CostKr), 2), hours,
+                CheapestPossibleKr: Math.Round(totalKwh * min, 2),
+                DearestPossibleKr: Math.Round(totalKwh * max, 2)));
+        }
+
+        _days = rows;
+        _sel = 0;
+        _selHour = null;
+    }
+
+    private static string Color(double rank) => rank <= 0.33 ? "var(--cheap)" : rank >= 0.67 ? "var(--expensive)" : "var(--mid)";
+}

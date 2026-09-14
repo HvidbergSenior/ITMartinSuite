@@ -12,7 +12,7 @@ public sealed class PricePoint
     public double PriceKrPerKwh { get; set; }
 }
 
-public sealed class ElectricityPriceService(HttpClient http, ILogger<ElectricityPriceService> logger)
+public sealed partial class ElectricityPriceService(HttpClient http, ILogger<ElectricityPriceService> logger)
 {
     private const string BaseUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices";
 
@@ -64,6 +64,48 @@ public sealed class ElectricityPriceService(HttpClient http, ILogger<Electricity
             logger.LogError(ex, "Failed to fetch electricity prices for {PriceArea}", priceArea);
             lock (_lock)
                 return _cache.TryGetValue(priceArea, out var stale) ? stale.Prices : [];
+        }
+    }
+}
+
+// Whole calendar days further back than the live window - for pricing
+// yesterday's consumption. Published prices never change, so a day is
+// cached for good once fetched.
+public sealed partial class ElectricityPriceService
+{
+    private readonly Dictionary<string, List<PricePoint>> _days = new();
+
+    public async Task<List<PricePoint>> GetDayAsync(DateOnly date, string priceArea = "DK1", CancellationToken ct = default)
+    {
+        var key = $"{priceArea}|{date:yyyy-MM-dd}";
+        lock (_lock) if (_days.TryGetValue(key, out var d)) return d;
+
+        var live = await GetPricesAsync(priceArea, ct);
+        var fromLive = live.Where(p => DateOnly.FromDateTime(p.TimeDk) == date).ToList();
+        if (fromLive.Count >= 90) return fromLive;
+
+        var filter = Uri.EscapeDataString($"{{\"PriceArea\":[\"{priceArea}\"]}}");
+        var url = $"{BaseUrl}?start={date:yyyy-MM-dd}T00:00&end={date.AddDays(1):yyyy-MM-dd}T00:00&filter={filter}&sort=TimeUTC%20ASC&limit=200";
+        try
+        {
+            var response = await http.GetFromJsonAsync<EnergiDataResponse>(url, ct);
+            var prices = (response?.Records ?? [])
+                .Where(r => r.DayAheadPriceDKK is not null)
+                .Select(r => new PricePoint
+                {
+                    TimeUtc = DateTime.SpecifyKind(r.TimeUTC, DateTimeKind.Utc),
+                    TimeDk = DateTime.SpecifyKind(r.TimeDK, DateTimeKind.Unspecified),
+                    PriceKrPerKwh = r.DayAheadPriceDKK!.Value / 1000.0,
+                })
+                .Where(p => DateOnly.FromDateTime(p.TimeDk) == date)
+                .OrderBy(p => p.TimeUtc).ToList();
+            if (prices.Count >= 90) lock (_lock) _days[key] = prices;
+            return prices;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to fetch prices for {Date}", date);
+            return [];
         }
     }
 }
