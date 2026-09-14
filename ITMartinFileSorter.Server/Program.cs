@@ -741,6 +741,28 @@ app.MapPost("/api/debug/find-screenshots-in-images", async (string sourcePath, s
 
 // Same free face-detection check, but report-only -
 // never writes anything, for reviewing what's rotated before committing to a fix.
+// Free face-based rotation fix, on demand, in the background. It only looks
+// at files NOT already in rotation-checked.json - so to run it on a subset
+// (the Olympus photos with an unreliable orientation tag), mark everything
+// else as checked first; that is what kept it from crawling all 38k photos
+// again (the four-hour run of 2026-09-09). Result is in the log.
+app.MapPost("/api/debug/fix-orientation-free", (string path, IServiceScopeFactory scopeFactory) =>
+{
+    _ = Task.Run(async () =>
+    {
+        using var scope = scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        try
+        {
+            var r = await service.FixOrientationFreeOnlyAsync(path);
+            logger.LogInformation("Free orientation pass finished: {Checked} checked, {Rotated} rotated, {Review} need review", r.PhotosChecked, r.PhotosRotated, r.NeedsManualReview.Count);
+        }
+        catch (Exception ex) { logger.LogError(ex, "Free orientation pass failed for {Path}", path); }
+    });
+    return Results.Ok("started");
+});
+
 app.MapPost("/api/debug/detect-rotated-images", async (string path, ITMartin.Media.Contracts.Contracts.Runtime.Interfaces.ILibraryPolishService service) =>
     Results.Ok(await service.DetectRotatedImagesAsync(path)));
 

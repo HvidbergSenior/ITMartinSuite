@@ -10,7 +10,7 @@
 })();
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a0d14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Galleri</title>
@@ -189,7 +189,9 @@ html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-c
 .v-hdr{position:absolute;top:0;left:0;right:0;z-index:10;padding:10px 14px;display:flex;align-items:center;gap:8px;background:linear-gradient(#000a,transparent)}
 .v-title{flex:1;font-size:13px;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .v-btn{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer}
-.v-stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.v-stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;touch-action:none}
+.v-stage img.v-media{transform-origin:center center;will-change:transform}
+.v-stage.zoomed .v-zone,.v-stage.zoomed .v-arrow{pointer-events:none;opacity:0}
 .v-media{max-width:100%;max-height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
 /* A video plays at its encoded size by default, so an old 320x240 clip sat
    as a stamp in the middle of the stage. Fill the stage and let object-fit
@@ -1305,8 +1307,128 @@ function viewerNav(delta) {
   const media = stage.querySelector('video, audio');
   if (media) { media.pause(); media.src = ''; }
   playIdx = ((playIdx + delta) + playlist.length) % playlist.length;
+  zoomReset();
   renderViewer();
 }
+
+// ── Pinch-zoom in the viewer ────────────────────────────────────────────────
+// Phones: two fingers zoom, one finger pans while zoomed, double-tap toggles
+// 2.5x. The tap zones that page left/right step aside while zoomed so a pan
+// is never mistaken for "next photo". Everything is a CSS transform on the
+// current image - no re-fetch, no layout - and it resets on navigation.
+const zoom = { scale: 1, x: 0, y: 0, startDist: 0, startScale: 1, startX: 0, startY: 0, panX: 0, panY: 0, lastTap: 0, pinching: false };
+
+function zoomTarget() { return document.querySelector('#vStage img.v-media'); }
+
+function zoomApply() {
+  const img = zoomTarget();
+  if (!img) return;
+  const zoomed = zoom.scale > 1.01;
+  img.style.transform = zoomed ? `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` : '';
+  img.style.transition = 'none';
+  document.getElementById('vStage').classList.toggle('zoomed', zoomed);
+}
+
+function zoomReset() {
+  zoom.scale = 1; zoom.x = 0; zoom.y = 0;
+  const img = zoomTarget();
+  if (img) img.style.transform = '';
+  document.getElementById('vStage').classList.remove('zoomed');
+}
+
+function zoomClamp() {
+  // Keep the image from being panned entirely off the stage.
+  const img = zoomTarget();
+  if (!img) return;
+  const r = img.getBoundingClientRect();
+  const stage = document.getElementById('vStage').getBoundingClientRect();
+  const maxX = Math.max(0, (r.width - stage.width) / 2);
+  const maxY = Math.max(0, (r.height - stage.height) / 2);
+  zoom.x = Math.min(maxX, Math.max(-maxX, zoom.x));
+  zoom.y = Math.min(maxY, Math.max(-maxY, zoom.y));
+}
+
+(function installViewerZoom() {
+  const stage = document.getElementById('vStage');
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  stage.addEventListener('touchstart', (e) => {
+    if (!zoomTarget()) return;
+    if (e.touches.length === 2) {
+      zoom.pinching = true;
+      zoom.startDist = dist(e.touches);
+      zoom.startScale = zoom.scale;
+      e.preventDefault();
+    } else if (e.touches.length === 1 && zoom.scale > 1.01) {
+      zoom.startX = e.touches[0].clientX; zoom.startY = e.touches[0].clientY;
+      zoom.panX = zoom.x; zoom.panY = zoom.y;
+    }
+  }, { passive: false });
+
+  stage.addEventListener('touchmove', (e) => {
+    if (!zoomTarget()) return;
+    if (e.touches.length === 2 && zoom.pinching) {
+      zoom.scale = Math.min(6, Math.max(1, zoom.startScale * dist(e.touches) / zoom.startDist));
+      if (zoom.scale <= 1.01) { zoom.x = 0; zoom.y = 0; }
+      zoomClamp(); zoomApply();
+      e.preventDefault();
+    } else if (e.touches.length === 1 && zoom.scale > 1.01) {
+      zoom.x = zoom.panX + (e.touches[0].clientX - zoom.startX);
+      zoom.y = zoom.panY + (e.touches[0].clientY - zoom.startY);
+      zoomClamp(); zoomApply();
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  let tapTimer = null, touchStartX = 0, touchStartY = 0, moved = false, wasPinch = false;
+  stage.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; moved = false; wasPinch = false; }
+    else wasPinch = true;
+  }, { passive: true });
+  stage.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && Math.hypot(e.touches[0].clientX - touchStartX, e.touches[0].clientY - touchStartY) > 10) moved = true;
+  }, { passive: true });
+
+  stage.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) zoom.pinching = false;
+    if (!zoomTarget() || e.touches.length !== 0 || e.changedTouches.length !== 1 || wasPinch || moved) return;
+
+    // A clean single-finger tap on a photo. The browser would now synthesize
+    // a click (image -> next, zones -> prev/next); that would fire on the
+    // first tap of a double-tap, so taps are handled here instead: wait a
+    // beat for a second tap, otherwise navigate.
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    const now = Date.now();
+    if (now - zoom.lastTap < 300) {
+      clearTimeout(tapTimer); tapTimer = null;
+      zoom.lastTap = 0;
+      if (zoom.scale > 1.01) zoomReset();
+      else {
+        const stageRect = stage.getBoundingClientRect();
+        zoom.scale = 2.5;
+        zoom.x = (stageRect.left + stageRect.width / 2 - t.clientX) * (zoom.scale - 1);
+        zoom.y = (stageRect.top + stageRect.height / 2 - t.clientY) * (zoom.scale - 1);
+        zoomClamp(); zoomApply();
+      }
+      return;
+    }
+    zoom.lastTap = now;
+    if (zoom.scale > 1.01) return; // zoomed: single taps do nothing, panning is the gesture
+    const stageRect = stage.getBoundingClientRect();
+    const dir = (t.clientX - stageRect.left) < stageRect.width * 0.4 ? -1 : 1;
+    tapTimer = setTimeout(() => { tapTimer = null; if (!_liveJustPlayed) viewerNav(dir); }, 300);
+  }, { passive: false });
+
+  // Desktop: ctrl+wheel / trackpad pinch zooms the photo instead of the page.
+  stage.addEventListener('wheel', (e) => {
+    if (!zoomTarget() || !e.ctrlKey) return;
+    e.preventDefault();
+    zoom.scale = Math.min(6, Math.max(1, zoom.scale * (e.deltaY < 0 ? 1.15 : 0.87)));
+    if (zoom.scale <= 1.01) { zoom.x = 0; zoom.y = 0; }
+    zoomClamp(); zoomApply();
+  }, { passive: false });
+})();
 
 function onKey(e) {
   if (e.key === 'ArrowRight') viewerNav(1);

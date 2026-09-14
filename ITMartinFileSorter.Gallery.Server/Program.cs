@@ -80,17 +80,19 @@ var CoreCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "Images", "Videos", "Documents", "Musik",
 };
 
-// The root of a view-only gallery, in this order. Relative paths are what
+// The root of a view-only gallery, row by row, as the owner laid it out on
+// 2026-09-11: photos and videos first, then the people, then the three
+// derived sets, and documents last on their own. Relative paths are what
 // LibraryExportService and SmartFoldersService actually write.
-var ViewOnlyRootFolders = new (string Name, string Rel, string Icon)[]
+var ViewOnlyRootFolders = new (string Name, string Rel, string Icon, int Row)[]
 {
-    ("Billeder", "Billeder", "🖼️"),
-    ("Videoer", "Videoer", "🎬"),
-    ("Dokumenter", "Dokumenter", "📄"),
-    ("Rejser", "SmartFolders/Trips", "✈️"),
-    ("Årbog", "SmartFolders/Yearbook", "📚"),
-    ("Personer", "SmartFolders/People", "👤"),
-    ("Traditioner og mærkedage", "SmartFolders/Traditioner", "🎄"),
+    ("Billeder", "Billeder", "🖼️", 0),
+    ("Videoer", "Videoer", "🎬", 0),
+    ("Personer", "SmartFolders/People", "👤", 1),
+    ("Årbog", "SmartFolders/Yearbook", "📚", 2),
+    ("Rejser", "SmartFolders/Trips", "✈️", 2),
+    ("Traditioner og mærkedage", "SmartFolders/Traditioner", "🎄", 2),
+    ("Dokumenter", "Dokumenter", "📄", 3),
 };
 
 // Friendly Danish labels for the root-level folders that do stay visible -
@@ -531,9 +533,9 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
     if (atRoot && g.ViewOnly)
     {
         folders = ViewOnlyRootFolders
-            .Select(v => (v.Name, Full: Path.Combine(r, v.Rel), v.Rel, v.Icon))
+            .Select(v => (v.Name, Full: Path.Combine(r, v.Rel), v.Rel, v.Icon, v.Row))
             .Where(v => Directory.Exists(v.Full) && HasAnyMediaFile(v.Full))
-            .Select(v => new FolderEntry(v.Name, v.Rel, FolderCover(v.Full, r, g.Slug), 0, v.Icon))
+            .Select(v => new FolderEntry(v.Name, v.Rel, FolderCover(v.Full, r, g.Slug), v.Row, v.Icon))
             .ToList();
     }
 
