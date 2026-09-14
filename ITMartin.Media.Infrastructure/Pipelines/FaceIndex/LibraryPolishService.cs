@@ -1106,6 +1106,14 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // can't confidently resolve is reported for manual review, not guessed
     // at or silently left as-is.
     public async Task<FreeOrientationFixResult> FixOrientationFreeOnlyAsync(string libraryPath, CancellationToken cancellationToken = default)
+        => await FixOrientationFreeOnlyAsync(libraryPath, makeContains: null, cancellationToken);
+
+    // makeContains: only photos whose EXIF Make/Model contains this text are
+    // checked (e.g. "Olympus" - the two cameras that wrote sideways files
+    // without a usable orientation tag). Everything else stays unchecked and
+    // untouched, so the pass is bounded by the size of the suspect set, not
+    // the library. The user's 2026-09-14 answer to a paid Claude pass was no.
+    public async Task<FreeOrientationFixResult> FixOrientationFreeOnlyAsync(string libraryPath, string? makeContains, CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(libraryPath)) return new FreeOrientationFixResult();
 
@@ -1128,6 +1136,20 @@ public sealed class LibraryPolishService : ILibraryPolishService
         var checkedCount = 0;
         var rotated = 0;
         var needsReview = new List<string>();
+        if (!string.IsNullOrWhiteSpace(makeContains))
+        {
+            unresolved = unresolved.Where(f =>
+            {
+                try
+                {
+                    var m = _exifService.ReadMetadata(f);
+                    return (m?.Make?.Contains(makeContains, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (m?.Model?.Contains(makeContains, StringComparison.OrdinalIgnoreCase) ?? false);
+                }
+                catch { return false; }
+            }).ToList();
+            _logger.LogInformation("Free orientation pass limited to make/model containing '{Make}': {Count} unresolved photos", makeContains, unresolved.Count);
+        }
         var sinceSave = 0;
 
         foreach (var file in unresolved)
@@ -2513,51 +2535,14 @@ public sealed class LibraryPolishService : ILibraryPolishService
     private async Task<int?> TryDetectOrientationViaFacesAsync(string filePath, CancellationToken cancellationToken, IFaceRecognitionService? faceService = null)
     {
         faceService ??= _faceRecognitionService;
-        var tempDir = Path.Combine(Path.GetTempPath(), $"rotcheck_{Guid.NewGuid():N}");
-
-        try
-        {
-            Directory.CreateDirectory(tempDir);
-            var faceCounts = new Dictionary<int, int>();
-
-            foreach (var degrees in new[] { 0, 90, 180, 270 })
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var tempPath = Path.Combine(tempDir, $"{degrees}{Path.GetExtension(filePath)}");
-
-                try
-                {
-                    var mode = degrees switch
-                    {
-                        90 => RotateMode.Rotate90,
-                        180 => RotateMode.Rotate180,
-                        270 => RotateMode.Rotate270,
-                        _ => RotateMode.None,
-                    };
-
-                    using (var image = Image.Load(filePath))
-                    {
-                        if (mode != RotateMode.None) image.Mutate(x => x.Rotate(mode));
-                        image.Save(tempPath);
-                    }
-
-                    var faces = await faceService.ExtractFaceEmbeddingsAsync(tempPath);
-                    faceCounts[degrees] = faces.Count;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    faceCounts[degrees] = 0;
-                }
-            }
-
-            var withFaces = faceCounts.Where(kv => kv.Value > 0).ToList();
-            return withFaces.Count == 1 ? withFaces[0].Key : null;
-        }
-        finally
-        {
-            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort cleanup */ }
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        // One decode + one downscale, detection only (no landmarks/embeddings),
+        // instead of saving four full-size rotated JPEGs to disk and running
+        // the whole recognition pipeline on each - that was ~35 s per photo on
+        // the photoserver (2026-09-14), this is a few seconds.
+        var faceCounts = await faceService.CountFacesPerRotationAsync(filePath);
+        var withFaces = faceCounts.Where(kv => kv.Value > 0).ToList();
+        return withFaces.Count == 1 ? withFaces[0].Key : null;
     }
 
     private void ApplyResolvedFile(string file, int degrees, ref int rotatedCounter)

@@ -175,6 +175,49 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
         });
     }
 
+
+    public Task<IReadOnlyDictionary<int, int>> CountFacesPerRotationAsync(string filePath)
+    {
+        return Task.Run<IReadOnlyDictionary<int, int>>(() =>
+        {
+            var counts = new Dictionary<int, int> { [0] = 0, [90] = 0, [180] = 0, [270] = 0 };
+            if (!File.Exists(filePath)) return counts;
+
+            lock (_lock)
+            {
+                try
+                {
+                    using var original = Image.Load<Rgb24>(filePath);
+                    var longSide = Math.Max(original.Width, original.Height);
+                    var scale = longSide > DetectionMaxSide ? DetectionMaxSide / (double)longSide : 1.0;
+                    using var small = scale < 1.0
+                        ? original.Clone(x => x.Resize((int)Math.Round(original.Width * scale), (int)Math.Round(original.Height * scale)))
+                        : original.Clone();
+                    var smallLong = Math.Max(small.Width, small.Height);
+
+                    foreach (var degrees in new[] { 0, 90, 180, 270 })
+                    {
+                        using var rotated = degrees == 0 ? small.Clone() : small.Clone(x => x.Rotate(degrees switch
+                        {
+                            90 => RotateMode.Rotate90,
+                            180 => RotateMode.Rotate180,
+                            _ => RotateMode.Rotate270,
+                        }));
+                        var faces = _faceDetector.Forward(ToFloatArray(rotated));
+                        // Same tiny-face rule as ExtractFaceEmbeddingsAsync, in
+                        // downscaled coordinates.
+                        counts[degrees] = faces.Count(f => !f.Box.IsEmpty && Math.Max(f.Box.Width, f.Box.Height) >= smallLong * MinFaceFractionOfLongSide);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Face counting failed for {FilePath}", filePath);
+                }
+            }
+            return counts;
+        });
+    }
+
     private static float[][,] ToFloatArray(Image<Rgb24> image)
     {
         var array = new[]

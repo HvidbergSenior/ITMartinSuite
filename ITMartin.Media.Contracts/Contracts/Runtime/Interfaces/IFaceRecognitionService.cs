@@ -7,4 +7,13 @@ public interface IFaceRecognitionService
     /// Empty if no face was found or the file could not be read as an image.
     /// </summary>
     Task<IReadOnlyList<float[]>> ExtractFaceEmbeddingsAsync(string filePath);
+
+    /// <summary>
+    /// Detection only - how many faces are in the image at each of the four
+    /// rotations (0, 90, 180, 270 degrees clockwise). No landmarks, no
+    /// embeddings, one decode and one downscale for all four; several times
+    /// cheaper than four ExtractFaceEmbeddingsAsync calls on rotated copies.
+    /// Used by the free orientation check. All zeros if the file is unreadable.
+    /// </summary>
+    Task<IReadOnlyDictionary<int, int>> CountFacesPerRotationAsync(string filePath);
 }

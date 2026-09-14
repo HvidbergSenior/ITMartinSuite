@@ -758,7 +758,7 @@ app.MapPost("/api/debug/find-screenshots-in-images", async (string sourcePath, s
 // (the Olympus photos with an unreliable orientation tag), mark everything
 // else as checked first; that is what kept it from crawling all 38k photos
 // again (the four-hour run of 2026-09-09). Result is in the log.
-app.MapPost("/api/debug/fix-orientation-free", (string path, IServiceScopeFactory scopeFactory) =>
+app.MapPost("/api/debug/fix-orientation-free", (string path, string? make, IServiceScopeFactory scopeFactory) =>
 {
     _ = Task.Run(async () =>
     {
@@ -767,7 +767,7 @@ app.MapPost("/api/debug/fix-orientation-free", (string path, IServiceScopeFactor
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         try
         {
-            var r = await service.FixOrientationFreeOnlyAsync(path);
+            var r = await service.FixOrientationFreeOnlyAsync(path, make);
             logger.LogInformation("Free orientation pass finished: {Checked} checked, {Rotated} rotated, {Review} need review", r.PhotosChecked, r.PhotosRotated, r.NeedsManualReview.Count);
         }
         catch (Exception ex) { logger.LogError(ex, "Free orientation pass failed for {Path}", path); }

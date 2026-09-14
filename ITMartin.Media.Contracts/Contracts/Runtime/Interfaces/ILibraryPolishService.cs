@@ -48,6 +48,7 @@ public interface ILibraryPolishService
     // in NeedsManualReview rather than guessed at or silently skipped - never
     // costs anything, never automatic-only, always leaves a manual list.
     Task<FreeOrientationFixResult> FixOrientationFreeOnlyAsync(string libraryPath, CancellationToken cancellationToken = default);
+    Task<FreeOrientationFixResult> FixOrientationFreeOnlyAsync(string libraryPath, string? makeContains, CancellationToken cancellationToken = default);
 
     // Report-only counterpart to FixOrientationFreeOnlyAsync - same free
     // face-detection check, but never calls ApplyResolvedFile, so nothing on
