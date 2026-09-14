@@ -97,6 +97,16 @@ public sealed class MediaStore(IConfiguration config, ILogger<MediaStore> logger
         }
     }
 
+    // Whole piece gone: remove its folder too, so the gallery does not keep
+    // showing an empty card for it.
+    public void DeleteFolder(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder)) return;
+        var p = Path.Combine(Root, folder);
+        try { if (Directory.Exists(p)) Directory.Delete(p, recursive: true); }
+        catch (Exception ex) { logger.LogWarning(ex, "Folder delete failed {Path}", p); }
+    }
+
     public static string Url(string relativePath) =>
         "/media/" + string.Join('/', relativePath.Replace('\\', '/').Split('/').Select(Uri.EscapeDataString));
 }

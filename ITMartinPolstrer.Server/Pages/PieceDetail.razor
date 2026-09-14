@@ -80,7 +80,7 @@ else
 
 <div class="section-label">Nyt trin</div>
 <div class="card">
-    <textarea rows="2" @bind="_newNote" placeholder="Hvad har du gjort? fx Afmonteret betræk, fandt rådne fjedre"></textarea>
+    <textarea rows="2" @bind="_newNote" @bind:event="oninput" placeholder="Hvad har du gjort? fx Afmonteret betræk, fandt rådne fjedre"></textarea>
     <CameraUpload Text="@(_newFiles.Count == 0 ? "Tag billede" : $"Tag et til ({_newFiles.Count} valgt)")" FilesChosen="OnNewFiles" Busy="_saving" />
     <button class="btn btn-primary btn-block" @onclick="AddStepAsync" disabled="@(_saving || (_newFiles.Count == 0 && string.IsNullOrWhiteSpace(_newNote)))">
         @(_saving ? "Gemmer…" : "Gem trin")
@@ -221,7 +221,7 @@ else
     {
         if (_piece is null) return;
         if (!await JS.InvokeAsync<bool>("confirm", $"Slet \"{_piece.Title}\" med alle trin og billeder?")) return;
-        foreach (var m in _piece.Steps.SelectMany(s => s.Media)) Media.Delete(m);
+        Media.DeleteFolder(_piece.Folder);
         await using var db = await DbFactory.CreateDbContextAsync();
         await db.Pieces.Where(p => p.Id == _piece.Id).ExecuteDeleteAsync();
         Nav.NavigateTo("/");

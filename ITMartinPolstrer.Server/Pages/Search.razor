@@ -67,44 +67,16 @@ else
     private List<Piece>? _pieces;
     private List<string> _allTags = [];
 
-    private sealed record Hit(Piece Piece, bool InstructionsHit, List<Step> Steps);
-
     protected override async Task OnInitializedAsync()
     {
         _q = InitialQ ?? "";
         await using var db = await DbFactory.CreateDbContextAsync();
         _pieces = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).AsNoTracking()
             .OrderByDescending(p => p.ReceivedAt).ToListAsync();
-        _allTags = _pieces.SelectMany(p => p.TechniqueList)
-            .GroupBy(t => t.ToLowerInvariant())
-            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key)
-            .Select(g => g.First()).ToList();
+        _allTags = ExperienceSearch.Tags(_pieces);
     }
 
-    // Everything is in memory - a single upholsterer's whole career is a few
-    // hundred pieces, so a full scan per keystroke is fine and far simpler
-    // than SQLite FTS.
-    private List<Hit> Find(string q)
-    {
-        var cmp = StringComparison.OrdinalIgnoreCase;
-        var hits = new List<Hit>();
-        foreach (var p in _pieces!)
-        {
-            var instr = p.Instructions.Contains(q, cmp);
-            var steps = p.Steps.Where(s => s.Note.Contains(q, cmp)).OrderBy(s => s.At).ToList();
-            var meta = p.Title.Contains(q, cmp) || p.Customer.Contains(q, cmp)
-                    || p.TechniqueList.Any(t => t.Contains(q, cmp));
-            if (instr || steps.Count > 0 || meta) hits.Add(new Hit(p, instr, steps));
-        }
-        return hits;
-    }
+    private List<ExperienceSearch.Hit> Find(string q) => ExperienceSearch.Find(_pieces!, q);
 
-    private static string Snippet(string text, string q)
-    {
-        var i = text.IndexOf(q, StringComparison.OrdinalIgnoreCase);
-        if (i < 0 || text.Length <= 140) return text;
-        var start = Math.Max(0, i - 50);
-        var len = Math.Min(140, text.Length - start);
-        return (start > 0 ? "…" : "") + text.Substring(start, len) + (start + len < text.Length ? "…" : "");
-    }
+    private static string Snippet(string text, string q) => ExperienceSearch.Snippet(text, q);
 }

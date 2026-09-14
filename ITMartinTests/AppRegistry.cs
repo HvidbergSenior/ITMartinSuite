@@ -40,6 +40,7 @@ public static class AppRegistry
         new("Auction",            "auction-web",          "https://auction.itmartin.dk"),
         new("Market",             "market-web",           "https://market.itmartin.dk"),
         new("Family Planner",     "family-web",           "https://idag.itmartin.dk"),
+        new("Møbelpolstrer",      "polstrer-web",         "https://polstrer.itmartin.dk"),
 
         // ── Tools ─────────────────────────────────────────────────────────────
         new("Portal",             "index-web",            "https://all-apps.itmartin.dk"),
