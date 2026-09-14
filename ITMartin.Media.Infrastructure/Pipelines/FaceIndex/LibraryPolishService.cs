@@ -791,6 +791,11 @@ public sealed class LibraryPolishService : ILibraryPolishService
     // (including after new photos are added) from re-hashing/re-checking the
     // whole library every time.
     private const string RotationCheckedFileName = "rotation-checked.json";
+    // Free pass only: photos it could not decide (no face, or faces at more
+    // than one angle). Kept apart from rotation-checked.json so a paid
+    // Claude pass still sees them, but the free pass stops re-scanning the
+    // same faceless photos on every run (which made it look stuck).
+    private const string RotationFreeUnresolvedFileName = "rotation-free-unresolved.json";
 
     // Content-hash -> degrees decisions. SmartFolders add-ons now copy real
     // files (see task #8 - symlinks -> File.Copy), so the same sideways photo
@@ -1125,6 +1130,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
         var checkedPathsFile = Path.Combine(libraryPath, RotationCheckedFileName);
         var decisionsFile = Path.Combine(libraryPath, RotationDecisionsFileName);
 
+        var freeUnresolvedFile = Path.Combine(libraryPath, RotationFreeUnresolvedFileName);
+        var freeUnresolved = LoadStringSet(freeUnresolvedFile);
         var checkedPaths = LoadStringSet(checkedPathsFile);
         var decisions = LoadHashDecisions(decisionsFile);
 
@@ -1132,6 +1139,8 @@ public sealed class LibraryPolishService : ILibraryPolishService
         var unresolved = images
             .Where(f => !checkedPaths.Contains(Path.GetRelativePath(libraryPath, f)))
             .ToList();
+        unresolved = unresolved.Where(f => !freeUnresolved.Contains(Path.GetRelativePath(libraryPath, f))).ToList();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
         var checkedCount = 0;
         var rotated = 0;
@@ -1192,17 +1201,24 @@ public sealed class LibraryPolishService : ILibraryPolishService
                     // FixOrientationAsync pass (Claude vision, not face-only)
                     // can still resolve it properly if ever run.
                     needsReview.Add(relativePath);
+                    freeUnresolved.Add(relativePath);
                 }
             }
 
-            if (++sinceSave >= 500)
+            if (checkedCount % 25 == 0)
+                _logger.LogInformation("Free orientation pass: {Done}/{Total} ({Rate:0.0}/min, {Rotated} rotated, {Undecided} undecided)",
+                    checkedCount, unresolved.Count, checkedCount / Math.Max(1.0, sw.Elapsed.TotalMinutes), rotated, needsReview.Count);
+
+            if (++sinceSave >= 100)
             {
                 SaveStringSet(checkedPathsFile, checkedPaths);
                 SaveHashDecisions(decisionsFile, decisions);
+                SaveStringSet(freeUnresolvedFile, freeUnresolved);
                 sinceSave = 0;
             }
         }
 
+        SaveStringSet(freeUnresolvedFile, freeUnresolved);
         SaveStringSet(checkedPathsFile, checkedPaths);
         SaveHashDecisions(decisionsFile, decisions);
 
