@@ -20,6 +20,16 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
     // smallest faces start to drop out; above it the cost climbs for nothing.
     private const int DetectionMaxSide = 1600;
 
+    // Faces smaller than this fraction of the image's longer side are skipped.
+    // They are almost always photos-of-photos: framed pictures on a wall, a
+    // screen in the background, a photo album page. Those faces are real to
+    // the detector but carry almost no detail, so they match anyone loosely
+    // and end up in the wrong person folder - and, worse, become references
+    // when promoted (2026-09-14: a Malene reference turned out to be a wall
+    // frame in a photo of Mathias). 2 % of a 4000 px photo is 80 px - a
+    // distant person in a group shot is still comfortably above that.
+    private const double MinFaceFractionOfLongSide = 0.02;
+
     public FaceOnnxRecognitionService(ILogger<FaceOnnxRecognitionService> logger)
     {
         _logger = logger;
@@ -117,6 +127,7 @@ public sealed class FaceOnnxRecognitionService : IFaceRecognitionService, IDispo
                         var ow = (int)(face.Box.Width / scale);
                         var oh = (int)(face.Box.Height / scale);
                         if (ow <= 0 || oh <= 0) continue;
+                        if (Math.Max(ow, oh) < longSide * MinFaceFractionOfLongSide) continue;
 
                         // The embedding is taken from a crop with a generous
                         // margin around the box - alignment rotates the face
