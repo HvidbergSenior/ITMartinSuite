@@ -340,6 +340,7 @@ public sealed class FaceIndexService : IFaceIndexService
                 Id = p.Id,
                 Name = p.Name,
                 BornYear = p.BornYear,
+                MatchThreshold = p.MatchThreshold,
                 ReferencePhotoCount = db.PersonReferencePhotos.Count(r => r.PersonId == p.Id)
             })
             .ToListAsync();

@@ -548,6 +548,18 @@ app.MapPost("/api/debug/sf-set-born-year", async (Guid personId, int? bornYear, 
     return Results.Ok(new { person.Name, person.BornYear });
 });
 
+// Persistent per-person similarity floor - survives full rebuilds, unlike
+// the threshold argument on sf-person. See PersonEntity.MatchThreshold.
+app.MapPost("/api/debug/sf-set-threshold", async (Guid personId, double? threshold, Microsoft.EntityFrameworkCore.IDbContextFactory<ITMartin.Media.Infrastructure.Persistence.MediaDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var person = await db.People.FindAsync(personId);
+    if (person is null) return Results.NotFound();
+    person.MatchThreshold = threshold;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { person.Name, person.MatchThreshold });
+});
+
 // Local object detection (YOLO, no API cost). object-index scans the library
 // once in the background; object-folder turns a label into a SmartFolders
 // set - e.g. label=dog&name=Fie. Re-running the index only costs new files.

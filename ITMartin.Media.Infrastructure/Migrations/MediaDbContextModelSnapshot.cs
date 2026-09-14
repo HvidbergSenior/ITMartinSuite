@@ -227,6 +227,9 @@ namespace ITMartin.Media.Infrastructure.Migrations
                     b.Property<int?>("BornYear")
                         .HasColumnType("INTEGER");
 
+                    b.Property<double?>("MatchThreshold")
+                        .HasColumnType("REAL");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 

@@ -137,7 +137,10 @@ public sealed class SmartFoldersService : ISmartFoldersService
         var person = await db.People.FindAsync([personId], cancellationToken);
         if (person is null) return null;
 
-        var matches = await _package3.FindMatchesAsync(personId, threshold);
+        // The person's own floor wins over the call's default; a stricter
+        // value passed explicitly still applies. See PersonEntity.MatchThreshold.
+        var effectiveThreshold = Math.Max(threshold, person.MatchThreshold ?? 0);
+        var matches = await _package3.FindMatchesAsync(personId, effectiveThreshold);
         var filePaths = matches.Select(m => m.MediaFilePath).ToList();
 
         // Nobody appears in a photo taken before they were born. The matcher

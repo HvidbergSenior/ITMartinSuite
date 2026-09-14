@@ -20,5 +20,12 @@ public sealed class PersonEntity
     // zero cost and needs nothing from the matcher at all.
     public int? BornYear { get; set; }
 
+    // Per-person similarity floor for the folder, when the default (0.45) is
+    // too generous for this face. Eigil at 0.45 had 318 matches below 0.55
+    // and the owner found him in 4 of the weakest 48 (2026-09-14); Vibeke
+    // needed 0.55 too. It lives here so a rebuild of all folders keeps it -
+    // a threshold passed on one call was lost on the next rebuild.
+    public double? MatchThreshold { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

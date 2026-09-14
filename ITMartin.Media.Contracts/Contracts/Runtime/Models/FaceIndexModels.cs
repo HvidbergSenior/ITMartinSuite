@@ -11,6 +11,7 @@ public sealed class PersonDto
     public required string Name { get; init; }
     public int ReferencePhotoCount { get; init; }
     public int? BornYear { get; init; }
+    public double? MatchThreshold { get; init; }
 }
 
 public sealed class PersonMatchResult
