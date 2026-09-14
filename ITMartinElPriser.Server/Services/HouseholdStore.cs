@@ -60,8 +60,30 @@ public sealed class PushSubscriber
     public int Failures { get; set; }
 }
 
+// One real run she registered: what it cost, priced slot by slot over its
+// duration at the time it ran, plus what the same run would have cost at
+// the day's best and worst start. Values are frozen at logging time so
+// the history stays true even if the appliance is edited later.
+public sealed class RunEntry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ApplianceId { get; set; }
+    public string ApplianceName { get; set; } = "";
+    public string Icon { get; set; } = "";
+    public DateTime StartedAt { get; set; }
+    public double DurationHours { get; set; }
+    public double KwhPerRun { get; set; }
+    public double CostKr { get; set; }
+    public double AvgKrPerKwh { get; set; }
+    public double? CheapestThatDayKr { get; set; }
+    public double? DearestThatDayKr { get; set; }
+    public bool AllIn { get; set; }
+    public DateTime LoggedAt { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class HouseholdData
 {
+    public List<RunEntry> Runs { get; set; } = [];
     public HouseholdSettings Settings { get; set; } = new();
     public List<Appliance> Appliances { get; set; } = Appliance.Defaults();
     public List<PushSubscriber> Subscribers { get; set; } = [];

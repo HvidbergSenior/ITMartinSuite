@@ -1,0 +1,87 @@
+@page "/historik"
+@using System.Globalization
+@inject HouseholdStore Store
+@inject RunLogService RunLog
+
+<PageTitle>Historik – ElPriser</PageTitle>
+
+<h1>Historik</h1>
+<p class="muted small" style="margin:4px 0 14px">Hver tur du har registreret, prissat kvarter for kvarter for den tid den kørte.</p>
+
+@if (_runs.Count == 0)
+{
+    <div class="card">
+        <div class="card-title">Ingen ture endnu</div>
+        <p class="small">Tryk <b>▶ Startet nu</b> ved en maskine på forsiden når du starter den – så lander turen her med sin pris.</p>
+    </div>
+}
+else
+{
+    var month = _runs.Where(r => r.StartedAt >= _monthStart).ToList();
+    var prev = _runs.Where(r => r.StartedAt >= _monthStart.AddMonths(-1) && r.StartedAt < _monthStart).ToList();
+    var savedVsDearest = month.Sum(r => (r.DearestThatDayKr ?? r.CostKr) - r.CostKr);
+    var lostVsCheapest = month.Sum(r => r.CostKr - (r.CheapestThatDayKr ?? r.CostKr));
+
+    <div class="card">
+        <div class="card-title">@_monthStart.ToString("MMMM yyyy", Da)</div>
+        <div class="stat-grid">
+            <div class="stat"><b>@month.Sum(r => r.CostKr).ToString("0.00", Da) kr</b><span>@month.Count ture@(prev.Count > 0 ? $" · sidste md {prev.Sum(r => r.CostKr).ToString("0.00", Da)} kr" : "")</span></div>
+            <div class="stat"><b class="lvl-cheap">@savedVsDearest.ToString("0.00", Da) kr</b><span>sparet ift. dagens dyreste tid</span></div>
+            <div class="stat"><b class="@(lostVsCheapest > 1 ? "lvl-expensive" : "")">@lostVsCheapest.ToString("0.00", Da) kr</b><span>kunne være sparet ved bedste tid</span></div>
+            <div class="stat"><b>@((month.Count > 0 ? month.Average(r => r.AvgKrPerKwh) : 0).ToString("0.00", Da))</b><span>kr/kWh i snit</span></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Pr. maskine (@_monthStart.ToString("MMM", Da))</div>
+        @foreach (var g in month.GroupBy(r => r.ApplianceName).OrderByDescending(g => g.Sum(r => r.CostKr)))
+        {
+            <div class="appl-row" style="padding:6px 0;border-top:1px solid var(--border)">
+                <span>@g.First().Icon @g.Key <span class="muted small">· @g.Count() ture · snit @g.Average(r => r.CostKr).ToString("0.00", Da) kr</span></span>
+                <b>@g.Sum(r => r.CostKr).ToString("0.00", Da) kr</b>
+            </div>
+        }
+        @if (month.Count == 0) { <div class="muted small">Ingen ture denne måned.</div> }
+    </div>
+
+    <div class="card">
+        <div class="card-title">Alle ture</div>
+        @foreach (var day in _runs.GroupBy(r => DateOnly.FromDateTime(r.StartedAt)).OrderByDescending(g => g.Key))
+        {
+            <div class="hist-day">@day.Key.ToString("dddd d. MMM", Da) · @day.Sum(r => r.CostKr).ToString("0.00", Da) kr</div>
+            @foreach (var r in day.OrderByDescending(r => r.StartedAt))
+            {
+                <div class="hist-row">
+                    <span style="font-size:1.3rem">@r.Icon</span>
+                    <span>@r.ApplianceName<br /><span class="muted">kl. @r.StartedAt.ToString("HH:mm")–@r.StartedAt.AddHours(r.DurationHours).ToString("HH:mm") · @r.KwhPerRun.ToString("0.#", Da) kWh · @r.AvgKrPerKwh.ToString("0.00", Da) kr/kWh@(r.CheapestThatDayKr is { } c && c < r.CostKr - 0.05 ? $" · bedst {c.ToString("0.00", Da)}" : "")</span></span>
+                    <b class="@Verdict(r)">@r.CostKr.ToString("0.00", Da) kr</b>
+                    <button class="hist-del" title="Slet" @onclick="() => Delete(r.Id)">✕</button>
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+    private List<RunEntry> _runs = [];
+    private DateTime _monthStart;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        _runs = Store.Get().Runs.OrderByDescending(r => r.StartedAt).ToList();
+        var now = DateTime.Now;
+        _monthStart = new DateTime(now.Year, now.Month, 1);
+    }
+
+    private void Delete(Guid id) { RunLog.Delete(id); Load(); }
+
+    private static string Verdict(RunEntry r)
+    {
+        if (r.CheapestThatDayKr is not { } lo || r.DearestThatDayKr is not { } hi || hi <= lo) return "";
+        var rank = (r.CostKr - lo) / (hi - lo);
+        return rank <= 0.33 ? "lvl-cheap" : rank >= 0.67 ? "lvl-expensive" : "lvl-mid";
+    }
+}

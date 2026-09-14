@@ -9,6 +9,7 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddSingleton(sp => new ElectricityPriceService(new HttpClient(), sp.GetRequiredService<ILogger<ElectricityPriceService>>()));
 builder.Services.AddSingleton<HouseholdStore>();
 builder.Services.AddSingleton<PushService>();
+builder.Services.AddSingleton<RunLogService>();
 builder.Services.AddHostedService<NotificationScheduler>();
 builder.Services.AddSingleton(sp => new EloverblikService(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, sp.GetRequiredService<ILogger<EloverblikService>>()));
 builder.Services.AddSingleton<ConsumptionStore>();

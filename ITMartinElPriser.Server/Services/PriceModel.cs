@@ -134,6 +134,32 @@ public static class PriceModel
         };
     }
 
+    // Price one concrete run starting at `start` (snapped to the 15-min grid).
+    // Null when the price curve does not cover the whole run.
+    public static RunOption? CostOfRun(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateTime start)
+    {
+        var allIn = s.ShowAllIn;
+        var points = raw.Select(p => PriceBreakdownCalculator.Compute(p, s)).OrderBy(p => p.TimeDk).ToList();
+        var slots = Math.Max(1, (int)Math.Round(a.DurationHours * 60 / SlotMinutes));
+        var snapped = new DateTime(start.Year, start.Month, start.Day, start.Hour, start.Minute / SlotMinutes * SlotMinutes, 0);
+        var i = points.FindIndex(p => p.TimeDk == snapped);
+        if (i < 0 || i + slots > points.Count) return null;
+        var run = points.Skip(i).Take(slots).ToList();
+        if (run[^1].TimeDk != snapped.AddMinutes(SlotMinutes * (slots - 1))) return null;
+        var cost = run.Sum(p => p.KrPerKwh(allIn) * a.KwhPerRun / slots);
+        return new RunOption(snapped, snapped.AddHours(a.DurationHours), Math.Round(cost, 2), Math.Round(cost / a.KwhPerRun, 3));
+    }
+
+    // Best and worst start for this appliance on a given day (whole day, no
+    // quiet-hour filter - it is "what could it have cost", not a suggestion).
+    public static (RunOption? Cheapest, RunOption? Dearest) DayRange(List<PricePoint> raw, HouseholdSettings s, Appliance a, DateOnly day)
+    {
+        var options = new List<RunOption>();
+        for (var t = day.ToDateTime(TimeOnly.MinValue); t < day.AddDays(1).ToDateTime(TimeOnly.MinValue); t = t.AddMinutes(SlotMinutes))
+            if (CostOfRun(raw, s, a, t) is { } o) options.Add(o);
+        return (options.MinBy(o => o.CostKr), options.MaxBy(o => o.CostKr));
+    }
+
     public static bool IsQuiet(DateTime t, HouseholdSettings s)
     {
         var h = t.Hour;

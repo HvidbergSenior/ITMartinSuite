@@ -2,6 +2,7 @@
 @using System.Globalization
 @inject ElectricityPriceService Prices
 @inject HouseholdStore Store
+@inject RunLogService RunLog
 @implements IDisposable
 
 <PageTitle>ElPriser</PageTitle>
@@ -66,6 +67,23 @@ else
                 {
                     <div class="appl-row"><span>I morgen kl. @tm.Start.ToString("HH:mm")</span><b>@tm.CostKr.ToString("0.00") kr</b></div>
                 }
+                <div class="run-row">
+                    @if (_logged.TryGetValue(a.Appliance.Id, out var done))
+                    {
+                        <span class="ok">✓ Registreret kl. @done.StartedAt.ToString("HH:mm") – @done.CostKr.ToString("0.00") kr</span>
+                    }
+                    else if (_pickTime == a.Appliance.Id)
+                    {
+                        <input type="time" @bind="_pickedTime" step="900" />
+                        <button class="btn btn-small btn-primary" @onclick="() => LogAsync(a.Appliance, _pickedTime)">Registrér</button>
+                        <button class="btn btn-small" @onclick="() => _pickTime = null">Luk</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-small btn-primary" @onclick="() => LogAsync(a.Appliance, null)">▶ Startet nu</button>
+                        <button class="btn btn-small" @onclick="() => { _pickTime = a.Appliance.Id; _pickedTime = TimeOnly.FromDateTime(DateTime.Now); }">Anden tid</button>
+                    }
+                </div>
             </div>
         }
         <div class="muted small" style="margin-top:8px">Prisen er regnet for hele turen – hvert kvarter maskinen kører, til det kvarters pris. Ret maskinerne under Indstillinger.</div>
@@ -123,6 +141,17 @@ else
     private bool _showTomorrow;
     private DateTime? _selected;
     private Timer? _timer;
+    private readonly Dictionary<Guid, RunEntry> _logged = new();
+    private Guid? _pickTime;
+    private TimeOnly _pickedTime;
+
+    private async Task LogAsync(Appliance a, TimeOnly? at)
+    {
+        var start = at is { } t ? DateTime.Now.Date.Add(t.ToTimeSpan()) : DateTime.Now;
+        var entry = await RunLog.LogAsync(a.Id, start);
+        if (entry is not null) _logged[a.Id] = entry;
+        _pickTime = null;
+    }
 
     protected override async Task OnInitializedAsync()
     {

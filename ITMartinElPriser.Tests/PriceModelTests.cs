@@ -143,3 +143,57 @@ public class BillReconciliationTests
         priced.TotalKrPerKwh.Should().BeApproximately(1.6281, 0.001);
     }
 }
+
+[TestFixture]
+public class RunCostTests
+{
+    private static List<PricePoint> Day(DateOnly date, Func<int, double> spotByHour)
+    {
+        var list = new List<PricePoint>();
+        for (var h = 0; h < 24; h++)
+            for (var q = 0; q < 4; q++)
+            {
+                var t = date.ToDateTime(new TimeOnly(h, q * 15));
+                list.Add(new PricePoint { TimeDk = t, TimeUtc = t.AddHours(-2), PriceKrPerKwh = spotByHour(h) });
+            }
+        return list;
+    }
+
+    private static readonly DateOnly D = new(2026, 9, 14);
+    private static readonly HouseholdSettings Spot = new() { ShowAllIn = false };
+    private static readonly Appliance Wash = new() { Name = "Vaskemaskine", KwhPerRun = 1.0, DurationHours = 2 };
+
+    [Test]
+    public void A_registered_run_is_priced_over_its_whole_duration_from_a_snapped_start()
+    {
+        // 16:00-17:00 at 1.00, 17:00-19:00 at 2.00. Started 16:07 -> snapped to
+        // 16:00; run = 4 slots at 1.00 + 4 slots at 2.00 = 1.50 kr for 1 kWh.
+        var raw = Day(D, h => h >= 17 && h < 19 ? 2.00 : 1.00);
+
+        var run = PriceModel.CostOfRun(raw, Spot, Wash, D.ToDateTime(new TimeOnly(16, 7)));
+
+        run!.Start.Should().Be(D.ToDateTime(new TimeOnly(16, 0)));
+        run.CostKr.Should().Be(1.50);
+        run.AvgKrPerKwh.Should().Be(1.5);
+    }
+
+    [Test]
+    public void Day_range_gives_the_best_and_worst_possible_start_that_day()
+    {
+        var raw = Day(D, h => h >= 17 && h < 19 ? 2.00 : h >= 2 && h < 4 ? 0.20 : 1.00);
+
+        var (cheapest, dearest) = PriceModel.DayRange(raw, Spot, Wash, D);
+
+        cheapest!.Start.Should().Be(D.ToDateTime(new TimeOnly(2, 0)));
+        cheapest.CostKr.Should().Be(0.20);
+        dearest!.Start.Should().Be(D.ToDateTime(new TimeOnly(17, 0)));
+        dearest.CostKr.Should().Be(2.00);
+    }
+
+    [Test]
+    public void A_run_that_would_cross_into_unpublished_hours_cannot_be_priced()
+    {
+        var raw = Day(D, _ => 1.00);
+        PriceModel.CostOfRun(raw, Spot, Wash, D.ToDateTime(new TimeOnly(23, 0))).Should().BeNull();
+    }
+}
