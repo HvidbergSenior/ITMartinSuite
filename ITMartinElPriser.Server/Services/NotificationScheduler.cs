@@ -25,7 +25,7 @@ public sealed class NotificationScheduler(
         await Task.Delay(TimeSpan.FromSeconds(20), ct);
         while (!ct.IsCancellationRequested)
         {
-            try { await RunOnceAsync(DateTime.Now, ct); }
+            try { await RunOnceAsync(DkTime.Now, ct); }
             catch (Exception ex) { logger.LogError(ex, "Notification tick failed"); }
             await Task.Delay(Tick, ct);
         }

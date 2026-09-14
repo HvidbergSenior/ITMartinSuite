@@ -25,7 +25,7 @@ public sealed class ConsumptionSync(
         if (string.IsNullOrWhiteSpace(s.EloverblikToken) || string.IsNullOrWhiteSpace(s.MeteringPointId)) return false;
         try
         {
-            var to = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
+            var to = DateOnly.FromDateTime(DkTime.Now).AddDays(-1);
             var readings = await eloverblik.GetHourlyAsync(s.EloverblikToken, s.MeteringPointId, to.AddDays(-days), to, ct);
             consumption.Merge(readings);
             consumption.LastSyncError = null;

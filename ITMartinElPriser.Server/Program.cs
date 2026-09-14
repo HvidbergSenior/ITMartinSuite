@@ -69,7 +69,7 @@ app.MapPost("/api/push/test", async (UnsubscribeRequest req, HouseholdStore stor
     var sub = store.Get().Subscribers.FirstOrDefault(s => s.Endpoint == req.Endpoint);
     if (sub is null) return Results.NotFound();
     var data = store.Get();
-    var snap = PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DateTime.Now);
+    var snap = PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DkTime.Now);
     var body = snap.NowKrPerKwh is { } p ? $"Lige nu koster strømmen {p:0.00} kr/kWh. Beskeder virker ✓" : "Beskeder virker ✓";
     var ok = await push.SendAsync(sub, new PushService.Message("ElPriser", body));
     return ok ? Results.Ok() : Results.StatusCode(410);
@@ -79,7 +79,7 @@ app.MapPost("/api/push/test", async (UnsubscribeRequest req, HouseholdStore stor
 app.MapGet("/api/snapshot", async (ElectricityPriceService prices, HouseholdStore store) =>
 {
     var data = store.Get();
-    return Results.Ok(PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DateTime.Now));
+    return Results.Ok(PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DkTime.Now));
 });
 
 app.MapRazorComponents<ITMartinElPriser.Server.App>()

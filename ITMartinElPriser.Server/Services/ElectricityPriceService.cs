@@ -22,7 +22,7 @@ public sealed partial class ElectricityPriceService(HttpClient http, ILogger<Ele
     // Tomorrow's prices are published around 13:00; poll a little more often
     // in that window so the app (and the notification scheduler) pick them up
     // within minutes rather than half an hour.
-    private static TimeSpan CacheFor => DateTime.Now.Hour is 12 or 13 ? TimeSpan.FromMinutes(5) : TimeSpan.FromMinutes(30);
+    private static TimeSpan CacheFor => DkTime.Now.Hour is 12 or 13 ? TimeSpan.FromMinutes(5) : TimeSpan.FromMinutes(30);
 
     // Yesterday 00:00 through whatever is published (at most tomorrow 23:45).
     // Returns an empty list - never a made-up curve - when Energinet is down
@@ -35,7 +35,7 @@ public sealed partial class ElectricityPriceService(HttpClient http, ILogger<Ele
                 return cached.Prices;
         }
 
-        var start = DateTime.Now.Date.AddDays(-1).ToString("yyyy-MM-ddTHH:mm");
+        var start = DkTime.Now.Date.AddDays(-1).ToString("yyyy-MM-ddTHH:mm");
         var filter = Uri.EscapeDataString($"{{\"PriceArea\":[\"{priceArea}\"]}}");
         var url = $"{BaseUrl}?start={start}&filter={filter}&sort=TimeUTC%20ASC&limit=400";
 

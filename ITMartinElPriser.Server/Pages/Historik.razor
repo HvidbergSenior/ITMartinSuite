@@ -72,7 +72,7 @@ else
     private void Load()
     {
         _runs = Store.Get().Runs.OrderByDescending(r => r.StartedAt).ToList();
-        var now = DateTime.Now;
+        var now = DkTime.Now;
         _monthStart = new DateTime(now.Year, now.Month, 1);
     }
 

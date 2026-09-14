@@ -122,7 +122,7 @@ public sealed class HouseholdStore
         {
             change(_data);
             // Keep the sent-log from growing forever: three days is plenty.
-            var cutoff = DateTime.Now.AddDays(-3).ToString("yyyy-MM-dd");
+            var cutoff = DkTime.Now.AddDays(-3).ToString("yyyy-MM-dd");
             _data.SentPushes.RemoveAll(s => string.CompareOrdinal(s.Split('|').Last(), cutoff) < 0);
             File.WriteAllText(_path, JsonSerializer.Serialize(_data, JsonOpts));
         }

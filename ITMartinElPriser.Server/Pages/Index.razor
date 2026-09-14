@@ -81,7 +81,7 @@ else
                     else
                     {
                         <button class="btn btn-small btn-primary" @onclick="() => LogAsync(a.Appliance, null)">▶ Startet nu</button>
-                        <button class="btn btn-small" @onclick="() => { _pickTime = a.Appliance.Id; _pickedTime = TimeOnly.FromDateTime(DateTime.Now); }">Anden tid</button>
+                        <button class="btn btn-small" @onclick="() => { _pickTime = a.Appliance.Id; _pickedTime = TimeOnly.FromDateTime(DkTime.Now); }">Anden tid</button>
                     }
                 </div>
             </div>
@@ -147,7 +147,7 @@ else
 
     private async Task LogAsync(Appliance a, TimeOnly? at)
     {
-        var start = at is { } t ? DateTime.Now.Date.Add(t.ToTimeSpan()) : DateTime.Now;
+        var start = at is { } t ? DkTime.Now.Date.Add(t.ToTimeSpan()) : DkTime.Now;
         var entry = await RunLog.LogAsync(a.Id, start);
         if (entry is not null) _logged[a.Id] = entry;
         _pickTime = null;
@@ -167,7 +167,7 @@ else
         var data = Store.Get();
         _area = data.Settings.PriceArea;
         var raw = await Prices.GetPricesAsync(_area);
-        _snap = PriceModel.Build(raw, data, DateTime.Now);
+        _snap = PriceModel.Build(raw, data, DkTime.Now);
     }
 
     public void Dispose() => _timer?.Dispose();

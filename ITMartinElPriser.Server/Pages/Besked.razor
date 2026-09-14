@@ -68,7 +68,7 @@
         @foreach (var s in _others)
         {
             <div class="switch"><span>@(string.IsNullOrWhiteSpace(s.Name) ? "Uden navn" : s.Name) <span class="muted small">· @(s.NotifyCheapest ? "billigst" : "")@(s.NotifyCheapest && s.NotifyExpensive ? " + " : "")@(s.NotifyExpensive ? "dyrest" : "")</span></span>
-                <span class="muted small">@(s.LastSentAt is { } l ? "sidst " + l.ToLocalTime().ToString("d/M HH:mm") : "ingen sendt endnu")</span></div>
+                <span class="muted small">@(s.LastSentAt is { } l ? "sidst " + DkTime.FromUtc(l).ToString("d/M HH:mm") : "ingen sendt endnu")</span></div>
         }
     </div>
 }

@@ -87,7 +87,7 @@ else
             <span>I alt</span><b>@_days.Sum(x => x.CostKr).ToString("0.00", Da) kr</b>
         </div>
         <div class="muted small" style="margin-top:8px">
-            Sidst hentet @(Consumption.LastSyncUtc?.ToLocalTime().ToString("d/M HH:mm") ?? "aldrig").
+            Sidst hentet @((Consumption.LastSyncUtc is { } lsu ? DkTime.FromUtc(lsu).ToString("d/M HH:mm") : null) ?? "aldrig").
             <button class="link" style="background:none;border:none;color:var(--accent);cursor:pointer;font:inherit" @onclick="ResyncAsync" disabled="@_busy">@(_busy ? "Henter…" : "Hent igen")</button>
             @if (Consumption.LastSyncError is { } err) { <span class="err"> – @err</span> }
         </div>
@@ -119,7 +119,7 @@ else
         var data = Store.Get();
         var s = data.Settings;
         var rows = new List<DayRow>();
-        var latest = Consumption.LatestDay ?? DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
+        var latest = Consumption.LatestDay ?? DateOnly.FromDateTime(DkTime.Now).AddDays(-1);
 
         for (var i = 0; i < 7; i++)
         {
