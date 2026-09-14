@@ -148,7 +148,7 @@ else
             foreach (var f in _newFiles)
             {
                 await using var s = f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024);
-                var m = await Media.SaveAsync(_piece.Slug, new MediaStore.Pending(f.Name, s));
+                var m = await Media.SaveAsync(_piece.Folder, new MediaStore.Pending(f.Name, s));
                 m.StepId = step.Id;
                 step.Media.Add(m);
             }

@@ -38,7 +38,7 @@ public class MediaStoreTests
         m.IsVideo.Should().BeFalse();
         m.RelativePath.Should().StartWith("stol-abc123/").And.EndWith(".jpg");
         File.Exists(Path.Combine(_root, m.RelativePath)).Should().BeTrue();
-        m.ThumbPath.Should().NotBeNull();
+        m.ThumbPath.Should().Be("stol-abc123/thumbnails/" + Path.GetFileNameWithoutExtension(m.RelativePath) + ".jpg");
         using var thumb = await Image.LoadAsync(Path.Combine(_root, m.ThumbPath!));
         thumb.Width.Should().Be(480);
         thumb.Height.Should().Be(360);
@@ -53,6 +53,20 @@ public class MediaStoreTests
         m.IsVideo.Should().BeTrue();
         m.ThumbPath.Should().BeNull();
         m.RelativePath.Should().EndWith(".mov");
+    }
+
+    [Test]
+    public void Folder_name_is_the_title_made_filesystem_safe_and_unique()
+    {
+        _store.NewFolderFor("Lænestol grøn: Marianne").Should().Be("Lænestol grøn  Marianne".Replace("  ", " "));
+        _store.NewFolderFor("Lænestol grøn: Marianne").Should().Be("Lænestol grøn Marianne (2)");
+        _store.NewFolderFor("   ").Should().Be("Møbel");
+    }
+
+    [Test]
+    public void Url_escapes_folder_names_with_spaces_and_danish_letters()
+    {
+        MediaStore.Url("Lænestol grøn/thumbnails/a.jpg").Should().Be("/media/L%C3%A6nestol%20gr%C3%B8n/thumbnails/a.jpg");
     }
 
     [Test]

@@ -21,9 +21,12 @@ public sealed class Piece
     // makes an old job findable when she meets the same problem again.
     public string Techniques { get; set; } = string.Empty;
 
-    // Folder name for this piece's media on disk - derived from Title once,
-    // never changed, so a rename can't orphan files.
+    // URL key (random suffix so it is unguessable on the public /vis page).
     public string Slug { get; set; } = string.Empty;
+
+    // Media folder under the media root, named after the title at creation
+    // (see MediaStore.NewFolderFor) and never renamed afterwards.
+    public string Folder { get; set; } = string.Empty;
 
     public List<Step> Steps { get; set; } = [];
 

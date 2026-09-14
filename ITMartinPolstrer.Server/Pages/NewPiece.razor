@@ -77,14 +77,15 @@
                 InstructedBy = _instructedBy.Trim(),
                 Instructions = _instructions.Trim(),
                 Deadline = _deadline,
-                Slug = PieceSlug.From(_title)
+                Slug = PieceSlug.From(_title),
+                Folder = Media.NewFolderFor(_title)
             };
 
             var step = new Step { PieceId = piece.Id, Note = "Modtaget" };
             foreach (var f in _files)
             {
                 await using var s = f.OpenReadStream(maxAllowedSize: 200 * 1024 * 1024);
-                var m = await Media.SaveAsync(piece.Slug, new MediaStore.Pending(f.Name, s));
+                var m = await Media.SaveAsync(piece.Folder, new MediaStore.Pending(f.Name, s));
                 m.StepId = step.Id;
                 step.Media.Add(m);
             }
