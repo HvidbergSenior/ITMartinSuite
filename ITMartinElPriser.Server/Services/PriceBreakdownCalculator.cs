@@ -7,6 +7,7 @@ public sealed class PricedPoint
     public double SpotKrPerKwh { get; set; }
     public double NettarifKrPerKwh { get; set; }
     public double ElafgiftKrPerKwh { get; set; }
+    public double EnerginetTarifKrPerKwh { get; set; }
     public double LeverandoertillaegKrPerKwh { get; set; }
     public double MomsKrPerKwh { get; set; }
     public double TotalKrPerKwh { get; set; }
@@ -20,6 +21,10 @@ public static class PriceBreakdownCalculator
 {
     // Reduced to the EU minimum by Finanslov 2026, valid 2026-2027 (skat.dk).
     public const double ElafgiftKrPerKwh = 0.008;
+    // Energinet transmissionsnettarif (4.30 øre) + systemtarif (7.20 øre), ex
+    // moms, 2026 - the same for everyone regardless of supplier or grid
+    // company. Read off an NRGi bill 2026-09 (5.38 + 9.00 øre inkl. moms).
+    public const double EnerginetTarifKrPerKwh = 0.1150;
     private const double MomsRate = 0.25;
 
     public static PricedPoint Compute(PricePoint point, HouseholdSettings settings)
@@ -27,7 +32,7 @@ public static class PriceBreakdownCalculator
         var nettarifKr = GetNettarifOre(point.TimeDk, settings) / 100.0;
         var tillaegKr = GetTillaegOre(settings) / 100.0;
 
-        var subtotal = point.PriceKrPerKwh + nettarifKr + ElafgiftKrPerKwh + tillaegKr;
+        var subtotal = point.PriceKrPerKwh + nettarifKr + EnerginetTarifKrPerKwh + ElafgiftKrPerKwh + tillaegKr;
         var total = subtotal * (1 + MomsRate);
 
         return new PricedPoint
@@ -38,6 +43,7 @@ public static class PriceBreakdownCalculator
             NettarifKrPerKwh = Math.Round(nettarifKr, 4),
             ElafgiftKrPerKwh = ElafgiftKrPerKwh,
             LeverandoertillaegKrPerKwh = Math.Round(tillaegKr, 4),
+            EnerginetTarifKrPerKwh = EnerginetTarifKrPerKwh,
             MomsKrPerKwh = Math.Round(total - subtotal, 4),
             TotalKrPerKwh = Math.Round(total, 4),
         };

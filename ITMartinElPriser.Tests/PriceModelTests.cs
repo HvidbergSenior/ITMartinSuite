@@ -123,3 +123,23 @@ public class PriceModelTests
         PriceModel.IsQuiet(Today.ToDateTime(new TimeOnly(hour, 0)), s).Should().Be(quiet);
     }
 }
+
+[TestFixture]
+public class BillReconciliationTests
+{
+    // Straight off the household's NRGi "Min aftale" page, Sept 2026, all
+    // inkl. moms: tillæg 9, transmission 5.38, system 9, elafgift 1,
+    // nettarif (N1, summer) 13.43 = 37.81 øre on top of spot x 1.25.
+    [Test]
+    public void All_in_price_matches_the_real_nrgi_n1_bill_lines()
+    {
+        var settings = new HouseholdSettings { SupplierId = "nrgi-time", GridCompanyId = "n1" };
+        var summerDay = new PricePoint { TimeDk = new DateTime(2026, 9, 14, 12, 0, 0), PriceKrPerKwh = 1.0000 };
+
+        var priced = PriceBreakdownCalculator.Compute(summerDay, settings);
+
+        var nonSpotInklMoms = (priced.TotalKrPerKwh - 1.0 * 1.25) * 100;
+        nonSpotInklMoms.Should().BeApproximately(37.81, 0.05);
+        priced.TotalKrPerKwh.Should().BeApproximately(1.6281, 0.001);
+    }
+}

@@ -30,8 +30,11 @@ public sealed class GridCompanyPreset
         },
         new()
         {
-            Id = "n1", Name = "N1", Region = "Nordjylland og Midtjylland",
-            WinterLavOre = 19.49, WinterHojOre = 19.49, WinterSpidslastOre = 19.49, MonthlySubscriptionKr = 35.15,
+            // Lav = 13.43 øre inkl. moms on a Sept 2026 NRGi/N1 bill (10.74 ex). Winter
+            // høj/spids use the standard 1:3:9 band ratios until a winter bill confirms
+            // the real figures. Forbrugsabonnement 46.15 kr/md inkl. moms.
+            Id = "n1", Name = "N1", Region = "Nordjylland og Midtjylland (Aarhus)",
+            WinterLavOre = 10.74, WinterHojOre = 32.2, WinterSpidslastOre = 96.7, MonthlySubscriptionKr = 36.92,
         },
         new()
         {
@@ -70,6 +73,8 @@ public sealed class SupplierPreset
 
     public static readonly IReadOnlyList<SupplierPreset> All =
     [
+        // NRGi Time: 9 øre/kWh inkl. moms tillæg, 29 kr/md (Sept 2026 aftale page).
+        new() { Id = "nrgi-time", Name = "NRGi Time", MarkupOreExVat = 7.2, MonthlySubscriptionKr = 23.2 },
         new() { Id = "norlys-flexel", Name = "Norlys FlexEl", MarkupOreExVat = 9.70, MonthlySubscriptionKr = 29 },
         new() { Id = "andel-flexenergi", Name = "Andel Energi FlexEnergi", MarkupOreExVat = 11.66, MonthlySubscriptionKr = 20 },
         new() { Id = "vindstoed-danskvind", Name = "Vindstød DanskVind", MarkupOreExVat = 0.5, MonthlySubscriptionKr = 0 },

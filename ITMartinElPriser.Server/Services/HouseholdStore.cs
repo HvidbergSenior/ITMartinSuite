@@ -9,7 +9,7 @@ public sealed class HouseholdSettings
     public bool ShowAllIn { get; set; } = true;
     public string GridCompanyId { get; set; } = "n1";
     public double CustomNettarifOre { get; set; } = 25;
-    public string SupplierId { get; set; } = "norlys-flexel";
+    public string SupplierId { get; set; } = "nrgi-time";
     public double CustomTillaegOre { get; set; }
     // Hours nobody would start a machine anyway - windows are not suggested
     // inside them, so "cheapest" is cheapest when someone is actually up.
