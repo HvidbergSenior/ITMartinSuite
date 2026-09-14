@@ -1,168 +1,83 @@
-using ITMartin.Ai;
-using ITMartin.Ai.Interfaces;
 using ITMartinElPriser.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddHttpClient<ElectricityPriceService>();
-builder.Services.AddSingleton<PriceHistoryStore>();
-builder.Services.AddSingleton<RunLogStore>();
-builder.Services.AddSingleton<PriceSettingsStore>();
-builder.Services.AddAi();
+builder.Services.AddSingleton<HouseholdStore>();
+builder.Services.AddSingleton<PushService>();
+builder.Services.AddHostedService<NotificationScheduler>();
 
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
+{
     app.UseExceptionHandler("/Error");
+}
 
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-// ── Settings (grid company + supplier presets, first-run onboarding) ───────
+// ── Push subscription API (called from wwwroot/js/push.js) ──────────────────
 
-app.MapGet("/api/settings/presets", () => Results.Ok(new
+app.MapGet("/api/push/public-key", (PushService push) => Results.Text(push.PublicKey));
+
+app.MapPost("/api/push/subscribe", (SubscribeRequest req, HouseholdStore store) =>
 {
-    GridCompanies = GridCompanyPreset.All,
-    Suppliers = SupplierPreset.All,
-}));
-
-app.MapGet("/api/settings", (PriceSettingsStore store) => Results.Ok(store.Get()));
-
-app.MapPost("/api/settings", async (PriceSettingsStore store, HttpContext ctx) =>
-{
-    var settings = await ctx.Request.ReadFromJsonAsync<PriceSettings>();
-    if (settings is null) return Results.BadRequest();
-
-    store.Save(settings);
-    return Results.Ok(settings);
-});
-
-// Bill scan: photo of an elregning in, best-guess settings out. The user still
-// confirms/adjusts before it's saved - this is a starting point, not an
-// auto-apply, since a misread number would silently skew every price shown.
-app.MapPost("/api/bill-scan", async (IElBillExtractionService ai, HttpRequest req) =>
-{
-    if (!req.HasFormContentType) return Results.BadRequest();
-
-    var form = await req.ReadFormAsync();
-    var file = form.Files.GetFile("bill");
-    if (file is null || file.Length == 0) return Results.BadRequest();
-
-    var tempPath = Path.Combine(Path.GetTempPath(), $"elbill-{Guid.NewGuid()}{Path.GetExtension(file.FileName)}");
-
-    try
+    if (string.IsNullOrWhiteSpace(req.Endpoint)) return Results.BadRequest();
+    PushSubscriber? sub = null;
+    store.Update(d =>
     {
-        await using (var stream = File.Create(tempPath))
-            await file.CopyToAsync(stream);
-
-        var extracted = await ai.ExtractFromImageAsync(tempPath);
-        return Results.Ok(extracted);
-    }
-    finally
-    {
-        if (File.Exists(tempPath)) File.Delete(tempPath);
-    }
-});
-
-// ── Prices ───────────────────────────────────────────────────────────────────
-
-app.MapGet("/api/prices", async (ElectricityPriceService svc, PriceSettingsStore settingsStore, string area = "DK1") =>
-{
-    var settings = settingsStore.Get();
-    var prices = await svc.GetPricesAsync(area);
-    return Results.Ok(prices.Select(p => PriceBreakdownCalculator.Compute(p, settings)));
-});
-
-app.MapGet("/api/cheapest-window", async (ElectricityPriceService svc, PriceSettingsStore settingsStore, int hours, string area = "DK1") =>
-{
-    var settings = settingsStore.Get();
-    var prices = await svc.GetPricesAsync(area);
-    var priced = prices.Select(p => PriceBreakdownCalculator.Compute(p, settings)).ToList();
-    var window = PriceBreakdownCalculator.FindCheapestWindow(priced, hours);
-    return window is null ? Results.NotFound() : Results.Ok(window);
-});
-
-app.MapGet("/api/weekly-pattern", (PriceHistoryStore history, string area = "DK1") =>
-    Results.Ok(new { Days = history.DaysOfHistory(area), Pattern = history.GetWeeklyPattern(area) }));
-
-// Estimated yearly cost under each supplier preset, holding the grid company
-// and usage estimate fixed - lets you see whether switching supplier would
-// actually save money, without having to touch your real settings first.
-app.MapGet("/api/supplier-comparison", async (ElectricityPriceService svc, PriceSettingsStore settingsStore, string area = "DK1") =>
-{
-    var settings = settingsStore.Get();
-    var prices = await svc.GetPricesAsync(area);
-    var gridPreset = GridCompanyPreset.All.FirstOrDefault(g => g.Id == settings.GridCompanyId);
-    var gridMonthlyKr = gridPreset?.Id == "custom" ? 0 : gridPreset?.MonthlySubscriptionKr ?? 0;
-
-    var results = SupplierPreset.All
-        .Where(s => s.Id != "custom")
-        .Select(supplier =>
+        sub = d.Subscribers.FirstOrDefault(s => s.Endpoint == req.Endpoint);
+        if (sub is null)
         {
-            var trial = new PriceSettings
-            {
-                GridCompanyId = settings.GridCompanyId,
-                CustomNettarifOre = settings.CustomNettarifOre,
-                SupplierId = supplier.Id,
-                AnnualUsageKwh = settings.AnnualUsageKwh,
-            };
-
-            var avgTotal = prices.Select(p => PriceBreakdownCalculator.Compute(p, trial)).Average(h => h.TotalKrPerKwh);
-            var estYearlyKr = avgTotal * settings.AnnualUsageKwh + (supplier.MonthlySubscriptionKr + gridMonthlyKr) * 12;
-
-            return new
-            {
-                supplier.Id,
-                supplier.Name,
-                AvgTotalKrPerKwh = Math.Round(avgTotal, 3),
-                EstYearlyCostKr = Math.Round(estYearlyKr, 0),
-                IsCurrent = supplier.Id == settings.SupplierId,
-            };
-        })
-        .OrderBy(r => r.EstYearlyCostKr)
-        .ToList();
-
-    return Results.Ok(results);
-});
-
-// ── Run log (device start tracking + cost) ──────────────────────────────────
-
-app.MapPost("/api/runs", async (ElectricityPriceService priceSvc, PriceSettingsStore settingsStore, RunLogStore runs, HttpContext ctx) =>
-{
-    var body = await ctx.Request.ReadFromJsonAsync<LogRunBody>();
-    if (body is null || string.IsNullOrWhiteSpace(body.Device) || body.EstKwh <= 0)
-        return Results.BadRequest();
-
-    var settings = settingsStore.Get();
-    var prices = await priceSvc.GetPricesAsync(body.Area ?? "DK1");
-    var now = prices
-        .Where(p => p.TimeDk <= DateTime.Now)
-        .OrderByDescending(p => p.TimeDk)
-        .FirstOrDefault();
-
-    var currentPrice = now is null ? 0 : PriceBreakdownCalculator.Compute(now, settings).TotalKrPerKwh;
-    var run = runs.Add(body.Device, body.EstKwh, currentPrice);
-    return Results.Ok(run);
-});
-
-app.MapGet("/api/runs", (RunLogStore runs) =>
-{
-    var (runsWeek, costWeek, runsMonth, costMonth) = runs.GetTotals();
-    return Results.Ok(new
-    {
-        Recent = runs.GetRecent(30),
-        RunsThisWeek = runsWeek,
-        CostThisWeekKr = costWeek,
-        RunsThisMonth = runsMonth,
-        CostThisMonthKr = costMonth,
+            sub = new PushSubscriber { Endpoint = req.Endpoint };
+            d.Subscribers.Add(sub);
+        }
+        sub.P256dh = req.P256dh;
+        sub.Auth = req.Auth;
+        sub.Name = string.IsNullOrWhiteSpace(req.Name) ? sub.Name : req.Name.Trim();
+        sub.NotifyCheapest = req.NotifyCheapest;
+        sub.NotifyExpensive = req.NotifyExpensive;
     });
+    return Results.Ok(new { id = sub!.Id });
+}).DisableAntiforgery();
+
+app.MapPost("/api/push/unsubscribe", (UnsubscribeRequest req, HouseholdStore store) =>
+{
+    store.Update(d => d.Subscribers.RemoveAll(s => s.Endpoint == req.Endpoint));
+    return Results.Ok();
+}).DisableAntiforgery();
+
+app.MapGet("/api/push/status", (string endpoint, HouseholdStore store) =>
+{
+    var s = store.Get().Subscribers.FirstOrDefault(x => x.Endpoint == endpoint);
+    return s is null ? Results.NotFound() : Results.Ok(new { s.Name, s.NotifyCheapest, s.NotifyExpensive });
 });
 
-// ── Blazor (static SSR only - no interactive render mode anywhere) ──────────
+// "Send mig en test" - proves the whole chain on this phone right now.
+app.MapPost("/api/push/test", async (UnsubscribeRequest req, HouseholdStore store, PushService push, ElectricityPriceService prices) =>
+{
+    var sub = store.Get().Subscribers.FirstOrDefault(s => s.Endpoint == req.Endpoint);
+    if (sub is null) return Results.NotFound();
+    var data = store.Get();
+    var snap = PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DateTime.Now);
+    var body = snap.NowKrPerKwh is { } p ? $"Lige nu koster strømmen {p:0.00} kr/kWh. Beskeder virker ✓" : "Beskeder virker ✓";
+    var ok = await push.SendAsync(sub, new PushService.Message("ElPriser", body));
+    return ok ? Results.Ok() : Results.StatusCode(410);
+}).DisableAntiforgery();
 
-app.MapRazorComponents<ITMartinElPriser.Server.App>();
+// Plain JSON for anyone who wants the numbers (or for tests).
+app.MapGet("/api/snapshot", async (ElectricityPriceService prices, HouseholdStore store) =>
+{
+    var data = store.Get();
+    return Results.Ok(PriceModel.Build(await prices.GetPricesAsync(data.Settings.PriceArea), data, DateTime.Now));
+});
+
+app.MapRazorComponents<ITMartinElPriser.Server.App>()
+    .AddInteractiveServerRenderMode();
 
 app.Run();
 
-record LogRunBody(string Device, double EstKwh, string? Area);
+public sealed record SubscribeRequest(string Endpoint, string P256dh, string Auth, string? Name, bool NotifyCheapest, bool NotifyExpensive);
+public sealed record UnsubscribeRequest(string Endpoint);

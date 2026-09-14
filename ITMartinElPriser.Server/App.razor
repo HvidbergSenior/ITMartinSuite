@@ -8,14 +8,30 @@
         })();
     </script>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ElPriser" />
     <title>ElPriser</title>
     <base href="/" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
     <link rel="stylesheet" href="app.css?v=@CacheBuster" />
     <link rel="stylesheet" href="ITMartinElPriser.Server.styles.css?v=@CacheBuster" />
 </head>
 <body>
-    <Routes />
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.server.js"></script>
+    <script src="js/push.js?v=@CacheBuster"></script>
+    <script>
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+    </script>
+    <div id="components-reconnect-modal">
+        <span class="reconnect-msg">Forbinder igen...</span>
+        <span class="reconnect-failed-msg">Forbindelsen er tabt — <button onclick="location.reload()">Genindlæs</button></span>
+    </div>
     <script>
     (function(){
         var vid = localStorage.getItem('_mid');
@@ -30,34 +46,6 @@
             }).catch(function(){});
         }
         track(location.pathname + location.search, document.title, document.referrer);
-        document.addEventListener('click', function(e) {
-            var a = e.target.closest('a');
-            if (!a || !a.href || a.href.startsWith('javascript')) return;
-            var href = a.getAttribute('href') || a.href;
-            track('click:' + href, a.textContent.trim().slice(0, 80), location.pathname);
-        }, true);
-    })();
-    </script>
-
-    <button id="themeToggleBtn" title="Skift lys/mørk visning"
-            style="position:fixed;bottom:20px;right:20px;z-index:9999;width:52px;height:52px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
-        🌓
-    </button>
-    <script>
-    (function () {
-        var btn = document.getElementById('themeToggleBtn');
-        function sync() {
-            var current = document.documentElement.getAttribute('data-theme') || 'dark';
-            btn.textContent = current === 'light' ? '🌙' : '☀️';
-        }
-        btn.addEventListener('click', function () {
-            var current = document.documentElement.getAttribute('data-theme') || 'dark';
-            var next = current === 'light' ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('elpriser_theme', next);
-            sync();
-        });
-        sync();
     })();
     </script>
 </body>

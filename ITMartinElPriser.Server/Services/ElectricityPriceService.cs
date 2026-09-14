@@ -2,167 +2,69 @@ using System.Text.Json.Serialization;
 
 namespace ITMartinElPriser.Server.Services;
 
+// One 15-minute slot of the day-ahead market. The Danish market went from
+// hourly to quarter-hourly in 2025; Energinet's old "Elspotprices" dataset
+// now returns nothing, "DayAheadPrices" is the live one.
 public sealed class PricePoint
 {
     public DateTime TimeUtc { get; set; }
     public DateTime TimeDk { get; set; }
     public double PriceKrPerKwh { get; set; }
-    public bool IsEstimated { get; set; }
 }
 
-public sealed class CheapWindow
+public sealed class ElectricityPriceService(HttpClient http, ILogger<ElectricityPriceService> logger)
 {
-    public DateTime Start { get; set; }
-    public DateTime End { get; set; }
-    public double AvgPriceKrPerKwh { get; set; }
-    public bool IsEstimated { get; set; }
-}
-
-public sealed class ElectricityPriceService
-{
-    private readonly HttpClient _http;
-    private readonly ILogger<ElectricityPriceService> _logger;
-    private readonly PriceHistoryStore _history;
-
-    // Energi Data Service (Energinet) - free, public, no API key. Prices published
-    // in DKK per MWh; divide by 1000 to get the kr/kWh figure people actually see
-    // on their electricity bill.
-    private const string BaseUrl = "https://api.energidataservice.dk/dataset/Elspotprices";
+    private const string BaseUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices";
 
     private readonly Dictionary<string, (List<PricePoint> Prices, DateTime FetchedAtUtc)> _cache = new();
     private readonly object _lock = new();
 
-    public ElectricityPriceService(HttpClient http, ILogger<ElectricityPriceService> logger, PriceHistoryStore history)
-    {
-        _http = http;
-        _logger = logger;
-        _history = history;
-    }
+    // Tomorrow's prices are published around 13:00; poll a little more often
+    // in that window so the app (and the notification scheduler) pick them up
+    // within minutes rather than half an hour.
+    private static TimeSpan CacheFor => DateTime.Now.Hour is 12 or 13 ? TimeSpan.FromMinutes(5) : TimeSpan.FromMinutes(30);
 
-    public async Task<List<PricePoint>> GetPricesAsync(string priceArea = "DK1")
+    // Yesterday 00:00 through whatever is published (at most tomorrow 23:45).
+    // Returns an empty list - never a made-up curve - when Energinet is down
+    // and nothing is cached: the UI says so instead of showing fake prices.
+    public async Task<List<PricePoint>> GetPricesAsync(string priceArea = "DK1", CancellationToken ct = default)
     {
         lock (_lock)
         {
-            if (_cache.TryGetValue(priceArea, out var cached) &&
-                DateTime.UtcNow - cached.FetchedAtUtc < TimeSpan.FromMinutes(30))
-            {
+            if (_cache.TryGetValue(priceArea, out var cached) && DateTime.UtcNow - cached.FetchedAtUtc < CacheFor)
                 return cached.Prices;
-            }
         }
 
-        var start = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-ddTHH:mm");
+        var start = DateTime.Now.Date.AddDays(-1).ToString("yyyy-MM-ddTHH:mm");
         var filter = Uri.EscapeDataString($"{{\"PriceArea\":[\"{priceArea}\"]}}");
-        var url = $"{BaseUrl}?start={start}&filter={filter}&sort=HourUTC%20ASC&limit=200";
+        var url = $"{BaseUrl}?start={start}&filter={filter}&sort=TimeUTC%20ASC&limit=400";
 
         try
         {
-            var response = await _http.GetFromJsonAsync<EnergiDataResponse>(url);
-
+            var response = await http.GetFromJsonAsync<EnergiDataResponse>(url, ct);
             var prices = (response?.Records ?? [])
+                .Where(r => r.DayAheadPriceDKK is not null)
                 .Select(r => new PricePoint
                 {
-                    TimeUtc = r.HourUTC,
-                    TimeDk = r.HourDK,
-                    PriceKrPerKwh = r.SpotPriceDKK / 1000.0,
+                    TimeUtc = DateTime.SpecifyKind(r.TimeUTC, DateTimeKind.Utc),
+                    TimeDk = DateTime.SpecifyKind(r.TimeDK, DateTimeKind.Unspecified),
+                    PriceKrPerKwh = r.DayAheadPriceDKK!.Value / 1000.0,
                 })
                 .OrderBy(p => p.TimeUtc)
                 .ToList();
 
-            // Energinet answers 200 OK with an empty array when it simply has
-            // nothing published yet for the window - treat that the same as a
-            // failure so we fall through to cache/estimate instead of caching
-            // "no prices" for the next 30 minutes.
             if (prices.Count == 0)
                 throw new InvalidOperationException("Energinet returned no records for this window.");
 
-            lock (_lock)
-            {
-                _cache[priceArea] = (prices, DateTime.UtcNow);
-            }
-
-            // Only merge hours that have already happened - tomorrow's published
-            // prices aren't "observed" yet and would skew the weekly pattern.
-            _history.Merge(priceArea, prices.Where(p => p.TimeDk <= DateTime.Now).ToList());
-
+            lock (_lock) _cache[priceArea] = (prices, DateTime.UtcNow);
             return prices;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch electricity prices for {PriceArea}", priceArea);
-
-            // Never show a blank screen: fall back to whatever we last had in
-            // memory, then to a typical-week estimate built from history, then
-            // to a generic day-shape curve if this is a brand new install.
+            logger.LogError(ex, "Failed to fetch electricity prices for {PriceArea}", priceArea);
             lock (_lock)
-            {
-                if (_cache.TryGetValue(priceArea, out var stale))
-                    return stale.Prices;
-            }
-
-            var estimated = _history.EstimateUpcoming(priceArea, hours: 48);
-            return estimated.Count > 0 ? estimated : FallbackPriceCurve.Generate();
+                return _cache.TryGetValue(priceArea, out var stale) ? stale.Prices : [];
         }
-    }
-
-    // Best contiguous window of the given length, from the current hour onward -
-    // no point recommending a cheap window that already passed today.
-    public CheapWindow? FindCheapestWindow(List<PricePoint> prices, int hours)
-    {
-        var upcoming = prices.Where(p => p.TimeDk >= DateTime.Now.AddMinutes(-59)).ToList();
-        if (upcoming.Count < hours) return null;
-
-        CheapWindow? best = null;
-
-        for (var i = 0; i + hours <= upcoming.Count; i++)
-        {
-            var slice = upcoming.Skip(i).Take(hours).ToList();
-            var avg = slice.Average(p => p.PriceKrPerKwh);
-
-            if (best is null || avg < best.AvgPriceKrPerKwh)
-            {
-                best = new CheapWindow
-                {
-                    Start = slice[0].TimeDk,
-                    End = slice[^1].TimeDk.AddHours(1),
-                    AvgPriceKrPerKwh = avg,
-                    IsEstimated = slice.Any(p => p.IsEstimated),
-                };
-            }
-        }
-
-        return best;
-    }
-}
-
-// Last-resort fallback for a brand new install (or a prolonged outage) that has
-// no live data and no history yet to estimate from. A rough but plausible
-// Danish day-shape so the app never renders a blank price chart.
-internal static class FallbackPriceCurve
-{
-    private static readonly double[] HourlyMultiplier =
-    [
-        0.55, 0.5, 0.48, 0.48, 0.5, 0.6,
-        0.75, 0.95, 1.05, 1.0, 0.9, 0.85,
-        0.8, 0.78, 0.8, 0.85, 0.95, 1.15,
-        1.35, 1.3, 1.1, 0.9, 0.75, 0.65,
-    ];
-
-    private const double BasePriceKrPerKwh = 1.8;
-
-    public static List<PricePoint> Generate(int hours = 48)
-    {
-        var start = DateTime.Now;
-
-        return Enumerable.Range(0, hours)
-            .Select(i => start.AddHours(i))
-            .Select(t => new PricePoint
-            {
-                TimeDk = t,
-                TimeUtc = t.ToUniversalTime(),
-                PriceKrPerKwh = Math.Round(BasePriceKrPerKwh * HourlyMultiplier[t.Hour], 2),
-                IsEstimated = true,
-            })
-            .ToList();
     }
 }
 
@@ -174,9 +76,9 @@ internal sealed class EnergiDataResponse
 
 internal sealed class EnergiDataRecord
 {
-    public DateTime HourUTC { get; set; }
-    public DateTime HourDK { get; set; }
+    public DateTime TimeUTC { get; set; }
+    public DateTime TimeDK { get; set; }
     public string PriceArea { get; set; } = "";
-    public double SpotPriceDKK { get; set; }
-    public double? SpotPriceEUR { get; set; }
+    public double? DayAheadPriceDKK { get; set; }
+    public double? DayAheadPriceEUR { get; set; }
 }

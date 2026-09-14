@@ -1,0 +1,156 @@
+@page "/besked"
+@inject IJSRuntime JS
+@inject HouseholdStore Store
+
+<PageTitle>Besked – ElPriser</PageTitle>
+
+<h1>Besked på telefonen</h1>
+<p class="muted small" style="margin:4px 0 14px">Få en besked en time før dagens billigste strøm – så du kan nå at fylde vaskemaskinen.</p>
+
+<div class="card">
+    @switch (_state)
+    {
+        case null:
+            <div class="muted">Tjekker…</div>
+            break;
+
+        case "unsupported":
+            <div class="err">Denne browser kan ikke modtage beskeder. Prøv Chrome på Android eller Safari på iPhone.</div>
+            break;
+
+        case "ios-needs-homescreen":
+            <div class="note">
+                <b>På iPhone skal appen først på hjemmeskærmen:</b><br />
+                Tryk på <b>Del</b> (firkanten med pilen) nederst i Safari → <b>Føj til hjemmeskærm</b> → åbn ElPriser derfra og kom tilbage hertil.
+            </div>
+            break;
+
+        case "denied":
+            <div class="err">Beskeder er blokeret for denne side i telefonens indstillinger. Slå dem til der, og genindlæs.</div>
+            break;
+
+        default:
+            <div class="field">
+                <label>Hvem er du? (så I kan se hvem der er tilmeldt)</label>
+                <input type="text" @bind="_name" placeholder="fx Martin" disabled="@(_state == "on")" />
+            </div>
+            <div class="switch">
+                <span>🟢 En time før dagens <b>billigste</b> strøm</span>
+                <input type="checkbox" @bind="_cheapest" />
+            </div>
+            <div class="switch">
+                <span>🔴 En time før dagens <b>dyreste</b> strøm</span>
+                <input type="checkbox" @bind="_expensive" />
+            </div>
+
+            @if (_state == "on")
+            {
+                <div class="ok" style="margin-top:10px">✓ Denne telefon får beskeder@(string.IsNullOrWhiteSpace(_name) ? "" : $" ({_name})")</div>
+                <div class="btn-row">
+                    <button class="btn" @onclick="SaveAsync" disabled="@_busy">Gem valg</button>
+                    <button class="btn" @onclick="TestAsync" disabled="@_busy">Send test</button>
+                </div>
+                <button class="btn btn-danger btn-block" @onclick="UnsubscribeAsync" disabled="@_busy">Stop beskeder på denne telefon</button>
+            }
+            else
+            {
+                <button class="btn btn-primary btn-block" @onclick="SubscribeAsync" disabled="@_busy">@(_busy ? "Vent…" : "Slå beskeder til")</button>
+            }
+            @if (_msg is not null) { <div class="note">@_msg</div> }
+            break;
+    }
+</div>
+
+@if (_others.Count > 0)
+{
+    <div class="card">
+        <div class="card-title">Tilmeldte telefoner</div>
+        @foreach (var s in _others)
+        {
+            <div class="switch"><span>@(string.IsNullOrWhiteSpace(s.Name) ? "Uden navn" : s.Name) <span class="muted small">· @(s.NotifyCheapest ? "billigst" : "")@(s.NotifyCheapest && s.NotifyExpensive ? " + " : "")@(s.NotifyExpensive ? "dyrest" : "")</span></span>
+                <span class="muted small">@(s.LastSentAt is { } l ? "sidst " + l.ToLocalTime().ToString("d/M HH:mm") : "ingen sendt endnu")</span></div>
+        }
+    </div>
+}
+
+<div class="card">
+    <div class="card-title">Sådan virker det</div>
+    <div class="small muted">
+        Hver dag ca. kl. 13 kommer morgendagens priser. Appen finder det billigste tidspunkt at køre den første maskine (@Store.Get().Appliances.FirstOrDefault()?.Name) og sender en besked én time før. Beskeden viser hvad turen koster, så du kan se om det er værd at vente.
+    </div>
+</div>
+
+@code {
+    private string? _state;
+    private string _name = "";
+    private bool _cheapest = true;
+    private bool _expensive;
+    private bool _busy;
+    private string? _msg;
+    private List<PushSubscriber> _others = [];
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try
+        {
+            _state = await JS.InvokeAsync<string>("elpush.state");
+            if (_state == "on")
+            {
+                var endpoint = await JS.InvokeAsync<string?>("elpush.endpoint");
+                var me = Store.Get().Subscribers.FirstOrDefault(s => s.Endpoint == endpoint);
+                if (me is not null) { _name = me.Name; _cheapest = me.NotifyCheapest; _expensive = me.NotifyExpensive; }
+                else _state = "off"; // browser has a subscription the server forgot - re-subscribe
+            }
+        }
+        catch { _state = "unsupported"; }
+        _others = Store.Get().Subscribers.OrderBy(s => s.Name).ToList();
+        StateHasChanged();
+    }
+
+    private async Task SubscribeAsync()
+    {
+        _busy = true; _msg = null;
+        try
+        {
+            _state = await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive);
+            _msg = _state == "on" ? "Tilmeldt. Tryk 'Send test' for at se at det virker." : _state == "denied" ? "Du sagde nej til beskeder – slå dem til i telefonens indstillinger." : "Noget gik galt – prøv igen.";
+            _others = Store.Get().Subscribers.OrderBy(s => s.Name).ToList();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        try
+        {
+            await JS.InvokeAsync<string>("elpush.subscribe", _name, _cheapest, _expensive);
+            _msg = "Gemt.";
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task TestAsync()
+    {
+        _busy = true; _msg = null;
+        try
+        {
+            var ok = await JS.InvokeAsync<bool>("elpush.test");
+            _msg = ok ? "Test sendt – den dukker op om et øjeblik." : "Kunne ikke sende. Prøv at slå beskeder fra og til igen.";
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task UnsubscribeAsync()
+    {
+        _busy = true;
+        try
+        {
+            _state = await JS.InvokeAsync<string>("elpush.unsubscribe");
+            _msg = "Beskeder stoppet på denne telefon.";
+            _others = Store.Get().Subscribers.OrderBy(s => s.Name).ToList();
+        }
+        finally { _busy = false; }
+    }
+}

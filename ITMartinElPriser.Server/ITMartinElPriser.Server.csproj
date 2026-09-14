@@ -5,11 +5,13 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>ITMartinElPriser.Server</RootNamespace>
-        <AssemblyName>ITMartinElPriser.Server</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ITMartin.Ai\ITMartin.Ai.csproj" />
+        <PackageReference Include="WebPush" Version="1.0.12" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\ITMartin.Shared.UI\ITMartin.Shared.UI.csproj" />
     </ItemGroup>
 

@@ -1,24 +1,19 @@
 namespace ITMartinElPriser.Server.Services;
 
-public sealed class PricedHour
+public sealed class PricedPoint
 {
     public DateTime TimeUtc { get; set; }
     public DateTime TimeDk { get; set; }
-    public bool IsEstimated { get; set; }
     public double SpotKrPerKwh { get; set; }
     public double NettarifKrPerKwh { get; set; }
     public double ElafgiftKrPerKwh { get; set; }
     public double LeverandoertillaegKrPerKwh { get; set; }
     public double MomsKrPerKwh { get; set; }
     public double TotalKrPerKwh { get; set; }
-}
 
-public sealed class PricedCheapWindow
-{
-    public DateTime Start { get; set; }
-    public DateTime End { get; set; }
-    public double AvgTotalKrPerKwh { get; set; }
-    public bool IsEstimated { get; set; }
+    // What the household actually pays per kWh in this slot - all-in, or
+    // just spot if they asked for that in settings.
+    public double KrPerKwh(bool allIn) => allIn ? TotalKrPerKwh : SpotKrPerKwh;
 }
 
 public static class PriceBreakdownCalculator
@@ -27,7 +22,7 @@ public static class PriceBreakdownCalculator
     public const double ElafgiftKrPerKwh = 0.008;
     private const double MomsRate = 0.25;
 
-    public static PricedHour Compute(PricePoint point, PriceSettings settings)
+    public static PricedPoint Compute(PricePoint point, HouseholdSettings settings)
     {
         var nettarifKr = GetNettarifOre(point.TimeDk, settings) / 100.0;
         var tillaegKr = GetTillaegOre(settings) / 100.0;
@@ -35,51 +30,20 @@ public static class PriceBreakdownCalculator
         var subtotal = point.PriceKrPerKwh + nettarifKr + ElafgiftKrPerKwh + tillaegKr;
         var total = subtotal * (1 + MomsRate);
 
-        return new PricedHour
+        return new PricedPoint
         {
             TimeUtc = point.TimeUtc,
             TimeDk = point.TimeDk,
-            IsEstimated = point.IsEstimated,
             SpotKrPerKwh = point.PriceKrPerKwh,
             NettarifKrPerKwh = Math.Round(nettarifKr, 4),
             ElafgiftKrPerKwh = ElafgiftKrPerKwh,
             LeverandoertillaegKrPerKwh = Math.Round(tillaegKr, 4),
             MomsKrPerKwh = Math.Round(total - subtotal, 4),
-            TotalKrPerKwh = Math.Round(total, 3),
+            TotalKrPerKwh = Math.Round(total, 4),
         };
     }
 
-    // Best contiguous window by the all-in total price, not just the raw spot
-    // price - a time-differentiated nettarif can change which hour is really
-    // cheapest once spidslast is factored in.
-    public static PricedCheapWindow? FindCheapestWindow(List<PricedHour> hours, int windowHours)
-    {
-        var upcoming = hours.Where(h => h.TimeDk >= DateTime.Now.AddMinutes(-59)).ToList();
-        if (upcoming.Count < windowHours) return null;
-
-        PricedCheapWindow? best = null;
-
-        for (var i = 0; i + windowHours <= upcoming.Count; i++)
-        {
-            var slice = upcoming.Skip(i).Take(windowHours).ToList();
-            var avg = slice.Average(h => h.TotalKrPerKwh);
-
-            if (best is null || avg < best.AvgTotalKrPerKwh)
-            {
-                best = new PricedCheapWindow
-                {
-                    Start = slice[0].TimeDk,
-                    End = slice[^1].TimeDk.AddHours(1),
-                    AvgTotalKrPerKwh = Math.Round(avg, 3),
-                    IsEstimated = slice.Any(h => h.IsEstimated),
-                };
-            }
-        }
-
-        return best;
-    }
-
-    private static double GetTillaegOre(PriceSettings settings)
+    private static double GetTillaegOre(HouseholdSettings settings)
     {
         if (settings.SupplierId == "custom") return settings.CustomTillaegOre;
 
@@ -92,7 +56,7 @@ public static class PriceBreakdownCalculator
     // Weekends and the summer half (Apr-Sep) are simplified down to the "lav"
     // rate - real summer schedules are flatter but far less consistently
     // published than the winter ones, so this errs cheap/simple over guessing.
-    private static double GetNettarifOre(DateTime timeDk, PriceSettings settings)
+    private static double GetNettarifOre(DateTime timeDk, HouseholdSettings settings)
     {
         if (settings.GridCompanyId == "custom") return settings.CustomNettarifOre;
 
