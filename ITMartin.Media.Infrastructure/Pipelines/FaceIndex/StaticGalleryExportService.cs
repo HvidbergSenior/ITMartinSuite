@@ -285,6 +285,12 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
 
     private sealed record SmartFolderLink(string Kind, string Label, string Href, string? CoverThumbPath);
 
+    private static readonly HashSet<string> GeneratedSmartFolderSets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "People", "Yearbook", "Trips", "Traditioner", "BedsteBillede", "UkendtePersoner",
+        "Home", "Outside", "Hjemme", "Ude", "Kameraer", "Steder", "thumbnails",
+    };
+
     // Builds one browsable, thumbnail-backed page per SmartFolders leaf (each
     // person, Home/Outside, each trip) by resolving every symlink back to its
     // real file and reusing the thumbnail already generated for it in the main
@@ -393,6 +399,18 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
                 var cover = Directory.EnumerateFiles(yearDir).FirstOrDefault(IsWebSafeImage);
                 links.Add(new SmartFolderLink("aarbog", $"Årbog {year}", href, cover));
             }
+        }
+
+        // Hand-curated albums: any folder straight under SmartFolders that is
+        // not one of the generated sets (first one "Trøstebog Evia", 2026-09-15,
+        // a source folder the family wanted kept together as its own view).
+        // Same rule as gallery-web's KnownSmartFolderSets - keep the two lists
+        // in step; the on-disk name is the album's title in both.
+        foreach (var albumDir in Directory.EnumerateDirectories(smartFoldersRoot).OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+        {
+            var name = Path.GetFileName(albumDir);
+            if (name.StartsWith('.') || GeneratedSmartFolderSets.Contains(name)) continue;
+            await AddPageAsync("album", name, name, Directory.EnumerateFiles(albumDir));
         }
 
         return links;
@@ -923,6 +941,7 @@ public sealed class StaticGalleryExportService : IStaticGalleryExportService
         }
         sb.AppendLine("</div>");
 
+        AppendSmartFolderSection(sb, "Album", "album", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Årbøger", "aarbog", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Traditioner", "tradition", smartFolderLinks, galleryRoot, libraryPath);
         AppendSmartFolderSection(sb, "Personer", "person", smartFolderLinks, galleryRoot, libraryPath);

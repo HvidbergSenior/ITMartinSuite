@@ -95,6 +95,19 @@ var ViewOnlyRootFolders = new (string Name, string Rel, string Icon, int Row)[]
     ("Dokumenter", "Dokumenter", "📄", 3),
 };
 
+// SmartFolders subfolders that are either listed above or are generated
+// machinery (BedsteBillede feeds collections.json, UkendtePersoner is
+// unreviewed clusters, Home/Outside is a coarse split). Anything else
+// sitting directly under SmartFolders is a hand-curated album - first one
+// "Trøstebog Evia" (2026-09-15), a source folder the family wanted kept
+// together as its own view next to the derived sets - and gets its own card
+// on the view-only front page, named exactly as the folder on disk.
+var KnownSmartFolderSets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "People", "Yearbook", "Trips", "Traditioner", "BedsteBillede", "UkendtePersoner",
+    "Home", "Outside", "Hjemme", "Ude", "Kameraer", "Steder", "thumbnails",
+};
+
 // Friendly Danish labels for the root-level folders that do stay visible -
 // the folder name on disk never changes (other pipeline code depends on the
 // exact name), this only changes what is displayed to the viewer.
@@ -537,6 +550,16 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
             .Where(v => Directory.Exists(v.Full) && HasAnyMediaFile(v.Full))
             .Select(v => new FolderEntry(v.Name, v.Rel, FolderCover(v.Full, r, g.Slug), v.Row, v.Icon))
             .ToList();
+
+        var smartRoot = Path.Combine(r, "SmartFolders");
+        if (Directory.Exists(smartRoot))
+        {
+            folders.AddRange(Directory.EnumerateDirectories(smartRoot)
+                .Where(d => !IsSystemFolder(d) && !KnownSmartFolderSets.Contains(Path.GetFileName(d)))
+                .Where(HasAnyMediaFile)
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                .Select(d => new FolderEntry(Path.GetFileName(d), NormalizeRel(Rel(d, r)), FolderCover(d, r, g.Slug), 2, "📖")));
+        }
     }
 
     // Musik folders are full of Windows Media Player's cached album art
@@ -654,7 +677,9 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
         var relNow = NormalizeRel(Rel(current, r));
         if (parentRel is not null && parentRel.Equals("SmartFolders", StringComparison.OrdinalIgnoreCase))
             parentRel = "";
-        title = ViewOnlyRootFolders.FirstOrDefault(v => v.Rel.Equals(relNow, StringComparison.OrdinalIgnoreCase)).Name;
+        title = ViewOnlyRootFolders.FirstOrDefault(v => v.Rel.Equals(relNow, StringComparison.OrdinalIgnoreCase)).Name
+            // A curated album straight under SmartFolders is titled by its folder name.
+            ?? (parentRel == "" ? Path.GetFileName(current) : null);
     }
 
     var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title };
