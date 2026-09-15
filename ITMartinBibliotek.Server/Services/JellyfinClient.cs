@@ -55,6 +55,12 @@ public sealed class JellyfinClient(IHttpClientFactory httpFactory, SettingsStore
         return string.IsNullOrEmpty(b) ? "" : $"{b}/Items/{jellyfinId}/Images/Primary?maxWidth=400";
     }
 
+    public async Task<string> HomeUrlAsync()
+    {
+        var b = await PublicBaseAsync();
+        return string.IsNullOrEmpty(b) ? "" : $"{b}/web/";
+    }
+
     public async Task<string> PlayUrlAsync(string jellyfinId)
     {
         var b = await PublicBaseAsync();

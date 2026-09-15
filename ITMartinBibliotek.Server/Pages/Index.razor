@@ -1,5 +1,7 @@
 @page "/"
 @inject IDbContextFactory<BibliotekDbContext> DbFactory
+@inject JellyfinClient Jellyfin
+@inject NavigationManager Nav
 
 <PageTitle>Samling – Bibliotek</PageTitle>
 
@@ -29,10 +31,10 @@
 <input type="search" placeholder="Søg titel, kunstner eller stregkode" @bind="_query" @bind:event="oninput" />
 
 <div class="filter-row">
-    <button class="chip @(_kind is null ? "chip-on" : "")" @onclick="() => _kind = null">Alle</button>
-    <button class="chip @(_kind == MediaKind.Film ? "chip-on" : "")" @onclick="() => _kind = MediaKind.Film">Film</button>
-    <button class="chip @(_kind == MediaKind.Serie ? "chip-on" : "")" @onclick="() => _kind = MediaKind.Serie">Serier</button>
-    <button class="chip @(_kind == MediaKind.Musik ? "chip-on" : "")" @onclick="() => _kind = MediaKind.Musik">Musik</button>
+    <button class="chip @(_kind is null ? "chip-on" : "")" @onclick="() => SetKind(null)">Alle</button>
+    <button class="chip @(_kind == MediaKind.Film ? "chip-on" : "")" @onclick="() => SetKind(MediaKind.Film)">Film <b>@Count(MediaKind.Film)</b></button>
+    <button class="chip @(_kind == MediaKind.Serie ? "chip-on" : "")" @onclick="() => SetKind(MediaKind.Serie)">Serier <b>@Count(MediaKind.Serie)</b></button>
+    <button class="chip @(_kind == MediaKind.Musik ? "chip-on" : "")" @onclick="() => SetKind(MediaKind.Musik)">Musik <b>@Count(MediaKind.Musik)</b></button>
     <span class="chip-gap"></span>
     <button class="chip @(_status == MediaStatus.Ejet ? "chip-on" : "")" @onclick="() => Toggle(MediaStatus.Ejet)">Kun på hylden</button>
     <button class="chip @(_status == MediaStatus.Rippet ? "chip-on" : "")" @onclick="() => Toggle(MediaStatus.Rippet)">Rippet</button>
@@ -58,7 +60,8 @@ else
     <div class="grid">
         @foreach (var i in shown)
         {
-            <a class="tile" href="/titel/@i.Id">
+            <div class="tile">
+              <a class="tile-link" href="/titel/@i.Id">
                 <div class="tile-cover">
                     @if (!string.IsNullOrEmpty(i.CoverUrl))
                     {
@@ -72,7 +75,13 @@ else
                     @if (!string.IsNullOrEmpty(i.Artist)) { <text>@i.Artist · </text> }
                     @FormatText(i.Format)@(i.Year is { } y ? $" · {y}" : "")
                 </div>
-            </a>
+              </a>
+              @* One tap from the shelf to playback - the detail page is for editing, not for watching. *@
+              @if (i.Kind != MediaKind.Musik && i.JellyfinId != "" && _playBase != "")
+              {
+                  <a class="tile-play" href="@(_playBase + i.JellyfinId)" target="_blank" rel="noopener">▶ Afspil</a>
+              }
+            </div>
         }
     </div>
 }
@@ -80,14 +89,40 @@ else
 @code {
     private List<MediaItem>? _all;
     private string _query = "";
-    private MediaKind? _kind;
+    private MediaKind? _kind = MediaKind.Film;
     private MediaStatus? _status;
+    private string _playBase = "";
+
+    // The kind filter lives in the URL (/?kind=musik) so Back from a title lands on the
+    // same shelf, and the default is Film - that is what you open the app to watch.
+    [SupplyParameterFromQuery(Name = "kind")] public string? KindText { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        _all = await db.Items.OrderBy(i => i.Title).ToListAsync();
+        // Film and series first, music last: two films must not drown in 2,000 albums.
+        _all = await db.Items.OrderBy(i => i.Kind == MediaKind.Musik ? 1 : 0).ThenBy(i => i.Title).ToListAsync();
+        _playBase = await Jellyfin.PlayUrlAsync("");
     }
+
+    protected override void OnParametersSet()
+    {
+        _kind = KindText switch
+        {
+            "alle" => null,
+            "serier" => MediaKind.Serie,
+            "musik" => MediaKind.Musik,
+            _ => MediaKind.Film
+        };
+    }
+
+    private void SetKind(MediaKind? k)
+    {
+        var text = k switch { null => "alle", MediaKind.Serie => "serier", MediaKind.Musik => "musik", _ => "film" };
+        Nav.NavigateTo($"/?kind={text}", replace: true);
+    }
+
+    private int Count(MediaKind k) => _all?.Count(i => i.Kind == k) ?? 0;
 
     private void Toggle(MediaStatus s) => _status = _status == s ? null : s;
 

@@ -65,7 +65,7 @@ p { margin: 0 0 10px; }
 
 /* ---- grid of covers ---- */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-.tile { color: var(--ink); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tile { display: flex; flex-direction: column; min-width: 0; }
 .tile-cover {
     position: relative; aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden;
     background: var(--surface-2); border: 1px solid var(--border);
@@ -211,3 +211,11 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 #components-reconnect-modal.components-reconnect-show .reconnect-msg { display: block; }
 #components-reconnect-modal.components-reconnect-failed .reconnect-failed-msg { display: block; }
 #components-reconnect-modal button { margin-left: 8px; }
+
+/* ---- play straight from the shelf ---- */
+.tile-link { color: var(--ink); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tile-play {
+    margin-top: 6px; text-align: center; font-size: 13px; font-weight: 600;
+    background: var(--ok-soft); color: var(--ok); border-radius: 8px; padding: 6px 0;
+}
+.chip b { font-weight: 600; opacity: .7; margin-left: 2px; }

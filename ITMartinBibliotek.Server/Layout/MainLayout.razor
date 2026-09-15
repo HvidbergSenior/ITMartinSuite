@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject JellyfinClient Jellyfin
 
 <div class="page">
     @Body
@@ -7,5 +8,17 @@
 <nav class="bottom-nav">
     <NavLink href="/" Match="NavLinkMatch.All"><span>💿</span>Samling</NavLink>
     <NavLink href="/scan" class="nav-primary"><span>📷</span>Scan</NavLink>
-    <NavLink href="/indstillinger"><span>⚙️</span>Jellyfin</NavLink>
+    @* Straight into Jellyfin - the settings page used to sit behind this label, which
+       is not what you expect when you just want to watch something. *@
+    @if (_jellyfinUrl != "")
+    {
+        <a href="@_jellyfinUrl" target="_blank" rel="noopener"><span>▶️</span>Jellyfin</a>
+    }
+    <NavLink href="/indstillinger"><span>⚙️</span>Indstillinger</NavLink>
 </nav>
+
+@code {
+    private string _jellyfinUrl = "";
+
+    protected override async Task OnInitializedAsync() => _jellyfinUrl = await Jellyfin.HomeUrlAsync();
+}
