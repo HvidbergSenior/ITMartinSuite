@@ -77,7 +77,7 @@ else
                 </div>
               </a>
               @* One tap from the shelf to playback - the detail page is for editing, not for watching. *@
-              @if (i.Kind != MediaKind.Musik && i.JellyfinId != "" && _playBase != "")
+              @if (i.JellyfinId != "" && _playBase != "")
               {
                   <a class="tile-play" href="@(_playBase + i.JellyfinId)" target="_blank" rel="noopener">▶ Afspil</a>
               }
