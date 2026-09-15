@@ -53,6 +53,9 @@ html[data-theme="light"] {
 html[data-theme="light"] .studio-topbar {
     background: rgba(255,255,255,.92);
 }
+html[data-theme="light"] .studio-tabs {
+    background: rgba(255,255,255,.92);
+}
 html[data-theme="light"] .meta-select option {
     background: #ffffff;
     color: #14161f;
@@ -864,60 +867,32 @@ html, body {
     letter-spacing: .08em;
 }
 
-/* ── Two-phase bar: 1 Trin → 2 Indspil ── */
-.phase-bar {
+/* ── Studio tabs ── */
+.studio-tabs {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     background: rgba(10,13,20,.97);
     position: sticky;
     top: 60px;
     z-index: 40;
 }
-html[data-theme="light"] .phase-bar { background: rgba(255,255,255,.92); }
-.phase {
+.studio-tab {
     flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    background: var(--card);
-    border: 2px solid var(--border);
-    border-radius: 14px;
+    padding: 13px 8px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
     color: var(--muted);
-    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    transition: border-color .15s, background .15s;
+    transition: all .15s;
 }
-.phase:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
-.phase--active { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
-.phase--done .phase-num { background: var(--green); color: #052e16; }
-.phase--locked { opacity: .5; cursor: not-allowed; }
-.phase--rec { border-color: var(--red); }
-.phase--rec .phase-num { background: var(--red); color: #fff; animation: phase-pulse 1s infinite; }
-@keyframes phase-pulse { 50% { opacity: .5; } }
-.phase-num {
-    width: 34px; height: 34px; flex-shrink: 0;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--border);
-    color: var(--text);
-    font-weight: 800; font-size: 15px;
-}
-.phase--active .phase-num { background: var(--accent); color: #fff; }
-.phase-text { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
-.phase-title { font-size: 15px; font-weight: 700; }
-.phase-sub { font-size: 12px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.phase-arrow { color: var(--muted); font-size: 20px; font-weight: 700; }
-@media (max-width: 640px) {
-    .phase-bar { padding: 8px 10px; gap: 6px; }
-    .phase { padding: 8px 10px; gap: 8px; }
-    .phase-num { width: 28px; height: 28px; font-size: 13px; }
-    .phase-title { font-size: 14px; }
-    .phase-sub { font-size: 11px; }
-}
+.studio-tab:hover { color: var(--text); }
+.studio-tab--active { color: var(--text); border-bottom-color: var(--accent); }
+.studio-tab--rec { color: var(--red) !important; }
+.studio-tab--locked { opacity: .45; cursor: not-allowed; }
+.studio-tab--locked:hover { color: var(--muted); }
 
 /* ── Step checklist (Skriv sang / Indøv sang) ── */
 .step-checklist { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0; }
@@ -1264,6 +1239,7 @@ html[data-theme="light"] .phase-bar { background: rgba(255,255,255,.92); }
     .perform-chord-btn { font-size: 20px; padding: 10px 22px; }
 }
 @media (max-width: 640px) {
+    .studio-tab { font-size: 12px; padding: 11px 4px; }
     .perform-page { padding: 10px 12px 80px; }
     .perform-word { font-size: 20px; }
     .perform-plain-line { font-size: 20px; }
@@ -1531,3 +1507,60 @@ html[data-theme="light"] .phase-bar { background: rgba(255,255,255,.92); }
     display: block;
     margin-bottom: 3px;
 }
+
+/* ── SkrivSange wizard + list (moved out of SongWriter.razor) ── */
+    .sw-page {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 24px 16px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+    .sw-header { display: flex; flex-direction: column; gap: 6px; }
+    .sw-title { font-size: 26px; font-weight: 900; margin-top: 12px; }
+    .sw-sub { color: var(--muted); font-size: 14px; }
+    .sw-section { display: flex; flex-direction: column; gap: 12px; }
+    .sw-step-label { font-size: 12px; font-weight: 700; text-transform: uppercase;
+                     letter-spacing: .08em; color: var(--muted); }
+    .sw-cards { display: flex; flex-direction: column; gap: 10px; }
+    .sw-card {
+        background: var(--card);
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+        text-align: left;
+        cursor: pointer;
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        transition: border-color .15s;
+    }
+    .sw-card:hover { border-color: var(--accent); }
+    .sw-card--active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+    .sw-card-mood { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: .07em; color: var(--muted); }
+    .sw-card--active .sw-card-mood { color: var(--accent); }
+    .sw-card-chords { font-size: 18px; font-weight: 700; }
+    .sw-card-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .sw-input {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+        color: var(--text);
+        font-size: 16px;
+        width: 100%;
+        outline: none;
+    }
+    .sw-input:focus { border-color: var(--accent); }
+    .sw-bpm-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+    .sw-bpm-chip { background: var(--card); border: 2px solid var(--border); border-radius: 12px;
+                   padding: 12px 18px; cursor: pointer; color: var(--text); display: flex;
+                   flex-direction: column; align-items: center; gap: 2px; min-width: 80px; transition: border-color .15s; }
+    .sw-bpm-chip:hover { border-color: var(--accent); }
+    .sw-bpm-chip--active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+    .sw-bpm-num { font-size: 20px; font-weight: 800; }
+    .sw-bpm-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    a.sw-card { text-decoration: none; }

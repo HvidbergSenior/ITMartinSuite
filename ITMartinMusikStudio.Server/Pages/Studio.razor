@@ -57,37 +57,57 @@ else if (_song is not null)
                    value="@_song.Tempo" @onchange="OnTempoChanged" />
         </div>
     </div>
-
-    <!-- Tab bar -->
-    <div class="studio-tabs">
-        <button class="studio-tab @(_tab == "forbered" ? "studio-tab--active" : "")"
-                @onclick='() => _tab = "forbered"'>🔍 Forbered</button>
-        <button class="studio-tab @(_tab == "spilleguide" ? "studio-tab--active" : "") @(_recording ? "studio-tab--rec" : "")"
-                @onclick='() => _tab = "spilleguide"'>🎼 Øv & Spil@(_recording ? " ●" : "")</button>
-        <button class="studio-tab @(_tab == "optag" ? "studio-tab--active" : "") @(!_readyToRecord ? "studio-tab--locked" : "")"
+    <!-- Two phases, in order: 1 Trin (get chords/lyrics/pattern in place),
+         2 Indspil (record). Phase 2 stays locked until every step in phase 1
+         is Done or marked "ikke nødvendig". -->
+    @{
+        var stepsToDo = _steps.Where(s => s.Key != "version").ToList();
+        var stepsDone = stepsToDo.Count(s => s.Status != StepStatus.NotStarted);
+    }
+    <div class="phase-bar">
+        <button class="phase @(_tab == "forbered" ? "phase--active" : "") @(_readyToRecord ? "phase--done" : "")"
+                @onclick='() => _tab = "forbered"'>
+            <span class="phase-num">@(_readyToRecord ? "✓" : "1")</span>
+            <span class="phase-text">
+                <span class="phase-title">Trin</span>
+                <span class="phase-sub">@stepsDone af @stepsToDo.Count klar</span>
+            </span>
+        </button>
+        <span class="phase-arrow">→</span>
+        <button class="phase @(_tab == "optag" ? "phase--active" : "") @(!_readyToRecord ? "phase--locked" : "") @(_recording ? "phase--rec" : "")"
                 disabled="@(!_readyToRecord && _tab != "optag")"
-                title="@(_readyToRecord ? "" : "Fuldfør tjeklisten ovenfor først")"
-                @onclick='() => _tab = "optag"'>⭐ Indspil@(!_readyToRecord ? " 🔒" : "")@(_recording ? " ●" : "")</button>
+                title="@(_readyToRecord ? "" : "Gør trinnene færdige først")"
+                @onclick='() => _tab = "optag"'>
+            <span class="phase-num">@(_recording ? "●" : _readyToRecord ? "2" : "🔒")</span>
+            <span class="phase-text">
+                <span class="phase-title">Indspil</span>
+                <span class="phase-sub">@(_recording ? "Optager " + FormatRecTime(_recTimer) : _readyToRecord ? "Klar til optagelse" : "Låst")</span>
+            </span>
+        </button>
     </div>
 
-    <!-- Step checklist - visible across all three tabs, so it's always clear
-         what's ready and what's still missing before recording unlocks. -->
-    @if (StepPlanner.NextStep(_steps) is { } _next)
+    @if (_tab == "forbered")
     {
-        <div class="next-step-banner">
-            <span>👉 Næste: <strong>@_next.Label</strong></span>
-            <button class="btn-primary" @onclick="() => NavigateToStep(_next)">Gå dertil →</button>
-        </div>
+        @if (_readyToRecord)
+        {
+            <div class="next-step-banner next-step-banner--ready">
+                <span>✓ Alle trin klar</span>
+                <button class="btn-primary" @onclick='() => _tab = "optag"'>Videre til Indspil →</button>
+            </div>
+        }
+        else if (StepPlanner.NextStep(_steps) is { } _next)
+        {
+            <div class="next-step-banner">
+                <span>👉 Næste: <strong>@_next.Label</strong></span>
+                <button class="btn-primary" @onclick="() => NavigateToStep(_next)">Gå dertil →</button>
+            </div>
+        }
+        <StepChecklist Steps="_steps" OnToggle="ToggleStep" OnNavigate="NavigateToStep" />
     }
-    else if (_readyToRecord)
-    {
-        <div class="next-step-banner next-step-banner--ready">✓ Alt klar — gå til ⭐ Indspil</div>
-    }
-    <StepChecklist Steps="_steps" OnToggle="ToggleStep" OnNavigate="NavigateToStep" />
 
     <!-- Persistent Spotify mini-control - the full card (search/link UI) lives
-         in Forbered only, but play/stop needs to work from every tab, since
-         Øv & Spil and Indspil are exactly where you'd want the backing track
+         in Trin only, but play/stop needs to work from both phases, since
+         Indspil is exactly where you'd want the backing track
          playing. -->
     @if (Spotify.IsConnected && !string.IsNullOrEmpty(_song.SpotifyTrackId))
     {
@@ -282,7 +302,7 @@ else if (_song is not null)
                 @if (!string.IsNullOrWhiteSpace(_song.Artist))
                 {
                     <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px">
-                        Kendt sang - brug <strong>"📋 Indsæt UG-tab"</strong> i Forbered til venstre; det giver
+                        Kendt sang - brug <strong>"📋 Indsæt UG-tab"</strong> under Trin til venstre; det giver
                         menneske-verificerede akkorder, mere pålideligt end at gætte.
                     </div>
                 }
@@ -296,7 +316,9 @@ else if (_song is not null)
                 <textarea class="chord-editor" rows="8"
                           value="@_chordEdit"
                           @oninput="e => { _chordEdit = e.Value?.ToString() ?? _chordEdit; AutoSave(); }"
-                          placeholder="Verse: Am G F E&#10;Chorus: C G Am F&#10;Bridge: Dm Am E Am"></textarea>
+                          placeholder="Verse: Am G F E
+Chorus: C G Am F
+Bridge: Dm Am E Am"></textarea>
             </div>
 
             <!-- Patterns -->
@@ -327,7 +349,8 @@ else if (_song is not null)
                     <textarea class="chord-editor pattern-edit" rows="2"
                               value="@_strumEdit"
                               @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
-                              placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –&#10;TAK:  1 + 2 + 3 + 4 +"></textarea>
+                              placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –
+TAK:  1 + 2 + 3 + 4 +"></textarea>
                 }
                 else
                 {
@@ -336,13 +359,16 @@ else if (_song is not null)
                     <textarea class="chord-editor pattern-edit" rows="3"
                               value="@_fingerpickEdit"
                               @oninput="e => { _fingerpickEdit = e.Value?.ToString() ?? _fingerpickEdit; AutoSave(); }"
-                              placeholder="FINGRE:  T  i  m  a  i  m  a  i&#10;STRENGE: 6  2  3  1  2  3  1  2&#10;TIP: ..."></textarea>
+                              placeholder="FINGRE:  T  i  m  a  i  m  a  i
+STRENGE: 6  2  3  1  2  3  1  2
+TIP: ..."></textarea>
                     <div class="card-label-sm" style="margin:8px 0 4px">Strumming</div>
                     @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
                     <textarea class="chord-editor pattern-edit" rows="2"
                               value="@_strumEdit"
                               @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
-                              placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –&#10;TAK:  1 + 2 + 3 + 4 +"></textarea>
+                              placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –
+TAK:  1 + 2 + 3 + 4 +"></textarea>
                 }
             </div>
 
@@ -368,7 +394,7 @@ else if (_song is not null)
                 @if (!string.IsNullOrWhiteSpace(_song.Artist))
                 {
                     <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px">
-                        Kendt sang med en artist - brug <strong>"📋 Indsæt UG-tab"</strong> i Forbered-panelet til venstre.
+                        Kendt sang med en artist - brug <strong>"📋 Indsæt UG-tab"</strong> under Trin til venstre.
                         Ultimate Guitar giver akkorder og tekst i ét, samme format hver gang.
                     </div>
                 }
@@ -382,7 +408,15 @@ else if (_song is not null)
                 <textarea class="lyrics-editor" rows="14"
                           value="@_lyricsEdit"
                           @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; SyncChordsFromLyrics(); AutoSave(); }"
-                          placeholder="Skriv sektioner på egne linjer - fx Verse, Chorus, Vers 1, Omkvæd (med eller uden [ ]).&#10;Brug [Am]ord for akkorder i teksten.&#10;&#10;Eksempel:&#10;Verse&#10;[Am]I hope you don't mind [F]I put down in words...&#10;&#10;Chorus&#10;[C]How wonderful [G]life is..."></textarea>
+                          placeholder="Skriv sektioner på egne linjer - fx Verse, Chorus, Vers 1, Omkvæd (med eller uden [ ]).
+Brug [Am]ord for akkorder i teksten.
+
+Eksempel:
+Verse
+[Am]I hope you don't mind [F]I put down in words...
+
+Chorus
+[C]How wonderful [G]life is..."></textarea>
                 <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-top:4px">
                     Sektioner (Verse, Chorus, Bridge, Intro, Outro, Instrumental, Vocal/Vocal 2, Vers 1, Omkvæd, Bro, osv.) skal stå alene på deres egen linje - med eller uden [ ].
                     "[Headline]" og "[Comment: ...]" skal altid have [ ] for at blive genkendt.
@@ -508,358 +542,6 @@ else if (_song is not null)
     </div>
     }
 
-    <!-- ════════════════ TAB: SPILLEGUIDE ════════════════ -->
-    @if (_tab == "spilleguide")
-    {
-    <div class="perform-page @(_focusMode ? "perform-page--focus" : "")">
-
-        <!-- Essential strip: always visible, even in focus mode - the things
-             you still need mid-song (record, beat, get back to the extras). -->
-        <div class="perform-controls perform-controls--essential">
-            <button class="btn-ghost-sm @(_focusMode ? "active" : "")"
-                    @onclick='() => _focusMode = !_focusMode'
-                    title="@(_focusMode ? "Vis akkorder, mønstre og hjælp igen" : "Vis kun sangteksten - skjul akkorder, mønstre og hjælp")">
-                @(_focusMode ? "◀ Vis alt" : "🎯 Kun tekst")
-            </button>
-            <button class="btn-ghost-sm @(_beat >= 0 ? "active" : "")"
-                    @onclick="ToggleBeat" disabled="@(_song.Tempo is not > 0)"
-                    title="@(_song.Tempo is not > 0 ? "Sæt en tempo (BPM) under Forbered for at bruge beat-markøren" : _beat >= 0 ? "Slå beat-markør fra" : "Slå beat-markør til - banker takten efter sangens tempo")">
-                🥁 Beat
-            </button>
-            @if (_beat >= 0)
-            {
-                <div class="beat-strip">
-                    @for (int b = 0; b < 4; b++)
-                    {
-                        <div class="beat-dot @(_beat == b ? "beat-dot--on" : "")">@(b + 1)</div>
-                    }
-                </div>
-                <span class="beat-total" title="Løbende beat-tal siden takten startede - det tal du markerer linjer med">Beat @_totalBeats</span>
-            }
-            @if (!_recording)
-            {
-                @if (_recordings.Count >= MaxTakes)
-                {
-                    <span style="font-size:0.8rem;color:#f59e0b">⚠ @MaxTakes takes nået</span>
-                }
-                else
-                {
-                    <button class="btn-record" style="padding:6px 16px;font-size:0.9rem"
-                            @onclick="StartRecording">⏺ Optag (@(_recordings.Count + 1)/@MaxTakes)</button>
-                }
-            }
-            else
-            {
-                <button class="btn-stop btn-stop--pulse" style="padding:6px 16px;font-size:0.9rem"
-                        @onclick="StopRecording">⏹ @FormatRecTime(_recTimer)</button>
-            }
-        </div>
-
-        @if (!_focusMode)
-        {
-        <!-- Secondary strip: setup/extras - hidden in focus mode. -->
-        <div class="perform-controls">
-            <div class="transpose-row">
-                <span class="t-label" style="color:#64748b">½t</span>
-                <button class="t-btn" @onclick="() => AdjustT(-1)">−</button>
-                <button class="t-btn" @onclick="() => AdjustT(1)">+</button>
-            </div>
-            <span class="perform-key-badge">@_song.MusicKey@(_song.Tempo.HasValue ? $" · {_song.Tempo} BPM" : "")</span>
-            @if (Library.Exists(_song.SourceFile))
-            {
-                <audio src="/stream?path=@Uri.EscapeDataString(_song.SourceFile)"
-                       controls class="perform-player" preload="metadata" />
-            }
-            @if (VocalGuide.IsAvailable)
-            {
-                <button class="btn-ai" style="padding:6px 12px;font-size:0.85rem"
-                        @onclick="GenerateVocalGuide" disabled="@_vocalLoading"
-                        title="Generer la-la-la sangstemme at synge med">
-                    @(_vocalLoading ? "⏳" : "🎤 La-la guide")
-                </button>
-            }
-            <button class="btn-ghost-sm @(_twoColLyrics ? "active" : "")"
-                    style="padding:5px 10px;font-size:0.8rem"
-                    @onclick='() => _twoColLyrics = !_twoColLyrics'
-                    title="Skift mellem 1 og 2 kolonner">
-                @(_twoColLyrics ? "⊞" : "☰")
-            </button>
-        </div>
-
-        @if (_recordings.Any())
-        {
-            var latestRec = _recordings.OrderByDescending(r => r.CreatedAt).First();
-            <div class="practice-playback-bar">
-                <span class="pattern-label">📼 Seneste:</span>
-                @if (latestRec.IsVideo)
-                {
-                    <video controls src="/stream?path=@Uri.EscapeDataString(latestRec.RelativePath)"
-                           style="height:36px;border-radius:4px" />
-                }
-                else
-                {
-                    <audio controls src="/stream?path=@Uri.EscapeDataString(latestRec.RelativePath)"
-                           class="perform-player" style="flex:1;min-width:180px" preload="metadata" />
-                }
-            </div>
-        }
-
-        @if (_vocalError is not null)
-        {
-            <div class="pattern-tip" style="color:#fca5a5;background:rgba(220,38,38,.1)">⚠️ @_vocalError</div>
-        }
-        @if (_vocalUrl is not null)
-        {
-            <div class="vocal-guide-player">
-                <span class="pattern-label">🎤 La-la guide</span>
-                <audio controls src="@_vocalUrl" class="perform-player" style="flex:1;min-width:200px" />
-                <button class="btn-ghost-sm" @onclick='() => { _vocalUrl = null; _vocalError = null; }'>✕</button>
-            </div>
-        }
-
-        <!-- Chord overview (from chord chart or inline lyrics) -->
-        @if (HasAnyChords)
-        {
-            <div class="perform-chord-overview">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                    <span class="pattern-label">🎼 Akkordmønster</span>
-                    <button class="btn-ghost-sm @(_showAllChordDiagrams ? "active" : "")"
-                            @onclick='() => _showAllChordDiagrams = !_showAllChordDiagrams'
-                            title="Vis greb for alle akkorder i mønsteret på én gang">
-                        🖼️ @(_showAllChordDiagrams ? "Skjul greb" : "Vis greb")
-                    </button>
-                </div>
-                @foreach (var line in EffectiveChordSource.Split('\n'))
-                {
-                    @if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        <div class="perform-chord-row">
-                            @foreach (var token in line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                            {
-                                @if (IsChord(token))
-                                {
-                                    var c = token;
-                                    <button class="perform-chord-btn @(_selectedChord == c ? "perform-chord-btn--active" : "")"
-                                            @onclick="() => SelectPerformChord(c)"
-                                            title="Klik for AI-greb og overgang">@c</button>
-                                }
-                                else
-                                {
-                                    <span class="perform-section-chip">@token.TrimEnd(':')</span>
-                                }
-                            }
-                        </div>
-                    }
-                }
-            </div>
-        }
-
-        <!-- All chords in the pattern at once, pictures first - the "chord book"
-             view, so you don't have to tap through each chord one at a time. -->
-        @if (_showAllChordDiagrams && UniqueChordsInOrder.Count > 0)
-        {
-            <div class="chord-pattern-grid">
-                @foreach (var chord in UniqueChordsInOrder)
-                {
-                    var diagrams = ChordDiagrams.GetAll(chord);
-                    <div class="chord-pattern-card">
-                        <div class="chord-pattern-name">@chord</div>
-                        @if (diagrams.Count > 0)
-                        {
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-                                @foreach (var d in diagrams)
-                                {
-                                    <div class="chord-detail-diagram">
-                                        @((MarkupString)d.Svg)
-                                        @if (!string.IsNullOrEmpty(d.ShapeLabel))
-                                        {
-                                            <div style="font-size:0.65rem;color:#64748b;margin-top:2px;text-align:center;max-width:80px">@d.ShapeLabel</div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <div style="font-size:0.75rem;color:#64748b">Intet kendt greb</div>
-                        }
-                    </div>
-                }
-            </div>
-        }
-
-        <!-- Chord detail panel (appears when chord is tapped) -->
-        @if (_selectedChord is not null)
-        {
-            <div class="chord-detail-panel">
-                <div class="chord-detail-header">
-                    <span class="chord-detail-name">@_selectedChord</span>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <button class="btn-ghost-sm" @onclick="() => _showPiano = !_showPiano"
-                                title="Skift mellem guitar og klaver">
-                            @(_showPiano ? "🎸 Guitar" : "🎹 Klaver")
-                        </button>
-                        @if (!_selectedChordLoading && ChordAi.IsAvailable)
-                        {
-                            <button class="btn-ai" @onclick="ShowChordTransition"
-                                    disabled="@_selectedChordLoading"
-                                    title="Vis overgangs-teknik til næste akkord">
-                                🔀 Overgang
-                            </button>
-                        }
-                        <button class="chord-detail-close" @onclick="DismissChord">✕</button>
-                    </div>
-                </div>
-                <div class="chord-detail-body">
-                    @if (_showPiano)
-                    {
-                        var pianoSvg = PianoDiagrams.GetSvg(_selectedChord);
-                        @if (pianoSvg is not null)
-                        {
-                            <div class="chord-detail-diagram">@((MarkupString)pianoSvg)</div>
-                        }
-                    }
-                    else
-                    {
-                        var diagrams = ChordDiagrams.GetAll(_selectedChord);
-                        @if (diagrams.Count > 0)
-                        {
-                        <div style="display:flex;gap:10px;flex-wrap:wrap">
-                            @foreach (var diagram in diagrams)
-                            {
-                                <div class="chord-detail-diagram">
-                                    @((MarkupString)diagram.Svg)
-                                    @if (!string.IsNullOrEmpty(diagram.ShapeLabel))
-                                    {
-                                        <div style="font-size:0.7rem;color:#64748b;margin-top:4px;text-align:center;max-width:80px">@diagram.ShapeLabel</div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                    }
-                    @if (_selectedChordLoading)
-                    {
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
-                            <div class="spinner"></div>
-                            <span style="font-size:0.85rem;color:#64748b">Henter greb...</span>
-                        </div>
-                    }
-                    else if (!string.IsNullOrEmpty(_selectedChordInfo))
-                    {
-                        <pre class="chord-detail-text">@_selectedChordInfo</pre>
-                    }
-                </div>
-            </div>
-        }
-
-        <!-- Pattern reference bar -->
-        @if (!string.IsNullOrWhiteSpace(_strumEdit) || !string.IsNullOrWhiteSpace(_fingerpickEdit))
-        {
-            <div class="perform-pattern-bar">
-                @if (!string.IsNullOrWhiteSpace(_fingerpickEdit))
-                {
-                    <div>
-                        <span class="pattern-label">Fingerpicking</span>
-                        @((MarkupString)PatternRenderer.RenderFingerpick(_fingerpickEdit))
-                    </div>
-                }
-                @if (!string.IsNullOrWhiteSpace(_strumEdit))
-                {
-                    <div>
-                        <span class="pattern-label">Strumming</span>
-                        @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
-                    </div>
-                }
-            </div>
-        }
-        } <!-- /if (!_focusMode) -->
-
-        <!-- Main: lyrics with chords OR plain text -->
-        @if (HasInlineChords)
-        {
-            <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
-                @foreach (var line in _lyricsEdit.Split('\n'))
-                {
-                    @if (string.IsNullOrWhiteSpace(line))
-                    {
-                        <div class="perform-spacer"></div>
-                    }
-                    else if (IsSectionLabel(line))
-                    {
-                        <div class="perform-section-label">@line.Trim('[', ']', ':', ' ')</div>
-                    }
-                    else
-                    {
-                        <div class="perform-lyric-line">
-                            @foreach (var seg in ParseLyricLine(line))
-                            {
-                                var segChord = seg.Chord;
-                                <span class="perform-seg">
-                                    @if (segChord is not null)
-                                    {
-                                        <button class="perform-chord-inline @(_selectedChord == segChord ? "perform-chord-inline--active" : "")"
-                                                @onclick="() => SelectPerformChord(segChord)">@segChord</button>
-                                    }
-                                    else
-                                    {
-                                        <span class="perform-chord-inline" style="visibility:hidden">·</span>
-                                    }
-                                    <span class="perform-word">@seg.Text</span>
-                                </span>
-                            }
-                        </div>
-                    }
-                }
-            </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(_song?.SyncedLyrics))
-        {
-            <div id="lyric-sync-container" class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
-                @foreach (var (seconds, text) in LyricsService.ParseLrc(_song.SyncedLyrics))
-                {
-                    @if (string.IsNullOrWhiteSpace(text))
-                    {
-                        <div class="perform-spacer"></div>
-                    }
-                    else
-                    {
-                        <div class="perform-plain-line" data-time="@seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)">@text</div>
-                    }
-                }
-            </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(_lyricsEdit))
-        {
-            <div class="perform-sheet @(_twoColLyrics ? "perform-sheet--two-col" : "")">
-                @foreach (var line in _lyricsEdit.Split('\n'))
-                {
-                    @if (string.IsNullOrWhiteSpace(line))
-                    {
-                        <div class="perform-spacer"></div>
-                    }
-                    else if (IsSectionLabel(line))
-                    {
-                        <div class="perform-section-label">@line.Trim('[', ']', ':', ' ')</div>
-                    }
-                    else
-                    {
-                        <div class="perform-plain-line">@line</div>
-                    }
-                }
-            </div>
-        }
-        else
-        {
-            <div class="perform-empty">
-                <p>Ingen tekst endnu</p>
-                <button class="btn-ghost" @onclick='() => _tab = "forbered"'>← Gå til Forbered</button>
-            </div>
-        }
-
-    </div>
-    }
-
     <!-- ════════════════ TAB: OPTAG ════════════════ -->
     @if (_tab == "optag")
     {
@@ -888,7 +570,7 @@ else if (_song is not null)
                 else
                 {
                     <p style="font-size:0.8rem;color:#6b7280;margin-bottom:10px">
-                        Klar til det rigtige take? Øv i <strong>Øv & Spil</strong> — og indspil din bedste version her.
+                        Klar til det rigtige take? Indspil din bedste version her.
                         Take @(_recordings.Count + 1) af @MaxTakes.
                     </p>
                     <div class="rec-mode-toggle" style="margin-bottom:10px">
@@ -1047,7 +729,7 @@ else if (_song is not null)
             @if (string.IsNullOrEmpty(_song!.SourceFile))
             {
                 <p style="font-size:0.85rem;color:#555">
-                    Vedhæft en kildefil under 🔍 Forbered for at dele sangen op i vokal, trommer, bas og instrumenter.
+                    Vedhæft en kildefil under Trin for at dele sangen op i vokal, trommer, bas og instrumenter.
                 </p>
             }
             else if (_stemRunning)
@@ -1125,7 +807,7 @@ else if (_song is not null)
             @if (string.IsNullOrEmpty(_song!.SourceFile))
             {
                 <p style="font-size:0.85rem;color:#555">
-                    Vedhæft en kildefil under 🔍 Forbered for at få de enkelte toner (ikke bare akkorder) som en MIDI-fil.
+                    Vedhæft en kildefil under Trin for at få de enkelte toner (ikke bare akkorder) som en MIDI-fil.
                 </p>
             }
             else if (_noteRunning)
@@ -1282,18 +964,74 @@ else if (_song is not null)
     <!-- RIGHT: Spilleguide while recording ─────────────── -->
     <div class="optag-lyrics">
 
-        <div style="display:flex;gap:8px;margin-bottom:8px">
+        <!-- Guide controls: the bits you need mid-song. Transpose, beat and
+             the la-la guide used to live on a separate "Øv & Spil" tab;
+             folded in here so the flow is just Trin -> Indspil. -->
+        <div class="perform-controls" style="margin-bottom:8px">
+            <div class="transpose-row">
+                <span class="t-label" style="color:#64748b">½t</span>
+                <button class="t-btn" @onclick="() => AdjustT(-1)" title="Transponer ned">−</button>
+                <button class="t-btn" @onclick="() => AdjustT(1)" title="Transponer op">+</button>
+            </div>
+            <span class="perform-key-badge">@_song.MusicKey@(_song.Tempo.HasValue ? $" · {_song.Tempo} BPM" : "")</span>
+            <button class="btn-ghost-sm @(_beat >= 0 ? "active" : "")"
+                    @onclick="ToggleBeat" disabled="@(_song.Tempo is not > 0)"
+                    title="@(_song.Tempo is not > 0 ? "Sæt et tempo (BPM) øverst for at bruge beat-markøren" : _beat >= 0 ? "Slå beat-markør fra" : "Slå beat-markør til - banker takten efter sangens tempo")">
+                🥁 Beat
+            </button>
+            @if (_beat >= 0)
+            {
+                <div class="beat-strip">
+                    @for (int b = 0; b < 4; b++)
+                    {
+                        <div class="beat-dot @(_beat == b ? "beat-dot--on" : "")">@(b + 1)</div>
+                    }
+                </div>
+                <span class="beat-total" title="Løbende beat-tal siden takten startede">Beat @_totalBeats</span>
+            }
+            @if (Library.Exists(_song.SourceFile))
+            {
+                <audio src="/stream?path=@Uri.EscapeDataString(_song.SourceFile)"
+                       controls class="perform-player" preload="metadata" />
+            }
+            @if (VocalGuide.IsAvailable)
+            {
+                <button class="btn-ai" style="padding:6px 12px;font-size:0.85rem"
+                        @onclick="GenerateVocalGuide" disabled="@_vocalLoading"
+                        title="Generer la-la-la sangstemme at synge med">
+                    @(_vocalLoading ? "⏳" : "🎤 La-la guide")
+                </button>
+            }
             <button class="btn-ghost-sm @(_recShowChordDiagram ? "active" : "")"
                     @onclick="() => _recShowChordDiagram = !_recShowChordDiagram"
-                    title="Vis/skjul akkord-greb under Indspil">
-                🖼️ @(_recShowChordDiagram ? "Skjul greb" : "Vis greb")
+                    title="Vis/skjul akkord-greb">
+                🖼️ Greb
             </button>
             <button class="btn-ghost-sm @(_recShowFingerpick ? "active" : "")"
                     @onclick="() => _recShowFingerpick = !_recShowFingerpick"
-                    title="Vis/skjul fingerpicking-diagram under Indspil">
-                🎸 @(_recShowFingerpick ? "Skjul fingerpicking" : "Vis fingerpicking")
+                    title="Vis/skjul fingerpicking-diagram">
+                🎸 Fingerpicking
+            </button>
+            <button class="btn-ghost-sm @(_twoColLyrics ? "active" : "")"
+                    style="padding:5px 10px;font-size:0.8rem"
+                    @onclick='() => _twoColLyrics = !_twoColLyrics'
+                    title="Skift mellem 1 og 2 kolonner">
+                @(_twoColLyrics ? "⊞" : "☰")
             </button>
         </div>
+
+        @if (_vocalError is not null)
+        {
+            <div class="pattern-tip" style="color:#fca5a5;background:rgba(220,38,38,.1)">⚠️ @_vocalError</div>
+        }
+        @if (_vocalUrl is not null)
+        {
+            <div class="vocal-guide-player">
+                <span class="pattern-label">🎤 La-la guide</span>
+                <audio controls src="@_vocalUrl" class="perform-player" style="flex:1;min-width:200px" />
+                <button class="btn-ghost-sm" @onclick='() => { _vocalUrl = null; _vocalError = null; }'>✕</button>
+            </div>
+        }
 
         <!-- Chord detail panel (same shared state as Spilleguide) -->
         @if (_selectedChord is not null)
@@ -1344,6 +1082,41 @@ else if (_song is not null)
                     <div>
                         <span class="pattern-label">Strumming</span>
                         @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Chord book: every chord in the song with its diagram, so you
+             don't have to tap through them one at a time. Toggled by the
+             "Greb" button above. -->
+        @if (_recShowChordDiagram && UniqueChordsInOrder.Count > 0)
+        {
+            <div class="chord-pattern-grid">
+                @foreach (var chord in UniqueChordsInOrder)
+                {
+                    var diagrams = ChordDiagrams.GetAll(chord);
+                    <div class="chord-pattern-card">
+                        <div class="chord-pattern-name">@chord</div>
+                        @if (diagrams.Count > 0)
+                        {
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+                                @foreach (var d in diagrams)
+                                {
+                                    <div class="chord-detail-diagram">
+                                        @((MarkupString)d.Svg)
+                                        @if (!string.IsNullOrEmpty(d.ShapeLabel))
+                                        {
+                                            <div style="font-size:0.65rem;color:#64748b;margin-top:2px;text-align:center;max-width:80px">@d.ShapeLabel</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div style="font-size:0.75rem;color:#64748b">Intet kendt greb</div>
+                        }
                     </div>
                 }
             </div>
@@ -1447,7 +1220,7 @@ else if (_song is not null)
         {
             <div class="perform-empty">
                 <p>Ingen tekst endnu</p>
-                <button class="btn-ghost" @onclick='() => _tab = "forbered"'>← Gå til Forbered</button>
+                <button class="btn-ghost" @onclick='() => _tab = "forbered"'>← Tilbage til Trin</button>
             </div>
         }
 
@@ -1581,7 +1354,6 @@ else if (_song is not null)
     private string? _vocalUrl;
     private string? _vocalError;
     private bool _twoColLyrics;
-    private bool _showAllChordDiagrams = true;
     private bool _recShowChordDiagram = true;
     private bool _recShowFingerpick = true;
 
@@ -1732,7 +1504,6 @@ else if (_song is not null)
     private int _totalBeats;
     private System.Timers.Timer? _beatTimer;
     private bool _beatManual;
-    private bool _focusMode;
 
     private string? _photoTarget;
     private bool _cameraOn;
@@ -1766,7 +1537,6 @@ else if (_song is not null)
     private string? _selectedChord;
     private string _selectedChordInfo = "";
     private bool _selectedChordLoading;
-    private bool _showPiano;
 
     private static readonly string[] MajorKeys = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     private static readonly string[] MinorKeys = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm"];
@@ -1783,10 +1553,10 @@ else if (_song is not null)
     // reflect the latest edits without needing an explicit "recompute" call
     // scattered across every place a relevant field changes.
     private List<SongStep> _steps =>
-        _song is null ? [] : StepPlanner.GetSteps(_song, Library.GetSketches(SongKey).Count > 0, Library.HasPublishedVersion(SongKey));
+        _song is null ? [] : StepPlanner.GetSteps(_song, false, Library.HasPublishedVersion(SongKey));
 
     private bool _readyToRecord =>
-        _song is not null && StepPlanner.IsReadyToRecord(_song, Library.GetSketches(SongKey).Count > 0);
+        _song is not null && StepPlanner.IsReadyToRecord(_song, false);
 
     // Cover art is one user-initiated fal.ai call per click, never automatic
     // or bulk - see CoverArtService for the cost-ceiling reasoning.
@@ -2329,7 +2099,7 @@ else if (_song is not null)
     private async Task StartRecording()
     {
         // Enforced here (not just by hiding the button in the Optag tab) so
-        // the "Øv & Spil" tab's own record button - a separate entry point -
+        // any other entry point (e.g. a future shortcut) can't slip past the take cap.
         // can't be used to slip past the take cap.
         if (_recordings.Count >= MaxTakes)
         {
@@ -2566,7 +2336,7 @@ else if (_song is not null)
     }
 
     // Attaches/replaces the song's source/reference track (e.g. a track
-    // downloaded from Suno) - lives in Forbered since this is prep, not a
+    // downloaded from Suno) - lives in Trin since this is prep, not a
     // recording action, and it's used throughout (play-along overdub, chord-
     // from-audio detection), not just as one comparison take among others.
     private async Task UploadSourceFile(InputFileChangeEventArgs e)

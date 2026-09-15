@@ -1,0 +1,87 @@
+@page "/sange"
+@rendermode InteractiveServer
+@inject StudioDbContext Db
+@inject StudioLibraryService Library
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IConfiguration Config
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Mine sange — SkrivSange</PageTitle>
+
+<div class="sw-page">
+    <div class="sw-header">
+        <h1 class="sw-title">✍️ SkrivSange</h1>
+        <p class="sw-sub">Dine sangudkast — vælg et, eller start et nyt</p>
+    </div>
+
+    <button class="btn-primary" style="padding:16px;font-size:17px" @onclick='() => Nav.NavigateTo("/skriv")'>＋ Ny sang</button>
+
+    @if (_songs is null)
+    {
+        <p style="color:var(--muted)">Henter...</p>
+    }
+    else if (_songs.Count == 0)
+    {
+        <p style="color:var(--muted)">Ingen udkast endnu. Tryk <strong>Ny sang</strong> for at komme i gang.</p>
+    }
+    else
+    {
+        <div class="sw-cards">
+            @foreach (var s in _songs)
+            {
+                var steps = StepPlanner.GetSteps(s, Library.GetSketches(s.Key).Count > 0);
+                var done = steps.Count(x => x.Status != StepStatus.NotStarted);
+                var next = StepPlanner.NextStep(steps);
+                <a class="sw-card" href="/skriv/@Uri.EscapeDataString(s.Key)">
+                    <div class="sw-card-mood">@(next is null ? "✓ Klar" : $"Næste: {next.Label}") · @done/@steps.Count trin</div>
+                    <div class="sw-card-chords">@s.Title</div>
+                    <div class="sw-card-desc">
+                        @(string.IsNullOrWhiteSpace(s.ChordChart) ? "Ingen akkorder endnu" : s.ChordChart.Split('\n')[0])
+                        @(s.Tempo is { } t ? $" · {t} BPM" : "")
+                        · ændret @s.UpdatedAt.ToLocalTime().ToString("dd/MM")
+                    </div>
+                </a>
+            }
+        </div>
+    }
+
+    <div class="sw-section">
+        <div class="sw-step-label">Videre</div>
+        <div class="sw-cards">
+            <a class="sw-card" href="/vault">
+                <div class="sw-card-mood">Song Vault</div>
+                <div class="sw-card-desc">Find akkorder i en indspilning og syng ovenpå</div>
+            </a>
+            @if (!string.IsNullOrWhiteSpace(StudioUrl))
+            {
+                <a class="sw-card" href="@StudioUrl" target="_blank" rel="noopener">
+                    <div class="sw-card-mood">Musik Studio ↗</div>
+                    <div class="sw-card-desc">Øv og indspil færdige sange</div>
+                </a>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<StudioSong>? _songs;
+    private string StudioUrl => Config["StudioSettings:StudioUrl"] ?? "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Only from-scratch drafts belong here; songs with a source file or
+        // Spotify link are Studio material and live in the other app.
+        var all = await Db.Songs.OrderByDescending(s => s.UpdatedAt).ToListAsync();
+        _songs = all.Where(s => StepPlanner.GetFlow(s) == SongFlow.Writing).ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        string? ok;
+        try { ok = await JS.InvokeAsync<string?>("localStorage.getItem", "skrivsange_auth"); }
+        catch { return; }
+        if (ok != "1") Nav.NavigateTo("/", forceLoad: true);
+    }
+}

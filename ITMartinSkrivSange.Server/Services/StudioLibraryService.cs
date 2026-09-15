@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace ITMartinMusikStudio.Server.Services;
+namespace ITMartinSkrivSange.Server.Services;
 
 // Sidecar metadata for SongVault - deliberately not the StudioSong EF entity
 // (no DB row, no migration) since SongVault songs are keyed purely by
@@ -375,6 +375,37 @@ public sealed class StudioLibraryService
         return Path.GetRelativePath(Root, dest).Replace('\\', '/');
     }
 
+    public string SketchesDir => Path.Combine(Root, "sketches");
+
+    // Short "hum an idea" clips for the Skriv sang (from-scratch) flow -
+    // deliberately a separate storage location and naming convention from
+    // GetRecordings()'s take-/vtake-/aitake- files, since a sketch isn't a
+    // take and must never show up in the Optagelser list.
+    public List<SketchFile> GetSketches(string songKey)
+    {
+        var dir = Path.Combine(SketchesDir, songKey);
+        if (!Directory.Exists(dir)) return [];
+        return Directory.GetFiles(dir)
+            .Select(f => new SketchFile(
+                Path.GetRelativePath(Root, f).Replace('\\', '/'),
+                Path.GetFileNameWithoutExtension(f),
+                new FileInfo(f).CreationTimeUtc))
+            .OrderByDescending(s => s.CreatedAt)
+            .ToList();
+    }
+
+    public async Task SaveSketchAsync(string songKey, Stream content, string contentType)
+    {
+        var dir = Path.Combine(SketchesDir, songKey);
+        Directory.CreateDirectory(dir);
+        var ext = contentType.Contains("webm") ? ".webm" : ".ogg";
+        var dest = Path.Combine(dir, $"sketch-{DateTime.UtcNow:yyyyMMdd-HHmmss}{ext}");
+        await using var fs = File.Create(dest);
+        await content.CopyToAsync(fs);
+    }
+
+    // Backs the "version" checklist step - true once at least one take has
+    // been published via PublishRecordingAsync for this song.
     public bool HasPublishedVersion(string songKey) =>
         Directory.Exists(MyVersionsDir) &&
         Directory.EnumerateFiles(MyVersionsDir, $"{songKey}__*").Any();
@@ -392,3 +423,4 @@ public sealed class StudioLibraryService
 
 public record SourceFile(string RelativePath, string Title);
 public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo, bool IsAi = false, string? Section = null);
+public record SketchFile(string RelativePath, string Name, DateTime CreatedAt);

@@ -4,6 +4,7 @@
 @inject StudioDbContext Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IConfiguration Config
 @using Microsoft.EntityFrameworkCore
 
 <PageTitle>Studio — Sange</PageTitle>
@@ -16,7 +17,10 @@
             <p class="songs-sub">@_songs.Count sange</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn-primary" @onclick='() => Nav.NavigateTo("/songwriter", forceLoad: true)'>🎸 Skriv sang</button>
+            @if (!string.IsNullOrWhiteSpace(SkrivSangeUrl))
+            {
+                <a class="btn-ghost" href="@SkrivSangeUrl" target="_blank" rel="noopener" title="Skriv nye sange i SkrivSange-appen">✍️ SkrivSange ↗</a>
+            }
             <button class="btn-primary" @onclick="ShowNewSong">＋ Ny sang</button>
             <button class="btn-ghost" @onclick="Logout">Log ud</button>
         </div>
@@ -84,22 +88,11 @@
 
     @if (IndoevSongs.Any())
     {
-        <div class="section-label" style="margin-top:20px">🎧 Indøv sang</div>
+        <div class="section-label" style="margin-top:20px">📋 Trin i gang</div>
         <div class="song-cards">
             @foreach (var s in IndoevSongs)
             {
                 @RenderSongCard((s, "song-card--indoev"))
-            }
-        </div>
-    }
-
-    @if (WritingSongs.Any())
-    {
-        <div class="section-label" style="margin-top:20px">✍️ Skriv sang</div>
-        <div class="song-cards">
-            @foreach (var s in WritingSongs)
-            {
-                @RenderSongCard((s, "song-card--writing"))
             }
         </div>
     }
@@ -183,25 +176,26 @@
 
     // Grouped by lifecycle stage, most-actionable first. ReadyToRecord takes
     // priority over the flow grouping regardless of origin - a fully-stepped
-    // song is "done prepping" whether it started as Skriv sang or Indøv sang.
-    private bool ReadyToRecord(StudioSong s) => StepPlanner.IsReadyToRecord(s, Library.GetSketches(s.Key).Count > 0);
+    // song is "done prepping" whether it was written in SkrivSange or picked from the NAS.
+    private bool ReadyToRecord(StudioSong s) => StepPlanner.IsReadyToRecord(s, false);
 
     private IEnumerable<StudioSong> ReadySongs   => FilteredSongs.Where(ReadyToRecord);
-    private IEnumerable<StudioSong> IndoevSongs  => FilteredSongs.Where(s => !ReadyToRecord(s) && StepPlanner.GetFlow(s) == SongFlow.Recording);
-    private IEnumerable<StudioSong> WritingSongs => FilteredSongs.Where(s => !ReadyToRecord(s) && StepPlanner.GetFlow(s) == SongFlow.Writing);
+    private IEnumerable<StudioSong> IndoevSongs  => FilteredSongs.Where(s => !ReadyToRecord(s));
 
     private (int Done, int Total) StepProgress(StudioSong s)
     {
-        var steps = StepPlanner.GetSteps(s, Library.GetSketches(s.Key).Count > 0, Library.HasPublishedVersion(s.Key))
+        var steps = StepPlanner.GetSteps(s, false, Library.HasPublishedVersion(s.Key))
             .Where(x => x.Key != "version") // post-recording outcome, not prep progress
             .ToList();
         return (steps.Count(x => x.Status != StepStatus.NotStarted), steps.Count);
     }
 
+    private string SkrivSangeUrl => Config["StudioSettings:SkrivSangeUrl"] ?? "";
+
     private static string SongUrl(StudioSong s) => "/studio/" + Uri.EscapeDataString(s.Key);
 
     private string SongIcon(StudioSong s) =>
-        StepPlanner.GetFlow(s) == SongFlow.Writing ? "✍️" : Library.IsVideo(s.SourceFile) ? "🎬" : "🎵";
+        string.IsNullOrWhiteSpace(s.SourceFile) && string.IsNullOrWhiteSpace(s.SpotifyTrackId) ? "✍️" : Library.IsVideo(s.SourceFile) ? "🎬" : "🎵";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
