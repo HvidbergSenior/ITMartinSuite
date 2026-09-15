@@ -163,6 +163,7 @@ html[data-theme="light"] .itm-pp-banner{background:rgba(99,102,241,.08);border-c
 .file-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px}
 .vid-overlay{background:rgba(0,0,0,.4)}
 .file-tv{position:absolute;top:5px;right:5px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:13px;cursor:pointer;z-index:2;text-decoration:none;line-height:1.5}
+.file-title{position:absolute;left:0;right:0;bottom:0;padding:6px 8px;font-size:12px;font-weight:600;line-height:1.25;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.75));overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;z-index:1}
 .file-live-badge{position:absolute;top:5px;left:5px;background:rgba(0,0,0,.65);color:#fff;border-radius:6px;padding:3px 7px;font-size:10px;font-weight:800;letter-spacing:.03em;z-index:2;display:flex;align-items:center;gap:3px;pointer-events:none}
 .file-live-badge .dot{width:6px;height:6px;border-radius:50%;background:#fbbf24}
 
@@ -631,6 +632,7 @@ function fileCardHtml(f, i) {
       ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" onerror="this.remove()" alt="">` : ''}
       <div class="file-overlay">🎵</div>
       <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
+      <div class="file-title">${esc(f.caption || f.name.replace(/\.[^.]+$/, ""))}</div>
     </div>`;
   if (f.isDoc) return `
     <div class="file-card" onclick="openViewer(${i})">
