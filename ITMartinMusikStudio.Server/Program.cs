@@ -35,17 +35,28 @@ using (var scope = app.Services.CreateScope())
     // updates hit 0 rows, and on 2026-09-17 the file ended up "malformed").
     // The classic rollback journal uses plain file locks, which SMB honours.
     try { db.Database.ExecuteSqlRaw("PRAGMA journal_mode=DELETE"); } catch { }
-    // Add columns introduced after initial schema — safe to re-run (SQLite ignores duplicate column errors)
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN FingerpickPattern TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN StrumPattern TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN Artist TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackId TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SpotifyTrackLabel TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SyncedLyrics TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SkippedSteps TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN CoverImagePath TEXT NOT NULL DEFAULT ''"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN SectionTimings TEXT NULL"); } catch { }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN LineBeats TEXT NULL"); } catch { }
+    // Add columns introduced after the initial schema. Only the ones actually
+    // missing - a failed ALTER used to be logged as a red EF "fail" on every
+    // start, which looked like a real error.
+    var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    using (var cmd = db.Database.GetDbConnection().CreateCommand())
+    {
+        db.Database.OpenConnection();
+        cmd.CommandText = "PRAGMA table_info(Songs)";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) existing.Add(r.GetString(1));
+    }
+    void AddColumn(string name, string ddl) { if (!existing.Contains(name)) db.Database.ExecuteSqlRaw($"ALTER TABLE Songs ADD COLUMN {name} {ddl}"); }
+    AddColumn("FingerpickPattern", "TEXT NOT NULL DEFAULT ''");
+    AddColumn("StrumPattern", "TEXT NOT NULL DEFAULT ''");
+    AddColumn("Artist", "TEXT NOT NULL DEFAULT ''");
+    AddColumn("SpotifyTrackId", "TEXT NULL");
+    AddColumn("SpotifyTrackLabel", "TEXT NULL");
+    AddColumn("SyncedLyrics", "TEXT NULL");
+    AddColumn("SkippedSteps", "TEXT NOT NULL DEFAULT ''");
+    AddColumn("CoverImagePath", "TEXT NOT NULL DEFAULT ''");
+    AddColumn("SectionTimings", "TEXT NULL");
+    AddColumn("LineBeats", "TEXT NULL");
 
     if (app.Configuration.GetValue<bool>("MusikStudio:SeedDemoData"))
         await ITMartinMusikStudio.Server.Data.DemoSeeder.SeedAsync(db);
