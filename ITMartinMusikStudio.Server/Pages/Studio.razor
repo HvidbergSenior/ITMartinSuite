@@ -314,7 +314,7 @@ else if (_song is not null)
                     </div>
                 }
                 <textarea class="chord-editor" rows="8"
-                          value="@_chordEdit"
+                          value="@_chordDom"
                           @oninput="e => { _chordEdit = e.Value?.ToString() ?? _chordEdit; AutoSave(); }"
                           placeholder="Verse: Am G F E
 Chorus: C G Am F
@@ -347,7 +347,7 @@ Bridge: Dm Am E Am"></textarea>
                     <div class="card-label-sm" style="margin-bottom:4px">Strumming</div>
                     @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
                     <textarea class="chord-editor pattern-edit" rows="2"
-                              value="@_strumEdit"
+                              value="@_strumDom"
                               @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
                               placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –
 TAK:  1 + 2 + 3 + 4 +"></textarea>
@@ -357,7 +357,7 @@ TAK:  1 + 2 + 3 + 4 +"></textarea>
                     <div class="card-label-sm" style="margin-bottom:4px">Fingerpicking</div>
                     @((MarkupString)PatternRenderer.RenderFingerpick(_fingerpickEdit))
                     <textarea class="chord-editor pattern-edit" rows="3"
-                              value="@_fingerpickEdit"
+                              value="@_fingerpickDom"
                               @oninput="e => { _fingerpickEdit = e.Value?.ToString() ?? _fingerpickEdit; AutoSave(); }"
                               placeholder="FINGRE:  T  i  m  a  i  m  a  i
 STRENGE: 6  2  3  1  2  3  1  2
@@ -365,7 +365,7 @@ TIP: ..."></textarea>
                     <div class="card-label-sm" style="margin:8px 0 4px">Strumming</div>
                     @((MarkupString)PatternRenderer.RenderStrum(_strumEdit))
                     <textarea class="chord-editor pattern-edit" rows="2"
-                              value="@_strumEdit"
+                              value="@_strumDom"
                               @oninput="e => { _strumEdit = e.Value?.ToString() ?? _strumEdit; AutoSave(); }"
                               placeholder="SLAG: ↓ – ↓↑ – ↓ ↑ ↓↑ –
 TAK:  1 + 2 + 3 + 4 +"></textarea>
@@ -406,7 +406,7 @@ TAK:  1 + 2 + 3 + 4 +"></textarea>
                     </div>
                 }
                 <textarea class="lyrics-editor" rows="14"
-                          value="@_lyricsEdit"
+                          value="@_lyricsDom"
                           @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; SyncChordsFromLyrics(); AutoSave(); }"
                           placeholder="Skriv sektioner på egne linjer - fx Verse, Chorus, Vers 1, Omkvæd (med eller uden [ ]).
 Brug [Am]ord for akkorder i teksten.
@@ -465,7 +465,7 @@ Chorus
                     <button class="btn-ghost-sm" @onclick='() => _photoTarget = "notes"'>📷 Fra foto</button>
                 </div>
                 <textarea class="notes-editor" rows="5"
-                          value="@_notesEdit"
+                          value="@_notesDom"
                           @oninput="e => { _notesEdit = e.Value?.ToString() ?? _notesEdit; AutoSave(); }"
                           placeholder="Dine egne noter, idéer, pointer..."></textarea>
             </div>
@@ -1244,7 +1244,7 @@ Chorus
         <div class="photo-panel">
             <div class="photo-header">
                 <span>🎸 Indsæt fra Ultimate Guitar</span>
-                <button class="photo-close" @onclick='() => { _ugPasteOpen = false; _ugPasteText = ""; }'>✕</button>
+                <button class="photo-close" @onclick='() => { _ugPasteOpen = false; _ugPasteText = ""; SyncEditorsToDom(); }'>✕</button>
             </div>
             <p style="font-size:0.85rem;color:#aaa;margin:4px 0 8px">
                 Kopiér hele tab-teksten fra Ultimate Guitar og indsæt herunder.
@@ -1253,14 +1253,14 @@ Chorus
             <textarea class="chord-editor" rows="14"
                       style="font-size:0.8rem"
                       placeholder="Indsæt UG-tab her..."
-                      value="@_ugPasteText"
+                      value="@_ugPasteDom"
                       @oninput="e => _ugPasteText = e.Value?.ToString() ?? string.Empty"></textarea>
             <div class="photo-result-actions" style="margin-top:8px">
                 <button class="btn-primary" @onclick="ParseUgTab"
                         disabled="@(_ugParsing || string.IsNullOrWhiteSpace(_ugPasteText))">
                     @(_ugParsing ? "Analyserer..." : "✓ Udtræk akkorder + tekst")
                 </button>
-                <button class="btn-ghost-sm" @onclick='() => { _ugPasteOpen = false; _ugPasteText = ""; }'>Annuller</button>
+                <button class="btn-ghost-sm" @onclick='() => { _ugPasteOpen = false; _ugPasteText = ""; SyncEditorsToDom(); }'>Annuller</button>
             </div>
         </div>
     </div>
@@ -1308,7 +1308,7 @@ Chorus
                 <div class="photo-result">
                     <div class="photo-result-label">Resultat (kan redigeres):</div>
                     <textarea class="photo-result-text" rows="8"
-                              value="@_photoResult"
+                              value="@_photoResultDom"
                               @oninput="e => _photoResult = e.Value?.ToString() ?? string.Empty"></textarea>
                     <div class="photo-result-actions">
                         <button class="btn-primary" @onclick="ApplyPhotoResult">✓ Brug dette</button>
@@ -1345,6 +1345,17 @@ Chorus
 
     private string _chordEdit = "";
     private string _lyricsEdit = "";
+    // What the two big textareas are RENDERED with. Deliberately not the
+    // live edit fields: pushing the value back on every keystroke races the
+    // user's typing over the Blazor Server round-trip and throws the caret to
+    // the end. Only programmatic changes (load, photo import, transpose, paste
+    // helpers) update these - see SyncEditorsToDom.
+    private string _lyricsDom = "", _chordDom = "", _notesDom = "", _strumDom = "", _fingerpickDom = "", _photoResultDom = "", _ugPasteDom = "";
+    private void SyncEditorsToDom()
+    {
+        _lyricsDom = _lyricsEdit; _chordDom = _chordEdit; _notesDom = _notesEdit;
+        _strumDom = _strumEdit; _fingerpickDom = _fingerpickEdit; _photoResultDom = _photoResult; _ugPasteDom = _ugPasteText;
+    }
     private string _notesEdit = "";
     private string _fingerpickEdit = "";
     private string _strumEdit = "";
@@ -1637,11 +1648,11 @@ Chorus
             await Db.SaveChangesAsync();
         }
 
-        _chordEdit       = _song.ChordChart;
-        _lyricsEdit      = _song.Lyrics;
+        _chordEdit       = _song.ChordChart; SyncEditorsToDom();
+        _lyricsEdit      = _song.Lyrics; SyncEditorsToDom();
         _notesEdit       = _song.Notes;
         _fingerpickEdit  = _song.FingerpickPattern;
-        _strumEdit       = _song.StrumPattern;
+        _strumEdit       = _song.StrumPattern; SyncEditorsToDom();
         _loading         = false;
 
         // Sync chord chart from inline lyrics chords (catches chords added since last save)
@@ -1742,7 +1753,7 @@ Chorus
             if (string.IsNullOrWhiteSpace(_song.Lyrics) && !string.IsNullOrWhiteSpace(plain))
             {
                 _song.Lyrics = plain;
-                _lyricsEdit = plain;
+                _lyricsEdit = plain; SyncEditorsToDom();
             }
 
             await Db.SaveChangesAsync();
@@ -1794,8 +1805,8 @@ Chorus
         if (semitones != 0)
         {
             var useFlats = PrefersFlats(_lyricsEdit, _chordEdit);
-            _lyricsEdit = TransposeChordsInText(_lyricsEdit, semitones, useFlats);
-            _chordEdit  = TransposeChordChart(_chordEdit, semitones, useFlats);
+            _lyricsEdit = TransposeChordsInText(_lyricsEdit, semitones, useFlats); SyncEditorsToDom();
+            _chordEdit  = TransposeChordChart(_chordEdit, semitones, useFlats); SyncEditorsToDom();
         }
         _song.MusicKey = newKey;
         AutoSave();
@@ -1814,8 +1825,8 @@ Chorus
     {
         if (d == 0 || _song is null) return;
         var useFlats = PrefersFlats(_lyricsEdit, _chordEdit);
-        _lyricsEdit    = TransposeChordsInText(_lyricsEdit, d, useFlats);
-        _chordEdit     = TransposeChordChart(_chordEdit, d, useFlats);
+        _lyricsEdit    = TransposeChordsInText(_lyricsEdit, d, useFlats); SyncEditorsToDom();
+        _chordEdit     = TransposeChordChart(_chordEdit, d, useFlats); SyncEditorsToDom();
         _song.MusicKey = TransposeNote(_song.MusicKey, d, useFlats);
         AutoSave();
     }
@@ -2390,7 +2401,7 @@ Chorus
         if (files.Count == 0) return;
 
         _photoAnalyzing = true;
-        _photoResult = "";
+        _photoResult = ""; SyncEditorsToDom();
         StateHasChanged();
 
         foreach (var file in files)
@@ -2441,7 +2452,7 @@ Chorus
     private async Task AnalyzePhoto(string base64, string mime)
     {
         _photoAnalyzing = true;
-        _photoResult = "";
+        _photoResult = ""; SyncEditorsToDom();
         StateHasChanged();
         try
         {
@@ -2450,11 +2461,11 @@ Chorus
                 result = await ChordAi.ExtractChordsFromImageAsync(base64, mime);
             else
                 result = await ChordAi.ExtractTextFromImageAsync(base64, mime, lyricsOnly: _photoTarget == "lyrics");
-            _photoResult = result;
+            _photoResult = result; SyncEditorsToDom();
         }
         catch (Exception ex)
         {
-            _photoResult = $"Fejl: {ex.Message}";
+            _photoResult = $"Fejl: {ex.Message}"; SyncEditorsToDom();
         }
         finally
         {
@@ -2468,20 +2479,20 @@ Chorus
         switch (_photoTarget)
         {
             case "lyrics":
-                _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit) ? _photoResult : _lyricsEdit + "\n\n" + _photoResult;
+                _lyricsEdit = string.IsNullOrWhiteSpace(_lyricsEdit) ? _photoResult : _lyricsEdit + "\n\n" + _photoResult; SyncEditorsToDom();
                 break;
             case "chords":
-                _chordEdit = MergeNumberedChords(_chordEdit, _photoResult);
+                _chordEdit = MergeNumberedChords(_chordEdit, _photoResult); SyncEditorsToDom();
                 break;
             case "notes":
-                _notesEdit = string.IsNullOrWhiteSpace(_notesEdit) ? _photoResult : _notesEdit + "\n\n" + _photoResult;
+                _notesEdit = string.IsNullOrWhiteSpace(_notesEdit) ? _photoResult : _notesEdit + "\n\n" + _photoResult; SyncEditorsToDom();
                 break;
         }
         AutoSave();
         ClosePhoto();
     }
 
-    private void ClearPhotoResult() => _photoResult = string.Empty;
+    private void ClearPhotoResult() { _photoResult = string.Empty; SyncEditorsToDom(); }
 
     // Merges a numbered bar/line chord result ("6: F#m") into the existing chord chart by number,
     // so screenshots can be uploaded in any order and overlapping bars just overwrite instead of duplicating.
@@ -2563,7 +2574,7 @@ Chorus
     {
         if (_cameraOn) _ = CloseCamera();
         _photoTarget = null;
-        _photoResult = "";
+        _photoResult = ""; SyncEditorsToDom();
         _cameraOn = false;
         _photoAnalyzing = false;
     }
@@ -2578,7 +2589,7 @@ Chorus
             ChordAi.GetFingerpickPatternAsync(_song.Title, _chordEdit, _song.Tempo, _song.MusicKey),
             ChordAi.GetStrumPatternAsync(_song.Title, _chordEdit, _song.Tempo, _song.MusicKey)
         ).ContinueWith(t => (t.Result[0], t.Result[1]));
-        if (!string.IsNullOrEmpty(pick))  { _fingerpickEdit = pick; }
+        if (!string.IsNullOrEmpty(pick))  { _fingerpickEdit = pick; SyncEditorsToDom(); }
         if (!string.IsNullOrEmpty(strum)) { _strumEdit      = strum; }
         AutoSave();
         _patternsLoading = false;
@@ -2712,7 +2723,7 @@ Chorus
             }
             else
             {
-                _chordEdit = result.Chords;
+                _chordEdit = result.Chords; SyncEditorsToDom();
 
                 // Prefer placing chords onto the FIXED lrclib lyrics (correct
                 // words, correct version) using the pasted tab only to learn
@@ -2754,7 +2765,7 @@ Chorus
                 }
                 else
                 {
-                    _lyricsEdit = MergeTabToInlineChords(_ugPasteText);
+                    _lyricsEdit = MergeTabToInlineChords(_ugPasteText); SyncEditorsToDom();
                     if (!string.IsNullOrWhiteSpace(target))
                     {
                         _saveStatus = aiSkipped
@@ -2772,7 +2783,7 @@ Chorus
         }
         _ugParsing   = false;
         _ugPasteOpen = false;
-        _ugPasteText = "";
+        _ugPasteText = ""; SyncEditorsToDom();
     }
 
     // ── Toneart / Key finder ──────────────────────────────────────────────────
@@ -2817,7 +2828,7 @@ Chorus
             var result = await ChordAi.ConvertNumberedChartToSectionsAsync(_chordEdit, _lyricsEdit, _song.MusicKey);
             if (!string.IsNullOrWhiteSpace(result))
             {
-                _chordEdit = result;
+                _chordEdit = result; SyncEditorsToDom();
                 AutoSave();
             }
         }
@@ -2886,7 +2897,7 @@ Chorus
 
         var synced = string.Join("\n", lines);
         if (!string.IsNullOrWhiteSpace(synced))
-            _chordEdit = synced;
+            _chordEdit = synced; _chordDom = synced; // only the chord box - the lyrics box is being typed in right now
     }
 
     // ── Chord annotation ──────────────────────────────────────────────────────
@@ -2937,7 +2948,7 @@ Chorus
     private void AcceptAnnotateCandidate()
     {
         if (_annotateCandidate is null) return;
-        _lyricsEdit = _annotateCandidate;
+        _lyricsEdit = _annotateCandidate; SyncEditorsToDom();
         _annotateCandidate = null;
         AutoSave();
     }
@@ -2951,7 +2962,7 @@ Chorus
 
     private void SimplifyChords()
     {
-        _chordEdit = SlashChordRegex.Replace(_chordEdit, m => m.Groups[1].Value);
+        _chordEdit = SlashChordRegex.Replace(_chordEdit, m => m.Groups[1].Value); SyncEditorsToDom();
 
         // Akkorder and Tekst/Lyrics store chords in two different formats
         // (plain "Am G F" vs inline "[Am]word") - the plain-text regex above
@@ -2969,7 +2980,7 @@ Chorus
             lyricLines[i] = chordRx.Replace(lyricLines[i],
                 m => "[" + SlashChordRegex.Replace(m.Groups[1].Value, mm => mm.Groups[1].Value) + "]");
         }
-        _lyricsEdit = string.Join('\n', lyricLines);
+        _lyricsEdit = string.Join('\n', lyricLines); SyncEditorsToDom();
 
         AutoSave();
         StateHasChanged();
