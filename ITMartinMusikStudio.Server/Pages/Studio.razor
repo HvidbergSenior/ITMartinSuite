@@ -349,6 +349,7 @@ else if (_song is not null)
                     <div class="prog-suggest">
                         <b>Forslag til teksten:</b>
                         @if (_progKeyNote is not null) { <div>🎼 @_progKeyNote</div> }
+                        @if (_progVoiceNote is not null) { <div>🎤 @_progVoiceNote</div> }
                         @foreach (var s in _progSuggestions)
                         {
                             <div>🎯 <b>@s.Name</b> – @s.Reason</div>
@@ -1542,12 +1543,31 @@ Chorus
         else _voiceError = "Hørte ingen sang - prøv igen tættere på mikrofonen.";
     }
 
-    private string? _progKeyNote;
+    // Where the sung melody sits against the singer's range, and the shift
+    // (in semitones) that would put its top note comfortably 3 below his
+    // ceiling without pushing the bottom out of reach. 0 = leave it.
+    private static (int Shift, string Verdict) FitToVoice(int melLow, int melHigh, VoiceRange v)
+    {
+        var idealTop = v.HighMidi - 3;
+        var shift = idealTop - melHigh;
+        // Don't drop the low notes below what he can sing.
+        if (melLow + shift < v.LowMidi) shift = v.LowMidi - melLow;
+        // Small differences are not worth transposing.
+        if (Math.Abs(shift) <= 1) shift = 0;
+        var names = new[] { "C","C#","D","D#","E","F","F#","G","G#","A","A#","B" };
+        string N(int m) => names[m % 12] + (m / 12 - 1);
+        var mel = $"Melodien går {N(melLow)}–{N(melHigh)}";
+        if (shift == 0) return (0, $"{mel} – passer til din stemme ({v.Low}–{v.High}). Behold tonearten.");
+        var dir = shift < 0 ? "ned" : "op";
+        return (shift, $"{mel}. Med din stemme ({v.Low}–{v.High}) er den bedre {Math.Abs(shift)} halvtone{(Math.Abs(shift) == 1 ? "" : "r")} {dir} – så topper du på {N(melHigh + shift)}.");
+    }
+
+    private string? _progKeyNote, _progVoiceNote;
 
     private async Task SuggestProgressions()
     {
         if (_song is null || string.IsNullOrWhiteSpace(_lyricsEdit)) return;
-        _progSuggesting = true; _progError = null; _progSuggestions = []; _progKeyNote = null;
+        _progSuggesting = true; _progError = null; _progSuggestions = []; _progKeyNote = null; _progVoiceNote = null;
         try
         {
             // 1) The key: read it off the recording when there is one (librosa),
@@ -1566,6 +1586,24 @@ Chorus
                     _progKeyNote = $"Toneart {guessed} hørt i optagelsen" + (bpm is > 0 ? $", ca. {Math.Round(bpm.Value)} bpm" : "");
                     _song.MusicKey = guessed;
                     if (bpm is > 0 && (_song.Tempo is null or 0)) _song.Tempo = (int)Math.Round(bpm.Value);
+
+                    // Does that key suit HIS voice? Needs the isolated vocal (stems) and a Stemmetest.
+                    var vocals = Library.GetExistingStems(SongKey)?.Vocals;
+                    if (_voice is not null && vocals is not null)
+                    {
+                        _saveStatus = "🎤 Måler melodiens omfang..."; StateHasChanged();
+                        if (await ChordDetect.DetectMelodyRangeAsync(vocals) is { } mel)
+                        {
+                            var (shift, verdict) = FitToVoice(mel.LowMidi, mel.HighMidi, _voice);
+                            _progVoiceNote = verdict;
+                            if (shift != 0)
+                            {
+                                var singKey = TransposeNote(guessed, shift, ChordProgressions.KeyPrefersFlats((ChordProgressions.ParseKey(guessed).Root + shift + 12) % 12, ChordProgressions.ParseKey(guessed).Minor));
+                                _progVoiceNote += $" Vis progressioner i {singKey}.";
+                                key = singKey;
+                            }
+                        }
+                    }
                 }
             }
             _saveStatus = "✨ Finder progressioner..."; StateHasChanged();

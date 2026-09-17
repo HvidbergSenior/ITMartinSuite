@@ -54,6 +54,53 @@ public sealed class ChordDetectionService
         return raw.Select(r => new ChordSegment(r[0].GetDouble(), r[1].GetDouble(), r[2].GetString() ?? "")).ToList();
     }
 
+    // Sung melody range from an isolated vocal track (demucs vocals.wav):
+    // pyin pitch track, voiced frames only, 5th/95th percentile so a single
+    // yelp or a low growl does not define the range. MIDI numbers.
+    public async Task<(int LowMidi, int HighMidi)?> DetectMelodyRangeAsync(string vocalsPath, CancellationToken ct = default)
+    {
+        var scriptPath = Path.Combine(Path.GetTempPath(), "musikstudio_melody_range.py");
+        await File.WriteAllTextAsync(scriptPath, MelodyRangePythonScript, ct);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName               = _python,
+            Arguments              = $"\"{scriptPath}\" \"{vocalsPath}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            UseShellExecute        = false,
+        };
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Could not start python");
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+        await proc.WaitForExitAsync(ct);
+        var stdout = (await stdoutTask).Trim();
+        _ = await stderrTask;
+        var parts = stdout.Split(' ');
+        return proc.ExitCode == 0 && parts.Length == 2 && int.TryParse(parts[0], out var lo) && int.TryParse(parts[1], out var hi) && hi > lo
+            ? (lo, hi) : null;
+    }
+
+    private const string MelodyRangePythonScript = """
+        import sys
+        import numpy as np
+        import librosa
+
+        def main(path):
+            y, sr = librosa.load(path, sr=22050, mono=True)
+            f0, voiced, prob = librosa.pyin(y, fmin=librosa.note_to_hz('E2'), fmax=librosa.note_to_hz('C6'), sr=sr, frame_length=2048)
+            f0 = f0[(voiced) & (prob > 0.5) & np.isfinite(f0)]
+            if f0.size < 50:
+                print("0 0"); return
+            midi = librosa.hz_to_midi(f0)
+            lo = int(round(np.percentile(midi, 5)))
+            hi = int(round(np.percentile(midi, 95)))
+            print(lo, hi)
+
+        if __name__ == '__main__':
+            main(sys.argv[1])
+        """;
+
     public async Task<double?> DetectTempoAsync(string inputPath, CancellationToken ct = default)
     {
         var scriptPath = Path.Combine(Path.GetTempPath(), "musikstudio_tempo_detect.py");
