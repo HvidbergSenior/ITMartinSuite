@@ -313,14 +313,23 @@ else if (_song is not null)
                         <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Syng en lang tone og glid ned så dybt du kan uden at knirke – så op så højt du kan uden at presse. Tag den et par gange. Tryk Stop når du er tilfreds.</div>
                     </div>
                 }
-                else if (_voice is not null)
-                {
-                    <div class="voice-range">Din stemme: <b>@_voice.Low – @_voice.High</b> <span class="muted">(@_voice.Span, målt @_voice.MeasuredAt.ToString("d/M"))</span></div>
-                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Bruges når Foreslå vælger toneart. Kør testen igen når som helst.</div>
-                }
                 else
                 {
-                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Ingen måling endnu. Tryk Start, syng din dybeste og højeste behagelige tone – så ved appen hvilke tonearter der passer til dig.</div>
+                    @if (_voice is not null)
+                    {
+                        <div class="voice-range">Din stemme: <b>@_voice.Low – @_voice.High</b> <span class="muted">(@_voice.Span, @_voice.MeasuredAt.ToString("d/M"))</span></div>
+                        <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Bruges når Foreslå vurderer toneart. Kør testen igen, eller ret tallene herunder.</div>
+                    }
+                    else
+                    {
+                        <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Ingen måling endnu. Tryk Start, syng din dybeste og højeste behagelige tone – eller skriv dem herunder hvis du kender dem.</div>
+                    }
+                    <div class="voice-manual">
+                        <input class="voice-input" placeholder="dybest, fx B2" @bind="_voiceManualLow" />
+                        <span>–</span>
+                        <input class="voice-input" placeholder="højest, fx G4" @bind="_voiceManualHigh" />
+                        <button class="btn-ghost-sm" @onclick="SaveManualVoice">Gem</button>
+                    </div>
                 }
                 @if (_voiceError is not null) { <div class="pattern-tip" style="color:#fca5a5;background:rgba(220,38,38,.1);margin-top:8px">⚠️ @_voiceError</div> }
             </div>
@@ -1510,6 +1519,35 @@ Chorus
     private string? _voiceNow, _voiceLow, _voiceHigh, _voiceError;
     private int _voiceLowMidi, _voiceHighMidi;
     private DotNetObjectReference<Studio>? _voiceRef;
+
+    private string _voiceManualLow = "", _voiceManualHigh = "";
+
+    // "B2" / "F#4" / "Bb3" -> MIDI number, or null.
+    private static int? NoteToMidi(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        s = s.Trim().Replace("♯", "#").Replace("♭", "b");
+        var names = new[] { "C","C#","D","D#","E","F","F#","G","G#","A","A#","B" };
+        var i = 0; var letter = char.ToUpperInvariant(s[i++]);
+        var acc = 0;
+        if (i < s.Length && (s[i] == '#' || s[i] == 'b')) { acc = s[i] == '#' ? 1 : -1; i++; }
+        if (!int.TryParse(s[i..], out var octave)) return null;
+        var idx = Array.IndexOf(names, letter.ToString());
+        if (idx < 0) return null;
+        return (octave + 1) * 12 + idx + acc;
+    }
+
+    private void SaveManualVoice()
+    {
+        var lo = NoteToMidi(_voiceManualLow); var hi = NoteToMidi(_voiceManualHigh);
+        if (lo is null || hi is null || hi <= lo) { _voiceError = "Skriv fx B2 og G4."; return; }
+        var names = new[] { "C","C#","D","D#","E","F","F#","G","G#","A","A#","B" };
+        string N(int m) => names[m % 12] + (m / 12 - 1);
+        _voice = new VoiceRange(N(lo.Value), N(hi.Value), lo.Value, hi.Value, DateTime.Now);
+        VoiceRangeStore.Save(Library, _voice);
+        _voiceError = null; _voiceManualLow = _voiceManualHigh = "";
+        _saveStatus = "🎤 Stemme gemt";
+    }
 
     private async Task StartVoiceTest()
     {
