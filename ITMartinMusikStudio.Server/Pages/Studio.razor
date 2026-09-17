@@ -470,8 +470,8 @@ Chorus
                           placeholder="Dine egne noter, idéer, pointer..."></textarea>
             </div>
 
-            <!-- AI Helper -->
-            @if (ChordAi.IsAvailable)
+            <!-- AI Helper - hidden for now (user, 2026-09-17: "maybe use it later"); flip ShowAiHelper to bring it back. -->
+            @if (ShowAiHelper && ChordAi.IsAvailable)
             {
             <div class="studio-card">
                 <div class="card-label" style="margin-bottom:10px">🧠 AI Hjælp</div>
@@ -1344,6 +1344,7 @@ Chorus
     private List<SpotifyTrack> _spotifyResults = [];
 
     private string _chordEdit = "";
+    private const bool ShowAiHelper = false;
     private string _lyricsEdit = "";
     // What the two big textareas are RENDERED with. Deliberately not the
     // live edit fields: pushing the value back on every keystroke races the
