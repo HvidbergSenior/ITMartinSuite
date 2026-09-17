@@ -180,7 +180,18 @@ else if (_song is not null)
             <div class="studio-card" id="card-kilde">
                 <div class="card-header">
                     <div class="card-label">🎬 Kilde</div>
+                    <div class="card-actions">
+                        @{ var kildeSkipped = StepPlanner.Skipped(_song).Contains("kilde"); }
+                        <button class="btn-ghost-sm @(kildeSkipped ? "active" : "")" @onclick='() => ToggleStep("kilde")'
+                                title="En kildefil er valgfri - fx en kendt sang du selv spiller og synger uden backing">
+                            @(kildeSkipped ? "✓ Ikke nødvendig" : "Ikke nødvendig")
+                        </button>
+                    </div>
                 </div>
+                @if (kildeSkipped && !Library.Exists(_song.SourceFile))
+                {
+                    <p class="small" style="color:var(--text-muted)">Sangen har ingen kildefil - du spiller og synger den selv. Tilføj en når som helst.</p>
+                }
                 @if (Library.Exists(_song.SourceFile))
                 {
                     @if (Library.IsVideo(_song.SourceFile))
@@ -451,6 +462,7 @@ Bridge: Dm Am E Am"></textarea>
                 <div class="card-header">
                     <div class="card-label">🎸 Mønstre</div>
                     <div class="card-actions" style="gap:6px">
+                        <button class="btn-ghost-sm @(StepPlanner.Skipped(_song).Contains("spillemaade") ? "active" : "")" @onclick='() => ToggleStep("spillemaade")' title="Spillemåde er valgfri">@(StepPlanner.Skipped(_song).Contains("spillemaade") ? "✓ Ikke nødvendig" : "Ikke nødvendig")</button>
                         <div class="pattern-toggle">
                             <button class="@(!_plektrumMode ? "pattern-toggle-btn active" : "pattern-toggle-btn")" @onclick='() => _plektrumMode = false'>🖐 Fingre</button>
                             <button class="@(_plektrumMode ? "pattern-toggle-btn active" : "pattern-toggle-btn")" @onclick='() => _plektrumMode = true'>🎸 Plektor</button>
