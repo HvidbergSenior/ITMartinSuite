@@ -324,6 +324,25 @@ window.studio = (function() {
         playMix: playMix,
         stopMix: stopMix,
         setMixVolume: setMixVolume,
+        // Lights up the greb (diagram card) of the chord sounding now while the
+        // source player plays. timeline = [{t: seconds, c: chordName}, ...].
+        chordSync: function(timeline) {
+            if (window._chordSyncTimer) { clearInterval(window._chordSyncTimer); window._chordSyncTimer = null; }
+            if (!timeline || !timeline.length) return;
+            window._chordSyncTimer = setInterval(function() {
+                var audio = document.querySelector("audio.perform-player");
+                var col = document.getElementById("perform-grebs");
+                if (!col) return;
+                var now = null;
+                if (audio && !audio.paused) {
+                    var t = audio.currentTime;
+                    for (var i = 0; i < timeline.length; i++) { if (timeline[i].t <= t) now = timeline[i].c; else break; }
+                }
+                col.querySelectorAll(".greb").forEach(function(el) {
+                    el.classList.toggle("greb--now", now !== null && el.dataset.chord.toLowerCase() === now.toLowerCase());
+                });
+            }, 200);
+        },
         setElementVolume: function(id, v) { var el = document.getElementById(id); if (el) el.volume = Math.max(0, Math.min(1, v)); },
         setMicGain: setMicGain,
         startCamera: startCamera,

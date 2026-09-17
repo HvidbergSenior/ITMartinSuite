@@ -1595,3 +1595,21 @@ textarea, input[type=text], input[type=search], input[type=number], input[type=u
 @media (max-width: 900px) {
     .optag-layout { grid-template-columns: 1fr; grid-template-areas: "lyrics" "side" "controls"; }
 }
+
+/* ── Indspil, final shape: controls bar on top, LYRICS centred, grebs right ── */
+.optag-layout { grid-template-columns: 300px minmax(0, 1fr) 190px; grid-template-areas: "side side side" "controls lyrics grebs"; }
+.perform-side { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.perform-side .perform-controls { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.perform-side .perform-player { width: auto; min-width: 220px; }
+.perform-grebs { grid-area: grebs; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 8px; }
+.greb { border: 1px solid var(--border); border-radius: 10px; padding: 6px 8px; background: var(--surface); cursor: pointer; transition: box-shadow .15s, border-color .15s, transform .15s; }
+.greb-name { font-weight: 800; font-size: 15px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.greb-frets { font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.greb-svg svg { width: 100%; height: auto; }
+.greb--off { opacity: .35; }
+.greb--now { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(59,130,246,.55); transform: scale(1.04); }
+@media (max-width: 900px) {
+    .optag-layout { grid-template-columns: 1fr; grid-template-areas: "side" "lyrics" "grebs" "controls"; }
+    .perform-grebs { flex-direction: row; flex-wrap: wrap; position: static; }
+    .greb { width: 110px; }
+}

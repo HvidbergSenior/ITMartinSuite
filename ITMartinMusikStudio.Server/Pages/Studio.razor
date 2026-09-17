@@ -1379,6 +1379,20 @@ Chorus
         }
     </div><!-- /perform-center -->
 
+    <!-- Greb column: one guitar diagram per chord in the song, each can be
+         switched off, and the one sounding right now lights up while the
+         source recording plays (chord timeline from the recording, capo-aware). -->
+    <div class="perform-grebs" id="perform-grebs">
+        @foreach (var ch in SongChordsInOrder())
+        {
+            var hidden = _hiddenGrebs.Contains(ch);
+            <div class="greb @(hidden ? "greb--off" : "")" data-chord="@ch" @onclick="() => ToggleGreb(ch)" title="@(hidden ? "Vis greb" : "Skjul greb")">
+                <div class="greb-name">@ch <span class="greb-frets">@(ChordFrets.Of(ch) ?? "")</span></div>
+                @if (!hidden && ChordDiagrams.GetSvg(ch) is { } gsvg) { <div class="greb-svg">@((MarkupString)gsvg)</div> }
+            </div>
+        }
+    </div>
+
     </div><!-- /optag-lyrics -->
 
     </div><!-- /optag-layout -->
@@ -1986,6 +2000,71 @@ Chorus
         var v = int.TryParse(raw, out var p) ? Math.Clamp(p, 0, 100) : 100;
         _stemVol[label] = v;
         JS.InvokeVoidAsync("studio.setElementVolume", $"stem-{label.GetHashCode()}", v / 100.0);
+    }
+
+    // ── Greb column on Indspil ──────────────────────────────────────────
+    private readonly HashSet<string> _hiddenGrebs = new(StringComparer.OrdinalIgnoreCase);
+    private void ToggleGreb(string chord) { if (!_hiddenGrebs.Remove(chord)) _hiddenGrebs.Add(chord); }
+    private string _lastSyncKey = "";
+
+    // Every chord that appears in the lyrics markers, in order of first use.
+    private List<string> SongChordsInOrder()
+    {
+        var rx = new System.Text.RegularExpressions.Regex(@"\[([A-G][^\]]*)\]");
+        var seen = new List<string>();
+        foreach (System.Text.RegularExpressions.Match m in rx.Matches(_lyricsEdit ?? ""))
+            if (!seen.Contains(m.Groups[1].Value, StringComparer.OrdinalIgnoreCase)) seen.Add(m.Groups[1].Value);
+        return seen;
+    }
+
+    // The recording's detected chord timeline ("00:24 F" lines from meta),
+    // mapped onto the song's own chord names: same root and major/minor,
+    // extensions ignored, capo shift applied when the chart says "Capo N".
+    private List<object> ChordTimelineForSync()
+    {
+        var meta = Library.LoadMeta(SongKey);
+        if (string.IsNullOrWhiteSpace(meta.Chords)) return [];
+        var capoM = System.Text.RegularExpressions.Regex.Match(_chordEdit + "\n" + _lyricsEdit, @"[Cc]apo\s*(\d+)");
+        var capo = capoM.Success && int.TryParse(capoM.Groups[1].Value, out var f) ? f : 0;
+        var names = new[] { "C","C#","D","D#","E","F","F#","G","G#","A","A#","B" };
+        var own = SongChordsInOrder();
+        (int Root, bool Minor)? Norm(string chord)
+        {
+            var top = chord.Split('/')[0];
+            var len = top.Length > 1 && top[1] is '#' or 'b' ? 2 : 1;
+            var root = top[..len].Replace("Db","C#").Replace("Eb","D#").Replace("Gb","F#").Replace("Ab","G#").Replace("Bb","A#");
+            var i = Array.IndexOf(names, root); if (i < 0) return null;
+            var rest = top[len..];
+            return (i, rest.StartsWith('m') && !rest.StartsWith("maj"));
+        }
+        var ownNorm = own.Select(c => (Name: c, N: Norm(c))).Where(x => x.N is not null).ToList();
+        var list = new List<object>();
+        foreach (var line in meta.Chords.Split('\n'))
+        {
+            var parts = line.Trim().Split(' ', 2);
+            if (parts.Length < 2 || !TimeSpan.TryParseExact(parts[0], @"mm\:ss", null, out var t)) continue;
+            var n = Norm(parts[1]); if (n is null) continue;
+            var shifted = ((n.Value.Root - capo) % 12 + 12) % 12;
+            var match = ownNorm.FirstOrDefault(x => x.N!.Value.Root == shifted && x.N.Value.Minor == n.Value.Minor).Name;
+            if (match is null) continue;
+            list.Add(new { t = t.TotalSeconds, c = match });
+        }
+        return list;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // (Re)start the greb highlighter whenever the Indspil tab is showing a
+        // different song/lyrics than last time.
+        if (_tab == "optag" && _song is not null)
+        {
+            var key = SongKey + "|" + (_lyricsEdit?.Length ?? 0) + "|" + _chordEdit.Length;
+            if (key != _lastSyncKey)
+            {
+                _lastSyncKey = key;
+                try { await JS.InvokeVoidAsync("studio.chordSync", ChordTimelineForSync()); } catch { }
+            }
+        }
     }
 
     private string? _selectedChord;
