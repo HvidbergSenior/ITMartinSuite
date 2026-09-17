@@ -43,6 +43,18 @@ public sealed class ConsumptionStore
         }
     }
 
+    // Every hour with a reading in [from, to) keyed by its Danish wall-clock hour.
+    public Dictionary<DateTime, double> Range(DateOnly from, DateOnly to)
+    {
+        lock (_lock)
+        {
+            var lo = from.ToString("yyyy-MM-dd");
+            var hi = to.ToString("yyyy-MM-dd");
+            return _hours.Where(kv => string.CompareOrdinal(kv.Key, lo) >= 0 && string.CompareOrdinal(kv.Key, hi) < 0)
+                .ToDictionary(kv => DateTime.ParseExact(kv.Key, "yyyy-MM-dd HH", null), kv => kv.Value);
+        }
+    }
+
     public bool HasAny { get { lock (_lock) return _hours.Count > 0; } }
 
     public DateOnly? LatestDay
