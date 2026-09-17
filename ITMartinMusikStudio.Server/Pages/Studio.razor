@@ -289,6 +289,42 @@ else if (_song is not null)
             </div>
             }
 
+            <!-- Stemmetest: sing your lowest and highest comfortable note; the
+                 range is kept per library and fed to the key suggestion. -->
+            <div class="studio-card" id="card-stemme">
+                <div class="card-header">
+                    <div class="card-label">🎤 Stemmetest</div>
+                    <div class="card-actions">
+                        @if (_voiceListening)
+                        {
+                            <button class="btn-primary" @onclick="StopVoiceTest">■ Stop og gem</button>
+                        }
+                        else
+                        {
+                            <button class="btn-ghost-sm" @onclick="StartVoiceTest">🎤 Start</button>
+                        }
+                    </div>
+                </div>
+                @if (_voiceListening)
+                {
+                    <div class="voice-live">
+                        <div class="voice-note">@(_voiceNow ?? "…")</div>
+                        <div class="voice-range">Laveste <b>@(_voiceLow ?? "–")</b> · Højeste <b>@(_voiceHigh ?? "–")</b></div>
+                        <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Syng en lang tone og glid ned så dybt du kan uden at knirke – så op så højt du kan uden at presse. Tag den et par gange. Tryk Stop når du er tilfreds.</div>
+                    </div>
+                }
+                else if (_voice is not null)
+                {
+                    <div class="voice-range">Din stemme: <b>@_voice.Low – @_voice.High</b> <span class="muted">(@_voice.Span, målt @_voice.MeasuredAt.ToString("d/M"))</span></div>
+                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Bruges når Foreslå vælger toneart. Kør testen igen når som helst.</div>
+                }
+                else
+                {
+                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Ingen måling endnu. Tryk Start, syng din dybeste og højeste behagelige tone – så ved appen hvilke tonearter der passer til dig.</div>
+                }
+                @if (_voiceError is not null) { <div class="pattern-tip" style="color:#fca5a5;background:rgba(220,38,38,.1);margin-top:8px">⚠️ @_voiceError</div> }
+            </div>
+
             <!-- Chord progressions to pick from - rendered in the chosen key,
                  one click puts one into Akkorder (user, 2026-09-17). -->
             <div class="studio-card" id="card-progressioner">
@@ -1467,6 +1503,45 @@ Chorus
     private List<(string Name, string Reason)> _progSuggestions = [];
     private bool IsSuggested(string name) => _progSuggestions.Any(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
 
+    // ── Stemmetest ────────────────────────────────────────────────────────
+    private VoiceRange? _voice;
+    private bool _voiceListening;
+    private string? _voiceNow, _voiceLow, _voiceHigh, _voiceError;
+    private int _voiceLowMidi, _voiceHighMidi;
+    private DotNetObjectReference<Studio>? _voiceRef;
+
+    private async Task StartVoiceTest()
+    {
+        _voiceError = null; _voiceNow = _voiceLow = _voiceHigh = null;
+        try
+        {
+            _voiceRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("voiceTest.start", _voiceRef);
+            _voiceListening = true;
+        }
+        catch (Exception ex) { _voiceError = "Kunne ikke åbne mikrofonen: " + ex.Message; }
+    }
+
+    [JSInvokable]
+    public void VoiceSample(string now, int hz, string low, string high, int lowMidi, int highMidi)
+    {
+        _voiceNow = $"{now}  ({hz} Hz)"; _voiceLow = low; _voiceHigh = high; _voiceLowMidi = lowMidi; _voiceHighMidi = highMidi;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StopVoiceTest()
+    {
+        await JS.InvokeVoidAsync("voiceTest.stop");
+        _voiceListening = false;
+        if (_voiceLow is not null && _voiceHigh is not null && _voiceHighMidi > _voiceLowMidi)
+        {
+            _voice = new VoiceRange(_voiceLow, _voiceHigh, _voiceLowMidi, _voiceHighMidi, DateTime.Now);
+            VoiceRangeStore.Save(Library, _voice);
+            _saveStatus = "🎤 Stemme gemt";
+        }
+        else _voiceError = "Hørte ingen sang - prøv igen tættere på mikrofonen.";
+    }
+
     private string? _progKeyNote;
 
     private async Task SuggestProgressions()
@@ -1496,7 +1571,8 @@ Chorus
             _saveStatus = "✨ Finder progressioner..."; StateHasChanged();
 
             var catalogue = ChordProgressions.All.Select(p => $"{p.Name} – {p.Mood} – {(p.Minor ? "mol" : "dur")}: {p.Degrees} – {p.Note}");
-            var raw = await ChordAi.SuggestProgressionsAsync(_song.Title, key, _song.Tempo, StripChordMarkers(_lyricsEdit), catalogue);
+            var voiceHint = _voice is null ? "" : $" (singer's comfortable range {_voice.Low}-{_voice.High})";
+            var raw = await ChordAi.SuggestProgressionsAsync(_song.Title + voiceHint, key, _song.Tempo, StripChordMarkers(_lyricsEdit), catalogue);
 
             // A leading "Toneart|X|why" line is the AI's key proposal (only asked for when we had none).
             var keyLine = raw.FirstOrDefault(r => r.Name.Equals("Toneart", StringComparison.OrdinalIgnoreCase));
@@ -1842,6 +1918,7 @@ Chorus
         _fingerpickEdit  = _song.FingerpickPattern;
         _strumEdit       = _song.StrumPattern; SyncEditorsToDom();
         _progKey = ProgKeys.Contains(_song.MusicKey) ? _song.MusicKey : (ChordProgressions.ParseKey(_song.MusicKey).Minor ? "Am" : "C");
+        _voice = VoiceRangeStore.Load(Library);
         _loading         = false;
 
         // Sync chord chart from inline lyrics chords (catches chords added since last save)
@@ -2292,6 +2369,7 @@ Chorus
     public void Dispose()
     {
         _disposed = true;
+        _voiceRef?.Dispose();
         _saveTimer?.Stop(); _saveTimer?.Dispose();
         _beatTimer?.Stop(); _beatTimer?.Dispose();
     }

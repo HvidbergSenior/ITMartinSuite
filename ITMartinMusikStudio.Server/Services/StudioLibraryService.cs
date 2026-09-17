@@ -417,3 +417,28 @@ public sealed class StudioLibraryService
 
 public record SourceFile(string RelativePath, string Title);
 public record RecordingFile(string RelativePath, string Name, DateTime CreatedAt, bool IsVideo, bool IsAi = false, string? Section = null);
+
+// The singer's range from the Stemmetest - one per library, not per song.
+public sealed record VoiceRange(string Low, string High, int LowMidi, int HighMidi, DateTime MeasuredAt)
+{
+    public int Semitones => HighMidi - LowMidi;
+    public string Span => $"{Semitones / 12} okt. + {Semitones % 12}";
+}
+
+public static class VoiceRangeStore
+{
+    private static string PathFor(StudioLibraryService lib) => System.IO.Path.Combine(lib.MetaDir, "_voice.json");
+
+    public static VoiceRange? Load(StudioLibraryService lib)
+    {
+        var p = PathFor(lib);
+        if (!File.Exists(p)) return null;
+        try { return System.Text.Json.JsonSerializer.Deserialize<VoiceRange>(File.ReadAllText(p)); } catch { return null; }
+    }
+
+    public static void Save(StudioLibraryService lib, VoiceRange v)
+    {
+        Directory.CreateDirectory(lib.MetaDir);
+        File.WriteAllText(PathFor(lib), System.Text.Json.JsonSerializer.Serialize(v));
+    }
+}
