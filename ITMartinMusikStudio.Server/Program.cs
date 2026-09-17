@@ -70,10 +70,11 @@ app.UseAntiforgery();
 
 var musikRoot = app.Configuration["MusicSettings:Root"] ?? "/musik";
 
-app.MapGet("/stream", (string path, HttpContext ctx) =>
+app.MapGet("/stream", (string path, HttpContext ctx, StudioLibraryService lib) =>
 {
-    var full = Path.GetFullPath(Path.Combine(musikRoot, path));
-    if (!full.StartsWith(musikRoot, StringComparison.OrdinalIgnoreCase))
+    var full = lib.Resolve(path);
+    var allowedRoot = StudioLibraryService.IsBibliotek(path) ? lib.BibliotekRoot : musikRoot;
+    if (!full.StartsWith(allowedRoot, StringComparison.OrdinalIgnoreCase))
         return Results.BadRequest();
     if (!File.Exists(full))
         return Results.NotFound();

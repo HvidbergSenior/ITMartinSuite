@@ -1619,3 +1619,7 @@ textarea, input[type=text], input[type=search], input[type=number], input[type=u
 .line--later { opacity: .6; }
 .beat-badge { transition: background .2s, color .2s; }
 .line--now .beat-badge { background: var(--accent); color: #fff; }
+.bib-results { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; max-height: 260px; overflow-y: auto; }
+.bib-hit { text-align: left; background: var(--field-bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: .85rem; color: var(--text); cursor: pointer; }
+.bib-hit:hover { border-color: var(--accent); }
+.bib-hit .muted { color: var(--text-muted); font-size: .75rem; }

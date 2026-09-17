@@ -213,6 +213,30 @@ else if (_song is not null)
                     @(_uploadingSource ? "⏳ Uploader..." : Library.Exists(_song.SourceFile) ? "🔄 Skift kildefil (fx fra Suno)" : "⬆ Tilføj kildefil (fx fra Suno)")
                     <InputFile OnChange="UploadSourceFile" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.wma,.mp4,.webm,.mov,.m4v" style="display:none" />
                 </label>
+
+                <!-- Or link straight to a track in the big collection on the NAS
+                     (MartinBibliotek) - no upload, no Spotify, just a path. -->
+                <div style="margin-top:10px">
+                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:4px">📚 Eller find sangen i dit bibliotek på NAS'en (@(StudioLibraryService.IsBibliotek(_song.SourceFile) ? "linket: " + _song.SourceFile[10..] : "kunstner, titel..."))</div>
+                    <div style="display:flex;gap:6px">
+                        <input class="voice-input" style="flex:1;width:auto" placeholder="fx rem the one i love" @bind="_bibQuery" @bind:event="oninput" @bind:after="SearchBibliotek" />
+                        @if (_bibSearching) { <span class="t-label">⏳</span> }
+                    </div>
+                    @if (_bibResults.Count > 0)
+                    {
+                        <div class="bib-results">
+                            @foreach (var r in _bibResults)
+                            {
+                                var rel = r;
+                                <button class="bib-hit" @onclick="() => LinkBibliotek(rel)" title="@rel">@System.IO.Path.GetFileNameWithoutExtension(rel) <span class="muted">· @System.IO.Path.GetDirectoryName(rel)?.Replace('\\', '/')</span></button>
+                            }
+                        </div>
+                    }
+                    else if (!_bibSearching && _bibQuery.Length >= 2 && _bibSearched)
+                    {
+                        <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted)">Intet fundet.</div>
+                    }
+                </div>
             </div>
 
             <!-- Spotify + Find sang: only for KNOWN songs (an artist is set). Own
@@ -1687,7 +1711,7 @@ Chorus
             if (!string.IsNullOrWhiteSpace(_song.SourceFile) && Library.Exists(_song.SourceFile) && ChordDetect.IsAvailable)
             {
                 _saveStatus = "🎧 Lytter efter toneart og tempo..."; StateHasChanged();
-                var full = Path.Combine(Library.Root, _song.SourceFile);
+                var full = Library.Resolve(_song.SourceFile);
                 var segments = await ChordDetect.DetectAsync(full);
                 var guessed = KeyGuesser.Guess(segments);
                 var bpm = await ChordDetect.DetectTempoAsync(full);
@@ -2024,6 +2048,27 @@ Chorus
             @if (until is > 0 && until <= 8) { <text>om @until</text> } else { <text>♩@(beat?.ToString() ?? "·")</text> }
         </button>
     };
+    // ── Bibliotek search on the Kilde card ────────────────────────────────
+    private string _bibQuery = "";
+    private bool _bibSearching, _bibSearched;
+    private List<string> _bibResults = [];
+    private async Task SearchBibliotek()
+    {
+        var q = _bibQuery;
+        if (q.Trim().Length < 2) { _bibResults = []; _bibSearched = false; return; }
+        _bibSearching = true;
+        try { _bibResults = await Task.Run(() => Library.SearchBibliotek(q)); _bibSearched = true; }
+        finally { _bibSearching = false; }
+    }
+    private void LinkBibliotek(string rel)
+    {
+        if (_song is null) return;
+        _song.SourceFile = StudioLibraryService.BibliotekPrefix + rel;
+        _bibResults = []; _bibQuery = "";
+        AutoSave();
+        _saveStatus = "📚 Kildefil linket fra biblioteket";
+    }
+
     private bool _uploadingSource;
     private bool _coverGenerating;
     private string? _coverError;
@@ -3277,7 +3322,7 @@ Chorus
 
         try
         {
-            var inputPath = Path.GetFullPath(Path.Combine(Library.Root, _song.SourceFile));
+            var inputPath = Library.Resolve(_song.SourceFile);
             var outputDir = Path.Combine(Library.Root, "stems", SongKey);
             var progress  = new Progress<string>(msg => { _stemProgress = msg; InvokeAsync(StateHasChanged); });
             _stems = await StemSvc.SeparateAsync(inputPath, outputDir, progress);
@@ -3312,7 +3357,7 @@ Chorus
 
         try
         {
-            var inputPath = Path.GetFullPath(Path.Combine(Library.Root, _song.SourceFile));
+            var inputPath = Library.Resolve(_song.SourceFile);
             var outputPath = Path.Combine(Library.Root, "transcriptions", $"{SongKey}.mid");
             var countStr = await PianoTranscribe.TranscribeAsync(inputPath, outputPath);
             _noteCount = int.TryParse(countStr, out var n) ? n : 0;

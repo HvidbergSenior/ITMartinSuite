@@ -23,6 +23,7 @@ public sealed class StudioLibraryService
     public StudioLibraryService(IConfiguration config)
     {
         Root = config["MusicSettings:Root"] ?? "/musik";
+        BibliotekRoot = config["MusicSettings:BibliotekRoot"] ?? "/bibliotek";
     }
 
     public SongMeta LoadMeta(string songKey)
@@ -81,14 +82,66 @@ public sealed class StudioLibraryService
         return results;
     }
 
+    // ── Biblioteket: the big music collection on the NAS as a source ────
+    // A song's SourceFile can point into it as "bibliotek:<relative path>".
+    // Nothing is copied; the studio streams straight from the collection.
+    public string BibliotekRoot { get; }
+    public const string BibliotekPrefix = "bibliotek:";
+    public static bool IsBibliotek(string? rel) => rel?.StartsWith(BibliotekPrefix, StringComparison.OrdinalIgnoreCase) == true;
+
+    // Full path for any relative source path, whichever root it lives under.
+    public string Resolve(string relativePath)
+    {
+        if (IsBibliotek(relativePath))
+            return Path.GetFullPath(Path.Combine(BibliotekRoot, relativePath[BibliotekPrefix.Length..].Replace('/', Path.DirectorySeparatorChar)));
+        return Path.GetFullPath(Path.Combine(Root, relativePath));
+    }
+
+    private List<string>? _bibliotekIndex;
+    private DateTime _bibliotekIndexedAt;
+    private readonly object _bibliotekLock = new();
+
+    // File names of every audio/video file in the collection, indexed once
+    // per hour (30k files over SMB takes a little while the first time).
+    public List<string> SearchBibliotek(string query, int max = 40)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2) return [];
+        List<string> index;
+        lock (_bibliotekLock)
+        {
+            if (_bibliotekIndex is null || DateTime.UtcNow - _bibliotekIndexedAt > TimeSpan.FromHours(1))
+            {
+                var all = VideoExt.Concat(AudioExt).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var list = new List<string>();
+                if (Directory.Exists(BibliotekRoot))
+                {
+                    var opts = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System };
+                    foreach (var f in Directory.EnumerateFiles(BibliotekRoot, "*", opts))
+                    {
+                        if (!all.Contains(Path.GetExtension(f))) continue;
+                        var rel = Path.GetRelativePath(BibliotekRoot, f).Replace(Path.DirectorySeparatorChar, '/');
+                        if (rel.StartsWith("#recycle") || rel.Contains("@eaDir")) continue;
+                        list.Add(rel);
+                    }
+                }
+                _bibliotekIndex = list; _bibliotekIndexedAt = DateTime.UtcNow;
+            }
+            index = _bibliotekIndex;
+        }
+        var words = query.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return index.Where(p => words.All(w => p.Contains(w, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(p => p.Length).Take(max).ToList();
+    }
+
     public bool IsVideo(string relativePath) =>
         VideoExt.Contains(Path.GetExtension(relativePath), StringComparer.OrdinalIgnoreCase);
 
     public bool Exists(string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath)) return false;
-        var full = Path.GetFullPath(Path.Combine(Root, relativePath));
-        return full.StartsWith(Root, StringComparison.OrdinalIgnoreCase) && File.Exists(full);
+        var full = Resolve(relativePath);
+        var root = IsBibliotek(relativePath) ? BibliotekRoot : Root;
+        return full.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(full);
     }
 
     // Same reasoning as DeleteRecording below - direct call instead of a
