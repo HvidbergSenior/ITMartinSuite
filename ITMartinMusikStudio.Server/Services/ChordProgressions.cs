@@ -67,8 +67,10 @@ public static class ChordProgressions
         return (Math.Max(0, idx), minor);
     }
 
+    // Guitar-player spelling: F, Bb, Eb, Ab major and Fm, Bbm, Gm, Cm are flat
+    // keys; the sharp minors (C#m, F#m, G#m) stay sharp - nobody says "Dbm".
     public static bool KeyPrefersFlats(int root, bool minor) =>
-        minor ? root is 5 or 10 or 3 or 8 or 1 : root is 5 or 10 or 3 or 8 or 1;
+        minor ? root is 5 or 10 or 7 or 0 : root is 5 or 10 or 3 or 8 or 1;
 
     // Renders "Vers: 1 5/7 6m7 4maj7" in the given key -> "Vers: C G/B Am7 Fmaj7".
     public static string Render(Progression p, int root, bool minor)
