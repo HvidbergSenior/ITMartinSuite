@@ -1612,3 +1612,10 @@ textarea, input[type=text], input[type=search], input[type=number], input[type=u
     .perform-grebs { flex-direction: row; flex-wrap: wrap; position: static; }
     .greb { width: 110px; }
 }
+
+/* ── Følg med ── */
+.line--now .perform-word, .perform-plain-line.line--now { font-size: 34px; color: var(--accent); font-weight: 700; }
+.line--done { opacity: .35; }
+.line--later { opacity: .6; }
+.beat-badge { transition: background .2s, color .2s; }
+.line--now .beat-badge { background: var(--accent); color: #fff; }

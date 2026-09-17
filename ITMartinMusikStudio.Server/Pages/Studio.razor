@@ -1120,6 +1120,7 @@ Chorus
                     title="@(_song.Tempo is not > 0 ? "Sæt et tempo (BPM) øverst for at bruge beat-markøren" : _beat >= 0 ? "Slå beat-markør fra" : "Slå beat-markør til - banker takten efter sangens tempo")">
                 🥁 Beat
             </button>
+            <button class="btn-primary" style="padding:6px 12px;font-size:0.85rem" @onclick="FollowAlong" disabled="@(_song.Tempo is not > 0 || !Library.Exists(_song.SourceFile))" title="Spil optagelsen og start beatet sammen - teksten følger med, næste linje tæller ned">▶ Følg</button>
             @if (_beat >= 0)
             {
                 <div class="beat-strip">
@@ -1320,7 +1321,7 @@ Chorus
                     }
                     else
                     {
-                        <div class="perform-lyric-line">
+                        <div class="perform-lyric-line @LineFollowClass(lineIndex)" id="line-@lineIndex">
                             @RenderBeatBadge(lineIndex)
                             @foreach (var seg in ParseLyricLine(line))
                             {
@@ -1366,7 +1367,7 @@ Chorus
                     }
                     else
                     {
-                        <div class="perform-plain-line">@RenderBeatBadge(lineIndex) @line</div>
+                        <div class="perform-plain-line @LineFollowClass(lineIndex)" id="line-@lineIndex">@RenderBeatBadge(lineIndex) @line</div>
                     }
                 }
             </div>
@@ -1933,12 +1934,49 @@ Chorus
     // Small "which beat does this line start on" tag shown next to each
     // lyric line in Spilleguide - click to (re)capture wherever the beat
     // counter currently is, no-ops if the beat isn't running.
+    // ── Følg med: the sheet leads while the beat runs ─────────────────────
+    // Lines carry "starts on beat N" (LineBeats). With the beat counter
+    // running, the current line is the last one whose N <= _totalBeats; the
+    // next line's badge counts down the beats until it starts.
+    private int _followScrolledTo = -1;
+    private int CurrentLineIndex()
+    {
+        if (_beat < 0) return -1;
+        var best = -1; var bestBeat = int.MinValue;
+        foreach (var (line, beat) in ParseLineBeats())
+            if (beat <= _totalBeats && beat > bestBeat) { best = line; bestBeat = beat; }
+        return best;
+    }
+    private int? BeatsUntil(int lineIndex)
+    {
+        if (_beat < 0) return null;
+        var b = GetLineBeat(lineIndex);
+        return b is null ? null : b.Value - _totalBeats;
+    }
+    private string LineFollowClass(int lineIndex)
+    {
+        if (_beat < 0) return "";
+        var cur = CurrentLineIndex();
+        if (cur < 0) return "";
+        if (lineIndex == cur) return "line--now";
+        var b = GetLineBeat(lineIndex);
+        if (b is null) return "";
+        return b.Value <= _totalBeats ? "line--done" : "line--later";
+    }
+    private async Task FollowAlong()
+    {
+        // Play the recording and start the beat together, so beat 1 = 0:00.
+        try { await JS.InvokeVoidAsync("studio.playPerformPlayerFromStart"); } catch { }
+        StartBeatTimer(); _beatManual = true;
+    }
+
     private RenderFragment RenderBeatBadge(int lineIndex) => __builder =>
     {
         var beat = GetLineBeat(lineIndex);
         <button class="beat-badge @(beat is null ? "beat-badge--unset" : "")" title="@(_beat < 0 ? "Slå beat til for at kunne markere" : "Klik for at markere denne linjes beat nu")"
                 @onclick="() => MarkLineBeatNow(lineIndex)">
-            ♩@(beat?.ToString() ?? "·")
+            @{ var until = BeatsUntil(lineIndex); }
+            @if (until is > 0 && until <= 8) { <text>om @until</text> } else { <text>♩@(beat?.ToString() ?? "·")</text> }
         </button>
     };
     private bool _uploadingSource;
@@ -2606,6 +2644,12 @@ Chorus
             _beat = (_beat + 1) % 4;
             _totalBeats++;
             await InvokeAsync(StateHasChanged);
+            var cur = CurrentLineIndex();
+            if (cur >= 0 && cur != _followScrolledTo)
+            {
+                _followScrolledTo = cur;
+                try { await JS.InvokeVoidAsync("studio.scrollLineIntoView", "line-" + cur); } catch { }
+            }
         };
         _beatTimer.Start();
     }

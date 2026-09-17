@@ -324,6 +324,8 @@ window.studio = (function() {
         playMix: playMix,
         stopMix: stopMix,
         setMixVolume: setMixVolume,
+        playPerformPlayerFromStart: function() { var a = document.querySelector("audio.perform-player"); if (a) { a.currentTime = 0; a.play().catch(function(){}); } },
+        scrollLineIntoView: function(id) { var el = document.getElementById(id); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); },
         // Lights up the greb (diagram card) of the chord sounding now while the
         // source player plays. timeline = [{t: seconds, c: chordName}, ...].
         chordSync: function(timeline) {
