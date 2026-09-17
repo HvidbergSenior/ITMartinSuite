@@ -288,6 +288,38 @@ else if (_song is not null)
             </div>
             }
 
+            <!-- Chord progressions to pick from - rendered in the chosen key,
+                 one click puts one into Akkorder (user, 2026-09-17). -->
+            <div class="studio-card" id="card-progressioner">
+                <div class="card-header">
+                    <div class="card-label">🎼 Progressioner</div>
+                    <div class="card-actions" style="display:flex;gap:6px;align-items:center">
+                        <span class="t-label">Toneart</span>
+                        <select class="prog-key" @bind="_progKey">
+                            @foreach (var k in ProgKeys) { <option value="@k">@k</option> }
+                        </select>
+                    </div>
+                </div>
+                <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px">
+                    Vælg en toneart, kig, og tryk <b>Brug</b> - så ligger den i Akkorder, og Greb viser fingersætningerne. Transponér bagefter med ½t −/+ på Akkorder, eller vælg en anden toneart her først.
+                </div>
+                @{ var (progRoot, progMinor) = ChordProgressions.ParseKey(_progKey); }
+                <div class="prog-list">
+                    @foreach (var p in ChordProgressions.All.Where(x => x.Minor == progMinor))
+                    {
+                        var rendered = ChordProgressions.Render(p, progRoot, progMinor);
+                        <div class="prog-item">
+                            <div class="prog-head">
+                                <div><b>@p.Name</b> <span class="muted">· @p.Mood</span></div>
+                                <button class="btn-ghost-sm" @onclick="() => UseProgression(rendered)">Brug</button>
+                            </div>
+                            <pre class="prog-chords">@rendered</pre>
+                            @if (!string.IsNullOrEmpty(p.Note)) { <div class="prog-note">@p.Note</div> }
+                        </div>
+                    }
+                </div>
+            </div>
+
             <!-- Chord chart -->
             <div class="studio-card" id="card-akkorder">
                 <div class="card-header">
@@ -1357,6 +1389,17 @@ Chorus
     private List<SpotifyTrack> _spotifyResults = [];
 
     private string _chordEdit = "";
+    private static readonly string[] ProgKeys = ["C","G","D","A","E","F","Bb","Eb","Am","Em","Dm","Bm","F#m","Gm","Cm"];
+    private string _progKey = "C";
+    private void UseProgression(string chart)
+    {
+        if (_song is null) return;
+        _chordEdit = chart;
+        _song.MusicKey = _progKey;
+        SyncEditorsToDom();
+        AutoSave();
+        _saveStatus = "🎼 Progression lagt i Akkorder";
+    }
     private const bool ShowAiHelper = false;
     private const bool ShowCover = false;
     // Same rule the hint texts already use: an artist means a known song.
@@ -1670,6 +1713,7 @@ Chorus
         _notesEdit       = _song.Notes;
         _fingerpickEdit  = _song.FingerpickPattern;
         _strumEdit       = _song.StrumPattern; SyncEditorsToDom();
+        _progKey = ProgKeys.Contains(_song.MusicKey) ? _song.MusicKey : (ChordProgressions.ParseKey(_song.MusicKey).Minor ? "Am" : "C");
         _loading         = false;
 
         // Sync chord chart from inline lyrics chords (catches chords added since last save)
