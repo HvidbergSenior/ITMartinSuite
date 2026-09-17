@@ -140,6 +140,71 @@ else if (_song is not null)
     <div class="studio-body">
         <div class="studio-left">
 
+            <!-- Lyrics -->
+            <div class="studio-card" id="card-tekst">
+                <div class="card-header">
+                    <div class="card-label">📝 Tekst / Lyrics</div>
+                    <div class="card-actions">
+                        @if (HasInlineChords)
+                        {
+                            <button class="btn-ghost-sm" @onclick="AddTailChords" title="Sæt et halegreb sidst på hver linje: næste linjes akkord, og dominanten sidst i hvert afsnit">⤵ Halegreb</button>
+                        }
+                        @if (ChordAi.IsAvailable && !string.IsNullOrWhiteSpace(_lyricsEdit))
+                        {
+                            <button class="btn-ai" @onclick="AiAnnotateChords" disabled="@_annotatingChords"
+                                    title="Indsæt [Akkord]-markører automatisk i teksten">
+                                @(_annotatingChords ? "..." : "🤖 Sæt akkorder")
+                            </button>
+                        }
+                        <button class="btn-ghost-sm" @onclick='() => _photoTarget = "lyrics"'>📷 Fra foto</button>
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_song.Artist))
+                {
+                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px">
+                        Kendt sang med en artist - brug <strong>"📋 Indsæt UG-tab"</strong> under Trin til venstre.
+                        Ultimate Guitar giver akkorder og tekst i ét, samme format hver gang.
+                    </div>
+                }
+                else
+                {
+                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px">
+                        Hjemmelavet sang (fx fra Suno) - kopiér teksten direkte herunder, eller brug <strong>"📷 Fra foto"</strong>
+                        ovenfor til et skærmbillede eller en PDF af teksten.
+                    </div>
+                }
+                <textarea class="lyrics-editor" rows="14"
+                          value="@_lyricsDom"
+                          @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; SyncChordsFromLyrics(); AutoSave(); }"
+                          placeholder="Skriv sektioner på egne linjer - fx Verse, Chorus, Vers 1, Omkvæd (med eller uden [ ]).
+Brug [Am]ord for akkorder i teksten.
+
+Eksempel:
+Verse
+[Am]I hope you don't mind [F]I put down in words...
+
+Chorus
+[C]How wonderful [G]life is..."></textarea>
+                <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-top:4px">
+                    Sektioner (Verse, Chorus, Bridge, Intro, Outro, Instrumental, Vocal/Vocal 2, Vers 1, Omkvæd, Bro, osv.) skal stå alene på deres egen linje - med eller uden [ ].
+                    "[Headline]" og "[Comment: ...]" skal altid have [ ] for at blive genkendt.
+                    "🤖 Sæt akkorder" rører aldrig disse linjer, kun selve teksten.
+                </div>
+                @if (UnbracketedSectionLabels.Count > 0)
+                {
+                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--warn,#c8860a);margin-top:4px">
+                        💡 @string.Join(", ", UnbracketedSectionLabels.Select(l => $"\"{l}\"")) bør stå i klammer - fx "[@UnbracketedSectionLabels[0]]" - så det helt sikkert bliver genkendt som en sektion og ikke tekst.
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(_lyricsEdit))
+                {
+                    <p style="font-size:0.75rem;color:#444;margin-top:2px">
+                        Gå til <strong>🎼 Spilleguide</strong> for at se teksten i stort format og klik på akkorder for at se greb
+                    </p>
+                }
+            </div>
+
+
             <!-- Cover art - decoration, not a step (see StudioSong.CoverImagePath),
                  so it's not part of the checklist, but every song should have
                  something visual. -->
@@ -498,69 +563,6 @@ TAK:  1 + 2 + 3 + 4 +"></textarea>
 
         <div class="studio-right">
 
-            <!-- Lyrics -->
-            <div class="studio-card" id="card-tekst">
-                <div class="card-header">
-                    <div class="card-label">📝 Tekst / Lyrics</div>
-                    <div class="card-actions">
-                        @if (HasInlineChords)
-                        {
-                            <button class="btn-ghost-sm" @onclick="AddTailChords" title="Sæt et halegreb sidst på hver linje: næste linjes akkord, og dominanten sidst i hvert afsnit">⤵ Halegreb</button>
-                        }
-                        @if (ChordAi.IsAvailable && !string.IsNullOrWhiteSpace(_lyricsEdit))
-                        {
-                            <button class="btn-ai" @onclick="AiAnnotateChords" disabled="@_annotatingChords"
-                                    title="Indsæt [Akkord]-markører automatisk i teksten">
-                                @(_annotatingChords ? "..." : "🤖 Sæt akkorder")
-                            </button>
-                        }
-                        <button class="btn-ghost-sm" @onclick='() => _photoTarget = "lyrics"'>📷 Fra foto</button>
-                    </div>
-                </div>
-                @if (!string.IsNullOrWhiteSpace(_song.Artist))
-                {
-                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px">
-                        Kendt sang med en artist - brug <strong>"📋 Indsæt UG-tab"</strong> under Trin til venstre.
-                        Ultimate Guitar giver akkorder og tekst i ét, samme format hver gang.
-                    </div>
-                }
-                else
-                {
-                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px">
-                        Hjemmelavet sang (fx fra Suno) - kopiér teksten direkte herunder, eller brug <strong>"📷 Fra foto"</strong>
-                        ovenfor til et skærmbillede eller en PDF af teksten.
-                    </div>
-                }
-                <textarea class="lyrics-editor" rows="14"
-                          value="@_lyricsDom"
-                          @oninput="e => { _lyricsEdit = e.Value?.ToString() ?? _lyricsEdit; SyncChordsFromLyrics(); AutoSave(); }"
-                          placeholder="Skriv sektioner på egne linjer - fx Verse, Chorus, Vers 1, Omkvæd (med eller uden [ ]).
-Brug [Am]ord for akkorder i teksten.
-
-Eksempel:
-Verse
-[Am]I hope you don't mind [F]I put down in words...
-
-Chorus
-[C]How wonderful [G]life is..."></textarea>
-                <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-top:4px">
-                    Sektioner (Verse, Chorus, Bridge, Intro, Outro, Instrumental, Vocal/Vocal 2, Vers 1, Omkvæd, Bro, osv.) skal stå alene på deres egen linje - med eller uden [ ].
-                    "[Headline]" og "[Comment: ...]" skal altid have [ ] for at blive genkendt.
-                    "🤖 Sæt akkorder" rører aldrig disse linjer, kun selve teksten.
-                </div>
-                @if (UnbracketedSectionLabels.Count > 0)
-                {
-                    <div class="lyrics-hint" style="font-size:.78rem;color:var(--warn,#c8860a);margin-top:4px">
-                        💡 @string.Join(", ", UnbracketedSectionLabels.Select(l => $"\"{l}\"")) bør stå i klammer - fx "[@UnbracketedSectionLabels[0]]" - så det helt sikkert bliver genkendt som en sektion og ikke tekst.
-                    </div>
-                }
-                @if (!string.IsNullOrWhiteSpace(_lyricsEdit))
-                {
-                    <p style="font-size:0.75rem;color:#444;margin-top:2px">
-                        Gå til <strong>🎼 Spilleguide</strong> for at se teksten i stort format og klik på akkorder for at se greb
-                    </p>
-                }
-            </div>
 
             <!-- AI chord-placement preview - "Sæt akkorder" no longer writes
                  straight into the lyrics. Placement (which word a chord lands
