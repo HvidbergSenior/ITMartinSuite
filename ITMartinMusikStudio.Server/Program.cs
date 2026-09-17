@@ -29,6 +29,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
     db.Database.EnsureCreated();
+    // The db lives on the NAS and is opened from Windows over SMB as well as
+    // from containers on the NAS itself. SQLite WAL mode does not work across
+    // a network share (each side keeps its own WAL index - reads go stale and
+    // updates hit 0 rows, and on 2026-09-17 the file ended up "malformed").
+    // The classic rollback journal uses plain file locks, which SMB honours.
+    try { db.Database.ExecuteSqlRaw("PRAGMA journal_mode=DELETE"); } catch { }
     // Add columns introduced after initial schema — safe to re-run (SQLite ignores duplicate column errors)
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN FingerpickPattern TEXT NOT NULL DEFAULT ''"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN StrumPattern TEXT NOT NULL DEFAULT ''"); } catch { }

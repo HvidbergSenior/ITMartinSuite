@@ -23,6 +23,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<StudioDbContext>();
     db.Database.EnsureCreated();
+    // Shared with the studio over SMB - WAL is unsafe there, see the studio's Program.cs.
+    try { db.Database.ExecuteSqlRaw("PRAGMA journal_mode=DELETE"); } catch { }
     // Add columns introduced after initial schema — safe to re-run (SQLite ignores duplicate column errors)
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN FingerpickPattern TEXT NOT NULL DEFAULT ''"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Songs ADD COLUMN StrumPattern TEXT NOT NULL DEFAULT ''"); } catch { }
