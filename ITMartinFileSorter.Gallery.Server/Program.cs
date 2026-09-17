@@ -88,6 +88,7 @@ var ViewOnlyRootFolders = new (string Name, string Rel, string Icon, int Row)[]
 {
     ("Billeder", "Billeder", "🖼️", 0),
     ("Videoer", "Videoer", "🎬", 0),
+    ("Musik", "Musik", "🎵", 0),
     ("Personer", "SmartFolders/People", "👤", 1),
     ("Årbog", "SmartFolders/Yearbook", "📚", 2),
     ("Rejser", "SmartFolders/Trips", "✈️", 2),
