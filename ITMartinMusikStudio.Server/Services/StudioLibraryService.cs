@@ -59,7 +59,7 @@ public sealed class StudioLibraryService
             foreach (var dir in Directory.EnumerateDirectories(Root))
             {
                 var name = Path.GetFileName(dir);
-                if (name is "recordings" or "myversions" or "lyrics" or "originals" or "stems" or "meta") continue;
+                if (name is "recordings" or "myversions" or "lyrics" or "originals" or "stems" or "meta" or "Udgivet") continue;
                 if (name.StartsWith('.') || name.StartsWith('@') || name.StartsWith('#')) continue;
 
                 try
@@ -373,6 +373,46 @@ public sealed class StudioLibraryService
         await using (var fs = File.Create(dest))
             await content.CopyToAsync(fs);
         return Path.GetRelativePath(Root, dest).Replace('\\', '/');
+    }
+
+    // The audience version: ONE file per song, named after the song, in
+    // Udgivet/ - the folder the public "Koncert" gallery serves. Re-publishing
+    // replaces it; the numbered takes in Sange/<Title>/ are untouched.
+    public string UdgivetDir => Path.Combine(Root, "Udgivet");
+
+    public async Task<bool> PublishForAudienceAsync(string songTitle, string relativePath)
+    {
+        if (!Exists(relativePath)) return false;
+        var src = Path.GetFullPath(Path.Combine(Root, relativePath));
+        Directory.CreateDirectory(UdgivetDir);
+        var clean = string.Concat(songTitle.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
+        if (string.IsNullOrWhiteSpace(clean)) clean = "Uden navn";
+        var isVideo = IsVideo(relativePath);
+        // Remove any older audience version of the song, whatever its extension.
+        foreach (var old in Directory.EnumerateFiles(UdgivetDir, clean + ".*")) File.Delete(old);
+        var dest = Path.Combine(UdgivetDir, clean + (isVideo ? ".mp4" : ".mp3"));
+        if (await TranscodeAsync(src, dest, isVideo)) return true;
+        File.Copy(src, Path.Combine(UdgivetDir, clean + Path.GetExtension(src)), overwrite: true);
+        return true;
+    }
+
+    private static async Task<bool> TranscodeAsync(string src, string dest, bool isVideo)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        psi.ArgumentList.Add("-y"); psi.ArgumentList.Add("-i"); psi.ArgumentList.Add(src);
+        var extra = isVideo
+            ? new[] { "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "aac", "-movflags", "+faststart" }
+            : new[] { "-vn", "-c:a", "libmp3lame", "-q:a", "2" };
+        foreach (var a in extra) psi.ArgumentList.Add(a);
+        psi.ArgumentList.Add(dest);
+        try
+        {
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc is null) return false;
+            await proc.WaitForExitAsync();
+            return proc.ExitCode == 0 && File.Exists(dest);
+        }
+        catch { return false; }
     }
 
     public string SangeDir => Path.Combine(Root, "Sange");

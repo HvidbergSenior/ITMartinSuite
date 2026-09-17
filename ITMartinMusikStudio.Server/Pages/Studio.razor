@@ -1084,6 +1084,7 @@ Chorus
                                 </button>
                             }
                             <button class="btn-publish" @onclick="() => Publish(r)">🚀 Publicér</button>
+                            <button class="btn-publish" style="background:#15803d;border-color:#15803d" @onclick="() => PublishForAudience(r)" title="Gør dette take til sangens publikumsversion - én pr. sang, i galleriet Koncert">🎉 Publikum</button>
                             <button class="btn-delete-sm" @onclick="() => DeleteRecording(r)">🗑</button>
                         </div>
                     </div>
@@ -2869,6 +2870,17 @@ Chorus
         catch (JSDisconnectedException) { }
         await Task.Delay(800);
         _recordings = Library.GetRecordings(SongKey);
+    }
+
+    private async Task PublishForAudience(RecordingFile r)
+    {
+        _saveStatus = "🎉 Gør klar til publikum (konverterer)...";
+        StateHasChanged();
+        var ok = await Library.PublishForAudienceAsync(_song?.Title ?? SongKey, r.RelativePath);
+        _saveStatus = ok ? "🎉 Ligger nu i Koncert-galleriet" : "Kunne ikke kopiere";
+        StateHasChanged();
+        await Task.Delay(2000);
+        _saveStatus = null;
     }
 
     private async Task Publish(RecordingFile r)
