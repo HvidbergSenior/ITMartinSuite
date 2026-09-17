@@ -1248,7 +1248,7 @@ html[data-theme="light"] .phase-bar { background: rgba(255,255,255,.92); }
 
 /* Record tab */
 .studio-record-tab {
-    max-width: 1200px;
+    max-width: 1600px;   /* three columns need the room: recording, lyrics, greb */
     margin: 0 auto;
     padding: 16px;
     width: 100%;
@@ -1380,7 +1380,7 @@ html[data-theme="light"] .phase-bar { background: rgba(255,255,255,.92); }
     min-width: 0;
 }
 @media (max-width: 900px) {
-    .optag-layout { flex-direction: column; }
+    .optag-layout--old { flex-direction: column; }
     .optag-controls { flex: unset; width: 100%; }
 }
 
@@ -1582,9 +1582,6 @@ textarea, input[type=text], input[type=search], input[type=number], input[type=u
 .perform-center { grid-area: lyrics; min-width: 0; }
 .optag-controls { grid-area: controls; }
 .perform-side { grid-area: side; min-width: 0; display: flex; flex-direction: column; gap: 8px; }| LYRICS (centred) | guide ── */
-.optag-lyrics { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
-.perform-center { grid-column: 1; min-width: 0; }
-.perform-side { grid-column: 2; min-width: 0; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 8px; }
 .perform-side .perform-controls { flex-direction: column; align-items: stretch; gap: 8px; }
 .perform-side .perform-player { width: 100%; }
 .perform-center .perform-sheet { align-items: center; text-align: center; }
@@ -1593,7 +1590,7 @@ textarea, input[type=text], input[type=search], input[type=number], input[type=u
 .perform-center .perform-plain-line { text-align: center; }
 .perform-center .perform-sheet--two-col { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; }
 @media (max-width: 900px) {
-    .optag-layout { grid-template-columns: 1fr; grid-template-areas: "lyrics" "side" "controls"; }
+    /* (superseded below) */
 }
 
 /* ── Indspil, final shape: controls bar on top, LYRICS centred, grebs right ── */
