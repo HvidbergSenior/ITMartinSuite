@@ -46,7 +46,8 @@ public sealed class NasDeliveryService : INasDeliveryService
     private string SshKeyPath => _configuration["Nas:SshKeyPath"] ?? "~/.ssh/id_ed25519";
     private string RemoteLibraryBase => _configuration["Nas:RemoteLibraryBase"] ?? "/volume1/docker/filesorter/library";
     private string RemoteTransferScratch => _configuration["Nas:RemoteTransferScratch"] ?? "/volume1/docker/martinsuite/tmp-transfer";
-    private string ComposeDir => _configuration["Nas:ComposeDir"] ?? "/volume1/docker/martinsuite";
+    // Fallback only - WireGalleryAsync asks the running gallery-web container which compose file it came from.
+    private string ComposeDir => _configuration["Nas:ComposeDir"] ?? "/volume1/homes/MartinHvidberg/martinsuite-magic";
     private string ComposeFileName => _configuration["Nas:ComposeFileName"] ?? "docker-compose.yaml";
 
     public async Task<NasPushResult> PushToNasAsync(string libraryPath, string librarySlug, CancellationToken cancellationToken = default)
@@ -120,7 +121,24 @@ public sealed class NasDeliveryService : INasDeliveryService
 
     public async Task<GalleryWireResult> WireGalleryAsync(string librarySlug, string displayName, string password, CancellationToken cancellationToken = default)
     {
+        // 1) Which compose file actually runs gallery-web? Ask the container,
+        //    never trust a configured path: on 2026-09-17 the configured dir
+        //    held a stale copy with a dead mount, and recreating from it took
+        //    every gallery down. Docker records the file it was started from.
+        var probe = await RunProcessAsync(
+            "ssh", $"-i \"{SshKeyPath}\" {SshUser}@{Host} \"docker inspect gallery-web --format '{{{{index .Config.Labels \\\"com.docker.compose.project.working_dir\\\"}}}}|{{{{index .Config.Labels \\\"com.docker.compose.project.config_files\\\"}}}}'\"",
+            TimeSpan.FromMinutes(1), cancellationToken);
+        var composeDir = ComposeDir;
         var composeRemotePath = $"{ComposeDir}/{ComposeFileName}";
+        if (probe.ExitCode == 0 && probe.StdOut.Contains('|'))
+        {
+            var parts = probe.StdOut.Trim().Split('|', 2);
+            if (parts[0].Length > 1 && parts[1].Length > 1) { composeDir = parts[0]; composeRemotePath = parts[1].Split(',')[0]; }
+        }
+        else
+        {
+            return new GalleryWireResult { Success = false, Error = "gallery-web is not running on the NAS - cannot tell which compose file to edit. Start it first." };
+        }
 
         var catResult = await RunProcessAsync(
             "ssh", $"-i \"{SshKeyPath}\" {SshUser}@{Host} \"cat {composeRemotePath}\"",
@@ -147,31 +165,83 @@ public sealed class NasDeliveryService : INasDeliveryService
             return new GalleryWireResult { Success = true, AlreadyWired = true, AssignedIndex = edit.AssignedIndex };
         }
 
+        // 2) Every host path gallery-web mounts must exist, or the recreate
+        //    fails and the container stays dead. Check them all up front.
+        var mounts = GalleryWebHostMounts(edit.Yaml);
+        if (mounts.Count > 0)
+        {
+            var check = string.Join(" ", mounts.Select(m => $"[ -e '{m}' ] || echo MISSING {m};"));
+            var mountResult = await RunProcessAsync("ssh", $"-i \"{SshKeyPath}\" {SshUser}@{Host} \"{check}\"", TimeSpan.FromMinutes(1), cancellationToken);
+            var missing = mountResult.StdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries).Where(l => l.StartsWith("MISSING")).ToList();
+            if (missing.Count > 0)
+                return new GalleryWireResult { Success = false, Error = "refusing to restart gallery-web: mounted paths do not exist on the NAS - " + string.Join("; ", missing) };
+        }
+
         var tempFile = Path.Combine(Path.GetTempPath(), $"compose-{Guid.NewGuid():N}.yaml");
+        var backupRemote = $"{composeRemotePath}.bak-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
         try
         {
             await File.WriteAllTextAsync(tempFile, edit.Yaml, cancellationToken);
 
+            // 3) Back up, then replace.
+            await RunProcessAsync("ssh", $"-i \"{SshKeyPath}\" {SshUser}@{Host} \"cp {composeRemotePath} {backupRemote}\"", TimeSpan.FromMinutes(1), cancellationToken);
             var scpResult = await RunProcessAsync(
                 "scp", $"-O -i \"{SshKeyPath}\" \"{tempFile}\" {SshUser}@{Host}:{composeRemotePath}",
                 TimeSpan.FromMinutes(5), cancellationToken);
             if (scpResult.ExitCode != 0)
                 return new GalleryWireResult { Success = false, Error = $"scp of updated compose file failed: {scpResult.StdErr}" };
 
+            // 4) Recreate; if that fails, put the backup back and recreate
+            //    again so the galleries are never left down.
             var restartResult = await RunProcessAsync(
                 "ssh",
-                $"-i \"{SshKeyPath}\" {SshUser}@{Host} \"cd {ComposeDir} && docker compose up -d --force-recreate --timeout 10 gallery-web\"",
+                $"-i \"{SshKeyPath}\" {SshUser}@{Host} \"cd {composeDir} && docker compose up -d --force-recreate --timeout 10 gallery-web && sleep 3 && docker ps --filter name=^gallery-web$ --format '{{{{.Status}}}}'\"",
                 TimeSpan.FromMinutes(5), cancellationToken);
-            if (restartResult.ExitCode != 0)
-                return new GalleryWireResult { Success = false, Error = $"gallery-web restart failed: {restartResult.StdErr}" };
+            var up = restartResult.ExitCode == 0 && restartResult.StdOut.Contains("Up");
+            if (!up)
+            {
+                _logger.LogError("gallery-web did not come up after wiring {Slug} - rolling back {ComposeFile} from {Backup}", librarySlug, composeRemotePath, backupRemote);
+                await RunProcessAsync("ssh",
+                    $"-i \"{SshKeyPath}\" {SshUser}@{Host} \"cp {backupRemote} {composeRemotePath} && cd {composeDir} && docker compose up -d --force-recreate --timeout 10 gallery-web\"",
+                    TimeSpan.FromMinutes(5), cancellationToken);
+                return new GalleryWireResult { Success = false, Error = $"gallery-web restart failed and the compose file was rolled back: {restartResult.StdErr}" };
+            }
 
-            _logger.LogInformation("Wired gallery {Slug} into {ComposeFile} as index {Index}, restarted gallery-web", librarySlug, composeRemotePath, edit.AssignedIndex);
+            _logger.LogInformation("Wired gallery {Slug} into {ComposeFile} as index {Index}, restarted gallery-web (backup {Backup})", librarySlug, composeRemotePath, edit.AssignedIndex, backupRemote);
             return new GalleryWireResult { Success = true, AlreadyWired = false, AssignedIndex = edit.AssignedIndex };
         }
         finally
         {
             try { File.Delete(tempFile); } catch { /* best effort local cleanup */ }
         }
+    }
+
+    // Host-side paths in the gallery-web service's volumes: block ("/volume1/...:/library/x:ro").
+    public static List<string> GalleryWebHostMounts(string composeYaml)
+    {
+        var result = new List<string>();
+        var inGallery = false; var inVolumes = false;
+        foreach (var raw in composeYaml.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            if (line.StartsWith("  ") && !line.StartsWith("   ") && line.TrimEnd().EndsWith(':'))
+            {
+                inGallery = line.Trim() == "gallery-web:";
+                inVolumes = false;
+                continue;
+            }
+            if (!inGallery) continue;
+            var t = line.Trim();
+            if (t == "volumes:") { inVolumes = true; continue; }
+            if (inVolumes)
+            {
+                if (!t.StartsWith("- ")) { if (t.Length > 0 && !line.StartsWith("      ")) inVolumes = false; continue; }
+                var spec = t[2..].Trim().Trim('"', '\'');
+                var host = spec.Split(':')[0];
+                if (host.StartsWith('/')) result.Add(host);
+            }
+        }
+        return result;
     }
 
     private readonly record struct ProcessResult(int ExitCode, string StdOut, string StdErr);
