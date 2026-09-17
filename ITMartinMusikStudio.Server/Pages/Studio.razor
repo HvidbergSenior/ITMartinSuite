@@ -298,17 +298,34 @@ else if (_song is not null)
                         <select class="prog-key" @bind="_progKey">
                             @foreach (var k in ProgKeys) { <option value="@k">@k</option> }
                         </select>
+                        @if (ChordAi.IsAvailable)
+                        {
+                            <button class="btn-ai" @onclick="SuggestProgressions" disabled="@(_progSuggesting || string.IsNullOrWhiteSpace(_lyricsEdit))" title="Lad AI'en rangere de tre progressioner der passer bedst til teksten">
+                                @(_progSuggesting ? "⏳" : "✨ Foreslå")
+                            </button>
+                        }
                     </div>
                 </div>
+                @if (_progError is not null) { <div class="pattern-tip" style="color:#fca5a5;background:rgba(220,38,38,.1);margin-bottom:8px">⚠️ @_progError</div> }
+                @if (_progSuggestions.Count > 0)
+                {
+                    <div class="prog-suggest">
+                        <b>Forslag til teksten:</b>
+                        @foreach (var s in _progSuggestions)
+                        {
+                            <div>🎯 <b>@s.Name</b> – @s.Reason</div>
+                        }
+                    </div>
+                }
                 <div class="lyrics-hint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px">
                     Vælg en toneart, kig, og tryk <b>Brug</b> - så ligger den i Akkorder, og Greb viser fingersætningerne. Transponér bagefter med ½t −/+ på Akkorder, eller vælg en anden toneart her først.
                 </div>
                 @{ var (progRoot, progMinor) = ChordProgressions.ParseKey(_progKey); }
                 <div class="prog-list">
-                    @foreach (var p in ChordProgressions.All.Where(x => x.Minor == progMinor))
+                    @foreach (var p in ChordProgressions.All.Where(x => x.Minor == progMinor).OrderByDescending(x => IsSuggested(x.Name)))
                     {
                         var rendered = ChordProgressions.Render(p, progRoot, progMinor);
-                        <div class="prog-item">
+                        <div class="prog-item @(IsSuggested(p.Name) ? "prog-item--pick" : "")">
                             <div class="prog-head">
                                 <div><b>@p.Name</b> <span class="muted">· @p.Mood</span></div>
                                 <button class="btn-ghost-sm" @onclick="() => UseProgression(rendered)">Brug</button>
@@ -1441,6 +1458,29 @@ Chorus
     {
         var s = new string(label.ToLowerInvariant().TakeWhile(ch => char.IsLetter(ch) || ch == 'æ' || ch == 'ø' || ch == 'å').ToArray());
         return s switch { "verse" => "vers", "chorus" => "omkvæd", "bridge" => "bro", "pre" => "omkvæd", _ => s };
+    }
+
+    private bool _progSuggesting;
+    private string? _progError;
+    private List<(string Name, string Reason)> _progSuggestions = [];
+    private bool IsSuggested(string name) => _progSuggestions.Any(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private async Task SuggestProgressions()
+    {
+        if (_song is null || string.IsNullOrWhiteSpace(_lyricsEdit)) return;
+        _progSuggesting = true; _progError = null; _progSuggestions = [];
+        try
+        {
+            var catalogue = ChordProgressions.All.Select(p => $"{p.Name} – {p.Mood} – {(p.Minor ? "mol" : "dur")}: {p.Degrees} – {p.Note}");
+            _progSuggestions = await ChordAi.SuggestProgressionsAsync(_song.Title, _song.MusicKey, _song.Tempo, StripChordMarkers(_lyricsEdit), catalogue);
+            if (_progSuggestions.Count == 0) _progError = "Fik ikke et brugbart svar - prøv igen.";
+            // Suggestions in minor for a song shown in major (or vice versa)? Flip the key picker so they are visible.
+            var first = _progSuggestions.Select(s => ChordProgressions.All.FirstOrDefault(p => string.Equals(p.Name, s.Name, StringComparison.OrdinalIgnoreCase))).FirstOrDefault(p => p is not null);
+            if (first is not null && first.Minor != ChordProgressions.ParseKey(_progKey).Minor)
+                _progKey = first.Minor ? "Am" : "C";
+        }
+        catch (Exception ex) { _progError = ex.Message; }
+        finally { _progSuggesting = false; }
     }
 
     private void UseProgression(string chart)

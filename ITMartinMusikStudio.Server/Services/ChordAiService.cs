@@ -138,6 +138,48 @@ public sealed class ChordAiService
         return "";
     }
 
+    // One call: rank the studio's own progression library against the lyrics.
+    // Returns lines "Name|reason" so the UI can highlight the picks - never
+    // free-form chords, so the suggestion always maps to something playable.
+    public async Task<List<(string Name, string Reason)>> SuggestProgressionsAsync(string title, string musicKey, int? tempo, string lyrics, IEnumerable<string> catalogue)
+    {
+        if (_client is null) return [];
+        var list = string.Join("\n", catalogue);
+        var response = await _client.Messages.Create(new MessageCreateParams
+        {
+            Model = Model.ClaudeHaiku4_5,
+            MaxTokens = 400,
+            System = """
+                You help a Danish hobby songwriter pick a chord progression for lyrics he wrote.
+                You may ONLY choose from the numbered catalogue given. Answer in Danish.
+                Output exactly three lines, best first, each formatted as:  Name|one short reason (max 15 words)
+                Use the catalogue name verbatim before the |. No headings, no extra text.
+                """,
+            Messages =
+            [
+                new()
+                {
+                    Role = Role.User,
+                    Content = $"Song: \"{title}\"\nKey: {(string.IsNullOrWhiteSpace(musicKey) ? "unknown" : musicKey)}\nTempo: {(tempo is > 0 ? tempo + " bpm" : "unknown")}\n\nLyrics:\n{lyrics}\n\nCatalogue (name – mood – degrees – note):\n{list}"
+                }
+            ]
+        });
+
+        var text = "";
+        foreach (var block in response.Content)
+            if (block.TryPickText(out var tb)) { text = tb.Text.Trim(); break; }
+
+        var result = new List<(string, string)>();
+        foreach (var line in text.Split('\n'))
+        {
+            var bar = line.IndexOf('|');
+            if (bar <= 0) continue;
+            var name = line[..bar].Trim().TrimStart('1', '2', '3', '.', ')', ' ', '-', '*');
+            result.Add((name, line[(bar + 1)..].Trim()));
+        }
+        return result;
+    }
+
     public async Task<string> GetRhymeSuggestionsAsync(string wordOrLine, string lyrics)
     {
         if (_client is null) return "";
