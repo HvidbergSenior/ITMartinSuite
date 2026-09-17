@@ -1,0 +1,164 @@
+@page "/enheder"
+@using System.Globalization
+@inject ElectricityPriceService Prices
+@inject PriceProfileService Profiles
+@inject HouseholdStore Store
+@inject ConsumptionStore Consumption
+
+<PageTitle>Enheder – ElPriser</PageTitle>
+
+<h1>Hvad koster hver enhed?</h1>
+<p class="muted small" style="margin:4px 0 14px">Hver maskine og hvert apparat i huset, prissat med jeres egen elpris.</p>
+
+@if (_loading)
+{
+    <div class="card muted">Regner…</div>
+}
+else if (_devices.Count == 0 && _appliances.Count == 0)
+{
+    <div class="card">
+        <div class="card-title">Ingen enheder endnu</div>
+        <p class="small">Tilføj køleskab, fryser, tv, varmepumpe osv. under <a href="/indstillinger">Indstillinger → Enheder</a> – vælg fra listen eller skriv dine egne.</p>
+    </div>
+}
+else
+{
+    var totalDay = _devices.Sum(d => d.DayKr) + _appliances.Sum(a => a.MonthKr) * 12 / 365;
+    var totalMonth = _devices.Sum(d => d.MonthKr) + _appliances.Sum(a => a.MonthKr);
+    var totalYear = _devices.Sum(d => d.YearKr) + _appliances.Sum(a => a.YearKr);
+    var kwhDay = _devices.Sum(d => d.KwhPerDay) + _appliances.Sum(a => a.Appliance.KwhPerRun * a.Appliance.RunsPerWeek / 7);
+    var shiftSaving = _devices.Sum(d => d.SavingPerDayKr ?? 0);
+
+    <div class="card now-tile">
+        <div class="now-price">@Kr(Pick(totalDay, totalMonth, totalYear))</div>
+        <div class="now-unit">kr pr. @PeriodName() · @(Pick(kwhDay, kwhDay * 365 / 12, kwhDay * 365).ToString("0", Da)) kWh · @_devices.Count enheder + @_appliances.Count maskiner</div>
+        @if (_meterKwhPerDay is { } mk && mk > 0)
+        {
+            var pct = kwhDay / mk * 100;
+            <div class="now-compare">Måleren viser <b>@mk.ToString("0.0", Da) kWh/dag</b> i snit – listen forklarer <b class="@(pct > 115 ? "lvl-expensive" : pct < 60 ? "lvl-mid" : "lvl-cheap")">@pct.ToString("0", Da) %</b> af det@(pct > 115 ? " – nogle tal er sat for højt" : pct < 60 ? " – der mangler nok enheder" : "").</div>
+        }
+        else
+        {
+            <div class="now-compare muted">Forbind elmåleren under Indstillinger, så ses hvor stor en del af det målte forbrug listen forklarer.</div>
+        }
+        @if (shiftSaving > 0.01)
+        {
+            <div class="now-compare">Flyttes de flytbare enheder til billigste tid: <b class="lvl-cheap">spar @Kr(Pick(shiftSaving, shiftSaving * 365 / 12, shiftSaving * 365)) kr pr. @PeriodName()</b></div>
+        }
+    </div>
+
+    <div class="period-tabs">
+        <button class="tab @(_period == 0 ? "on" : "")" @onclick="() => _period = 0">Pr. dag</button>
+        <button class="tab @(_period == 1 ? "on" : "")" @onclick="() => _period = 1">Pr. måned</button>
+        <button class="tab @(_period == 2 ? "on" : "")" @onclick="() => _period = 2">Pr. år</button>
+    </div>
+
+    @if (_appliances.Count > 0)
+    {
+        <div class="card">
+            <div class="card-title">Pr. tur – maskiner</div>
+            @foreach (var a in _appliances)
+            {
+                var v = _snap?.Appliances.FirstOrDefault(x => x.Appliance.Id == a.Appliance.Id);
+                <div class="dev-row">
+                    <div class="dev-icon">@a.Appliance.Icon</div>
+                    <div class="dev-name">@a.Appliance.Name <span class="muted">· @a.Appliance.KwhPerRun.ToString("0.#", Da) kWh · @a.Appliance.RunsPerWeek.ToString("0.#", Da) ture/uge</span></div>
+                    <div class="dev-kr">@Kr(Pick(a.MonthKr * 12 / 365, a.MonthKr, a.YearKr)) kr</div>
+                    <div class="dev-sub">
+                        <span>Én tur: <b>@a.PerRunKr.ToString("0.00", Da) kr</b> <span class="muted">(@a.Basis)</span></span>
+                        @if (v?.Now is { } n)
+                        {
+                            <span>
+                                I dag: nu <b>@n.CostKr.ToString("0.00", Da)</b>
+                                @if (v.CheapestToday is { } c) { <text> · billigst kl. @c.Start.ToString("HH:mm") <b class="lvl-cheap">@c.CostKr.ToString("0.00", Da)</b></text> }
+                                @if (v.DearestUpcoming is { } dd) { <text> · dyrest <b class="lvl-expensive">@dd.CostKr.ToString("0.00", Da)</b></text> }
+                            </span>
+                        }
+                    </div>
+                    @if (totalDay > 0) { <div class="dev-share" style="width:@((a.MonthKr / totalMonth * 100).ToString("0", CultureInfo.InvariantCulture))%"></div> }
+                </div>
+            }
+        </div>
+    }
+
+    @if (_devices.Count > 0)
+    {
+        <div class="card">
+            <div class="card-title">Enheder</div>
+            @foreach (var d in _devices.OrderByDescending(x => x.DayKr))
+            {
+                var dev = d.Device;
+                <div class="dev-row">
+                    <div class="dev-icon">@dev.Icon</div>
+                    <div class="dev-name">@dev.Name <span class="muted">· @dev.Watts.ToString("0", Da) W · @(dev.HoursPerDay >= 24 ? "altid tændt" : $"{dev.HoursPerDay.ToString("0.#", Da)} t/dag{(dev.UsualFromHour is { } uf ? $" fra kl. {uf}" : "")}")@(dev.DaysPerWeek < 7 ? $" · {dev.DaysPerWeek} dage/uge" : "")</span></div>
+                    <div class="dev-kr">@Kr(Pick(d.DayKr, d.MonthKr, d.YearKr)) kr</div>
+                    <div class="dev-sub">
+                        <span>@Pick(d.KwhPerDay, d.KwhPerDay * 365 / 12, d.KwhPerDay * 365).ToString("0.#", Da) kWh · @d.AvgKrPerKwh.ToString("0.00", Da) kr/kWh</span>
+                        @if (d.SavingPerDayKr is { } sv && d.BestFromHour is { } bf)
+                        {
+                            <span class="lvl-cheap">Flyt til kl. @bf–@((bf + (int)Math.Ceiling(dev.HoursPerDay)) % 24): spar @Kr(Pick(sv, sv * 365 / 12, sv * 365)) kr</span>
+                        }
+                        else if (dev.Shiftable && d.BestFromHour is { } bf2)
+                        {
+                            <span class="lvl-cheap">Kører allerede i billigste tidsrum</span>
+                        }
+                        @if (_meterKwhPerDay is { } mk2 && mk2 > 0)
+                        {
+                            <span class="muted">@((d.KwhPerDay / mk2 * 100).ToString("0", Da)) % af måleren</span>
+                        }
+                    </div>
+                    @if (totalDay > 0) { <div class="dev-share" style="width:@((d.DayKr / totalDay * 100).ToString("0", CultureInfo.InvariantCulture))%"></div> }
+                </div>
+            }
+        </div>
+    }
+
+    <div class="muted small" style="margin-top:8px">
+        Måned og år er regnet med jeres typiske døgnkurve (snit af de sidste @_profileDays dage@(_snap?.AllIn == false ? ", spotpris" : ", alt inkl.")) – ikke dagens pris alene. Enheder med et fast tidsrum prissættes for netop de timer.
+        Ret tal og tidsrum under <a href="/indstillinger">Indstillinger</a>.
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Da = new("da-DK");
+
+    private bool _loading = true;
+    private int _period = 1;
+    private int _profileDays;
+    private PriceSnapshot? _snap;
+    private List<DeviceCost> _devices = [];
+    private List<ApplianceCost> _appliances = [];
+    private double? _meterKwhPerDay;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var data = Store.Get();
+        var (profile, days) = await Profiles.GetTypicalAsync();
+        _profileDays = days;
+
+        // Today's actual curve for the "now / cheapest / dearest" per run.
+        var raw = await Prices.GetPricesAsync(data.Settings.PriceArea);
+        _snap = PriceModel.Build(raw, data, DkTime.Now);
+
+        // No history yet (first run of the day after a restart)? Fall back to today.
+        if (days == 0 && _snap.HasData)
+            profile = HourProfile.FromPoints(raw.Select(p => PriceBreakdownCalculator.Compute(p, data.Settings)), data.Settings.ShowAllIn);
+
+        var recent = data.Runs.Where(r => r.StartedAt >= DkTime.Now.AddDays(-60)).ToList();
+        _devices = data.Devices.OrderBy(d => d.SortOrder).Select(d => DeviceCostModel.Price(d, profile)).ToList();
+        _appliances = data.Appliances.OrderBy(a => a.SortOrder).Select(a => DeviceCostModel.Price(a, profile, recent)).ToList();
+
+        // Meter: average of the last full days we have readings for.
+        if (Consumption.LatestDay is { } latest)
+        {
+            var totals = Enumerable.Range(0, 14).Select(i => Consumption.Day(latest.AddDays(-i)))
+                .Where(d => d.Count >= 20).Select(d => d.Values.Sum()).ToList();
+            if (totals.Count > 0) _meterKwhPerDay = totals.Average();
+        }
+        _loading = false;
+    }
+
+    private double Pick(double day, double month, double year) => _period switch { 0 => day, 1 => month, _ => year };
+    private string PeriodName() => _period switch { 0 => "dag", 1 => "måned", _ => "år" };
+    private string Kr(double v) => v >= 100 ? v.ToString("0", Da) : v.ToString("0.00", Da);
+}

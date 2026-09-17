@@ -34,14 +34,40 @@ public sealed class Appliance
     public string Icon { get; set; } = "🔌";
     public double KwhPerRun { get; set; }
     public double DurationHours { get; set; }
+    // How often it typically runs - turns "kr pr. tur" into kr pr. måned.
+    public double RunsPerWeek { get; set; } = 3;
     public int SortOrder { get; set; }
 
     public static List<Appliance> Defaults() =>
     [
-        new() { Name = "Vaskemaskine", Icon = "🧺", KwhPerRun = 1.0, DurationHours = 2, SortOrder = 0 },
-        new() { Name = "Opvaskemaskine", Icon = "🍽️", KwhPerRun = 1.2, DurationHours = 2, SortOrder = 1 },
-        new() { Name = "Tørretumbler", Icon = "🌀", KwhPerRun = 2.5, DurationHours = 1.5, SortOrder = 2 },
+        new() { Name = "Vaskemaskine", Icon = "🧺", KwhPerRun = 1.0, DurationHours = 2, RunsPerWeek = 4, SortOrder = 0 },
+        new() { Name = "Opvaskemaskine", Icon = "🍽️", KwhPerRun = 1.2, DurationHours = 2, RunsPerWeek = 5, SortOrder = 1 },
+        new() { Name = "Tørretumbler", Icon = "🌀", KwhPerRun = 2.5, DurationHours = 1.5, RunsPerWeek = 2, SortOrder = 2 },
     ];
+}
+
+// Everything that is not "a run": the fridge, the router, the TV in the
+// evening, the heat pump. Priced by average draw x hours per day. Things
+// that are on all day are priced at the day's average; things with a usual
+// time of day are priced at that window, and a shiftable one (water heater,
+// heat pump boost) also gets the cheapest window it could move to.
+public sealed class Device
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public string Icon { get; set; } = "🔌";
+    public string CatalogId { get; set; } = "";
+    // Average draw while it is on, in watts (a 150 kWh/yr fridge is ~17 W).
+    public double Watts { get; set; }
+    public double HoursPerDay { get; set; } = 24;
+    public int DaysPerWeek { get; set; } = 7;
+    // null = spread across the day (priced at the day's average price).
+    public int? UsualFromHour { get; set; }
+    public bool Shiftable { get; set; }
+    public int SortOrder { get; set; }
+
+    public double KwhPerDay => Watts / 1000.0 * Math.Clamp(HoursPerDay, 0, 24) * Math.Clamp(DaysPerWeek, 0, 7) / 7.0;
+    public double KwhPerYear => KwhPerDay * 365;
 }
 
 // One phone that asked for notifications. Anyone with the link can join;
@@ -86,6 +112,7 @@ public sealed class HouseholdData
     public List<RunEntry> Runs { get; set; } = [];
     public HouseholdSettings Settings { get; set; } = new();
     public List<Appliance> Appliances { get; set; } = Appliance.Defaults();
+    public List<Device> Devices { get; set; } = [];
     public List<PushSubscriber> Subscribers { get; set; } = [];
     // "<subscriberId>|<kind>|<yyyy-MM-dd HH:mm>" of pushes already sent, so a
     // restart never double-sends and a day is only announced once.

@@ -14,6 +14,7 @@ builder.Services.AddHostedService<NotificationScheduler>();
 builder.Services.AddSingleton(sp => new EloverblikService(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, sp.GetRequiredService<ILogger<EloverblikService>>()));
 builder.Services.AddSingleton<ConsumptionStore>();
 builder.Services.AddSingleton<ConsumptionSync>();
+builder.Services.AddSingleton<PriceProfileService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ConsumptionSync>());
 
 var app = builder.Build();

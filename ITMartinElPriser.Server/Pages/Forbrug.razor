@@ -120,6 +120,7 @@ else
         var s = data.Settings;
         var rows = new List<DayRow>();
         var latest = Consumption.LatestDay ?? DateOnly.FromDateTime(DkTime.Now).AddDays(-1);
+        await Prices.GetRangeAsync(latest.AddDays(-6), latest.AddDays(1), s.PriceArea); // one request, fills the per-day cache
 
         for (var i = 0; i < 7; i++)
         {

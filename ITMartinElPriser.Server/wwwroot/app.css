@@ -121,7 +121,7 @@ a { color: var(--accent); text-decoration: none; }
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; display: flex; justify-content: space-around;
     background: var(--bg2); border-top: 1px solid var(--border); padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
 }
-.bottom-nav a { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: .72rem; padding: 4px 14px; }
+.bottom-nav a { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: .68rem; padding: 4px 8px; }
 .bottom-nav a span { font-size: 1.35rem; }
 .bottom-nav a.active { color: var(--accent); }
 
@@ -145,3 +145,22 @@ a { color: var(--accent); text-decoration: none; }
 .stat { background: var(--bg3); border-radius: 10px; padding: 10px 12px; }
 .stat b { display: block; font-size: 1.3rem; }
 .stat span { font-size: .78rem; color: var(--muted); }
+
+/* ── enheder (device cost) ── */
+.dev-row { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+.dev-row:first-of-type { border-top: none; }
+.dev-icon { font-size: 1.5rem; grid-row: span 2; }
+.dev-name { font-weight: 700; }
+.dev-name .muted { font-weight: 400; font-size: .78rem; }
+.dev-kr { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.dev-sub { grid-column: 2 / 4; font-size: .8rem; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.dev-share { height: 4px; border-radius: 2px; background: var(--accent); grid-column: 2 / 4; opacity: .7; }
+.period-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.period-tabs .tab { padding: 6px; font-size: .85rem; }
+.cat-group { margin-top: 10px; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+.cat-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); font-size: .9rem; }
+.cat-item .muted { font-size: .78rem; }
+.cat-item.owned { opacity: .5; }
+.dev-edit { border-top: 1px solid var(--border); padding: 10px 0; }
+.dev-edit .row2 .field { margin-bottom: 6px; }
+.dev-edit .field input[type=number] { padding: 8px; }

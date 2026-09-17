@@ -84,12 +84,40 @@ public sealed partial class ElectricityPriceService
         var fromLive = live.Where(p => DateOnly.FromDateTime(p.TimeDk) == date).ToList();
         if (fromLive.Count >= 90) return fromLive;
 
+        var prices = await FetchRangeAsync(date, date.AddDays(1), priceArea, ct);
+        if (prices.Count >= 90) lock (_lock) _days[key] = prices;
+        return prices;
+    }
+
+    // Several whole days in one request - Energinet answers 429 to a burst of
+    // per-day calls, so anything that wants history asks for the range once.
+    // Fills the per-day cache on the way so later single-day asks are free.
+    public async Task<List<PricePoint>> GetRangeAsync(DateOnly fromInclusive, DateOnly toExclusive, string priceArea = "DK1", CancellationToken ct = default)
+    {
+        var missing = new List<DateOnly>();
+        var have = new List<PricePoint>();
+        lock (_lock)
+            for (var d = fromInclusive; d < toExclusive; d = d.AddDays(1))
+                if (_days.TryGetValue($"{priceArea}|{d:yyyy-MM-dd}", out var cached)) have.AddRange(cached);
+                else missing.Add(d);
+        if (missing.Count == 0) return have.OrderBy(p => p.TimeUtc).ToList();
+
+        var fetched = await FetchRangeAsync(missing.Min(), missing.Max().AddDays(1), priceArea, ct);
+        lock (_lock)
+            foreach (var g in fetched.GroupBy(p => DateOnly.FromDateTime(p.TimeDk)))
+                if (g.Count() >= 90) _days[$"{priceArea}|{g.Key:yyyy-MM-dd}"] = g.OrderBy(p => p.TimeUtc).ToList();
+        return have.Concat(fetched).OrderBy(p => p.TimeUtc).ToList();
+    }
+
+    private async Task<List<PricePoint>> FetchRangeAsync(DateOnly fromInclusive, DateOnly toExclusive, string priceArea, CancellationToken ct)
+    {
         var filter = Uri.EscapeDataString($"{{\"PriceArea\":[\"{priceArea}\"]}}");
-        var url = $"{BaseUrl}?start={date:yyyy-MM-dd}T00:00&end={date.AddDays(1):yyyy-MM-dd}T00:00&filter={filter}&sort=TimeUTC%20ASC&limit=200";
+        var limit = Math.Max(200, toExclusive.DayNumber - fromInclusive.DayNumber) * 100;
+        var url = $"{BaseUrl}?start={fromInclusive:yyyy-MM-dd}T00:00&end={toExclusive:yyyy-MM-dd}T00:00&filter={filter}&sort=TimeUTC%20ASC&limit={limit}";
         try
         {
             var response = await http.GetFromJsonAsync<EnergiDataResponse>(url, ct);
-            var prices = (response?.Records ?? [])
+            return (response?.Records ?? [])
                 .Where(r => r.DayAheadPriceDKK is not null)
                 .Select(r => new PricePoint
                 {
@@ -97,14 +125,12 @@ public sealed partial class ElectricityPriceService
                     TimeDk = DateTime.SpecifyKind(r.TimeDK, DateTimeKind.Unspecified),
                     PriceKrPerKwh = r.DayAheadPriceDKK!.Value / 1000.0,
                 })
-                .Where(p => DateOnly.FromDateTime(p.TimeDk) == date)
+                .Where(p => { var d = DateOnly.FromDateTime(p.TimeDk); return d >= fromInclusive && d < toExclusive; })
                 .OrderBy(p => p.TimeUtc).ToList();
-            if (prices.Count >= 90) lock (_lock) _days[key] = prices;
-            return prices;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to fetch prices for {Date}", date);
+            logger.LogWarning(ex, "Failed to fetch prices {From}..{To}", fromInclusive, toExclusive);
             return [];
         }
     }
