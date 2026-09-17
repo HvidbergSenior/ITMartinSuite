@@ -1563,3 +1563,5 @@ textarea, input[type=text], input[type=search], input[type=number], input[type=u
 .voice-range { font-size: .95rem; margin: 4px 0; }
 .voice-manual { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .voice-input { width: 110px; background: var(--field-bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; font: inherit; }
+.prog-easy { color: var(--text-muted); margin-top: 2px; }
+.prog-head { flex-wrap: wrap; }

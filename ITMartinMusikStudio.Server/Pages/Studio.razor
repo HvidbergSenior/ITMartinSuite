@@ -373,15 +373,23 @@ else if (_song is not null)
                     @foreach (var p in ChordProgressions.All.Where(x => x.Minor == progMinor).OrderByDescending(x => IsSuggested(x.Name)))
                     {
                         var rendered = ChordProgressions.Render(p, progRoot, progMinor);
+                        var easy = EasyChords.SimplifyChart(rendered);
+                        var hasEasy = easy != rendered;
                         <div class="prog-item @(IsSuggested(p.Name) ? "prog-item--pick" : "")">
                             <div class="prog-head">
                                 <div><b>@p.Name</b> <span class="muted">· @p.Mood</span></div>
                                 <button class="btn-ghost-sm" @onclick="() => UseProgression(rendered)">Brug</button>
                                 <button class="btn-ghost-sm" @onclick="() => ApplyProgressionToLyrics(rendered)" title="Læg akkorderne ind i teksten, én pr. linje, sektion for sektion" disabled="@string.IsNullOrWhiteSpace(_lyricsEdit)">På teksten</button>
+                                @if (hasEasy)
+                                {
+                                    <button class="btn-ghost-sm" @onclick="() => UseProgression(easy)" title="Samme progression med lette, åbne akkorder">Brug let</button>
+                                    <button class="btn-ghost-sm" @onclick="() => ApplyProgressionToLyrics(easy)" disabled="@string.IsNullOrWhiteSpace(_lyricsEdit)">På teksten let</button>
+                                }
                             </div>
                             <pre class="prog-chords">@rendered</pre>
+                            @if (hasEasy) { <pre class="prog-chords prog-easy"><span class="muted">Let:</span> @easy</pre> }
                             <div class="prog-frets">
-                                @foreach (var ch in rendered.Split('\n').SelectMany(l => (l.Contains(':') ? l[(l.IndexOf(':') + 1)..] : l).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Distinct())
+                                @foreach (var ch in (rendered + "\n" + easy).Split('\n').SelectMany(l => (l.Contains(':') ? l[(l.IndexOf(':') + 1)..] : l).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Distinct())
                                 {
                                     <span title="E A D G B e – x = dæmpet, 0 = løs"><b>@ch</b> @(ChordFrets.Of(ch) ?? "?")</span>
                                 }

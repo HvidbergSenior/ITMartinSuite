@@ -107,3 +107,30 @@ public static class ChordProgressions
         return (useFlats ? Flats : Sharps)[note] + quality + bass;
     }
 }
+
+public static class EasyChords
+{
+    // "Am7" -> "Am", "Fmaj7" -> "F", "G/B" -> "G", "Gsus4" -> "G", "Bdim" -> "Bm",
+    // "C#m7b5" -> "C#m". Plain open triads a beginner can grab.
+    public static string Simplify(string chord)
+    {
+        if (string.IsNullOrWhiteSpace(chord)) return chord;
+        var top = chord.Split('/')[0];
+        var len = top.Length > 1 && top[1] is '#' or 'b' ? 2 : 1;
+        if (top.Length < len) return chord;
+        var root = top[..len];
+        var rest = top[len..];
+        var minor = rest.StartsWith('m') && !rest.StartsWith("maj") || rest.StartsWith("dim") || rest.Contains("m7b5");
+        return root + (minor ? "m" : "");
+    }
+
+    // Whole chart, line by line, labels kept.
+    public static string SimplifyChart(string chart) =>
+        string.Join("\n", chart.Split('\n').Select(line =>
+        {
+            var c = line.IndexOf(':');
+            var label = c > 0 ? line[..(c + 1)] + " " : "";
+            var chords = (c > 0 ? line[(c + 1)..] : line).Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(Simplify);
+            return label + string.Join(" ", chords);
+        }));
+}
