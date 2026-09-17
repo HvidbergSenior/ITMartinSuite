@@ -1553,7 +1553,7 @@ Chorus
     // reflect the latest edits without needing an explicit "recompute" call
     // scattered across every place a relevant field changes.
     private List<SongStep> _steps =>
-        _song is null ? [] : StepPlanner.GetSteps(_song, false, Library.HasPublishedVersion(SongKey));
+        _song is null ? [] : StepPlanner.GetSteps(_song, false, Library.HasPublishedVersion(SongKey, _song?.Title ?? SongKey));
 
     private bool _readyToRecord =>
         _song is not null && StepPlanner.IsReadyToRecord(_song, false);
@@ -2262,7 +2262,7 @@ Chorus
         // instant file copy - show that it's working instead of looking stuck.
         _saveStatus = "🚀 Publicerer (konverterer)...";
         StateHasChanged();
-        await Library.PublishRecordingAsync(SongKey, r.RelativePath);
+        await Library.PublishRecordingAsync(SongKey, _song?.Title ?? SongKey, r.RelativePath);
         _saveStatus = "🚀 Publiceret!";
         StateHasChanged();
         await Task.Delay(2000);

@@ -101,20 +101,20 @@ public sealed class StudioLibraryService
     // "convert to a universally playable format" convention the file-sorter
     // apps already use.
     //
-    // Filename is "{songKey}__{timestamp}" - each publish ADDS a version
-    // instead of overwriting the last one. The public listener app (which
-    // owns no data of its own here, only scans this folder) groups files by
-    // the part before "__" and lets people hide/delete individual versions
-    // without touching this app.
-    public async Task<bool> PublishRecordingAsync(string songKey, string relativePath)
+    // Lands in Sange/<Title>/<Title> N.mp3 - the finished-songs folder the
+    // public gallery (?g=sange) plays from, one folder per song, numbered
+    // versions (2026-09-17 convention). Each publish ADDS the next number
+    // instead of overwriting, so an older take is never lost.
+    public async Task<bool> PublishRecordingAsync(string songKey, string songTitle, string relativePath)
     {
         if (!Exists(relativePath)) return false;
         var src = Path.GetFullPath(Path.Combine(Root, relativePath));
-        Directory.CreateDirectory(MyVersionsDir);
+        var songDir = SongFolder(songTitle);
+        Directory.CreateDirectory(songDir);
 
         var isVideo = IsVideo(relativePath);
-        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-        var dest = Path.Combine(MyVersionsDir, $"{songKey}__{stamp}.{(isVideo ? "mp4" : "mp3")}");
+        var n = NextVersionNumber(songDir, Path.GetFileName(songDir));
+        var dest = Path.Combine(songDir, $"{Path.GetFileName(songDir)} {n}.{(isVideo ? "mp4" : "mp3")}");
 
         var psi = new System.Diagnostics.ProcessStartInfo("ffmpeg")
         {
@@ -151,7 +151,7 @@ public sealed class StudioLibraryService
         {
             // ffmpeg missing or failed - fall back to a plain copy so the
             // publish still succeeds rather than silently doing nothing.
-            var fallbackDest = Path.Combine(MyVersionsDir, $"{songKey}__{stamp}{Path.GetExtension(src)}");
+            var fallbackDest = Path.Combine(songDir, $"{Path.GetFileName(songDir)} {n}{Path.GetExtension(src)}");
             File.Copy(src, fallbackDest, overwrite: true);
             return true;
         }
@@ -375,9 +375,34 @@ public sealed class StudioLibraryService
         return Path.GetRelativePath(Root, dest).Replace('\\', '/');
     }
 
-    public bool HasPublishedVersion(string songKey) =>
-        Directory.Exists(MyVersionsDir) &&
-        Directory.EnumerateFiles(MyVersionsDir, $"{songKey}__*").Any();
+    public string SangeDir => Path.Combine(Root, "Sange");
+
+    // "Du Lå Bare Der" -> <Root>/Sange/Du Lå Bare Der. Title is used as-is
+    // (the folder names in Sange are the song names, Danish letters and all),
+    // only characters Windows/Synology refuse are dropped.
+    public string SongFolder(string songTitle)
+    {
+        var clean = string.Concat(songTitle.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
+        if (string.IsNullOrWhiteSpace(clean)) clean = "Uden navn";
+        return Path.Combine(SangeDir, clean);
+    }
+
+    private static int NextVersionNumber(string songDir, string title)
+    {
+        var max = 0;
+        if (Directory.Exists(songDir))
+            foreach (var f in Directory.EnumerateFiles(songDir))
+            {
+                var name = Path.GetFileNameWithoutExtension(f);
+                if (!name.StartsWith(title + " ", StringComparison.OrdinalIgnoreCase)) continue;
+                if (int.TryParse(name[(title.Length + 1)..], out var k)) max = Math.Max(max, k);
+            }
+        return max + 1;
+    }
+
+    public bool HasPublishedVersion(string songKey, string songTitle) =>
+        (Directory.Exists(MyVersionsDir) && Directory.EnumerateFiles(MyVersionsDir, $"{songKey}__*").Any())
+        || (Directory.Exists(SongFolder(songTitle)) && Directory.EnumerateFiles(SongFolder(songTitle)).Any());
 
     private static string Transliterate(string s) => s
         .Replace("æ", "ae").Replace("ø", "oe").Replace("å", "aa")

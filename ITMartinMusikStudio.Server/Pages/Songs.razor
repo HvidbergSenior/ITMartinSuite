@@ -184,7 +184,7 @@
 
     private (int Done, int Total) StepProgress(StudioSong s)
     {
-        var steps = StepPlanner.GetSteps(s, false, Library.HasPublishedVersion(s.Key))
+        var steps = StepPlanner.GetSteps(s, false, Library.HasPublishedVersion(s.Key, s.Title))
             .Where(x => x.Key != "version") // post-recording outcome, not prep progress
             .ToList();
         return (steps.Count(x => x.Status != StepStatus.NotStarted), steps.Count);
