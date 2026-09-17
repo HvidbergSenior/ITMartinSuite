@@ -1,4 +1,4 @@
-    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline };using System.Text.Json;
+using System.Text.Json;
 using ITMartin.Media.Application.Pipelines.AnalogDigitize.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
@@ -683,7 +683,7 @@ app.MapGet("/api/browse", (string gallery, string? path, HttpContext ctx) =>
             ?? (parentRel == "" ? Path.GetFileName(current) : null);
     }
 
-    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title };
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline };
     browseCache[cacheKey] = (DateTime.UtcNow.AddMinutes(10), browsePayload);
     return Results.Ok(browsePayload);
 });
