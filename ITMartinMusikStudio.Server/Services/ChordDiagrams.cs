@@ -36,7 +36,23 @@ public static class ChordDiagrams
         { "F",     [ 1, 1, 2, 3, 3, 1] },
         { "Fm",    [ 1, 1, 3, 3, 2, 1] },
         { "F7",    [ 1, 1, 2, 1, 3, 1] },
-        { "Fmaj7", [-1,-1, 3, 2, 2, 1] },
+        { "Fmaj7", [-1,-1, 3, 2, 1, 0] },   // the "easy F": F A C E, open e is the maj7
+        { "Dm7",   [-1,-1, 0, 2, 1, 1] },
+        { "Em7",   [ 0, 2, 2, 0, 3, 0] },
+        { "Bm7",   [-1, 2, 4, 2, 3, 2] },
+        { "F#m7",  [ 2, 4, 2, 2, 2, 2] },
+        { "G/B",   [-1, 2, 0, 0, 0, 3] },
+        { "C/E",   [ 0, 3, 2, 0, 1, 0] },
+        { "C/G",   [ 3, 3, 2, 0, 1, 0] },
+        { "D/F#",  [ 2,-1, 0, 2, 3, 2] },
+        { "Am/G",  [ 3, 0, 2, 2, 1, 0] },
+        { "Am/F#", [ 2, 0, 2, 2, 1, 0] },
+        { "Am/G#", [ 4, 0, 2, 2, 1, 0] },
+        { "Em/D",  [-1,-1, 0, 0, 0, 0] },
+        { "Esus4", [ 0, 2, 2, 2, 0, 0] },
+        { "Bb7",   [-1, 1, 3, 1, 3, 1] },
+        { "Ab7",   [ 4, 6, 4, 5, 4, 4] },
+        { "Eb7",   [-1, 6, 5, 6, 4,-1] },
         { "F#m",   [ 2, 4, 4, 2, 2, 2] },
         { "Gbm",   [ 2, 4, 4, 2, 2, 2] },
         { "G",     [ 3, 2, 0, 0, 0, 3] },
@@ -76,6 +92,17 @@ public static class ChordDiagrams
     public record DiagramResult(string Svg, string ShapeLabel);
 
     public static DiagramResult? Get(string? chordName) => GetAll(chordName).FirstOrDefault();
+
+    // Raw frets low E -> high e: the exact shape if known (slash chords fall
+    // back to the top chord), else the first moveable form.
+    public static int[]? FretsOf(string? chordName)
+    {
+        if (string.IsNullOrEmpty(chordName)) return null;
+        if (ExactShapes.TryGetValue(chordName, out var exact)) return exact;
+        var slash = chordName.IndexOf('/');
+        if (slash > 0 && ExactShapes.TryGetValue(chordName[..slash], out var top)) return top;
+        return DeriveBothForms(slash > 0 ? chordName[..slash] : chordName).Select(f => f.Frets).FirstOrDefault();
+    }
 
     // Up to 3 real, distinct ways to play the chord: the open/exact shape
     // (easiest, if one is known) plus the two moveable barre forms (E-form
@@ -258,4 +285,18 @@ public static class ChordDiagrams
     // Legacy compat — kept so callers that only need the SVG still work
     public static string? GetSvg(string? chordName) => Get(chordName)?.Svg;
     public static bool HasDiagram(string? chordName) => Get(chordName) is not null;
+}
+
+public static class ChordFrets
+{
+    // "x32010"-style string for a chord: the open/exact shape when one is
+    // known, otherwise the first moveable form ChordDiagrams derives. Frets
+    // above 9 are written in full separated by dashes (e.g. "x-10-12-12-12-10").
+    public static string? Of(string? chordName)
+    {
+        var frets = ChordDiagrams.FretsOf(chordName);
+        if (frets is null) return null;
+        var parts = frets.Select(f => f < 0 ? "x" : f.ToString()).ToArray();
+        return frets.Any(f => f > 9) ? string.Join("-", parts) : string.Concat(parts);
+    }
 }

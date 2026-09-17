@@ -30,6 +30,11 @@ public static class ChordProgressions
         new("Sentimental bro", "Skift af farve midt i sangen", false, "Bro: 4 4m 1 5 | Bro 2: 2m 4m 1", "Den mol-firer (iv) er tricket - Creep, Something."),
         new("C–G–D–F (lydisk pop)", "Lys, overraskende", false, "Vers: 1 5 2 4 | Omkvæd: 1 5 2 4", "I–V–II–IV. Dur-toeren (D i C-dur) giver det lyse, lidt uventede løft. Ret trin 2 til 2m for den almindelige version."),
         new("Lullaby / vuggevise", "Rolig, gyngende", false, "Vers: 1 4 1 5 | Omkvæd: 1 4 5 1", "Fingerspil, langsomt, gerne med capo."),
+        new("Beatles-vending", "Klassisk, rund afslutning", false, "Vers: 1 4 5 1 | Omkvæd: 2m 5 1 1", "ii–V–I som landing. Hey Jude, Let It Be-omkvæd."),
+        new("Creep-vendingen", "Bittersød", false, "Vers: 1 3 4 4m | Omkvæd: 1 3 4 4m", "I–III–IV–iv. Dur-treeren og mol-fireren gør det. Creep, Space Oddity-stemning."),
+        new("Visesang (dansk)", "Enkel, fortællende", false, "Vers: 1 5 1 4 1 5 1 | Omkvæd: 4 1 5 1", "Højskolesangbogen. Tre akkorder, teksten bærer."),
+        new("Country-vals (3/4)", "Gyngende, varm", false, "Vers: 1 1 4 1 5 5 1 1 | Omkvæd: 4 4 1 1 5 5 1 1", "Tæl 1-2-3. Én akkord pr. takt. Bas på 1, strum på 2 og 3."),
+        new("Reggae / roots", "Afslappet", false, "Vers: 1 5 6m 4 | Omkvæd: 4 5 1 1", "Skank på 2 og 4 (dæmp mellem). Three Little Birds er kun I–IV–V."),
 
         // ── Minor-key ──────────────────────────────────────────────────
         new("Melankolsk pop", "Vemodig, drivende", true, "Vers: 1m b6 b3 b7 | Omkvæd: 1m b6 b3 b7", "i–VI–III–VII. Numb, Zombie, Save Tonight, Du Sagde Ingenting-stemning."),
@@ -39,6 +44,10 @@ public static class ChordProgressions
         new("Rolig folk-mol", "Nordisk, stille", true, "Vers: 1m b3 b7 4m | Omkvæd: b6 b3 b7 1m", "Fingerspil. Lyder godt med capo 2-4."),
         new("Wicked Game", "Svævende, tre akkorder", true, "Vers: 1m b7 4 | Omkvæd: 1m b7 4", "i–VII–IV. Bm–A–E i original. Skift på takt 1, lad dem klinge."),
         new("Mol-blues", "Sjælfuld", true, "Vers: 1m7 1m7 1m7 1m7 4m7 4m7 1m7 1m7 b67 57 1m7 57", "12 takter i mol - Thrill Is Gone, Ain't No Sunshine-stemning."),
+        new("Faldende mol-bas (Stairway)", "Sørgmodig, klassisk", true, "Vers: 1m 1m/7 1m/b7 1m/6 | Omkvæd: b6 5 1m 1m", "Am–Am/G#–Am/G–Am/F#. Stairway, Michelle, Chim Chim Cheree. Kun bassen flytter sig."),
+        new("Mad World", "Tom, smuk", true, "Vers: 1m b3 b7 4 | Omkvæd: 1m b3 b7 4", "i–III–VII–IV. Den dur-firer (IV i mol) er lyset i mørket."),
+        new("House of the Rising Sun", "Folk-drama i 6/8", true, "Vers: 1m b3 4 b6 | Omkvæd: 1m b3 5 5", "Arpeggio i 6/8. Am C D F / Am C E E."),
+        new("Mol-pop med dur-omkvæd", "Løfter sig", true, "Vers: 1m b7 b6 b7 | Omkvæd: b3 5 1m b6", "Vers dvæler; omkvædet starter i relativ dur og slutter hjemme."),
     ];
 
     private static readonly string[] Sharps = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];

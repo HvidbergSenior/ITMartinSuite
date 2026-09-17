@@ -312,8 +312,15 @@ else if (_song is not null)
                             <div class="prog-head">
                                 <div><b>@p.Name</b> <span class="muted">· @p.Mood</span></div>
                                 <button class="btn-ghost-sm" @onclick="() => UseProgression(rendered)">Brug</button>
+                                <button class="btn-ghost-sm" @onclick="() => ApplyProgressionToLyrics(rendered)" title="Læg akkorderne ind i teksten, én pr. linje, sektion for sektion" disabled="@string.IsNullOrWhiteSpace(_lyricsEdit)">På teksten</button>
                             </div>
                             <pre class="prog-chords">@rendered</pre>
+                            <div class="prog-frets">
+                                @foreach (var ch in rendered.Split('\n').SelectMany(l => (l.Contains(':') ? l[(l.IndexOf(':') + 1)..] : l).Split(' ', StringSplitOptions.RemoveEmptyEntries)).Distinct())
+                                {
+                                    <span title="E A D G B e – x = dæmpet, 0 = løs"><b>@ch</b> @(ChordFrets.Of(ch) ?? "?")</span>
+                                }
+                            </div>
                             @if (!string.IsNullOrEmpty(p.Note)) { <div class="prog-note">@p.Note</div> }
                         </div>
                     }
@@ -1391,6 +1398,51 @@ Chorus
     private string _chordEdit = "";
     private static readonly string[] ProgKeys = ["C","G","D","A","E","F","Bb","Eb","Am","Em","Dm","Bm","F#m","Gm","Cm"];
     private string _progKey = "C";
+    // "Experiment with progressions on the lyrics": strips old [X] markers and
+    // puts the progression back in, one chord per sung line, cycling through
+    // the chords of the matching section (Vers/Verse, Omkvæd/Chorus, Bro/
+    // Bridge...). Lines under an unknown section get the first section's chords.
+    private void ApplyProgressionToLyrics(string chart)
+    {
+        if (_song is null || string.IsNullOrWhiteSpace(_lyricsEdit)) return;
+        var bySection = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        string[]? first = null;
+        foreach (var line in chart.Split('\n'))
+        {
+            var c = line.IndexOf(':');
+            var chords = (c > 0 ? line[(c + 1)..] : line).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (chords.Length == 0) continue;
+            first ??= chords;
+            if (c > 0) bySection[Canon(line[..c])] = chords;
+        }
+        if (first is null) return;
+
+        var lines = StripChordMarkers(_lyricsEdit).Split('\n');
+        var current = first; var pos = 0;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var l = lines[i];
+            if (IsSectionLabel(l)) { current = bySection.GetValueOrDefault(Canon(l.Trim('[', ']', ':', ' ')), first); pos = 0; continue; }
+            if (string.IsNullOrWhiteSpace(l)) continue;
+            var lead = l.Length - l.TrimStart().Length;
+            lines[i] = l[..lead] + "[" + current[pos % current.Length] + "]" + l[lead..];
+            pos++;
+        }
+        _lyricsEdit = string.Join('\n', lines);
+        _chordEdit = chart;
+        _song.MusicKey = _progKey;
+        SyncEditorsToDom();
+        AutoSave();
+        _saveStatus = "🎼 Progression lagt på teksten";
+    }
+
+    // "Vers 1" / "Verse" -> "vers"; "Omkvæd" / "Chorus" -> "omkvæd"; "Bro" / "Bridge" -> "bro".
+    private static string Canon(string label)
+    {
+        var s = new string(label.ToLowerInvariant().TakeWhile(ch => char.IsLetter(ch) || ch == 'æ' || ch == 'ø' || ch == 'å').ToArray());
+        return s switch { "verse" => "vers", "chorus" => "omkvæd", "bridge" => "bro", "pre" => "omkvæd", _ => s };
+    }
+
     private void UseProgression(string chart)
     {
         if (_song is null) return;
