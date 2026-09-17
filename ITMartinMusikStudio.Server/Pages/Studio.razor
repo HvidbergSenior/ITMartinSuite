@@ -1137,6 +1137,12 @@ Chorus
                     title="Vis/skjul fingerpicking-diagram">
                 🎸 Fingerpicking
             </button>
+            <button class="btn-ghost-sm @(_showChordLabels ? "active" : "")"
+                    style="padding:5px 10px;font-size:0.8rem"
+                    @onclick="() => _showChordLabels = !_showChordLabels"
+                    title="Vis/skjul akkordnavne over teksten">
+                @(_showChordLabels ? "🎵 Akkorder" : "🎵 Kun tekst")
+            </button>
             <button class="btn-ghost-sm @(_twoColLyrics ? "active" : "")"
                     style="padding:5px 10px;font-size:0.8rem"
                     @onclick='() => _twoColLyrics = !_twoColLyrics'
@@ -1301,12 +1307,17 @@ Chorus
                             {
                                 var segChord = seg.Chord;
                                 <span class="perform-seg">
-                                    @if (segChord is not null)
+                                    @if (segChord is not null && _showChordLabels)
                                     {
-                                        <button class="perform-chord-inline @(_selectedChord == segChord ? "perform-chord-inline--active" : "")"
-                                                @onclick="() => SelectPerformChord(segChord)">@segChord</button>
+                                        var open = _openDiagrams.Contains(segChord);
+                                        <button class="perform-chord-inline @(open ? "perform-chord-inline--active" : "")"
+                                                @onclick="() => ToggleChordDiagram(segChord)" title="Tryk: vis/skjul greb">@segChord</button>
+                                        @if (open && ChordDiagrams.GetSvg(segChord) is { } svg)
+                                        {
+                                            <span class="perform-diagram" @onclick="() => ToggleChordDiagram(segChord)">@((MarkupString)svg)</span>
+                                        }
                                     }
-                                    else
+                                    else if (_showChordLabels)
                                     {
                                         <span class="perform-chord-inline" style="visibility:hidden">·</span>
                                     }
@@ -1892,6 +1903,17 @@ Chorus
     private int _noteCount;
     private int _stemElapsed;
     private System.Timers.Timer? _stemTimer_t;
+
+    // Indspil sheet: lyrics first. Chord names sit small above the words and
+    // can be hidden altogether; tapping a chord name pops its fingering right
+    // there (and again to close) - every chord independently.
+    private bool _showChordLabels = true;
+    private readonly HashSet<string> _openDiagrams = new(StringComparer.OrdinalIgnoreCase);
+    private void ToggleChordDiagram(string chord)
+    {
+        if (!_openDiagrams.Remove(chord)) _openDiagrams.Add(chord);
+        _selectedChord = chord;
+    }
 
     private string? _selectedChord;
     private string _selectedChordInfo = "";

@@ -1565,3 +1565,11 @@ textarea, input[type=text], input[type=search], input[type=number], input[type=u
 .voice-input { width: 110px; background: var(--field-bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; font: inherit; }
 .prog-easy { color: var(--text-muted); margin-top: 2px; }
 .prog-head { flex-wrap: wrap; }
+
+/* Indspil: lyrics-first sheet. Words big, chord names small; a tapped chord
+   shows its fingering inline, above the word it belongs to. */
+.perform-word { font-size: 28px; }
+.perform-chord-inline { font-size: 13px; opacity: .85; }
+.perform-seg { display: inline-flex; flex-direction: column; align-items: flex-start; }
+.perform-diagram { display: block; width: 78px; margin: 2px 0 4px; cursor: pointer; }
+.perform-diagram svg { width: 100%; height: auto; }
