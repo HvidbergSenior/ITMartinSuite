@@ -107,6 +107,7 @@ var KnownSmartFolderSets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "People", "Yearbook", "Trips", "Traditioner", "BedsteBillede", "UkendtePersoner",
     "Home", "Outside", "Hjemme", "Ude", "Kameraer", "Steder", "thumbnails",
+    "RoterManuelt", "RotationUkendt",   // rotation review sets - working folders, not albums
 };
 
 // Friendly Danish labels for the root-level folders that do stay visible -
