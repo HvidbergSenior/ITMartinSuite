@@ -1143,9 +1143,9 @@ Chorus
                     @(_vocalLoading ? "⏳" : "🎤 La-la guide")
                 </button>
             }
-            <button class="btn-ghost-sm @(_recShowChordDiagram ? "active" : "")"
-                    @onclick="() => _recShowChordDiagram = !_recShowChordDiagram"
-                    title="Vis/skjul akkord-greb">
+            <button class="btn-ghost-sm @(_showGrebColumn ? "active" : "")"
+                    @onclick="() => _showGrebColumn = !_showGrebColumn"
+                    title="Vis/skjul greb-kolonnen til højre">
                 🖼️ Greb
             </button>
             <button class="btn-ghost-sm @(_recShowFingerpick ? "active" : "")"
@@ -1166,7 +1166,8 @@ Chorus
                 @(_twoColLyrics ? "⊞" : "☰")
             </button>
         </div>
-
+    </div><!-- /perform-side -->
+    <div class="perform-extras"><!-- la-la guide, chord detail, patterns: under the recording column -->
         @if (_vocalError is not null)
         {
             <div class="pattern-tip" style="color:#fca5a5;background:rgba(220,38,38,.1)">⚠️ @_vocalError</div>
@@ -1269,8 +1270,8 @@ Chorus
             </div>
         }
 
-        <!-- Chord overview -->
-        @if (HasAnyChords)
+        <!-- Chord overview - superseded by the greb column on the right; kept for the "Greb" button only. -->
+        @if (HasAnyChords && _showOldChordBook)
         {
             <div class="perform-chord-overview">
                 @foreach (var line in EffectiveChordSource.Split('\n'))
@@ -1298,7 +1299,7 @@ Chorus
             </div>
         }
 
-    </div><!-- /perform-side -->
+    </div><!-- /perform-extras -->
     <div class="perform-center"><!-- the words, centred, the biggest thing on the page -->
         <!-- Lyrics -->
         @if (HasInlineChords)
@@ -1382,7 +1383,7 @@ Chorus
     <!-- Greb column: one guitar diagram per chord in the song, each can be
          switched off, and the one sounding right now lights up while the
          source recording plays (chord timeline from the recording, capo-aware). -->
-    <div class="perform-grebs" id="perform-grebs">
+    <div class="perform-grebs @(_showGrebColumn ? "" : "perform-grebs--hidden")" id="perform-grebs">
         @foreach (var ch in SongChordsInOrder())
         {
             var hidden = _hiddenGrebs.Contains(ch);
@@ -1981,6 +1982,8 @@ Chorus
     // can be hidden altogether; tapping a chord name pops its fingering right
     // there (and again to close) - every chord independently.
     private bool _showChordLabels = true;
+    private const bool _showOldChordBook = false;   // the greb column on Indspil replaced the big chord book
+    private bool _showGrebColumn = true;
     private readonly HashSet<string> _openDiagrams = new(StringComparer.OrdinalIgnoreCase);
     private void ToggleChordDiagram(string chord)
     {
