@@ -503,6 +503,10 @@ TAK:  1 + 2 + 3 + 4 +"></textarea>
                 <div class="card-header">
                     <div class="card-label">📝 Tekst / Lyrics</div>
                     <div class="card-actions">
+                        @if (HasInlineChords)
+                        {
+                            <button class="btn-ghost-sm" @onclick="AddTailChords" title="Sæt et halegreb sidst på hver linje: næste linjes akkord, og dominanten sidst i hvert afsnit">⤵ Halegreb</button>
+                        }
                         @if (ChordAi.IsAvailable && !string.IsNullOrWhiteSpace(_lyricsEdit))
                         {
                             <button class="btn-ai" @onclick="AiAnnotateChords" disabled="@_annotatingChords"
@@ -1701,6 +1705,46 @@ Chorus
         }
         catch (Exception ex) { _progError = ex.Message; }
         finally { _progSuggesting = false; _saveStatus = null; }
+    }
+
+    // "A tail chord at the end of every line": the chord the NEXT line opens
+    // on (the anticipation a guitarist plays anyway), and on the last line of a
+    // section the dominant 7th of the song key so it pulls back home. Lines
+    // that already end in a marker are left as they are.
+    private void AddTailChords()
+    {
+        if (_song is null || string.IsNullOrWhiteSpace(_lyricsEdit)) return;
+        var rx = new System.Text.RegularExpressions.Regex(@"\[([A-G][^\]]*)\]");
+        var lines = _lyricsEdit.Split('\n');
+        var (root, minor) = ChordProgressions.ParseKey(_song.MusicKey);
+        var names = new[] { "C","C#","D","D#","E","F","F#","G","G#","A","A#","B" };
+        var dominant = names[(root + 7) % 12] + "7";
+        // Capo songs: the markers are written in shapes, not in the sounding key.
+        var capo = System.Text.RegularExpressions.Regex.Match(_chordEdit + "\n" + _lyricsEdit, @"[Cc]apo\s*(\d+)");
+        if (capo.Success && int.TryParse(capo.Groups[1].Value, out var fret)) dominant = names[(root + 7 - fret + 24) % 12] + "7";
+
+        bool IsSung(string l) => !string.IsNullOrWhiteSpace(l) && !IsSectionLabel(l) && !l.TrimStart().StartsWith("[Comment", StringComparison.OrdinalIgnoreCase);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var l = lines[i];
+            if (!IsSung(l)) continue;
+            if (System.Text.RegularExpressions.Regex.IsMatch(l, @"\[[A-G][^\]]*\]\s*[.,!?…—-]*\s*$")) continue;   // already has a tail
+            string? tail = null;
+            for (var j = i + 1; j < lines.Length; j++)
+            {
+                if (IsSectionLabel(lines[j]) || (string.IsNullOrWhiteSpace(lines[j]) && j + 1 < lines.Length && IsSectionLabel(lines[j + 1]))) break;
+                if (!IsSung(lines[j])) continue;
+                var m = rx.Match(lines[j]);
+                if (m.Success) tail = m.Groups[1].Value;
+                break;
+            }
+            tail ??= dominant;
+            lines[i] = l.TrimEnd() + " [" + tail + "]";
+        }
+        _lyricsEdit = string.Join('\n', lines);
+        SyncEditorsToDom();
+        AutoSave();
+        _saveStatus = "⤵ Halegreb sat på hver linje";
     }
 
     private void UseProgression(string chart)
