@@ -567,7 +567,22 @@ function renderFolderRows(folders, placeholders) {
 }
 
 function renderBrowse(data, titleOverride) {
-  const { atRoot, folders, files, hideAddons, viewOnly } = data;
+  const { atRoot, folders, hideAddons, viewOnly, theme, headline, tagline } = data;
+  let files = data.files || [];
+  // Theme "koncert": a stage front for the audience songs. A picture named
+  // like a song (Sang.jpg next to Sang.mp4) becomes that song's cover and is
+  // not shown as a photo of its own.
+  document.body.dataset.theme = theme || '';
+  if (theme === 'koncert') {
+    const base = n => n.replace(/.[^.]+$/, '').toLowerCase();
+    const pics = new Map(files.filter(f => !f.isVideo && !f.isAudio && !f.isDoc).map(f => [base(f.name), f]));
+    files = files.filter(f => f.isVideo || f.isAudio || !pics.has(base(f.name)) || !files.some(o => (o.isVideo || o.isAudio) && base(o.name) === base(f.name)));
+    files.forEach(f => { const p = pics.get(base(f.name)); if ((f.isVideo || f.isAudio) && p) f.thumb = p.thumb || p.webPath; f.showTitle = true; });
+    let hero = document.getElementById('koncertHero');
+    if (!hero) { hero = document.createElement('div'); hero.id = 'koncertHero'; document.getElementById('folderSection').parentNode.insertBefore(hero, document.getElementById('folderSection')); }
+    hero.style.display = atRoot ? '' : 'none';
+    hero.innerHTML = `<div class="k-hero"><div class="k-stage">🎸 🎤 🥁</div><h1 class="k-title">${esc(headline || galleryDisplayName || 'Koncert')}</h1>${tagline ? `<p class="k-tag">${esc(tagline)}</p>` : ''}<div class="k-count">${files.length} ${files.length === 1 ? 'sang' : 'sange'} · tryk og lyt</div></div>`;
+  } else { const h = document.getElementById('koncertHero'); if (h) h.style.display = 'none'; }
   currentHideAddons = !!hideAddons;
   // View-only gallery: no add-ons, no collection rows, no summary hero -
   // just folders and files. Also a body class so CSS can give the root
@@ -626,6 +641,7 @@ function fileCardHtml(f, i) {
       ${f.thumb ? `<img class="file-thumb" src="${esc(f.thumb)}" loading="lazy" alt="">` : ''}
       <div class="file-overlay vid-overlay">▶</div>
       <a class="file-tv" href="${esc(tvUrl(f.webPath))}" target="_blank" onclick="event.stopPropagation()" title="Åbn direkte (AirPlay)">📺</a>
+      ${f.showTitle ? `<div class="file-title">${esc(f.caption || f.name.replace(/.[^.]+$/, ""))}</div>` : ''}
     </div>`;
   if (f.isAudio) return `
     <div class="file-card" onclick="openViewer(${i})">

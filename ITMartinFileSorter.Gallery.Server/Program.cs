@@ -1,4 +1,4 @@
-using System.Text.Json;
+    var browsePayload = new { atRoot, parentRelPath = parentRel, folders, files, hideAddons = g.HideAddons || g.ViewOnly, viewOnly = g.ViewOnly, title, theme = g.Theme, headline = g.Headline, tagline = g.Tagline };using System.Text.Json;
 using ITMartin.Media.Application.Pipelines.AnalogDigitize.Services;
 using ITMartin.Media.Contracts.Contracts.Runtime.Models;
 using ITMartin.Media.Contracts.Entities;
@@ -275,7 +275,8 @@ var galleries = app.Configuration
         SearchEnabled: s.GetValue<bool>("SearchEnabled"),
         HideAddons: s.GetValue<bool>("HideAddons"),
         CoreCategoriesOnly: s.GetValue<bool>("CoreCategoriesOnly"),
-        ViewOnly: s.GetValue<bool>("ViewOnly")))
+        ViewOnly: s.GetValue<bool>("ViewOnly"),
+        Theme: s["Theme"], Headline: s["Headline"], Tagline: s["Tagline"]))
     .Where(g => !string.IsNullOrWhiteSpace(g.Slug) && !string.IsNullOrWhiteSpace(g.Path))
     .ToList();
 
@@ -1139,6 +1140,8 @@ static string? TryThumbOrWeb(string f, string r, string slug) =>
 // range, folder/photo counts) is a one-time customer-handoff moment, not
 // something a family member visiting a shared link should see - opt-in per
 // gallery (Galleries__N__ShowSummary=true) rather than on by default.
-record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false);
+// Theme/Headline/Tagline: a per-gallery look. "koncert" = the stage-style
+// front for the audience versions of the songs (2026-09-17).
+record GalleryDef(string Slug, string Name, string Path, string? Password, bool ShowSummary, bool HideScreenshots, bool OnThisDayEnabled, bool SearchEnabled, bool HideAddons, bool CoreCategoriesOnly, bool ViewOnly = false, string? Theme = null, string? Headline = null, string? Tagline = null);
 record LoginRequest(string Gallery, string Password);
 record FolderEntry(string name, string relPath, string? cover, int row = 99, string? icon = null);
