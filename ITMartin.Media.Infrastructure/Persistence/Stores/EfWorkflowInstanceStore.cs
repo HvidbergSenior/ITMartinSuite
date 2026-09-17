@@ -1,4 +1,8 @@
-﻿using System.Text.Json;
+        // Only orphaned RUNNING workflows (process died mid-run). A FAILED
+        // workflow failed for a reason; re-running it on every worker restart
+        // re-did the whole SonjaBent sort several times over (2026-09-17).
+        return await dbContext.WorkflowInstances
+            .Where(x => x.Status == "Running")﻿using System.Text.Json;
 using ITMartin.Media.Contracts.Contracts.Runtime.Persistence;
 using ITMartin.Media.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;

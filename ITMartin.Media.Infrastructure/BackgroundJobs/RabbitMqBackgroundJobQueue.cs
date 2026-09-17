@@ -239,14 +239,22 @@ public sealed class RabbitMqBackgroundJobQueue
                         false);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // One retry, never a loop. A QuickSort run is hours of work;
+                // requeueing on every failure re-ran the whole SonjaBent sort
+                // three times in a row (2026-09-17, a "database is locked"
+                // in the last step). The first failure gets one redelivery;
+                // a redelivered job that fails again is dropped and logged.
+                var retry = !eventArgs.Redelivered;
+                Console.WriteLine(
+                    $"Job {job.Type} failed ({ex.GetType().Name}: {ex.Message}) - {(retry ? "requeued once" : "dropped after retry")}");
                 lock (_channelLock)
                 {
                     _channel!.BasicNack(
                         eventArgs.DeliveryTag,
                         false,
-                        true);
+                        retry);
                 }
             }
         };
