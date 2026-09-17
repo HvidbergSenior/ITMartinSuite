@@ -324,7 +324,8 @@ window.studio = (function() {
         playMix: playMix,
         stopMix: stopMix,
         setMixVolume: setMixVolume,
-        playPerformPlayerFromStart: function() { var a = document.querySelector("audio.perform-player"); if (a) { a.currentTime = 0; a.play().catch(function(){}); } },
+        playPerformPlayerFromStart: function(rate) { var a = document.querySelector("audio.perform-player"); if (a) { a.preservesPitch = true; a.playbackRate = rate || 1; a.currentTime = 0; a.play().catch(function(){}); } },
+        setPerformPlayerRate: function(rate) { var a = document.querySelector("audio.perform-player"); if (a) { a.preservesPitch = true; a.playbackRate = rate || 1; } },
         scrollLineIntoView: function(id) { var el = document.getElementById(id); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); },
         // Lights up the greb (diagram card) of the chord sounding now while the
         // source player plays. timeline = [{t: seconds, c: chordName}, ...].

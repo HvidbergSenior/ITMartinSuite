@@ -1116,6 +1116,9 @@ Chorus
                 <button class="t-btn" @onclick="() => AdjustT(1)" title="Transponer op">+</button>
             </div>
             <span class="perform-key-badge">@_song.MusicKey@(_song.Tempo.HasValue ? $" · {_song.Tempo} BPM" : "")</span>
+            <span class="t-label" title="Øve-tempo: beatet banker i dette tempo, og optagelsen sættes ned til det (samme toneleje). Sangen selv er @_song.Tempo BPM.">🐢 Øve</span>
+            <input type="number" class="prog-key" style="width:64px" min="40" max="240" @bind="_practiceBpm" @bind:after="PracticeTempoChanged" />
+            <span class="t-label">BPM</span>
             <button class="btn-ghost-sm @(_beat >= 0 ? "active" : "")"
                     @onclick="ToggleBeat" disabled="@(_song.Tempo is not > 0)"
                     title="@(_song.Tempo is not > 0 ? "Sæt et tempo (BPM) øverst for at bruge beat-markøren" : _beat >= 0 ? "Slå beat-markør fra" : "Slå beat-markør til - banker takten efter sangens tempo")">
@@ -1956,6 +1959,17 @@ Chorus
     // Lines carry "starts on beat N" (LineBeats). With the beat counter
     // running, the current line is the last one whose N <= _totalBeats; the
     // next line's badge counts down the beats until it starts.
+    // Practice tempo (user: "beats skal være slower, like 100-120"). The beat
+    // runs at this; Følg slows the recording to the same ratio, pitch kept.
+    private int _practiceBpm = 110;
+    private double PracticeBpm => Math.Clamp(_practiceBpm, 40, 240);
+    private double PracticeRate => _song?.Tempo is > 0 ? PracticeBpm / _song.Tempo.Value : 1.0;
+    private async Task PracticeTempoChanged()
+    {
+        if (_beat >= 0) { StartBeatTimer(); }   // restart at the new tempo, counter keeps going from 1
+        try { await JS.InvokeVoidAsync("studio.setPerformPlayerRate", PracticeRate); } catch { }
+    }
+
     private int _followScrolledTo = -1;
     private int CurrentLineIndex()
     {
@@ -1984,7 +1998,7 @@ Chorus
     private async Task FollowAlong()
     {
         // Play the recording and start the beat together, so beat 1 = 0:00.
-        try { await JS.InvokeVoidAsync("studio.playPerformPlayerFromStart"); } catch { }
+        try { await JS.InvokeVoidAsync("studio.playPerformPlayerFromStart", PracticeRate); } catch { }
         StartBeatTimer(); _beatManual = true;
     }
 
@@ -2654,7 +2668,7 @@ Chorus
         if (_song?.Tempo is not > 0) return;
         _beat = 0;
         _totalBeats = 1; // dot 1 is already "on" the instant the beat starts, before any tick
-        var ms = (int)(60000.0 / _song.Tempo.Value);
+        var ms = (int)(60000.0 / PracticeBpm);
         _beatTimer = new System.Timers.Timer(ms) { AutoReset = true };
         _beatTimer.Elapsed += async (_, _) =>
         {
