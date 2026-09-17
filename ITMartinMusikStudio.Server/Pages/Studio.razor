@@ -1097,6 +1097,7 @@ Chorus
 
     <!-- RIGHT: Spilleguide while recording ─────────────── -->
     <div class="optag-lyrics">
+    <div class="perform-side"><!-- everything that is not the words: right of the lyrics -->
 
         <!-- Guide controls: the bits you need mid-song. Transpose, beat and
              the la-la guide used to live on a separate "Øv & Spil" tab;
@@ -1291,6 +1292,8 @@ Chorus
             </div>
         }
 
+    </div><!-- /perform-side -->
+    <div class="perform-center"><!-- the words, centred, the biggest thing on the page -->
         <!-- Lyrics -->
         @if (HasInlineChords)
         {
@@ -1368,6 +1371,7 @@ Chorus
                 <button class="btn-ghost" @onclick='() => _tab = "forbered"'>← Tilbage til Trin</button>
             </div>
         }
+    </div><!-- /perform-center -->
 
     </div><!-- /optag-lyrics -->
 
