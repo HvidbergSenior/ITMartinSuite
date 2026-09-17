@@ -201,7 +201,10 @@ else if (_song is not null)
                 </label>
             </div>
 
-            <!-- Spotify -->
+            <!-- Spotify + Find sang: only for KNOWN songs (an artist is set). Own
+                 songs (Suno etc.) have nothing to look up - user, 2026-09-17. -->
+            @if (IsKnownSong)
+            {
             <div class="studio-card">
                 <div class="card-header">
                     <div class="card-label">🎵 Spotify</div>
@@ -283,6 +286,7 @@ else if (_song is not null)
                     </button>
                 </div>
             </div>
+            }
 
             <!-- Chord chart -->
             <div class="studio-card" id="card-akkorder">
@@ -1354,7 +1358,9 @@ Chorus
 
     private string _chordEdit = "";
     private const bool ShowAiHelper = false;
-    private const bool ShowCover = false;   // user, 2026-09-17: hide the cover (topbar thumbnail + card)
+    private const bool ShowCover = false;
+    // Same rule the hint texts already use: an artist means a known song.
+    private bool IsKnownSong => !string.IsNullOrWhiteSpace(_song?.Artist);
     private string _lyricsEdit = "";
     // What the two big textareas are RENDERED with. Deliberately not the
     // live edit fields: pushing the value back on every keystroke races the
