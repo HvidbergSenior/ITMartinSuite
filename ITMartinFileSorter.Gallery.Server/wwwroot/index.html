@@ -222,6 +222,47 @@ body.view-only #addonsSection,body.view-only #collectionsSection,body.view-only 
 .v-arrow.left{left:10px}
 .v-arrow.right{right:10px}
 .v-counter{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);color:rgba(255,255,255,.6);font-size:12px;padding:4px 10px;border-radius:999px}
+
+/* ── Theme "koncert": a stage for the audience songs ─────────────────────── */
+body[data-theme="koncert"] {
+    --accent: #f59e0b;
+    --accent-hover: #d97706;
+    background:
+        radial-gradient(ellipse at 20% 0%, rgba(245,158,11,.22), transparent 55%),
+        radial-gradient(ellipse at 80% 10%, rgba(236,72,153,.18), transparent 50%),
+        radial-gradient(ellipse at 50% 100%, rgba(59,130,246,.18), transparent 60%),
+        #0b0710;
+    color: #f5f0e8;
+}
+body[data-theme="koncert"] .hdr-title { letter-spacing: .04em; }
+.k-hero { text-align: center; padding: 28px 12px 18px; }
+.k-stage { font-size: 34px; letter-spacing: 12px; opacity: .9; animation: k-bounce 2.4s ease-in-out infinite; }
+@keyframes k-bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.k-title {
+    margin: 8px 0 4px; font-size: clamp(38px, 8vw, 84px); font-weight: 900; line-height: 1;
+    letter-spacing: .06em; text-transform: uppercase;
+    background: linear-gradient(90deg, #fbbf24, #f472b6 45%, #60a5fa);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(245,158,11,.25);
+}
+.k-tag { margin: 0; font-size: clamp(15px, 2.4vw, 22px); color: #fde68a; font-style: italic; }
+.k-count { margin-top: 10px; font-size: 13px; color: #c4b5fd; letter-spacing: .08em; text-transform: uppercase; }
+body[data-theme="koncert"] .file-grid, body[data-theme="koncert"] .file-grid-2 { gap: 18px; }
+body[data-theme="koncert"] .file-card {
+    aspect-ratio: 16/10; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06);
+    background: linear-gradient(135deg, #1f1030, #0f172a);
+    transition: transform .2s, box-shadow .2s;
+}
+body[data-theme="koncert"] .file-card:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 16px 40px rgba(245,158,11,.25), 0 0 0 1px rgba(245,158,11,.5); }
+body[data-theme="koncert"] .file-card .file-title {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px;
+    font-size: 17px; font-weight: 800; color: #fff; letter-spacing: .02em;
+    background: linear-gradient(transparent, rgba(0,0,0,.85));
+}
+body[data-theme="koncert"] .vid-overlay { font-size: 44px; text-shadow: 0 0 24px rgba(245,158,11,.8); }
+body[data-theme="koncert"] .file-card:not(:has(.file-thumb))::before {
+    content: "🎶"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 56px; opacity: .35;
+}
 </style>
 </head>
 <body>
