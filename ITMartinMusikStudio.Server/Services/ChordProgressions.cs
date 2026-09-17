@@ -136,3 +136,25 @@ public static class EasyChords
             return label + string.Join(" ", chords);
         }));
 }
+
+// "Always the same easy grips": any sounding key is played as open shapes in
+// C / G (major) or Am / Em (minor) with a capo. Picks the shape key that
+// needs the lowest capo (0-7).
+public static class CapoPlanner
+{
+    private static readonly string[] Names = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+    public static (string ShapeKey, int Capo) For(string soundingKey)
+    {
+        var (root, minor) = ChordProgressions.ParseKey(soundingKey);
+        var candidates = minor ? new[] { ("Am", 9), ("Em", 4) } : new[] { ("C", 0), ("G", 7), ("D", 2) };
+        var best = candidates.Select(c => (c.Item1, Capo: ((root - c.Item2) % 12 + 12) % 12)).OrderBy(c => c.Capo).First();
+        return best;
+    }
+
+    public static string Describe(string soundingKey)
+    {
+        var (shape, capo) = For(soundingKey);
+        return capo == 0 ? $"{shape}-greb uden capo" : $"Capo {capo} med {shape}-greb (lyder i {soundingKey})";
+    }
+}

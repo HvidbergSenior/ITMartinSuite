@@ -342,8 +342,9 @@ else if (_song is not null)
                 <div class="card-header">
                     <div class="card-label">🎼 Progressioner</div>
                     <div class="card-actions" style="display:flex;gap:6px;align-items:center">
+                        @if (_progCapo > 0) { <span class="t-label" style="color:var(--accent);font-weight:700">Capo @_progCapo · lyder i @_progSoundingKey</span> }
                         <span class="t-label">Toneart</span>
-                        <select class="prog-key" @bind="_progKey">
+                        <select class="prog-key" @bind="_progKey" @bind:after="() => { _progCapo = 0; _progSoundingKey = _progKey; }">
                             @foreach (var k in ProgKeys) { <option value="@k">@k</option> }
                         </select>
                         @if (ChordAi.IsAvailable)
@@ -1547,9 +1548,11 @@ Chorus
             lines[i] = l[..lead] + "[" + current[pos % current.Length] + "]" + l[lead..];
             pos++;
         }
-        _lyricsEdit = string.Join('\n', lines);
-        _chordEdit = chart;
-        _song.MusicKey = _progKey;
+        var body = string.Join('\n', lines);
+        if (_progCapo > 0 && !body.Contains("[Comment: Capo", StringComparison.OrdinalIgnoreCase)) body = CapoLyricsHeader() + body;
+        _lyricsEdit = body;
+        _chordEdit = CapoChartHeader() + chart;
+        _song.MusicKey = string.IsNullOrEmpty(_progSoundingKey) ? _progKey : _progSoundingKey;
         SyncEditorsToDom();
         AutoSave();
         _saveStatus = "🎼 Progression lagt på teksten";
@@ -1691,7 +1694,7 @@ Chorus
                             if (shift != 0)
                             {
                                 var singKey = TransposeNote(guessed, shift, ChordProgressions.KeyPrefersFlats((ChordProgressions.ParseKey(guessed).Root + shift + 12) % 12, ChordProgressions.ParseKey(guessed).Minor));
-                                _progVoiceNote += $" Vis progressioner i {singKey}.";
+                                _progVoiceNote += $" Spil den som {CapoPlanner.Describe(singKey)}.";
                                 key = singKey;
                             }
                         }
@@ -1716,9 +1719,12 @@ Chorus
             _progSuggestions = raw;
             if (_progSuggestions.Count == 0) _progError = "Fik ikke et brugbart svar - prøv igen.";
 
-            // Show the list in the key we ended up with.
+            // Show the list as the grips we will actually play: open shapes + capo.
             if (!string.IsNullOrEmpty(key))
-                _progKey = ProgKeys.Contains(key) ? key : (ChordProgressions.ParseKey(key).Minor ? "Am" : "C");
+            {
+                PlanCapo(key);
+                _progKeyNote = (_progKeyNote ?? "") + $" → {CapoPlanner.Describe(key)}.";
+            }
             AutoSave();
         }
         catch (Exception ex) { _progError = ex.Message; }
@@ -1765,11 +1771,23 @@ Chorus
         _saveStatus = "⤵ Halegreb sat på hver linje";
     }
 
+    // The key the song SOUNDS in vs the shapes the hands play (user rule
+    // 2026-09-17: always the same open grips + capo, like Du Lå Bare Der).
+    private string _progSoundingKey = "";
+    private int _progCapo;
+    private void PlanCapo(string soundingKey)
+    {
+        var (shape, capo) = CapoPlanner.For(soundingKey);
+        _progSoundingKey = soundingKey; _progCapo = capo; _progKey = shape;
+    }
+    private string CapoChartHeader() => _progCapo > 0 ? $"Capo {_progCapo} ({_progKey}-greb = {_progSoundingKey}):\n" : "";
+    private string CapoLyricsHeader() => _progCapo > 0 ? $"[Comment: Capo {_progCapo} – spil {_progKey}-greb, så lyder det i {_progSoundingKey}]\n\n" : "";
+
     private void UseProgression(string chart)
     {
         if (_song is null) return;
-        _chordEdit = chart;
-        _song.MusicKey = _progKey;
+        _chordEdit = CapoChartHeader() + chart;
+        _song.MusicKey = string.IsNullOrEmpty(_progSoundingKey) ? _progKey : _progSoundingKey;   // the song's real key; the chart says which shapes
         SyncEditorsToDom();
         AutoSave();
         _saveStatus = "🎼 Progression lagt i Akkorder";
