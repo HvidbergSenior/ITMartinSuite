@@ -458,7 +458,9 @@ Chorus
                 </div>
             }
 
-            <!-- Notes -->
+            <!-- Notes - hidden for now (user, 2026-09-17), same flag as the AI card. -->
+            @if (ShowAiHelper)
+            {
             <div class="studio-card">
                 <div class="card-header">
                     <div class="card-label">📋 Noter</div>
@@ -469,6 +471,7 @@ Chorus
                           @oninput="e => { _notesEdit = e.Value?.ToString() ?? _notesEdit; AutoSave(); }"
                           placeholder="Dine egne noter, idéer, pointer..."></textarea>
             </div>
+            }
 
             <!-- AI Helper - hidden for now (user, 2026-09-17: "maybe use it later"); flip ShowAiHelper to bring it back. -->
             @if (ShowAiHelper && ChordAi.IsAvailable)
