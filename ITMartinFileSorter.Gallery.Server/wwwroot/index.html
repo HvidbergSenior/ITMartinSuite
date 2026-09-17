@@ -247,7 +247,11 @@ body[data-theme="koncert"] .hdr-title { letter-spacing: .04em; }
 }
 .k-tag { margin: 0; font-size: clamp(15px, 2.4vw, 22px); color: #fde68a; font-style: italic; }
 .k-count { margin-top: 10px; font-size: 13px; color: #c4b5fd; letter-spacing: .08em; text-transform: uppercase; }
-body[data-theme="koncert"] .file-grid, body[data-theme="koncert"] .file-grid-2 { gap: 18px; }
+body[data-theme="koncert"] .file-grid, body[data-theme="koncert"] .file-grid-2 {
+    gap: 22px; display: flex; flex-wrap: wrap; justify-content: center; max-width: 1100px; margin: 0 auto;
+}
+body[data-theme="koncert"] .file-card { width: min(320px, 90vw); flex: 0 0 auto; }
+body[data-theme="koncert"] .section-title, body[data-theme="koncert"] .grid-title { text-align: center; }
 body[data-theme="koncert"] .file-card {
     aspect-ratio: 16/10; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06);
     background: linear-gradient(135deg, #1f1030, #0f172a);
