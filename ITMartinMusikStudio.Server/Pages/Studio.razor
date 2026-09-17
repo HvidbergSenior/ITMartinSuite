@@ -4,6 +4,7 @@
 @inject StudioDbContext Db
 @inject StudioLibraryService Library
 @inject CoverArtService CoverArt
+@inject ChordDetectionService ChordDetect
 @inject ChordAiService ChordAi
 @inject StemService StemSvc
 @inject PianoTranscriptionService PianoTranscribe
@@ -311,6 +312,7 @@ else if (_song is not null)
                 {
                     <div class="prog-suggest">
                         <b>Forslag til teksten:</b>
+                        @if (_progKeyNote is not null) { <div>🎼 @_progKeyNote</div> }
                         @foreach (var s in _progSuggestions)
                         {
                             <div>🎯 <b>@s.Name</b> – @s.Reason</div>
@@ -1465,22 +1467,56 @@ Chorus
     private List<(string Name, string Reason)> _progSuggestions = [];
     private bool IsSuggested(string name) => _progSuggestions.Any(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
 
+    private string? _progKeyNote;
+
     private async Task SuggestProgressions()
     {
         if (_song is null || string.IsNullOrWhiteSpace(_lyricsEdit)) return;
-        _progSuggesting = true; _progError = null; _progSuggestions = [];
+        _progSuggesting = true; _progError = null; _progSuggestions = []; _progKeyNote = null;
         try
         {
+            // 1) The key: read it off the recording when there is one (librosa),
+            //    otherwise leave it to the AI to propose from the lyrics/mood.
+            string key = "";
+            if (!string.IsNullOrWhiteSpace(_song.SourceFile) && Library.Exists(_song.SourceFile) && ChordDetect.IsAvailable)
+            {
+                _saveStatus = "🎧 Lytter efter toneart og tempo..."; StateHasChanged();
+                var full = Path.Combine(Library.Root, _song.SourceFile);
+                var segments = await ChordDetect.DetectAsync(full);
+                var guessed = KeyGuesser.Guess(segments);
+                var bpm = await ChordDetect.DetectTempoAsync(full);
+                if (guessed is not null)
+                {
+                    key = guessed;
+                    _progKeyNote = $"Toneart {guessed} hørt i optagelsen" + (bpm is > 0 ? $", ca. {Math.Round(bpm.Value)} bpm" : "");
+                    _song.MusicKey = guessed;
+                    if (bpm is > 0 && (_song.Tempo is null or 0)) _song.Tempo = (int)Math.Round(bpm.Value);
+                }
+            }
+            _saveStatus = "✨ Finder progressioner..."; StateHasChanged();
+
             var catalogue = ChordProgressions.All.Select(p => $"{p.Name} – {p.Mood} – {(p.Minor ? "mol" : "dur")}: {p.Degrees} – {p.Note}");
-            _progSuggestions = await ChordAi.SuggestProgressionsAsync(_song.Title, _song.MusicKey, _song.Tempo, StripChordMarkers(_lyricsEdit), catalogue);
+            var raw = await ChordAi.SuggestProgressionsAsync(_song.Title, key, _song.Tempo, StripChordMarkers(_lyricsEdit), catalogue);
+
+            // A leading "Toneart|X|why" line is the AI's key proposal (only asked for when we had none).
+            var keyLine = raw.FirstOrDefault(r => r.Name.Equals("Toneart", StringComparison.OrdinalIgnoreCase));
+            if (keyLine != default)
+            {
+                var bar = keyLine.Reason.IndexOf('|');
+                var k = (bar > 0 ? keyLine.Reason[..bar] : keyLine.Reason).Trim();
+                if (string.IsNullOrEmpty(key) && k.Length is >= 1 and <= 3) { key = k; _song.MusicKey = k; _progKeyNote = $"Toneart {k} foreslået til teksten" + (bar > 0 ? $" – {keyLine.Reason[(bar + 1)..].Trim()}" : ""); }
+                raw.Remove(keyLine);
+            }
+            _progSuggestions = raw;
             if (_progSuggestions.Count == 0) _progError = "Fik ikke et brugbart svar - prøv igen.";
-            // Suggestions in minor for a song shown in major (or vice versa)? Flip the key picker so they are visible.
-            var first = _progSuggestions.Select(s => ChordProgressions.All.FirstOrDefault(p => string.Equals(p.Name, s.Name, StringComparison.OrdinalIgnoreCase))).FirstOrDefault(p => p is not null);
-            if (first is not null && first.Minor != ChordProgressions.ParseKey(_progKey).Minor)
-                _progKey = first.Minor ? "Am" : "C";
+
+            // Show the list in the key we ended up with.
+            if (!string.IsNullOrEmpty(key))
+                _progKey = ProgKeys.Contains(key) ? key : (ChordProgressions.ParseKey(key).Minor ? "Am" : "C");
+            AutoSave();
         }
         catch (Exception ex) { _progError = ex.Message; }
-        finally { _progSuggesting = false; }
+        finally { _progSuggesting = false; _saveStatus = null; }
     }
 
     private void UseProgression(string chart)

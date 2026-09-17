@@ -183,3 +183,58 @@ public sealed class ChordDetectionService
         return null!;
     }
 }
+
+// Key from a detected chord timeline: the major/minor key whose diatonic
+// chords cover the most playing time, tie broken by the opening chord.
+public static class KeyGuesser
+{
+    private static readonly string[] Notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    private static readonly int[] MajorSteps = [0, 2, 4, 5, 7, 9, 11];
+    private static readonly bool[] MajorQualityMinor = [false, true, true, false, false, true, true]; // I ii iii IV V vi vii°(treated minor)
+
+    public static string? Guess(IReadOnlyList<ChordSegment> segments)
+    {
+        if (segments.Count == 0) return null;
+        var weight = new Dictionary<(int Root, bool Minor), double>();
+        foreach (var s in segments)
+        {
+            var (root, minor) = Parse(s.Chord);
+            if (root < 0) continue;
+            weight[(root, minor)] = weight.GetValueOrDefault((root, minor)) + Math.Max(0.1, s.EndSeconds - s.StartSeconds);
+        }
+        if (weight.Count == 0) return null;
+
+        double Score(int tonic, bool minorKey)
+        {
+            // Minor key = relative major's chord set, shifted.
+            var majorTonic = minorKey ? (tonic + 3) % 12 : tonic;
+            double sum = 0;
+            for (var d = 0; d < 7; d++)
+            {
+                var r = (majorTonic + MajorSteps[d]) % 12;
+                sum += weight.GetValueOrDefault((r, MajorQualityMinor[d]));
+            }
+            // Bias toward keys whose tonic chord actually appears, esp. as the first chord.
+            sum += weight.GetValueOrDefault((tonic, minorKey)) * 0.5;
+            var (fr, fm) = Parse(segments[0].Chord);
+            if (fr == tonic && fm == minorKey) sum += 3;
+            return sum;
+        }
+
+        var best = Enumerable.Range(0, 12).SelectMany(t => new[] { (t, false), (t, true) })
+            .MaxBy(k => Score(k.Item1, k.Item2));
+        return Notes[best.Item1] + (best.Item2 ? "m" : "");
+    }
+
+    private static (int Root, bool Minor) Parse(string chord)
+    {
+        if (string.IsNullOrEmpty(chord)) return (-1, false);
+        var name = chord.Split('/')[0];
+        var len = name.Length > 1 && name[1] is '#' or 'b' ? 2 : 1;
+        var root = name[..len].Replace("Db", "C#").Replace("Eb", "D#").Replace("Gb", "F#").Replace("Ab", "G#").Replace("Bb", "A#");
+        var idx = Array.IndexOf(Notes, root);
+        var rest = name[len..];
+        var minor = rest.StartsWith('m') && !rest.StartsWith("maj");
+        return (idx, minor);
+    }
+}
