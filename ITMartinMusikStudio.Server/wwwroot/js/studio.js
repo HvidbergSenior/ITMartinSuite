@@ -8,10 +8,10 @@ window.studio = (function() {
     var _videoMode = false;
     var _section = null; // optional lyric-section label for "record one verse at a time"
     var _mixAudios = [];
-    var _mixVolume = 0.5; // default lower than full - reduces speaker bleed into the mic when no headphones are used
+    var _mixVolume = 0.25; // the song in the ear stays well under the singer (user rule 2026-09-17); also less speaker bleed into the mic
     var _audioCtx = null;
     var _micGainNode = null;
-    var _micGain = 1.5; // default boost - "record me higher"
+    var _micGain = 2.0; // default boost - "record me higher"
 
     // ── Recording ──────────────────────────────────────────────────────────────
 
@@ -324,6 +324,7 @@ window.studio = (function() {
         playMix: playMix,
         stopMix: stopMix,
         setMixVolume: setMixVolume,
+        setElementVolume: function(id, v) { var el = document.getElementById(id); if (el) el.volume = Math.max(0, Math.min(1, v)); },
         setMicGain: setMicGain,
         startCamera: startCamera,
         stopCamera: stopCamera,

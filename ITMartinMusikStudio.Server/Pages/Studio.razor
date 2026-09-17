@@ -717,13 +717,15 @@ Chorus
                     </p>
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                         <span style="font-size:0.75rem;color:#6b7280;min-width:70px">🔉 Sang (i øret)</span>
-                        <input type="range" min="0" max="100" value="50" style="flex:1"
-                               @oninput='e => { var v = (double.TryParse(e.Value?.ToString(), out var vv) ? vv : 50) / 100.0; JS.InvokeVoidAsync("studio.setMixVolume", v); JS.InvokeVoidAsync("spotifyPlayer.setVolume", v); }' />
+                        <input type="range" min="0" max="100" value="@_mixVolumePct" style="flex:1"
+                               @oninput='e => { _mixVolumePct = int.TryParse(e.Value?.ToString(), out var vv) ? vv : 50; var v = _mixVolumePct / 100.0; JS.InvokeVoidAsync("studio.setMixVolume", v); JS.InvokeVoidAsync("spotifyPlayer.setVolume", v); }' />
+                        <span style="font-size:0.72rem;color:#6b7280;min-width:34px;text-align:right">@_mixVolumePct %</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                         <span style="font-size:0.75rem;color:#6b7280;min-width:70px">🎙 Dig (optaget)</span>
-                        <input type="range" min="50" max="400" value="150" style="flex:1"
-                               @oninput='e => JS.InvokeVoidAsync("studio.setMicGain", (double.TryParse(e.Value?.ToString(), out var g) ? g : 150) / 100.0)' />
+                        <input type="range" min="50" max="400" value="@_micGainPct" style="flex:1"
+                               @oninput='e => { _micGainPct = int.TryParse(e.Value?.ToString(), out var g) ? g : 150; JS.InvokeVoidAsync("studio.setMicGain", _micGainPct / 100.0); }' />
+                        <span style="font-size:0.72rem;color:#6b7280;min-width:34px;text-align:right">@_micGainPct %</span>
                     </div>
 
                     @if (LyricSectionNames.Count > 0)
@@ -839,8 +841,9 @@ Chorus
             }
         </div>
 
-        <!-- Stems -->
-        @if (StemSvc.IsAvailable)
+        <!-- Stems: shown whenever they exist on disk (pre-generated on the NAS),
+             not only where demucs itself is installed. -->
+        @if (StemSvc.IsAvailable || _stems is not null)
         {
         <div class="studio-card">
             <div class="card-header">
@@ -909,7 +912,13 @@ Chorus
                                     </button>
                                 }
                             </div>
-                            <audio controls src="@playUrl" style="width:100%;height:32px" />
+                            <audio controls id="stem-@label.GetHashCode()" src="@playUrl" style="width:100%;height:32px" />
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                                <span style="font-size:0.72rem;color:#6b7280;min-width:52px">Lydstyrke</span>
+                                <input type="range" min="0" max="100" value="@StemVol(label)" style="flex:1"
+                                       @oninput="e => SetStemVol(label, e.Value?.ToString())" />
+                                <span style="font-size:0.72rem;color:#6b7280;min-width:34px;text-align:right">@StemVol(label) %</span>
+                            </div>
                         </div>
                     }
                 }
@@ -1913,6 +1922,20 @@ Chorus
     {
         if (!_openDiagrams.Remove(chord)) _openDiagrams.Add(chord);
         _selectedChord = chord;
+    }
+
+    // Mixer defaults - these are the values the JS side starts with too
+    // (studio.js: _mixVolume 0.25, _micGain 2.0), so slider and sound agree
+    // before anything is touched. Re-applied whenever the Indspil tab renders.
+    private int _mixVolumePct = 25;   // the song in the ear: low, so your own voice/guitar leads
+    private int _micGainPct = 200;    // you in the recording: boosted
+    private readonly Dictionary<string, int> _stemVol = new();
+    private int StemVol(string label) => _stemVol.GetValueOrDefault(label, 100);
+    private void SetStemVol(string label, string? raw)
+    {
+        var v = int.TryParse(raw, out var p) ? Math.Clamp(p, 0, 100) : 100;
+        _stemVol[label] = v;
+        JS.InvokeVoidAsync("studio.setElementVolume", $"stem-{label.GetHashCode()}", v / 100.0);
     }
 
     private string? _selectedChord;
