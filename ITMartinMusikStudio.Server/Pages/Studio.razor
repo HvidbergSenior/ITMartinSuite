@@ -28,6 +28,8 @@ else if (_song is not null)
     <!-- Top bar -->
     <div class="studio-topbar">
         <a href="/songs" class="topbar-back">← Sange</a>
+        @if (ShowCover)
+        {
         <div class="topbar-cover" title="Cover" style="cursor:pointer" @onclick="NavigateToCover">
             @if (!string.IsNullOrWhiteSpace(_song.CoverImagePath) && Library.Exists(_song.CoverImagePath))
             {
@@ -38,6 +40,7 @@ else if (_song is not null)
                 <span class="topbar-cover-placeholder">🖼️</span>
             }
         </div>
+        }
         <div class="topbar-title-group">
             <input class="topbar-title-input" value="@_song.Title"
                    @onchange="e => { _song.Title = e.Value?.ToString() ?? _song.Title; AutoSave(); }" />
@@ -139,6 +142,8 @@ else if (_song is not null)
             <!-- Cover art - decoration, not a step (see StudioSong.CoverImagePath),
                  so it's not part of the checklist, but every song should have
                  something visual. -->
+            @if (ShowCover)
+            {
             <div class="studio-card" id="card-cover">
                 <div class="card-header">
                     <div class="card-label">🖼️ Cover</div>
@@ -166,6 +171,7 @@ else if (_song is not null)
                     <p class="no-file">Cover-generering ikke sat op (mangler FalAi:ApiKey)</p>
                 }
             </div>
+            }
 
             <!-- Source file -->
             <div class="studio-card" id="card-kilde">
@@ -1348,6 +1354,7 @@ Chorus
 
     private string _chordEdit = "";
     private const bool ShowAiHelper = false;
+    private const bool ShowCover = false;   // user, 2026-09-17: hide the cover (topbar thumbnail + card)
     private string _lyricsEdit = "";
     // What the two big textareas are RENDERED with. Deliberately not the
     // live edit fields: pushing the value back on every keystroke races the
