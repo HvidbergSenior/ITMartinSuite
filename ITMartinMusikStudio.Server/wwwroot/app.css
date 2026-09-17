@@ -1,6 +1,9 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+    /* Editable fields: tinted, never plain white/black, so the caret and the field edge are always visible. */
+    --field-bg: rgba(59,130,246,.10);
+    --field-bg-focus: rgba(59,130,246,.16);
     --bg: #0a0d14;
     --surface: #111827;
     --card: #141c2b;
@@ -31,6 +34,8 @@
    colors (accent/purple/green/red/yellow) stay the same across both themes -
    only the neutral bg/surface/card/border/text/muted scale flips. */
 html[data-theme="light"] {
+    --field-bg: #e8effc;
+    --field-bg-focus: #dbe7fb;
     --bg: #f4f5f9;
     --surface: #ffffff;
     --card: #ffffff;
@@ -277,7 +282,7 @@ html, body {
 
 /* ── Chord editor ── */
 .chord-editor, .lyrics-editor, .notes-editor {
-    background: rgba(255,255,255,.04);
+    background: var(--field-bg);
     border: 1px solid var(--border);
     border-radius: 10px;
     color: var(--text);
@@ -289,7 +294,7 @@ html, body {
     width: 100%;
     line-height: 1.6;
 }
-.chord-editor:focus, .lyrics-editor:focus, .notes-editor:focus { border-color: var(--accent); caret-color: var(--accent); }
+.chord-editor:focus, .lyrics-editor:focus, .notes-editor:focus { border-color: var(--accent); background: var(--field-bg-focus); }
 .lyrics-editor { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .notes-editor { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
@@ -1530,4 +1535,13 @@ html[data-theme="light"] .phase-bar { background: rgba(255,255,255,.92); }
     color: var(--muted);
     display: block;
     margin-bottom: 3px;
+}
+
+/* Every text field: tinted background + accent-coloured caret in both themes. */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select {
+    caret-color: var(--accent);
+}
+textarea, input[type=text], input[type=search], input[type=number], input[type=url], input[type=email], input[type=password] {
+    background-color: var(--field-bg);
+    color: var(--text);
 }
