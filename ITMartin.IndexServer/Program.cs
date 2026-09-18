@@ -2,6 +2,7 @@ using ITMartin.IndexServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient("internal", c => c.Timeout = TimeSpan.FromSeconds(6));
+builder.Services.AddHttpClient("kontrol", c => c.Timeout = TimeSpan.FromSeconds(40));
 
 if (builder.Environment.IsDevelopment())
     builder.Services.AddSingleton<LocalLauncherService>();
@@ -59,6 +60,40 @@ app.MapGet("/api/showcase-status", async (IHttpClientFactory httpFactory) =>
     }));
 
     return Results.Ok(results);
+});
+
+// Start/stop proxy to kontrol-web (the only container holding the Docker
+// socket). The PIN travels through untouched; kontrol-web checks it and owns
+// the whitelist, so this portal never decides what may be started.
+var showcaseContainers = new Dictionary<string, string>
+{
+    ["star-realms"] = "star-realms-web",
+    ["magic"] = "magic-web",
+    ["cloudoverblik"] = "cloudoverblik-web"
+};
+
+app.MapGet("/api/kontrol/apps", () => Results.Ok(showcaseContainers));
+
+app.MapPost("/api/kontrol/{key}/{action}", async (string key, string action, HttpRequest req, IHttpClientFactory httpFactory, IConfiguration cfg) =>
+{
+    var kontrolUrl = cfg["Kontrol:Url"];
+    if (string.IsNullOrWhiteSpace(kontrolUrl)) return Results.StatusCode(503);
+    if (!showcaseContainers.TryGetValue(key, out var container)) return Results.NotFound();
+    if (action is not ("start" or "stop")) return Results.BadRequest();
+
+    var client = httpFactory.CreateClient("kontrol");
+    using var msg = new HttpRequestMessage(HttpMethod.Post, $"{kontrolUrl.TrimEnd('/')}/api/apps/{container}/{action}");
+    if (req.Headers.TryGetValue("X-Kontrol-Pin", out var pin)) msg.Headers.Add("X-Kontrol-Pin", pin.ToString());
+
+    try
+    {
+        using var resp = await client.SendAsync(msg);
+        return Results.StatusCode((int)resp.StatusCode);
+    }
+    catch
+    {
+        return Results.StatusCode(502);
+    }
 });
 
 app.MapGet("/api/links", (IConfiguration cfg) => Results.Ok(new

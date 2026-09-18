@@ -29,6 +29,11 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 .sc-status.off{border-color:rgba(255,255,255,.1);color:#475569}
 .sc-try{font-size:12px;font-weight:700;color:#0a0d14;background:#60a5fa;padding:7px 14px;border-radius:999px;text-decoration:none;white-space:nowrap}
 .sc-try.disabled{background:rgba(255,255,255,.06);color:#475569;pointer-events:none}
+.sc-power{display:none;font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#e2e8f0;cursor:pointer;white-space:nowrap}
+.sc-power.show{display:inline-block}
+.sc-power:disabled{opacity:.5;cursor:wait}
+.sc-power.start{border-color:#22c55e;color:#4ade80}
+.sc-power.stop{border-color:#ef4444;color:#f87171}
 .sc-mock{padding:24px;background:#05070c}
 .sc-demo-tag{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#334155;margin-bottom:12px}
 
@@ -244,7 +249,10 @@ body{background:#0a0d14;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <script>
-fetch("/api/showcase-status").then(function (r) { return r.json(); }).then(function (status) {
+var controllable = {};
+var PIN_KEY = "kontrolPin";
+
+function applyStatus(status) {
   Object.keys(status).forEach(function (key) {
     var live = status[key];
     var badge = document.getElementById("status-" + key);
@@ -259,10 +267,68 @@ fetch("/api/showcase-status").then(function (r) { return r.json(); }).then(funct
       badge.className = "sc-status off";
       if (link) link.classList.add("disabled");
     }
+    var btn = document.getElementById("power-" + key);
+    if (btn && controllable[key]) {
+      btn.disabled = false;
+      btn.className = "sc-power show " + (live ? "stop" : "start");
+      btn.textContent = live ? "⏻ Sluk" : "⏻ Tænd";
+      btn.dataset.action = live ? "stop" : "start";
+    }
   });
-}).catch(function () {
-  document.querySelectorAll(".sc-status").forEach(function (b) { b.textContent = "? Kunne ikke tjekke"; });
+}
+
+function refreshStatus() {
+  return fetch("/api/showcase-status").then(function (r) { return r.json(); }).then(applyStatus).catch(function () {
+    document.querySelectorAll(".sc-status").forEach(function (b) { b.textContent = "? Kunne ikke tjekke"; });
+  });
+}
+
+function getPin(force) {
+  var pin = null;
+  try { pin = force ? null : localStorage.getItem(PIN_KEY); } catch (e) {}
+  if (!pin) {
+    pin = window.prompt("Indtast PIN for at tænde/slukke apps");
+    if (!pin) return null;
+    try { localStorage.setItem(PIN_KEY, pin); } catch (e) {}
+  }
+  return pin;
+}
+
+function power(key, btn) {
+  var action = btn.dataset.action;
+  var pin = getPin(false);
+  if (!pin) return;
+  btn.disabled = true;
+  btn.textContent = action === "start" ? "Starter…" : "Slukker…";
+  fetch("/api/kontrol/" + key + "/" + action, { method: "POST", headers: { "X-Kontrol-Pin": pin } })
+    .then(function (r) {
+      if (r.status === 401) {
+        try { localStorage.removeItem(PIN_KEY); } catch (e) {}
+        alert("Forkert PIN.");
+        return;
+      }
+      if (!r.ok) alert("Det lykkedes ikke (" + r.status + ").");
+    })
+    .catch(function () { alert("Kunne ikke nå serveren."); })
+    // The app itself needs a few seconds to come up after the container starts.
+    .then(function () { return new Promise(function (res) { setTimeout(res, action === "start" ? 4000 : 1000); }); })
+    .then(refreshStatus);
+}
+
+document.querySelectorAll(".sc-app-right").forEach(function (right) {
+  var badge = right.querySelector(".sc-status");
+  if (!badge) return;
+  var key = badge.id.replace("status-", "");
+  var btn = document.createElement("button");
+  btn.className = "sc-power";
+  btn.id = "power-" + key;
+  btn.type = "button";
+  btn.addEventListener("click", function () { power(key, btn); });
+  right.insertBefore(btn, badge.nextSibling);
 });
+
+fetch("/api/kontrol/apps").then(function (r) { return r.json(); }).then(function (apps) { controllable = apps; }).catch(function () {})
+  .then(refreshStatus);
 </script>
 </body>
 </html>
