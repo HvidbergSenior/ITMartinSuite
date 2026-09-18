@@ -1,0 +1,31 @@
+@* One question. Lines starting with "- " become a list; "Ja:"/"Nej:" get a mark. *@
+@if (!string.IsNullOrWhiteSpace(Text))
+{
+    <div class="q">
+        <div class="q-label">@Label</div>
+        @{
+            var lines = Text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
+            var isList = lines.Count > 1 || lines.Any(l => l.StartsWith("- ") || l.StartsWith("Ja:") || l.StartsWith("Nej:"));
+        }
+        @if (isList)
+        {
+            <ul>
+                @foreach (var l in lines)
+                {
+                    var t = l.StartsWith("- ") ? l[2..] : l;
+                    var cls = t.StartsWith("Nej:") ? "nej" : t.StartsWith("Ja:") ? "ja" : "";
+                    <li class="@cls">@t</li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>@Text</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Text { get; set; } = "";
+}

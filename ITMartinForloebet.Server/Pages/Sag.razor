@@ -1,0 +1,352 @@
+@page "/sag/{Slug}"
+@inject ForloebService Service
+@inject ForloebetAi Ai
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IDisposable
+
+@* Public read view of one forløb. With ?k=<edit key> the same page is the
+   owner's workbench: add steps, feed it documents, close it. *@
+
+@if (_f is null)
+{
+    <div class="doc"><a class="wordmark" href="/">Forløbet</a><p class="muted">@(_loaded ? "Forløbet findes ikke." : "Henter…")</p></div>
+}
+else
+{
+    <PageTitle>@_f.Titel – Forløbet</PageTitle>
+    <div class="doc sag">
+        <a class="wordmark" href="/">Forløbet</a>
+        <h1>@_f.Titel</h1>
+        <div class="sag-sub">
+            <span>@_f.Modpart</span> · <span>@_f.Omraade</span> · <span>startet @_f.StartedAt.ToString("d. MMM yyyy")</span> ·
+            <span class="c-udfald u-@_f.Udfald.ToString().ToLower()">@(_f.Lukket ? ForloebetAi.UdfaldTekst(_f.Udfald) + $" efter {_f.Uger} uger" : $"åbent, {_f.Uger} uger")</span>
+        </div>
+
+        @if (_owner && _ny)
+        {
+            <div class="keybox">
+                <strong>Gem dette link.</strong> Det er din eneste adgang til at redigere forløbet – der er ingen konto.
+                <div class="keyurl">@Nav.Uri.Replace("&ny=1", "")</div>
+                <button class="btn-secondary" @onclick="CopyLink">@(_copied ? "Kopieret" : "Kopiér link")</button>
+            </div>
+        }
+
+        @if (_f.Lukket)
+        {
+            <div class="closed">
+                <div class="q-label">Sådan endte det</div>
+                <p>@_f.UdfaldTekst</p>
+                @if (!string.IsNullOrWhiteSpace(_f.Laering))
+                {
+                    <div class="q-label">Hvad lærte jeg</div>
+                    <ul>
+                        @foreach (var l in _f.Laering.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            <li>@l.TrimStart('-', ' ')</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+
+        <div class="section-label">Forløbet</div>
+        <div class="timeline">
+            @foreach (var t in _f.Trin.OrderBy(x => x.At).ThenBy(x => x.Id))
+            {
+                <div class="step p-@t.Part.ToString().ToLower()">
+                    <div class="step-when">@t.At.ToString("d. MMM yyyy") · <span class="step-part">@PartText(t.Part)</span>
+                        @if (_owner && !_f.Lukket && _f.Trin.Count > 1)
+                        {
+                            <button class="link-btn" @onclick="() => SletTrin(t.Id)">fjern</button>
+                        }
+                    </div>
+                    <div class="step-text">@t.Tekst</div>
+                    @if (!string.IsNullOrWhiteSpace(t.Citat))
+                    {
+                        <blockquote class="step-quote">“@t.Citat”</blockquote>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (_owner && !_f.Lukket)
+        {
+            <div class="owner-block">
+                <div class="section-label">Tilføj et trin</div>
+                @if (_preview is null)
+                {
+                    <textarea class="big" @bind="_raw" rows="4" placeholder="Hvad er sket siden? Skriv kort – fx: Movia svarede i dag at de fastholder, og at videoen er sikret hos operatøren."></textarea>
+                    <div class="field-row">
+                        <div class="field"><label>Dato</label><input type="date" @bind="_at" /></div>
+                        <div class="field"><label>Hvem</label>
+                            <select @bind="_part">
+                                <option value="Borger">Mig</option>
+                                <option value="Modpart">@_f.Modpart</option>
+                                <option value="Anden">Anden (nævn, politi…)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-primary" disabled="@(_busy || _raw.Trim().Length < 10)" @onclick="OmskrivTrin">@(_busy ? "Skriver om…" : "Skriv om og vis mig")</button>
+                }
+                else
+                {
+                    @if (!string.IsNullOrWhiteSpace(_preview.Fjernet)) { <div class="note">@_preview.Fjernet</div> }
+                    <div class="field"><label>Teksten der offentliggøres</label><textarea class="big" @bind="_preview.Tekst" rows="4"></textarea></div>
+                    <div class="field"><label>Citat (ordret, valgfrit)</label><input type="text" @bind="_preview.Citat" /></div>
+                    <div class="btn-row">
+                        <button class="btn-secondary" @onclick="() => _preview = null">Ret</button>
+                        <button class="btn-primary" disabled="@_busy" @onclick="GemTrin">Gem trin</button>
+                    </div>
+                }
+
+                <div class="section-label">Eller lad AI læse et dokument</div>
+                <p class="hint">Mail (.eml/.txt), PDF eller foto af et brev. Dokumentet ligger kun bag dit private link og vises aldrig offentligt. AI'en foreslår trin – du vælger, hvad der gemmes.</p>
+                <textarea class="big" @bind="_pasted" rows="3" placeholder="…eller indsæt mailteksten her"></textarea>
+                <div class="btn-row">
+                    <label class="btn-secondary file-btn" for="docfile">@(_uploading ? "Henter…" : "Vælg fil")</label>
+                    <InputFile id="docfile" class="camera-input" OnChange="OnFile" accept="image/*,.pdf,.eml,.txt,text/plain,message/rfc822" disabled="@(_busy || _uploading)" />
+                    <button class="btn-primary" disabled="@(_busy || _pasted.Trim().Length < 20)" @onclick="() => Foreslaa(null)">Læs teksten</button>
+                </div>
+                @if (_forslag is not null)
+                {
+                    <div class="forslag">
+                        <div class="q-label">Foreslåede trin – vælg dem der skal med</div>
+                        @if (_forslag.Count == 0) { <p class="muted">AI'en fandt ingen nye trin i dokumentet.</p> }
+                        @for (var i = 0; i < _forslag.Count; i++)
+                        {
+                            var idx = i;
+                            var p = _forslag[idx];
+                            <label class="forslag-item">
+                                <input type="checkbox" @bind="_valgt[idx]" />
+                                <span><b>@p.Dato · @p.Part</b> @p.Tekst @(p.Citat.Length > 0 ? $" – “{p.Citat}”" : "")</span>
+                            </label>
+                        }
+                        @if (_forslag.Count > 0)
+                        {
+                            <button class="btn-primary" disabled="@_busy" @onclick="GemForslag">Tilføj valgte (@_valgt.Count(v => v))</button>
+                        }
+                    </div>
+                }
+                @if (_f.Dokumenter.Count > 0)
+                {
+                    <div class="docs">
+                        <div class="q-label">Dine dokumenter (kun dig)</div>
+                        <ul>
+                            @foreach (var d in _f.Dokumenter.OrderBy(x => x.CreatedAt))
+                            {
+                                <li><a href="/dok/@_f.Slug/@d.Id?k=@_key" target="_blank">@d.FileName</a> <span class="muted">(@(d.Size / 1024) KB)</span></li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                <div class="section-label">Sagen er slut?</div>
+                @if (!_closing)
+                {
+                    <button class="btn-secondary" @onclick="() => _closing = true">Afslut forløbet</button>
+                }
+                else
+                {
+                    <div class="field"><label>Udfald</label>
+                        <select @bind="_udfald">
+                            <option value="Frafaldet">Frafaldet / jeg fik medhold</option>
+                            <option value="Delvist">Delvist</option>
+                            <option value="Betalt">Jeg betalte / gav op</option>
+                            <option value="Afvist">Afvist / modparten fik medhold</option>
+                            <option value="Andet">Andet</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Sådan endte det</label><textarea class="big" @bind="_udfaldTekst" rows="3"></textarea></div>
+                    <div class="field"><label>Hvad lærte jeg (én linje pr. punkt)</label><textarea class="big" @bind="_laering" rows="4"></textarea></div>
+                    <button class="btn-secondary" disabled="@_busy" @onclick="ForeslaaLaering">@(_busy ? "Tænker…" : "Foreslå 3 punkter")</button>
+                    <label class="check"><input type="checkbox" @bind="_delt" /> Del forløbet anonymiseret på forsiden</label>
+                    <div class="btn-row">
+                        <button class="btn-secondary" @onclick="() => _closing = false">Ikke endnu</button>
+                        <button class="btn-primary" disabled="@(_busy || _udfaldTekst.Trim().Length < 10)" @onclick="Afslut">Afslut og lås</button>
+                    </div>
+                }
+            </div>
+        }
+        else if (_owner)
+        {
+            <div class="owner-block">
+                <label class="check"><input type="checkbox" checked="@_f.Delt" @onchange="ToggleDelt" /> Vis forløbet på forsiden</label>
+            </div>
+        }
+
+        @if (_error is not null) { <div class="error-box">@_error</div> }
+
+        @{ var a = ForloebService.AnalyseAf(_f); }
+        @if (a.Tom)
+        {
+            <p class="muted">AI-analysen er på vej…</p>
+        }
+        else
+        {
+            <Analysis Value="a" />
+        }
+
+        <p class="foot"><a href="/">← Forsiden</a> · <a href="/om">Om Forløbet</a></p>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Forloeb? _f;
+    private bool _loaded, _owner, _ny, _copied, _busy, _uploading, _closing;
+    private string _key = "";
+    private string? _error;
+
+    private string _raw = "";
+    private DateTime _at = DateTime.Today;
+    private string _part = "Modpart";
+    private Omskrivning? _preview;
+
+    private string _pasted = "";
+    private List<TrinForslag>? _forslag;
+    private bool[] _valgt = [];
+
+    private string _udfald = "Frafaldet";
+    private string _udfaldTekst = "";
+    private string _laering = "";
+    private bool _delt = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Service.Opdateret += OnUpdated;
+        var q = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
+        _key = q["k"] ?? "";
+        _ny = q["ny"] == "1";
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _f = await Service.GetAsync(Slug);
+        _loaded = true;
+        _owner = _f is not null && _key.Length > 0 && _f.EditKey == _key;
+        if (_f is not null) _delt = _f.Delt;
+    }
+
+    private void OnUpdated(int id) => InvokeAsync(async () => { if (_f?.Id == id) { await LoadAsync(); StateHasChanged(); } });
+    public void Dispose() => Service.Opdateret -= OnUpdated;
+
+    private static string PartText(Part p) => p switch { Part.Borger => "borgeren", Part.Modpart => "modparten", _ => "anden part" };
+
+    private async Task CopyLink()
+    {
+        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", Nav.Uri.Replace("&ny=1", "")); _copied = true; } catch { }
+    }
+
+    // ------------------------------------------------------------- steps
+
+    private async Task OmskrivTrin()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            _preview = await Ai.OmskrivAsync($"[{_part}] {_raw}", _f);
+            if (_preview.Dato is not null && DateTime.TryParse(_preview.Dato, out var d)) _at = d;
+        }
+        catch (AiBudgetExceededException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Det lykkedes ikke at skrive om. Prøv igen om lidt."; }
+        finally { _busy = false; }
+    }
+
+    private async Task GemTrin()
+    {
+        if (_preview is null) return;
+        _busy = true; _error = null;
+        var ok = await Service.TilfoejTrinAsync(Slug, _key, DateTime.SpecifyKind(_at, DateTimeKind.Utc), ForloebService.ParsePart(_part), _preview.Tekst, _preview.Citat);
+        if (!ok) _error = "Kunne ikke gemme trinnet (for mange trin, eller forløbet er lukket).";
+        _preview = null; _raw = ""; _busy = false;
+        await LoadAsync();
+    }
+
+    private async Task SletTrin(int id)
+    {
+        await Service.SletTrinAsync(Slug, _key, id);
+        await LoadAsync();
+    }
+
+    // --------------------------------------------------------- documents
+
+    private async Task OnFile(InputFileChangeEventArgs e)
+    {
+        _uploading = true; _error = null;
+        try
+        {
+            var file = e.File;
+            await using var stream = file.OpenReadStream(maxAllowedSize: 16 * 1024 * 1024);
+            var d = await Service.GemDokumentAsync(Slug, _key, file.Name, file.ContentType, file.Size, stream, CancellationToken.None);
+            if (d is null) { _error = "Filen blev ikke gemt (for stor, eller for mange dokumenter)."; return; }
+            await LoadAsync();
+            await Foreslaa(d);
+        }
+        catch (Exception ex) { _error = "Upload fejlede: " + ex.Message; }
+        finally { _uploading = false; }
+    }
+
+    private async Task Foreslaa(Dokument? d)
+    {
+        if (_f is null) return;
+        _busy = true; _error = null; _forslag = null;
+        try
+        {
+            var doc = d ?? new Dokument();
+            _forslag = await Service.ForeslaaTrinAsync(_f, doc, d is null ? _pasted : null, CancellationToken.None);
+            _valgt = Enumerable.Repeat(true, _forslag.Count).ToArray();
+        }
+        catch (AiBudgetExceededException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "AI'en kunne ikke læse dokumentet."; }
+        finally { _busy = false; }
+    }
+
+    private async Task GemForslag()
+    {
+        if (_forslag is null) return;
+        _busy = true;
+        for (var i = 0; i < _forslag.Count; i++)
+        {
+            if (!_valgt[i]) continue;
+            var p = _forslag[i];
+            var at = DateTime.TryParse(p.Dato, out var dt) ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : DateTime.UtcNow;
+            await Service.TilfoejTrinAsync(Slug, _key, at, ForloebService.ParsePart(p.Part), p.Tekst, p.Citat);
+        }
+        _forslag = null; _pasted = ""; _busy = false;
+        await LoadAsync();
+    }
+
+    // ------------------------------------------------------------- close
+
+    private async Task ForeslaaLaering()
+    {
+        if (_f is null) return;
+        _busy = true; _error = null;
+        try
+        {
+            var pts = await Ai.ForeslaaLaeringAsync(_f, Enum.Parse<Udfald>(_udfald), _udfaldTekst);
+            if (pts.Count > 0) _laering = string.Join("\n", pts);
+        }
+        catch (AiBudgetExceededException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Kunne ikke foreslå læring."; }
+        finally { _busy = false; }
+    }
+
+    private async Task Afslut()
+    {
+        _busy = true;
+        var ok = await Service.AfslutAsync(Slug, _key, Enum.Parse<Udfald>(_udfald), _udfaldTekst, _laering, _delt);
+        if (!ok) _error = "Kunne ikke afslutte.";
+        _closing = false; _busy = false;
+        await LoadAsync();
+    }
+
+    private async Task ToggleDelt(ChangeEventArgs e)
+    {
+        await Service.SaetDeltAsync(Slug, _key, e.Value is true);
+        await LoadAsync();
+    }
+}

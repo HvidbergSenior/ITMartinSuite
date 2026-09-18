@@ -1,0 +1,94 @@
+@page "/"
+@inject ForloebService Service
+@implements IDisposable
+
+@* The front page is a feed you read first. One AI line on top, one-line cards,
+   expand in place, and only at the bottom the single button. No menu. *@
+
+<PageTitle>Forløbet</PageTitle>
+
+<div class="feed">
+    <div class="wordmark">Forløbet</div>
+    @if (!string.IsNullOrWhiteSpace(_overskrift))
+    {
+        <h1 class="headline">@_overskrift</h1>
+    }
+    else
+    {
+        <h1 class="headline">Sådan gik det – trin for trin</h1>
+    }
+
+    @if (_forloeb is null)
+    {
+        <p class="muted">Henter…</p>
+    }
+    else if (_forloeb.Count == 0)
+    {
+        <p class="muted">Ingen delte forløb endnu.</p>
+    }
+    else
+    {
+        <div class="cards">
+            @foreach (var f in _forloeb)
+            {
+                var open = _open == f.Id;
+                var a = ForloebService.AnalyseAf(f);
+                <div class="card @(open ? "open" : "")">
+                    <button class="card-line" @onclick="() => Toggle(f.Id)">
+                        <span class="c-modpart">@f.Modpart</span>
+                        <span class="c-sep">·</span>
+                        <span class="c-titel">@f.Titel</span>
+                        <span class="c-sep">·</span>
+                        <span class="c-uger">@f.Uger uger</span>
+                        <span class="c-sep">·</span>
+                        <span class="c-udfald u-@f.Udfald.ToString().ToLower()">@(f.Lukket ? ForloebetAi.UdfaldTekst(f.Udfald) : "åbent")</span>
+                    </button>
+                    @if (open)
+                    {
+                        <div class="card-body">
+                            @if (!string.IsNullOrWhiteSpace(f.Resume))
+                            {
+                                <p class="resume">@f.Resume</p>
+                            }
+                            @if (!a.Tom)
+                            {
+                                <Analysis Value="a" Compact="true" />
+                            }
+                            <a class="card-link" href="/sag/@f.Slug">Læs hele forløbet →</a>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <div class="cta">
+        <a class="btn-primary" href="/ny">Fortæl dit forløb</a>
+    </div>
+
+    <p class="foot"><a href="/om">Om Forløbet</a></p>
+</div>
+
+@code {
+    private List<Forloeb>? _forloeb;
+    private string _overskrift = "";
+    private int _open;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Service.Opdateret += OnUpdated;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _forloeb = await Service.DelteAsync();
+        _overskrift = await Service.OverskriftAsync();
+    }
+
+    private void Toggle(int id) => _open = _open == id ? 0 : id;
+
+    private void OnUpdated(int _) => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
+
+    public void Dispose() => Service.Opdateret -= OnUpdated;
+}

@@ -1,0 +1,42 @@
+@* The six questions. Compact = on the front-page card (short labels, no drafts). *@
+
+<div class="analysis @(Compact ? "compact" : "")">
+    <div class="ai-label">AI-analyse – ikke rådgivning</div>
+    <Q Label="Hvad handlede det om?" Text="@Value.HvadHandledeDetOm" />
+    <Q Label="Hvad skulle man gøre som borger?" Text="@Value.HvadSkulleManGoere" />
+    <Q Label="Hvad kræves der af borgeren?" Text="@Value.HvadKraeves" />
+    <Q Label="Hvad kan man sige ja og nej til?" Text="@Value.JaOgNejTil" />
+    <Q Label="Hvor gik tiden – unødigt?" Text="@Value.UnoedigTid" />
+    <Q Label="Relevante love og regler" Text="@Value.Love" />
+
+    @if (!Compact && Value.Udkast.Count > 0)
+    {
+        <div class="q">
+            <div class="q-label">Udkast du kan bruge</div>
+            @foreach (var u in Value.Udkast)
+            {
+                <details class="udkast">
+                    <summary>@u.Titel</summary>
+                    <pre>@u.Tekst</pre>
+                </details>
+            }
+        </div>
+    }
+    @if (!Compact && Value.Lignende.Count > 0)
+    {
+        <div class="q">
+            <div class="q-label">Lignende forløb</div>
+            <ul>
+                @foreach (var l in Value.Lignende)
+                {
+                    <li><a href="/sag/@l.Slug">@l.Linje</a></li>
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Analyse Value { get; set; } = new();
+    [Parameter] public bool Compact { get; set; }
+}

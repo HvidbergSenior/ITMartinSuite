@@ -1,0 +1,122 @@
+@page "/ny"
+@inject ForloebetAi Ai
+@inject ForloebService Service
+@inject NavigationManager Nav
+
+@* One field. Write as it comes to you; the AI's rewrite is what gets saved,
+   and only after you have seen it. Photos and mails come later, on the case. *@
+
+<PageTitle>Fortæl dit forløb</PageTitle>
+
+<div class="doc">
+    <a class="wordmark" href="/">Forløbet</a>
+
+    @if (_preview is null)
+    {
+        <h1>Hvad er sket?</h1>
+        <p class="hint">Skriv kort og uformelt, som det falder dig ind. Nævn hvem modparten er (fx Movia, Tryg, kommunen) og hvad de gjorde eller sagde. Du får en omskrevet version at godkende, før noget gemmes.</p>
+
+        <textarea class="big" @bind="_raw" rows="7" placeholder="fx: Fik en kontrolafgift fra Movia for 29/6 men jeg var slet ikke i bussen. De siger jeg svarede rigtigt på et kontrolspørgsmål. Har politianmeldt det."></textarea>
+
+        <div class="field-row">
+            <div class="field">
+                <label>Hvornår startede det?</label>
+                <input type="date" @bind="_startedAt" />
+            </div>
+        </div>
+
+        @if (_error is not null)
+        {
+            <div class="error-box">@_error</div>
+        }
+
+        <button class="btn-primary" disabled="@(_busy || _raw.Trim().Length < 20)" @onclick="Omskriv">
+            @(_busy ? "Skriver om…" : "Skriv om og vis mig")
+        </button>
+        <p class="muted small">Din rå tekst gemmes ikke.</p>
+    }
+    else
+    {
+        <h1>Sådan bliver det vist</h1>
+        @if (!string.IsNullOrWhiteSpace(_preview.Fjernet))
+        {
+            <div class="note">@_preview.Fjernet</div>
+        }
+
+        <div class="field">
+            <label>Titel</label>
+            <input type="text" @bind="_preview.Titel" />
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label>Modpart</label>
+                <input type="text" @bind="_preview.Modpart" />
+            </div>
+            <div class="field">
+                <label>Område</label>
+                <input type="text" @bind="_preview.Omraade" />
+            </div>
+        </div>
+        <div class="field">
+            <label>Første trin – teksten der offentliggøres</label>
+            <textarea class="big" @bind="_preview.Tekst" rows="6"></textarea>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_preview.Citat))
+        {
+            <div class="field">
+                <label>Citat (ordret)</label>
+                <input type="text" @bind="_preview.Citat" />
+            </div>
+        }
+
+        <label class="check">
+            <input type="checkbox" @bind="_delt" />
+            Del forløbet anonymiseret på forsiden (kan slås fra igen)
+        </label>
+
+        @if (_error is not null)
+        {
+            <div class="error-box">@_error</div>
+        }
+
+        <div class="btn-row">
+            <button class="btn-secondary" @onclick="() => _preview = null">Ret min tekst</button>
+            <button class="btn-primary" disabled="@_busy" @onclick="Gem">@(_busy ? "Gemmer…" : "Gem og fortsæt")</button>
+        </div>
+    }
+</div>
+
+@code {
+    private string _raw = "";
+    private DateTime _startedAt = DateTime.Today;
+    private Omskrivning? _preview;
+    private bool _delt = true;
+    private bool _busy;
+    private string? _error;
+
+    private async Task Omskriv()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            _preview = await Ai.OmskrivAsync(_raw, null);
+            if (_preview.Dato is not null && DateTime.TryParse(_preview.Dato, out var d)) _startedAt = d;
+        }
+        catch (AiBudgetExceededException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Det lykkedes ikke at skrive om. Prøv igen om lidt."; }
+        finally { _busy = false; }
+    }
+
+    private async Task Gem()
+    {
+        if (_preview is null) return;
+        if (string.IsNullOrWhiteSpace(_preview.Tekst)) { _error = "Teksten kan ikke være tom."; return; }
+        _busy = true; _error = null;
+        try
+        {
+            var f = await Service.OpretAsync(_preview, DateTime.SpecifyKind(_startedAt, DateTimeKind.Utc), _delt);
+            Nav.NavigateTo($"/sag/{f.Slug}?k={f.EditKey}&ny=1");
+        }
+        catch (Exception) { _error = "Kunne ikke gemme. Prøv igen."; _busy = false; }
+    }
+}
