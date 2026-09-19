@@ -25,6 +25,26 @@
     <Routes @rendermode="InteractiveServer" />
     <script src="_framework/blazor.server.js"></script>
     <script src="js/push.js?v=@CacheBuster"></script>
+    <button id="themeToggleBtn" class="theme-toggle" title="Skift lys/mørk visning">🌓</button>
+    <script>
+    (function () {
+        var btn = document.getElementById('themeToggleBtn');
+        function sync() {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            btn.textContent = current === 'light' ? '🌙' : '☀️';
+            var meta = document.querySelector('meta[name=theme-color]');
+            if (meta) meta.setAttribute('content', current === 'light' ? '#f5f5f7' : '#0b1220');
+        }
+        btn.addEventListener('click', function () {
+            var current = document.documentElement.getAttribute('data-theme') || 'dark';
+            var next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('mitel_theme', next);
+            sync();
+        });
+        sync();
+    })();
+    </script>
     <script>
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
     </script>
