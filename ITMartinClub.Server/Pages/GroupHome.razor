@@ -20,7 +20,7 @@ else if (_member == null)
 }
 else
 {
-    <div class="club-page">
+    <div class="club-page @(IsFixedBuckets ? "club-page-wide" : "")">
         <ClubNav Slug="@Slug" GroupName="@_group!.Name" MemberLabel="@($"Hej, {_member.Name} 👋")"
                  Active="home" OnLogout="LeaveAsync" />
 
@@ -138,7 +138,7 @@ else
                         <button class="task-save-btn" @onclick="AddMainTaskAsync" disabled="@(string.IsNullOrWhiteSpace(_newMainTaskTitle))">Tilføj hovedopgave</button>
                     </div>
                 }
-                else
+                else if (!IsFixedBuckets)
                 {
                     <button class="task-add-maintask-btn" @onclick="() => _addingMainTask = true">+ Nyt hovedopgave-emne</button>
                 }
@@ -189,6 +189,19 @@ else
                                       OnEditTask="StartEditTask" OnDeleteTask="DeleteTaskAsync" />
                     </text>;
                 }
+                @if (IsFixedBuckets)
+                {
+                    @* Familien Hvidberg: exactly five fixed columns. "I dag" is
+                       one-off work due tonight; the other four reopen by period. *@
+                    <div class="bucket-grid">
+                    @foreach (var mt in _mainTasks.OrderBy(m => m.SortOrder))
+                    {
+                        <div class="bucket-col">@RenderMainTaskCard(mt)</div>
+                    }
+                    </div>
+                }
+                else
+                {
                 @if (dailyMainTasks.Count > 0)
                 {
                     <div class="daily-column">
@@ -227,6 +240,7 @@ else
                         }
                     </div>
                 }
+                }
 
                 <div class="maintask-grid">
                 @{
@@ -236,7 +250,7 @@ else
                     // ask was actually "keep them, just lower"). OrderBy is stable, so
                     // ties keep their original SortOrder within each group.
                     var orderedMainTasks = _mainTasks
-                        .Where(mt => !mt.IsRecurringCard && !mt.IsDaily)
+                        .Where(mt => !IsFixedBuckets && !mt.IsRecurringCard && !mt.IsDaily)
                         .Select(mt => (MainTask: mt, Tasks: _tasksByMainTaskId.GetValueOrDefault(mt.Id, [])
                             .Where(t => string.IsNullOrEmpty(_filterAssignedTo) || t.IsAssignedTo(_filterAssignedTo))
                             .ToList()))
@@ -321,6 +335,9 @@ else
     .push-enable-btn { display: block; width: 100%; margin: 12px 0; padding: 10px; border-radius: 10px; border: 1px dashed var(--accent); background: transparent; color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer; }
     .push-status-banner { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); font-size: 13px; color: var(--text); }
 
+    .bucket-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: start; }
+    @@media (max-width: 1100px) { .bucket-grid { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 640px) { .bucket-grid { grid-template-columns: 1fr; } }
     .maintask-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
     @@media (max-width: 640px) { .maintask-grid { grid-template-columns: 1fr; } }
     .maintask-group { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 0; }
@@ -347,6 +364,57 @@ else
 
 @code {
     [Parameter] public string Slug { get; set; } = "";
+
+    // Familien Hvidberg (2026-09-19): exactly five fixed hovedopgaver as
+    // columns - I dag (due tonight), Dagligt, Ugentligt, Hver 14. dag,
+    // Månedligt. Tasks are added straight into a column, never with a
+    // recurrence of their own; the column decides when they reopen.
+    private bool IsFixedBuckets => Slug == "hvidberg";
+    private static readonly (string Title, bool Daily, string Days, bool Biweekly, bool Monthly)[] FixedBuckets =
+    [
+        ("☀️ I dag", false, "", false, false),
+        ("🔁 Dagligt", true, "", false, false),
+        ("📅 Ugentligt", false, "Monday", false, false),
+        ("🗓️ Hver 14. dag", false, "", true, false),
+        ("🌙 Månedligt", false, "", false, true),
+    ];
+
+    // Creates the five columns if missing and folds every other hovedopgave
+    // into the column matching its old recurrence (open and completed tasks
+    // alike, so history stays intact), then removes it. Idempotent.
+    private async Task EnsureFixedBucketsAsync()
+    {
+        var existing = await Db.MainTasks.Where(m => m.GroupId == _group!.Id).ToListAsync();
+        var buckets = new List<MainTask>();
+        for (var i = 0; i < FixedBuckets.Length; i++)
+        {
+            var b = FixedBuckets[i];
+            var mt = existing.FirstOrDefault(m => m.Title == b.Title);
+            if (mt is null)
+            {
+                mt = new MainTask { GroupId = _group!.Id, Title = b.Title, IsDaily = b.Daily, RecurrenceDaysRaw = b.Days, IsBiweekly = b.Biweekly, IsMonthly = b.Monthly, SortOrder = i };
+                Db.MainTasks.Add(mt);
+            }
+            else { mt.SortOrder = i; mt.IsDaily = b.Daily; mt.RecurrenceDaysRaw = b.Days; mt.IsBiweekly = b.Biweekly; mt.IsMonthly = b.Monthly; }
+            buckets.Add(mt);
+        }
+        foreach (var old in existing.Where(m => !FixedBuckets.Any(b => b.Title == m.Title)).ToList())
+        {
+            var target = old.IsDaily ? buckets[1] : old.IsBiweekly ? buckets[3] : old.IsMonthly ? buckets[4] : old.IsWeekly ? buckets[2] : buckets[0];
+            var linked = await Db.Assignments.Where(a => a.MainTaskId == old.Id).ToListAsync();
+            foreach (var a in linked)
+            {
+                a.MainTaskId = target.Id;
+                // Keep the old chore's name visible on the task itself.
+                if (!a.Title.StartsWith(old.Title, StringComparison.OrdinalIgnoreCase)) a.Title = old.Title + " – " + a.Title;
+            }
+            Db.MainTasks.Remove(old);
+        }
+        await Db.SaveChangesAsync();
+    }
+
+    // "I dag" tasks are due tonight at midnight, Danish time.
+    private DateTime CopenhagenTonightUtc() => CopenhagenTodayStartUtc(DateTime.UtcNow).AddDays(1).AddMinutes(-1);
 
     // "Today" for the daily-task reopen/scheduling logic must be Danish local
     // calendar time, not UTC - CompletedAt/ScheduledFor are stored as UTC
@@ -466,6 +534,8 @@ else
     {
         var now = DateTime.UtcNow;
 
+        if (IsFixedBuckets) await EnsureFixedBucketsAsync();
+
         _mainTasks = await Db.MainTasks
             .Where(m => m.GroupId == _group!.Id)
             .OrderBy(m => m.SortOrder)
@@ -564,11 +634,13 @@ else
         // kategoriseret" until assigned a category.
         Guid? mainTaskId = string.IsNullOrEmpty(_newMainTaskId) ? null : Guid.Parse(_newMainTaskId);
         var mainTaskTitle = mainTaskId is { } id ? _mainTasks.First(mt => mt.Id == id).Title : null;
+        var dueUtc = _newDue?.ToUniversalTime();
+        if (IsFixedBuckets && dueUtc is null && mainTaskTitle == FixedBuckets[0].Title) dueUtc = CopenhagenTonightUtc();
         var locationId = string.IsNullOrEmpty(_newStorageLocationId) ? null : (Guid?)Guid.Parse(_newStorageLocationId);
         var scheduledFor = _newScheduleChoice == "tomorrow" ? CopenhagenTodayStartUtc(DateTime.UtcNow).AddDays(1) : (DateTime?)null;
 
         await TaskService.SaveAsync(_group!.Id, _editingTaskId, mainTaskId, mainTaskTitle, locationId,
-            _newTitle.Trim(), _newDesc, _newAssignedTo.ToList(), _newDue?.ToUniversalTime(), scheduledFor, _member!.Name);
+            _newTitle.Trim(), _newDesc, _newAssignedTo.ToList(), dueUtc, scheduledFor, _member!.Name);
         CancelEditTask();
         await RefreshAsync();
     }
@@ -660,6 +732,7 @@ else
     // cleanup done for hvidberg's old categories (2026-09-08).
     private async Task DeleteMainTaskAsync(Guid id)
     {
+        if (IsFixedBuckets) return; // the five columns are the structure, not content
         var stillLinked = await Db.Assignments.Where(a => a.MainTaskId == id).ToListAsync();
         foreach (var a in stillLinked) a.MainTaskId = null;
 
