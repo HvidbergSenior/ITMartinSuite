@@ -65,6 +65,23 @@ else
             {
                 <div class="appl-row muted small"><span>Morgendagens priser kommer ca. kl. 13.</span><b></b></div>
             }
+            @if (_snap.Today is { } td)
+            {
+                <button class="btn btn-small" style="margin-top:8px" @onclick="() => _showWindows = !_showWindows">@(_showWindows ? "Skjul alle to-timers-vinduer" : "Vis alle to-timers-vinduer i dag")</button>
+                @if (_showWindows)
+                {
+                    <div class="windows">
+                        @foreach (var win in TwoHourWindows(td))
+                        {
+                            <div class="appl-row @(win.Past ? "past" : "")">
+                                <span>Kl. @win.Start.ToString("HH")–@win.Start.AddHours(2).ToString("HH")@(win.Now ? " · nu" : "")</span>
+                                <b class="@Level(win.Rank)">@Kr(win.Avg) kr/kWh</b>
+                            </div>
+                        }
+                    </div>
+                    <div class="muted small" style="margin-top:6px">Gennemsnit for de to timer – det du betaler pr. kWh hvis maskinen kører hele vinduet.</div>
+                }
+            }
         </div>
     }
 
@@ -156,7 +173,25 @@ else
     private string _area = "DK1";
     private int _quietFrom = 23, _quietTo = 6;
     private bool _showTomorrow;
+    private bool _showWindows;
     private DateTime? _selected;
+
+    private sealed record Window(DateTime Start, double Avg, double Rank, bool Past, bool Now);
+
+    // Today cut into fixed two-hour blocks (00–02, 02–04, …), each priced as
+    // the average of its two hours, coloured against the day's own range.
+    private static List<Window> TwoHourWindows(DayView day)
+    {
+        var list = new List<Window>();
+        for (var i = 0; i + 1 < day.Hours.Count; i += 2)
+        {
+            var a = day.Hours[i]; var b = day.Hours[i + 1];
+            var avg = (a.KrPerKwh + b.KrPerKwh) / 2;
+            var rank = day.Max > day.Min ? (avg - day.Min) / (day.Max - day.Min) : 0.5;
+            list.Add(new Window(a.Start, avg, rank, b.IsPast, a.IsNow || b.IsNow));
+        }
+        return list;
+    }
     private Timer? _timer;
 
     // The first entry is the two-hour "window" (never listed as a machine);

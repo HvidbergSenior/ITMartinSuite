@@ -176,3 +176,8 @@ a { color: var(--accent); text-decoration: none; }
 /* "Åbn Mit El" cards on the free app */
 .cta { border: 1px solid var(--accent, #3b82f6); }
 .cta a.btn { text-decoration: none; text-align: center; }
+
+/* Two-hour window list on the front page */
+.windows { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px; }
+.windows .appl-row.past { opacity: .45; }
+@media (max-width: 380px) { .windows { grid-template-columns: 1fr; } }
