@@ -9,14 +9,8 @@
    Blazor connection, which is exactly what the phone drops while the camera
    is open. The details form is a plain POST; every field is optional. *@
 
-<div class="top-row">
-    <h1>Tag billede</h1>
-    <a class="top-link" href="/api/auth/logout">Log ud</a>
-</div>
-
-<div class="section-label">1. Billeder af møblet</div>
-<div class="camera-block" id="camera">
-    <label class="camera-btn" for="cam-input">
+<div class="camera-block camera-first" id="camera">
+    <label class="camera-btn camera-btn-big" for="cam-input">
         <span class="camera-icon">📷</span>
         <span id="cam-text">Tag billede</span>
     </label>
@@ -26,6 +20,11 @@
     <div id="upload-status" class="chosen-files"></div>
     <div id="upload-thumbs" class="thumb-row"></div>
     <div id="upload-error" class="error-box" hidden></div>
+</div>
+
+<div class="top-row">
+    <h1>Nyt møbel</h1>
+    <a class="top-link" href="/api/auth/logout">Log ud</a>
 </div>
 
 <form method="post" action="/api/pieces" id="piece-form">
