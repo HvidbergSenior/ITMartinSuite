@@ -81,6 +81,7 @@ $ServiceMap = @{
     "redigerdokument-web"    = @{ Dockerfile = "ITMartinRedigerDokument.Server/Dockerfile";                  Context = "."; Profile = "manual" }
     "aeromedrecord-web"      = @{ Dockerfile = "ITMartinAeroMedRecord.Server/Dockerfile";                     Context = "."; Profile = "manual" }
     "polstrer-web"           = @{ Dockerfile = "ITMartinPolstrer.Server/Dockerfile";                          Context = "." }
+    "polstrer-tavle-web"     = @{ Dockerfile = "ITMartinPolstrerTavle.Server/Dockerfile";                     Context = "." }
     "forloebet-web"          = @{ Dockerfile = "ITMartinForloebet.Server/Dockerfile";                         Context = "." }
     "bibliotek-web"          = @{ Dockerfile = "ITMartinBibliotek.Server/Dockerfile";                         Context = "." }
     "skrivsange-web"         = @{ Dockerfile = "ITMartinSkrivSange.Server/Dockerfile";                        Context = "." }

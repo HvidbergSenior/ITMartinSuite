@@ -1,0 +1,158 @@
+@page "/moebel/{Slug}"
+@rendermode InteractiveServer
+@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@inject NavigationManager Nav
+
+@if (_p is null)
+{
+    <div class="page"><p class="muted">Henter…</p></div>
+    return;
+}
+
+<PageTitle>@PieceText.TitleOrDefault(_p) – Værkstedstavle</PageTitle>
+
+<div class="page edit">
+    <div class="top-row">
+        <a class="top-link" href="/">← Tavlen</a>
+        <a class="top-link" href="@_phoneUrl" target="_blank">Åbn i telefon-appen ↗</a>
+    </div>
+
+    <h1>@PieceText.TitleOrDefault(_p)</h1>
+
+    <div class="status-row">
+        @foreach (var s in Enum.GetValues<PieceStatus>())
+        {
+            <button class="chip @(_p.Status == s ? "chip-on" : "")" @onclick="() => SetStatusAsync(s)">@PieceText.StatusText(s)</button>
+        }
+    </div>
+
+    <div class="edit-grid">
+        <div class="card">
+            <div class="section-label" style="margin-top:0">Oplysninger</div>
+            <div class="field"><label>Møbel</label><input type="text" @bind="_p.Title" /></div>
+            <div class="field-row">
+                <div class="field"><label>Type</label><input type="text" @bind="_p.Category" list="cats" /><datalist id="cats">@foreach (var c in FurnitureCategories.All) { <option value="@c" /> }</datalist></div>
+                <div class="field"><label>Polstrer</label><input type="text" @bind="_p.Worker" list="workers" /><datalist id="workers">@foreach (var w in _workers) { <option value="@w" /> }</datalist></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Kunde</label><input type="text" @bind="_p.Customer" /></div>
+                <div class="field"><label>Deadline</label><input type="date" @bind="_p.Deadline" /></div>
+            </div>
+            <div class="field"><label>Stof / materiale</label><input type="text" @bind="_p.Material" /></div>
+            <div class="field"><label>Teknikker (adskilt med komma)</label><input type="text" @bind="_p.Techniques" /></div>
+            <div class="field"><label>Hvem fortalte det?</label><input type="text" @bind="_p.InstructedBy" /></div>
+            <div class="field"><label>Hvad blev der sagt?</label><textarea rows="5" @bind="_p.Instructions"></textarea></div>
+            <button class="btn btn-primary btn-block" @onclick="SaveAsync">Gem</button>
+            @if (_saved) { <div class="hint" style="text-align:center;margin-top:8px">Gemt ✓</div> }
+        </div>
+
+        <div>
+            <div class="card">
+                <div class="section-label" style="margin-top:0">Kommentarer</div>
+                @foreach (var c in _p.Comments.OrderByDescending(c => c.At))
+                {
+                    <div class="comment">
+                        <div class="comment-meta"><b>@(string.IsNullOrWhiteSpace(c.Author) ? "Ukendt" : c.Author)</b> · @c.At.ToLocalTime().ToString("d. MMM HH:mm") <button class="link" @onclick="() => DeleteCommentAsync(c)">slet</button></div>
+                        <div>@c.Text</div>
+                    </div>
+                }
+                <div class="field-row" style="margin-top:10px">
+                    <div class="field" style="flex:0 0 140px"><label>Navn</label><input type="text" @bind="_author" list="workers" /></div>
+                    <div class="field"><label>Kommentar</label><input type="text" @bind="_text" @onkeydown="OnCommentKey" placeholder="fx fjedre bestilt, kunden ringede…" /></div>
+                </div>
+                <button class="btn btn-block" @onclick="AddCommentAsync" disabled="@string.IsNullOrWhiteSpace(_text)">Tilføj kommentar</button>
+            </div>
+
+            <div class="card">
+                <div class="section-label" style="margin-top:0">Forløb (fra telefonen)</div>
+                @foreach (var s in _p.Steps.OrderBy(s => s.At))
+                {
+                    <div class="step">
+                        <div class="comment-meta">@s.At.ToLocalTime().ToString("d. MMM yyyy HH:mm")</div>
+                        <div>@s.Note</div>
+                        <div class="thumb-row">
+                            @foreach (var m in s.Media)
+                            {
+                                <a href="@MediaStore.Url(m.RelativePath)" target="_blank">
+                                    @if (m.IsVideo) { <div class="thumb">🎬</div> } else { <img class="thumb" src="@MediaStore.Url(m.ThumbPath ?? m.RelativePath)" alt="" /> }
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+    private Piece? _p;
+    private List<string> _workers = [];
+    private string _author = "", _text = "";
+    private bool _saved;
+    private string _phoneUrl = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _phoneUrl = $"https://polstrer.itmartin.dk/moebel/{Slug}";
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _p = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).Include(p => p.Comments).AsNoTracking().FirstOrDefaultAsync(p => p.Slug == Slug);
+        if (_p is null) { Nav.NavigateTo("/"); return; }
+        _workers = await db.Pieces.Select(p => p.Worker).Where(w => w != "").Distinct().OrderBy(w => w).ToListAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_p is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var p = _p;
+        await db.Pieces.Where(x => x.Id == p.Id).ExecuteUpdateAsync(u => u
+            .SetProperty(x => x.Title, p.Title.Trim())
+            .SetProperty(x => x.Category, p.Category.Trim())
+            .SetProperty(x => x.Worker, p.Worker.Trim())
+            .SetProperty(x => x.Customer, p.Customer.Trim())
+            .SetProperty(x => x.Material, p.Material.Trim())
+            .SetProperty(x => x.Deadline, p.Deadline)
+            .SetProperty(x => x.Techniques, p.Techniques.Trim())
+            .SetProperty(x => x.InstructedBy, p.InstructedBy.Trim())
+            .SetProperty(x => x.Instructions, p.Instructions.Trim()));
+        _saved = true;
+        await LoadAsync();
+    }
+
+    private async Task SetStatusAsync(PieceStatus s)
+    {
+        if (_p is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Pieces.Where(x => x.Id == _p.Id).ExecuteUpdateAsync(u => u.SetProperty(x => x.Status, s));
+        _p.Status = s;
+    }
+
+    private async Task OnCommentKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AddCommentAsync();
+    }
+
+    private async Task AddCommentAsync()
+    {
+        if (_p is null || string.IsNullOrWhiteSpace(_text)) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Comments.Add(new Comment { PieceId = _p.Id, Author = _author.Trim(), Text = _text.Trim() });
+        await db.SaveChangesAsync();
+        _text = "";
+        await LoadAsync();
+    }
+
+    private async Task DeleteCommentAsync(Comment c)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.Comments.Where(x => x.Id == c.Id).ExecuteDeleteAsync();
+        await LoadAsync();
+    }
+}

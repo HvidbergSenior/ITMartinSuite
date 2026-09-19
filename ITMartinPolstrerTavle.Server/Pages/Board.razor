@@ -1,0 +1,96 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IDbContextFactory<PolstrerDbContext> DbFactory
+@implements IDisposable
+
+<PageTitle>Værkstedstavle</PageTitle>
+
+@* The big screen in the workshop: four columns, one card per piece, who is
+   on it, when it is due, the latest remark. Reloads itself every 30 s so
+   the phone app's changes show up without anyone touching the screen. *@
+
+<div class="tv">
+    <header class="tv-head">
+        <div class="tv-title">🪑 Værkstedet <span class="muted">· @DateTime.Now.ToString("dddd d. MMMM", Da)</span></div>
+        <div class="tv-clock">@_now.ToString("HH:mm")</div>
+    </header>
+
+    @if (_pieces is null)
+    {
+        <p class="muted">Henter…</p>
+    }
+    else
+    {
+        <div class="tv-columns">
+            @foreach (var (status, title) in Columns)
+            {
+                var items = _pieces.Where(p => p.Status == status).ToList();
+                <section class="tv-col tv-col-@status.ToString().ToLower()">
+                    <h2>@title <span class="tv-count">@items.Count</span></h2>
+                    @if (items.Count == 0)
+                    {
+                        <div class="tv-empty">–</div>
+                    }
+                    @foreach (var p in items)
+                    {
+                        var cover = PieceText.Cover(p);
+                        var last = p.Comments.OrderByDescending(c => c.At).FirstOrDefault();
+                        <a class="tv-card @PieceText.UrgencyClass(p)" href="/moebel/@p.Slug">
+                            @if (cover is not null) { <img src="@MediaStore.Url(cover.ThumbPath ?? cover.RelativePath)" alt="" loading="lazy" /> }
+                            <div class="tv-card-body">
+                                <div class="tv-card-title">@PieceText.TitleOrDefault(p)</div>
+                                <div class="tv-card-meta">
+                                    @if (!string.IsNullOrWhiteSpace(p.Category)) { <span>@p.Category</span> }
+                                    @if (!string.IsNullOrWhiteSpace(p.Customer)) { <span>@p.Customer</span> }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(p.Worker)) { <div class="tv-worker">👤 @p.Worker</div> }
+                                @if (p.Deadline is { } d && status < PieceStatus.Faerdig) { <div class="tv-deadline">⏰ @PieceText.DeadlineText(d)</div> }
+                                @if (last is not null) { <div class="tv-comment">💬 @last.Text <span class="muted">– @(string.IsNullOrWhiteSpace(last.Author) ? "" : last.Author + ", ")@last.At.ToLocalTime().ToString("d/M HH:mm")</span></div> }
+                            </div>
+                        </a>
+                    }
+                </section>
+            }
+        </div>
+        <footer class="tv-foot">
+            <span>Opdateret @_loadedAt.ToString("HH:mm:ss") · @_pieces.Count møbler</span>
+            <a href="/api/auth/logout">Log ud</a>
+        </footer>
+    }
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Da = new("da-DK");
+    private static readonly (PieceStatus, string)[] Columns =
+    [
+        (PieceStatus.Modtaget, "Backlog"),
+        (PieceStatus.IGang, "I gang"),
+        (PieceStatus.Faerdig, "Færdig"),
+        (PieceStatus.Afleveret, "Afleveret"),
+    ];
+
+    private List<Piece>? _pieces;
+    private DateTime _now = DateTime.Now, _loadedAt = DateTime.Now;
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _timer = new Timer(async _ => { await LoadAsync(); await InvokeAsync(StateHasChanged); }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var all = await db.Pieces.Include(p => p.Steps).ThenInclude(s => s.Media).Include(p => p.Comments).AsNoTracking().ToListAsync();
+        // Afleveret only shows the last two weeks - the column is a "just done", not an archive.
+        var cutoff = DateTime.UtcNow.AddDays(-14);
+        _pieces = all
+            .Where(p => p.Status != PieceStatus.Afleveret || p.Steps.Max(s => (DateTime?)s.At) >= cutoff || p.Comments.Any(c => c.At >= cutoff))
+            .OrderBy(p => p.Deadline ?? DateOnly.MaxValue).ThenByDescending(p => p.ReceivedAt)
+            .ToList();
+        _now = DateTime.Now; _loadedAt = DateTime.Now;
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}
