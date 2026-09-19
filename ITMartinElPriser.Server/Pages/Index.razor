@@ -10,7 +10,11 @@
     <div class="ep-logo">⚡</div>
     <div>
         <div class="ep-title">ElPriser</div>
-        <div class="ep-sub">@(_snap?.AllIn == false ? "Spotpris" : "Alt inkl. moms, afgift og nettarif") · @_area</div>
+        <div class="ep-sub">@(_snap?.AllIn == false ? "Spotpris" : "Alt inkl. moms, afgift og nettarif")</div>
+    </div>
+    <div class="area-toggle">
+        <button class="tab @(_area == "DK1" ? "on" : "")" @onclick='() => SetAreaAsync("DK1")'>DK1<small>Vest</small></button>
+        <button class="tab @(_area == "DK2" ? "on" : "")" @onclick='() => SetAreaAsync("DK2")'>DK2<small>Øst</small></button>
     </div>
 </div>
 
@@ -44,7 +48,7 @@ else
     {
         <div class="card">
             <div class="card-title">Hvornår er det billigst?</div>
-            <div class="muted small" style="margin-bottom:8px">De billigste to timer i træk – til en vask, en opvask eller en opladning. Der foreslås ikke tider mellem kl. @_quietFrom og @_quietTo.</div>
+            <div class="muted small" style="margin-bottom:8px">De billigste to timer i træk – til en vask, en opvask eller en opladning. Nattetimer (@_quietFrom–@_quietTo) foreslås ikke.</div>
             @if (w.CheapestToday is { } c && (w.Now is null || c.Start >= w.Now.Start))
             {
                 <div class="appl-row"><span>🟢 I dag kl. @c.Start.ToString("HH:mm")–@c.End.ToString("HH:mm")</span><b class="lvl-cheap">@Kr(c.AvgKrPerKwh) kr/kWh</b></div>
@@ -215,6 +219,18 @@ else
         _quietTo = s.QuietToHour;
         var raw = await Prices.GetPricesAsync(_area);
         _snap = PriceModel.Build(raw, s, Examples(), DkTime.Now);
+    }
+
+    // DK1 = Jylland/Fyn, DK2 = Sjælland og øerne. Saved on the phone so
+    // Regning and Besked follow the same choice.
+    private async Task SetAreaAsync(string area)
+    {
+        var s = Prefs.Get();
+        if (s.PriceArea == area) return;
+        s.PriceArea = area;
+        await Prefs.SaveAsync(s);
+        _snap = null;
+        await LoadAsync();
     }
 
     public void Dispose() => _timer?.Dispose();
