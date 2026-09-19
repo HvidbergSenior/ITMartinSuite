@@ -1,6 +1,7 @@
 using ITMartinClub.Server.Data;
 using ITMartinClub.Server.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.JSInterop;
 
@@ -12,15 +13,26 @@ namespace ITMartinClub.Server.Services;
 public sealed class ClubAuthService
 {
     private readonly IConfiguration _configuration;
+    private readonly IHttpContextAccessor _http;
 
-    public ClubAuthService(IConfiguration configuration)
+    public ClubAuthService(IConfiguration configuration, IHttpContextAccessor http)
     {
         _configuration = configuration;
+        _http = http;
     }
 
     public async Task<MemberSession?> ResolveSessionAsync(IJSRuntime js, ClubDbContext db, string slug)
     {
         var sessionId = await js.InvokeAsync<string?>("clubJs.getSession");
+
+        // Browser storage gone (iOS wipes it after 7 quiet days)? The
+        // server-set cookie from /api/session still knows who this is.
+        var fromServerCookie = false;
+        if (!Guid.TryParse(sessionId, out _) && _http.HttpContext?.Request.Cookies.TryGetValue("club_session_srv", out var srv) == true)
+        {
+            sessionId = srv;
+            fromServerCookie = true;
+        }
 
         if (Guid.TryParse(sessionId, out var sid))
         {
@@ -29,7 +41,16 @@ public sealed class ClubAuthService
                 .FirstOrDefaultAsync(s => s.Id == sid);
 
             if (session is not null && session.Member.Group.Slug == slug && session.ExpiresAt >= DateTime.UtcNow)
+            {
+                // Sliding: anyone who shows up keeps their login another year.
+                if (session.ExpiresAt < DateTime.UtcNow.AddDays(300))
+                {
+                    session.ExpiresAt = DateTime.UtcNow.AddDays(365);
+                    await db.SaveChangesAsync();
+                }
+                if (fromServerCookie) await js.InvokeVoidAsync("clubJs.setSession", session.Id.ToString());
                 return session;
+            }
         }
 
         // Demo tier: a real visitor never goes through /join (no invite code

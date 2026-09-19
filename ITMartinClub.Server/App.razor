@@ -33,11 +33,13 @@
             },
             setSession: function (v) {
                 localStorage.setItem('club_session', v);
-                document.cookie = 'club_session=' + v + ';path=/;max-age=2592000;samesite=lax';
+                document.cookie = 'club_session=' + v + ';path=/;max-age=31536000;samesite=lax';
+                fetch('/api/session?id=' + encodeURIComponent(v), { method: 'POST', credentials: 'same-origin' }).catch(function () {});
             },
             clearSession: function () {
                 localStorage.removeItem('club_session');
                 document.cookie = 'club_session=;path=/;max-age=0';
+                fetch('/api/session/clear', { method: 'POST', credentials: 'same-origin' }).catch(function () {});
             },
             scrollToBottom: (id) => { var el = document.getElementById(id); if (el) el.scrollTop = el.scrollHeight; },
 

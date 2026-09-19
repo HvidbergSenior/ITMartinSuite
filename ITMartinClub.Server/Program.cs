@@ -16,6 +16,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ClubBroadcastService>();
 builder.Services.AddSingleton<ClubPushService>();
 builder.Services.AddScoped<ClubAuthService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AssignmentTaskService>();
 builder.Services.AddSingleton<AdminPinRateLimiterService>();
 
@@ -313,6 +314,22 @@ app.MapPost("/api/push/subscribe", async (ClubPushRequest req, ClubDbContext db,
     });
     return Results.Ok();
 });
+
+// The session id also goes into a server-set HttpOnly cookie. iOS Safari
+// wipes localStorage and JS-written cookies after 7 days without a visit
+// (ITP), which is why family members kept having to "log in" again; a
+// cookie set by the server in a response is exempt from that cap.
+app.MapPost("/api/session", (string id, HttpContext ctx) =>
+{
+    if (!Guid.TryParse(id, out _)) return Results.BadRequest();
+    ctx.Response.Cookies.Append("club_session_srv", id, new CookieOptions
+    {
+        HttpOnly = true, Secure = ctx.Request.IsHttps, SameSite = SameSiteMode.Lax,
+        MaxAge = TimeSpan.FromDays(365), Path = "/",
+    });
+    return Results.Ok();
+}).DisableAntiforgery();
+app.MapPost("/api/session/clear", (HttpContext ctx) => { ctx.Response.Cookies.Delete("club_session_srv"); return Results.Ok(); }).DisableAntiforgery();
 
 app.MapGet("/api/push/key", (ClubPushService push) => Results.Ok(push.GetPublicKey()));
 
