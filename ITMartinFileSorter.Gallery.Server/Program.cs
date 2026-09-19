@@ -775,6 +775,69 @@ app.MapGet("/api/embedded-cover", (string gallery, string path, HttpContext ctx)
     }
 });
 
+// ── Song sheet (chords + lyrics) from the Musik Studio database ─────────────
+// The Sange gallery is where he practises away from the PC, so a song's chart
+// and lyrics from studio.db ride along with the audio. Read-only; the db dir is
+// mounted at StudioDb (compose). Matched on folder/file of the studio's
+// SourceFile, falling back to any song in the same folder so every take of a
+// song shows the same sheet.
+var studioDb = app.Configuration["StudioDb"] ?? "/studio/studio.db";
+app.MapGet("/api/song-sheet", (string gallery, string path, HttpContext ctx) =>
+{
+    var g = galleries.FirstOrDefault(x => x.Slug == gallery);
+    if (g is null) return Results.NotFound();
+    if (!string.IsNullOrEmpty(g.Password) &&
+        ctx.Request.Cookies[$"gallery_{gallery}"] != g.Password)
+        return Results.Unauthorized();
+    if (!File.Exists(studioDb)) return Results.NotFound();
+
+    var parts = path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length == 0) return Results.NotFound();
+    var file = parts[^1];
+    var folder = parts.Length > 1 ? parts[^2] : "";
+
+    try
+    {
+        using var con = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={studioDb};Mode=ReadOnly");
+        con.Open();
+        using var cmd = con.CreateCommand();
+        cmd.CommandText = "select Title, SourceFile, MusicKey, Tempo, ChordChart, Lyrics, Notes, StrumPattern, FingerpickPattern from Songs where ChordChart <> '' or Lyrics <> ''";
+        using var rd = cmd.ExecuteReader();
+        object? best = null; var bestScore = 0;
+        while (rd.Read())
+        {
+            var src = (rd.IsDBNull(1) ? "" : rd.GetString(1)).Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var sFile = src.Length > 0 ? src[^1] : "";
+            var sFolder = src.Length > 1 ? src[^2] : "";
+            var title = rd.GetString(0);
+            var score = string.Equals(sFile, file, StringComparison.OrdinalIgnoreCase) && string.Equals(sFolder, folder, StringComparison.OrdinalIgnoreCase) ? 3
+                      : string.Equals(sFile, file, StringComparison.OrdinalIgnoreCase) ? 2
+                      : folder.Length > 0 && (string.Equals(sFolder, folder, StringComparison.OrdinalIgnoreCase) || string.Equals(title, folder, StringComparison.OrdinalIgnoreCase)) ? 1
+                      : 0;
+            if (score <= bestScore) continue;
+            bestScore = score;
+            best = new
+            {
+                title,
+                sourceFile = rd.IsDBNull(1) ? "" : rd.GetString(1),
+                key = rd.IsDBNull(2) ? "" : rd.GetString(2),
+                tempo = rd.IsDBNull(3) ? (int?)null : rd.GetInt32(3),
+                chart = rd.IsDBNull(4) ? "" : rd.GetString(4),
+                lyrics = rd.IsDBNull(5) ? "" : rd.GetString(5),
+                notes = rd.IsDBNull(6) ? "" : rd.GetString(6),
+                strum = rd.IsDBNull(7) ? "" : rd.GetString(7),
+                fingerpick = rd.IsDBNull(8) ? "" : rd.GetString(8),
+                exact = score == 3,
+            };
+        }
+        return best is null ? Results.NotFound() : Results.Ok(best);
+    }
+    catch
+    {
+        return Results.NotFound();
+    }
+});
+
 app.MapGet("/api/playlist", (string gallery, string folder, HttpContext ctx) =>
 {
     var g = galleries.FirstOrDefault(x => x.Slug == gallery);

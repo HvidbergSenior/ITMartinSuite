@@ -215,6 +215,24 @@ body.view-only #addonsSection,body.view-only #collectionsSection,body.view-only 
 .v-audio-bg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#9ca3af}
 .v-audio-icon{font-size:64px}
 .v-audio-cover{width:220px;height:220px;object-fit:cover;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.v-audio-bg.has-sheet{justify-content:flex-start;overflow-y:auto;height:100%;width:100%;padding:16px 12px calc(24px + env(safe-area-inset-bottom));touch-action:pan-y}
+.v-audio-bg.has-sheet .v-audio-cover{width:120px;height:120px}
+.sh{width:100%;max-width:640px;color:#e5e7eb;text-align:left;font-size:15px;line-height:1.5}
+.sh-big{font-size:19px}
+.sh-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;margin-bottom:6px}
+.sh-meta{color:#9ca3af;font-size:.85em}
+.sh-tools{display:flex;gap:8px;margin-bottom:10px}
+.sh-tools button{background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:8px;padding:4px 10px;font:inherit;font-size:.85em}
+.sh-chart{display:none;background:#111827;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;white-space:pre-wrap}
+.sh-chart.open{display:block}
+.sh-chart-line{padding:2px 0}
+.sh-section{font-weight:700;color:#fbbf24;margin:14px 0 2px}
+.sh-comment{color:#9ca3af;font-style:italic;font-size:.9em;margin:4px 0 8px}
+.sh-blank{height:.6em}
+.sh-line{display:flex;flex-wrap:wrap;align-items:flex-end;margin:2px 0}
+.sh-w{display:inline-flex;flex-direction:column;white-space:pre}
+.sh-w i{font-style:normal;font-weight:700;color:#fbbf24;font-size:.85em;line-height:1.1;min-height:1.1em}
+.sh-notes{margin-top:16px;color:#9ca3af;font-size:.85em;white-space:pre-wrap}
 .v-zone{position:absolute;top:0;bottom:0;width:40%;cursor:pointer}
 .v-zone.left{left:0}
 .v-zone.right{right:0}
@@ -1297,6 +1315,7 @@ function renderViewer() {
       ? `<img class="v-audio-cover" src="${esc(f.thumb)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'v-audio-icon',textContent:'🎵'}))" alt="">`
       : `<div class="v-audio-icon">🎵</div>`;
     el.innerHTML = `${artHtml}<div style="font-size:14px;color:#9ca3af;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">${esc(shortName)}</div><audio controls autoplay x-webkit-airplay="allow" style="margin-top:8px;width:260px" src="${esc(f.webPath)}"></audio>`;
+    loadSongSheet(f, el);
   } else {
     el = document.createElement('img');
     el.className = 'v-media';
@@ -1380,6 +1399,53 @@ function viewerNav(delta) {
 // is never mistaken for "next photo". Everything is a CSS transform on the
 // current image - no re-fetch, no layout - and it resets on navigation.
 const zoom = { scale: 1, x: 0, y: 0, startDist: 0, startScale: 1, startX: 0, startY: 0, panX: 0, panY: 0, lastTap: 0, pinching: false };
+
+
+// ── Song sheet under the audio player (Sange gallery) ────────────────────
+// Chords + lyrics come from the Musik Studio db via /api/song-sheet so a
+// song can be practised on the phone: play, read, scroll. "[Am]word" markers
+// become chord names sitting above the words, ChordPro-style.
+function sheetLine(line) {
+  if (!line.trim()) return '<div class="sh-blank"></div>';
+  if (/^\[Comment:/i.test(line.trim())) return `<div class="sh-comment">${esc(line.trim().replace(/^\[Comment:\s*/i, '').replace(/\]$/, ''))}</div>`;
+  if (/^[^\[]{1,30}:\s*$/.test(line.trim())) return `<div class="sh-section">${esc(line.trim().replace(/:$/, ''))}</div>`;
+  const parts = line.split(/(\[[^\]]+\])/);
+  let html = '<div class="sh-line">';
+  let pendingChord = '';
+  for (const p of parts) {
+    if (!p) continue;
+    if (p.startsWith('[')) { pendingChord = p.slice(1, -1); continue; }
+    html += `<span class="sh-w"><i>${esc(pendingChord)}</i>${esc(p)}</span>`;
+    pendingChord = '';
+  }
+  if (pendingChord) html += `<span class="sh-w"><i>${esc(pendingChord)}</i>&nbsp;</span>`;
+  return html + '</div>';
+}
+async function loadSongSheet(f, host) {
+  const m = (f.webPath || '').match(/^\/libraryfiles\/([^/]+)\/(.+)$/);
+  if (!m) return;
+  let sheet;
+  try {
+    const r = await fetch(`/api/song-sheet?gallery=${encodeURIComponent(m[1])}&path=${encodeURIComponent(decodeURIComponent(m[2]))}`);
+    if (!r.ok) return;
+    sheet = await r.json();
+  } catch { return; }
+  if (!host.isConnected) return;
+  const chart = (sheet.chart || '').split('\n').filter(l => l.trim()).map(l => `<div class="sh-chart-line">${esc(l)}</div>`).join('');
+  const lyrics = (sheet.lyrics || '').split('\n').map(sheetLine).join('');
+  const meta = [sheet.key ? `Toneart ${sheet.key}` : '', sheet.tempo ? `${sheet.tempo} bpm` : ''].filter(Boolean).join(' · ');
+  const el = document.createElement('div');
+  el.className = 'sh';
+  el.onclick = e => e.stopPropagation();
+  el.innerHTML = `
+    <div class="sh-head"><b>${esc(sheet.title)}</b>${meta ? `<span class="sh-meta">${esc(meta)}</span>` : ''}${sheet.exact ? '' : '<span class="sh-meta">· akkorder fra en anden optagelse af sangen</span>'}</div>
+    <div class="sh-tools"><button type="button" onclick="this.closest('.sh').classList.toggle('sh-big')">A+</button><button type="button" onclick="this.closest('.sh').querySelector('.sh-chart').classList.toggle('open')">Akkorder</button></div>
+    ${chart ? `<div class="sh-chart">${chart}</div>` : ''}
+    <div class="sh-lyrics">${lyrics}</div>
+    ${sheet.notes ? `<div class="sh-notes">${esc(sheet.notes)}</div>` : ''}`;
+  host.appendChild(el);
+  host.classList.add('has-sheet');
+}
 
 function zoomTarget() { return document.querySelector('#vStage img.v-media'); }
 
