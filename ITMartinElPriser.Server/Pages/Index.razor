@@ -123,14 +123,14 @@ else
     <div class="card">
         <div class="day-tabs">
             <button class="tab @(_showTomorrow ? "" : "on")" @onclick="() => { _showTomorrow = false; _selected = null; }">I dag</button>
-            <button class="tab @(_showTomorrow ? "on" : "")" @onclick="() => { _showTomorrow = true; _selected = null; }" disabled="@(_snap.Tomorrow is null)">
-                @(_snap.Tomorrow is null ? "I morgen (kommer ca. kl. 13)" : "I morgen")
+            <button class="tab @(_showTomorrow ? "on" : "")" @onclick="() => { _showTomorrow = true; _selected = null; }">
+                @(_snap.Tomorrow is null ? "I morgen (fra kl. 13)" : "I morgen")
             </button>
         </div>
         @{ var day = _showTomorrow ? _snap.Tomorrow : _snap.Today; }
         @if (day is null)
         {
-            <div class="muted">Ingen priser for dagen endnu.</div>
+            <div class="muted">Morgendagens priser er ikke offentliggjort endnu. Energinet lægger dem ud ca. kl. 13 – appen tjekker igen hvert 5. minut.</div>
         }
         else
         {
