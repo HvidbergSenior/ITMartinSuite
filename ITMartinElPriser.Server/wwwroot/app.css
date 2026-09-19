@@ -181,3 +181,6 @@ a { color: var(--accent); text-decoration: none; }
 .windows { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px; }
 .windows .appl-row.past { opacity: .45; }
 @media (max-width: 380px) { .windows { grid-template-columns: 1fr; } }
+
+.guide { padding-left: 1.3rem; margin: 0; }
+.guide li { margin-bottom: 8px; }

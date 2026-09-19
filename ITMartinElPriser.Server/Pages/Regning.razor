@@ -6,9 +6,38 @@
 <PageTitle>Regning – ElPriser</PageTitle>
 
 <h1>Hvad betyder regningen?</h1>
-<p class="muted small" style="margin:4px 0 14px">Skriv dit forbrug, så viser vi hvordan en måned fordeler sig – linje for linje, med de seneste 30 dages priser i @_area – og hvad hver linje egentlig er.</p>
+<p class="muted small" style="margin:4px 0 14px">Vælg dit elselskab og skriv dit forbrug, så viser vi hvordan en måned fordeler sig – linje for linje, med de seneste 30 dages priser – og hvad hver linje egentlig er.</p>
 
 <div class="card">
+    <div class="card-title">Hvad har du?</div>
+    <div class="muted small" style="margin-bottom:8px">Begge dele står på din regning. Netselskabet bestemmer transport-prisen og kan ikke vælges; leverandøren kan.</div>
+    <div class="field">
+        <label>Elleverandør</label>
+        <select @bind="_s.SupplierId" @bind:after="() => SettingsChangedAsync()">
+            @foreach (var sp in SupplierPreset.All) { <option value="@sp.Id">@sp.Name</option> }
+        </select>
+    </div>
+    @if (_s.SupplierId == "custom")
+    {
+        <div class="field"><label>Leverandørtillæg, øre/kWh ekskl. moms</label><input type="number" step="0.1" @bind="_s.CustomTillaegOre" @bind:after="() => SettingsChangedAsync()" /></div>
+    }
+    <div class="field">
+        <label>Netselskab</label>
+        <select @bind="_s.GridCompanyId" @bind:after="() => SettingsChangedAsync()">
+            @foreach (var g in GridCompanyPreset.All) { <option value="@g.Id">@g.Name @(string.IsNullOrEmpty(g.Region) ? "" : $"– {g.Region}")</option> }
+        </select>
+    </div>
+    @if (_s.GridCompanyId == "custom")
+    {
+        <div class="field"><label>Nettarif, øre/kWh ekskl. moms</label><input type="number" step="0.1" @bind="_s.CustomNettarifOre" @bind:after="() => SettingsChangedAsync()" /></div>
+    }
+    <div class="field">
+        <label>Prisområde</label>
+        <select @bind="_s.PriceArea" @bind:after="AreaChangedAsync">
+            <option value="DK1">DK1 – Jylland og Fyn</option>
+            <option value="DK2">DK2 – Sjælland, Lolland-Falster, Bornholm</option>
+        </select>
+    </div>
     <div class="row2">
         <div class="field" style="flex:2">
             <label>Dit forbrug, kWh pr. måned</label>
@@ -66,14 +95,14 @@ else
 
     <div class="card">
         <div class="card-title">Sådan læser du regningen</div>
-        <div class="small">
-            <p><b>Én regning, tre modtagere.</b> Elleverandøren (@_supplierName) sender regningen, men beholder kun strømmen, tillægget og sit abonnement. Nettarif og net-abonnement sendes videre til netselskabet (@_gridName), og afgift, Energinet-tariffer og moms går til staten. Leverandøren er altså bare kassereren for det meste af beløbet.</p>
-            <p><b>Det du kan vælge:</b> kun leverandøren. Netselskab, tariffer og afgifter er de samme uanset hvem du handler hos. Når du sammenligner tilbud, så se udelukkende på tillæg pr. kWh + abonnement.</p>
-            <p><b>Det du kan flytte:</b> spotprisen og nettariffen afhænger af tidspunktet. Det er derfor appen sender besked om billigste tid – de to poster er typisk halvdelen af regningen.</p>
-            <p><b>Det du kun kan skrue ned:</b> Energinet, elafgift og moms følger antal kWh. Mindre forbrug er det eneste der virker.</p>
-            <p><b>Aconto og årsopgørelse:</b> mange betaler et fast aconto-beløb hver måned og får en efterregning eller penge tilbage én gang om året. Beløbet her er hvad en måned <i>faktisk</i> koster – ikke det der bliver trukket. Sammenlign med "forbrug i perioden" på årsopgørelsen.</p>
-            <p class="muted">Regnet som om forbruget er jævnt fordelt over døgnet. Abonnementerne er fra appens forudsætninger (@_supplierName / @_gridName) – vælg dit eget netselskab og leverandør under Indstillinger. Vinterens høj- og spidslasttariffer er skøn.</p>
-        </div>
+        <ol class="small guide">
+            <li><b>Én regning, tre modtagere.</b> Elleverandøren (@_supplierName) sender regningen, men beholder kun strømmen, tillægget og sit abonnement. Nettarif og net-abonnement sendes videre til netselskabet (@_gridName), og afgift, Energinet-tariffer og moms går til staten. Leverandøren er altså bare kassereren for det meste af beløbet.</li>
+            <li><b>Det du kan vælge:</b> kun leverandøren. Netselskab, tariffer og afgifter er de samme uanset hvem du handler hos. Når du sammenligner tilbud, så se udelukkende på tillæg pr. kWh + abonnement.</li>
+            <li><b>Det du kan flytte:</b> spotprisen og nettariffen afhænger af tidspunktet. Det er derfor appen sender besked om billigste tid – de to poster er typisk halvdelen af regningen.</li>
+            <li><b>Det du kun kan skrue ned:</b> Energinet, elafgift og moms følger antal kWh. Mindre forbrug er det eneste der virker.</li>
+            <li><b>Aconto og årsopgørelse:</b> mange betaler et fast aconto-beløb hver måned og får en efterregning eller penge tilbage én gang om året. Beløbet her er hvad en måned <i>faktisk</i> koster – ikke det der bliver trukket. Sammenlign med "forbrug i perioden" på årsopgørelsen.</li>
+        </ol>
+        <p class="small muted">Regnet som om forbruget er jævnt fordelt over døgnet. Abonnementerne er fra appens forudsætninger (@_supplierName / @_gridName) – vælg dit eget netselskab og leverandør under Indstillinger. Vinterens høj- og spidslasttariffer er skøn.</p>
     </div>
 
     <div class="card cta">
@@ -89,20 +118,38 @@ else
     private int _kwh = 300;
     private Bill? _bill;
     private string? _open;
-    private string _area = "DK1";
+    private HouseholdSettings _s = new();
     private string _supplierName = "";
     private string _gridName = "";
-    private List<PricedPoint>? _priced;
+    private List<PricePoint>? _raw;
 
     protected override async Task OnInitializedAsync()
     {
-        var s = Prefs.Get();
-        _area = s.PriceArea;
-        _supplierName = SupplierPreset.All.FirstOrDefault(p => p.Id == s.SupplierId)?.Name ?? "elleverandøren";
-        _gridName = GridCompanyPreset.All.FirstOrDefault(g => g.Id == s.GridCompanyId)?.Name ?? "netselskabet";
+        _s = Prefs.Get();
+        await AreaChangedAsync();
+    }
+
+    // Region decides which spot prices to fetch; everything else is applied
+    // on top of the same 30 days, so only a region change refetches.
+    private async Task AreaChangedAsync()
+    {
+        _bill = null;
         var to = DateOnly.FromDateTime(DkTime.Now);
-        var raw = await Prices.GetRangeAsync(to.AddDays(-Days), to, s.PriceArea);
-        _priced = raw.Select(p => PriceBreakdownCalculator.Compute(p, s)).ToList();
+        _raw = await Prices.GetRangeAsync(to.AddDays(-Days), to, _s.PriceArea);
+        await SettingsChangedAsync(save: _seen);
+        _seen = true;
+    }
+
+    private bool _seen;
+
+    // save=false on first load: JS interop (the cookie) is not available
+    // while the page is being prerendered.
+    private async Task SettingsChangedAsync(bool save = true)
+    {
+        _s.ShowAllIn = true; // the bill only makes sense all-in
+        if (save) await Prefs.SaveAsync(_s);
+        _supplierName = SupplierPreset.All.FirstOrDefault(p => p.Id == _s.SupplierId)?.Name ?? "elleverandøren";
+        _gridName = GridCompanyPreset.All.FirstOrDefault(g => g.Id == _s.GridCompanyId)?.Name ?? "netselskabet";
         await RecalcAsync();
     }
 
@@ -110,15 +157,15 @@ else
     // the split between spot, tariffs and fees reflects real recent prices.
     private Task RecalcAsync()
     {
-        if (_priced is null) return Task.CompletedTask;
-        var s = Prefs.Get();
+        if (_raw is null) return Task.CompletedTask;
+        var priced = _raw.Select(p => PriceBreakdownCalculator.Compute(p, _s)).ToList();
         var to = DateOnly.FromDateTime(DkTime.Now);
         var from = to.AddDays(-Days);
         var perHour = Math.Clamp(_kwh, 1, 10000) / (double)(Days * 24);
         var kwhByHour = new Dictionary<DateTime, double>();
         for (var t = from.ToDateTime(TimeOnly.MinValue); t < to.ToDateTime(TimeOnly.MinValue); t = t.AddHours(1))
             kwhByHour[t] = perHour;
-        _bill = BillCalculator.Build(from, to, kwhByHour, _priced, s);
+        _bill = BillCalculator.Build(from, to, kwhByHour, priced, _s);
         return Task.CompletedTask;
     }
 }
