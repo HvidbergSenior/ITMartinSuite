@@ -216,7 +216,9 @@ body.view-only #addonsSection,body.view-only #collectionsSection,body.view-only 
 .v-audio-icon{font-size:64px}
 .v-audio-cover{width:220px;height:220px;object-fit:cover;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .v-audio-bg.has-sheet{justify-content:flex-start;overflow-y:auto;height:100%;width:100%;padding:16px 12px calc(24px + env(safe-area-inset-bottom));touch-action:pan-y}
+.v-audio-bg.has-sheet>*{flex-shrink:0}
 .v-audio-bg.has-sheet .v-audio-cover{width:120px;height:120px}
+.v-audio-bg.has-sheet audio{position:sticky;top:0;z-index:2;background:#000;border-radius:24px;width:min(100%,420px)!important;padding:4px 0}
 .sh{width:100%;max-width:640px;color:#e5e7eb;text-align:left;font-size:15px;line-height:1.5}
 .sh-big{font-size:19px}
 .sh-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;margin-bottom:6px}
