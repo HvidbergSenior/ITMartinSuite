@@ -1,3 +1,56 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @page "/"
 @using System.Globalization
 @inject ElectricityPriceService Prices
@@ -88,6 +141,59 @@ else
             }
         </div>
     }
+
+    <div class="card">
+        <div class="card-title">🌙 I nat – sæt timeren</div>
+        <div class="muted small" style="margin-bottom:8px">Til det der kører af sig selv: opvaskemaskine på timer, varmtvandsbeholder, elbil. Natten er 22–07.</div>
+        @if (_night is null)
+        {
+            <div class="muted small">Regner…</div>
+        }
+        else
+        {
+            var n = _night;
+            @foreach (var (hours, best) in n.Windows)
+            {
+                var what = hours switch { 2 => "vask/opvask", 4 => "varmtvand, elbil 11 kW", _ => "elbil 1-fase, hele natten" };
+                <div class="appl-row">
+                    <span>@hours.ToString("0") timer <span class="muted small">· @what</span></span>
+                    @if (best is { } b) { <b class="lvl-cheap">start kl. @b.Start.ToString("HH:mm") · @Kr(b.AvgKrPerKwh) kr/kWh</b> } else { <b class="muted small">–</b> }
+                </div>
+            }
+            @if (!n.Complete)
+            {
+                <div class="muted small" style="margin-top:6px">Morgendagens priser kommer ca. kl. 13 – indtil da er kun den del af natten der ligger i dag regnet med.</div>
+            }
+
+            <div class="ev">
+                <div class="appl-name" style="margin-top:10px">🚗 Elbil</div>
+                <div class="row2">
+                    <div class="field"><label>Skal lades, kWh</label><input type="number" min="1" max="120" step="1" @bind="_evKwh" @bind:after="EvChangedAsync" /></div>
+                    <div class="field"><label>Lader, kW</label><input type="number" min="1" max="22" step="0.1" @bind="_evKw" @bind:after="EvChangedAsync" /></div>
+                </div>
+                @if (n.Ev is { } ev)
+                {
+                    <div class="appl-row"><span>🟢 Billigst: start kl. @ev.Start.ToString("HH:mm") (@n.EvKw.ToString("0.#") kW i @((n.EvKwh / n.EvKw).ToString("0.#", Da)) t)</span><b class="lvl-cheap">@ev.CostKr.ToString("0", Da) kr</b></div>
+                }
+                @if (n.EvAllNight is { } all)
+                {
+                    <div class="appl-row"><span>Timer fra kl. 22</span><b>@all.CostKr.ToString("0", Da) kr</b></div>
+                }
+                @if (n.EvFromHome is { } home)
+                {
+                    <div class="appl-row"><span>🔴 Sat til at lade kl. 17 (når du kommer hjem)</span><b class="lvl-expensive">@home.CostKr.ToString("0", Da) kr</b></div>
+                }
+                @if (n.Ev is { } e2 && n.EvFromHome is { } h2 && h2.CostKr > e2.CostKr)
+                {
+                    <div class="muted small" style="margin-top:4px">Forskellen er <b>@((h2.CostKr - e2.CostKr).ToString("0", Da)) kr</b> pr. opladning – om vinteren mest fordi nettariffen kl. 17–21 er op til 9 gange nattens. Sæt starttid i bilen eller laderen, ikke bare stikket i.</div>
+                }
+                else if (n.Ev is null)
+                {
+                    <div class="muted small">Ingen fuld nat i priserne endnu.</div>
+                }
+            </div>
+        }
+    </div>
 
     <div class="card">
         <div class="card-title">Hvad koster en tur?</div>
@@ -197,6 +303,17 @@ else
         return list;
     }
     private Timer? _timer;
+    private NightPlan? _night;
+    private double _evKwh = 30, _evKw = 11;
+
+    private async Task EvChangedAsync()
+    {
+        var s = Prefs.Get();
+        s.EvKwh = Math.Clamp(_evKwh, 1, 200);
+        s.EvKw = Math.Clamp(_evKw, 0.5, 50);
+        await Prefs.SaveAsync(s);
+        await LoadAsync();
+    }
 
     // The first entry is the two-hour "window" (never listed as a machine);
     // the rest are the typical machines shown under "Hvad koster en tur?".
@@ -219,6 +336,8 @@ else
         _quietTo = s.QuietToHour;
         var raw = await Prices.GetPricesAsync(_area);
         _snap = PriceModel.Build(raw, s, Examples(), DkTime.Now);
+        _evKwh = s.EvKwh; _evKw = s.EvKw;
+        _night = NightPlanner.Plan(raw, s, DkTime.Now, s.EvKwh, s.EvKw);
     }
 
     // DK1 = Jylland/Fyn, DK2 = Sjælland og øerne. Saved on the phone so

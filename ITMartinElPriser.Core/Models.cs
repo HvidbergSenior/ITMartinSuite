@@ -17,6 +17,11 @@ public sealed class HouseholdSettings
     public int QuietFromHour { get; set; } = 23;
     public int QuietToHour { get; set; } = 6;
 
+    // "I nat" card: how much the EV needs and how fast the charger is. Kept
+    // here so the free app remembers it in the cookie like the tariffs.
+    public double EvKwh { get; set; } = 30;
+    public double EvKw { get; set; } = 11;
+
     // eloverblik.dk personal refresh token + which meter to read. Lets the
     // app show what the household actually used, priced hour by hour.
     public string EloverblikToken { get; set; } = "";
